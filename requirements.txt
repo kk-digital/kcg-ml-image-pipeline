@@ -17,3 +17,4 @@ minio
 blendmodes
 scikit-image
 lark
+diffusers
