@@ -47,9 +47,8 @@ def parse_args():
 
     return parser.parse_args()
 
-def main():
-    args = parse_args()
 
+def run_generate_images_with_inpainting_from_prompt_list(args):
     num_images = args.num_images
 
     # load prompt list
@@ -104,6 +103,11 @@ def main():
                 config=config,
                 model=model
                 )
+
+
+def main():
+    args = parse_args()
+    run_generate_images_with_inpainting_from_prompt_list(args)
 
 if __name__ == "__main__":
     main()

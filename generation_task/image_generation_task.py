@@ -2,7 +2,7 @@ class ImageGenerationTask:
 
     def __init__(self, generation_task_type, prompt, model_name, cfg_strength, iterations, denoiser, seed, output_path,
                  num_images, image_width, image_height, batch_size, checkpoint_path, flash, device, sampler, steps,
-                 prompt_list_dataset_path, init_img, init_mask):
+                 prompt_list_dataset_path, init_img, init_mask, output_image_hash):
         self.generation_task_type = generation_task_type
         self.prompt = prompt
         self.model_name = model_name
@@ -23,6 +23,7 @@ class ImageGenerationTask:
         self.prompt_list_dataset_path = prompt_list_dataset_path
         self.init_img = init_img
         self.init_mask = init_mask
+        self.output_image_hash = output_image_hash
 
         def to_dict(self):
             return {
@@ -46,10 +47,11 @@ class ImageGenerationTask:
                 'prompt_list_dataset_path': self.prompt_list_dataset_path,
                 'init_img': self.init_img,
                 'init_mask': self.init_mask,
+                'output_image_hash': self.output_image_hash,
             }
 
         def from_dict(data):
-            return GenerationTask(
+            return ImageGenerationTask(
                 generation_task_type=data.get('generation_task_type', ''),
                 prompt=data.get('prompt', ''),
                 cfg_strength=data.get('cfg_strength', 7),
@@ -69,5 +71,6 @@ class ImageGenerationTask:
                 steps=data.get('steps', 50),
                 prompt_list_dataset_path=data.get('prompt_list_dataset_path', ''),
                 init_img=data.get('init_img', ''),
-                init_mask=data.get('init_mask', '')
+                init_mask=data.get('init_mask', ''),
+                output_image_hash=data.get('output_image_hash', '')
             )
