@@ -7,7 +7,7 @@ import time
 import json
 from tqdm import tqdm
 sys.path.insert(0, os.getcwd())
-from ga.prompt_generator import GeneratedPrompt
+from utility.prompt_generator import GeneratedPrompt
 
 
 class PromptListDataset:
