@@ -42,3 +42,5 @@ def main():
             generation_task = ImageGenerationTask.from_dict(task)
             run_generation_task(generation_task)
 
+
+

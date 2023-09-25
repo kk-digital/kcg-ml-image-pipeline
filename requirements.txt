@@ -1,3 +1,5 @@
+fastapi==0.101.1
+pymongo==4.5.0
 tiktoken
 tqdm==4.65.0
 Pillow==9.0.0
