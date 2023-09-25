@@ -1,2 +1,15 @@
 fastapi==0.101.1
 pymongo==4.5.0
+tiktoken
+tqdm==4.65.0
+Pillow==9.0.0
+Requests==2.30.0
+transformers==4.29.2
+safetensors==0.3.1
+openai-clip
+Pillow==9.0.0
+pytorch_lightning
+torchvision==0.15.2
+torch==2.0.1
+torchinfo==1.8.0
+
