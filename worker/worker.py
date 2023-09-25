@@ -44,11 +44,12 @@ def http_add_job(job):
     url = SERVER_ADRESS + "/get-list-pending-jobs"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
     response = requests.post(url, json=job, headers=headers)
-
+    print("response ", response)
     if response.status_code != 201:
         print(f"POST request failed with status code: {response.status_code}")
 
 def main():
+    print("starting")
     http_add_job({
         "uuid": 1,
         "task_type": "icon_generation_task",
@@ -97,4 +98,5 @@ def main():
         time.sleep(1 * 1000)
 
 
-
+if __name__ == '__main__':
+    main()
