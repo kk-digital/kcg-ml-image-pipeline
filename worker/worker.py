@@ -96,6 +96,10 @@ def main():
         if job != None:
             # Convert the job entry into a dictionary
             # Then feed the dictionary into the generation task
+            # Question : Do we want to keep converting the database entries to
+            # Our own version of GenerationTask struct ?
+            # Probably yes, since there will be many different types of
+            # GenerationTask struct and they will have different fields
             task = {
                 'generation_task_type' : job['task_type'],
                 'prompt': job['task_input_dict']['prompt'],
@@ -120,6 +124,7 @@ def main():
 
             # Switch on the task type
             # We have 2 for now
+            # And they are identical
             task_type = task['generation_task_type']
 
             if task_type == 'icon_generation_task':
