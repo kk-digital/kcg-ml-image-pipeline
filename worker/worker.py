@@ -10,7 +10,7 @@ from generation_task.image_generation_task import ImageGenerationTask
 from worker.image_generation.scripts.generate_images_with_inpainting_from_prompt_list import run_generate_images_with_inpainting_from_prompt_list
 
 
-def run_icon_generation_task(generation_task):
+def run_generation_task(generation_task):
     args = {
         'prompt_list_dataset_path' : generation_task['prompt_list_dataset_path'],
         'num_images' : generation_task['num_images'],
@@ -36,8 +36,9 @@ def main():
 
         if task_type == 'icon_generation_task':
             generation_task = IconGenerationTask.from_dict(task)
-            run_icon_generation_task(generation_task)
+            run_generation_task(generation_task)
 
         elif task_type == 'image_generation_task':
             generation_task = ImageGenerationTask.from_dict(task)
+            run_generation_task(generation_task)
 
