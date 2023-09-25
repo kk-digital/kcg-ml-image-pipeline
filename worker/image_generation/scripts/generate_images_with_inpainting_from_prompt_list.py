@@ -10,7 +10,7 @@ sys.path.insert(0, base_directory)
 
 from utility.dataset.prompt_list_dataset import PromptListDataset
 from utility.utils_logger import logger
-from inpaint_A1111 import img2img, get_model
+from worker.image_generation.scripts.inpaint_A1111 import img2img, get_model
 from stable_diffusion.utils_backend import get_device
 
 def parse_args():
