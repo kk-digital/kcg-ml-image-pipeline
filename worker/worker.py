@@ -61,11 +61,10 @@ def run_generation_task(generation_task):
 # Get request to get an available job
 def http_get_job():
     url = SERVER_ADRESS + "/get-job"
-    job = requests.get(url)
+    response = requests.get(url)
 
-    print(job)
-    if job != None:
-        job_json = job.json()
+    if response.status_code == 200:
+        job_json = response.json()
         return job_json
 
     return None
