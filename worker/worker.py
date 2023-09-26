@@ -96,6 +96,8 @@ def http_add_job(job):
 
 
 def http_update_job_completed(job):
+
+    print(job)
     url = SERVER_ADRESS + "/update-job-completed"
     print(url)
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
