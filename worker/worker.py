@@ -164,7 +164,7 @@ def main():
             'init_img': './test/test_inpainting/white_512x512.jpg',
             'init_mask': './test/test_inpainting/icon_mask.png',
 
-            'mask_blur' : 4,
+            'mask_blur' : 0,
             'inpainting_fill': 1,
             'styles': [],
             'resize_mode': 0,
