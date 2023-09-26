@@ -19,19 +19,37 @@ Install dependencies by running:
 For MacOS:
 ```
     brew install mongodb-community
+    mkdir /data/db
     brew services start mongodb-community
 ```
 
 For Ubuntu:
 ```
     sudo apt install mongodb
+    mkdir /data
+    mkdir /data/db
     sudo systemctl start mongodb
     sudo systemctl enable mongodb
 ```
+
+For Devboxes (Containers):
+```
+    sudo apt install mongodb
+    mkdir /data
+    mkdir /data/db
+    sudo systemctl enable mongodb
+    mongod &> mongodb.log &
+```
+
+
 ## Orchestration API
 To deploy orchestration api, run:
 
     uvicorn orchestration.api.main:app --reload
+    
+or
+
+    python3 main.py
 
 API Docs should be accessible at:
 
