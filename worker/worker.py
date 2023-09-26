@@ -125,7 +125,7 @@ def main():
 
 
     # Initialize worker state
-    worker_state = WorkerState()
+    worker_state = WorkerState(args.device)
     worker_state.load_models()
 
     print("starting")
