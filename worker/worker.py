@@ -222,6 +222,8 @@ def main():
             if task_type == 'icon_generation_task':
                 generation_task = IconGenerationTask.from_dict(task)
 
+                run_generation_task(generation_task)
+
                 # Run inpainting task
                 try:
                     run_generation_task(generation_task)
