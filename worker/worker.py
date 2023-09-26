@@ -272,7 +272,5 @@ def main():
             time.sleep(sleep_time_in_seconds)
 
 
-
-
 if __name__ == '__main__':
     main()
