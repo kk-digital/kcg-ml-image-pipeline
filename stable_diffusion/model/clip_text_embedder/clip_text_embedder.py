@@ -61,6 +61,8 @@ class CLIPTextEmbedder(nn.Module):
         self.transformer = CLIPTextModel(config).eval().to(self.device)
         self.tokenizer = CLIPTokenizer.from_pretrained(tokenizer_path, local_files_only=True)
 
+        self.transformer = self.transformer.to(device=self.device)
+
         return self
 
     def save_submodels(self, tokenizer_path: str = CLIP_TOKENIZER_DIR_PATH, transformer_path: str = CLIP_TEXT_MODEL_DIR_PATH):
@@ -68,6 +70,8 @@ class CLIPTextEmbedder(nn.Module):
         # print("tokenizer saved to: ", tokenizer_path)
         self.transformer.save_pretrained(transformer_path, safe_serialization=True)
         # safetensors.torch.save_model(self.transformer, os.path.join(transformer_path, '/model.safetensors'))
+
+        self.transformer = self.transformer.to(device=self.device)
         print("transformer saved to: ", transformer_path)
 
     def load_submodels(self, tokenizer_path=CLIP_TOKENIZER_DIR_PATH, transformer_path=CLIP_TEXT_MODEL_DIR_PATH):
@@ -79,7 +83,10 @@ class CLIPTextEmbedder(nn.Module):
                                                              use_safetensors=True).eval().to(self.device)
             # self.init_submodels(tokenizer_path = tokenizer_path, transformer_path = transformer_path)
             # safetensors.torch.load_model(self.transformer, os.path.join(transformer_path, '/model.safetensors'))
+            self.transformer = self.transformer.to(device=self.device)
+            print(self.device)
             logger.debug(f"CLIP text model successfully loaded from : {transformer_path}")
+
             return self
 
     def load_submodels_auto(self):
@@ -123,7 +130,7 @@ class CLIPTextEmbedder(nn.Module):
                                         return_overflowing_tokens=False, padding="max_length", return_tensors="pt")
         # Get token ids
         tokens = batch_encoding["input_ids"].to(self.device)
-
+        self.transformer = self.transformer.to(self.device)
         # Get CLIP embeddings
         return self.transformer(input_ids=tokens).last_hidden_state
 

@@ -5,77 +5,78 @@ import requests
 import json
 from datetime import datetime
 import argparse
+from PIL import Image
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from worker.image_generation.generation_task.icon_generation_task import IconGenerationTask
 from worker.image_generation.generation_task.image_generation_task import ImageGenerationTask
-
-from worker.image_generation.scripts.generate_images_with_inpainting_from_prompt_list import run_generate_images_with_inpainting_from_prompt_list
-
-
+from worker.image_generation.scripts.inpaint_A1111 import img2img, get_model
+from stable_diffusion import StableDiffusion, CLIPTextEmbedder
+from configs.model_config import ModelPathConfig
+from stable_diffusion.model_paths import (SDconfigs, CLIPconfigs)
 
 SERVER_ADRESS = 'http://192.168.3.1:8111'
 
-# Running inpainting using the inpainting script
-# TODO(): each generation task should have its own function
+class WorkerState:
+    def __init__(self, device):
 
-
-class GenerateImagesWithInpaintingFromPromptListArguments:
-    def __init__(self, prompt_list_dataset_path, num_images, init_img, init_mask, sampler_name, batch_size, n_iter,
-                 steps, cfg_scale, width, height, outpath, mask_blur, inpainting_fill, styles, resize_mode, denoising_strength,
-                 image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert, device):
-
-        self.prompt_list_dataset_path = prompt_list_dataset_path
-        self.num_images = num_images
-        self.init_img = init_img
-        self.init_mask = init_mask
-        self.sampler_name = sampler_name
-        self.batch_size = batch_size
-        self.n_iter = n_iter
-        self.steps = steps
-        self.cfg_scale = cfg_scale
-        self.width = width
-        self.height = height
-        self.outpath = outpath
-        self.mask_blur = mask_blur
-        self.inpainting_fill = inpainting_fill
-        self.styles = styles
-        self.resize_mode = resize_mode
-        self.denoising_strength = denoising_strength
-        self.image_cfg_scale = image_cfg_scale
-        self.inpaint_full_res_padding = inpaint_full_res_padding
-        self.inpainting_mask_invert = inpainting_mask_invert
         self.device = device
+        self.config = ModelPathConfig()
+        self.stable_diffusion = None
+        self.clip_text_embedder = None
 
-def run_generation_task(generation_task):
+    def load_models(self, model_path='input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors'):
+        # NOTE: Initializing stable diffusion
+        self.stable_diffusion = StableDiffusion(device=self.device)
 
-    # Instead of using cli arguments, we are using the
-    # Generation_task class to provide the parameters
-    args = GenerateImagesWithInpaintingFromPromptListArguments(prompt_list_dataset_path=generation_task.prompt_list_dataset_path,
-                                                               num_images=generation_task.num_images,
-                                                               init_img=generation_task.init_img,
-                                                               init_mask=generation_task.init_mask,
-                                                               sampler_name=generation_task.sampler,
-                                                               batch_size=1,
-                                                               n_iter=generation_task.num_images,
-                                                               steps=generation_task.steps,
-                                                               cfg_scale=generation_task.cfg_strength,
-                                                               width=generation_task.image_width,
-                                                               height=generation_task.image_height,
-                                                               outpath=generation_task.output_path,
-                                                               mask_blur=generation_task.mask_blur,
-                                                               inpainting_fill=generation_task.inpainting_fill,
-                                                               styles=generation_task.styles,
-                                                               resize_mode=generation_task.resize_mode,
-                                                               denoising_strength=generation_task.denoising_strength,
-                                                               image_cfg_scale=generation_task.image_cfg_scale,
-                                                               inpaint_full_res_padding=generation_task.inpaint_full_res_padding,
-                                                               inpainting_mask_invert=generation_task.inpainting_mask_invert,
-                                                               device=generation_task.device)
+        self.stable_diffusion.quick_initialize().load_autoencoder(self.config.get_model(SDconfigs.VAE)).load_decoder(
+            self.config.get_model(SDconfigs.VAE_DECODER))
+        self.stable_diffusion.model.load_unet(self.config.get_model(SDconfigs.UNET))
+        self.stable_diffusion.initialize_latent_diffusion(path=model_path, force_submodels_init=True)
 
-    run_generate_images_with_inpainting_from_prompt_list(args)
+        self.clip_text_embedder = CLIPTextEmbedder(device=self.device)
+
+        self.clip_text_embedder.load_submodels(
+            tokenizer_path=self.config.get_model_folder_path(CLIPconfigs.TXT_EMB_TOKENIZER),
+            transformer_path=self.config.get_model_folder_path(CLIPconfigs.TXT_EMB_TEXT_MODEL)
+        )
+
+
+def run_generation_task(worker_state, generation_task):
+
+    # Make a cache for these images
+    # Check if they changed on disk maybe and reload
+    init_image = Image.open(generation_task.init_img)
+    init_mask = Image.open(generation_task.init_mask)
+
+
+    img2img(prompt=generation_task.positive_prompt,
+            negative_prompt=generation_task.negative_prompt,
+            sampler_name=generation_task.sampler,
+            batch_size=1,
+            n_iter=generation_task.num_images,
+            steps=generation_task.steps,
+            cfg_scale=generation_task.cfg_strength,
+            width=generation_task.image_width,
+            height=generation_task.image_height,
+            mask_blur=generation_task.mask_blur,
+            inpainting_fill=generation_task.inpainting_fill,
+            outpath=generation_task.output_path,
+            styles=generation_task.styles,
+            init_images=[init_image],
+            mask=init_mask,
+            resize_mode=generation_task.resize_mode,
+            denoising_strength=generation_task.denoising_strength,
+            image_cfg_scale=generation_task.image_cfg_scale,
+            inpaint_full_res_padding=generation_task.inpaint_full_res_padding,
+            inpainting_mask_invert=generation_task.inpainting_mask_invert,
+            sd=worker_state.stable_diffusion,
+            model=worker_state.stable_diffusion.model,
+            clip_text_embedder=worker_state.clip_text_embedder,
+            device=worker_state.device
+            )
 
 # Get request to get an available job
 def http_get_job():
@@ -133,6 +134,11 @@ def parse_args():
 def main():
     args = parse_args()
 
+
+    # Initialize worker state
+    worker_state = WorkerState(args.device)
+    worker_state.load_models()
+
     print("starting")
 
     # for debugging purpose only
@@ -140,16 +146,17 @@ def main():
     job = {
         "uuid": '1',
         "task_type": "icon_generation_task",
-        "model_name" : "sd",
-        "model_file_name": "N/A",
-        "model_file_path": "N/A",
+        "model_name" : "v1-5-pruned-emaonly",
+        "model_file_name": "v1-5-pruned-emaonly",
+        "model_file_path": "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors",
         "sd_model_hash": "N/A",
         "task_creation_time": "N/A",
         "task_start_time": "N/A",
         "task_completion_time": "N/A",
         "task_error_str": "",
         "task_input_dict": {
-            'prompt': "icon",
+            'positive_prompt': "icon, game icon, crystal, high resolution, contour, game icon, jewels, minerals, stones, gems, flat, vector art, game art, stylized, cell shaded, 8bit, 16bit, retro, russian futurism",
+            'negative_prompt' : "low resolution, mediocre style, normal resolution",
             'cfg_strength': 12,
             'seed': '',
             'output_path': "./output/inpainting/",
@@ -157,10 +164,8 @@ def main():
             'image_width': 512,
             'image_height': 512,
             'checkpoint_path': 'input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors',
-            'device': "cuda",
             'sampler': "ddim",
             'sampler_steps': 20,
-            'prompt_list_dataset_path': './input/prompt_list_civitai_10000.zip',
             'init_img': './test/test_inpainting/white_512x512.jpg',
             'init_mask': './test/test_inpainting/icon_mask.png',
 
@@ -178,7 +183,8 @@ def main():
     }
 
     http_add_job(job)
-    #http_add_job(job)
+    http_add_job(job)
+    http_add_job(job)
 
 
     while True:
@@ -186,13 +192,14 @@ def main():
         job = http_get_job()
         if job != None:
             print("Found job ! ")
-            job['task_start_time'] = datetime.now()
+            job['task_start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
             # Convert the job into a dictionary
             # Then use the dictionary to create the generation task
             task = {
                 'generation_task_type' : job['task_type'],
-                'prompt': job['task_input_dict']['prompt'],
+                'positive_prompt': job['task_input_dict']['positive_prompt'],
+                'negative_prompt': job['task_input_dict']['negative_prompt'],
                 'model_name': job['model_name'],
                 'cfg_strength': job['task_input_dict']['cfg_strength'],
                 'num_images': job['task_input_dict']['num_images'],
@@ -202,10 +209,8 @@ def main():
                 'image_height': job['task_input_dict']['image_height'],
                 'batch_size': 1,
                 'checkpoint_path': job['task_input_dict']['checkpoint_path'],
-                'device': args.device,
                 'sampler': job['task_input_dict']['sampler'],
                 'steps': job['task_input_dict']['sampler_steps'],
-                'prompt_list_dataset_path': job['task_input_dict']['prompt_list_dataset_path'],
                 'init_img': job['task_input_dict']['init_img'],
                 'init_mask': job['task_input_dict']['init_mask'],
 
@@ -229,9 +234,9 @@ def main():
 
                 # Run inpainting task
                 try:
-                    run_generation_task(generation_task)
+                    run_generation_task(worker_state, generation_task)
                     print("job completed !")
-                    job['task_completion_time'] = datetime.now()
+                    job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     http_update_job_completed(job)
                 except Exception as e:
                     print(f"generation task failed: {e}")
@@ -243,9 +248,9 @@ def main():
                 generation_task = ImageGenerationTask.from_dict(task)
                 # Run inpainting task
                 try:
-                    run_generation_task(generation_task)
+                    run_generation_task(worker_state, generation_task)
                     print("job completed !")
-                    job['task_completion_time'] = datetime.now()
+                    job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     http_update_job_completed(job)
                 except Exception as e:
                     print(f"generation task failed: {e}")
