@@ -55,7 +55,7 @@ def http_add_job(job):
     url = SERVER_ADRESS + "/add-job"
     print(url)
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
-    response = requests.post(url, json=data, headers=headers)
+    response = requests.post(url, json=job, headers=headers)
     print("response ", response)
     if response.status_code != 201:
         print(f"POST request failed with status code: {response.status_code}")
