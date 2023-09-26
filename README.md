@@ -54,3 +54,10 @@ or
 API Docs should be accessible at:
 
     http://127.0.0.1:8000/docs
+
+
+## Worker
+To run the worker, run:
+```
+python3 ./worker/worker.py
+```
