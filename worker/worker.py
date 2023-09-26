@@ -119,8 +119,10 @@ def main():
 
 
     while True:
+        print("Looking for jobs ! ")
         job = http_get_job()
         if job != None:
+            print("Found job ! ")
             # Convert the job entry into a dictionary
             # Then feed the dictionary into the generation task
             # Question : Do we want to keep converting the database entries to
@@ -167,6 +169,7 @@ def main():
         else:
             # If there was no job, go to sleep for a while
             sleep_time_in_seconds = 1
+            print("Did not find job, going to sleep for ", sleep_time_in_seconds, " seconds")
             time.sleep(sleep_time_in_seconds * 1000)
 
 
