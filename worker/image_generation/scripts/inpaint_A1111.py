@@ -66,7 +66,6 @@ opts.use_old_scheduling = False
 
 approximation_indexes = {"Full": 0, "Approx NN": 1, "Approx cheap": 2, "TAESD": 3}
 
-DEVICE = get_device()
 PROMPT_STYLES = None
 
 
@@ -87,7 +86,7 @@ def create_binary_mask(image):
     return image
 
 
-def create_random_tensors(shape=(1, 4, 64, 64), low=0.0, high=1.0, device=DEVICE, requires_grad=False):
+def create_random_tensors(shape=(1, 4, 64, 64), low=0.0, high=1.0, device=None, requires_grad=False):
     random_tensor = torch.tensor(np.random.uniform(low=low, high=high, size=shape), dtype=torch.float32, device=device,
                                  requires_grad=requires_grad)
     return random_tensor
@@ -194,13 +193,12 @@ class StableDiffusionProcessing:
     negative_prompts: list = field(default=None, init=False)
     seeds: list = field(default=None, init=False)
     subseeds: list = field(default=None, init=False)
-
+    device: str = "cuda"
     sd: StableDiffusion = None
     model: LatentDiffusion = None
     clip_text_embedder: CLIPTextEmbedder = None
     n_steps: int = 50
     ddim_eta: float = 0.0
-    device = get_device()
 
     def prompt_embedding_vectors(self, prompt_array):
         embedded_prompts = []
@@ -334,7 +332,6 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
     init_img_hash: str = field(default=None, init=False)
     mask_for_overlay: Image = field(default=None, init=False)
     init_latent: torch.Tensor = field(default=None, init=False)
-    device = get_device()
 
     def __post_init__(self):
         super().__post_init__()
@@ -497,7 +494,7 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
                 self.init_latent = self.init_latent * self.mask + create_random_tensors(self.init_latent.shape[1:],
                                                                                         all_seeds[
                                                                                         0:self.init_latent.shape[
-                                                                                            0]]) * self.nmask
+                                                                                            0]], device=self.device) * self.nmask
             elif self.inpainting_fill == 3:
                 self.init_latent = self.init_latent * self.mask
 
@@ -623,7 +620,7 @@ def process_images(p: StableDiffusionProcessingImg2Img):
                 if opts.sd_vae_decode_method != 'Full':
                     p.extra_generation_params['VAE Decoder'] = opts.sd_vae_decode_method
 
-                x_samples_ddim = decode_latent_batch(p.model, samples_ddim, target_device=torch.device('cpu'),
+                x_samples_ddim = decode_latent_batch(p.model, samples_ddim, target_device=self.device,
                                                      check_for_nans=True)
 
             x_samples_ddim = torch.stack(x_samples_ddim).float()
@@ -671,7 +668,7 @@ def get_model(device, n_steps):
 def img2img(prompt: str, negative_prompt: str, sampler_name: str, batch_size: int, n_iter: int, steps: int,
             cfg_scale: float, width: int, height: int, mask_blur: int, inpainting_fill: int,
             outpath, styles, init_images, mask, resize_mode, denoising_strength,
-            image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert, sd=None, clip_text_embedder=None, model=None):
+            image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert, sd=None, clip_text_embedder=None, model=None, device=None):
     p = StableDiffusionProcessingImg2Img(
         outpath=outpath,
         prompt=prompt,
@@ -695,7 +692,8 @@ def img2img(prompt: str, negative_prompt: str, sampler_name: str, batch_size: in
         inpainting_mask_invert=inpainting_mask_invert,
         sd=sd,
         clip_text_embedder=clip_text_embedder,
-        model=model
+        model=model,
+        device=device
     )
 
     with closing(p):
