@@ -5,14 +5,15 @@ import requests
 import json
 from datetime import datetime
 import argparse
+from PIL import Image
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from worker.image_generation.generation_task.icon_generation_task import IconGenerationTask
 from worker.image_generation.generation_task.image_generation_task import ImageGenerationTask
-
 from worker.image_generation.scripts.generate_images_with_inpainting_from_prompt_list import run_generate_images_with_inpainting_from_prompt_list
+from worker.image_generation.scripts.inpaint_A1111 import img2img, get_model
 
 
 
@@ -23,11 +24,12 @@ SERVER_ADRESS = 'http://192.168.3.1:8111'
 
 
 class GenerateImagesWithInpaintingFromPromptListArguments:
-    def __init__(self, prompt_list_dataset_path, num_images, init_img, init_mask, sampler_name, batch_size, n_iter,
+    def __init__(self, positive_prompt, negative_prompt, num_images, init_img, init_mask, sampler_name, batch_size, n_iter,
                  steps, cfg_scale, width, height, outpath, mask_blur, inpainting_fill, styles, resize_mode, denoising_strength,
                  image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert, device):
 
-        self.prompt_list_dataset_path = prompt_list_dataset_path
+        self.positive_prompt = positive_prompt
+        self.negative_prompt = negative_prompt
         self.num_images = num_images
         self.init_img = init_img
         self.init_mask = init_mask
@@ -75,7 +77,37 @@ def run_generation_task(generation_task):
                                                                inpainting_mask_invert=generation_task.inpainting_mask_invert,
                                                                device=generation_task.device)
 
-    run_generate_images_with_inpainting_from_prompt_list(args)
+    # Make a cache for these images
+    # Check if they changed on disk maybe and reload
+    init_image = Image.open(generation_task.init_img)
+    init_mask = Image.open(generation_task.init_mask)
+
+    sd, config, model = get_model(generation_task.device, args.steps)
+
+    img2img(prompt=generation_task.positive_prompt,
+            negative_prompt=generation_task.negative_prompt,
+            sampler_name=args.sampler_name,
+            batch_size=args.batch_size,
+            n_iter=args.n_iter,
+            steps=args.steps,
+            cfg_scale=args.cfg_scale,
+            width=args.width,
+            height=args.height,
+            mask_blur=args.mask_blur,
+            inpainting_fill=args.inpainting_fill,
+            outpath=args.outpath,
+            styles=args.styles,
+            init_images=[init_image],
+            mask=init_mask,
+            resize_mode=args.resize_mode,
+            denoising_strength=args.denoising_strength,
+            image_cfg_scale=args.image_cfg_scale,
+            inpaint_full_res_padding=args.inpaint_full_res_padding,
+            inpainting_mask_invert=args.inpainting_mask_invert,
+            sd=sd,
+            config=config,
+            model=model
+            )
 
 # Get request to get an available job
 def http_get_job():
@@ -149,7 +181,8 @@ def main():
         "task_completion_time": "N/A",
         "task_error_str": "",
         "task_input_dict": {
-            'prompt': "icon",
+            'positive_prompt': "icon, game icon, crystal, high resolution, contour, game icon, jewels, minerals, stones, gems, flat, vector art, game art, stylized, cell shaded, 8bit, 16bit, retro, russian futurism",
+            'negative_prompt' : "low resolution, mediocre style, normal resolution",
             'cfg_strength': 12,
             'seed': '',
             'output_path': "./output/inpainting/",
@@ -160,7 +193,6 @@ def main():
             'device': "cuda",
             'sampler': "ddim",
             'sampler_steps': 20,
-            'prompt_list_dataset_path': './input/prompt_list_civitai_10000.zip',
             'init_img': './test/test_inpainting/white_512x512.jpg',
             'init_mask': './test/test_inpainting/icon_mask.png',
 
@@ -192,7 +224,8 @@ def main():
             # Then use the dictionary to create the generation task
             task = {
                 'generation_task_type' : job['task_type'],
-                'prompt': job['task_input_dict']['prompt'],
+                'positive_prompt': job['task_input_dict']['positive_prompt'],
+                'negative_prompt': job['task_input_dict']['negative_prompt'],
                 'model_name': job['model_name'],
                 'cfg_strength': job['task_input_dict']['cfg_strength'],
                 'num_images': job['task_input_dict']['num_images'],
@@ -205,7 +238,6 @@ def main():
                 'device': args.device,
                 'sampler': job['task_input_dict']['sampler'],
                 'steps': job['task_input_dict']['sampler_steps'],
-                'prompt_list_dataset_path': job['task_input_dict']['prompt_list_dataset_path'],
                 'init_img': job['task_input_dict']['init_img'],
                 'init_mask': job['task_input_dict']['init_mask'],
 
