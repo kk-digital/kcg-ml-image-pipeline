@@ -19,91 +19,35 @@ from worker.image_generation.scripts.inpaint_A1111 import img2img, get_model
 
 SERVER_ADRESS = 'http://192.168.3.1:8111'
 
-# Running inpainting using the inpainting script
-# TODO(): each generation task should have its own function
-
-
-class GenerateImagesWithInpaintingFromPromptListArguments:
-    def __init__(self, positive_prompt, negative_prompt, num_images, init_img, init_mask, sampler_name, batch_size, n_iter,
-                 steps, cfg_scale, width, height, outpath, mask_blur, inpainting_fill, styles, resize_mode, denoising_strength,
-                 image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert, device):
-
-        self.positive_prompt = positive_prompt
-        self.negative_prompt = negative_prompt
-        self.num_images = num_images
-        self.init_img = init_img
-        self.init_mask = init_mask
-        self.sampler_name = sampler_name
-        self.batch_size = batch_size
-        self.n_iter = n_iter
-        self.steps = steps
-        self.cfg_scale = cfg_scale
-        self.width = width
-        self.height = height
-        self.outpath = outpath
-        self.mask_blur = mask_blur
-        self.inpainting_fill = inpainting_fill
-        self.styles = styles
-        self.resize_mode = resize_mode
-        self.denoising_strength = denoising_strength
-        self.image_cfg_scale = image_cfg_scale
-        self.inpaint_full_res_padding = inpaint_full_res_padding
-        self.inpainting_mask_invert = inpainting_mask_invert
-        self.device = device
-
 def run_generation_task(generation_task):
-
-    # Instead of using cli arguments, we are using the
-    # Generation_task class to provide the parameters
-    args = GenerateImagesWithInpaintingFromPromptListArguments(prompt_list_dataset_path=generation_task.prompt_list_dataset_path,
-                                                               num_images=generation_task.num_images,
-                                                               init_img=generation_task.init_img,
-                                                               init_mask=generation_task.init_mask,
-                                                               sampler_name=generation_task.sampler,
-                                                               batch_size=1,
-                                                               n_iter=generation_task.num_images,
-                                                               steps=generation_task.steps,
-                                                               cfg_scale=generation_task.cfg_strength,
-                                                               width=generation_task.image_width,
-                                                               height=generation_task.image_height,
-                                                               outpath=generation_task.output_path,
-                                                               mask_blur=generation_task.mask_blur,
-                                                               inpainting_fill=generation_task.inpainting_fill,
-                                                               styles=generation_task.styles,
-                                                               resize_mode=generation_task.resize_mode,
-                                                               denoising_strength=generation_task.denoising_strength,
-                                                               image_cfg_scale=generation_task.image_cfg_scale,
-                                                               inpaint_full_res_padding=generation_task.inpaint_full_res_padding,
-                                                               inpainting_mask_invert=generation_task.inpainting_mask_invert,
-                                                               device=generation_task.device)
 
     # Make a cache for these images
     # Check if they changed on disk maybe and reload
     init_image = Image.open(generation_task.init_img)
     init_mask = Image.open(generation_task.init_mask)
 
-    sd, config, model = get_model(generation_task.device, args.steps)
+    sd, config, model = get_model(generation_task.device, generation_task.steps)
 
     img2img(prompt=generation_task.positive_prompt,
             negative_prompt=generation_task.negative_prompt,
-            sampler_name=args.sampler_name,
-            batch_size=args.batch_size,
-            n_iter=args.n_iter,
-            steps=args.steps,
-            cfg_scale=args.cfg_scale,
-            width=args.width,
-            height=args.height,
-            mask_blur=args.mask_blur,
-            inpainting_fill=args.inpainting_fill,
-            outpath=args.outpath,
-            styles=args.styles,
+            sampler_name=generation_task.sampler,
+            batch_size=1,
+            n_iter=generation_task.num_images,
+            steps=generation_task.steps,
+            cfg_scale=generation_task.cfg_strength,
+            width=generation_task.image_width,
+            height=generation_task.image_height,
+            mask_blur=generation_task.mask_blur,
+            inpainting_fill=generation_task.inpainting_fill,
+            outpath=generation_task.output_path,
+            styles=generation_task.styles,
             init_images=[init_image],
             mask=init_mask,
-            resize_mode=args.resize_mode,
-            denoising_strength=args.denoising_strength,
-            image_cfg_scale=args.image_cfg_scale,
-            inpaint_full_res_padding=args.inpaint_full_res_padding,
-            inpainting_mask_invert=args.inpainting_mask_invert,
+            resize_mode=generation_task.resize_mode,
+            denoising_strength=generation_task.denoising_strength,
+            image_cfg_scale=generation_task.image_cfg_scale,
+            inpaint_full_res_padding=generation_task.inpaint_full_res_padding,
+            inpainting_mask_invert=generation_task.inpainting_mask_invert,
             sd=sd,
             config=config,
             model=model
