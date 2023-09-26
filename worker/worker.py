@@ -46,7 +46,7 @@ class WorkerState:
 
 def run_generation_task(worker_state, generation_task):
 
-    # Make a cache for these images
+    # TODO(): Make a cache for these images
     # Check if they changed on disk maybe and reload
     init_image = Image.open(generation_task.init_img)
     init_mask = Image.open(generation_task.init_mask)
