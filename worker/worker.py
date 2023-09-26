@@ -2,13 +2,12 @@
 import sys
 import time
 import requests
-import json
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from generation_task.icon_generation_task import IconGenerationTask
-from generation_task.image_generation_task import ImageGenerationTask
+from worker.image_generation.generation_task.icon_generation_task import IconGenerationTask
+from worker.image_generation.generation_task.image_generation_task import ImageGenerationTask
 
 from worker.image_generation.scripts.generate_images_with_inpainting_from_prompt_list import run_generate_images_with_inpainting_from_prompt_list
 
@@ -50,11 +49,26 @@ def run_generation_task(generation_task):
 
     # Instead of using cli arguments, we are using the
     # Generation_task class to provide the parameters
-    args = GenerateImagesWithInpaintingFromPromptListArguments(generation_task.prompt_list_dataset_path, generation_task.num_images, generation_task.init_img, generation_task.init_mask,
-                                                               generation_task.sampler, 1, generation_task.num_images, generation_task.steps, generation_task.cfg_strength,
-                                                               generation_task.image_width, generation_task.image_height, generation_task.output_path, mask_blur=4,
-                                                               inpainting_fill=1, styles=[], resize_mode=0, denoising_strength=0.75, image_cfg_scale=1.5,
-                                                               inpaint_full_res_padding=32, inpainting_mask_invert=0)
+    args = GenerateImagesWithInpaintingFromPromptListArguments(prompt_list_dataset_path=generation_task.prompt_list_dataset_path,
+                                                               num_images=generation_task.num_images,
+                                                               init_img=generation_task.init_img,
+                                                               init_mask=generation_task.init_mask,
+                                                               sampler=generation_task.sampler,
+                                                               batch_size=1,
+                                                               n_iter=generation_task.num_images,
+                                                               steps=generation_task.steps,
+                                                               cfg_strength=generation_task.cfg_strength,
+                                                               image_width=generation_task.image_width,
+                                                               image_height=generation_task.image_height,
+                                                               output_path=generation_task.output_path,
+                                                               mask_blur=generation_task.mask_blur,
+                                                               inpainting_fill=generation_task.inpainting_fill,
+                                                               styles=generation_task.styles,
+                                                               resize_mode=generation_task.resize_mode,
+                                                               denoising_strength=generation_task.denoising_strength,
+                                                               image_cfg_scale=generation_task.image_cfg_scale,
+                                                               inpaint_full_res_padding=generation_task.inpaint_full_res_padding,
+                                                               inpainting_mask_invert=generation_task.inpainting_mask_invert)
 
     run_generate_images_with_inpainting_from_prompt_list(args)
 
@@ -109,6 +123,15 @@ def main():
             'prompt_list_dataset_path': './input/prompt_list_civitai_10000.zip',
             'init_img': './test/test_inpainting/white_512x512.jpg',
             'init_mask': './test/test_inpainting/icon_mask.png',
+
+            'mask_blur' : 4,
+            'inpainting_fill': 1,
+            'styles': [],
+            'resize_mode': 0,
+            'denoising_strength': 0.75,
+            'image_cfg_scale': 1.5,
+            'inpaint_full_res_padding': 32,
+            'inpainting_mask_invert': 0
         },
 
         "task_input_file_dict": {},

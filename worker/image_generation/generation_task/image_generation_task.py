@@ -1,8 +1,9 @@
-class IconGenerationTask:
+class ImageGenerationTask:
 
     def __init__(self, generation_task_type, prompt, model_name, cfg_strength, iterations, denoiser, seed, output_path,
                  num_images, image_width, image_height, batch_size, checkpoint_path, flash, device, sampler, steps,
-                 prompt_list_dataset_path, init_img, init_mask, output_image_hash):
+                 prompt_list_dataset_path, init_img, init_mask, output_image_hash, mask_blur, inpainting_fill, styles,
+                 resize_mode, denoising_strength, image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert):
         self.generation_task_type = generation_task_type
         self.prompt = prompt
         self.model_name = model_name
@@ -24,6 +25,14 @@ class IconGenerationTask:
         self.init_img = init_img
         self.init_mask = init_mask
         self.output_image_hash = output_image_hash
+        self.mask_blur = mask_blur
+        self.inpainting_fill = inpainting_fill
+        self.styles = styles
+        self.resize_mode = resize_mode
+        self.denoising_strength = denoising_strength
+        self.image_cfg_scale = image_cfg_scale
+        self.inpaint_full_res_padding = inpaint_full_res_padding
+        self.inpainting_mask_invert = inpainting_mask_invert
 
     def to_dict(self):
         return {
@@ -48,6 +57,15 @@ class IconGenerationTask:
             'init_img': self.init_img,
             'init_mask': self.init_mask,
             'output_image_hash': self.output_image_hash,
+
+            'mask_blur': self.mask_blur,
+            'inpainting_fill': self.inpainting_fill,
+            'styles': self.styles,
+            'resize_mode': self.resize_mode,
+            'denoising_strength': self.denoising_strength,
+            'image_cfg_scale': self.image_cfg_scale,
+            'inpaint_full_res_padding': self.inpaint_full_res_padding,
+            'inpainting_mask_invert': self.inpainting_mask_invert,
         }
 
     def from_dict(data):
@@ -72,5 +90,14 @@ class IconGenerationTask:
             prompt_list_dataset_path=data.get('prompt_list_dataset_path', ''),
             init_img=data.get('init_img', ''),
             init_mask=data.get('init_mask', ''),
-            output_image_hash=data.get('output_image_hash', '')
+            output_image_hash=data.get('output_image_hash', ''),
+
+            mask_blur=data.get('mask_blur', 4),
+            inpainting_fill=data.get('inpainting_fill', 1),
+            styles=data.get('styles', []),
+            resize_mode=data.get('resize_mode', 0),
+            denoising_strength=data.get('denoising_strength', 0.75),
+            image_cfg_scale=data.get('image_cfg_scale', 1.5),
+            inpaint_full_res_padding=data.get('inpaint_full_res_padding', 32),
+            inpainting_mask_invert=data.get('inpainting_mask_invert', 0),
         )
