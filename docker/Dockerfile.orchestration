@@ -1,0 +1,8 @@
+FROM python:3.8
+
+WORKDIR /orchestration
+COPY ./requirements.txt /orchestration/requirements.txt
+RUN pip install -r /orchestration/requirements.txt
+COPY ./orchestration /orchestration/orchestration
+
+CMD ["uvicorn", "orchestration.api.main:app", "--port", "8000"]
