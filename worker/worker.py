@@ -153,7 +153,7 @@ def main():
             'cfg_strength': 12,
             'seed': '',
             'output_path': "./output/inpainting/",
-            'num_images': 1,
+            'num_images': 2,
             'image_width': 512,
             'image_height': 512,
             'checkpoint_path': 'input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors',
