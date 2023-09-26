@@ -1,8 +1,8 @@
 class IconGenerationTask:
 
     def __init__(self, generation_task_type, positive_prompt, negative_prompt, model_name, cfg_strength, seed, output_path,
-                 num_images, image_width, image_height, batch_size, checkpoint_path, sampler, steps,
-                 init_img, init_mask, output_image_hash, mask_blur, inpainting_fill, styles,
+                 num_images, image_width, image_height, batch_size, sampler, steps,
+                 init_img, init_mask, output_image_hash, mask_blur, inpainting_fill_mode, styles,
                  resize_mode, denoising_strength, image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert):
         self.generation_task_type = generation_task_type
         self.positive_prompt = positive_prompt
@@ -15,14 +15,13 @@ class IconGenerationTask:
         self.image_width = image_width
         self.image_height = image_height
         self.batch_size = batch_size
-        self.checkpoint_path = checkpoint_path
         self.sampler = sampler
         self.steps = steps
         self.init_img = init_img
         self.init_mask = init_mask
         self.output_image_hash = output_image_hash
         self.mask_blur = mask_blur
-        self.inpainting_fill = inpainting_fill
+        self.inpainting_fill_mode = inpainting_fill_mode
         self.styles = styles
         self.resize_mode = resize_mode
         self.denoising_strength = denoising_strength
@@ -43,7 +42,6 @@ class IconGenerationTask:
             'image_width': self.image_width,
             'image_height': self.image_height,
             'batch_size': self.batch_size,
-            'checkpoint_path': self.checkpoint_path,
             'sampler': self.sampler,
             'steps': self.steps,
             'init_img': self.init_img,
@@ -51,7 +49,7 @@ class IconGenerationTask:
             'output_image_hash': self.output_image_hash,
 
             'mask_blur': self.mask_blur,
-            'inpainting_fill': self.inpainting_fill,
+            'inpainting_fill_mode': self.inpainting_fill_mode,
             'styles': self.styles,
             'resize_mode': self.resize_mode,
             'denoising_strength': self.denoising_strength,
@@ -73,7 +71,6 @@ class IconGenerationTask:
             image_width=data.get('image_width', 512),
             image_height=data.get('image_height', 512),
             batch_size=data.get('batch_size', 1),
-            checkpoint_path=data.get('checkpoint_path', ''),
             sampler=data.get('sampler', 'ddim'),
             steps=data.get('steps', 50),
             init_img=data.get('init_img', ''),
@@ -81,7 +78,7 @@ class IconGenerationTask:
             output_image_hash=data.get('output_image_hash', ''),
 
             mask_blur=data.get('mask_blur', 4),
-            inpainting_fill=data.get('inpainting_fill', 1),
+            inpainting_fill_mode=data.get('inpainting_fill_mode', 1),
             styles=data.get('styles', []),
             resize_mode=data.get('resize_mode', 0),
             denoising_strength=data.get('denoising_strength', 0.75),
