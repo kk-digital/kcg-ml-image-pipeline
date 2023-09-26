@@ -186,7 +186,7 @@ def main():
         job = http_get_job()
         if job != None:
             print("Found job ! ")
-            job['task_start_time'] = datetime.now().strftime('%d-%m-%Y-%H-%M-%S')
+            job['task_start_time'] = datetime.now()
 
             # Convert the job into a dictionary
             # Then use the dictionary to create the generation task
@@ -231,7 +231,7 @@ def main():
                 try:
                     run_generation_task(generation_task)
                     print("job completed !")
-                    job['task_completion_time'] = datetime.now().strftime('%d-%m-%Y-%H:%M:%S')
+                    job['task_completion_time'] = datetime.now()
                     http_update_job_completed(job)
                 except Exception as e:
                     print(f"generation task failed: {e}")
@@ -245,7 +245,7 @@ def main():
                 try:
                     run_generation_task(generation_task)
                     print("job completed !")
-                    job['task_completion_time'] = datetime.now().strftime('%d-%m-%Y-%H:%M:%S')
+                    job['task_completion_time'] = datetime.now()
                     http_update_job_completed(job)
                 except Exception as e:
                     print(f"generation task failed: {e}")
