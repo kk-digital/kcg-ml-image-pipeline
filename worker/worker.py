@@ -186,6 +186,7 @@ def main():
     http_add_job(job)
     http_add_job(job)
 
+    last_job_time = time.time()
 
     while True:
         print("Looking for jobs ! ")
@@ -193,6 +194,9 @@ def main():
         if job != None:
             print("Found job ! ")
             job_start_time = time.time()
+            worker_idle_time = job_start_time - last_job_time
+            print(f"worker idle time was {worker_idle_time} seconds.")
+
             job['task_start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
             # Convert the job into a dictionary
@@ -259,6 +263,7 @@ def main():
                     http_update_job_failed(job)
 
             job_end_time = time.time()
+            last_job_time = job_end_time
             job_elapsed_time = job_end_time - job_start_time
             print(f"job took {job_elapsed_time} seconds to execute.")
 
