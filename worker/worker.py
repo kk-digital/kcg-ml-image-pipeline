@@ -91,7 +91,7 @@ def main():
             'device': "cuda",
             'sampler': "ddim",
             'steps': 20,
-            'prompt_list_dataset_path': './input/civit_ai_data_phrase_count_v6.csv',
+            'prompt_list_dataset_path': './input/prompt_list_civitai_10000.zip',
             'init_img': './test/test_inpainting/white_512x512.jpg',
             'init_mask': './test/test_inpainting/icon_mask.png',
         },
