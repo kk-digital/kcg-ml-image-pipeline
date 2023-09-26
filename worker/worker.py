@@ -2,6 +2,7 @@
 import sys
 import time
 import requests
+import json
 from datetime import datetime
 
 base_directory = "./"
@@ -97,7 +98,7 @@ def http_add_job(job):
 
 def http_update_job_completed(job):
 
-    print(job)
+    print(json.dumps(job, indent=4))
     url = SERVER_ADRESS + "/update-job-completed"
     print(url)
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
