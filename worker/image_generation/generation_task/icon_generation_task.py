@@ -1,6 +1,6 @@
 class IconGenerationTask:
 
-    def __init__(self, generation_task_type, prompt, model_name, cfg_strength, iterations, seed, output_path,
+    def __init__(self, generation_task_type, prompt, model_name, cfg_strength, seed, output_path,
                  num_images, image_width, image_height, batch_size, checkpoint_path, device, sampler, steps,
                  prompt_list_dataset_path, init_img, init_mask, output_image_hash, mask_blur, inpainting_fill, styles,
                  resize_mode, denoising_strength, image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert):
@@ -8,7 +8,6 @@ class IconGenerationTask:
         self.prompt = prompt
         self.model_name = model_name
         self.cfg_strength = cfg_strength
-        self.iterations = iterations
         self.seed = seed
         self.output_path = output_path
         self.num_images = num_images
@@ -38,7 +37,6 @@ class IconGenerationTask:
             'prompt': self.prompt,
             'model_name': self.model_name,
             'cfg_strength': self.cfg_strength,
-            'iterations': self.iterations,
             'seed': self.seed,
             'output_path': self.output_path,
             'num_images': self.num_images,
@@ -70,7 +68,6 @@ class IconGenerationTask:
             prompt=data.get('prompt', ''),
             cfg_strength=data.get('cfg_strength', 7),
             model_name=data.get('model_name', ''),
-            iterations=data.get('iterations', ''),
             seed=data.get('seed', ''),
             output_path=data.get('output_path', ''),
             num_images=data.get('num_images', 1),
