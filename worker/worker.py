@@ -192,7 +192,7 @@ def main():
         job = http_get_job()
         if job != None:
             print("Found job ! ")
-            job_start_time = time()
+            job_start_time = time.time()
             job['task_start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
             # Convert the job into a dictionary
