@@ -42,7 +42,7 @@ def run_generation_task(generation_task):
     # Instead of using cli arguments, we are using the
     # Generation_task class to provide the parameters
     args = GenerateImagesWithInpaintingFromPromptListArguments(generation_task.prompt_list_dataset_path, generation_task.num_images, generation_task.init_img, generation_task.init_mask,
-                                                               generation_task.sampler, generation_task.num_images, generation_task.steps, generation_task.cfg_strength,
+                                                               generation_task.sampler, 1, generation_task.num_images, generation_task.steps, generation_task.cfg_strength,
                                                                generation_task.image_width, generation_task.image_height, generation_task.output_path)
 
     run_generate_images_with_inpainting_from_prompt_list(args)
