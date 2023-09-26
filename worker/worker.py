@@ -63,7 +63,6 @@ def main():
 
     # for debugging purpose only
     http_add_job({
-        "uuid": 1,
         "task_type": "icon_generation_task",
     })
 
