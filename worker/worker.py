@@ -241,11 +241,15 @@ def main():
                 generation_task = IconGenerationTask.from_dict(task)
 
                 # Run inpainting task
-                run_generation_task(worker_state, generation_task)
-                print("job completed !")
-                job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                http_update_job_completed(job)
-
+                try:
+                    run_generation_task(worker_state, generation_task)
+                    print("job completed !")
+                    job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    http_update_job_completed(job)
+                except Exception as e:
+                    print(f"generation task failed: {e}")
+                    job['task_error_str'] = str(e)
+                    http_update_job_failed(job)
 
 
             elif task_type == 'image_generation_task':
