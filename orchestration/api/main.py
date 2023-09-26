@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException
 import pymongo
+from dotenv import dotenv_values
 from orchestration.api.add import router as add_router
 from orchestration.api.count import router as count_router
 from orchestration.api.delete import router as delete_router
@@ -8,6 +9,7 @@ from orchestration.api.list import router as list_router
 from orchestration.api.update import router as update_router
 
 
+config = dotenv_values("./orchestration/api/.env")
 app = FastAPI(title="Orchestration API")
 app.include_router(add_router)
 app.include_router(get_router)
@@ -20,7 +22,7 @@ app.include_router(delete_router)
 @app.on_event("startup")
 def startup_db_client():
     # add creation of mongodb here for now
-    app.mongodb_client = pymongo.MongoClient("mongodb://localhost:27017/")
+    app.mongodb_client = pymongo.MongoClient(config["DB_URL"])
     app.mongodb_db = app.mongodb_client["orchestration-job-db"]
     app.pending_jobs_collection = app.mongodb_db["pending-jobs"]
     app.in_progress_jobs_collection = app.mongodb_db["in-progress-jobs"]
