@@ -142,7 +142,7 @@ def main():
             'denoiser': "",
             'seed': '',
             'output_path': "./output/inpainting/",
-            'num_images': 2,
+            'num_images': 1,
             'image_width': 512,
             'image_height': 512,
             'batch_size': 1,
