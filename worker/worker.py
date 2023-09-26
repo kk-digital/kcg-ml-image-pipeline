@@ -138,7 +138,7 @@ def main():
         "task_output_file_dict": {},
     }
 
-    #http_add_job(job)
+    http_add_job(job)
     #http_add_job(job)
 
 
