@@ -53,14 +53,14 @@ def run_generation_task(generation_task):
                                                                num_images=generation_task.num_images,
                                                                init_img=generation_task.init_img,
                                                                init_mask=generation_task.init_mask,
-                                                               sampler=generation_task.sampler,
+                                                               sampler_name=generation_task.sampler,
                                                                batch_size=1,
                                                                n_iter=generation_task.num_images,
                                                                steps=generation_task.steps,
-                                                               cfg_strength=generation_task.cfg_strength,
-                                                               image_width=generation_task.image_width,
-                                                               image_height=generation_task.image_height,
-                                                               output_path=generation_task.output_path,
+                                                               cfg_scale=generation_task.cfg_strength,
+                                                               width=generation_task.image_width,
+                                                               height=generation_task.image_height,
+                                                               output=generation_task.output_path,
                                                                mask_blur=generation_task.mask_blur,
                                                                inpainting_fill=generation_task.inpainting_fill,
                                                                styles=generation_task.styles,
@@ -138,8 +138,8 @@ def main():
         "task_output_file_dict": {},
     }
 
-    http_add_job(job)
-    http_add_job(job)
+    #http_add_job(job)
+    #http_add_job(job)
 
 
     while True:
