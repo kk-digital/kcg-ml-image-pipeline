@@ -226,31 +226,20 @@ def main():
             'negative_prompt': "low resolution, mediocre style, normal resolution",
             'cfg_strength': 12,
             'seed': '',
-            'output_path': "./output/inpainting/",
+            'output_path': "./output/",
             'num_images': 1,
             'image_width': 512,
             'image_height': 512,
             'sampler': "ddim",
             'sampler_steps': 20,
-            'init_img': './test/test_inpainting/white_512x512.jpg',
-            'init_mask': './test/test_inpainting/icon_mask.png',
-
-            'mask_blur': 0,
-            'inpainting_fill_mode': 1,
-            'styles': [],
-            'resize_mode': 0,
-            'denoising_strength': 0.75,
-            'image_cfg_scale': 1.5,
-            'inpaint_full_res_padding': 32,
-            'inpainting_mask_invert': 0
         },
         "task_input_file_dict": {},
         "task_output_file_dict": {},
     }
 
 
-    http_add_job(inpainting_job)
-    http_add_job(inpainting_job)
+    http_add_job(image_generation_job)
+    http_add_job(image_generation_job)
     http_add_job(inpainting_job)
 
     last_job_time = time.time()
@@ -266,41 +255,42 @@ def main():
 
             job['task_start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-            # Convert the job into a dictionary
-            # Then use the dictionary to create the generation task
-            task = {
-                'generation_task_type' : job['task_type'],
-                'positive_prompt': job['task_input_dict']['positive_prompt'],
-                'negative_prompt': job['task_input_dict']['negative_prompt'],
-                'model_name': job['model_name'],
-                'cfg_strength': job['task_input_dict']['cfg_strength'],
-                'num_images': job['task_input_dict']['num_images'],
-                'seed': job['task_input_dict']['seed'],
-                'output_path': job['task_input_dict']['output_path'],
-                'image_width': job['task_input_dict']['image_width'],
-                'image_height': job['task_input_dict']['image_height'],
-                'batch_size': 1,
-                'sampler': job['task_input_dict']['sampler'],
-                'steps': job['task_input_dict']['sampler_steps'],
-                'init_img': job['task_input_dict']['init_img'],
-                'init_mask': job['task_input_dict']['init_mask'],
-
-                'mask_blur': job['task_input_dict']['mask_blur'],
-                'inpainting_fill_mode': job['task_input_dict']['inpainting_fill_mode'],
-                'styles': job['task_input_dict']['styles'],
-                'resize_mode': job['task_input_dict']['resize_mode'],
-                'denoising_strength': job['task_input_dict']['denoising_strength'],
-                'image_cfg_scale': job['task_input_dict']['image_cfg_scale'],
-                'inpaint_full_res_padding': job['task_input_dict']['inpaint_full_res_padding'],
-                'inpainting_mask_invert': job['task_input_dict']['inpainting_mask_invert']
-            }
-
-            # Switch on the task type
+              # Switch on the task type
             # We have 2 for now
             # And they are identical
-            task_type = task['generation_task_type']
+            task_type = job['task_type']
 
             if task_type == 'icon_generation_task':
+
+                # Convert the job into a dictionary
+                # Then use the dictionary to create the generation task
+                task = {
+                    'generation_task_type': job['task_type'],
+                    'positive_prompt': job['task_input_dict']['positive_prompt'],
+                    'negative_prompt': job['task_input_dict']['negative_prompt'],
+                    'model_name': job['model_name'],
+                    'cfg_strength': job['task_input_dict']['cfg_strength'],
+                    'num_images': job['task_input_dict']['num_images'],
+                    'seed': job['task_input_dict']['seed'],
+                    'output_path': job['task_input_dict']['output_path'],
+                    'image_width': job['task_input_dict']['image_width'],
+                    'image_height': job['task_input_dict']['image_height'],
+                    'batch_size': 1,
+                    'sampler': job['task_input_dict']['sampler'],
+                    'steps': job['task_input_dict']['sampler_steps'],
+                    'init_img': job['task_input_dict']['init_img'],
+                    'init_mask': job['task_input_dict']['init_mask'],
+
+                    'mask_blur': job['task_input_dict']['mask_blur'],
+                    'inpainting_fill_mode': job['task_input_dict']['inpainting_fill_mode'],
+                    'styles': job['task_input_dict']['styles'],
+                    'resize_mode': job['task_input_dict']['resize_mode'],
+                    'denoising_strength': job['task_input_dict']['denoising_strength'],
+                    'image_cfg_scale': job['task_input_dict']['image_cfg_scale'],
+                    'inpaint_full_res_padding': job['task_input_dict']['inpaint_full_res_padding'],
+                    'inpainting_mask_invert': job['task_input_dict']['inpainting_mask_invert']
+                }
+
                 generation_task = IconGenerationTask.from_dict(task)
 
                 # Run inpainting task
@@ -316,6 +306,24 @@ def main():
 
 
             elif task_type == 'image_generation_task':
+
+                # Convert the job into a dictionary
+                # Then use the dictionary to create the generation task
+                task = {
+                    'generation_task_type': job['task_type'],
+                    'positive_prompt': job['task_input_dict']['positive_prompt'],
+                    'negative_prompt': job['task_input_dict']['negative_prompt'],
+                    'model_name': job['model_name'],
+                    'cfg_strength': job['task_input_dict']['cfg_strength'],
+                    'seed': job['task_input_dict']['seed'],
+                    'output_path': job['task_input_dict']['output_path'],
+                    'image_width': job['task_input_dict']['image_width'],
+                    'image_height': job['task_input_dict']['image_height'],
+                    'batch_size': 1,
+                    'sampler': job['task_input_dict']['sampler'],
+                    'steps': job['task_input_dict']['sampler_steps'],
+                }
+
                 generation_task = ImageGenerationTask.from_dict(task)
                 # Run inpainting task
                 try:
