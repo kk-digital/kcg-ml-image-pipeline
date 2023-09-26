@@ -16,7 +16,7 @@ from worker.image_generation.scripts.generate_images_with_inpainting_from_prompt
 
 
 
-SERVER_ADRESS = '192.168.3.1:81111'
+SERVER_ADRESS = 'http://192.168.3.1:81111'
 
 # Running inpainting using the inpainting script
 # TODO(): each generation task should have its own function
