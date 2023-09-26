@@ -235,7 +235,7 @@ def main():
                     http_update_job_completed(job)
                 except Exception as e:
                     print(f"generation task failed: {e}")
-                    job['task_error_str'] = e
+                    job['task_error_str'] = str(e)
                     http_update_job_failed(job)
 
 
@@ -249,7 +249,7 @@ def main():
                     http_update_job_completed(job)
                 except Exception as e:
                     print(f"generation task failed: {e}")
-                    job['task_error_str'] = e
+                    job['task_error_str'] = str(e)
                     http_update_job_failed(job)
 
         else:
