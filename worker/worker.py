@@ -2,7 +2,7 @@
 import sys
 import time
 import requests
-import json
+import random
 from datetime import datetime
 import argparse
 from PIL import Image
@@ -12,10 +12,12 @@ sys.path.insert(0, base_directory)
 
 from worker.image_generation.generation_task.icon_generation_task import IconGenerationTask
 from worker.image_generation.generation_task.image_generation_task import ImageGenerationTask
-from worker.image_generation.scripts.inpaint_A1111 import img2img, get_model
+from worker.image_generation.scripts.inpaint_A1111 import img2img
 from stable_diffusion import StableDiffusion, CLIPTextEmbedder
 from configs.model_config import ModelPathConfig
 from stable_diffusion.model_paths import (SDconfigs, CLIPconfigs)
+from worker.image_generation.scripts.stable_diffusion_base_script import StableDiffusionBaseScript
+from worker.image_generation.scripts.generate_image_from_text import generate_image_from_text
 
 SERVER_ADRESS = 'http://192.168.3.1:8111'
 
@@ -26,6 +28,7 @@ class WorkerState:
         self.config = ModelPathConfig()
         self.stable_diffusion = None
         self.clip_text_embedder = None
+        self.txt2img = None
 
     def load_models(self, model_path='input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors'):
         # NOTE: Initializing stable diffusion
@@ -43,6 +46,32 @@ class WorkerState:
             transformer_path=self.config.get_model_folder_path(CLIPconfigs.TXT_EMB_TEXT_MODEL)
         )
 
+        # Starts the text2img
+        self.txt2img = StableDiffusionBaseScript(
+            sampler_name="ddim",
+            n_steps=20,
+            force_cpu=False,
+            cuda_device=self.device,
+        )
+        self.txt2img.initialize_latent_diffusion(autoencoder=None, clip_text_embedder=None, unet_model=None,
+                                            path=model_path, force_submodels_init=True)
+
+def run_image_generation_task(worker_state, generation_task):
+
+    # Random seed for now
+    # Should we use the seed from job parameters ?
+    random.seed(time.time())
+    seed = random.randint(0, 2 ** 24 - 1)
+
+    generate_image_from_text(worker_state.txt2img,
+                             worker_state.clip_text_embedder,
+                             generation_task.positive_prompt,
+                             generation_task.negative_prompt,
+                             generation_task.cfg_strength,
+                             seed,
+                             generation_task.image_width,
+                             generation_task.image_height,
+                             generation_task.output_path)
 
 def run_generation_task(worker_state, generation_task):
 
@@ -143,7 +172,7 @@ def main():
 
     # for debugging purpose only
 
-    job = {
+    inpainting_job = {
         "uuid": '1',
         "task_type": "icon_generation_task",
         "model_name" : "v1-5-pruned-emaonly",
@@ -181,9 +210,48 @@ def main():
         "task_output_file_dict": {},
     }
 
-    http_add_job(job)
-    http_add_job(job)
-    http_add_job(job)
+    image_generation_job = {
+        "uuid": '1',
+        "task_type": "image_generation_task",
+        "model_name": "v1-5-pruned-emaonly",
+        "model_file_name": "v1-5-pruned-emaonly",
+        "model_file_path": "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors",
+        "sd_model_hash": "N/A",
+        "task_creation_time": "N/A",
+        "task_start_time": "N/A",
+        "task_completion_time": "N/A",
+        "task_error_str": "",
+        "task_input_dict": {
+            'positive_prompt': "icon, game icon, crystal, high resolution, contour, game icon, jewels, minerals, stones, gems, flat, vector art, game art, stylized, cell shaded, 8bit, 16bit, retro, russian futurism",
+            'negative_prompt': "low resolution, mediocre style, normal resolution",
+            'cfg_strength': 12,
+            'seed': '',
+            'output_path': "./output/inpainting/",
+            'num_images': 1,
+            'image_width': 512,
+            'image_height': 512,
+            'sampler': "ddim",
+            'sampler_steps': 20,
+            'init_img': './test/test_inpainting/white_512x512.jpg',
+            'init_mask': './test/test_inpainting/icon_mask.png',
+
+            'mask_blur': 0,
+            'inpainting_fill_mode': 1,
+            'styles': [],
+            'resize_mode': 0,
+            'denoising_strength': 0.75,
+            'image_cfg_scale': 1.5,
+            'inpaint_full_res_padding': 32,
+            'inpainting_mask_invert': 0
+        },
+        "task_input_file_dict": {},
+        "task_output_file_dict": {},
+    }
+
+
+    http_add_job(inpainting_job)
+    http_add_job(inpainting_job)
+    http_add_job(inpainting_job)
 
     last_job_time = time.time()
 
@@ -251,7 +319,7 @@ def main():
                 generation_task = ImageGenerationTask.from_dict(task)
                 # Run inpainting task
                 try:
-                    run_generation_task(worker_state, generation_task)
+                    run_image_generation_task(worker_state, generation_task)
                     print("job completed !")
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     http_update_job_completed(job)
