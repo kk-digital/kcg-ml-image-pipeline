@@ -59,7 +59,14 @@ API Docs should be accessible at:
 ## Worker
 To run the worker, run:
 ```
-python3 ./worker/worker.py
+options:
+  -h, --help            show this help message and exit
+  
+  --device DEVICE
+                Choose a device for the worker example ('cuda:0', 'cuda:1' ..)
+```
+```
+python3 ./worker/worker.py --device cuda:0
 ```
 
 
