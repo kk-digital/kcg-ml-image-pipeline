@@ -60,7 +60,7 @@ def run_generation_task(generation_task):
                                                                cfg_scale=generation_task.cfg_strength,
                                                                width=generation_task.image_width,
                                                                height=generation_task.image_height,
-                                                               output=generation_task.output_path,
+                                                               outpath=generation_task.output_path,
                                                                mask_blur=generation_task.mask_blur,
                                                                inpainting_fill=generation_task.inpainting_fill,
                                                                styles=generation_task.styles,
