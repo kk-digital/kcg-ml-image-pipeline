@@ -50,7 +50,7 @@ def http_get_job():
 # Used for debugging purpose
 # The worker should not be adding jobs
 def http_add_job(job):
-
+    job = {"task_type": "icon_generation_task"}
     data = json.dumps(job)
     url = SERVER_ADRESS + "/add-job"
     print(url)
