@@ -620,7 +620,7 @@ def process_images(p: StableDiffusionProcessingImg2Img):
                 if opts.sd_vae_decode_method != 'Full':
                     p.extra_generation_params['VAE Decoder'] = opts.sd_vae_decode_method
 
-                x_samples_ddim = decode_latent_batch(p.model, samples_ddim, target_device=self.device,
+                x_samples_ddim = decode_latent_batch(p.model, samples_ddim, target_device=p.device,
                                                      check_for_nans=True)
 
             x_samples_ddim = torch.stack(x_samples_ddim).float()
