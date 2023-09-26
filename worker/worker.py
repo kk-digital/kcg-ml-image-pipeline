@@ -22,7 +22,8 @@ SERVER_ADRESS = 'http://127.0.0.1:8000'
 
 class GenerateImagesWithInpaintingFromPromptListArguments:
     def __init__(self, prompt_list_dataset_path, num_images, init_img, init_mask, sampler_name, batch_size, n_iter,
-                 steps, cfg_scale, width, height, outpath):
+                 steps, cfg_scale, width, height, outpath, mask_blur, inpainting_fill, styles, resize_mode, denoising_strength,
+                 image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert):
 
         self.prompt_list_dataset_path = prompt_list_dataset_path
         self.num_images = num_images
@@ -36,6 +37,14 @@ class GenerateImagesWithInpaintingFromPromptListArguments:
         self.width = width
         self.height = height
         self.outpath = outpath
+        self.mask_blur = mask_blur
+        self.inpainting_fill = inpainting_fill
+        self.styles = styles
+        self.resize_mode = resize_mode
+        self.denoising_strength = denoising_strength
+        self.image_cfg_scale = image_cfg_scale
+        self.inpaint_full_res_padding = inpaint_full_res_padding
+        self.inpainting_mask_invert = inpainting_mask_invert
 
 def run_generation_task(generation_task):
 
@@ -43,7 +52,9 @@ def run_generation_task(generation_task):
     # Generation_task class to provide the parameters
     args = GenerateImagesWithInpaintingFromPromptListArguments(generation_task.prompt_list_dataset_path, generation_task.num_images, generation_task.init_img, generation_task.init_mask,
                                                                generation_task.sampler, 1, generation_task.num_images, generation_task.steps, generation_task.cfg_strength,
-                                                               generation_task.image_width, generation_task.image_height, generation_task.output_path)
+                                                               generation_task.image_width, generation_task.image_height, generation_task.output_path, mask_blur=4,
+                                                               inpainting_fill=1, styles=[], resize_mode=0, denoising_strength=0.75, image_cfg_scale=1.5,
+                                                               inpaint_full_res_padding=32, inpainting_mask_invert=0)
 
     run_generate_images_with_inpainting_from_prompt_list(args)
 
