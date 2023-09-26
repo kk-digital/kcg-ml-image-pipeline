@@ -2,6 +2,7 @@ fastapi==0.101.1
 pydantic
 uvicorn
 pymongo==4.5.0
+python-dotenv
 tiktoken
 tqdm==4.65.0
 Pillow==9.0.0
