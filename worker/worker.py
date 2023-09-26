@@ -154,6 +154,7 @@ def main():
                 'prompt': job['task_input_dict']['prompt'],
                 'model_name': job['model_name'],
                 'cfg_strength': job['task_input_dict']['cfg_strength'],
+                'num_images': job['task_input_dict']['num_images'],
                 'iterations': job['task_input_dict']['iterations'],
                 'denoiser': job['task_input_dict']['denoiser'],
                 'seed': job['task_input_dict']['seed'],
@@ -169,6 +170,15 @@ def main():
                 'prompt_list_dataset_path': job['task_input_dict']['prompt_list_dataset_path'],
                 'init_img': job['task_input_dict']['init_img'],
                 'init_mask': job['task_input_dict']['init_mask'],
+
+                'mask_blur': job['task_input_dict']['mask_blur'],
+                'inpainting_fill': job['task_input_dict']['inpainting_fill'],
+                'styles': job['task_input_dict']['styles'],
+                'resize_mode': job['task_input_dict']['resize_mode'],
+                'denoising_strength': job['task_input_dict']['denoising_strength'],
+                'image_cfg_scale': job['task_input_dict']['image_cfg_scale'],
+                'inpaint_full_res_padding': job['task_input_dict']['inpaint_full_res_padding'],
+                'inpainting_mask_invert': job['task_input_dict']['inpainting_mask_invert']
             }
 
             # Switch on the task type
