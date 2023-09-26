@@ -32,8 +32,8 @@ def run_generation_task(generation_task):
         'n_iter': generation_task.num_images,
         'steps': generation_task.steps,
         'cfg_scale': generation_task.cfg_strength,
-        'width': generation_task.width,
-        'height': generation_task.height,
+        'width': generation_task.image_width,
+        'height': generation_task.image_height,
         'outpath': generation_task.output_path
 
     }
