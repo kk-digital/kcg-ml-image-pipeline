@@ -215,10 +215,12 @@ def main():
 
             if task_type == 'icon_generation_task':
                 generation_task = IconGenerationTask.from_dict(task)
-                http_update_job_completed(uuid)
+
                 # Run inpainting task
                 try:
                     run_generation_task(generation_task)
+                    print("job completed ! uuid: ", uuid)
+                    http_update_job_completed(uuid)
                 except Exception as e:
                     print(f"generation task failed: {e}")
                     http_update_job_failed(uuid)
@@ -227,10 +229,10 @@ def main():
             elif task_type == 'image_generation_task':
                 generation_task = ImageGenerationTask.from_dict(task)
                 # Run inpainting task
-                http_update_job_completed(uuid)
-                # Run inpainting task
                 try:
                     run_generation_task(generation_task)
+                    print("job completed ! uuid: ", uuid)
+                    http_update_job_completed(uuid)
                 except Exception as e:
                     print(f"generation task failed: {e}")
                     http_update_job_failed(uuid)
