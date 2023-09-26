@@ -2,6 +2,7 @@
 import sys
 import time
 import requests
+from datetime import datetime
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -125,6 +126,13 @@ def main():
         "task_type": "icon_generation_task",
         "task_creation_time": "ignore",
         "model_name" : "sd",
+        "model_file_name": "N/A",
+        "model_file_path": "N/A",
+        "sd_model_hash": "N/A",
+        "task_creation_time": "N/A",
+        "task_start_time": "N/A",
+        "task_completion_time": "N/A",
+        "task_error_str": "",
         "task_input_dict": {
             'prompt': "icon",
             'cfg_strength': 12,
@@ -154,7 +162,6 @@ def main():
             'inpaint_full_res_padding': 32,
             'inpainting_mask_invert': 0
         },
-
         "task_input_file_dict": {},
         "task_output_file_dict": {},
     }
@@ -168,8 +175,7 @@ def main():
         job = http_get_job()
         if job != None:
             print("Found job ! ")
-
-            uuid = job['uuid']
+            job['task_start_time'] = datetime.now().strftime('%d-%m-%Y-%H-%M-%S')
 
             # Convert the job into a dictionary
             # Then use the dictionary to create the generation task
@@ -217,9 +223,11 @@ def main():
                 try:
                     run_generation_task(generation_task)
                     print("job completed !")
+                    job['task_completion_time'] = datetime.now().strftime('%d-%m-%Y-%H-%M-%S')
                     http_update_job_completed(job)
                 except Exception as e:
                     print(f"generation task failed: {e}")
+                    job['task_error_str'] = e
                     http_update_job_failed(job)
 
 
@@ -229,9 +237,11 @@ def main():
                 try:
                     run_generation_task(generation_task)
                     print("job completed !")
+                    job['task_completion_time'] = datetime.now().strftime('%d-%m-%Y-%H-%M-%S')
                     http_update_job_completed(job)
                 except Exception as e:
                     print(f"generation task failed: {e}")
+                    job['task_error_str'] = e
                     http_update_job_failed(job)
 
         else:
