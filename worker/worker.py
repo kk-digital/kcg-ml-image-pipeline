@@ -63,7 +63,33 @@ def main():
 
     # for debugging purpose only
     http_add_job({
+        "uuid": '1',
         "task_type": "icon_generation_task",
+        "task_creation_time": "ignore",
+        "model_name" : "sd",
+        "task_input_dict": {
+            'prompt': "icon",
+            'cfg_strength': 7.5,
+            'iterations': 1,
+            'denoiser': "",
+            'seed': '',
+            'output_path': "./output/inpainting/",
+            'num_images': 6,
+            'image_width': 512,
+            'image_height': 512,
+            'batch_size': 1,
+            'checkpoint_path': 'input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors',
+            'flash': False,
+            'device': "cuda",
+            'sampler': "ddim",
+            'steps': 20,
+            'prompt_list_dataset_path': './input/civit_ai_data_phrase_count_v6.csv',
+            'init_img': './test/test_inpainting/white_512x512.jpg',
+            'init_mask': './test/test_inpainting/icon_mask.png',
+        },
+
+        "task_input_file_dict": {},
+        "task_output_file_dict": {},
     })
 
 
