@@ -94,29 +94,23 @@ def http_add_job(job):
         print(f"POST request failed with status code: {response.status_code}")
 
 
-def http_update_job_completed(uuid):
+def http_update_job_completed(job):
     url = SERVER_ADRESS + "/update-job-completed"
     print(url)
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
 
-    data = {
-        'uuid': uuid,
-    }
-    response = requests.put(url, json=data, headers=headers)
+    response = requests.put(url, json=job, headers=headers)
 
     print(response)
 
     if response.status_code != 200:
         print(f"request failed with status code: {response.status_code}")
 
-def http_update_job_failed(uuid):
+def http_update_job_failed(job):
     url = SERVER_ADRESS + "/update-job-failed"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
-    data = {
-        'uuid': uuid,
-    }
 
-    response = requests.put(url, json=data, headers=headers)
+    response = requests.put(url, json=job, headers=headers)
 
     if response.status_code != 200:
         print(f"request failed with status code: {response.status_code}")
@@ -222,11 +216,11 @@ def main():
                 # Run inpainting task
                 try:
                     run_generation_task(generation_task)
-                    print("job completed ! uuid: ", uuid)
-                    http_update_job_completed(uuid)
+                    print("job completed !")
+                    http_update_job_completed(job)
                 except Exception as e:
                     print(f"generation task failed: {e}")
-                    http_update_job_failed(uuid)
+                    http_update_job_failed(job)
 
 
             elif task_type == 'image_generation_task':
@@ -234,11 +228,11 @@ def main():
                 # Run inpainting task
                 try:
                     run_generation_task(generation_task)
-                    print("job completed ! uuid: ", uuid)
-                    http_update_job_completed(uuid)
+                    print("job completed !")
+                    http_update_job_completed(job)
                 except Exception as e:
                     print(f"generation task failed: {e}")
-                    http_update_job_failed(uuid)
+                    http_update_job_failed(job)
 
         else:
             # If there was no job, go to sleep for a while
