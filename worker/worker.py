@@ -18,25 +18,33 @@ SERVER_ADRESS = 'http://127.0.0.1:8000'
 
 # Running inpainting using the inpainting script
 # TODO(): each generation task should have its own function
+
+
+class GenerateImagesWithInpaintingFromPromptListArguments:
+    def __init__(self, prompt_list_dataset_path, num_images, init_img, init_mask, sampler_name, batch_size, n_iter,
+                 steps, cfg_scale, width, height, outpath):
+
+        self.prompt_list_dataset_path = prompt_list_dataset_path
+        self.num_images = num_images
+        self.init_img = init_img
+        self.init_mask = init_mask
+        self.sampler_name = sampler_name
+        self.batch_size = batch_size
+        self.n_iter = n_iter
+        self.steps = steps
+        self.cfg_scale = cfg_scale
+        self.width = width
+        self.height = height
+        self.outpath = outpath
+
 def run_generation_task(generation_task):
 
     # Instead of using cli arguments, we are using the
     # Generation_task class to provide the parameters
-    args = {
-        'prompt_list_dataset_path' : generation_task.prompt_list_dataset_path,
-        'num_images' : generation_task.num_images,
-        'init_img': generation_task.init_img,
-        'init_mask': generation_task.init_mask,
-        'sampler_name': generation_task.sampler,
-        'batch_size': 1,
-        'n_iter': generation_task.num_images,
-        'steps': generation_task.steps,
-        'cfg_scale': generation_task.cfg_strength,
-        'width': generation_task.image_width,
-        'height': generation_task.image_height,
-        'outpath': generation_task.output_path
+    args = GenerateImagesWithInpaintingFromPromptListArguments(generation_task.prompt_list_dataset_path, generation_task.num_images, generation_task.init_img, generation_task.init_mask,
+                                                               generation_task.sampler, generation_task.num_images, generation_task.steps, generation_task.cfg_strength,
+                                                               generation_task.image_width, generation_task.image_height, generation_task.output_path)
 
-    }
     run_generate_images_with_inpainting_from_prompt_list(args)
 
 # Get request to get an available job
