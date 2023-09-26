@@ -222,11 +222,9 @@ def main():
             if task_type == 'icon_generation_task':
                 generation_task = IconGenerationTask.from_dict(task)
 
-                run_generation_task(generation_task)
-
                 # Run inpainting task
                 try:
-                    run_generation_task(generation_task)
+                    run_generation_task(worker_state, generation_task)
                     print("job completed !")
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     http_update_job_completed(job)
@@ -240,7 +238,7 @@ def main():
                 generation_task = ImageGenerationTask.from_dict(task)
                 # Run inpainting task
                 try:
-                    run_generation_task(generation_task)
+                    run_generation_task(worker_state, generation_task)
                     print("job completed !")
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     http_update_job_completed(job)
