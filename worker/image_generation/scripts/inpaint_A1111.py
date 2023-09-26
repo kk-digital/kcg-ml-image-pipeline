@@ -203,6 +203,7 @@ class StableDiffusionProcessing:
     def prompt_embedding_vectors(self, prompt_array):
         embedded_prompts = []
         for prompt in prompt_array:
+            prompt = prompt.to(device=self.device)
             prompt_embedding = self.clip_text_embedder.forward(prompt)
             embedded_prompts.append(prompt_embedding)
 
