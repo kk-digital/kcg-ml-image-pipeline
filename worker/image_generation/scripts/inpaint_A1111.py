@@ -170,7 +170,7 @@ class StableDiffusionProcessing:
     height: int = 512
     extra_generation_params: dict = None
     overlay_images: list = None
-    self.clip_text_embedder: None
+    clip_text_embedder: None
 
     cached_uc = [None, None]
     cached_c = [None, None]
