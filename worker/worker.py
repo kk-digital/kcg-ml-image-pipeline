@@ -63,6 +63,7 @@ def http_get_job():
     url = SERVER_ADRESS + "/get-job"
     job = requests.get(url)
 
+    print(job)
     if job != None:
         job_json = job.json()
         return job_json
