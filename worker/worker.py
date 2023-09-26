@@ -12,21 +12,36 @@ sys.path.insert(0, base_directory)
 
 from worker.image_generation.generation_task.icon_generation_task import IconGenerationTask
 from worker.image_generation.generation_task.image_generation_task import ImageGenerationTask
-from worker.image_generation.scripts.generate_images_with_inpainting_from_prompt_list import run_generate_images_with_inpainting_from_prompt_list
 from worker.image_generation.scripts.inpaint_A1111 import img2img, get_model
-
-
+from stable_diffusion import StableDiffusion
+from configs.model_config import ModelPathConfig
+from stable_diffusion.model_paths import (SDconfigs, CLIPconfigs)
 
 SERVER_ADRESS = 'http://192.168.3.1:8111'
 
-def run_generation_task(generation_task):
+class WorkerState:
+    def __init__(self, device):
+
+        self.device = device
+        self.config = ModelPathConfig()
+        self.stable_diffusion = None
+
+    def load_models(self, model_path='input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors'):
+        # NOTE: Initializing stable diffusion
+        self.stable_diffusion = StableDiffusion(device=self.device)
+
+        self.stable_diffusion.quick_initialize().load_autoencoder(self.config.get_model(SDconfigs.VAE)).load_decoder(
+            self.config.get_model(SDconfigs.VAE_DECODER))
+        self.stable_diffusion.model.load_unet(self.config.get_model(SDconfigs.UNET))
+        self.stable_diffusion.initialize_latent_diffusion(path=model_path, force_submodels_init=True)
+
+
+def run_generation_task(worker_state, generation_task):
 
     # Make a cache for these images
     # Check if they changed on disk maybe and reload
     init_image = Image.open(generation_task.init_img)
     init_mask = Image.open(generation_task.init_mask)
-
-    sd, config, model = get_model(generation_task.device, generation_task.steps)
 
     img2img(prompt=generation_task.positive_prompt,
             negative_prompt=generation_task.negative_prompt,
@@ -48,9 +63,8 @@ def run_generation_task(generation_task):
             image_cfg_scale=generation_task.image_cfg_scale,
             inpaint_full_res_padding=generation_task.inpaint_full_res_padding,
             inpainting_mask_invert=generation_task.inpainting_mask_invert,
-            sd=sd,
-            config=config,
-            model=model
+            sd=worker_state.stable_diffusion,
+            model=worker_state.stable_diffusion.model
             )
 
 # Get request to get an available job
@@ -109,6 +123,11 @@ def parse_args():
 def main():
     args = parse_args()
 
+
+    # Initialize worker state
+    worker_state = WorkerState()
+    worker_state.load_models()
+
     print("starting")
 
     # for debugging purpose only
@@ -116,9 +135,9 @@ def main():
     job = {
         "uuid": '1',
         "task_type": "icon_generation_task",
-        "model_name" : "sd",
-        "model_file_name": "N/A",
-        "model_file_path": "N/A",
+        "model_name" : "v1-5-pruned-emaonly",
+        "model_file_name": "v1-5-pruned-emaonly",
+        "model_file_path": "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors",
         "sd_model_hash": "N/A",
         "task_creation_time": "N/A",
         "task_start_time": "N/A",
