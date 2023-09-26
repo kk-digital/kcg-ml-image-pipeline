@@ -12,7 +12,7 @@ def update_job_completed(request: Request, task: Task):
         raise HTTPException(status_code=404)
 
     # add to completed
-    request.app.completed_jobs_collection.insert_one(task)
+    request.app.completed_jobs_collection.insert_one(task.to_dict())
 
     # remove from in progress
     request.app.in_progress_jobs_collection.delete_one({"uuid": job.uuid})
@@ -28,7 +28,7 @@ def update_job_failed(request: Request, task: Task):
         raise HTTPException(status_code=404)
 
     # add to failed
-    request.app.failed_jobs_collection.insert_one(task)
+    request.app.failed_jobs_collection.insert_one(task.to_dict())
 
     # remove from in progress
     request.app.in_progress_jobs_collection.delete_one({"uuid": job.uuid})
