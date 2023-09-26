@@ -62,9 +62,12 @@ def run_generation_task(generation_task):
 def http_get_job():
     url = SERVER_ADRESS + "/get-job"
     job = requests.get(url)
-    job_json = job.json()
 
-    return job_json
+    if job != None:
+        job_json = job.json()
+        return job_json
+
+    return None
 
 # Used for debugging purpose
 # The worker should not be adding jobs
