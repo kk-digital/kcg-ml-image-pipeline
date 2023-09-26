@@ -84,7 +84,8 @@ def main():
     print("starting")
 
     # for debugging purpose only
-    http_add_job({
+
+    job = {
         "uuid": '1',
         "task_type": "icon_generation_task",
         "task_creation_time": "ignore",
@@ -112,7 +113,9 @@ def main():
 
         "task_input_file_dict": {},
         "task_output_file_dict": {},
-    })
+    }
+
+    # http_add_job(job)
 
 
     while True:
