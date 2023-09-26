@@ -15,7 +15,7 @@ def update_job_completed(request: Request, task: Task):
     request.app.completed_jobs_collection.insert_one(task.to_dict())
 
     # remove from in progress
-    request.app.in_progress_jobs_collection.delete_one({"uuid": job.uuid})
+    request.app.in_progress_jobs_collection.delete_one({"uuid": task.uuid})
 
     return True
 
@@ -31,6 +31,6 @@ def update_job_failed(request: Request, task: Task):
     request.app.failed_jobs_collection.insert_one(task.to_dict())
 
     # remove from in progress
-    request.app.in_progress_jobs_collection.delete_one({"uuid": job.uuid})
+    request.app.in_progress_jobs_collection.delete_one({"uuid": task.uuid})
 
     return True
