@@ -2,6 +2,9 @@
 import sys
 import time
 import requests
+import json
+from datetime import datetime
+import argparse
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -13,7 +16,7 @@ from worker.image_generation.scripts.generate_images_with_inpainting_from_prompt
 
 
 
-SERVER_ADRESS = 'http://127.0.0.1:8000'
+SERVER_ADRESS = 'http://192.168.3.1:8111'
 
 # Running inpainting using the inpainting script
 # TODO(): each generation task should have its own function
@@ -22,7 +25,7 @@ SERVER_ADRESS = 'http://127.0.0.1:8000'
 class GenerateImagesWithInpaintingFromPromptListArguments:
     def __init__(self, prompt_list_dataset_path, num_images, init_img, init_mask, sampler_name, batch_size, n_iter,
                  steps, cfg_scale, width, height, outpath, mask_blur, inpainting_fill, styles, resize_mode, denoising_strength,
-                 image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert):
+                 image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert, device):
 
         self.prompt_list_dataset_path = prompt_list_dataset_path
         self.num_images = num_images
@@ -44,6 +47,7 @@ class GenerateImagesWithInpaintingFromPromptListArguments:
         self.image_cfg_scale = image_cfg_scale
         self.inpaint_full_res_padding = inpaint_full_res_padding
         self.inpainting_mask_invert = inpainting_mask_invert
+        self.device = device
 
 def run_generation_task(generation_task):
 
@@ -68,7 +72,8 @@ def run_generation_task(generation_task):
                                                                denoising_strength=generation_task.denoising_strength,
                                                                image_cfg_scale=generation_task.image_cfg_scale,
                                                                inpaint_full_res_padding=generation_task.inpaint_full_res_padding,
-                                                               inpainting_mask_invert=generation_task.inpainting_mask_invert)
+                                                               inpainting_mask_invert=generation_task.inpainting_mask_invert,
+                                                               device=generation_task.device)
 
     run_generate_images_with_inpainting_from_prompt_list(args)
 
@@ -87,14 +92,47 @@ def http_get_job():
 # The worker should not be adding jobs
 def http_add_job(job):
     url = SERVER_ADRESS + "/add-job"
-    print(url)
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
     response = requests.post(url, json=job, headers=headers)
-    print("response ", response)
+
     if response.status_code != 201 and response.status_code != 200:
         print(f"POST request failed with status code: {response.status_code}")
 
+
+def http_update_job_completed(job):
+
+    url = SERVER_ADRESS + "/update-job-completed"
+    print(url)
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+
+    response = requests.put(url, json=job, headers=headers)
+
+    print(response)
+
+    if response.status_code != 200:
+        print(f"request failed with status code: {response.status_code}")
+
+def http_update_job_failed(job):
+    url = SERVER_ADRESS + "/update-job-failed"
+    print(url)
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+
+    response = requests.put(url, json=job, headers=headers)
+    print(response)
+    if response.status_code != 200:
+        print(f"request failed with status code: {response.status_code}")
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Worker for image generation")
+
+    # Required parameters
+    parser.add_argument("--device", type=str, default="cuda")
+
+    return parser.parse_args()
+
 def main():
+    args = parse_args()
+
     print("starting")
 
     # for debugging purpose only
@@ -102,29 +140,31 @@ def main():
     job = {
         "uuid": '1',
         "task_type": "icon_generation_task",
-        "task_creation_time": "ignore",
         "model_name" : "sd",
+        "model_file_name": "N/A",
+        "model_file_path": "N/A",
+        "sd_model_hash": "N/A",
+        "task_creation_time": "N/A",
+        "task_start_time": "N/A",
+        "task_completion_time": "N/A",
+        "task_error_str": "",
         "task_input_dict": {
             'prompt': "icon",
-            'cfg_strength': 7.5,
-            'iterations': 1,
-            'denoiser': "",
+            'cfg_strength': 12,
             'seed': '',
             'output_path': "./output/inpainting/",
-            'num_images': 6,
+            'num_images': 1,
             'image_width': 512,
             'image_height': 512,
-            'batch_size': 1,
             'checkpoint_path': 'input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors',
-            'flash': False,
             'device': "cuda",
             'sampler': "ddim",
-            'steps': 20,
+            'sampler_steps': 20,
             'prompt_list_dataset_path': './input/prompt_list_civitai_10000.zip',
             'init_img': './test/test_inpainting/white_512x512.jpg',
             'init_mask': './test/test_inpainting/icon_mask.png',
 
-            'mask_blur' : 4,
+            'mask_blur' : 0,
             'inpainting_fill': 1,
             'styles': [],
             'resize_mode': 0,
@@ -133,7 +173,6 @@ def main():
             'inpaint_full_res_padding': 32,
             'inpainting_mask_invert': 0
         },
-
         "task_input_file_dict": {},
         "task_output_file_dict": {},
     }
@@ -147,32 +186,37 @@ def main():
         job = http_get_job()
         if job != None:
             print("Found job ! ")
-            # Convert the job entry into a dictionary
-            # Then feed the dictionary into the generation task
-            # Question : Do we want to keep converting the database entries to
-            # Our own version of GenerationTask struct ?
-            # Probably yes, since there will be many different types of
-            # GenerationTask struct and they will have different fields
+            job['task_start_time'] = datetime.now()
+
+            # Convert the job into a dictionary
+            # Then use the dictionary to create the generation task
             task = {
                 'generation_task_type' : job['task_type'],
                 'prompt': job['task_input_dict']['prompt'],
                 'model_name': job['model_name'],
                 'cfg_strength': job['task_input_dict']['cfg_strength'],
-                'iterations': job['task_input_dict']['iterations'],
-                'denoiser': job['task_input_dict']['denoiser'],
+                'num_images': job['task_input_dict']['num_images'],
                 'seed': job['task_input_dict']['seed'],
                 'output_path': job['task_input_dict']['output_path'],
                 'image_width': job['task_input_dict']['image_width'],
                 'image_height': job['task_input_dict']['image_height'],
-                'batch_size': job['task_input_dict']['batch_size'],
+                'batch_size': 1,
                 'checkpoint_path': job['task_input_dict']['checkpoint_path'],
-                'flash': job['task_input_dict']['flash'],
-                'device': job['task_input_dict']['device'],
+                'device': args.device,
                 'sampler': job['task_input_dict']['sampler'],
-                'steps': job['task_input_dict']['steps'],
+                'steps': job['task_input_dict']['sampler_steps'],
                 'prompt_list_dataset_path': job['task_input_dict']['prompt_list_dataset_path'],
                 'init_img': job['task_input_dict']['init_img'],
                 'init_mask': job['task_input_dict']['init_mask'],
+
+                'mask_blur': job['task_input_dict']['mask_blur'],
+                'inpainting_fill': job['task_input_dict']['inpainting_fill'],
+                'styles': job['task_input_dict']['styles'],
+                'resize_mode': job['task_input_dict']['resize_mode'],
+                'denoising_strength': job['task_input_dict']['denoising_strength'],
+                'image_cfg_scale': job['task_input_dict']['image_cfg_scale'],
+                'inpaint_full_res_padding': job['task_input_dict']['inpaint_full_res_padding'],
+                'inpainting_mask_invert': job['task_input_dict']['inpainting_mask_invert']
             }
 
             # Switch on the task type
@@ -182,13 +226,31 @@ def main():
 
             if task_type == 'icon_generation_task':
                 generation_task = IconGenerationTask.from_dict(task)
+
                 # Run inpainting task
-                run_generation_task(generation_task)
+                try:
+                    run_generation_task(generation_task)
+                    print("job completed !")
+                    job['task_completion_time'] = datetime.now()
+                    http_update_job_completed(job)
+                except Exception as e:
+                    print(f"generation task failed: {e}")
+                    job['task_error_str'] = str(e)
+                    http_update_job_failed(job)
+
 
             elif task_type == 'image_generation_task':
                 generation_task = ImageGenerationTask.from_dict(task)
                 # Run inpainting task
-                run_generation_task(generation_task)
+                try:
+                    run_generation_task(generation_task)
+                    print("job completed !")
+                    job['task_completion_time'] = datetime.now()
+                    http_update_job_completed(job)
+                except Exception as e:
+                    print(f"generation task failed: {e}")
+                    job['task_error_str'] = str(e)
+                    http_update_job_failed(job)
 
         else:
             # If there was no job, go to sleep for a while

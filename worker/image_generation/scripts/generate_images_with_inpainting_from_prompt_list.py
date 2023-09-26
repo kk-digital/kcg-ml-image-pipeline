@@ -50,7 +50,7 @@ def parse_args():
 
 def run_generate_images_with_inpainting_from_prompt_list(args):
     num_images = args.num_images
-
+    #raise Exception("An error occurred!", 500)
     # load prompt list
     limit = num_images
     prompt_dataset = PromptListDataset()
