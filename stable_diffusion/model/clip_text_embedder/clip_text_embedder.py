@@ -84,6 +84,7 @@ class CLIPTextEmbedder(nn.Module):
             # self.init_submodels(tokenizer_path = tokenizer_path, transformer_path = transformer_path)
             # safetensors.torch.load_model(self.transformer, os.path.join(transformer_path, '/model.safetensors'))
             self.transformer = self.transformer.to(device=self.device)
+            print(self.device)
             logger.debug(f"CLIP text model successfully loaded from : {transformer_path}")
 
             return self
@@ -129,7 +130,7 @@ class CLIPTextEmbedder(nn.Module):
                                         return_overflowing_tokens=False, padding="max_length", return_tensors="pt")
         # Get token ids
         tokens = batch_encoding["input_ids"].to(self.device)
-
+        self.transformer = self.transformer.to(self.device)
         # Get CLIP embeddings
         return self.transformer(input_ids=tokens).last_hidden_state
 
