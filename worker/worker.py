@@ -65,11 +65,6 @@ def main():
     http_add_job({
         "uuid": 1,
         "task_type": "icon_generation_task",
-        "task_creation_time": "ignore",
-        "model_name" : "sd",
-
-        "task_input_file_dict": {},
-        "task_output_file_dict": {},
     })
 
 
