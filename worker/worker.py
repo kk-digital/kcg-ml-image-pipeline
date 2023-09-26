@@ -49,7 +49,7 @@ def http_get_job():
 # Used for debugging purpose
 # The worker should not be adding jobs
 def http_add_job(job):
-    url = SERVER_ADRESS + "/get-list-pending-jobs"
+    url = SERVER_ADRESS + "/add-job"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
     response = requests.post(url, json=job, headers=headers)
     print("response ", response)
