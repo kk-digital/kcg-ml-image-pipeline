@@ -106,12 +106,12 @@ def main():
         "model_name" : "sd",
         "task_input_dict": {
             'prompt': "icon",
-            'cfg_strength': 7.5,
+            'cfg_strength': 12,
             'iterations': 1,
             'denoiser': "",
             'seed': '',
             'output_path': "./output/inpainting/",
-            'num_images': 6,
+            'num_images': 12,
             'image_width': 512,
             'image_height': 512,
             'batch_size': 1,
@@ -138,7 +138,7 @@ def main():
         "task_output_file_dict": {},
     }
 
-    #http_add_job(job)
+    http_add_job(job)
     #http_add_job(job)
 
 
@@ -147,12 +147,8 @@ def main():
         job = http_get_job()
         if job != None:
             print("Found job ! ")
-            # Convert the job entry into a dictionary
-            # Then feed the dictionary into the generation task
-            # Question : Do we want to keep converting the database entries to
-            # Our own version of GenerationTask struct ?
-            # Probably yes, since there will be many different types of
-            # GenerationTask struct and they will have different fields
+            # Convert the job into a dictionary
+            # Then use the dictionary to create the generation task
             task = {
                 'generation_task_type' : job['task_type'],
                 'prompt': job['task_input_dict']['prompt'],
