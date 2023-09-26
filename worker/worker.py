@@ -13,7 +13,7 @@ sys.path.insert(0, base_directory)
 from worker.image_generation.generation_task.icon_generation_task import IconGenerationTask
 from worker.image_generation.generation_task.image_generation_task import ImageGenerationTask
 from worker.image_generation.scripts.inpaint_A1111 import img2img, get_model
-from stable_diffusion import StableDiffusion
+from stable_diffusion import StableDiffusion, CLIPTextEmbedder
 from configs.model_config import ModelPathConfig
 from stable_diffusion.model_paths import (SDconfigs, CLIPconfigs)
 
@@ -25,6 +25,7 @@ class WorkerState:
         self.device = device
         self.config = ModelPathConfig()
         self.stable_diffusion = None
+        self.clip_text_embedder = None
 
     def load_models(self, model_path='input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors'):
         # NOTE: Initializing stable diffusion
@@ -35,6 +36,13 @@ class WorkerState:
         self.stable_diffusion.model.load_unet(self.config.get_model(SDconfigs.UNET))
         self.stable_diffusion.initialize_latent_diffusion(path=model_path, force_submodels_init=True)
 
+        self.clip_text_embedder = CLIPTextEmbedder(device=self.device)
+
+        self.clip_text_embedder.load_submodels(
+            tokenizer_path=self.config.get_model_folder_path(CLIPconfigs.TXT_EMB_TOKENIZER),
+            transformer_path=self.config.get_model_folder_path(CLIPconfigs.TXT_EMB_TEXT_MODEL)
+        )
+
 
 def run_generation_task(worker_state, generation_task):
 
@@ -42,6 +50,7 @@ def run_generation_task(worker_state, generation_task):
     # Check if they changed on disk maybe and reload
     init_image = Image.open(generation_task.init_img)
     init_mask = Image.open(generation_task.init_mask)
+
 
     img2img(prompt=generation_task.positive_prompt,
             negative_prompt=generation_task.negative_prompt,
@@ -64,7 +73,8 @@ def run_generation_task(worker_state, generation_task):
             inpaint_full_res_padding=generation_task.inpaint_full_res_padding,
             inpainting_mask_invert=generation_task.inpainting_mask_invert,
             sd=worker_state.stable_diffusion,
-            model=worker_state.stable_diffusion.model
+            model=worker_state.stable_diffusion.model,
+            clip_text_embedder=worker_state.clip_text_embedder
             )
 
 # Get request to get an available job

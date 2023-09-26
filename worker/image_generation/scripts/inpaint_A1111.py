@@ -196,13 +196,11 @@ class StableDiffusionProcessing:
     subseeds: list = field(default=None, init=False)
 
     sd: StableDiffusion = None
-    config: ModelPathConfig = None
     model: LatentDiffusion = None
+    clip_text_embedder: CLIPTextEmbedder = None
     n_steps: int = 50
     ddim_eta: float = 0.0
     device = get_device()
-
-    clip_text_embedder = CLIPTextEmbedder(device=get_device())
 
     def prompt_embedding_vectors(self, prompt_array):
         embedded_prompts = []
@@ -215,25 +213,8 @@ class StableDiffusionProcessing:
         return embedded_prompts
 
     def __post_init__(self):
-        if self.sd is None:
-            # NOTE: Initializing stable diffusion
-            self.sd = StableDiffusion(device=self.device, n_steps=self.n_steps)
-            self.config = ModelPathConfig()
-            self.sd.quick_initialize().load_autoencoder(self.config.get_model(SDconfigs.VAE)).load_decoder(
-                self.config.get_model(SDconfigs.VAE_DECODER))
-            self.sd.model.load_unet(self.config.get_model(SDconfigs.UNET))
-            self.sd.initialize_latent_diffusion(
-                path='input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors',
-                force_submodels_init=True)
-            self.model = self.sd.model
-
         if self.styles is None:
             self.styles = []
-
-        self.clip_text_embedder.load_submodels(
-            tokenizer_path=self.config.get_model_folder_path(CLIPconfigs.TXT_EMB_TOKENIZER),
-            transformer_path=self.config.get_model_folder_path(CLIPconfigs.TXT_EMB_TEXT_MODEL)
-        )
 
         self.cached_uc = StableDiffusionProcessing.cached_uc
         self.cached_c = StableDiffusionProcessing.cached_c
@@ -690,7 +671,7 @@ def get_model(device, n_steps):
 def img2img(prompt: str, negative_prompt: str, sampler_name: str, batch_size: int, n_iter: int, steps: int,
             cfg_scale: float, width: int, height: int, mask_blur: int, inpainting_fill: int,
             outpath, styles, init_images, mask, resize_mode, denoising_strength,
-            image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert, sd=None, config=None, model=None):
+            image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert, sd=None, clip_text_embedder=None, model=None):
     p = StableDiffusionProcessingImg2Img(
         outpath=outpath,
         prompt=prompt,
@@ -713,7 +694,7 @@ def img2img(prompt: str, negative_prompt: str, sampler_name: str, batch_size: in
         inpaint_full_res_padding=inpaint_full_res_padding,
         inpainting_mask_invert=inpainting_mask_invert,
         sd=sd,
-        config=config,
+        clip_text_embedder=clip_text_embedder,
         model=model
     )
 
