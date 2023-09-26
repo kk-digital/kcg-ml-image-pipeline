@@ -170,7 +170,7 @@ def main():
             # If there was no job, go to sleep for a while
             sleep_time_in_seconds = 1
             print("Did not find job, going to sleep for ", sleep_time_in_seconds, " seconds")
-            time.sleep(sleep_time_in_seconds * 1000)
+            time.sleep(sleep_time_in_seconds)
 
 
 
