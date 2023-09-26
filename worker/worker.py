@@ -4,6 +4,7 @@ import time
 import requests
 import json
 from datetime import datetime
+import argparse
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -24,7 +25,7 @@ SERVER_ADRESS = 'http://127.0.0.1:8000'
 class GenerateImagesWithInpaintingFromPromptListArguments:
     def __init__(self, prompt_list_dataset_path, num_images, init_img, init_mask, sampler_name, batch_size, n_iter,
                  steps, cfg_scale, width, height, outpath, mask_blur, inpainting_fill, styles, resize_mode, denoising_strength,
-                 image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert):
+                 image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert, device):
 
         self.prompt_list_dataset_path = prompt_list_dataset_path
         self.num_images = num_images
@@ -46,6 +47,7 @@ class GenerateImagesWithInpaintingFromPromptListArguments:
         self.image_cfg_scale = image_cfg_scale
         self.inpaint_full_res_padding = inpaint_full_res_padding
         self.inpainting_mask_invert = inpainting_mask_invert
+        self.device = device
 
 def run_generation_task(generation_task):
 
@@ -70,7 +72,8 @@ def run_generation_task(generation_task):
                                                                denoising_strength=generation_task.denoising_strength,
                                                                image_cfg_scale=generation_task.image_cfg_scale,
                                                                inpaint_full_res_padding=generation_task.inpaint_full_res_padding,
-                                                               inpainting_mask_invert=generation_task.inpainting_mask_invert)
+                                                               inpainting_mask_invert=generation_task.inpainting_mask_invert,
+                                                               device=generation_task.device)
 
     run_generate_images_with_inpainting_from_prompt_list(args)
 
@@ -119,7 +122,17 @@ def http_update_job_failed(job):
     if response.status_code != 200:
         print(f"request failed with status code: {response.status_code}")
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Worker for image generation")
+
+    # Required parameters
+    parser.add_argument("--device", type=str, default="cuda")
+
+    return parser.parse_args()
+
 def main():
+    args = parse_args()
+
     print("starting")
 
     # for debugging purpose only
@@ -127,7 +140,6 @@ def main():
     job = {
         "uuid": '1',
         "task_type": "icon_generation_task",
-        "task_creation_time": "ignore",
         "model_name" : "sd",
         "model_file_name": "N/A",
         "model_file_path": "N/A",
@@ -197,7 +209,7 @@ def main():
                 'batch_size': job['task_input_dict']['batch_size'],
                 'checkpoint_path': job['task_input_dict']['checkpoint_path'],
                 'flash': job['task_input_dict']['flash'],
-                'device': job['task_input_dict']['device'],
+                'device': args.device,
                 'sampler': job['task_input_dict']['sampler'],
                 'steps': job['task_input_dict']['steps'],
                 'prompt_list_dataset_path': job['task_input_dict']['prompt_list_dataset_path'],
@@ -226,7 +238,7 @@ def main():
                 try:
                     run_generation_task(generation_task)
                     print("job completed !")
-                    job['task_completion_time'] = datetime.now().strftime('%d-%m-%Y-%H-%M-%S')
+                    job['task_completion_time'] = datetime.now().strftime('%d-%m-%Y-%H:%M:%S')
                     http_update_job_completed(job)
                 except Exception as e:
                     print(f"generation task failed: {e}")
@@ -240,7 +252,7 @@ def main():
                 try:
                     run_generation_task(generation_task)
                     print("job completed !")
-                    job['task_completion_time'] = datetime.now().strftime('%d-%m-%Y-%H-%M-%S')
+                    job['task_completion_time'] = datetime.now().strftime('%d-%m-%Y-%H:%M:%S')
                     http_update_job_completed(job)
                 except Exception as e:
                     print(f"generation task failed: {e}")
