@@ -1,7 +1,7 @@
 class IconGenerationTask:
 
     def __init__(self, generation_task_type, positive_prompt, negative_prompt, model_name, cfg_strength, seed, output_path,
-                 num_images, image_width, image_height, batch_size, checkpoint_path, device, sampler, steps,
+                 num_images, image_width, image_height, batch_size, checkpoint_path, sampler, steps,
                  init_img, init_mask, output_image_hash, mask_blur, inpainting_fill, styles,
                  resize_mode, denoising_strength, image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert):
         self.generation_task_type = generation_task_type
@@ -16,7 +16,6 @@ class IconGenerationTask:
         self.image_height = image_height
         self.batch_size = batch_size
         self.checkpoint_path = checkpoint_path
-        self.device = device
         self.sampler = sampler
         self.steps = steps
         self.init_img = init_img
@@ -45,7 +44,6 @@ class IconGenerationTask:
             'image_height': self.image_height,
             'batch_size': self.batch_size,
             'checkpoint_path': self.checkpoint_path,
-            'device': self.device,
             'sampler': self.sampler,
             'steps': self.steps,
             'init_img': self.init_img,
@@ -76,7 +74,6 @@ class IconGenerationTask:
             image_height=data.get('image_height', 512),
             batch_size=data.get('batch_size', 1),
             checkpoint_path=data.get('checkpoint_path', ''),
-            device=data.get('device', 'cuda'),
             sampler=data.get('sampler', 'ddim'),
             steps=data.get('steps', 50),
             init_img=data.get('init_img', ''),
