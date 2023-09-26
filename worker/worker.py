@@ -2,6 +2,7 @@
 import sys
 import time
 import requests
+import json
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -49,9 +50,12 @@ def http_get_job():
 # Used for debugging purpose
 # The worker should not be adding jobs
 def http_add_job(job):
+
+    data = json.dumps(job)
     url = SERVER_ADRESS + "/add-job"
+    print(url)
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
-    response = requests.post(url, json=job, headers=headers)
+    response = requests.post(url, json=data, headers=headers)
     print("response ", response)
     if response.status_code != 201:
         print(f"POST request failed with status code: {response.status_code}")
