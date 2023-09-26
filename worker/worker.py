@@ -87,12 +87,36 @@ def http_get_job():
 # The worker should not be adding jobs
 def http_add_job(job):
     url = SERVER_ADRESS + "/add-job"
-    print(url)
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
     response = requests.post(url, json=job, headers=headers)
-    print("response ", response)
+
     if response.status_code != 201 and response.status_code != 200:
         print(f"POST request failed with status code: {response.status_code}")
+
+
+def http_update_job_completed(uuid):
+    url = SERVER_ADRESS + "/update-job-completed"
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+
+    data = {
+        'uuid': uuid,
+    }
+    response = requests.put(url, json=data, headers=headers)
+
+    if response.status_code != 200:
+        print(f"request failed with status code: {response.status_code}")
+
+def http_update_job_failed(uuid):
+    url = SERVER_ADRESS + "/update-job-failed"
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+    data = {
+        'uuid': uuid,
+    }
+
+    response = requests.put(url, json=data, headers=headers)
+
+    if response.status_code != 200:
+        print(f"request failed with status code: {response.status_code}")
 
 def main():
     print("starting")
@@ -147,6 +171,9 @@ def main():
         job = http_get_job()
         if job != None:
             print("Found job ! ")
+
+            uuid = job['uuid']
+
             # Convert the job into a dictionary
             # Then use the dictionary to create the generation task
             task = {
@@ -188,13 +215,25 @@ def main():
 
             if task_type == 'icon_generation_task':
                 generation_task = IconGenerationTask.from_dict(task)
+                http_update_job_completed(uuid)
                 # Run inpainting task
-                run_generation_task(generation_task)
+                try:
+                    run_generation_task(generation_task)
+                except Exception as e:
+                    print(f"generation task failed: {e}")
+                    http_update_job_failed(uuid)
+
 
             elif task_type == 'image_generation_task':
                 generation_task = ImageGenerationTask.from_dict(task)
                 # Run inpainting task
-                run_generation_task(generation_task)
+                http_update_job_completed(uuid)
+                # Run inpainting task
+                try:
+                    run_generation_task(generation_task)
+                except Exception as e:
+                    print(f"generation task failed: {e}")
+                    http_update_job_failed(uuid)
 
         else:
             # If there was no job, go to sleep for a while
