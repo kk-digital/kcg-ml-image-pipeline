@@ -192,6 +192,7 @@ def main():
         job = http_get_job()
         if job != None:
             print("Found job ! ")
+            job_start_time = time()
             job['task_start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
             # Convert the job into a dictionary
@@ -256,6 +257,10 @@ def main():
                     print(f"generation task failed: {e}")
                     job['task_error_str'] = str(e)
                     http_update_job_failed(job)
+
+            job_end_time = time.time()
+            job_elapsed_time = job_end_time - job_start_time
+            print(f"job took {job_elapsed_time} seconds to execute.")
 
         else:
             # If there was no job, go to sleep for a while
