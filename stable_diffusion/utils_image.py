@@ -81,7 +81,8 @@ def save_images_to_minio(minio_client, images: torch.Tensor, dest_path: str, img
         img_byte_arr.seek(0)
 
         # get hash
-        output_file_hash = (hashlib.sha256(img_byte_arr)).hexdigest()
+        image_data = img.tobytes()
+        output_file_hash = (hashlib.sha256(image_data)).hexdigest()
 
         # save to minio server
         output_file_path = dest_path

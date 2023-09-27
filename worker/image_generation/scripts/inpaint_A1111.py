@@ -648,7 +648,8 @@ def process_images(p: StableDiffusionProcessingImg2Img, minio_client):
                 img_byte_arr.seek(0)
 
                 # get hash
-                output_file_hash = (hashlib.sha256(img_byte_arr)).hexdigest()
+                image_data = image.tobytes()
+                output_file_hash = (hashlib.sha256(image_data)).hexdigest()
 
                 # save to minio server
                 output_file_path = join(p.outpath, f"{int(time.time())}.png")
