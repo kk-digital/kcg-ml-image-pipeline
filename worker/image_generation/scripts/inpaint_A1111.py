@@ -567,6 +567,8 @@ def apply_overlay(image, paste_loc, index, overlays):
 
 
 def process_images(p: StableDiffusionProcessingImg2Img):
+    output_file_path = ""
+
     if isinstance(p.prompt, list):
         assert (len(p.prompt) > 0)
     else:
@@ -637,10 +639,13 @@ def process_images(p: StableDiffusionProcessingImg2Img):
                 image = Image.fromarray(x_sample)
 
                 image = apply_overlay(image, p.paste_to, i, p.overlay_images)
-                image.save(join(p.outpath, f"{int(time.time())}.png"))
+                output_file_path = join(p.outpath, f"{int(time.time())}.png")
+                image.save(output_file_path)
 
             del x_samples_ddim
             torch_gc()
+
+    return output_file_path
 
 
 def create_binary_mask(image):
@@ -697,7 +702,9 @@ def img2img(prompt: str, negative_prompt: str, sampler_name: str, batch_size: in
     )
 
     with closing(p):
-        process_images(p)
+        output_file_path = process_images(p)
+
+    return output_file_path
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Call img2img with specified parameters.")

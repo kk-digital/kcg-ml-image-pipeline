@@ -6,6 +6,7 @@ import random
 from datetime import datetime
 import argparse
 from PIL import Image
+import hashlib
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -56,6 +57,22 @@ class WorkerState:
         self.txt2img.initialize_latent_diffusion(autoencoder=None, clip_text_embedder=None, unet_model=None,
                                             path=model_path, force_submodels_init=True)
 
+
+def compute_file_hash(file_path, hash_algorithm='sha256'):
+    """Compute the hash of a file using the given algorithm (default: sha256)"""
+
+    # Create a hash object
+    h = hashlib.new(hash_algorithm)
+
+    # Open the file in binary read mode
+    with open(file_path, 'rb') as f:
+        # Read the file in chunks (useful for large files)
+        for chunk in iter(lambda: f.read(4096), b""):
+            h.update(chunk)
+
+    # Return the hexadecimal representation of the hash
+    return h.hexdigest()
+
 def run_image_generation_task(worker_state, generation_task):
 
     # Random seed for now
@@ -63,7 +80,7 @@ def run_image_generation_task(worker_state, generation_task):
     random.seed(time.time())
     seed = random.randint(0, 2 ** 24 - 1)
 
-    generate_image_from_text(worker_state.txt2img,
+    output_file_path = generate_image_from_text(worker_state.txt2img,
                              worker_state.clip_text_embedder,
                              generation_task.positive_prompt,
                              generation_task.negative_prompt,
@@ -73,19 +90,25 @@ def run_image_generation_task(worker_state, generation_task):
                              generation_task.image_height,
                              generation_task.output_path)
 
-def run_generation_task(worker_state, generation_task):
+    output_file_hash = compute_file_hash(output_file_path)
+
+    return output_file_path, output_file_hash
+
+
+
+def run_inpainting_generation_task(worker_state, generation_task):
 
     # TODO(): Make a cache for these images
     # Check if they changed on disk maybe and reload
     init_image = Image.open(generation_task.init_img)
     init_mask = Image.open(generation_task.init_mask)
 
-
-    img2img(prompt=generation_task.positive_prompt,
+    output_file_path = img2img(
+            prompt=generation_task.positive_prompt,
             negative_prompt=generation_task.negative_prompt,
             sampler_name=generation_task.sampler,
             batch_size=1,
-            n_iter=generation_task.num_images,
+            n_iter=1,
             steps=generation_task.steps,
             cfg_scale=generation_task.cfg_strength,
             width=generation_task.image_width,
@@ -106,6 +129,10 @@ def run_generation_task(worker_state, generation_task):
             clip_text_embedder=worker_state.clip_text_embedder,
             device=worker_state.device
             )
+
+    output_file_hash = compute_file_hash(output_file_path)
+
+    return output_file_path, output_file_hash
 
 # Get request to get an available job
 def http_get_job():
@@ -166,14 +193,14 @@ def main():
 
     # Initialize worker state
     worker_state = WorkerState(args.device)
+    # Loading models
     worker_state.load_models()
 
-    print("starting")
+    print("starting worker ! ")
 
     # for debugging purpose only
 
     inpainting_job = {
-        "uuid": '1',
         "task_type": "icon_generation_task",
         "model_name" : "v1-5-pruned-emaonly",
         "model_file_name": "v1-5-pruned-emaonly",
@@ -189,7 +216,6 @@ def main():
             'cfg_strength': 12,
             'seed': '',
             'output_path': "./output/inpainting/",
-            'num_images': 1,
             'image_width': 512,
             'image_height': 512,
             'sampler': "ddim",
@@ -211,7 +237,6 @@ def main():
     }
 
     image_generation_job = {
-        "uuid": '1',
         "task_type": "image_generation_task",
         "model_name": "v1-5-pruned-emaonly",
         "model_file_name": "v1-5-pruned-emaonly",
@@ -237,10 +262,15 @@ def main():
         "task_output_file_dict": {},
     }
 
+    invalid_job = {
+        "task_type": "invalid_job_type",
+    }
+
 
     http_add_job(image_generation_job)
     http_add_job(image_generation_job)
     http_add_job(inpainting_job)
+    http_add_job(invalid_job)
 
     last_job_time = time.time()
 
@@ -270,7 +300,6 @@ def main():
                     'negative_prompt': job['task_input_dict']['negative_prompt'],
                     'model_name': job['model_name'],
                     'cfg_strength': job['task_input_dict']['cfg_strength'],
-                    'num_images': job['task_input_dict']['num_images'],
                     'seed': job['task_input_dict']['seed'],
                     'output_path': job['task_input_dict']['output_path'],
                     'image_width': job['task_input_dict']['image_width'],
@@ -295,9 +324,13 @@ def main():
 
                 # Run inpainting task
                 try:
-                    run_generation_task(worker_state, generation_task)
+                    output_file_path, output_file_hash = run_inpainting_generation_task(worker_state, generation_task)
                     print("job completed !")
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    job['task_output_file_dict'] = {
+                        'output_file_path': output_file_path,
+                        'output_file_hash': output_file_hash
+                    }
                     http_update_job_completed(job)
                 except Exception as e:
                     print(f"generation task failed: {e}")
@@ -327,14 +360,24 @@ def main():
                 generation_task = ImageGenerationTask.from_dict(task)
                 # Run inpainting task
                 try:
-                    run_image_generation_task(worker_state, generation_task)
+                    output_file_path, output_file_hash = run_image_generation_task(worker_state, generation_task)
                     print("job completed !")
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    job['task_output_file_dict'] = {
+                        'output_file_path' : output_file_path,
+                        'output_file_hash' : output_file_hash
+                    }
                     http_update_job_completed(job)
                 except Exception as e:
                     print(f"generation task failed: {e}")
                     job['task_error_str'] = str(e)
                     http_update_job_failed(job)
+
+            else:
+                e = "task type with name '" + task_type + "' is not supported"
+                print(e)
+                job['task_error_str'] = e
+                http_update_job_failed(job)
 
             job_end_time = time.time()
             last_job_time = job_end_time

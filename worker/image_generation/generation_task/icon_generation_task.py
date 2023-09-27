@@ -1,7 +1,7 @@
 class IconGenerationTask:
 
     def __init__(self, generation_task_type, positive_prompt, negative_prompt, model_name, cfg_strength, seed, output_path,
-                 num_images, image_width, image_height, batch_size, sampler, steps,
+                 image_width, image_height, batch_size, sampler, steps,
                  init_img, init_mask, output_image_hash, mask_blur, inpainting_fill_mode, styles,
                  resize_mode, denoising_strength, image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert):
         self.generation_task_type = generation_task_type
@@ -11,7 +11,6 @@ class IconGenerationTask:
         self.cfg_strength = cfg_strength
         self.seed = seed
         self.output_path = output_path
-        self.num_images = num_images
         self.image_width = image_width
         self.image_height = image_height
         self.batch_size = batch_size
@@ -38,7 +37,6 @@ class IconGenerationTask:
             'cfg_strength': self.cfg_strength,
             'seed': self.seed,
             'output_path': self.output_path,
-            'num_images': self.num_images,
             'image_width': self.image_width,
             'image_height': self.image_height,
             'batch_size': self.batch_size,
@@ -67,7 +65,6 @@ class IconGenerationTask:
             model_name=data.get('model_name', ''),
             seed=data.get('seed', ''),
             output_path=data.get('output_path', ''),
-            num_images=data.get('num_images', 1),
             image_width=data.get('image_width', 512),
             image_height=data.get('image_height', 512),
             batch_size=data.get('batch_size', 1),
