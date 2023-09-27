@@ -80,14 +80,18 @@ def upload_from_file(client, bucket_name, object_name, file_path):
 
 
 def upload_data(client, bucket_name, object_name, data):
-    result = client.put_object(
-        bucket_name, object_name, data, length=-1, part_size=10 * 1024 * 1024,
-    )
-    print(
-        "created {0} object; etag: {1}, version-id: {2}".format(
-            result.object_name, result.etag, result.version_id,
-        ),
-    )
+    try:
+        result = client.put_object(
+            bucket_name, object_name, data, length=-1, part_size=10 * 1024 * 1024,
+        )
+        print(
+            "created {0} object; etag: {1}, version-id: {2}".format(
+                result.object_name, result.etag, result.version_id,
+            ),
+        )
+
+    except Exception as e:
+        raise Exception(e)
 
 
 def remove_an_object(client, bucket_name, object_name):

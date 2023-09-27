@@ -1,4 +1,3 @@
-
 import sys
 import time
 import requests
@@ -20,6 +19,8 @@ from configs.model_config import ModelPathConfig
 from stable_diffusion.model_paths import (SDconfigs, CLIPconfigs)
 from worker.image_generation.scripts.stable_diffusion_base_script import StableDiffusionBaseScript
 from worker.image_generation.scripts.generate_image_from_text import generate_image_from_text
+from utility.minio import cmd
+
 
 SERVER_ADRESS = 'http://192.168.3.1:8111'
 
@@ -27,8 +28,10 @@ SERVER_ADRESS = 'http://192.168.3.1:8111'
 def info(message):
     print(colored("[INFO] ", 'green') + message)
 
+
 def error(message):
     print(colored("[ERROR] ", 'red') + message)
+
 
 def warning(message):
     print(colored("[WARNING] ", 'yellow') + message)
@@ -85,37 +88,35 @@ def compute_file_hash(file_path, hash_algorithm='sha256'):
     # Return the hexadecimal representation of the hash
     return h.hexdigest()
 
-def run_image_generation_task(worker_state, generation_task):
 
+def run_image_generation_task(worker_state, generation_task, minio_client):
     # Random seed for now
     # Should we use the seed from job parameters ?
     random.seed(time.time())
     seed = random.randint(0, 2 ** 24 - 1)
 
-    output_file_path = generate_image_from_text(worker_state.txt2img,
-                             worker_state.clip_text_embedder,
-                             generation_task.positive_prompt,
-                             generation_task.negative_prompt,
-                             generation_task.cfg_strength,
-                             seed,
-                             generation_task.image_width,
-                             generation_task.image_height,
-                             generation_task.output_path)
-
-    output_file_hash = compute_file_hash(output_file_path)
+    output_file_path, output_file_hash = generate_image_from_text(minio_client,
+                                                worker_state.txt2img,
+                                                worker_state.clip_text_embedder,
+                                                generation_task.positive_prompt,
+                                                generation_task.negative_prompt,
+                                                generation_task.cfg_strength,
+                                                seed,
+                                                generation_task.image_width,
+                                                generation_task.image_height,
+                                                generation_task.output_path)
 
     return output_file_path, output_file_hash
 
 
-
-def run_inpainting_generation_task(worker_state, generation_task):
-
+def run_inpainting_generation_task(worker_state, generation_task, minio_client):
     # TODO(): Make a cache for these images
     # Check if they changed on disk maybe and reload
     init_image = Image.open(generation_task.init_img)
     init_mask = Image.open(generation_task.init_mask)
 
-    output_file_path = img2img(
+    output_file_path, output_file_hash = img2img(
+            minio_client=minio_client,
             prompt=generation_task.positive_prompt,
             negative_prompt=generation_task.negative_prompt,
             sampler_name=generation_task.sampler,
@@ -142,9 +143,8 @@ def run_inpainting_generation_task(worker_state, generation_task):
             device=worker_state.device
             )
 
-    output_file_hash = compute_file_hash(output_file_path)
-
     return output_file_path, output_file_hash
+
 
 # Get request to get an available job
 def http_get_job():
@@ -156,6 +156,7 @@ def http_get_job():
         return job_json
 
     return None
+
 
 # Used for debugging purpose
 # The worker should not be adding jobs
@@ -169,7 +170,6 @@ def http_add_job(job):
 
 
 def http_update_job_completed(job):
-
     url = SERVER_ADRESS + "/update-job-completed"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
 
@@ -177,6 +177,7 @@ def http_update_job_completed(job):
 
     if response.status_code != 200:
         print(f"request failed with status code: {response.status_code}")
+
 
 def http_update_job_failed(job):
     url = SERVER_ADRESS + "/update-job-failed"
@@ -186,102 +187,40 @@ def http_update_job_failed(job):
     if response.status_code != 200:
         print(f"request failed with status code: {response.status_code}")
 
+
+def get_minio_client(minio_access_key, minio_secret_key):
+    # check first if minio client is available
+    minio_client = None
+    while minio_client is None:
+        # check minio server
+        if cmd.is_minio_server_accesssible():
+            minio_client = cmd.connect_to_minio_client(minio_access_key, minio_secret_key)
+            return minio_client
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Worker for image generation")
 
     # Required parameters
     parser.add_argument("--device", type=str, default="cuda")
+    parser.add_argument("--minio-access-key", type=str, help="The minio access key to use so worker can upload files to minio server")
+    parser.add_argument("--minio-secret-key", type=str, help="The minio secret key to use so worker can upload files to minio server")
 
     return parser.parse_args()
 
+
 def main():
     args = parse_args()
-
 
     # Initialize worker state
     worker_state = WorkerState(args.device)
     # Loading models
     worker_state.load_models()
 
+    # get minio client
+    minio_client = get_minio_client(args.minio_access_key, args.minio_secret_key)
+
     info("starting worker ! ")
-
-    # For debug purpose only
-    # TODO(): delete
-    inpainting_job = {
-        "task_type": "inpainting_generation_task",
-        "model_name" : "v1-5-pruned-emaonly",
-        "model_file_name": "v1-5-pruned-emaonly",
-        "model_file_path": "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors",
-        "sd_model_hash": "N/A",
-        "task_creation_time": "N/A",
-        "task_start_time": "N/A",
-        "task_completion_time": "N/A",
-        "task_error_str": "",
-        "task_input_dict": {
-            'positive_prompt': "icon, game icon, crystal, high resolution, contour, game icon, jewels, minerals, stones, gems, flat, vector art, game art, stylized, cell shaded, 8bit, 16bit, retro, russian futurism",
-            'negative_prompt' : "low resolution, mediocre style, normal resolution",
-            'cfg_strength': 12,
-            'seed': '',
-            'output_path': "./output/inpainting/",
-            'image_width': 512,
-            'image_height': 512,
-            'sampler': "ddim",
-            'sampler_steps': 20,
-            'init_img': './test/test_inpainting/white_512x512.jpg',
-            'init_mask': './test/test_inpainting/icon_mask.png',
-
-            'mask_blur' : 0,
-            'inpainting_fill_mode': 1,
-            'styles': [],
-            'resize_mode': 0,
-            'denoising_strength': 0.75,
-            'image_cfg_scale': 1.5,
-            'inpaint_full_res_padding': 32,
-            'inpainting_mask_invert': 0
-        },
-        "task_input_file_dict": {},
-        "task_output_file_dict": {},
-    }
-
-    # For debug purpose only
-    # TODO(): delete
-    image_generation_job = {
-        "task_type": "image_generation_task",
-        "model_name": "v1-5-pruned-emaonly",
-        "model_file_name": "v1-5-pruned-emaonly",
-        "model_file_path": "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors",
-        "sd_model_hash": "N/A",
-        "task_creation_time": "N/A",
-        "task_start_time": "N/A",
-        "task_completion_time": "N/A",
-        "task_error_str": "",
-        "task_input_dict": {
-            "positive_prompt": "icon, game icon, crystal, high resolution, contour, game icon, jewels, minerals, stones, gems, flat, vector art, game art, stylized, cell shaded, 8bit, 16bit, retro, russian futurism",
-            "negative_prompt": "low resolution, mediocre style, normal resolution",
-            "cfg_strength": 12,
-            "seed": "",
-            "output_path": "./output/",
-            "num_images": 1,
-            "image_width": 512,
-            "image_height": 512,
-            "sampler": "ddim",
-            "sampler_steps": 20,
-        },
-        "task_input_file_dict": {},
-        "task_output_file_dict": {}
-    }
-
-    invalid_job = {
-        "task_type": "invalid_job_type",
-    }
-
-    # For debug purpose only
-    # TODO(): delete
-    #http_add_job(image_generation_job)
-    #http_add_job(image_generation_job)
-    #http_add_job(inpainting_job)
-    #http_add_job(invalid_job)
-
     last_job_time = time.time()
 
     while True:
@@ -298,7 +237,6 @@ def main():
             job['task_start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
             if task_type == 'inpainting_generation_task':
-
                 # Convert the job into a dictionary
                 # Then use the dictionary to create the generation task
                 try:
@@ -328,9 +266,8 @@ def main():
                         'inpainting_mask_invert': job['task_input_dict']['inpainting_mask_invert']
                     }
 
-
                     generation_task = IconGenerationTask.from_dict(task)
-                    output_file_path, output_file_hash = run_inpainting_generation_task(worker_state, generation_task)
+                    output_file_path, output_file_hash = run_inpainting_generation_task(worker_state, generation_task, minio_client)
                     info("job completed !")
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     job['task_output_file_dict'] = {
@@ -345,9 +282,7 @@ def main():
                     job['task_error_str'] = str(e)
                     http_update_job_failed(job)
 
-
             elif task_type == 'image_generation_task':
-
                 try:
                     # Convert the job into a dictionary
                     # Then use the dictionary to create the generation task
@@ -369,12 +304,12 @@ def main():
                     generation_task = ImageGenerationTask.from_dict(task)
 
                     # Run inpainting task
-                    output_file_path, output_file_hash = run_image_generation_task(worker_state, generation_task)
+                    output_file_path, output_file_hash = run_image_generation_task(worker_state, generation_task, minio_client)
                     info("job completed !")
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     job['task_output_file_dict'] = {
-                        'output_file_path' : output_file_path,
-                        'output_file_hash' : output_file_hash
+                        'output_file_path': output_file_path,
+                        'output_file_hash': output_file_hash
                     }
                     info("output file path : " + output_file_path)
                     info("output file hash : " + output_file_hash)
@@ -384,7 +319,6 @@ def main():
                     error(f"generation task failed: {e}")
                     job['task_error_str'] = str(e)
                     http_update_job_failed(job)
-
             else:
                 e = "job with task type '" + task_type + "' is not supported"
                 error(e)
