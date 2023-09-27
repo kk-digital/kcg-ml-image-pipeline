@@ -95,7 +95,7 @@ def run_image_generation_task(worker_state, generation_task, minio_client):
     random.seed(time.time())
     seed = random.randint(0, 2 ** 24 - 1)
 
-    output_file_path = generate_image_from_text(minio_client,
+    output_file_path, output_file_hash = generate_image_from_text(minio_client,
                                                 worker_state.txt2img,
                                                 worker_state.clip_text_embedder,
                                                 generation_task.positive_prompt,
@@ -106,8 +106,6 @@ def run_image_generation_task(worker_state, generation_task, minio_client):
                                                 generation_task.image_height,
                                                 generation_task.output_path)
 
-    output_file_hash = compute_file_hash(output_file_path)
-
     return output_file_path, output_file_hash
 
 
@@ -117,7 +115,7 @@ def run_inpainting_generation_task(worker_state, generation_task, minio_client):
     init_image = Image.open(generation_task.init_img)
     init_mask = Image.open(generation_task.init_mask)
 
-    output_file_path = img2img(
+    output_file_path, output_file_hash = img2img(
             minio_client=minio_client,
             prompt=generation_task.positive_prompt,
             negative_prompt=generation_task.negative_prompt,
@@ -145,9 +143,7 @@ def run_inpainting_generation_task(worker_state, generation_task, minio_client):
             device=worker_state.device
             )
 
-    output_file_hash = compute_file_hash(output_file_path)
-
-    return output_file_path, output_file_hash
+    return output_file_path
 
 
 # Get request to get an available job

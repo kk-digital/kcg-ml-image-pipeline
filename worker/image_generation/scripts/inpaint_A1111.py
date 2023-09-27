@@ -647,6 +647,9 @@ def process_images(p: StableDiffusionProcessingImg2Img, minio_client):
                 image.save(img_byte_arr, format='JPEG')
                 img_byte_arr.seek(0)
 
+                # get hash
+                output_file_hash = (hashlib.sha256(img_byte_arr)).hexdigest()
+
                 # save to minio server
                 output_file_path = join(p.outpath, f"{int(time.time())}.png")
                 bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
@@ -655,7 +658,7 @@ def process_images(p: StableDiffusionProcessingImg2Img, minio_client):
             del x_samples_ddim
             torch_gc()
 
-    return output_file_path
+    return output_file_path, output_file_hash
 
 
 def create_binary_mask(image):
@@ -712,6 +715,6 @@ def img2img(minio_client, prompt: str, negative_prompt: str, sampler_name: str, 
     )
 
     with closing(p):
-        output_file_path = process_images(p, minio_client)
+        output_file_path, output_file_hash = process_images(p, minio_client)
 
-    return output_file_path
+    return output_file_path, output_file_hash

@@ -80,11 +80,15 @@ def save_images_to_minio(minio_client, images: torch.Tensor, dest_path: str, img
         img.save(img_byte_arr, format=img_format)
         img_byte_arr.seek(0)
 
+        # get hash
+        output_file_hash = (hashlib.sha256(img_byte_arr)).hexdigest()
+
         # save to minio server
         output_file_path = dest_path
         bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
         cmd.upload_data(minio_client, bucket_name, file_path, img_byte_arr)
 
+    return output_file_hash
 
 def save_image_grid(
         tensor: Union[torch.Tensor, List[torch.Tensor]],
