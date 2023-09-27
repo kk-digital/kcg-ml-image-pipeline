@@ -7,6 +7,7 @@ from datetime import datetime
 import argparse
 from PIL import Image
 import hashlib
+from termcolor import colored
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -21,6 +22,17 @@ from worker.image_generation.scripts.stable_diffusion_base_script import StableD
 from worker.image_generation.scripts.generate_image_from_text import generate_image_from_text
 
 SERVER_ADRESS = 'http://192.168.3.1:8111'
+
+
+def info(message):
+    print(colored("[INFO] ", 'green') + message)
+
+def error(message):
+    print(colored("[ERROR] ", 'red') + message)
+
+def warning(message):
+    print(colored("[WARNING] ", 'yellow') + message)
+
 
 class WorkerState:
     def __init__(self, device):
@@ -159,23 +171,18 @@ def http_add_job(job):
 def http_update_job_completed(job):
 
     url = SERVER_ADRESS + "/update-job-completed"
-    print(url)
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
 
     response = requests.put(url, json=job, headers=headers)
-
-    print(response)
 
     if response.status_code != 200:
         print(f"request failed with status code: {response.status_code}")
 
 def http_update_job_failed(job):
     url = SERVER_ADRESS + "/update-job-failed"
-    print(url)
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
 
     response = requests.put(url, json=job, headers=headers)
-    print(response)
     if response.status_code != 200:
         print(f"request failed with status code: {response.status_code}")
 
@@ -196,7 +203,7 @@ def main():
     # Loading models
     worker_state.load_models()
 
-    print("starting worker ! ")
+    info("starting worker ! ")
 
     # for debugging purpose only
 
@@ -275,13 +282,13 @@ def main():
     last_job_time = time.time()
 
     while True:
-        print("Looking for jobs ! ")
+        info("Looking for jobs ! ")
         job = http_get_job()
         if job != None:
-            print("Found job ! ")
+            info("Found job ! ")
             job_start_time = time.time()
             worker_idle_time = job_start_time - last_job_time
-            print(f"worker idle time was {worker_idle_time} seconds.")
+            info(f"worker idle time was {worker_idle_time} seconds.")
 
             job['task_start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
@@ -325,15 +332,17 @@ def main():
                 # Run inpainting task
                 try:
                     output_file_path, output_file_hash = run_inpainting_generation_task(worker_state, generation_task)
-                    print("job completed !")
+                    info("job completed !")
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     job['task_output_file_dict'] = {
                         'output_file_path': output_file_path,
                         'output_file_hash': output_file_hash
                     }
+                    info("output file path : " + output_file_path)
+                    info("output file hash : " + output_file_hash)
                     http_update_job_completed(job)
                 except Exception as e:
-                    print(f"generation task failed: {e}")
+                    error(f"generation task failed: {e}")
                     job['task_error_str'] = str(e)
                     http_update_job_failed(job)
 
@@ -361,33 +370,36 @@ def main():
                 # Run inpainting task
                 try:
                     output_file_path, output_file_hash = run_image_generation_task(worker_state, generation_task)
-                    print("job completed !")
+                    info("job completed !")
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     job['task_output_file_dict'] = {
                         'output_file_path' : output_file_path,
                         'output_file_hash' : output_file_hash
                     }
+                    info("output file path : " + output_file_path)
+                    info("output file hash : " + output_file_hash)
+                    info("job completed !")
                     http_update_job_completed(job)
                 except Exception as e:
-                    print(f"generation task failed: {e}")
+                    error(f"generation task failed: {e}")
                     job['task_error_str'] = str(e)
                     http_update_job_failed(job)
 
             else:
                 e = "task type with name '" + task_type + "' is not supported"
-                print(e)
+                error(e)
                 job['task_error_str'] = e
                 http_update_job_failed(job)
 
             job_end_time = time.time()
             last_job_time = job_end_time
             job_elapsed_time = job_end_time - job_start_time
-            print(f"job took {job_elapsed_time} seconds to execute.")
+            info(f"job took {job_elapsed_time} seconds to execute.")
 
         else:
             # If there was no job, go to sleep for a while
             sleep_time_in_seconds = 10
-            print("Did not find job, going to sleep for ", sleep_time_in_seconds, " seconds")
+            info("Did not find job, going to sleep for ", sleep_time_in_seconds, " seconds")
             time.sleep(sleep_time_in_seconds)
 
 

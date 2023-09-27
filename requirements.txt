@@ -21,3 +21,4 @@ blendmodes
 scikit-image
 lark
 diffusers
+termcolor
