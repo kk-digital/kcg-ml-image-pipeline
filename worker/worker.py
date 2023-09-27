@@ -203,7 +203,7 @@ def main():
     # Loading models
     worker_state.load_models()
 
-    info("starting worker ! ")
+    info("starting worker")
 
     # For debug purpose only
     # TODO(): delete
@@ -285,12 +285,12 @@ def main():
     last_job_time = time.time()
 
     while True:
-        info("Looking for jobs ! ")
+        info("Looking for jobs")
         job = http_get_job()
         if job != None:
             task_type = job['task_type']
 
-            info("Found job ! " + task_type)
+            info("Found job" + task_type)
             job_start_time = time.time()
             worker_idle_time = job_start_time - last_job_time
             info(f"worker idle time was {worker_idle_time:.4f} seconds.")
@@ -331,7 +331,7 @@ def main():
 
                     generation_task = IconGenerationTask.from_dict(task)
                     output_file_path, output_file_hash = run_inpainting_generation_task(worker_state, generation_task)
-                    info("job completed !")
+                    info("job completed")
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     job['task_output_file_dict'] = {
                         'output_file_path': output_file_path,
@@ -370,7 +370,7 @@ def main():
 
                     # Run inpainting task
                     output_file_path, output_file_hash = run_image_generation_task(worker_state, generation_task)
-                    info("job completed !")
+                    info("job completed")
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     job['task_output_file_dict'] = {
                         'output_file_path' : output_file_path,
@@ -378,7 +378,7 @@ def main():
                     }
                     info("output file path : " + output_file_path)
                     info("output file hash : " + output_file_hash)
-                    info("job completed !")
+                    info("job completed")
                     http_update_job_completed(job)
                 except Exception as e:
                     error(f"generation task failed: {e}")
