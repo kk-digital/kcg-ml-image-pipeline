@@ -32,5 +32,5 @@ curl -X 'POST' http://192.168.3.1:8111/add-job -H 'Content-Type: application/jso
             "inpainting_mask_invert": 0
         },
         "task_input_file_dict": {},
-        "task_output_file_dict": {},
+        "task_output_file_dict": {}
     }'
