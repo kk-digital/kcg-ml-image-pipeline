@@ -15,7 +15,7 @@ curl -X 'POST' http://192.168.3.1:8111/add-job -H 'Content-Type: application/jso
             "negative_prompt": "low resolution, mediocre style, normal resolution",
             "cfg_strength": 12,
             "seed": "",
-            "output_path": "./output/",
+            "output_path": "datasets/icons",
             "num_images": 1,
             "image_width": 512,
             "image_height": 512,
