@@ -1,7 +1,7 @@
 #!/bin/bash
 
 curl -X 'POST' http://192.168.3.1:8111/add-job -H 'Content-Type: application/json' -d '{
-               "task_type": "image_generation_task",
+         "task_type": "image_generation_task",
         "model_name": "v1-5-pruned-emaonly",
         "model_file_name": "v1-5-pruned-emaonly",
         "model_file_path": "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors",
@@ -20,7 +20,7 @@ curl -X 'POST' http://192.168.3.1:8111/add-job -H 'Content-Type: application/jso
             "image_width": 512,
             "image_height": 512,
             "sampler": "ddim",
-            "sampler_steps": 20,
+            "sampler_steps": 20
         },
         "task_input_file_dict": {},
         "task_output_file_dict": {}
