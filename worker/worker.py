@@ -243,39 +243,35 @@ def main():
             if task_type == 'inpainting_generation_task':
                 # Convert the job into a dictionary
                 # Then use the dictionary to create the generation task
-                task = {
-                    'generation_task_type': job['task_type'],
-                    'positive_prompt': job['task_input_dict']['positive_prompt'],
-                    'negative_prompt': job['task_input_dict']['negative_prompt'],
-                    'model_name': job['model_name'],
-                    'cfg_strength': job['task_input_dict']['cfg_strength'],
-                    'seed': job['task_input_dict']['seed'],
-                    'output_path': job['task_input_dict']['output_path'],
-                    'image_width': job['task_input_dict']['image_width'],
-                    'image_height': job['task_input_dict']['image_height'],
-                    'batch_size': 1,
-                    'sampler': job['task_input_dict']['sampler'],
-                    'steps': job['task_input_dict']['sampler_steps'],
-                    'init_img': job['task_input_dict']['init_img'],
-                    'init_mask': job['task_input_dict']['init_mask'],
-
-                    'mask_blur': job['task_input_dict']['mask_blur'],
-                    'inpainting_fill_mode': job['task_input_dict']['inpainting_fill_mode'],
-                    'styles': job['task_input_dict']['styles'],
-                    'resize_mode': job['task_input_dict']['resize_mode'],
-                    'denoising_strength': job['task_input_dict']['denoising_strength'],
-                    'image_cfg_scale': job['task_input_dict']['image_cfg_scale'],
-                    'inpaint_full_res_padding': job['task_input_dict']['inpaint_full_res_padding'],
-                    'inpainting_mask_invert': job['task_input_dict']['inpainting_mask_invert']
-                }
-
-                generation_task = IconGenerationTask.from_dict(task)
-
-                # Run inpainting task
                 try:
-                    output_file_path, output_file_hash = run_inpainting_generation_task(worker_state,
-                                                                                        generation_task,
-                                                                                        minio_client)
+                    task = {
+                        'generation_task_type': job['task_type'],
+                        'positive_prompt': job['task_input_dict']['positive_prompt'],
+                        'negative_prompt': job['task_input_dict']['negative_prompt'],
+                        'model_name': job['model_name'],
+                        'cfg_strength': job['task_input_dict']['cfg_strength'],
+                        'seed': job['task_input_dict']['seed'],
+                        'output_path': job['task_input_dict']['output_path'],
+                        'image_width': job['task_input_dict']['image_width'],
+                        'image_height': job['task_input_dict']['image_height'],
+                        'batch_size': 1,
+                        'sampler': job['task_input_dict']['sampler'],
+                        'steps': job['task_input_dict']['sampler_steps'],
+                        'init_img': job['task_input_dict']['init_img'],
+                        'init_mask': job['task_input_dict']['init_mask'],
+
+                        'mask_blur': job['task_input_dict']['mask_blur'],
+                        'inpainting_fill_mode': job['task_input_dict']['inpainting_fill_mode'],
+                        'styles': job['task_input_dict']['styles'],
+                        'resize_mode': job['task_input_dict']['resize_mode'],
+                        'denoising_strength': job['task_input_dict']['denoising_strength'],
+                        'image_cfg_scale': job['task_input_dict']['image_cfg_scale'],
+                        'inpaint_full_res_padding': job['task_input_dict']['inpaint_full_res_padding'],
+                        'inpainting_mask_invert': job['task_input_dict']['inpainting_mask_invert']
+                    }
+
+                    generation_task = IconGenerationTask.from_dict(task)
+                    output_file_path, output_file_hash = run_inpainting_generation_task(worker_state, generation_task, minio_client)
                     info("job completed !")
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     job['task_output_file_dict'] = {
@@ -291,34 +287,33 @@ def main():
                     http_update_job_failed(job)
 
             elif task_type == 'image_generation_task':
-                # Convert the job into a dictionary
-                # Then use the dictionary to create the generation task
-                task = {
-                    'generation_task_type': job['task_type'],
-                    'positive_prompt': job['task_input_dict']['positive_prompt'],
-                    'negative_prompt': job['task_input_dict']['negative_prompt'],
-                    'model_name': job['model_name'],
-                    'cfg_strength': job['task_input_dict']['cfg_strength'],
-                    'seed': job['task_input_dict']['seed'],
-                    'output_path': job['task_input_dict']['output_path'],
-                    'image_width': job['task_input_dict']['image_width'],
-                    'image_height': job['task_input_dict']['image_height'],
-                    'batch_size': 1,
-                    'sampler': job['task_input_dict']['sampler'],
-                    'steps': job['task_input_dict']['sampler_steps'],
-                }
-
-                generation_task = ImageGenerationTask.from_dict(task)
-                # Run inpainting task
                 try:
-                    output_file_path, output_file_hash = run_image_generation_task(worker_state,
-                                                                                   generation_task,
-                                                                                   minio_client)
+                    # Convert the job into a dictionary
+                    # Then use the dictionary to create the generation task
+                    task = {
+                        'generation_task_type': job['task_type'],
+                        'positive_prompt': job['task_input_dict']['positive_prompt'],
+                        'negative_prompt': job['task_input_dict']['negative_prompt'],
+                        'model_name': job['model_name'],
+                        'cfg_strength': job['task_input_dict']['cfg_strength'],
+                        'seed': job['task_input_dict']['seed'],
+                        'output_path': job['task_input_dict']['output_path'],
+                        'image_width': job['task_input_dict']['image_width'],
+                        'image_height': job['task_input_dict']['image_height'],
+                        'batch_size': 1,
+                        'sampler': job['task_input_dict']['sampler'],
+                        'steps': job['task_input_dict']['sampler_steps'],
+                    }
+
+                    generation_task = ImageGenerationTask.from_dict(task)
+
+                    # Run inpainting task
+                    output_file_path, output_file_hash = run_image_generation_task(worker_state, generation_task, minio_client)
                     info("job completed !")
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     job['task_output_file_dict'] = {
-                        'output_file_path' : output_file_path,
-                        'output_file_hash' : output_file_hash
+                        'output_file_path': output_file_path,
+                        'output_file_hash': output_file_hash
                     }
                     info("output file path : " + output_file_path)
                     info("output file hash : " + output_file_hash)
@@ -328,7 +323,6 @@ def main():
                     error(f"generation task failed: {e}")
                     job['task_error_str'] = str(e)
                     http_update_job_failed(job)
-
             else:
                 e = "job with task type '" + task_type + "' is not supported"
                 error(e)
