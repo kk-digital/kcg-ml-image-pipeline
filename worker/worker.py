@@ -205,8 +205,8 @@ def main():
 
     info("starting worker ! ")
 
-    # for debugging purpose only
-
+    # For debug purpose only
+    # TODO(): delete
     inpainting_job = {
         "task_type": "inpainting_generation_task",
         "model_name" : "v1-5-pruned-emaonly",
@@ -243,6 +243,8 @@ def main():
         "task_output_file_dict": {},
     }
 
+    # For debug purpose only
+    # TODO(): delete
     image_generation_job = {
         "task_type": "image_generation_task",
         "model_name": "v1-5-pruned-emaonly",
@@ -273,7 +275,8 @@ def main():
         "task_type": "invalid_job_type",
     }
 
-
+    # For debug purpose only
+    # TODO(): delete
     http_add_job(image_generation_job)
     http_add_job(image_generation_job)
     http_add_job(inpainting_job)
