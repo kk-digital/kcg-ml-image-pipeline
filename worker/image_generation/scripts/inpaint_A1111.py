@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from os.path import join
 from typing import Any
-
+import io
 import cv2
 import numpy as np
 import torch
@@ -24,6 +24,8 @@ sys.path.append(base_dir)
 from utility import masking, images, rng, prompt_parser
 from utility.rng import ImageRNG
 from utility.utils_logger import logger
+from utility.path import separate_bucket_and_file_path
+from utility.minio.cmd import upload_data as minio_upload_data
 from configs.model_config import ModelPathConfig
 from stable_diffusion.sampler.ddim import DDIMSampler
 from stable_diffusion.sampler.ddpm import DDPMSampler
@@ -566,7 +568,7 @@ def apply_overlay(image, paste_loc, index, overlays):
     return image
 
 
-def process_images(p: StableDiffusionProcessingImg2Img):
+def process_images(p: StableDiffusionProcessingImg2Img, minio_client):
     output_file_path = ""
 
     if isinstance(p.prompt, list):
@@ -639,8 +641,16 @@ def process_images(p: StableDiffusionProcessingImg2Img):
                 image = Image.fromarray(x_sample)
 
                 image = apply_overlay(image, p.paste_to, i, p.overlay_images)
+
+                # convert to bytes arr
+                img_byte_arr = io.BytesIO()
+                image.save(img_byte_arr, format='JPEG')
+                img_byte_arr.seek(0)
+
+                # save to minio server
                 output_file_path = join(p.outpath, f"{int(time.time())}.png")
-                image.save(output_file_path)
+                bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
+                minio_upload_data(minio_client, bucket_name, file_path, img_byte_arr)
 
             del x_samples_ddim
             torch_gc()
@@ -670,7 +680,7 @@ def get_model(device, n_steps):
     return sd, config, model
 
 
-def img2img(prompt: str, negative_prompt: str, sampler_name: str, batch_size: int, n_iter: int, steps: int,
+def img2img(minio_client, prompt: str, negative_prompt: str, sampler_name: str, batch_size: int, n_iter: int, steps: int,
             cfg_scale: float, width: int, height: int, mask_blur: int, inpainting_fill: int,
             outpath, styles, init_images, mask, resize_mode, denoising_strength,
             image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert, sd=None, clip_text_embedder=None, model=None, device=None):
@@ -702,81 +712,6 @@ def img2img(prompt: str, negative_prompt: str, sampler_name: str, batch_size: in
     )
 
     with closing(p):
-        output_file_path = process_images(p)
+        output_file_path = process_images(p, minio_client)
 
     return output_file_path
-
-def parse_args():
-    parser = argparse.ArgumentParser(description="Call img2img with specified parameters.")
-
-    # Required parameters
-    parser.add_argument("--prompt", type=str, help="Input prompt")
-    parser.add_argument("--init_img", type=str, help="Path to the initial image")
-    parser.add_argument("--init_mask", type=str, help="Path to the initial mask")
-
-    # Optional parameters with default values
-    parser.add_argument("--negative_prompt", type=str, default="", help="Negative prompt")
-    parser.add_argument("--sampler_name", type=str, default="ddim", help="Sampler name")
-    parser.add_argument("--batch_size", type=int, default=1, help="Batch size")
-    parser.add_argument("--n_iter", type=int, default=1, help="Number of iterations")
-    parser.add_argument("--steps", type=int, default=20, help="Steps")
-    parser.add_argument("--cfg_scale", type=float, default=7.0, help="Config scale")
-    parser.add_argument("--width", type=int, default=512, help="Image width")
-    parser.add_argument("--height", type=int, default=512, help="Image height")
-    parser.add_argument("--mask_blur", type=int, default=4, help="Mask blur value")
-    parser.add_argument("--inpainting_fill", type=int, default=1, help="Inpainting fill value")
-
-    # Additional parameters for StableDiffusionProcessingImg2Img
-    # Add default values as needed
-    parser.add_argument("--outpath", type=str, default=f"output/inpainting/{datetime.now().strftime('%m-%d-%Y')}",
-                        help="Output path for samples")
-    parser.add_argument("--styles", nargs="*", default=[], help="Styles list")
-    parser.add_argument("--resize_mode", type=int, default=0, help="Resize mode")
-    parser.add_argument("--denoising_strength", type=float, default=0.75, help="Denoising strength")
-    parser.add_argument("--image_cfg_scale", type=float, default=1.5, help="Image config scale")
-    parser.add_argument("--inpaint_full_res_padding", type=int, default=32, help="Inpaint full resolution padding")
-    parser.add_argument("--inpainting_mask_invert", type=int, default=0, help="Inpainting mask invert value")
-
-    return parser.parse_args()
-
-
-def main():
-    args = parse_args()
-
-    init_image = Image.open(args.init_img)
-    init_mask = Image.open(args.init_mask)
-
-    # Displaying the parameters using the logger
-    logger.info("Parameters for img2img:")
-    for arg, value in vars(args).items():
-        logger.info(f"{arg}: {value}")
-
-    # Create the output directory if it does not exist
-    if not os.path.exists(args.outpath):
-        os.makedirs(args.outpath)
-
-    img2img(prompt=args.prompt,
-            negative_prompt=args.negative_prompt,
-            sampler_name=args.sampler_name,
-            batch_size=args.batch_size,
-            n_iter=args.n_iter,
-            steps=args.steps,
-            cfg_scale=args.cfg_scale,
-            width=args.width,
-            height=args.height,
-            mask_blur=args.mask_blur,
-            inpainting_fill=args.inpainting_fill,
-            outpath=args.outpath,
-            styles=args.styles,
-            init_images=[init_image],
-            mask=init_mask,
-            resize_mode=args.resize_mode,
-            denoising_strength=args.denoising_strength,
-            image_cfg_scale=args.image_cfg_scale,
-            inpaint_full_res_padding=args.inpaint_full_res_padding,
-            inpainting_mask_invert=args.inpainting_mask_invert
-            )
-
-
-if __name__ == "__main__":
-    main()
