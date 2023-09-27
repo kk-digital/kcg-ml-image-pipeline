@@ -28,7 +28,7 @@ def generate_image_from_text(txt2img, clip_text_embedder, positive_prompts, nega
     )
 
     images = txt2img.get_image_from_latent(latent)
-    output_file_path = output_directory + '/image-' + datetime.now().strftime('%d-%m-%Y-%H-%M-%S') + '.jpg'
+    output_file_path = output_directory + 'image-' + datetime.now().strftime('%d-%m-%Y-%H-%M-%S') + '.jpg'
     save_images(images, output_file_path)
 
     return output_file_path

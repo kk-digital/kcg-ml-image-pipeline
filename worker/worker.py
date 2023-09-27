@@ -293,7 +293,7 @@ def main():
             info("Found job ! " + task_type)
             job_start_time = time.time()
             worker_idle_time = job_start_time - last_job_time
-            info(f"worker idle time was {worker_idle_time} seconds.")
+            info(f"worker idle time was {worker_idle_time:.4f} seconds.")
 
             job['task_start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
@@ -394,12 +394,12 @@ def main():
             job_end_time = time.time()
             last_job_time = job_end_time
             job_elapsed_time = job_end_time - job_start_time
-            info(f"job took {job_elapsed_time} seconds to execute.")
+            info(f"job took {job_elapsed_time:.4f} seconds to execute.")
 
         else:
             # If there was no job, go to sleep for a while
             sleep_time_in_seconds = 10
-            info("Did not find job, going to sleep for " + str(sleep_time_in_seconds) + " seconds")
+            info("Did not find job, going to sleep for " + f"{sleep_time_in_seconds:.4f}" + " seconds")
             time.sleep(sleep_time_in_seconds)
 
 
