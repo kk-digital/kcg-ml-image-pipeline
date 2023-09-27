@@ -25,7 +25,7 @@ from utility import masking, images, rng, prompt_parser
 from utility.rng import ImageRNG
 from utility.utils_logger import logger
 from utility.path import separate_bucket_and_file_path
-from utility.minio.cmd import upload_data as minio_upload_data
+from utility.minio import cmd
 from configs.model_config import ModelPathConfig
 from stable_diffusion.sampler.ddim import DDIMSampler
 from stable_diffusion.sampler.ddpm import DDPMSampler
@@ -650,7 +650,7 @@ def process_images(p: StableDiffusionProcessingImg2Img, minio_client):
                 # save to minio server
                 output_file_path = join(p.outpath, f"{int(time.time())}.png")
                 bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
-                minio_upload_data(minio_client, bucket_name, file_path, img_byte_arr)
+                cmd.upload_data(minio_client, bucket_name, file_path, img_byte_arr)
 
             del x_samples_ddim
             torch_gc()
