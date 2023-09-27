@@ -277,10 +277,10 @@ def main():
 
     # For debug purpose only
     # TODO(): delete
-    http_add_job(image_generation_job)
-    http_add_job(image_generation_job)
-    http_add_job(inpainting_job)
-    http_add_job(invalid_job)
+    #http_add_job(image_generation_job)
+    #http_add_job(image_generation_job)
+    #http_add_job(inpainting_job)
+    #http_add_job(invalid_job)
 
     last_job_time = time.time()
 
