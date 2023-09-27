@@ -201,7 +201,7 @@ def main():
     # for debugging purpose only
 
     inpainting_job = {
-        "task_type": "icon_generation_task",
+        "task_type": "inpainting_generation_task",
         "model_name" : "v1-5-pruned-emaonly",
         "model_file_name": "v1-5-pruned-emaonly",
         "model_file_path": "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors",
@@ -290,7 +290,7 @@ def main():
             # And they are identical
             task_type = job['task_type']
 
-            if task_type == 'icon_generation_task':
+            if task_type == 'inpainting_generation_task':
 
                 # Convert the job into a dictionary
                 # Then use the dictionary to create the generation task
