@@ -26,8 +26,10 @@ def generate_image_from_text(minio_client, txt2img, clip_text_embedder, positive
     )
 
     images = txt2img.get_image_from_latent(latent)
+
     output_file_path = output_directory + '/image-' + datetime.now().strftime('%d-%m-%Y-%H-%M-%S') + '.jpg'
     output_file_hash = save_images_to_minio(minio_client, images, output_file_path)
+
 
     return output_file_path, output_file_hash
 
