@@ -143,7 +143,7 @@ def run_inpainting_generation_task(worker_state, generation_task, minio_client):
             device=worker_state.device
             )
 
-    return output_file_path
+    return output_file_path, output_file_hash
 
 
 # Get request to get an available job
