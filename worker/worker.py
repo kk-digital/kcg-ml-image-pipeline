@@ -285,17 +285,14 @@ def main():
         info("Looking for jobs ! ")
         job = http_get_job()
         if job != None:
-            info("Found job ! ")
+            task_type = job['task_type']
+
+            info("Found job ! " + task_type)
             job_start_time = time.time()
             worker_idle_time = job_start_time - last_job_time
             info(f"worker idle time was {worker_idle_time} seconds.")
 
             job['task_start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-              # Switch on the task type
-            # We have 2 for now
-            # And they are identical
-            task_type = job['task_type']
 
             if task_type == 'inpainting_generation_task':
 
@@ -386,7 +383,7 @@ def main():
                     http_update_job_failed(job)
 
             else:
-                e = "task type with name '" + task_type + "' is not supported"
+                e = "job with task type '" + task_type + "' is not supported"
                 error(e)
                 job['task_error_str'] = e
                 http_update_job_failed(job)
