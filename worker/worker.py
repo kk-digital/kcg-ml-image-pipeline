@@ -103,7 +103,7 @@ def run_image_generation_task(worker_state, generation_task, minio_client):
                                                                   seed=seed,
                                                                   image_width=generation_task.task_input_dict["image_width"],
                                                                   image_height=generation_task.task_input_dict["image_height"],
-                                                                  output_directory=os.path.join("datasets",
+                                                                  output_path=os.path.join("datasets",
                                                                                                 generation_task.task_input_dict[
                                                                                                     "dataset"],
                                                                                                 generation_task.task_input_dict[
