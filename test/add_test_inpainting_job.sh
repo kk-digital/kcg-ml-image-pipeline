@@ -1,6 +1,7 @@
 #!/bin/bash
 
 curl -X 'POST' http://192.168.3.1:8111/add-job -H 'Content-Type: application/json' -d '{
+        "uuid": "1234567",
         "task_type": "inpainting_generation_task",
         "model_name" : "v1-5-pruned-emaonly",
         "model_file_name": "v1-5-pruned-emaonly",
@@ -15,7 +16,8 @@ curl -X 'POST' http://192.168.3.1:8111/add-job -H 'Content-Type: application/jso
             "negative_prompt" : "low resolution, mediocre style, normal resolution",
             "cfg_strength": 12,
             "seed": "",
-            "output_path": "datasets/icons",
+            "dataset": "icons",
+            "file_path": "[auto]",
             "image_width": 512,
             "image_height": 512,
             "sampler": "ddim",

@@ -53,4 +53,4 @@ def get_sequential_id(request: Request, dataset: str, limit: int = 1):
     # # update existing sequential id
     request.app.dataset_sequential_id_collection.update_one({"dataset_name": dataset}, new_values)
 
-    return json.dumps(sequential_id_arr)
+    return sequential_id_arr
