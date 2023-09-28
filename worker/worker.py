@@ -124,7 +124,7 @@ def run_inpainting_generation_task(worker_state, generation_task, minio_client):
             batch_size=1,
             n_iter=1,
             steps=generation_task.steps,
-            cfg_scale=generation_task.cfg_strength,
+            cfg_scale=generation_task['task_input_dict']['image_cfg_scale'],
             width=generation_task.image_width,
             height=generation_task.image_height,
             mask_blur=generation_task.mask_blur,
@@ -224,6 +224,8 @@ def main():
     info("starting worker ! ")
     last_job_time = time.time()
 
+    datasets_bucket_name = "datasets"
+
     while True:
         info("Looking for jobs ! ")
         job = http_get_job()
@@ -248,7 +250,7 @@ def main():
                         'model_name': job['model_name'],
                         'cfg_strength': job['task_input_dict']['cfg_strength'],
                         'seed': job['task_input_dict']['seed'],
-                        'output_path': os.path.join(job['task_input_dict']['dataset'], job['task_input_dict']['file_path']),
+                        'output_path': os.path.join(datasets_bucket_name, job['task_input_dict']['dataset'], job['task_input_dict']['file_path']),
                         'image_width': job['task_input_dict']['image_width'],
                         'image_height': job['task_input_dict']['image_height'],
                         'batch_size': 1,
@@ -294,7 +296,7 @@ def main():
                         'model_name': job['model_name'],
                         'cfg_strength': job['task_input_dict']['cfg_strength'],
                         'seed': job['task_input_dict']['seed'],
-                        'output_path': os.path.join(job['task_input_dict']['dataset'], job['task_input_dict']['file_path']),
+                        'output_path': os.path.join(datasets_bucket_name, job['task_input_dict']['dataset'], job['task_input_dict']['file_path']),
                         'image_width': job['task_input_dict']['image_width'],
                         'image_height': job['task_input_dict']['image_height'],
                         'batch_size': 1,
