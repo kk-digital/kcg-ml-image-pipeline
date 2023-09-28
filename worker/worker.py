@@ -12,8 +12,7 @@ import os
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from worker.image_generation.generation_task.icon_generation_task import IconGenerationTask
-from worker.image_generation.generation_task.image_generation_task import ImageGenerationTask
+from worker.image_generation.generation_task.generation_task import GenerationTask
 from worker.image_generation.scripts.inpaint_A1111 import img2img
 from stable_diffusion import StableDiffusion, CLIPTextEmbedder
 from configs.model_config import ModelPathConfig
@@ -21,7 +20,6 @@ from stable_diffusion.model_paths import (SDconfigs, CLIPconfigs)
 from worker.image_generation.scripts.stable_diffusion_base_script import StableDiffusionBaseScript
 from worker.image_generation.scripts.generate_image_from_text import generate_image_from_text
 from utility.minio import cmd
-
 
 SERVER_ADRESS = 'http://192.168.3.1:8111'
 
@@ -40,7 +38,6 @@ def warning(message):
 
 class WorkerState:
     def __init__(self, device):
-
         self.device = device
         self.config = ModelPathConfig()
         self.stable_diffusion = None
@@ -71,7 +68,7 @@ class WorkerState:
             cuda_device=self.device,
         )
         self.txt2img.initialize_latent_diffusion(autoencoder=None, clip_text_embedder=None, unet_model=None,
-                                            path=model_path, force_submodels_init=True)
+                                                 path=model_path, force_submodels_init=True)
 
 
 def compute_file_hash(file_path, hash_algorithm='sha256'):
@@ -97,52 +94,58 @@ def run_image_generation_task(worker_state, generation_task, minio_client):
     seed = random.randint(0, 2 ** 24 - 1)
 
     output_file_path, output_file_hash = generate_image_from_text(minio_client,
-                                                worker_state.txt2img,
-                                                worker_state.clip_text_embedder,
-                                                generation_task.positive_prompt,
-                                                generation_task.negative_prompt,
-                                                generation_task.cfg_strength,
-                                                seed,
-                                                generation_task.image_width,
-                                                generation_task.image_height,
-                                                generation_task.output_path)
+                                                                  worker_state.txt2img,
+                                                                  worker_state.clip_text_embedder,
+                                                                  positive_prompts=generation_task.task_input_dict["positive_prompts"],
+                                                                  negative_prompts=generation_task.task_input_dict["negative_prompts"],
+                                                                  cfg_strength=generation_task.task_input_dict["cfg_strength"],
+                                                                  # seed=generation_task.task_input_dict["seed"],
+                                                                  seed=seed,
+                                                                  image_width=generation_task.task_input_dict["image_width"],
+                                                                  image_height=generation_task.task_input_dict["image_height"],
+                                                                  output_directory=os.path.join("datasets",
+                                                                                                generation_task.task_input_dict[
+                                                                                                    "dataset"],
+                                                                                                generation_task.task_input_dict[
+                                                                                                    "file_path"]))
 
     return output_file_path, output_file_hash
 
 
-def run_inpainting_generation_task(worker_state, generation_task, minio_client):
+def run_inpainting_generation_task(worker_state, generation_task: GenerationTask, minio_client):
     # TODO(): Make a cache for these images
     # Check if they changed on disk maybe and reload
     init_image = Image.open(generation_task.init_img)
     init_mask = Image.open(generation_task.init_mask)
 
     output_file_path, output_file_hash = img2img(
-            minio_client=minio_client,
-            prompt=generation_task.positive_prompt,
-            negative_prompt=generation_task.negative_prompt,
-            sampler_name=generation_task.sampler,
-            batch_size=1,
-            n_iter=1,
-            steps=generation_task.steps,
-            cfg_scale=generation_task['task_input_dict']['image_cfg_scale'],
-            width=generation_task.image_width,
-            height=generation_task.image_height,
-            mask_blur=generation_task.mask_blur,
-            inpainting_fill=generation_task.inpainting_fill_mode,
-            outpath=generation_task.output_path,
-            styles=generation_task.styles,
-            init_images=[init_image],
-            mask=init_mask,
-            resize_mode=generation_task.resize_mode,
-            denoising_strength=generation_task.denoising_strength,
-            image_cfg_scale=generation_task.image_cfg_scale,
-            inpaint_full_res_padding=generation_task.inpaint_full_res_padding,
-            inpainting_mask_invert=generation_task.inpainting_mask_invert,
-            sd=worker_state.stable_diffusion,
-            model=worker_state.stable_diffusion.model,
-            clip_text_embedder=worker_state.clip_text_embedder,
-            device=worker_state.device
-            )
+        minio_client=minio_client,
+        prompt=generation_task.task_input_dict["positive_prompt"],
+        negative_prompt=generation_task.task_input_dict["negative_prompt"],
+        sampler_name=generation_task.task_input_dict["sampler"],
+        batch_size=1,
+        n_iter=1,
+        steps=generation_task.task_input_dict["sampler_steps"],
+        cfg_scale=generation_task.task_input_dict["cfg_strength"],
+        width=generation_task.task_input_dict["image_width"],
+        height=generation_task.task_input_dict["image_height"],
+        mask_blur=generation_task.task_input_dict["mask_blur"],
+        inpainting_fill=generation_task.task_input_dict["inpainting_fill_mode"],
+        outpath=os.path.join("datasets", generation_task.task_input_dict['dataset'],
+                             generation_task.task_input_dict['file_path']),
+        styles=generation_task.task_input_dict["styles"],
+        init_images=[init_image],
+        mask=init_mask,
+        resize_mode=generation_task.task_input_dict["resize_mode"],
+        denoising_strength=generation_task.task_input_dict["denoising_strength"],
+        image_cfg_scale=generation_task.task_input_dict["image_cfg_scale"],
+        inpaint_full_res_padding=generation_task.task_input_dict["inpaint_full_res_padding"],
+        inpainting_mask_invert=generation_task.task_input_dict["inpainting_mask_invert"],
+        sd=worker_state.stable_diffusion,
+        model=worker_state.stable_diffusion.model,
+        clip_text_embedder=worker_state.clip_text_embedder,
+        device=worker_state.device
+    )
 
     return output_file_path, output_file_hash
 
@@ -204,8 +207,10 @@ def parse_args():
 
     # Required parameters
     parser.add_argument("--device", type=str, default="cuda")
-    parser.add_argument("--minio-access-key", type=str, help="The minio access key to use so worker can upload files to minio server")
-    parser.add_argument("--minio-secret-key", type=str, help="The minio secret key to use so worker can upload files to minio server")
+    parser.add_argument("--minio-access-key", type=str,
+                        help="The minio access key to use so worker can upload files to minio server")
+    parser.add_argument("--minio-secret-key", type=str,
+                        help="The minio secret key to use so worker can upload files to minio server")
 
     return parser.parse_args()
 
@@ -243,34 +248,9 @@ def main():
                 # Convert the job into a dictionary
                 # Then use the dictionary to create the generation task
                 try:
-                    task = {
-                        'generation_task_type': job['task_type'],
-                        'positive_prompt': job['task_input_dict']['positive_prompt'],
-                        'negative_prompt': job['task_input_dict']['negative_prompt'],
-                        'model_name': job['model_name'],
-                        'cfg_strength': job['task_input_dict']['cfg_strength'],
-                        'seed': job['task_input_dict']['seed'],
-                        'output_path': os.path.join(datasets_bucket_name, job['task_input_dict']['dataset'], job['task_input_dict']['file_path']),
-                        'image_width': job['task_input_dict']['image_width'],
-                        'image_height': job['task_input_dict']['image_height'],
-                        'batch_size': 1,
-                        'sampler': job['task_input_dict']['sampler'],
-                        'steps': job['task_input_dict']['sampler_steps'],
-                        'init_img': job['task_input_dict']['init_img'],
-                        'init_mask': job['task_input_dict']['init_mask'],
-
-                        'mask_blur': job['task_input_dict']['mask_blur'],
-                        'inpainting_fill_mode': job['task_input_dict']['inpainting_fill_mode'],
-                        'styles': job['task_input_dict']['styles'],
-                        'resize_mode': job['task_input_dict']['resize_mode'],
-                        'denoising_strength': job['task_input_dict']['denoising_strength'],
-                        'image_cfg_scale': job['task_input_dict']['image_cfg_scale'],
-                        'inpaint_full_res_padding': job['task_input_dict']['inpaint_full_res_padding'],
-                        'inpainting_mask_invert': job['task_input_dict']['inpainting_mask_invert']
-                    }
-
-                    generation_task = IconGenerationTask.from_dict(task)
-                    output_file_path, output_file_hash = run_inpainting_generation_task(worker_state, generation_task, minio_client)
+                    generation_task = GenerationTask.from_dict(job)
+                    output_file_path, output_file_hash = run_inpainting_generation_task(worker_state, generation_task,
+                                                                                        minio_client)
                     info("job completed !")
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     job['task_output_file_dict'] = {
@@ -287,27 +267,10 @@ def main():
 
             elif task_type == 'image_generation_task':
                 try:
-                    # Convert the job into a dictionary
-                    # Then use the dictionary to create the generation task
-                    task = {
-                        'generation_task_type': job['task_type'],
-                        'positive_prompt': job['task_input_dict']['positive_prompt'],
-                        'negative_prompt': job['task_input_dict']['negative_prompt'],
-                        'model_name': job['model_name'],
-                        'cfg_strength': job['task_input_dict']['cfg_strength'],
-                        'seed': job['task_input_dict']['seed'],
-                        'output_path': os.path.join(datasets_bucket_name, job['task_input_dict']['dataset'], job['task_input_dict']['file_path']),
-                        'image_width': job['task_input_dict']['image_width'],
-                        'image_height': job['task_input_dict']['image_height'],
-                        'batch_size': 1,
-                        'sampler': job['task_input_dict']['sampler'],
-                        'steps': job['task_input_dict']['sampler_steps'],
-                    }
-
-                    generation_task = ImageGenerationTask.from_dict(task)
-
+                    generation_task = GenerationTask.from_dict(job)
                     # Run inpainting task
-                    output_file_path, output_file_hash = run_image_generation_task(worker_state, generation_task, minio_client)
+                    output_file_path, output_file_hash = run_image_generation_task(worker_state, generation_task,
+                                                                                   minio_client)
                     info("job completed !")
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     job['task_output_file_dict'] = {
