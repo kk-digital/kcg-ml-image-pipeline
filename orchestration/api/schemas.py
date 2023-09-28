@@ -3,7 +3,7 @@ from typing import Union
 
 
 class Task(BaseModel):
-    uuid: Union[str, None] = None
+    uuid: str  # required, should be passed by generator
     task_type: str
     model_name: Union[str, None] = None
     model_file_name: Union[str, None] = None
@@ -13,7 +13,7 @@ class Task(BaseModel):
     task_start_time: Union[str, None] = None
     task_completion_time: Union[str, None] = None
     task_error_str: Union[str, None] = None
-    task_input_dict:Union[ dict, None] = None
+    task_input_dict: dict  # required
     task_input_file_dict: Union[dict, None] = None
     task_output_file_dict: Union[dict, None] = None
 

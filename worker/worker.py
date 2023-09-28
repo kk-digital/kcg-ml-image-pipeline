@@ -7,6 +7,7 @@ import argparse
 from PIL import Image
 import hashlib
 from termcolor import colored
+import os
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -247,7 +248,7 @@ def main():
                         'model_name': job['model_name'],
                         'cfg_strength': job['task_input_dict']['cfg_strength'],
                         'seed': job['task_input_dict']['seed'],
-                        'output_path': job['task_input_dict']['output_path'],
+                        'output_path': os.path.join(job['task_input_dict']['dataset'], job['task_input_dict']['file_path']),
                         'image_width': job['task_input_dict']['image_width'],
                         'image_height': job['task_input_dict']['image_height'],
                         'batch_size': 1,
@@ -294,7 +295,7 @@ def main():
                         'model_name': job['model_name'],
                         'cfg_strength': job['task_input_dict']['cfg_strength'],
                         'seed': job['task_input_dict']['seed'],
-                        'output_path': job['task_input_dict']['output_path'],
+                        'output_path': os.path.join(job['task_input_dict']['dataset'], job['task_input_dict']['file_path']),
                         'image_width': job['task_input_dict']['image_width'],
                         'image_height': job['task_input_dict']['image_height'],
                         'batch_size': 1,
