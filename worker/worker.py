@@ -96,8 +96,8 @@ def run_image_generation_task(worker_state, generation_task, minio_client):
     output_file_path, output_file_hash = generate_image_from_text(minio_client,
                                                                   worker_state.txt2img,
                                                                   worker_state.clip_text_embedder,
-                                                                  positive_prompts=generation_task.task_input_dict["positive_prompts"],
-                                                                  negative_prompts=generation_task.task_input_dict["negative_prompts"],
+                                                                  positive_prompts=generation_task.task_input_dict["positive_prompt"],
+                                                                  negative_prompts=generation_task.task_input_dict["negative_prompt"],
                                                                   cfg_strength=generation_task.task_input_dict["cfg_strength"],
                                                                   # seed=generation_task.task_input_dict["seed"],
                                                                   seed=seed,
@@ -115,8 +115,8 @@ def run_image_generation_task(worker_state, generation_task, minio_client):
 def run_inpainting_generation_task(worker_state, generation_task: GenerationTask, minio_client):
     # TODO(): Make a cache for these images
     # Check if they changed on disk maybe and reload
-    init_image = Image.open(generation_task.init_img)
-    init_mask = Image.open(generation_task.init_mask)
+    init_image = Image.open(generation_task.task_input_dict["init_img"])
+    init_mask = Image.open(generation_task.task_input_dict["init_mask"])
 
     output_file_path, output_file_hash = img2img(
         minio_client=minio_client,
