@@ -29,5 +29,6 @@ def generate_image_from_text(minio_client, txt2img, clip_text_embedder, positive
     output_file_path = output_path
     output_file_hash = save_images_to_minio(minio_client, images, output_file_path)
 
+
     return output_file_path, output_file_hash
 
