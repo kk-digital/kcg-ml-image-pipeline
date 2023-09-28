@@ -28,6 +28,10 @@ def startup_db_client():
     app.in_progress_jobs_collection = app.mongodb_db["in-progress-jobs"]
     app.completed_jobs_collection = app.mongodb_db["completed-jobs"]
     app.failed_jobs_collection = app.mongodb_db["failed-jobs"]
+
+    # used to store sequential ids of generated images
+    app.dataset_sequential_id_collection = app.mongodb_db["dataset-sequential-id"]
+
     print("Connected to the MongoDB database!")
 
 
