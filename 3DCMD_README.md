@@ -1,7 +1,8 @@
 # 3scmd tool with our minio server
 
 ### 3scmd:
-Download 3dcmd from:
+Download 3dcmd from github:
+
 run:
 ```
     git clone https://github.com/s3tools/s3cmd
