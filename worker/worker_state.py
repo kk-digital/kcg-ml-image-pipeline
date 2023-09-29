@@ -19,7 +19,7 @@ class WorkerState:
         self.txt2img = None
         self.minio_client = get_minio_client(minio_access_key, minio_secret_key)
         self.queue_size = queue_size
-        self.queue = queue.Queue()
+        self.job_queue = queue.Queue()
 
     def load_models(self, model_path='input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors'):
         # NOTE: Initializing stable diffusion

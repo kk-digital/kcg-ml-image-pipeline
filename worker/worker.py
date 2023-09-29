@@ -154,14 +154,14 @@ def process_jobs(worker_state):
     last_job_time = time.time()
 
     while True:
-        job = worker_state.queue.get()
+        job = worker_state.job_queue.get()
 
         if job is not None:
             task_type = job['task_type']
 
             print('\n\n')
             info(thread_state, "Processing job: " + task_type)
-            info(thread_state, 'Queue size ' + str(worker_state.queue.qsize()))
+            info(thread_state, 'Queue size ' + str(worker_state.job_queue.qsize()))
             job_start_time = time.time()
             worker_idle_time = job_start_time - last_job_time
             info(thread_state, f"worker idle time was {worker_idle_time:.4f} seconds.")
@@ -277,7 +277,7 @@ def main():
     while True:
         # if we have more than n jobs in queue
         # sleep for a while
-        if worker_state.queue.qsize() >= worker_state.queue_size:
+        if worker_state.job_queue.qsize() >= worker_state.queue_size:
             sleep_time_in_seconds = 2
             info(thread_state, "Queue is full, going to sleep for " + f"{sleep_time_in_seconds:.4f}" + " seconds")
             time.sleep(sleep_time_in_seconds)
@@ -289,8 +289,8 @@ def main():
         job = get_job_if_exist(worker_type_list)
         if job != None:
             info(thread_state, 'Found job ! ')
-            worker_state.queue.put(job)
-            info(thread_state, 'Queue size ' + str(worker_state.queue.qsize()))
+            worker_state.job_queue.put(job)
+            info(thread_state, 'Queue size ' + str(worker_state.job_queue.qsize()))
 
         else:
             sleep_time_in_seconds = 10
