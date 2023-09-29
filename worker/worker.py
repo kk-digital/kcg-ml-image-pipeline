@@ -278,11 +278,14 @@ def main():
         # if we have more than n jobs in queue
         # sleep for a while
         if worker_state.queue.qsize() >= worker_state.queue_size:
-            sleep_time_in_seconds = 1
+            sleep_time_in_seconds = 2
             info(thread_state, "Queue is full, going to sleep for " + f"{sleep_time_in_seconds:.4f}" + " seconds")
             time.sleep(sleep_time_in_seconds)
+            continue
 
-
+        # try to find a job
+        # if job exists add it to job queue
+        # if not sleep for a while
         job = get_job_if_exist(worker_type_list)
         if job != None:
             info(thread_state, 'Found job ! ')
