@@ -11,15 +11,15 @@ import json
 import math
 import csv
 import torch
+import uuid
 from tqdm import tqdm
 import numpy as np
 
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-# import uuid
-# generate UUID
-# task.uuid = str(uuid.uuid4())
+from worker.http import request
+from worker.generation_task.generation_task import GenerationTask
 
 
 class GeneratedPrompt:
@@ -239,11 +239,11 @@ def find_first_element_binary_search(cumulative_total_arr, random_num):
     return -1
 
 
-def generate_jobs_using_generated_prompts_from_csv_proportional_selection(csv_dataset_path,
-                                                                          prompt_count,
-                                                                          dataset_name,
-                                                                          csv_phrase_limit=0,
-                                                                          positive_prefix=""):
+def generate_prompts_from_csv_proportional_selection(csv_dataset_path,
+                                                     prompt_count,
+                                                     csv_phrase_limit=0,
+                                                     positive_prefix=""):
+    generated_prompts = []
     max_token_size = 75
     comma_token_size = 1
 
@@ -282,7 +282,6 @@ def generate_jobs_using_generated_prompts_from_csv_proportional_selection(csv_da
         positive_prefix_token_size = len(positive_prefix_prompt_tokens)
 
     print("Generating {} prompts...".format(prompt_count))
-    count = 0
     for i in tqdm(range(0, prompt_count)):
         positive_prompt_total_token_size = positive_prefix_token_size
         negative_prompt_total_token_size = 0
@@ -345,14 +344,120 @@ def generate_jobs_using_generated_prompts_from_csv_proportional_selection(csv_da
                             num_styles, num_constraints, prompt_vector)
 
         # save prompt json
-        prompt_json = prompt.to_json()
-        filename = "{num:0{digits}}.json".format(num=count, digits=count_number_of_digits(prompt_count))
-        file_path = os.path.join(dataset_output, filename)
+        generated_prompts.append(prompt)
 
-        # Save the data to a JSON file
-        with open(file_path, 'w') as json_file:
-            json.dump(prompt_json, json_file)
+    return generated_prompts
+
+
+def generate_image_generation_jobs_using_generated_prompts(csv_dataset_path,
+                                                           prompt_count,
+                                                           dataset_name,
+                                                           csv_phrase_limit=0,
+                                                           positive_prefix=""):
+    prompts = generate_prompts_from_csv_proportional_selection(csv_dataset_path,
+                                                               prompt_count,
+                                                               csv_phrase_limit,
+                                                               positive_prefix)
+
+    # get sequential ids
+    sequential_ids = request.http_get_sequential_id(dataset_name, prompt_count)
+
+    count = 0
+    # generate jobs
+    for prompt in prompts:
+        # generate UUID
+        uuid = str(uuid.uuid4())
+        task_type = "image_generation_task"
+        model_name = "v1-5-pruned-emaonly"
+        model_file_name = "v1-5-pruned-emaonly"
+        model_file_path = "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors"
+        task_input_dict = {
+            "positive_prompt": prompt.positive_prompt_str,
+            "negative_prompt": prompt.negative_prompt_str,
+            "cfg_strength": 12,
+            "seed": "",
+            "dataset": dataset_name,
+            "file_path": sequential_ids[count],
+            "num_images": 1,
+            "image_width": 512,
+            "image_height": 512,
+            "sampler": "ddim",
+            "sampler_steps": 20
+        }
+
+        generation_task = GenerationTask(uuid=uuid,
+                                         task_type=task_type,
+                                         model_name=model_name,
+                                         model_file_name=model_file_name,
+                                         model_file_path=model_file_path,
+                                         task_input_dict=task_input_dict)
+        generation_task_json = generation_task.to_dict()
+
+        # add job
+        request.http_add_job(generation_task_json)
 
         count += 1
+
+
+def generate_inpainting_generation_jobs_using_generated_prompts(csv_dataset_path,
+                                                                prompt_count,
+                                                                dataset_name,
+                                                                csv_phrase_limit=0,
+                                                                positive_prefix="",
+                                                                init_img_path="./test/test_inpainting/white_512x512.jpg",
+                                                                mask_path="./test/test_inpainting/icon_mask.png"):
+    prompts = generate_prompts_from_csv_proportional_selection(csv_dataset_path,
+                                                               prompt_count,
+                                                               csv_phrase_limit,
+                                                               positive_prefix)
+
+    # get sequential ids
+    sequential_ids = request.http_get_sequential_id(dataset_name, prompt_count)
+
+    count = 0
+    # generate jobs
+    for prompt in prompts:
+        # generate UUID
+        uuid = str(uuid.uuid4())
+        task_type = "inpainting_generation_task"
+        model_name = "v1-5-pruned-emaonly"
+        model_file_name = "v1-5-pruned-emaonly"
+        model_file_path = "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors"
+        task_input_dict = {
+            "positive_prompt": prompt.positive_prompt_str,
+            "negative_prompt": prompt.negative_prompt_str,
+            "cfg_strength": 12,
+            "seed": "",
+            "dataset": dataset_name,
+            "file_path": sequential_ids[count],
+            "image_width": 512,
+            "image_height": 512,
+            "sampler": "ddim",
+            "sampler_steps": 20,
+            "init_img": init_img_path,
+            "init_mask": mask_path,
+            "mask_blur": 0,
+            "inpainting_fill_mode": 1,
+            "styles": [],
+            "resize_mode": 0,
+            "denoising_strength": 0.75,
+            "image_cfg_scale": 1.5,
+            "inpaint_full_res_padding": 32,
+            "inpainting_mask_invert": 0
+        }
+
+        generation_task = GenerationTask(uuid=uuid,
+                                         task_type=task_type,
+                                         model_name=model_name,
+                                         model_file_name=model_file_name,
+                                         model_file_path=model_file_path,
+                                         task_input_dict=task_input_dict)
+        generation_task_json = generation_task.to_dict()
+
+        # add job
+        request.http_add_job(generation_task_json)
+
+        count += 1
+
 
 

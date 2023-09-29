@@ -1,6 +1,5 @@
 import sys
 import time
-import requests
 import random
 from datetime import datetime
 import argparse
@@ -12,7 +11,7 @@ import os
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from worker.image_generation.generation_task.generation_task import GenerationTask
+from worker.generation_task.generation_task import GenerationTask
 from worker.image_generation.scripts.inpaint_A1111 import img2img
 from stable_diffusion import StableDiffusion, CLIPTextEmbedder
 from configs.model_config import ModelPathConfig
@@ -20,9 +19,8 @@ from stable_diffusion.model_paths import (SDconfigs, CLIPconfigs)
 from worker.image_generation.scripts.stable_diffusion_base_script import StableDiffusionBaseScript
 from worker.image_generation.scripts.generate_image_from_text import generate_image_from_text
 from utility.minio import cmd
-
-SERVER_ADRESS = 'http://192.168.3.1:8111'
-
+from worker.http import request
+from worker.prompt_generation.prompt_generator import generate_image_generation_jobs_using_generated_prompts, generate_inpainting_generation_jobs_using_generated_prompts
 
 def info(message):
     print(colored("[INFO] ", 'green') + message)
@@ -69,22 +67,6 @@ class WorkerState:
         )
         self.txt2img.initialize_latent_diffusion(autoencoder=None, clip_text_embedder=None, unet_model=None,
                                                  path=model_path, force_submodels_init=True)
-
-
-def compute_file_hash(file_path, hash_algorithm='sha256'):
-    """Compute the hash of a file using the given algorithm (default: sha256)"""
-
-    # Create a hash object
-    h = hashlib.new(hash_algorithm)
-
-    # Open the file in binary read mode
-    with open(file_path, 'rb') as f:
-        # Read the file in chunks (useful for large files)
-        for chunk in iter(lambda: f.read(4096), b""):
-            h.update(chunk)
-
-    # Return the hexadecimal representation of the hash
-    return h.hexdigest()
 
 
 def run_image_generation_task(worker_state, generation_task, minio_client):
@@ -150,46 +132,22 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
     return output_file_path, output_file_hash
 
 
-# Get request to get an available job
-def http_get_job():
-    url = SERVER_ADRESS + "/get-job"
-    response = requests.get(url)
-
-    if response.status_code == 200:
-        job_json = response.json()
-        return job_json
-
-    return None
+def run_generate_image_generation_task(generation_task):
+    generate_image_generation_jobs_using_generated_prompts(
+        csv_dataset_path=generation_task.task_input_dict["csv_dataset_path"],
+        prompt_count=generation_task.task_input_dict["prompt_count"],
+        positive_prefix=generation_task.task_input_dict["positive_prefix"]
+    )
 
 
-# Used for debugging purpose
-# The worker should not be adding jobs
-def http_add_job(job):
-    url = SERVER_ADRESS + "/add-job"
-    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
-    response = requests.post(url, json=job, headers=headers)
-
-    if response.status_code != 201 and response.status_code != 200:
-        print(f"POST request failed with status code: {response.status_code}")
-
-
-def http_update_job_completed(job):
-    url = SERVER_ADRESS + "/update-job-completed"
-    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
-
-    response = requests.put(url, json=job, headers=headers)
-
-    if response.status_code != 200:
-        print(f"request failed with status code: {response.status_code}")
-
-
-def http_update_job_failed(job):
-    url = SERVER_ADRESS + "/update-job-failed"
-    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
-
-    response = requests.put(url, json=job, headers=headers)
-    if response.status_code != 200:
-        print(f"request failed with status code: {response.status_code}")
+def run_generate_inpainting_generation_task(generation_task):
+    generate_inpainting_generation_jobs_using_generated_prompts(
+        csv_dataset_path=generation_task.task_input_dict["csv_dataset_path"],
+        prompt_count=generation_task.task_input_dict["prompt_count"],
+        positive_prefix=generation_task.task_input_dict["positive_prefix"],
+        init_img_path=generation_task.task_input_dict["./test/test_inpainting/white_512x512.jpg"],
+        mask_path=generation_task.task_input_dict["./test/test_inpainting/icon_mask.png"],
+    )
 
 
 def get_minio_client(minio_access_key, minio_secret_key):
@@ -229,11 +187,9 @@ def main():
     info("starting worker ! ")
     last_job_time = time.time()
 
-    datasets_bucket_name = "datasets"
-
     while True:
         info("Looking for jobs")
-        job = http_get_job()
+        job = request.http_get_job()
         if job != None:
             task_type = job['task_type']
 
@@ -243,12 +199,11 @@ def main():
             info(f"worker idle time was {worker_idle_time:.4f} seconds.")
 
             job['task_start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
+            generation_task = GenerationTask.from_dict(job)
             if task_type == 'inpainting_generation_task':
                 # Convert the job into a dictionary
                 # Then use the dictionary to create the generation task
                 try:
-                    generation_task = GenerationTask.from_dict(job)
                     output_file_path, output_file_hash = run_inpainting_generation_task(worker_state, generation_task,
                                                                                         minio_client)
                     info("job completed !")
@@ -259,15 +214,14 @@ def main():
                     }
                     info("output file path : " + output_file_path)
                     info("output file hash : " + output_file_hash)
-                    http_update_job_completed(job)
+                    request.http_update_job_completed(job)
                 except Exception as e:
                     error(f"generation task failed: {e}")
                     job['task_error_str'] = str(e)
-                    http_update_job_failed(job)
+                    request.http_update_job_failed(job)
 
             elif task_type == 'image_generation_task':
                 try:
-                    generation_task = GenerationTask.from_dict(job)
                     # Run inpainting task
                     output_file_path, output_file_hash = run_image_generation_task(worker_state, generation_task,
                                                                                    minio_client)
@@ -280,16 +234,45 @@ def main():
                     info("output file path : " + output_file_path)
                     info("output file hash : " + output_file_hash)
                     info("job completed")
-                    http_update_job_completed(job)
+                    request.http_update_job_completed(job)
                 except Exception as e:
                     error(f"generation task failed: {e}")
                     job['task_error_str'] = str(e)
-                    http_update_job_failed(job)
+                    request.http_update_job_failed(job)
+
+            elif task_type == "generate_image_generation_task":
+                try:
+                    # run generate image generation task
+                    run_generate_image_generation_task(generation_task)
+                    info("job completed !")
+                    job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    info("job completed")
+                    request.http_update_job_completed(job)
+
+                except Exception as e:
+                    error(f"generation task failed: {e}")
+                    job['task_error_str'] = str(e)
+                    request.http_update_job_failed(job)
+
+            elif task_type == "generate_inpainting_generation_task":
+                try:
+                    # run generate inpainting generation task
+                    run_generate_inpainting_generation_task(generation_task)
+                    info("job completed !")
+                    job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    info("job completed")
+                    request.http_update_job_completed(job)
+
+                except Exception as e:
+                    error(f"generation task failed: {e}")
+                    job['task_error_str'] = str(e)
+                    request.http_update_job_failed(job)
+
             else:
                 e = "job with task type '" + task_type + "' is not supported"
                 error(e)
                 job['task_error_str'] = e
-                http_update_job_failed(job)
+                request.http_update_job_failed(job)
 
             job_end_time = time.time()
             last_job_time = job_end_time
