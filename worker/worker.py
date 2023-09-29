@@ -4,9 +4,10 @@ import random
 from datetime import datetime
 import argparse
 from PIL import Image
-import hashlib
 from termcolor import colored
 import os
+import queue
+import threading
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -35,12 +36,15 @@ def warning(message):
 
 
 class WorkerState:
-    def __init__(self, device):
+    def __init__(self, device, minio_access_key, minio_secret_key, queue_size):
         self.device = device
         self.config = ModelPathConfig()
         self.stable_diffusion = None
         self.clip_text_embedder = None
         self.txt2img = None
+        self.minio_client = get_minio_client(minio_access_key, minio_secret_key)
+        self.queue_size = queue_size
+        self.queue = queue.Queue()
 
     def load_models(self, model_path='input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors'):
         # NOTE: Initializing stable diffusion
@@ -69,13 +73,13 @@ class WorkerState:
                                                  path=model_path, force_submodels_init=True)
 
 
-def run_image_generation_task(worker_state, generation_task, minio_client):
+def run_image_generation_task(worker_state, generation_task):
     # Random seed for now
     # Should we use the seed from job parameters ?
     random.seed(time.time())
     seed = random.randint(0, 2 ** 24 - 1)
 
-    output_file_path, output_file_hash = generate_image_from_text(minio_client,
+    output_file_path, output_file_hash = generate_image_from_text(worker_state.minio_client,
                                                                   worker_state.txt2img,
                                                                   worker_state.clip_text_embedder,
                                                                   positive_prompts=generation_task.task_input_dict["positive_prompt"],
@@ -94,14 +98,14 @@ def run_image_generation_task(worker_state, generation_task, minio_client):
     return output_file_path, output_file_hash
 
 
-def run_inpainting_generation_task(worker_state, generation_task: GenerationTask, minio_client):
+def run_inpainting_generation_task(worker_state, generation_task: GenerationTask):
     # TODO(): Make a cache for these images
     # Check if they changed on disk maybe and reload
     init_image = Image.open(generation_task.task_input_dict["init_img"])
     init_mask = Image.open(generation_task.task_input_dict["init_mask"])
 
     output_file_path, output_file_hash = img2img(
-        minio_client=minio_client,
+        minio_client=worker_state.minio_client,
         prompt=generation_task.task_input_dict["positive_prompt"],
         negative_prompt=generation_task.task_input_dict["negative_prompt"],
         sampler_name=generation_task.task_input_dict["sampler"],
@@ -167,6 +171,7 @@ def parse_args():
 
     # Required parameters
     parser.add_argument("--device", type=str, default="cuda")
+    parser.add_argument("--queue_size", type=int, default=8)
     parser.add_argument("--minio-access-key", type=str,
                         help="The minio access key to use so worker can upload files to minio server")
     parser.add_argument("--minio-secret-key", type=str,
@@ -191,36 +196,17 @@ def get_job_if_exist(worker_type_list):
     return job
 
 
-def main():
-    args = parse_args()
-
-    # get worker type
-    worker_type = args.worker_type
-    worker_type = worker_type.strip()  # remove trailing and leading spaces
-    worker_type = worker_type.replace(' ', '')  # remove spaces
-    worker_type_list = worker_type.split(",")  # split by comma
-
-    # Initialize worker state
-    worker_state = WorkerState(args.device)
-    # Loading models
-    worker_state.load_models()
-
-    # get minio client
-    minio_client = get_minio_client(args.minio_access_key, args.minio_secret_key)
-
-    info("starting worker ! ")
-    info("Worker type: {} ".format(worker_type_list))
+def process_jobs(worker_state):
 
     last_job_time = time.time()
 
     while True:
-        info("Looking for jobs")
-        job = get_job_if_exist(worker_type_list)
+        job = worker_state.queue.get()
 
         if job is not None:
             task_type = job['task_type']
 
-            info("Found job: " + task_type)
+            info("Processing job: " + task_type)
             job_start_time = time.time()
             worker_idle_time = job_start_time - last_job_time
             info(f"worker idle time was {worker_idle_time:.4f} seconds.")
@@ -231,8 +217,7 @@ def main():
                 # Convert the job into a dictionary
                 # Then use the dictionary to create the generation task
                 try:
-                    output_file_path, output_file_hash = run_inpainting_generation_task(worker_state, generation_task,
-                                                                                        minio_client)
+                    output_file_path, output_file_hash = run_inpainting_generation_task(worker_state, generation_task)
                     info("job completed !")
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     job['task_output_file_dict'] = {
@@ -250,8 +235,7 @@ def main():
             elif task_type == 'image_generation_task':
                 try:
                     # Run inpainting task
-                    output_file_path, output_file_hash = run_image_generation_task(worker_state, generation_task,
-                                                                                   minio_client)
+                    output_file_path, output_file_hash = run_image_generation_task(worker_state, generation_task)
                     info("job completed !")
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     job['task_output_file_dict'] = {
@@ -308,9 +292,43 @@ def main():
 
         else:
             # If there was no job, go to sleep for a while
-            sleep_time_in_seconds = 10
-            info("Did not find job, going to sleep for " + f"{sleep_time_in_seconds:.4f}" + " seconds")
+            sleep_time_in_seconds = 1
             time.sleep(sleep_time_in_seconds)
+
+def main():
+    args = parse_args()
+
+    queue_size = args.queue_size
+    # get worker type
+    worker_type = args.worker_type
+    worker_type = worker_type.strip()  # remove trailing and leading spaces
+    worker_type = worker_type.replace(' ', '')  # remove spaces
+    worker_type_list = worker_type.split(",")  # split by comma
+
+    # Initialize worker state
+    worker_state = WorkerState(args.device, args.minio_access_key, args.minio_secret_key, queue_size)
+    # Loading models
+    worker_state.load_models()
+
+    info("starting worker ! ")
+    info("Worker type: {} ".format(worker_type_list))
+
+    # spawning worker thread
+    thread = threading.Thread(target=process_jobs, args=(worker_state,))
+    thread.start()
+
+    while True:
+        # if we have more than n jobs in queue
+        # sleep for a while
+        if worker_state.queue.qsize() >= worker_state.queue_size:
+            sleep_time_in_seconds = 10
+            time.sleep(sleep_time_in_seconds)
+
+
+        job = get_job_if_exist(worker_type_list)
+        if job != None:
+            worker_state.queue.put(job)
+
 
 
 if __name__ == '__main__':
