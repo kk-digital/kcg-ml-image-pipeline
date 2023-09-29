@@ -190,7 +190,8 @@ def main():
 
     # get worker type
     worker_type = args.worker_type
-    worker_type = worker_type.strip()  # remove spaces
+    worker_type = worker_type.strip()  # remove trailing and leading spaces
+    worker_type = worker_type.replace(' ', '')  # remove spaces
     worker_type_list = worker_type.split(",")  # split by comma
 
     # Initialize worker state
