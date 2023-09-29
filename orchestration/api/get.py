@@ -40,7 +40,7 @@ def get_sequential_id(request: Request, dataset: str, limit: int = 1):
         # add to collection
         request.app.dataset_sequential_id_collection.insert_one(new_sequential_id.to_dict())
 
-        return json.dumps(sequential_id_arr)
+        return sequential_id_arr
 
     # if found
     found_sequential_id = SequentialID(sequential_id["dataset_name"], sequential_id["subfolder_count"], sequential_id["file_count"])
