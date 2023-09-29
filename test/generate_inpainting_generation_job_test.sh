@@ -12,7 +12,7 @@ curl -X 'POST' http://192.168.3.1:8111/add-job -H 'Content-Type: application/jso
         "task_completion_time": "N/A",
         "task_error_str": "",
         "task_input_dict": {
-            "csv_dataset_path": "input/civitai_phrases_database_v6.csv"
+            "csv_dataset_path": "input/civitai_phrases_database_v6.csv",
             "prompt_count": 10,
             "dataset_name": "character",
             "positive_prefix": "chibi, side scrolling",
