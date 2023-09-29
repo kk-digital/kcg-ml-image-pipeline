@@ -4,3 +4,4 @@ uvicorn
 pymongo==4.5.0
 python-dotenv
 Pillow==9.0.0
+minio
