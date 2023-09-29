@@ -279,7 +279,6 @@ def main():
         # sleep for a while
         if worker_state.job_queue.qsize() >= worker_state.queue_size:
             sleep_time_in_seconds = 0.001
-            info(thread_state, "Queue is full, going to sleep for " + f"{sleep_time_in_seconds:.4f}" + " seconds")
             time.sleep(sleep_time_in_seconds)
             continue
 
