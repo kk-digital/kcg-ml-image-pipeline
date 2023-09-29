@@ -247,7 +247,7 @@ def process_jobs(worker_state):
 
         else:
             # If there was no job, go to sleep for a while
-            sleep_time_in_seconds = 1
+            sleep_time_in_seconds = 0.001
             time.sleep(sleep_time_in_seconds)
 
 def main():
@@ -278,7 +278,7 @@ def main():
         # if we have more than n jobs in queue
         # sleep for a while
         if worker_state.job_queue.qsize() >= worker_state.queue_size:
-            sleep_time_in_seconds = 2
+            sleep_time_in_seconds = 0.001
             info(thread_state, "Queue is full, going to sleep for " + f"{sleep_time_in_seconds:.4f}" + " seconds")
             time.sleep(sleep_time_in_seconds)
             continue
@@ -293,7 +293,7 @@ def main():
             info(thread_state, 'Queue size ' + str(worker_state.job_queue.qsize()))
 
         else:
-            sleep_time_in_seconds = 10
+            sleep_time_in_seconds = 5
             info(thread_state, "Did not find job, going to sleep for " + f"{sleep_time_in_seconds:.4f}" + " seconds")
             time.sleep(sleep_time_in_seconds)
 
