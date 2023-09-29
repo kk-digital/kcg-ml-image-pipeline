@@ -7,6 +7,8 @@ import argparse
 from PIL import Image
 import hashlib
 from termcolor import colored
+import threading
+import queue
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -38,13 +40,16 @@ def warning(message):
 
 
 class WorkerState:
-    def __init__(self, device):
+    def __init__(self, device, queue_size, minio_access_key, minio_secret_key):
 
         self.device = device
         self.config = ModelPathConfig()
         self.stable_diffusion = None
         self.clip_text_embedder = None
         self.txt2img = None
+        self.queue_size = queue_size
+        self.queue = queue.Queue()
+        self.minio_client = get_minio_client(minio_access_key, minio_secret_key)
 
     def load_models(self, model_path='input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors'):
         # NOTE: Initializing stable diffusion
@@ -89,13 +94,13 @@ def compute_file_hash(file_path, hash_algorithm='sha256'):
     return h.hexdigest()
 
 
-def run_image_generation_task(worker_state, generation_task, minio_client):
+def run_image_generation_task(worker_state, generation_task):
     # Random seed for now
     # Should we use the seed from job parameters ?
     random.seed(time.time())
     seed = random.randint(0, 2 ** 24 - 1)
 
-    output_file_path, output_file_hash = generate_image_from_text(minio_client,
+    output_file_path, output_file_hash = generate_image_from_text(worker_state.minio_client,
                                                 worker_state.txt2img,
                                                 worker_state.clip_text_embedder,
                                                 generation_task.positive_prompt,
@@ -109,14 +114,14 @@ def run_image_generation_task(worker_state, generation_task, minio_client):
     return output_file_path, output_file_hash
 
 
-def run_inpainting_generation_task(worker_state, generation_task, minio_client):
+def run_inpainting_generation_task(worker_state, generation_task):
     # TODO(): Make a cache for these images
     # Check if they changed on disk maybe and reload
     init_image = Image.open(generation_task.init_img)
     init_mask = Image.open(generation_task.init_mask)
 
     output_file_path, output_file_hash = img2img(
-            minio_client=minio_client,
+            minio_client=worker_state.minio_client,
             prompt=generation_task.positive_prompt,
             negative_prompt=generation_task.negative_prompt,
             sampler_name=generation_task.sampler,
@@ -203,33 +208,26 @@ def parse_args():
 
     # Required parameters
     parser.add_argument("--device", type=str, default="cuda")
+    parser.add_argument("--queue_size", type=int, default=8)
     parser.add_argument("--minio-access-key", type=str, help="The minio access key to use so worker can upload files to minio server")
     parser.add_argument("--minio-secret-key", type=str, help="The minio secret key to use so worker can upload files to minio server")
 
     return parser.parse_args()
 
 
-def main():
-    args = parse_args()
+def process_jobs(worker_state):
 
-    # Initialize worker state
-    worker_state = WorkerState(args.device)
-    # Loading models
-    worker_state.load_models()
-
-    # get minio client
-    minio_client = get_minio_client(args.minio_access_key, args.minio_secret_key)
-
-    info("starting worker ! ")
     last_job_time = time.time()
 
+    # infinite loop
     while True:
-        info("Looking for jobs")
-        job = http_get_job()
-        if job != None:
+        job = worker_state.queue.get()
+        if job is not None:
+            # process job
             task_type = job['task_type']
 
-            info("Found job" + task_type)
+            info("Processing job" + task_type)
+
             job_start_time = time.time()
             worker_idle_time = job_start_time - last_job_time
             info(f"worker idle time was {worker_idle_time:.4f} seconds.")
@@ -267,7 +265,7 @@ def main():
                     }
 
                     generation_task = IconGenerationTask.from_dict(task)
-                    output_file_path, output_file_hash = run_inpainting_generation_task(worker_state, generation_task, minio_client)
+                    output_file_path, output_file_hash = run_inpainting_generation_task(worker_state, generation_task)
                     info("job completed")
 
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -305,7 +303,7 @@ def main():
                     generation_task = ImageGenerationTask.from_dict(task)
 
                     # Run inpainting task
-                    output_file_path, output_file_hash = run_image_generation_task(worker_state, generation_task, minio_client)
+                    output_file_path, output_file_hash = run_image_generation_task(worker_state, generation_task)
                     info("job completed")
 
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -333,10 +331,33 @@ def main():
             info(f"job took {job_elapsed_time:.4f} seconds to execute.")
 
         else:
-            # If there was no job, go to sleep for a while
-            sleep_time_in_seconds = 10
-            info("Did not find job, going to sleep for " + f"{sleep_time_in_seconds:.4f}" + " seconds")
+            # If there was no job in queue, go to sleep for a while
+            sleep_time_in_seconds = 1
             time.sleep(sleep_time_in_seconds)
+
+def main():
+    args = parse_args()
+
+    queue_size = args.queue_size
+
+
+    # Initialize worker state
+    worker_state = WorkerState(args.device, args.minio_access_key, args.minio_secret_key, queue_size)
+    # Loading models
+    worker_state.load_models()
+
+    info("starting worker ! ")
+
+    while True:
+        # if we have more than n jobs in queue
+        # sleep for a while
+        if worker_state.queue.qsize() >= worker_state.queue_size:
+            sleep_time_in_seconds = 10
+            time.sleep(sleep_time_in_seconds)
+
+        job = http_get_job()
+        if job != None:
+            worker_state.queue.put(job)
 
 
 if __name__ == '__main__':
