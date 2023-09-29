@@ -207,6 +207,7 @@ def process_jobs(worker_state):
             task_type = job['task_type']
 
             info("Processing job: " + task_type)
+            info('Queue size ' + str(worker_state.queue.qsize()))
             job_start_time = time.time()
             worker_idle_time = job_start_time - last_job_time
             info(f"worker idle time was {worker_idle_time:.4f} seconds.")
@@ -327,7 +328,9 @@ def main():
 
         job = get_job_if_exist(worker_type_list)
         if job != None:
+            info('Found job ! ')
             worker_state.queue.put(job)
+            info('Queue size ' + str(worker_state.queue.qsize()))
 
 
 
