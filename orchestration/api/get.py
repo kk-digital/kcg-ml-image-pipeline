@@ -6,9 +6,13 @@ router = APIRouter()
 
 
 @router.get("/get-job")
-def get_job(request: Request):
+def get_job(request: Request, task_type: str = None):
+    query = {}
+    if task_type != None:
+        query = {"task_type": task_type}
+
     # find
-    job = request.app.pending_jobs_collection.find_one()
+    job = request.app.pending_jobs_collection.find_one(query)
     if job is None:
         raise HTTPException(status_code=404)
 
