@@ -178,11 +178,17 @@ def parse_args():
 
 
 def get_job_if_exist(worker_type_list):
+    job = None
     for worker_type in worker_type_list:
         if worker_type == "":
-            return request.http_get_job()
+            job = request.http_get_job()
         else:
-            return request.http_get_job(worker_type)
+            job = request.http_get_job(worker_type)
+
+        if job is not None:
+            break
+
+    return job
 
 
 def main():
