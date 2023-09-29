@@ -70,10 +70,8 @@ def save_image_data_to_minio(minio_client, job_uuid, creation_time, dataset, fil
 
     msgpack_string = generated_image_data.get_msgpack_string()
 
-    msgpack_bytes = msgpack_string.encode('latin1')
-
     buffer = io.BytesIO()
-    buffer.write(msgpack_bytes)
+    buffer.write(msgpack_string)
     buffer.seek(0)
 
     cmd.upload_data(minio_client, bucket_name, file_path + ".msgpack", buffer)
