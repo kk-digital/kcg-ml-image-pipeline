@@ -4,8 +4,11 @@ SERVER_ADRESS = 'http://192.168.3.1:8111'
 
 
 # Get request to get an available job
-def http_get_job():
+def http_get_job(worker_type: str = None):
     url = SERVER_ADRESS + "/get-job"
+    if worker_type is not None:
+        url = url + "?task_type={}".format(worker_type)
+
     response = requests.get(url)
 
     if response.status_code == 200:

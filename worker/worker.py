@@ -171,12 +171,27 @@ def parse_args():
                         help="The minio access key to use so worker can upload files to minio server")
     parser.add_argument("--minio-secret-key", type=str,
                         help="The minio secret key to use so worker can upload files to minio server")
+    parser.add_argument("--worker-type", type=str, default="",
+                        help="The task types the worker will accept and do. If blank then worker will accept all task types.")
 
     return parser.parse_args()
 
 
+def get_job_if_exist(worker_type_list):
+    for worker_type in worker_type_list:
+        if worker_type == "":
+            return request.http_get_job()
+        else:
+            return request.http_get_job(worker_type)
+
+
 def main():
     args = parse_args()
+
+    # get worker type
+    worker_type = args.worker_type
+    worker_type = worker_type.strip()  # remove spaces
+    worker_type_list = worker_type.split(",")  # split by comma
 
     # Initialize worker state
     worker_state = WorkerState(args.device)
@@ -191,8 +206,9 @@ def main():
 
     while True:
         info("Looking for jobs")
-        job = request.http_get_job()
-        if job != None:
+        job = get_job_if_exist(worker_type_list)
+
+        if job is not None:
             task_type = job['task_type']
 
             info("Found job: " + task_type)
