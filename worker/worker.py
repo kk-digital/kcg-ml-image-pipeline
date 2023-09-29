@@ -195,7 +195,7 @@ def main():
         if job != None:
             task_type = job['task_type']
 
-            info("Found job" + task_type)
+            info("Found job: " + task_type)
             job_start_time = time.time()
             worker_idle_time = job_start_time - last_job_time
             info(f"worker idle time was {worker_idle_time:.4f} seconds.")
