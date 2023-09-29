@@ -202,6 +202,8 @@ def main():
     minio_client = get_minio_client(args.minio_access_key, args.minio_secret_key)
 
     info("starting worker ! ")
+    info("Worker type: {} ".format(worker_type_list))
+
     last_job_time = time.time()
 
     while True:
