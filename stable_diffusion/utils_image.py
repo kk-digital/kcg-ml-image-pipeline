@@ -69,9 +69,14 @@ def save_image_data_to_minio(minio_client, job_uuid, creation_time, dataset, fil
 
 
     msgpack_string = generated_image_data.get_msgpack_string()
+
     msgpack_bytes = msgpack_string.encode('latin1')
 
-    cmd.upload_data(minio_client, bucket_name, file_path + ".msgpack", msgpack_bytes)
+    buffer = io.BytesIO()
+    buffer.write(msgpack_bytes)
+    buffer.seek(0)
+
+    cmd.upload_data(minio_client, bucket_name, file_path + ".msgpack", buffer)
 
 
 def save_images_to_minio(minio_client, images: torch.Tensor, dest_path: str, img_format: str = 'jpeg'):
