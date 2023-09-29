@@ -41,12 +41,12 @@ def run_image_generation_task(worker_state, generation_task):
     random.seed(time.time())
     seed = random.randint(0, 2 ** 24 - 1)
 
-    output_file_path, output_file_hash = generate_image_from_text(generation_task,
+    output_file_path, output_file_hash = generate_image_from_text(
                                                                   worker_state.minio_client,
                                                                   worker_state.txt2img,
                                                                   worker_state.clip_text_embedder,
-                                                                  job_uuid=generation_task.uuid,
                                                                   dataset=generation_task.task_input_dict["dataset"],
+                                                                  job_uuid=generation_task.uuid,
                                                                   sampler=generation_task.task_input_dict["sampler"],
                                                                   sampler_steps=generation_task.task_input_dict["sampler_steps"],
                                                                   positive_prompts=generation_task.task_input_dict["positive_prompt"],
