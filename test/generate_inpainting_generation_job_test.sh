@@ -17,7 +17,7 @@ curl -X 'POST' http://192.168.3.1:8111/add-job -H 'Content-Type: application/jso
             "dataset_name": "character",
             "positive_prefix": "chibi, side scrolling",
             "init_img_path": "./test/test_inpainting/white_512x512.jpg",
-            "mask_path": "./test/test_inpainting/icon_mask.png"
+            "mask_path": "./test/test_inpainting/character_mask.png"
         },
         "task_input_file_dict": {},
         "task_output_file_dict": {}
