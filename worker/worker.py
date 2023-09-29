@@ -6,7 +6,6 @@ import argparse
 from PIL import Image
 from termcolor import colored
 import os
-import queue
 import threading
 
 base_directory = "./"
@@ -14,63 +13,26 @@ sys.path.insert(0, base_directory)
 
 from worker.generation_task.generation_task import GenerationTask
 from worker.image_generation.scripts.inpaint_A1111 import img2img
-from stable_diffusion import StableDiffusion, CLIPTextEmbedder
-from configs.model_config import ModelPathConfig
-from stable_diffusion.model_paths import (SDconfigs, CLIPconfigs)
-from worker.image_generation.scripts.stable_diffusion_base_script import StableDiffusionBaseScript
 from worker.image_generation.scripts.generate_image_from_text import generate_image_from_text
-from utility.minio import cmd
+from worker.worker_state import WorkerState
 from worker.http import request
 from worker.prompt_generation.prompt_generator import generate_image_generation_jobs_using_generated_prompts, generate_inpainting_generation_jobs_using_generated_prompts
 
-def info(message):
-    print(colored("[INFO] ", 'green') + message)
+
+class ThreadState:
+    def __init__(self, thread_id, thread_name):
+        self.thread_id = thread_id
+        self.thread_name = thread_name
+def info(thread_state, message):
+    print(colored(f"Thread [{thread_state.thread_id}] {thread_state.thread_name}", 'green') + " " + colored("[INFO] ", 'green') + message)
 
 
-def error(message):
-    print(colored("[ERROR] ", 'red') + message)
+def error(thread_state, message):
+    print(colored(f"Thread [{thread_state.thread_id}] {thread_state.thread_name}", 'green') + " " + colored("[ERROR] ", 'red') + message)
 
 
-def warning(message):
-    print(colored("[WARNING] ", 'yellow') + message)
-
-
-class WorkerState:
-    def __init__(self, device, minio_access_key, minio_secret_key, queue_size):
-        self.device = device
-        self.config = ModelPathConfig()
-        self.stable_diffusion = None
-        self.clip_text_embedder = None
-        self.txt2img = None
-        self.minio_client = get_minio_client(minio_access_key, minio_secret_key)
-        self.queue_size = queue_size
-        self.queue = queue.Queue()
-
-    def load_models(self, model_path='input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors'):
-        # NOTE: Initializing stable diffusion
-        self.stable_diffusion = StableDiffusion(device=self.device)
-
-        self.stable_diffusion.quick_initialize().load_autoencoder(self.config.get_model(SDconfigs.VAE)).load_decoder(
-            self.config.get_model(SDconfigs.VAE_DECODER))
-        self.stable_diffusion.model.load_unet(self.config.get_model(SDconfigs.UNET))
-        self.stable_diffusion.initialize_latent_diffusion(path=model_path, force_submodels_init=True)
-
-        self.clip_text_embedder = CLIPTextEmbedder(device=self.device)
-
-        self.clip_text_embedder.load_submodels(
-            tokenizer_path=self.config.get_model_folder_path(CLIPconfigs.TXT_EMB_TOKENIZER),
-            transformer_path=self.config.get_model_folder_path(CLIPconfigs.TXT_EMB_TEXT_MODEL)
-        )
-
-        # Starts the text2img
-        self.txt2img = StableDiffusionBaseScript(
-            sampler_name="ddim",
-            n_steps=20,
-            force_cpu=False,
-            cuda_device=self.device,
-        )
-        self.txt2img.initialize_latent_diffusion(autoencoder=None, clip_text_embedder=None, unet_model=None,
-                                                 path=model_path, force_submodels_init=True)
+def warning(thread_state, message):
+    print(colored(f"Thread [{thread_state.thread_id}] {thread_state.thread_name}", 'green') + " " + colored("[WARNING] ", 'yellow') + message)
 
 
 def run_image_generation_task(worker_state, generation_task):
@@ -156,16 +118,6 @@ def run_generate_inpainting_generation_task(generation_task):
     )
 
 
-def get_minio_client(minio_access_key, minio_secret_key):
-    # check first if minio client is available
-    minio_client = None
-    while minio_client is None:
-        # check minio server
-        if cmd.is_minio_server_accesssible():
-            minio_client = cmd.connect_to_minio_client(minio_access_key, minio_secret_key)
-            return minio_client
-
-
 def parse_args():
     parser = argparse.ArgumentParser(description="Worker for image generation")
 
@@ -198,6 +150,7 @@ def get_job_if_exist(worker_type_list):
 
 def process_jobs(worker_state):
 
+    thread_state = ThreadState(1, "Job Processor")
     last_job_time = time.time()
 
     while True:
@@ -207,11 +160,11 @@ def process_jobs(worker_state):
             task_type = job['task_type']
 
             print('\n\n')
-            info("Processing job: " + task_type)
-            info('Queue size ' + str(worker_state.queue.qsize()))
+            info(thread_state, "Processing job: " + task_type)
+            info(thread_state, 'Queue size ' + str(worker_state.queue.qsize()))
             job_start_time = time.time()
             worker_idle_time = job_start_time - last_job_time
-            info(f"worker idle time was {worker_idle_time:.4f} seconds.")
+            info(thread_state, f"worker idle time was {worker_idle_time:.4f} seconds.")
 
             job['task_start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             generation_task = GenerationTask.from_dict(job)
@@ -220,17 +173,17 @@ def process_jobs(worker_state):
                 # Then use the dictionary to create the generation task
                 try:
                     output_file_path, output_file_hash = run_inpainting_generation_task(worker_state, generation_task)
-                    info("job completed !")
+                    info(thread_state, "job completed !")
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     job['task_output_file_dict'] = {
                         'output_file_path': output_file_path,
                         'output_file_hash': output_file_hash
                     }
-                    info("output file path : " + output_file_path)
-                    info("output file hash : " + output_file_hash)
+                    info(thread_state, "output file path : " + output_file_path)
+                    info(thread_state, "output file hash : " + output_file_hash)
                     request.http_update_job_completed(job)
                 except Exception as e:
-                    error(f"generation task failed: {e}")
+                    error(thread_state, f"generation task failed: {e}")
                     job['task_error_str'] = str(e)
                     request.http_update_job_failed(job)
 
@@ -238,18 +191,18 @@ def process_jobs(worker_state):
                 try:
                     # Run inpainting task
                     output_file_path, output_file_hash = run_image_generation_task(worker_state, generation_task)
-                    info("job completed !")
+                    info(thread_state, "job completed !")
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     job['task_output_file_dict'] = {
                         'output_file_path': output_file_path,
                         'output_file_hash': output_file_hash
                     }
-                    info("output file path : " + output_file_path)
-                    info("output file hash : " + output_file_hash)
-                    info("job completed")
+                    info(thread_state, "output file path : " + output_file_path)
+                    info(thread_state, "output file hash : " + output_file_hash)
+                    info(thread_state, "job completed")
                     request.http_update_job_completed(job)
                 except Exception as e:
-                    error(f"generation task failed: {e}")
+                    error(thread_state, f"generation task failed: {e}")
                     job['task_error_str'] = str(e)
                     request.http_update_job_failed(job)
 
@@ -257,13 +210,13 @@ def process_jobs(worker_state):
                 try:
                     # run generate image generation task
                     run_generate_image_generation_task(generation_task)
-                    info("job completed !")
+                    info(thread_state, "job completed !")
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    info("job completed")
+                    info(thread_state, "job completed")
                     request.http_update_job_completed(job)
 
                 except Exception as e:
-                    error(f"generation task failed: {e}")
+                    error(thread_state, f"generation task failed: {e}")
                     job['task_error_str'] = str(e)
                     request.http_update_job_failed(job)
 
@@ -271,26 +224,26 @@ def process_jobs(worker_state):
                 try:
                     # run generate inpainting generation task
                     run_generate_inpainting_generation_task(generation_task)
-                    info("job completed !")
+                    info(thread_state, "job completed !")
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    info("job completed")
+                    info(thread_state, "job completed")
                     request.http_update_job_completed(job)
 
                 except Exception as e:
-                    error(f"generation task failed: {e}")
+                    error(thread_state, f"generation task failed: {e}")
                     job['task_error_str'] = str(e)
                     request.http_update_job_failed(job)
 
             else:
                 e = "job with task type '" + task_type + "' is not supported"
-                error(e)
+                error(thread_state, e)
                 job['task_error_str'] = e
                 request.http_update_job_failed(job)
 
             job_end_time = time.time()
             last_job_time = job_end_time
             job_elapsed_time = job_end_time - job_start_time
-            info(f"job took {job_elapsed_time:.4f} seconds to execute.")
+            info(thread_state, f"job took {job_elapsed_time:.4f} seconds to execute.")
 
         else:
             # If there was no job, go to sleep for a while
@@ -299,6 +252,8 @@ def process_jobs(worker_state):
 
 def main():
     args = parse_args()
+
+    thread_state = ThreadState(0, "Job Fetcher")
 
     queue_size = args.queue_size
     # get worker type
@@ -312,8 +267,8 @@ def main():
     # Loading models
     worker_state.load_models()
 
-    info("starting worker ! ")
-    info("Worker type: {} ".format(worker_type_list))
+    info(thread_state, "starting worker ! ")
+    info(thread_state, "Worker type: {} ".format(worker_type_list))
 
     # spawning worker thread
     thread = threading.Thread(target=process_jobs, args=(worker_state,))
@@ -329,9 +284,9 @@ def main():
 
         job = get_job_if_exist(worker_type_list)
         if job != None:
-            info('Found job ! ')
+            info(thread_state, 'Found job ! ')
             worker_state.queue.put(job)
-            info('Queue size ' + str(worker_state.queue.qsize()))
+            info(thread_state, 'Queue size ' + str(worker_state.queue.qsize()))
 
 
 
