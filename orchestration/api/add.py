@@ -9,6 +9,10 @@ router = APIRouter()
 
 @router.post("/add-job", description="Add a job to db")
 def add_job(request: Request, task: Task):
+    if task.uuid in ["", None]:
+        # generate since its empty
+        task.uuid = str(uuid.uuid4())
+
     # add task creation time
     task.task_creation_time = datetime.now()
 
