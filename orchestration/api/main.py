@@ -7,7 +7,8 @@ from orchestration.api.delete import router as delete_router
 from orchestration.api.get import router as get_router
 from orchestration.api.list import router as list_router
 from orchestration.api.update import router as update_router
-
+from orchestration.api.data import router as data_router
+from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
 app = FastAPI(title="Orchestration API")
@@ -17,6 +18,17 @@ app.include_router(count_router)
 app.include_router(list_router)
 app.include_router(update_router)
 app.include_router(delete_router)
+app.include_router(data_router)
+
+
+def get_minio_client(minio_access_key, minio_secret_key):
+    # check first if minio client is available
+    minio_client = None
+    while minio_client is None:
+        # check minio server
+        if cmd.is_minio_server_accesssible():
+            minio_client = cmd.connect_to_minio_client(minio_access_key, minio_secret_key)
+            return minio_client
 
 
 @app.on_event("startup")
@@ -33,6 +45,10 @@ def startup_db_client():
     app.dataset_sequential_id_collection = app.mongodb_db["dataset-sequential-id"]
 
     print("Connected to the MongoDB database!")
+
+    # get minio client
+    app.minio_client = get_minio_client(minio_access_key=config["MINIO_ACCESS_KEY"],
+                                        minio_secret_key=config["MINIO_SECRET_KEY"])
 
 
 @app.on_event("shutdown")
