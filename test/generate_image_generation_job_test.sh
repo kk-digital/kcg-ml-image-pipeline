@@ -1,7 +1,7 @@
 #!/bin/bash
 
 curl -X 'POST' http://192.168.3.1:8111/add-job -H 'Content-Type: application/json' -d '{
-        "uuid": "123",
+        "uuid": "",
         "task_type": "generate_image_generation_task",
         "model_name": "v1-5-pruned-emaonly",
         "model_file_name": "v1-5-pruned-emaonly",
@@ -15,7 +15,7 @@ curl -X 'POST' http://192.168.3.1:8111/add-job -H 'Content-Type: application/jso
             "csv_dataset_path": "input/civitai_phrases_database_v6.csv",
             "prompt_count": 5,
             "dataset_name": "environmental",
-            "positive_prefix": "environmental art"
+            "positive_prefix": "environmental, pixel art, concept art, side scrolling, video game"
         },
         "task_input_file_dict": {},
         "task_output_file_dict": {}

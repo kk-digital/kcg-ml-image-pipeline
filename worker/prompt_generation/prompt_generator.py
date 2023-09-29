@@ -366,7 +366,7 @@ def generate_image_generation_jobs_using_generated_prompts(csv_dataset_path,
     # generate jobs
     for prompt in prompts:
         # generate UUID
-        uuid = str(uuid.uuid4())
+        task_uuid = str(uuid.uuid4())
         task_type = "image_generation_task"
         model_name = "v1-5-pruned-emaonly"
         model_file_name = "v1-5-pruned-emaonly"
@@ -377,7 +377,7 @@ def generate_image_generation_jobs_using_generated_prompts(csv_dataset_path,
             "cfg_strength": 12,
             "seed": "",
             "dataset": dataset_name,
-            "file_path": sequential_ids[count],
+            "file_path": sequential_ids[count]+".jpg",
             "num_images": 1,
             "image_width": 512,
             "image_height": 512,
@@ -385,7 +385,7 @@ def generate_image_generation_jobs_using_generated_prompts(csv_dataset_path,
             "sampler_steps": 20
         }
 
-        generation_task = GenerationTask(uuid=uuid,
+        generation_task = GenerationTask(uuid=task_uuid,
                                          task_type=task_type,
                                          model_name=model_name,
                                          model_file_name=model_file_name,
@@ -418,7 +418,7 @@ def generate_inpainting_generation_jobs_using_generated_prompts(csv_dataset_path
     # generate jobs
     for prompt in prompts:
         # generate UUID
-        uuid = str(uuid.uuid4())
+        task_uuid = str(uuid.uuid4())
         task_type = "inpainting_generation_task"
         model_name = "v1-5-pruned-emaonly"
         model_file_name = "v1-5-pruned-emaonly"
@@ -429,7 +429,7 @@ def generate_inpainting_generation_jobs_using_generated_prompts(csv_dataset_path
             "cfg_strength": 12,
             "seed": "",
             "dataset": dataset_name,
-            "file_path": sequential_ids[count],
+            "file_path": sequential_ids[count]+".jpg",
             "image_width": 512,
             "image_height": 512,
             "sampler": "ddim",
@@ -446,7 +446,7 @@ def generate_inpainting_generation_jobs_using_generated_prompts(csv_dataset_path
             "inpainting_mask_invert": 0
         }
 
-        generation_task = GenerationTask(uuid=uuid,
+        generation_task = GenerationTask(uuid=task_uuid,
                                          task_type=task_type,
                                          model_name=model_name,
                                          model_file_name=model_file_name,

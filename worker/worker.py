@@ -136,6 +136,7 @@ def run_generate_image_generation_task(generation_task):
     generate_image_generation_jobs_using_generated_prompts(
         csv_dataset_path=generation_task.task_input_dict["csv_dataset_path"],
         prompt_count=generation_task.task_input_dict["prompt_count"],
+        dataset_name=generation_task.task_input_dict["dataset_name"],
         positive_prefix=generation_task.task_input_dict["positive_prefix"]
     )
 
@@ -144,9 +145,10 @@ def run_generate_inpainting_generation_task(generation_task):
     generate_inpainting_generation_jobs_using_generated_prompts(
         csv_dataset_path=generation_task.task_input_dict["csv_dataset_path"],
         prompt_count=generation_task.task_input_dict["prompt_count"],
+        dataset_name=generation_task.task_input_dict["dataset_name"],
         positive_prefix=generation_task.task_input_dict["positive_prefix"],
-        init_img_path=generation_task.task_input_dict["./test/test_inpainting/white_512x512.jpg"],
-        mask_path=generation_task.task_input_dict["./test/test_inpainting/icon_mask.png"],
+        init_img_path=generation_task.task_input_dict["init_img_path"],
+        mask_path=generation_task.task_input_dict["mask_path"],
     )
 
 
@@ -193,7 +195,7 @@ def main():
         if job != None:
             task_type = job['task_type']
 
-            info("Found job" + task_type)
+            info("Found job: " + task_type)
             job_start_time = time.time()
             worker_idle_time = job_start_time - last_job_time
             info(f"worker idle time was {worker_idle_time:.4f} seconds.")

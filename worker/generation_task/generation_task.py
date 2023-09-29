@@ -54,7 +54,7 @@ class GenerationTask:
             "task_start_time": self.task_start_time,
             "task_completion_time": self.task_completion_time,
             "task_error_str": self.task_error_str,
-            "task_input_dic": self.task_input_dic,
+            "task_input_dict": self.task_input_dict,
             "task_input_file_dict": self.task_input_file_dict,
             "task_output_file_dict": self.task_output_file_dict,
         }
