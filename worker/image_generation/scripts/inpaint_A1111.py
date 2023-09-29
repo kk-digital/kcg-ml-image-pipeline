@@ -651,7 +651,7 @@ def process_images(p: StableDiffusionProcessingImg2Img, minio_client):
                 output_file_hash = (hashlib.sha256(img_byte_arr.getbuffer())).hexdigest()
 
                 # save to minio server
-                output_file_path = join(p.outpath, f"{int(time.time())}.png")
+                output_file_path = p.outpath
                 bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
                 cmd.upload_data(minio_client, bucket_name, file_path, img_byte_arr)
 
