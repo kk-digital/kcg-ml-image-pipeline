@@ -1,7 +1,7 @@
 #!/bin/bash
 
 curl -X 'POST' http://192.168.3.1:8111/add-job -H 'Content-Type: application/json' -d '{
-        "uuid": "123",
+        "uuid": "",
         "task_type": "generate_image_generation_task",
         "model_name": "v1-5-pruned-emaonly",
         "model_file_name": "v1-5-pruned-emaonly",
