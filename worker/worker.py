@@ -206,6 +206,7 @@ def process_jobs(worker_state):
         if job is not None:
             task_type = job['task_type']
 
+            print('\n\n')
             info("Processing job: " + task_type)
             info('Queue size ' + str(worker_state.queue.qsize()))
             job_start_time = time.time()
