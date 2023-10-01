@@ -23,3 +23,9 @@ def clear_all_failed_jobs(request: Request):
     request.app.failed_jobs_collection.delete_many({})
 
     return True
+
+@router.delete("/clear-all-completed-jobs")
+def clear_all_completed_jobs(request: Request):
+    request.app.completed_jobs_collection.delete_many({})
+
+    return True
