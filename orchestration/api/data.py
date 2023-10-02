@@ -1,6 +1,7 @@
 from fastapi import Request, HTTPException, APIRouter
 from orchestration.api.schemas import SequentialID
 import json
+from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
 from PIL import Image
 from io import BytesIO
@@ -41,3 +42,10 @@ def get_job(request: Request, dataset: str = None):
         response.release_conn()
 
     return document
+
+
+@router.get("/get-datasets")
+def get_datasets(request: Request):
+    objects = cmd.get_list_of_objects(request.app.minio_client, "datasets")
+
+    return objects

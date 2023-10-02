@@ -8,7 +8,7 @@ import sys
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from app_ranking.http.request import http_get_random_image
+from app_ranking.http.request import http_get_random_image, http_get_datasets
 
 
 class Rank:
@@ -111,19 +111,22 @@ class StateController:
 
     def __init__(self):
         self.datasets = []
-        self.dataset_name = ""
+        self.dataset_name = "icons"  # default to icons for now
 
     def rand_select(self, state: State):
         if state.has_error:
             return
 
+        if self.dataset_name == None:
+            return
+
         # get two random image
         image_1_json = http_get_random_image(self.dataset_name)
         image_2_json = http_get_random_image(self.dataset_name)
-        print(image_1_json)
+
         state.imgs = []
-        state.imgs.append(image_1_json["image-data"])
-        state.imgs.append(image_2_json["image-data"])
+        state.imgs.append(image_1_json)
+        state.imgs.append(image_2_json)
 
     def select_image(self, option: str, state: State) -> State:
         # if state.user_name == "":
@@ -144,8 +147,14 @@ class StateController:
         return state.copy()
 
     def get_datasets(self):
-        self.ranks = [Rank(**rank) for rank in self.db_manager.ranks_db.all()]
-        return [rank.name for rank in self.ranks]
+        self.datasets = http_get_datasets()
+
+        return self.datasets
 
     def set_dataset(self, dataset: str):
-        self.dataset = dataset
+        self.dataset_name = dataset
+
+    def get_image(self, option: str, state: State) -> bytes:
+        image = state.imgs[ord(option) % 65]
+
+        return image["image-data"]
