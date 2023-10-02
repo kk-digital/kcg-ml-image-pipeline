@@ -63,7 +63,8 @@ class ClipModel:
             image_features = self.model.get_image_features(**inputs, output_hidden_states=True)
 
         # returns image features and the penultimate layer
-        return image_features.to(self.device), pooled_output.to(self.device)
+        # return image_features.to(self.device), pooled_output.to(self.device)
+        return image_features.to(self.device)
 
     def compute_feature_vectors(self, opened_images, batch_size):
         start_time = time.time()
