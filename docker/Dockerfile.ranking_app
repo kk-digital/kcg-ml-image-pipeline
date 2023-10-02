@@ -1,0 +1,10 @@
+FROM python:3.8
+
+WORKDIR /ranking
+COPY ./requirements_ranking_app.txt /ranking/requirements.txt
+
+RUN pip install -r /ranking/requirements.txt
+COPY ./app_ranking /ranking/app_ranking
+
+EXPOSE 8765
+CMD ["solara", "run", "app_ranking/main_page.py", "--host=0.0.0.0"]
