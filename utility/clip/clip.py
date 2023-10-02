@@ -43,24 +43,25 @@ class ClipModel:
     def get_image_features(self, image):
         inputs = self.preprocess(images=image, return_tensors="pt")
 
-        if self._clip_skip:
-            # ref https://github.com/huggingface/transformers/blob/41aef33758ae166291d72bc381477f2db84159cf/src/transformers/models/clip/modeling_clip.py#L1086
-            vision_outputs = self.model.vision_model(
-                **inputs,
-                output_hidden_states=True,
-            )
+        with torch.no_grad():
+            if self._clip_skip:
+                # ref https://github.com/huggingface/transformers/blob/41aef33758ae166291d72bc381477f2db84159cf/src/transformers/models/clip/modeling_clip.py#L1086
+                vision_outputs = self.model.vision_model(
+                    **inputs,
+                    output_hidden_states=True,
+                )
 
-            # clip-vit-l-14 have 24 layers, we only do until 23
-            penultimate_layer_output = vision_outputs.hidden_states[23]
+                # clip-vit-l-14 have 24 layers, we only do until 23
+                penultimate_layer_output = vision_outputs.hidden_states[23]
 
-            # ref: https://github.com/huggingface/transformers/blob/41aef33758ae166291d72bc381477f2db84159cf/src/transformers/models/clip/modeling_clip.py#L893C11-L893C11
-            pooled_output = penultimate_layer_output[:, 0, :]
-            pooled_output = self.model.vision_model.post_layernorm(pooled_output)
-            image_features = self.model.visual_projection(pooled_output)
+                # ref: https://github.com/huggingface/transformers/blob/41aef33758ae166291d72bc381477f2db84159cf/src/transformers/models/clip/modeling_clip.py#L893C11-L893C11
+                pooled_output = penultimate_layer_output[:, 0, :]
+                pooled_output = self.model.vision_model.post_layernorm(pooled_output)
+                image_features = self.model.visual_projection(pooled_output)
 
-            image_features = image_features.to(torch.float32)
-        else:
-            image_features = self.model.get_image_features(**inputs, output_hidden_states=True)
+                image_features = image_features.to(torch.float32)
+            else:
+                image_features = self.model.get_image_features(**inputs, output_hidden_states=True)
 
         # returns image features and the penultimate layer
         # return image_features.to(self.device), pooled_output.to(self.device)
