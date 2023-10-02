@@ -33,6 +33,10 @@ def info(thread_state, message):
                                                                                                             'green') + message)
 
 
+def info_v2(message):
+    print(colored("[INFO] ", 'green') + message)
+
+
 def error(thread_state, message):
     print(colored(f"Thread [{thread_state.thread_id}] {thread_state.thread_name}", 'green') + " " + colored("[ERROR] ",
                                                                                                             'red') + message)
@@ -170,9 +174,9 @@ def upload_data_and_update_job_status(job, output_file_path, output_file_hash, i
         'output_file_path': output_file_path,
         'output_file_hash': output_file_hash
     }
-    info("", "output file path: " + output_file_path)
-    info("", "output file hash: " + output_file_hash)
-    info("", "job completed: " + job["uuid"])
+    info_v2("output file path: " + output_file_path)
+    info_v2("output file hash: " + output_file_hash)
+    info_v2("job completed: " + job["uuid"])
 
     # update status
     request.http_update_job_completed(job)
