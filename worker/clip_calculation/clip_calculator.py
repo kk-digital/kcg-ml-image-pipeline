@@ -3,6 +3,7 @@ from PIL import Image
 from io import BytesIO
 import os
 import msgpack
+import numpy as np
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -29,9 +30,10 @@ def calculate_image_feature_vector(worker_state: WorkerState, input_file_path: s
 
     # get feature
     clip_feature_vector = worker_state.clip.get_image_features(img)
-    print(clip_feature_vector)
+    # convert to np array
+    clip_feature_vector_np_arr = np.array(clip_feature_vector, dtype=np.float32)
 
-    return input_file_hash, clip_feature_vector
+    return input_file_hash, clip_feature_vector_np_arr
 
 
 def run_clip_calculation_task(worker_state: WorkerState, generation_task: GenerationTask):
