@@ -1,15 +1,15 @@
 import requests
 
-SERVER_ADRESS = 'http://localhost:8000'
+SERVER_ADDRESS = 'http://192.168.3.1:8111'
 
 
 # Get request to get random image
 def http_get_random_image(dataset_name: str):
-    url = SERVER_ADRESS + "/get-random-image/{}".format(dataset_name)
+    url = SERVER_ADDRESS + "/get-random-image/{}".format(dataset_name)
     try:
         response = requests.get(url)
     except Exception as e:
-        print('request exception ', e)
+        raise e
 
     if response.status_code == 200:
         image_json = response.json()
@@ -20,11 +20,11 @@ def http_get_random_image(dataset_name: str):
 
 # Get request to get datasets
 def http_get_datasets():
-    url = SERVER_ADRESS + "/get-datasets"
+    url = SERVER_ADDRESS + "/get-datasets"
     try:
         response = requests.get(url)
     except Exception as e:
-        print('request exception ', e)
+        raise e
 
     if response != None:
         datasets = response
