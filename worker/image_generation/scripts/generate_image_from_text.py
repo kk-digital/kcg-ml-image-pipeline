@@ -38,7 +38,7 @@ def generate_image_from_text(minio_client, txt2img, clip_text_embedder, job_uuid
     # save image embedding data
     save_image_embedding_to_minio(minio_client, job_uuid, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), dataset,
                              output_file_path.replace('.jpg', '_embedding.msgpack'), output_file_hash,
-                             positive_prompts, negative_prompts, embedded_prompts.detach().numpy(), negative_embedded_prompts.detach().numpy())
+                             positive_prompts, negative_prompts, embedded_prompts.detach().cpu().numpy(), negative_embedded_prompts.detach().cpu().numpy())
 
     return output_file_path, output_file_hash, img_data
 
