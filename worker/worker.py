@@ -151,7 +151,7 @@ def upload_data_and_update_job_status(job, output_file_path, output_file_hash, d
     cmd.upload_data(minio_client, bucket_name, file_path, data)
 
     info_v2("Upload for job {} completed".format(job["uuid"]))
-    info_v2("Upload time elapsed: {}".format(time.time() - start_time))
+    info_v2("Upload time elapsed: {:.4f}s".format(time.time() - start_time))
 
     # update job info
     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
