@@ -56,4 +56,8 @@ def run_clip_calculation_task(worker_state: WorkerState, generation_task: Genera
     clip_feature_dict = {"clip-feature-vector": clip_feature_vector}
     clip_feature_msgpack = msgpack.packb(clip_feature_dict)
 
-    return output_path, input_file_hash, clip_feature_msgpack
+    clip_feature_msgpack_buffer = BytesIO()
+    clip_feature_msgpack_buffer.write(clip_feature_msgpack)
+    clip_feature_msgpack_buffer.seek(0)
+
+    return output_path, input_file_hash, clip_feature_msgpack_buffer
