@@ -18,7 +18,7 @@ class WorkerState:
         self.stable_diffusion = None
         self.clip_text_embedder = None
         self.txt2img = None
-        self.minio_client = None#get_minio_client(minio_access_key, minio_secret_key)
+        self.minio_client = get_minio_client(minio_access_key, minio_secret_key)
         self.queue_size = queue_size
         self.job_queue = queue.Queue()
         self.clip = clip.ClipModel()
