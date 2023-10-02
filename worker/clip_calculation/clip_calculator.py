@@ -37,7 +37,10 @@ def calculate_image_feature_vector(worker_state: WorkerState, input_file_path: s
     # convert to np array
     clip_feature_vector_np_arr = np.array(clip_feature_vector, dtype=np.float32)
 
-    return input_file_hash, clip_feature_vector_np_arr
+    # convert to normal list
+    clip_feature_vector_arr = clip_feature_vector_np_arr.tolist()
+
+    return input_file_hash, clip_feature_vector_arr
 
 
 def run_clip_calculation_task(worker_state: WorkerState, generation_task: GenerationTask):
