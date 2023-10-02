@@ -19,6 +19,8 @@ from worker.http import request
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 from worker.clip_calculation.clip_calculator import run_clip_calculation_task
+from worker.generation_task.generation_task import GenerationTask
+
 
 class ThreadState:
     def __init__(self, thread_id, thread_name):
