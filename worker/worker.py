@@ -76,7 +76,7 @@ def run_image_generation_task(worker_state, generation_task):
                                  generation_task.task_input_dict[
                                      "file_path"]))
 
-    return output_file_path, output_file_hash, img_data
+    return output_file_path, output_file_hash, img_data, seed
 
 
 def run_inpainting_generation_task(worker_state, generation_task: GenerationTask):
@@ -174,6 +174,7 @@ def get_job_if_exist(worker_type_list):
 def upload_data_and_update_job_status(job, output_file_path, output_file_hash, data, minio_client):
     start_time = time.time()
     bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
+
     cmd.upload_data(minio_client, bucket_name, file_path, data)
 
     info_v2("Upload for job {} completed".format(job["uuid"]))
@@ -188,6 +189,58 @@ def upload_data_and_update_job_status(job, output_file_path, output_file_hash, d
     info_v2("output file path: " + output_file_path)
     info_v2("output file hash: " + output_file_hash)
     info_v2("job completed: " + job["uuid"])
+
+    # update status
+    request.http_update_job_completed(job)
+
+
+def upload_image_data_and_update_job_status(worker_state, job, generation_task, seed, output_file_path, output_file_hash, data):
+    start_time = time.time()
+    bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
+
+    minio_client = worker_state.minio_client
+    clip_text_embedder = worker_state.clip_text_embedder
+
+    positive_prompts = generation_task.task_input_dict["positive_prompt"]
+    negative_prompts = generation_task.task_input_dict["negative_prompt"]
+
+    image_width = generation_task.task_input_dict["image_width"]
+    image_height = generation_task.task_input_dict["image_height"]
+    cfg_strength = generation_task.task_input_dict["cfg_strength"]
+    sampler = generation_task.task_input_dict["sampler"]
+    sampler_steps = generation_task.task_input_dict["sampler_steps"]
+    dataset = generation_task.task_input_dict["dataset"]
+
+    embedded_prompts = clip_text_embedder(positive_prompts)
+    negative_embedded_prompts = clip_text_embedder(negative_prompts)
+
+    job_completion_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    cmd.upload_data(minio_client, bucket_name, file_path, data)
+
+    # save image meta data
+    save_image_data_to_minio(minio_client, generation_task.uuid, job_completion_time, dataset,
+                             output_file_path.replace('.jpg', '_data.msgpack'), output_file_hash,
+                             positive_prompts, negative_prompts,
+                             cfg_strength, seed, image_width, image_height, sampler, sampler_steps)
+    # save image embedding data
+    save_image_embedding_to_minio(minio_client, generation_task.uuid, job_completion_time, dataset,
+                                  output_file_path.replace('.jpg', '_embedding.msgpack'), output_file_hash,
+                                  positive_prompts, negative_prompts, embedded_prompts.detach().cpu().numpy(),
+                                  negative_embedded_prompts.detach().cpu().numpy())
+
+    info_v2("Upload for job {} completed".format(generation_task.uuid))
+    info_v2("Upload time elapsed: {:.4f}s".format(time.time() - start_time))
+
+    # update job info
+    job['task_completion_time'] = job_completion_time
+    job['task_output_file_dict'] = {
+        'output_file_path': output_file_path,
+        'output_file_hash': output_file_hash
+    }
+    info_v2("output file path: " + output_file_path)
+    info_v2("output file hash: " + output_file_hash)
+    info_v2("job completed: " + generation_task.uuid)
 
     # update status
     request.http_update_job_completed(job)
@@ -219,16 +272,16 @@ def process_jobs(worker_state):
                                                                                                       generation_task)
 
                     # spawn upload data and update job thread
-                    thread = threading.Thread(target=upload_data_and_update_job_status, args=(
-                        job, output_file_path, output_file_hash, img_data, worker_state.minio_client,))
+                    thread = threading.Thread(target=upload_image_data_and_update_job_status, args=(
+                        worker_state, job, generation_task, -1, output_file_path, output_file_hash, img_data,))
                     thread.start()
 
                 elif task_type == 'image_generation_task':
-                    output_file_path, output_file_hash, img_data = run_image_generation_task(worker_state, generation_task)
+                    output_file_path, output_file_hash, img_data, seed = run_image_generation_task(worker_state, generation_task)
 
                     # spawn upload data and update job thread
-                    thread = threading.Thread(target=upload_data_and_update_job_status, args=(
-                        job, output_file_path, output_file_hash, img_data, worker_state.minio_client,))
+                    thread = threading.Thread(target=upload_image_data_and_update_job_status, args=(
+                        worker_state, job, generation_task, seed, output_file_path, output_file_hash, img_data,))
                     thread.start()
 
                 elif task_type == 'clip_calculation_task':
