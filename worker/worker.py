@@ -170,9 +170,9 @@ def upload_data_and_update_job_status(job, output_file_path, output_file_hash, i
         'output_file_path': output_file_path,
         'output_file_hash': output_file_hash
     }
-    info("output file path : " + output_file_path)
-    info("output file hash : " + output_file_hash)
-    info("job completed")
+    info("", "output file path: " + output_file_path)
+    info("", "output file hash: " + output_file_hash)
+    info("", "job completed")
 
     # update status
     request.http_update_job_completed(job)
