@@ -1,8 +1,12 @@
 FROM docker.io/nvidia/cuda:11.3.1-cudnn8-runtime-ubuntu20.04
 
-# Copy
+# Copy repo
 COPY ./ /kcg-ml-image-pipeline
 WORKDIR /kcg-ml-image-pipeline
+
+# create clip model dir and copy model
+RUN mkdir -p /.cache/huggingface/hub
+COPY ~/.cache/huggingface/hub/models--openai--clip-vit-large-patch14 /.cache/huggingface/hub/models--openai--clip-vit-large-patch14
 
 # install prerequisites
 RUN apt-get update && apt-get install -y python3 python3-pip && apt-get install -y python-is-python3

@@ -107,7 +107,7 @@ https://mega.nz/file/wNIXHKDA#CIB92fLkCquatWvzUAjjcKbrKCUmO2ffRVrzE3XYQVM
 Example Usage:
 
 ```
-python ./prompt_generation/scripts/prompt_generator.py --num-prompts 10000 --positive-prefix "icon, game icon, crystal, high resolution, contour, game icon, jewels, minerals, stones, gems, flat, vector art, game art, stylized, cell shaded, 8bit, 16bit, retro, russian futurism" --csv-phrase-limit 512 --csv-path ./data/civit_ai_data_phrase_count_v6.csv --output ./output/prompt_list_civitai_10000 --positive-ratio-threshold 3 --negative-ratio-threshold 3
+python ./prompt_generation/scripts/prompt_generator.py --num-prompts 10000 --positive-prefix "icon, game icon, crystal, high resolution, contour, game icon, jewels, minerals, stones, gems, flat, vector art, game art, stylized, cell shaded, 8bit, 16bit, retro, russian futurism" --csv-phrase-limit 512 --csv-path ./input/civitai_phrases_database_v6.csv --output ./output/prompt_list_civitai_10000 --positive-ratio-threshold 3 --negative-ratio-threshold 3
 ```
 
 

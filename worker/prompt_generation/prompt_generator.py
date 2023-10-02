@@ -460,4 +460,21 @@ def generate_inpainting_generation_jobs_using_generated_prompts(csv_dataset_path
         count += 1
 
 
+def run_generate_image_generation_task(generation_task: GenerationTask):
+    generate_image_generation_jobs_using_generated_prompts(
+        csv_dataset_path=generation_task.task_input_dict["csv_dataset_path"],
+        prompt_count=generation_task.task_input_dict["prompt_count"],
+        dataset_name=generation_task.task_input_dict["dataset_name"],
+        positive_prefix=generation_task.task_input_dict["positive_prefix"]
+    )
 
+
+def run_generate_inpainting_generation_task(generation_task: GenerationTask):
+    generate_inpainting_generation_jobs_using_generated_prompts(
+        csv_dataset_path=generation_task.task_input_dict["csv_dataset_path"],
+        prompt_count=generation_task.task_input_dict["prompt_count"],
+        dataset_name=generation_task.task_input_dict["dataset_name"],
+        positive_prefix=generation_task.task_input_dict["positive_prefix"],
+        init_img_path=generation_task.task_input_dict["init_img_path"],
+        mask_path=generation_task.task_input_dict["mask_path"],
+    )

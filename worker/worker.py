@@ -11,15 +11,15 @@ import threading
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from worker.generation_task.generation_task import GenerationTask
+from worker.prompt_generation.prompt_generator import run_generate_inpainting_generation_task, run_generate_image_generation_task
 from worker.image_generation.scripts.inpaint_A1111 import img2img
 from worker.image_generation.scripts.generate_image_from_text import generate_image_from_text
 from worker.worker_state import WorkerState
 from worker.http import request
-from worker.prompt_generation.prompt_generator import generate_image_generation_jobs_using_generated_prompts, \
-    generate_inpainting_generation_jobs_using_generated_prompts
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
+from worker.clip_calculation.clip_calculator import run_clip_calculation_task
+from worker.generation_task.generation_task import GenerationTask
 
 
 class ThreadState:
@@ -115,26 +115,6 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
     return output_file_path, output_file_hash, img_byte_arr
 
 
-def run_generate_image_generation_task(generation_task):
-    generate_image_generation_jobs_using_generated_prompts(
-        csv_dataset_path=generation_task.task_input_dict["csv_dataset_path"],
-        prompt_count=generation_task.task_input_dict["prompt_count"],
-        dataset_name=generation_task.task_input_dict["dataset_name"],
-        positive_prefix=generation_task.task_input_dict["positive_prefix"]
-    )
-
-
-def run_generate_inpainting_generation_task(generation_task):
-    generate_inpainting_generation_jobs_using_generated_prompts(
-        csv_dataset_path=generation_task.task_input_dict["csv_dataset_path"],
-        prompt_count=generation_task.task_input_dict["prompt_count"],
-        dataset_name=generation_task.task_input_dict["dataset_name"],
-        positive_prefix=generation_task.task_input_dict["positive_prefix"],
-        init_img_path=generation_task.task_input_dict["init_img_path"],
-        mask_path=generation_task.task_input_dict["mask_path"],
-    )
-
-
 def parse_args():
     parser = argparse.ArgumentParser(description="Worker for image generation")
 
@@ -165,10 +145,15 @@ def get_job_if_exist(worker_type_list):
     return job
 
 
-def upload_data_and_update_job_status(job, output_file_path, output_file_hash, img_byte_arr, minio_client):
+def upload_data_and_update_job_status(job, output_file_path, output_file_hash, data, minio_client):
+    start_time = time.time()
     bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
-    cmd.upload_data(minio_client, bucket_name, file_path, img_byte_arr)
+    cmd.upload_data(minio_client, bucket_name, file_path, data)
 
+    info_v2("Upload for job {} completed".format(job["uuid"]))
+    info_v2("Upload time elapsed: {:.4f}s".format(time.time() - start_time))
+
+    # update job info
     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     job['task_output_file_dict'] = {
         'output_file_path': output_file_path,
@@ -201,8 +186,9 @@ def process_jobs(worker_state):
 
             job['task_start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             generation_task = GenerationTask.from_dict(job)
-            if task_type == 'inpainting_generation_task':
-                try:
+
+            try:
+                if task_type == 'inpainting_generation_task':
                     output_file_path, output_file_hash, img_data = run_inpainting_generation_task(worker_state,
                                                                                                       generation_task)
 
@@ -210,54 +196,44 @@ def process_jobs(worker_state):
                     thread = threading.Thread(target=upload_data_and_update_job_status, args=(
                         job, output_file_path, output_file_hash, img_data, worker_state.minio_client,))
                     thread.start()
-                except Exception as e:
-                    error(thread_state, f"generation task failed: {e}")
-                    job['task_error_str'] = str(e)
-                    request.http_update_job_failed(job)
 
-            elif task_type == 'image_generation_task':
-                try:
+                elif task_type == 'image_generation_task':
                     output_file_path, output_file_hash, img_data = run_image_generation_task(worker_state, generation_task)
 
                     # spawn upload data and update job thread
                     thread = threading.Thread(target=upload_data_and_update_job_status, args=(
                         job, output_file_path, output_file_hash, img_data, worker_state.minio_client,))
                     thread.start()
-                except Exception as e:
-                    error(thread_state, f"generation task failed: {e}")
-                    job['task_error_str'] = str(e)
-                    request.http_update_job_failed(job)
 
-            elif task_type == "generate_image_generation_task":
-                try:
+                elif task_type == 'clip_calculation_task':
+                    output_file_path, output_file_hash, clip_data = run_clip_calculation_task(worker_state, generation_task)
+
+                    # spawn upload data and update job thread
+                    thread = threading.Thread(target=upload_data_and_update_job_status, args=(
+                        job, output_file_path, output_file_hash, clip_data, worker_state.minio_client,))
+                    thread.start()
+
+                elif task_type == "generate_image_generation_task":
                     # run generate image generation task
                     run_generate_image_generation_task(generation_task)
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     info(thread_state, "job completed: " + job["uuid"])
                     request.http_update_job_completed(job)
 
-                except Exception as e:
-                    error(thread_state, f"generation task failed: {e}")
-                    job['task_error_str'] = str(e)
-                    request.http_update_job_failed(job)
-
-            elif task_type == "generate_inpainting_generation_task":
-                try:
+                elif task_type == "generate_inpainting_generation_task":
                     # run generate inpainting generation task
                     run_generate_inpainting_generation_task(generation_task)
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     info(thread_state, "job completed: " + job["uuid"])
                     request.http_update_job_completed(job)
-
-                except Exception as e:
-                    error(thread_state, f"generation task failed: {e}")
-                    job['task_error_str'] = str(e)
+                else:
+                    e = "job with task type '" + task_type + "' is not supported"
+                    error(thread_state, e)
+                    job['task_error_str'] = e
                     request.http_update_job_failed(job)
-
-            else:
-                e = "job with task type '" + task_type + "' is not supported"
-                error(thread_state, e)
-                job['task_error_str'] = e
+            except Exception as e:
+                error(thread_state, f"generation task failed: {e}")
+                job['task_error_str'] = str(e)
                 request.http_update_job_failed(job)
 
             job_end_time = time.time()
