@@ -32,7 +32,7 @@ def generate_image_from_text(minio_client, txt2img, clip_text_embedder, job_uuid
 
     # save image meta data
     save_image_data_to_minio(minio_client, job_uuid, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), dataset,
-                             output_file_path, output_file_hash,
+                             os.path.basename(output_file_path), output_file_hash,
                              positive_prompts, negative_prompts,
                                               cfg_strength, seed, image_width, image_height, sampler, sampler_steps)
 
