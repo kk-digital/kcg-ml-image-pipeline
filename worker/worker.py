@@ -133,7 +133,7 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
                              positive_prompts, negative_prompts,
                                               cfg_strength, -1, image_width, image_height, sampler, sampler_steps)
     # save image embedding data
-    save_image_embedding_to_minio(worker_state.minio_client, worker_state.uuid, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), dataset,
+    save_image_embedding_to_minio(worker_state.minio_client, generation_task.uuid, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), dataset,
                              output_file_path.replace('.jpg', '_embedding.msgpack'), output_file_hash,
                              embedded_prompts, negative_embedded_prompts, embedded_prompts.detach().cpu().numpy(), negative_embedded_prompts.detach().cpu().numpy())
 
