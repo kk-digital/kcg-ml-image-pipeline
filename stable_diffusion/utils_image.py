@@ -12,6 +12,7 @@ from torchvision.transforms import ToPILImage
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 from worker.image_generation.generation_data.GeneratedImageData import GeneratedImageData
+from worker.image_generation.generation_data.GeneratedImageEmbedding import GeneratedImageEmbedding
 
 
 def calculate_sha256(tensor):
@@ -74,7 +75,24 @@ def save_image_data_to_minio(minio_client, job_uuid, creation_time, dataset, fil
     buffer.write(msgpack_string)
     buffer.seek(0)
 
-    cmd.upload_data(minio_client, bucket_name, file_path + ".msgpack", buffer)
+    cmd.upload_data(minio_client, bucket_name, file_path, buffer)
+
+def save_image_embedding_to_minio(minio_client, job_uuid, creation_time, dataset, file_path, file_hash, positive_prompt,
+                                              negative_prompt, positive_embedding, negative_embedding):
+
+    bucket_name, file_path = separate_bucket_and_file_path(file_path)
+
+    generated_image_data = GeneratedImageEmbedding(job_uuid, creation_time, dataset, file_path, file_hash, positive_prompt,
+                                              negative_prompt, positive_embedding, negative_embedding)
+
+
+    msgpack_string = generated_image_data.get_msgpack_string()
+
+    buffer = io.BytesIO()
+    buffer.write(msgpack_string)
+    buffer.seek(0)
+
+    cmd.upload_data(minio_client, bucket_name, file_path, buffer)
 
 
 def save_images_to_minio(minio_client, images: torch.Tensor, dest_path: str, img_format: str = 'jpeg'):
