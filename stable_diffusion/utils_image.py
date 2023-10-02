@@ -112,6 +112,29 @@ def save_images_to_minio(minio_client, images: torch.Tensor, dest_path: str, img
 
     return output_file_hash
 
+
+def get_image_data(images: torch.Tensor, img_format: str = 'jpeg'):
+    # Map images to `[0, 1]` space and clip
+    images = torch.clamp((images + 1.0) / 2.0, min=0.0, max=1.0)
+    # Transpose to `[batch_size, height, width, channels]` and convert to numpy
+    images = images.cpu()
+    images = images.permute(0, 2, 3, 1)
+    images = images.detach().float().numpy()
+
+    # Save images
+    for i, img in enumerate(images):
+        img = Image.fromarray((255. * img).astype(np.uint8))
+        # convert to bytes arr
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format=img_format)
+        img_byte_arr.seek(0)
+
+        # get hash
+        image_data = img.tobytes()
+        output_file_hash = (hashlib.sha256(image_data)).hexdigest()
+
+    return output_file_hash, img_byte_arr
+
 def save_image_grid(
         tensor: Union[torch.Tensor, List[torch.Tensor]],
         fp: Union[str, Path, BinaryIO],
