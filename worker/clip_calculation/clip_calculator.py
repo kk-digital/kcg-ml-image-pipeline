@@ -30,6 +30,10 @@ def calculate_image_feature_vector(worker_state: WorkerState, input_file_path: s
 
     # get feature
     clip_feature_vector = worker_state.clip.get_image_features(img)
+
+    # put to cpu
+    clip_feature_vector = clip_feature_vector.cpu()
+
     # convert to np array
     clip_feature_vector_np_arr = np.array(clip_feature_vector, dtype=np.float32)
 
