@@ -146,9 +146,14 @@ def get_job_if_exist(worker_type_list):
 
 
 def upload_data_and_update_job_status(job, output_file_path, output_file_hash, data, minio_client):
+    start_time = time.time()
     bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
     cmd.upload_data(minio_client, bucket_name, file_path, data)
 
+    info_v2("Upload for job {} completed".format(job["uuid"]))
+    info_v2("Upload time elapsed: {}".format(time.time() - start_time))
+
+    # update job info
     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     job['task_output_file_dict'] = {
         'output_file_path': output_file_path,
