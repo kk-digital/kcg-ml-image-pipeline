@@ -342,8 +342,12 @@ def main():
     # get worker type
     worker_type_list = get_worker_type_list(args.worker_type)
 
+    load_clip = False
+    if 'clip_calculation_task' in worker_type_list:
+        load_clip = True
+
     # Initialize worker state
-    worker_state = WorkerState(args.device, args.minio_access_key, args.minio_secret_key, queue_size)
+    worker_state = WorkerState(args.device, args.minio_access_key, args.minio_secret_key, queue_size, load_clip)
     # Loading models
     worker_state.load_models()
 
