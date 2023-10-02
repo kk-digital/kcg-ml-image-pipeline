@@ -66,7 +66,8 @@ def get_list_of_objects(client, bucket_name):
     objects = client.list_objects(bucket_name)
 
     for obj in objects:
-        object_names.append(obj.object_name)
+        obj_name = obj.object_name.replace('/', '')
+        object_names.append(obj_name)
 
     return object_names
 
