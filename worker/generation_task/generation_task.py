@@ -1,3 +1,8 @@
+import sys
+base_directory = "./"
+sys.path.insert(0, base_directory)
+
+
 class GenerationTask:
     uuid: str
     task_type: str
