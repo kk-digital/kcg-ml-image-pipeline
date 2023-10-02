@@ -172,7 +172,7 @@ def upload_data_and_update_job_status(job, output_file_path, output_file_hash, i
     }
     info("", "output file path: " + output_file_path)
     info("", "output file hash: " + output_file_hash)
-    info("", "job completed")
+    info("", "job completed: " + job["uuid"])
 
     # update status
     request.http_update_job_completed(job)
@@ -229,7 +229,7 @@ def process_jobs(worker_state):
                     # run generate image generation task
                     run_generate_image_generation_task(generation_task)
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    info(thread_state, "job completed")
+                    info(thread_state, "job completed: " + job["uuid"])
                     request.http_update_job_completed(job)
 
                 except Exception as e:
@@ -242,7 +242,7 @@ def process_jobs(worker_state):
                     # run generate inpainting generation task
                     run_generate_inpainting_generation_task(generation_task)
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    info(thread_state, "job completed")
+                    info(thread_state, "job completed: " + job["uuid"])
                     request.http_update_job_completed(job)
 
                 except Exception as e:
