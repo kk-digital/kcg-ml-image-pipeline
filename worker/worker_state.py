@@ -10,6 +10,7 @@ from stable_diffusion import StableDiffusion, CLIPTextEmbedder
 from configs.model_config import ModelPathConfig
 from stable_diffusion.model_paths import (SDconfigs, CLIPconfigs)
 from worker.image_generation.scripts.stable_diffusion_base_script import StableDiffusionBaseScript
+from utility.clip import clip
 class WorkerState:
     def __init__(self, device, minio_access_key, minio_secret_key, queue_size):
         self.device = device
@@ -20,6 +21,7 @@ class WorkerState:
         self.minio_client = get_minio_client(minio_access_key, minio_secret_key)
         self.queue_size = queue_size
         self.job_queue = queue.Queue()
+        self.clip = clip.ClipModel()
 
     def load_models(self, model_path='input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors'):
         # NOTE: Initializing stable diffusion
@@ -46,3 +48,6 @@ class WorkerState:
         )
         self.txt2img.initialize_latent_diffusion(autoencoder=None, clip_text_embedder=None, unet_model=None,
                                                  path=model_path, force_submodels_init=True)
+
+        # load clip model
+        self.clip.load_clip()
