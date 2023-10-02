@@ -1,5 +1,5 @@
 import msgpack
-
+import numpy as np
 
 class GeneratedImageEmbedding:
     job_uuid: str
@@ -52,9 +52,20 @@ class GeneratedImageEmbedding:
 
     def get_msgpack_string(self):
         serialized = self.serialize()
-        return msgpack.packb(serialized)
+        return msgpack.packb(serialized, default=encode_ndarray, use_bin_type=True)
 
     @classmethod
     def from_msgpack_string(cls, msgpack_string):
-        data = msgpack.unpackb(msgpack_string.encode('latin1'), raw=False)
+        data = msgpack.unpackb(msgpack_string.encode('latin1'), object_hook=decode_ndarray, raw=False)
         return cls.deserialize(data)
+
+
+def encode_ndarray(obj):
+    if isinstance(obj, np.ndarray):
+        return {'__ndarray__': obj.tolist()}
+    return obj
+
+def decode_ndarray(packed_obj):
+    if '__ndarray__' in packed_obj:
+        return np.array(packed_obj['__ndarray__'])
+    return packed_obj
