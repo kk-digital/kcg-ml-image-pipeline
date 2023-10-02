@@ -20,6 +20,7 @@ from worker.prompt_generation.prompt_generator import generate_image_generation_
     generate_inpainting_generation_jobs_using_generated_prompts
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
+from stable_diffusion.utils_image import save_images_to_minio, save_image_data_to_minio, save_image_embedding_to_minio, get_image_data
 
 
 class ThreadState:
@@ -84,16 +85,26 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
     init_image = Image.open(generation_task.task_input_dict["init_img"])
     init_mask = Image.open(generation_task.task_input_dict["init_mask"])
 
+    positive_prompts = generation_task.task_input_dict["positive_prompt"]
+    negative_prompts = generation_task.task_input_dict["negative_prompt"]
+
+    image_width = generation_task.task_input_dict["image_width"]
+    image_height = generation_task.task_input_dict["image_height"]
+    cfg_strength = generation_task.task_input_dict["cfg_strength"]
+    sampler = generation_task.task_input_dict["sampler"]
+    sampler_steps = generation_task.task_input_dict["sampler_steps"]
+    dataset = generation_task.task_input_dict["dataset"]
+
     output_file_path, output_file_hash, img_byte_arr = img2img(
-        prompt=generation_task.task_input_dict["positive_prompt"],
-        negative_prompt=generation_task.task_input_dict["negative_prompt"],
-        sampler_name=generation_task.task_input_dict["sampler"],
+        prompt=positive_prompts,
+        negative_prompt=negative_prompts,
+        sampler_name=sampler,
         batch_size=1,
         n_iter=1,
-        steps=generation_task.task_input_dict["sampler_steps"],
-        cfg_scale=generation_task.task_input_dict["cfg_strength"],
-        width=generation_task.task_input_dict["image_width"],
-        height=generation_task.task_input_dict["image_height"],
+        steps=sampler_steps,
+        cfg_scale=cfg_strength,
+        width=image_width,
+        height=image_height,
         mask_blur=generation_task.task_input_dict["mask_blur"],
         inpainting_fill=generation_task.task_input_dict["inpainting_fill_mode"],
         outpath=os.path.join("datasets", generation_task.task_input_dict['dataset'],
@@ -111,6 +122,21 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
         clip_text_embedder=worker_state.clip_text_embedder,
         device=worker_state.device
     )
+
+
+    embedded_prompts = worker_state.clip_text_embedder(positive_prompts)
+    negative_embedded_prompts = worker_state.clip_text_embedder(negative_prompts)
+
+    # save image meta data
+    save_image_data_to_minio(worker_state.minio_client, generation_task.uuid, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), dataset,
+                             output_file_path.replace('.jpg', '_data.msgpack'), output_file_hash,
+                             positive_prompts, negative_prompts,
+                                              cfg_strength, -1, image_width, image_height, sampler, sampler_steps)
+    # save image embedding data
+    save_image_embedding_to_minio(worker_state.minio_client, worker_state.uuid, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), dataset,
+                             output_file_path.replace('.jpg', '_embedding.msgpack'), output_file_hash,
+                             embedded_prompts, negative_embedded_prompts, embedded_prompts.detach().cpu().numpy(), negative_embedded_prompts.detach().cpu().numpy())
+
 
     return output_file_path, output_file_hash, img_byte_arr
 
