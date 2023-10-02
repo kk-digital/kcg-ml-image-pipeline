@@ -30,10 +30,9 @@ def generate_image_from_text(minio_client, txt2img, clip_text_embedder, job_uuid
     output_file_path = output_path
     output_file_hash, img_data = get_image_data(images)
 
-    print(output_file_path)
     # save image meta data
     save_image_data_to_minio(minio_client, job_uuid, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), dataset,
-                             output_file_path, output_file_hash,
+                             output_file_path.replace('.jpg', '.msgpack'), output_file_hash,
                              positive_prompts, negative_prompts,
                                               cfg_strength, seed, image_width, image_height, sampler, sampler_steps)
 
