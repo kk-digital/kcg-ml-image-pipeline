@@ -568,7 +568,7 @@ def apply_overlay(image, paste_loc, index, overlays):
     return image
 
 
-def process_images(p: StableDiffusionProcessingImg2Img, minio_client):
+def process_images(p: StableDiffusionProcessingImg2Img):
     output_file_path = ""
 
     if isinstance(p.prompt, list):
@@ -652,13 +652,11 @@ def process_images(p: StableDiffusionProcessingImg2Img, minio_client):
 
                 # save to minio server
                 output_file_path = p.outpath
-                bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
-                cmd.upload_data(minio_client, bucket_name, file_path, img_byte_arr)
 
             del x_samples_ddim
             torch_gc()
 
-    return output_file_path, output_file_hash
+    return output_file_path, output_file_hash, img_byte_arr
 
 
 def create_binary_mask(image):
@@ -683,7 +681,7 @@ def get_model(device, n_steps):
     return sd, config, model
 
 
-def img2img(minio_client, prompt: str, negative_prompt: str, sampler_name: str, batch_size: int, n_iter: int, steps: int,
+def img2img(prompt: str, negative_prompt: str, sampler_name: str, batch_size: int, n_iter: int, steps: int,
             cfg_scale: float, width: int, height: int, mask_blur: int, inpainting_fill: int,
             outpath, styles, init_images, mask, resize_mode, denoising_strength,
             image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert, sd=None, clip_text_embedder=None, model=None, device=None):
@@ -715,6 +713,6 @@ def img2img(minio_client, prompt: str, negative_prompt: str, sampler_name: str, 
     )
 
     with closing(p):
-        output_file_path, output_file_hash = process_images(p, minio_client)
+        output_file_path, output_file_hash, img_byte_arr = process_images(p)
 
-    return output_file_path, output_file_hash
+    return output_file_path, output_file_hash, img_byte_arr
