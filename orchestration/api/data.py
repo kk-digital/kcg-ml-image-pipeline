@@ -62,6 +62,7 @@ def get_datasets(request: Request):
 
 def print_nodes_recursive(d, level=0):
     for name, child in d.items():
+        print('\n\n')
         print(' ' * level)
         print(name)
         level = level + 1
