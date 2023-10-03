@@ -9,7 +9,7 @@ RUN python3.8 -m venv env
 COPY ./app_ranking/share/solara /ranking/env/share/solara
 
 # activate env
-RUN source /ranking/env/bin/activate
+RUN source env/bin/activate
 
 RUN pip install -r /ranking/requirements.txt
 COPY ./app_ranking /ranking/app_ranking
