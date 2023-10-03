@@ -4,7 +4,9 @@ WORKDIR /ranking
 COPY ./requirements_ranking_app.txt /ranking/requirements.txt
 
 # create env
-RUN python3.8 -m venv env
+ENV VIRTUAL_ENV=/ranking/env
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 COPY ./app_ranking/share/solara /ranking/env/share/solara
 
