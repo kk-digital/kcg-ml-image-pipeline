@@ -67,8 +67,8 @@ class SequentialID:
 
 class ImageMetadata(BaseModel):
     file_name: str
-    file_hash: str
-    file_path: str
+    file_hash: Union[str, None] = None
+    file_path: Union[str, None] = None
     image_type: Union[str, None] = None
     image_width: Union[str, None] = None
     image_height: Union[str, None] = None
