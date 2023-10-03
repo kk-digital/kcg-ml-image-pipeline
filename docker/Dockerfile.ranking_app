@@ -10,9 +10,6 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 COPY ./app_ranking/share/solara /ranking/env/share/solara
 
-# activate env
-RUN source env/bin/activate
-
 RUN pip install -r /ranking/requirements.txt
 COPY ./app_ranking /ranking/app_ranking
 
