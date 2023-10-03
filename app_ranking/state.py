@@ -188,7 +188,7 @@ class StateController:
     def get_image(self, option: str, state: State) -> bytes:
         image_data_json = state.imgs[ord(option) % 65]
         if "image-data" not in image_data_json:
-            return []
+            return None
 
         image_data = image_data_json["image-data"]
 
