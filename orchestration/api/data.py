@@ -5,6 +5,7 @@ from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
 from PIL import Image
 from io import BytesIO
+import base64
 router = APIRouter()
 
 
@@ -35,8 +36,13 @@ def get_job(request: Request, dataset: str = None):
         response = request.app.minio_client.get_object(bucket_name, file_path)
         image_data = BytesIO(response.data)
         img = Image.open(image_data)
-        # add to document
-        document["image-data"] = img
+
+        # convert to base64
+        buffered = BytesIO()
+        img.save(buffered, format="JPEG")
+        img_str = base64.b64encode(buffered.getvalue())
+        document["image-data"] = img_str
+
     finally:
         response.close()
         response.release_conn()
