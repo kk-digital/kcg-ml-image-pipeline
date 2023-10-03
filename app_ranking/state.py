@@ -1,28 +1,11 @@
-import random
 from enum import Enum
-from pathlib import PurePath, PurePosixPath
 from typing import List
-from zipfile import ZipFile
 import sys
-
+import base64
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from app_ranking.http.request import http_get_random_image
-
-
-class Rank:
-    def __init__(self, name: str, id: str, points: int, **kwargs):
-        self.name = name
-        self.id = id
-        self.points = points
-
-    def __repr__(self):
-        return self.name
-
-    def __str__(self):
-        return self.name
-
+from app_ranking.http.request import http_get_random_image, http_get_datasets, http_add_selection
 
 # Create a enum State Error: Rank, User Name, None
 class StateErrorType(Enum):
@@ -42,7 +25,7 @@ class State:
     def __init__(self, user_name: str = ""):
         self._imgs: List = []
         self._user_name = user_name
-        self._rank = None
+        self._dataset = None
         self._error = None
 
     @classmethod
@@ -50,7 +33,7 @@ class State:
         state = cls()
         state._imgs = data["_imgs"]
         state._user_name = data["_user_name"]
-        state._rank = data["_rank"]
+        state._dataset = data["_dataset"]
         return state
 
     @property
@@ -63,14 +46,11 @@ class State:
         self._user_name = name
 
     @property
-    def rank(self):
-        return self._rank
+    def dataset(self):
+        return self._dataset
 
-    @rank.setter
-    def rank(self, rank: str):
-        if rank:
-            self.clear_errors()
-        self._rank = rank
+    def set_dataset(self, dataset):
+        self._dataset = dataset
 
     @property
     def imgs(self) -> List:
@@ -107,45 +87,110 @@ class State:
 
 
 class StateController:
-    NUM_IMAGES = 2
-
     def __init__(self):
         self.datasets = []
-        self.dataset_name = ""
+        self.dataset_name = "icons"  # default to icons for now
 
     def rand_select(self, state: State):
         if state.has_error:
             return
 
+        if self.dataset_name == None:
+            return
+
         # get two random image
         image_1_json = http_get_random_image(self.dataset_name)
         image_2_json = http_get_random_image(self.dataset_name)
-        print(image_1_json)
+
         state.imgs = []
-        state.imgs.append(image_1_json["image-data"])
-        state.imgs.append(image_2_json["image-data"])
+        state.imgs.append(image_1_json)
+        state.imgs.append(image_2_json)
 
     def select_image(self, option: str, state: State) -> State:
-        # if state.user_name == "":
-        #     state.set_error(StateError(StateErrorType.USER_NAME, "Please enter your name"))
-        #     return state.copy_with_error()
-        #
-        # if state.rank is None:
-        #     state.set_error(StateError(StateErrorType.RANK, "Please select a rank"))
-        #     return state.copy_with_error()
-        #
-        # select_idx = ord(option) % 65
-        # # self.db_manager.insert_selection(state.imgs, select_idx, state.user_name, state.rank.id)
-        # #
-        # # state.rank.points += 1
-        # # self.db_manager.ranks_db.update({"points": state.rank.points}, Query().id == state.rank.id)
-        #
-        # self.rand_select(state)
+        if state.user_name == "":
+            state.set_error(StateError(StateErrorType.USER_NAME, "Please enter your name"))
+            return state.copy_with_error()
+
+        if state.dataset is None:
+            state.set_error(StateError(StateErrorType.DATASET, "Please select a dataset"))
+            return state.copy_with_error()
+
+        select_idx = ord(option) % 65
+
+        img_1_file_hash = ""
+        if "output_file_hash" in state.imgs[0]["task_output_file_dict"]:
+            img_1_file_hash = state.imgs[0]["task_output_file_dict"]["output_file_hash"]
+
+        img_2_file_hash = ""
+        if "output_file_hash" in state.imgs[1]["task_output_file_dict"]:
+            img_2_file_hash = state.imgs[1]["task_output_file_dict"]["output_file_hash"]
+
+        selected_file_hash = img_1_file_hash
+        if select_idx == 1:
+            selected_file_hash = img_2_file_hash
+
+        img_1_features = []
+        if "features-vector" in state.imgs[0]:
+            img_1_features = state.imgs[0]["features-vector"]
+
+        img_2_features = []
+        if "features-vector" in state.imgs[1]:
+            img_2_features = state.imgs[1]["features-vector"]
+
+        selection_data = {
+            "task": "selection",
+            "username": state.user_name,
+            "image_1_metadata": {
+                                    "file_name": state.imgs[0]["task_output_file_dict"]["output_file_path"],
+                                    "file_hash": img_1_file_hash,
+                                    "file_path": state.imgs[0]["task_output_file_dict"]["output_file_path"],
+                                    "image_type": "jpeg",
+                                    "image_width": "",
+                                    "image_height": "",
+                                    "image_size": "",
+                                    "features_type": "",
+                                    "features_model": "",
+                                    "features_vector": img_1_features,
+                                },
+            "image_2_metadata": {
+                                    "file_name": state.imgs[1]["task_output_file_dict"]["output_file_path"],
+                                    "file_hash": img_2_file_hash,
+                                    "file_path": state.imgs[1]["task_output_file_dict"]["output_file_path"],
+                                    "image_type": "jpeg",
+                                    "image_width": "",
+                                    "image_height": "",
+                                    "image_size": "",
+                                    "features_type": "",
+                                    "features_model": "",
+                                    "features_vector": img_2_features,
+                                },
+            "selected_image_index": select_idx,
+            "selected_image_hash": selected_file_hash,
+        }
+
+        # data = json.dumps(selection_data)
+        http_add_selection(state.dataset, selection_data)
+
+        # update images
+        self.rand_select(state)
+
         return state.copy()
 
     def get_datasets(self):
-        self.ranks = [Rank(**rank) for rank in self.db_manager.ranks_db.all()]
-        return [rank.name for rank in self.ranks]
+        self.datasets = http_get_datasets()
 
-    def set_dataset(self, dataset: str):
-        self.dataset = dataset
+        return self.datasets
+
+    def set_dataset(self, dataset: str, state: State):
+        self.dataset_name = dataset
+        state.set_dataset(dataset)
+
+    def get_image(self, option: str, state: State) -> bytes:
+        image_data_json = state.imgs[ord(option) % 65]
+        if image_data_json is None or "image-data" not in image_data_json:
+            return None
+
+        image_data = image_data_json["image-data"]
+
+        img_bytes = base64.b64decode(image_data)
+        return img_bytes

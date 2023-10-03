@@ -3,6 +3,13 @@ FROM python:3.8
 WORKDIR /ranking
 COPY ./requirements_ranking_app.txt /ranking/requirements.txt
 
+# create env
+ENV VIRTUAL_ENV=/ranking/env
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+COPY ./app_ranking/share/solara /ranking/env/share/solara
+
 RUN pip install -r /ranking/requirements.txt
 COPY ./app_ranking /ranking/app_ranking
 

@@ -92,8 +92,9 @@ def SelectButton(option: str, state: State, set_state: Callable):
 def ImageColumn(option: str, state: State, set_state: Callable):
     with solara.Column(style=style_col):
         SelectButton(option, state, set_state)
-        Image(controller.get_image(option, state))
-
+        img_data = controller.get_image(option, state)
+        if img_data is not None:
+            Image(img_data)
 
 @solara.component
 def UserNameInput(state: State):

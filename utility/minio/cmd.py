@@ -62,12 +62,14 @@ def remove_bucket(client, bucket_name):
 
 
 def get_list_of_objects(client, bucket_name):
+    object_names = []
     objects = client.list_objects(bucket_name)
-    print("Objects inside bucket {0}".format(bucket_name))
-    for obj in objects:
-        print(obj.object_name)
 
-    return objects
+    for obj in objects:
+        obj_name = obj.object_name.replace('/', '')
+        object_names.append(obj_name)
+
+    return object_names
 
 
 def upload_from_file(client, bucket_name, object_name, file_path):
