@@ -71,6 +71,16 @@ def get_list_of_objects(client, bucket_name):
 
     return object_names
 
+def get_list_of_objects(client, bucket_name, folder_name):
+    object_names = []
+    objects = client.list_objects(bucket_name, prefix=folder_name)
+
+    for obj in objects:
+        obj_name = obj.object_name.replace('/', '')
+        object_names.append(obj_name)
+
+    return object_names
+
 
 def upload_from_file(client, bucket_name, object_name, file_path):
     result = client.fput_object(bucket_name, object_name, file_path)
