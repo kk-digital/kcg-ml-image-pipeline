@@ -72,14 +72,17 @@ def get_list_of_objects(client, bucket_name):
     return object_names
 
 def get_list_of_objects(client, bucket_name, folder_name):
-    object_names = []
-    objects = client.list_objects(bucket_name, prefix=folder_name)
+    jpg_object_list = []
 
-    for obj in objects:
-        obj_name = obj.object_name.replace('/', '')
-        object_names.append(obj_name)
+    try:
+        # List all object paths in the bucket within the folder
+        for obj in client.list_objects(bucket_name, prefix=folder_name, recursive=True):
+            if obj.object_name.endswith('.jpg'):
+                jpg_object_list.append(obj.object_name)
+    except Exception as e:
+        print("An error occurred:", str(e))
 
-    return object_names
+    return jpg_object_list
 
 
 def upload_from_file(client, bucket_name, object_name, file_path):
