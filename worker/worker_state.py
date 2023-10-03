@@ -12,7 +12,7 @@ from stable_diffusion.model_paths import (SDconfigs, CLIPconfigs)
 from worker.image_generation.scripts.stable_diffusion_base_script import StableDiffusionBaseScript
 from utility.clip import clip
 class WorkerState:
-    def __init__(self, device, minio_access_key, minio_secret_key, queue_size):
+    def __init__(self, device, minio_access_key, minio_secret_key, queue_size, load_clip):
         self.device = device
         self.config = ModelPathConfig()
         self.stable_diffusion = None
@@ -21,7 +21,9 @@ class WorkerState:
         self.minio_client = get_minio_client(minio_access_key, minio_secret_key)
         self.queue_size = queue_size
         self.job_queue = queue.Queue()
-        self.clip = clip.ClipModel()
+        self.load_clip = load_clip
+        if load_clip:
+            self.clip = clip.ClipModel()
 
     def load_models(self, model_path='input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors'):
         # NOTE: Initializing stable diffusion
@@ -50,4 +52,5 @@ class WorkerState:
                                                  path=model_path, force_submodels_init=True)
 
         # load clip model
-        self.clip.load_clip()
+        if self.load_clip:
+            self.clip.load_clip()
