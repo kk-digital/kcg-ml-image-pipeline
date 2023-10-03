@@ -73,32 +73,17 @@ def get_list_of_objects(client, bucket_name):
 
 def get_list_of_objects(client, bucket_name, folder_name):
 
-    # Dictionary to store the hierarchical folder structure
-    jpg_object_dict = {}
-
-    # Dictionary to store the hierarchical folder structure
-    jpg_object_dict = {}
+    jpg_object_list = []
 
     try:
         # List all object paths in the bucket within the folder
         for obj in client.list_objects(bucket_name, prefix=folder_name, recursive=True):
             if obj.object_name.endswith('.jpg'):
-                # Split the path into parts representing folder hierarchy
-                path_parts = obj.object_name.split("/")
-                current_dict = jpg_object_dict
-
-                # Navigate through path parts and build nested dictionaries
-                for part in path_parts[:-2]:  # Omit the last two parts, which are subfolder and file name
-                    current_dict = current_dict.setdefault(part, {})
-
-                # Assign the image name to a list in the corresponding folder
-                current_dict = current_dict.setdefault(path_parts[-2], [])
-                current_dict.append(path_parts[-1])
-
+                jpg_object_list.append(obj.object_name)
     except Exception as e:
         print("An error occurred:", str(e))
 
-    return jpg_object_dict
+    return jpg_object_list
 
 
 def upload_from_file(client, bucket_name, object_name, file_path):
