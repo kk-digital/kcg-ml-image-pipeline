@@ -63,3 +63,51 @@ class SequentialID:
             "subfolder_count": self.subfolder_count,
             "file_count": self.file_count
         }
+
+
+class ImageMetadata(BaseModel):
+    file_name: str
+    file_hash: str
+    file_path: str
+    image_type: Union[str, None] = None
+    image_width: Union[str, None] = None
+    image_height: Union[str, None] = None
+    image_size: Union[str, None] = None
+    features_type: Union[str, None] = None
+    features_model: Union[str, None] = None
+    features_vector: Union[list, None] = None
+
+    def to_dict(self):
+        return {
+            "file_name": self.file_name,
+            "file_hash": self.file_hash,
+            "file_path": self.file_path,
+            "image_type": self.image_type,
+            "image_width": self.image_width,
+            "image_height": self.image_height,
+            "image_size": self.image_size,
+            "features_type": self.features_type,
+            "features_model": self.features_model,
+            "features_vector": self.features_vector,
+        }
+
+
+class Selection(BaseModel):
+    task: str
+    username: str
+    image_1_metadata: ImageMetadata
+    image_2_metadata: ImageMetadata
+    selected_image_index: Union[int, None] = None
+    selected_image_hash: Union[str, None] = None
+    datetime: Union[str, None] = None
+
+    def to_dict(self):
+        return {
+            "task": self.task,
+            "username": self.username,
+            "image_1_metadata": self.image_2_metadata.to_dict(),
+            "image_2_metadata": self.image_2_metadata.to_dict(),
+            "selected_image_index": self.selected_image_index,
+            "selected_image_hash": self.selected_image_hash,
+            "datetime": self.datetime,
+        }
