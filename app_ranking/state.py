@@ -89,7 +89,7 @@ class State:
 class StateController:
     def __init__(self):
         self.datasets = []
-        self.dataset_name = "test-data"  # default to icons for now
+        self.dataset_name = "icons"  # default to icons for now
 
     def rand_select(self, state: State):
         if state.has_error:
