@@ -10,7 +10,7 @@ router = APIRouter()
 
 
 @router.get("/get-random-image/{dataset}")
-def get_job(request: Request, dataset: str = None):
+def get_random_image(request: Request, dataset: str = None):
     # find
     documents = request.app.completed_jobs_collection.aggregate([
         {"$match": {"task_input_dict.dataset": dataset}},
