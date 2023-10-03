@@ -9,7 +9,8 @@ def http_get_random_image(dataset_name: str):
     try:
         response = requests.get(url)
     except Exception as e:
-        raise e
+        print(e)
+        return None
 
     if response.status_code == 200:
         image_json = response.json()
@@ -24,7 +25,8 @@ def http_get_datasets():
     try:
         response = requests.get(url)
     except Exception as e:
-        raise e
+        print(e)
+        return None
 
     if response != None:
         datasets = response.json()
