@@ -67,6 +67,8 @@ def print_nodes_recursive(d, level=0):
         level = level + 1
         if isinstance(child, dict):
             print_nodes_recursive(child, level)
+        elif isinstance(child, list):
+            print(child)
 
 @router.post("/add-selection-datapoint/{dataset}")
 def add_selection_datapoint(request: Request, dataset: str, selection: Selection):
