@@ -105,7 +105,7 @@ class Selection(BaseModel):
         return {
             "task": self.task,
             "username": self.username,
-            "image_1_metadata": self.image_2_metadata.to_dict(),
+            "image_1_metadata": self.image_1_metadata.to_dict(),
             "image_2_metadata": self.image_2_metadata.to_dict(),
             "selected_image_index": self.selected_image_index,
             "selected_image_hash": self.selected_image_hash,
