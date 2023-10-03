@@ -62,7 +62,7 @@ def get_datasets(request: Request):
 
 def print_nodes_recursive(d, parent_name=None, level=0):
     for name, child in d.items():
-        full_name = f"{parent_name}.{name}" if parent_name else name
+        full_name = f"{parent_name}/{name}" if parent_name else name
 
         print('\n\n')
         print(' ' * level)
@@ -97,5 +97,5 @@ def add_selection_datapoint(request: Request, dataset: str, selection: Selection
 def get_list_images(request: Request, dataset: str = None, page_size: int = 20, page_number: int = 0):
 
     objects = cmd.get_list_of_objects(request.app.minio_client, "datasets", dataset)
-    print_nodes_recursive(objects)
+    print_nodes_recursive(objects, 'datasets/')
     return objects
