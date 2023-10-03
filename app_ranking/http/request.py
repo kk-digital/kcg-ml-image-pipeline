@@ -33,3 +33,18 @@ def http_get_datasets():
         return datasets
 
     return None
+
+
+# Add selection datapoint
+def http_add_selection(dataset_name: str, selection_json_data):
+    url = SERVER_ADDRESS + "/add-selection-datapoint/{}".format(dataset_name)
+    try:
+        headers = {'Content-type': 'application/json'}
+        response = requests.post(url, json=selection_json_data, headers=headers)
+        if response.status_code != 200:
+            raise Exception(response.json())
+    except Exception as e:
+        raise e
+        return None
+
+    return True

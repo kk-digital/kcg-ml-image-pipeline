@@ -46,7 +46,7 @@ def Page():
                 with solara.Column(style=style_input + "row-gap: 0px;"):
                     solara.Select(label="Select a dataset",
                                   values=controller.get_datasets(),
-                                  on_value=lambda dataset: controller.set_dataset(dataset),
+                                  on_value=lambda dataset: controller.set_dataset(dataset, state),
                                   )
                     if state.get_error(StateErrorType.DATASET):
                         solara.Text(state.get_error(StateErrorType.DATASET),
