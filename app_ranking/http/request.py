@@ -27,7 +27,7 @@ def http_get_datasets():
         raise e
 
     if response != None:
-        datasets = response
+        datasets = response.json()
         return datasets
 
     return None

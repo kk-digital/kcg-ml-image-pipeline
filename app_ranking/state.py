@@ -4,6 +4,8 @@ from pathlib import PurePath, PurePosixPath
 from typing import List
 from zipfile import ZipFile
 import sys
+from io import BytesIO
+import base64
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -111,7 +113,7 @@ class StateController:
 
     def __init__(self):
         self.datasets = []
-        self.dataset_name = "icons"  # default to icons for now
+        self.dataset_name = "test-data"  # default to icons for now
 
     def rand_select(self, state: State):
         if state.has_error:
@@ -155,6 +157,8 @@ class StateController:
         self.dataset_name = dataset
 
     def get_image(self, option: str, state: State) -> bytes:
-        image = state.imgs[ord(option) % 65]
+        image_data_json = state.imgs[ord(option) % 65]
+        image_data = image_data_json["image-data"]
 
-        return image["image-data"]
+        img_bytes = base64.b64decode(image_data)
+        return img_bytes
