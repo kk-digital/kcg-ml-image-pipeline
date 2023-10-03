@@ -44,7 +44,7 @@ def http_add_selection(dataset_name: str, selection_json_data):
         if response.status_code != 200:
             raise Exception(response.json())
     except Exception as e:
-        raise e
+        print(e)
         return None
 
     return True
