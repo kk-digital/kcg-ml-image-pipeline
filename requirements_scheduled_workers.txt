@@ -1,2 +1,3 @@
 schedule
 pytz
+python-dotenv
