@@ -9,6 +9,16 @@ from utility.utils_logger import logger
 MINIO_ADDRESS = "192.168.3.5:9000"
 
 
+def get_minio_client(minio_access_key, minio_secret_key):
+    # check first if minio client is available
+    minio_client = None
+    while minio_client is None:
+        # check minio server
+        if is_minio_server_accesssible():
+            minio_client = connect_to_minio_client(minio_access_key, minio_secret_key)
+            return minio_client
+
+
 def connect_to_minio_client(access_key=None, secret_key=None):
     print("Connecting to minio client...")
     client = Minio(MINIO_ADDRESS, access_key, secret_key, secure=False)
@@ -68,6 +78,16 @@ def get_list_of_objects(client, bucket_name):
     for obj in objects:
         obj_name = obj.object_name.replace('/', '')
         object_names.append(obj_name)
+
+    return object_names
+
+
+def get_list_of_objects_with_prefix(client, bucket_name, prefix):
+    object_names = []
+    objects = client.list_objects(bucket_name, prefix=prefix, recursive=True)
+
+    for obj in objects:
+        object_names.append(obj.object_name)
 
     return object_names
 
