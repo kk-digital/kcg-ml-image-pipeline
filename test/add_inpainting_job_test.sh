@@ -1,6 +1,6 @@
 #!/bin/bash
 
-curl -X 'POST' http://192.168.3.1:8111/add-job -H 'Content-Type: application/json' -d '{
+curl -X 'POST' http://127.0.0.1:8000/add-job -H 'Content-Type: application/json' -d '{
         "uuid": "1234567",
         "task_type": "inpainting_generation_task",
         "model_name" : "v1-5-pruned-emaonly",
