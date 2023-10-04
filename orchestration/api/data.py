@@ -33,25 +33,6 @@ def get_random_image(request: Request, dataset: str = None):
     # remove the auto generated field
     document.pop('_id', None)
 
-    # get image from minio server
-    # Get data of an object.
-    output_file_path = document["task_output_file_dict"]["output_file_path"]
-    bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
-    try:
-        response = request.app.minio_client.get_object(bucket_name, file_path)
-        image_data = BytesIO(response.data)
-        img = Image.open(image_data)
-
-        # convert to base64
-        buffered = BytesIO()
-        img.save(buffered, format="JPEG")
-        img_str = base64.b64encode(buffered.getvalue())
-        document["image-data"] = img_str
-
-    finally:
-        response.close()
-        response.release_conn()
-
     return document
 
 
