@@ -16,7 +16,7 @@ curl -X 'POST' http://127.0.0.1:8000/add-job -H 'Content-Type: application/json'
             "negative_prompt" : "low resolution, mediocre style, normal resolution",
             "cfg_strength": 12,
             "seed": "",
-            "dataset": "icons",
+            "dataset": "test-generations",
             "file_path": "[auto]",
             "image_width": 512,
             "image_height": 512,
