@@ -22,8 +22,6 @@ app.include_router(data_router)
 
 
 def get_minio_client(minio_access_key, minio_secret_key):
-    minio_access_key = 'v048BpXpWrsVIHUfdAix'
-    minio_secret_key = '4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu'
     # check first if minio client is available
     minio_client = None
     while minio_client is None:

@@ -61,20 +61,6 @@ def get_datasets(request: Request):
 
     return objects
 
-
-def print_nodes_recursive(d, parent_name=None, level=0):
-    for name, child in d.items():
-        full_name = f"{parent_name}/{name}" if parent_name else name
-
-        print('\n\n')
-        print(' ' * level)
-        print(full_name)
-        level = level + 1
-        if isinstance(child, dict):
-            print_nodes_recursive(child, full_name, level)
-        elif isinstance(child, list):
-            print(child)
-
 @router.post("/add-selection-datapoint/{dataset}")
 def add_selection_datapoint(request: Request, dataset: str, selection: Selection):
     time = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
