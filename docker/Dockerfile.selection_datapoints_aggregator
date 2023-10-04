@@ -1,0 +1,9 @@
+FROM python:3.8
+
+WORKDIR /aggregator
+COPY ./requirements_scheduled_workers.txt /aggregator/requirements.txt
+RUN pip install -r /aggregator/requirements.txt
+COPY ./scheduled_workers /aggregator/scheduled_workers
+COPY ./utility /aggregator/utility
+
+ENTRYPOINT ["/aggregator/scheduled_workers/run_worker.sh"]
