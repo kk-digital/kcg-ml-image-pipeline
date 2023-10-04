@@ -343,7 +343,7 @@ def main():
     worker_type_list = get_worker_type_list(args.worker_type)
 
     load_clip = False
-    if 'clip_calculation_task' in worker_type_list or worker_type_list.size == 0:
+    if 'clip_calculation_task' in worker_type_list or len(worker_type_list) == 0:
         load_clip = True
 
     # Initialize worker state
