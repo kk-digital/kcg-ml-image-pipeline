@@ -88,11 +88,6 @@ def get_image_data_by_filepath(request: Request, file_path: str = None):
 
     output_path = f"./download/{file_path}"
 
-    # check if file exists
-    if file_exists(output_path):
-        print("returning file from folder cache : ", output_path)
-        return FileResponse(output_path, media_type="image/jpeg")
-
     print("downloading file ", output_path)
     # if file does not exist download it first
     cmd.download_from_minio(request.app.minio_client, bucket_name, file_path, output_path)
