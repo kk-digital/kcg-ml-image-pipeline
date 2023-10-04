@@ -29,3 +29,10 @@ def clear_all_completed_jobs(request: Request):
     request.app.completed_jobs_collection.delete_many({})
 
     return True
+
+
+@router.delete("/clear-dataset-sequential-id-jobs")
+def clear_dataset_sequential_id_jobs(request: Request):
+    request.app.dataset_sequential_id_collection.delete_many({})
+
+    return True
