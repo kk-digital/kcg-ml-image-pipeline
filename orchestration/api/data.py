@@ -1,4 +1,6 @@
 from fastapi import Request, HTTPException, APIRouter
+from fastapi.responses import FileResponse
+
 from orchestration.api.schemas import Selection
 import json
 import os
@@ -93,13 +95,13 @@ def add_selection_datapoint(request: Request, dataset: str, selection: Selection
 
     return True
 
-@router.get("/get-list-images")
-def get_list_images(request: Request, dataset: str = None, page_size: int = 20, page_number: int = 0):
+@router.get("/get-image-data-by-filepath")
+def get_list_images(request: Request, file_path: str = None):
 
-    objects = cmd.get_list_of_objects(request.app.minio_client, "datasets", dataset)
-    print(objects)
-    #print_nodes_recursive(objects, 'datasets')
-    return objects
+    output_path = f"./download/{file_path}"
+    cmd.download_from_minio("datasets", file_path, output_path)
+
+    return FileResponse(output_path, media_type="image/jpeg")
 
 @router.get("/get-images-metadata")
 def get_images_metadata(request: Request, dataset: str = None, limit: int = 20, offset: int = 0):

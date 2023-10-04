@@ -43,7 +43,6 @@ def download_from_minio(client, bucket_name, object_name, output_path):
     else:
         logger.info(f"{object_name} already exists.")
 
-
 def get_list_of_buckets(client):
     buckets = client.list_buckets()
     for bucket in buckets:
@@ -81,19 +80,6 @@ def get_list_of_objects(client, bucket_name):
 
     return object_names
 
-def get_list_of_objects(client, bucket_name, folder_name):
-
-    jpg_object_list = []
-
-    try:
-        # List all object paths in the bucket within the folder
-        for obj in client.list_objects(bucket_name, prefix=folder_name, recursive=True):
-            if obj.object_name.endswith('.jpg'):
-                jpg_object_list.append(obj.object_name)
-    except Exception as e:
-        print("An error occurred:", str(e))
-
-    return jpg_object_list
 
 
 def get_list_of_objects_with_prefix(client, bucket_name, prefix):
