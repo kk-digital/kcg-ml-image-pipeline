@@ -103,6 +103,9 @@ def get_list_images(request: Request, dataset: str = None, page_size: int = 20, 
 
 @router.get("/get-images-metadata")
 def get_images_metadata(request: Request, dataset: str = None, limit: int = 20, offset: int = 0):
+
+    print(limit)
+    print(offset)
     jobs = request.app.completed_jobs_collection.find({
         '$or': [
             {'task_type' : 'image_generation_task'},
