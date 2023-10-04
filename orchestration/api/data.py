@@ -106,8 +106,10 @@ def get_images_metadata(request: Request, dataset: str = None, limit: int = 20, 
     print('begin')
     jobs = request.app.completed_jobs_collection.find().skip(offset).limit(limit)
     print(jobs)
-    #print(jobs['task_input_dict']['dataset'])
+    #
     for job in jobs:
+        print(job)
+        print(jobs['task_input_dict']['dataset'])
         job.pop('_id', None)
 
     return jobs
