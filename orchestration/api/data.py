@@ -107,6 +107,7 @@ def get_images_metadata(request: Request, dataset: str = None, limit: int = 20, 
 
     images_metadata = []
     for job in jobs:
+        print(job['task_input_dict']['dataset'])
         image_meta_data = {
             'image_path': job['task_output_file_dict']['output_file_path'],
             'image_hash': job['task_output_file_dict']['output_file_hash']
