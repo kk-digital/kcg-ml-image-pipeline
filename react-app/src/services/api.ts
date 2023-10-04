@@ -8,7 +8,7 @@ class API {
     private instance: AxiosInstance;
 
     constructor() {
-        this.baseUrl = import.meta.env.VITE_API_URL || 'http://192.168.3.1:8111';
+        this.baseUrl = import.meta.env.VITE_API_URL || 'http://123.176.98.90:8764';
 
         this.instance = axios.create({
             baseURL: this.baseUrl,
