@@ -97,7 +97,18 @@ def get_image_data_by_filepath(request: Request, file_path: str = None):
     # if file does not exist download it first
     cmd.download_from_minio(request.app.minio_client, bucket_name, file_path, output_path)
 
-    return FileResponse(output_path, media_type="image/jpeg")
+    response = FileResponse(output_path, media_type="image/jpeg")
+
+    # Define a callback to run after sending the response
+    def remove_file():
+        try:
+            os.remove(output_path)
+        except FileNotFoundError:
+            pass  # File was already deleted, or path was incorrect
+
+    response.background.on_complete(remove_file)  # Set the callback
+
+    return response
 
 @router.get("/get-images-metadata")
 def get_images_metadata(request: Request, dataset: str = None, limit: int = 20, offset: int = 0):
