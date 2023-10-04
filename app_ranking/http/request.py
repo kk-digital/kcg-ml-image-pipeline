@@ -60,3 +60,4 @@ def http_add_selection(dataset_name: str, selection_json_data):
         return None
 
     return True
+
