@@ -1,5 +1,5 @@
 from fastapi import Request, HTTPException, APIRouter
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response
 
 from orchestration.api.schemas import Selection
 import json
@@ -70,7 +70,7 @@ def get_image_data_by_filepath(request: Request, file_path: str = None):
     # if file does not exist download it first
     image_data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, file_path)
 
-    response = StreamingResponse(image_data, media_type="image/jpeg")
+    response = Response(content=image_data, media_type="image/jpeg")
 
     return response
 
