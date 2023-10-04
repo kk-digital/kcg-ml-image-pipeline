@@ -44,10 +44,10 @@ def download_from_minio(client, bucket_name, object_name, output_path):
         logger.info(f"{object_name} already exists.")
 
 
-def get_file_from_minio(client, bucket_name, object_name, file_path):
+def get_file_from_minio(client, bucket_name, file_name):
     try:
         # Get object data
-        data = client.get_object(bucket_name, object_name)
+        data = client.get_object(bucket_name, file_name)
 
         return data
 
