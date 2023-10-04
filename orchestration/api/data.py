@@ -1,5 +1,4 @@
-from fastapi import Request, HTTPException, APIRouter
-from fastapi.responses import Response
+from fastapi import Request, HTTPException, APIRouter, Response
 
 from orchestration.api.schemas import Selection
 import json
@@ -67,10 +66,12 @@ def get_image_data_by_filepath(request: Request, file_path: str = None):
 
     bucket_name, file_path = separate_bucket_and_file_path(file_path)
 
-    # if file does not exist download it first
     image_data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, file_path)
 
-    response = Response(content=image_data, media_type="image/jpeg")
+    # Load data into memory
+    content = image_data.read()
+
+    response = Response(content=content, media_type="image/jpeg")
 
     return response
 
