@@ -9,10 +9,10 @@ interface ImageListProps {
     query?: { [key: string]: string };
     showDescription?: boolean;
     onSelectPhotos?: (selectedPhotos: PhotoInterfaces[]) => void; // Modificado para retornar array
-    file_archive?: string | null;
+    dataset?: string | null;
 }
 
-export default function ImageList({query, showDescription = false, onSelectPhotos, file_archive}: ImageListProps) {
+export default function ImageList({query, showDescription = false, onSelectPhotos, dataset}: ImageListProps) {
     const LIMIT = 100;
 
     const [photos, setPhotos] = useState<PhotoInterfaces[]>([]);
@@ -59,15 +59,15 @@ export default function ImageList({query, showDescription = false, onSelectPhoto
         }
     );
 
-    const getImages = async () => {
+    let getImages = async () => {
         //@mahdi: replace this endpoint with the endpoint to get images metadata
         //Also we may need to change the model, based in the new json response
         try {
             const {data} = await api.get(
                 `/get-images-metadata`,
                 {
-                    dataset: file_archive,
-                    page,
+                    dataset: dataset,
+                    offset: (page - 1) * LIMIT,
                     limit: LIMIT,
                     ...query,
                 }
@@ -87,7 +87,7 @@ export default function ImageList({query, showDescription = false, onSelectPhoto
         setPhotos([]);
         setPage(1);
         setHasMore(true)
-    }, [query, file_archive]);
+    }, [query, dataset]);
 
 
     useEffect(() => {
@@ -133,7 +133,7 @@ export default function ImageList({query, showDescription = false, onSelectPhoto
             <Masonry columns={numColumns}>
                 {photos.map((photo: PhotoInterfaces) => (
                     <div
-                        key={photo.id}
+                        key={photo.image_hash}
                         className={`relative ${selectedPhotos.includes(photo) ? 'border-2 border-blue-500' : ''}`}
                         onClick={() => handlePhotoClick(photo)}
                     >

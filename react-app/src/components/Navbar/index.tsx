@@ -49,12 +49,6 @@ export default function Index() {
         >
             <div className="flex space-x-4 justify-center items-center">
                 <NavItem to="/" label="Scrolling" icon={Home}/>
-                {/*<NavItem to="/ab-testing" label="A/B Test" icon={Compass}/>*/}
-                {/*<NavItem to="/images" label="Images" icon={Image}/>*/}
-                {/*<NavItem to="/tagging" label="Tagging" icon={Tag}/>*/}
-                {/*<NavItem to={"/ranks"} label={"rank"} icon={BarChart}/>*/}
-                {/*<NavItem to="/settings" label="Settings" icon={Settings}/>*/}
-                {/*<NavItem to="/train" label="train" icon={Cpu}/>*/}
             </div>
         </div>
     );
