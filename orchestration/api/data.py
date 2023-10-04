@@ -1,5 +1,5 @@
 from fastapi import Request, HTTPException, APIRouter
-from fastapi.responses import FileResponse
+from fastapi.responses import StreamingResponse
 
 from orchestration.api.schemas import Selection
 import json
@@ -86,22 +86,10 @@ def get_image_data_by_filepath(request: Request, file_path: str = None):
 
     bucket_name, file_path = separate_bucket_and_file_path(file_path)
 
-    output_path = f"./download/{file_path}"
-
-    print("downloading file ", output_path)
     # if file does not exist download it first
-    cmd.download_from_minio(request.app.minio_client, bucket_name, file_path, output_path)
+    image_data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, file_path)
 
-    response = FileResponse(output_path, media_type="image/jpeg")
-
-    # Define a callback to run after sending the response
-    def remove_file():
-        try:
-            os.remove(output_path)
-        except FileNotFoundError:
-            pass  # File was already deleted, or path was incorrect
-
-    response.background.on_complete(remove_file)  # Set the callback
+    response = StreamingResponse(image_data, media_type="image/jpeg")
 
     return response
 
