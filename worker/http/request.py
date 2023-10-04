@@ -37,8 +37,6 @@ def http_get_sequential_id(dataset_name: str, limit: int):
     return None
 
 
-# Used for debugging purpose
-# The worker should not be adding jobs
 def http_add_job(job):
     url = SERVER_ADRESS + "/add-job"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
