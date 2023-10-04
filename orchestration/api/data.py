@@ -98,8 +98,10 @@ def add_selection_datapoint(request: Request, dataset: str, selection: Selection
 @router.get("/get-image-data-by-filepath")
 def get_list_images(request: Request, file_path: str = None):
 
+    bucket_name, file_path = separate_bucket_and_file_path(file_path)
+
     output_path = f"./download/{file_path}"
-    cmd.download_from_minio("datasets", file_path, output_path)
+    cmd.download_from_minio(request.app.minio_client, bucket_name, file_path, output_path)
 
     return FileResponse(output_path, media_type="image/jpeg")
 
