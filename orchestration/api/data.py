@@ -6,7 +6,7 @@ import json
 import os
 from datetime import datetime
 from utility.minio import cmd
-from utility.path import separate_bucket_and_file_path
+from utility.path import separate_bucket_and_file_path, file_exists
 from PIL import Image
 from io import BytesIO
 import base64
@@ -96,11 +96,19 @@ def add_selection_datapoint(request: Request, dataset: str, selection: Selection
     return True
 
 @router.get("/get-image-data-by-filepath")
-def get_list_images(request: Request, file_path: str = None):
+def get_image_data_by_filepath(request: Request, file_path: str = None):
 
     bucket_name, file_path = separate_bucket_and_file_path(file_path)
 
     output_path = f"./download/{file_path}"
+
+    # check if file exists
+    if file_exists(output_path):
+        print("returning file from folder cache : ", output_path)
+        return FileResponse(output_path, media_type="image/jpeg")
+
+    print("downloading file ", output_path)
+    # if file does not exist download it first
     cmd.download_from_minio(request.app.minio_client, bucket_name, file_path, output_path)
 
     return FileResponse(output_path, media_type="image/jpeg")
@@ -124,8 +132,5 @@ def get_images_metadata(request: Request, dataset: str = None, limit: int = 20, 
             'image_hash': job['task_output_file_dict']['output_file_hash']
         }
         images_metadata.append(image_meta_data)
-
-
-    print(images_metadata)
 
     return images_metadata
