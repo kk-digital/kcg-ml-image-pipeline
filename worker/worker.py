@@ -246,7 +246,8 @@ def upload_image_data_and_update_job_status(worker_state, job, generation_task, 
     request.http_update_job_completed(job)
 
     # add clip calculation task
-    clip_calculation_job = {"task_type": "clip_calculation_task",
+    clip_calculation_job = {"uuid": "",
+                            "task_type": "clip_calculation_task",
                             "task_input_dict": {
                                 "input_file_path": output_file_path,
                                 "input_file_hash": output_file_hash
