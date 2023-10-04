@@ -103,15 +103,17 @@ def get_list_images(request: Request, dataset: str = None, page_size: int = 20, 
 
 @router.get("/get-images-metadata")
 def get_images_metadata(request: Request, dataset: str = None, limit: int = 20, offset: int = 0):
-    print('begin')
-    print(limit)
-    print(offset)
-    jobs = request.app.completed_jobs_collection.find().skip(offset).limit(limit)
-    print(jobs)
+    jobs = request.app.completed_jobs_collection.find({'task_input_dict.dataset': {'$regex': f'^{dataset}'}}).skip(offset).limit(limit)
 
+    images_metadata = []
     for job in jobs:
-        print(job)
-        print(jobs['task_input_dict']['dataset'])
-        job.pop('_id', None)
+        image_meta_data = {
+            'image_path': job['task_output_file_dict']['output_file_path'],
+            'image_hash': job['task_output_file_dict']['output_file_hash']
+        }
+        images_metadata.append(image_meta_data)
 
-    return jobs
+
+    print(images_metadata)
+
+    return images_metadata
