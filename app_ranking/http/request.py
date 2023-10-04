@@ -19,6 +19,20 @@ def http_get_random_image(dataset_name: str):
     return None
 
 
+def http_get_image_by_file_path(file_path: str):
+    url = SERVER_ADDRESS + "/get-image-data-by-filepath?file_path={}".format(file_path)
+    try:
+        response = requests.get(url)
+    except Exception as e:
+        print(e)
+        return None
+
+    if response.status_code == 200:
+        return response.content
+
+    return None
+
+
 # Get request to get datasets
 def http_get_datasets():
     url = SERVER_ADDRESS + "/get-datasets"
