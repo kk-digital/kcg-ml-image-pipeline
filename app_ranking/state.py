@@ -5,7 +5,7 @@ import base64
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from app_ranking.http.request import http_get_random_image, http_get_datasets, http_add_selection
+from app_ranking.http.request import http_get_random_image, http_get_datasets, http_add_selection, http_get_image_by_file_path
 
 # Create a enum State Error: Rank, User Name, None
 class StateErrorType(Enum):
@@ -187,10 +187,9 @@ class StateController:
 
     def get_image(self, option: str, state: State) -> bytes:
         image_data_json = state.imgs[ord(option) % 65]
-        if image_data_json is None or "image-data" not in image_data_json:
-            return None
 
-        image_data = image_data_json["image-data"]
+        # get image by file path
+        image_file_path = image_data_json["task_output_file_dict"]["output_file_path"]
+        img = http_get_image_by_file_path(image_file_path)
 
-        img_bytes = base64.b64decode(image_data)
-        return img_bytes
+        return img
