@@ -1,5 +1,6 @@
 import pathlib
-
+def file_exists(file_path):
+    return pathlib.Path(file_path).is_file()
 
 def separate_bucket_and_file_path(path_str):
     p = pathlib.Path(path_str)

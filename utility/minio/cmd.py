@@ -44,6 +44,18 @@ def download_from_minio(client, bucket_name, object_name, output_path):
         logger.info(f"{object_name} already exists.")
 
 
+def get_file_from_minio(client, bucket_name, file_name):
+    try:
+        # Get object data
+        data = client.get_object(bucket_name, file_name)
+
+        return data
+
+    except Exception as err:
+        print(f"Error: {err}")
+
+    return None
+
 def get_list_of_buckets(client):
     buckets = client.list_buckets()
     for bucket in buckets:
@@ -80,6 +92,7 @@ def get_list_of_objects(client, bucket_name):
         object_names.append(obj_name)
 
     return object_names
+
 
 
 def get_list_of_objects_with_prefix(client, bucket_name, prefix):
