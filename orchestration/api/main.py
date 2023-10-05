@@ -9,6 +9,7 @@ from orchestration.api.get import router as get_router
 from orchestration.api.list import router as list_router
 from orchestration.api.update import router as update_router
 from orchestration.api.data import router as data_router
+from orchestration.api.api_image import router as image_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -29,6 +30,7 @@ app.include_router(list_router)
 app.include_router(update_router)
 app.include_router(delete_router)
 app.include_router(data_router)
+app.include_router(image_router)
 
 
 def get_minio_client(minio_access_key, minio_secret_key):
