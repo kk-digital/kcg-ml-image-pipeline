@@ -19,10 +19,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(dataset_router)
-app.include_router(image_router)
+
 app.include_router(job_router)
-app.include_router(ranking_router)
+
 
 
 def get_minio_client(minio_access_key, minio_secret_key):
