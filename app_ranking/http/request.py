@@ -5,7 +5,7 @@ SERVER_ADDRESS = 'http://192.168.3.1:8111'
 
 # Get request to get random image
 def http_get_random_image(dataset_name: str):
-    url = SERVER_ADDRESS + "/get-random-image/{}".format(dataset_name)
+    url = SERVER_ADDRESS + "/image/random/{}".format(dataset_name)
     try:
         response = requests.get(url)
     except Exception as e:
@@ -20,7 +20,7 @@ def http_get_random_image(dataset_name: str):
 
 
 def http_get_image_by_file_path(file_path: str):
-    url = SERVER_ADDRESS + "/get-image-data-by-filepath?file_path={}".format(file_path)
+    url = SERVER_ADDRESS + "/image/data-by-filepath?file_path={}".format(file_path)
     try:
         response = requests.get(url)
     except Exception as e:
@@ -35,7 +35,7 @@ def http_get_image_by_file_path(file_path: str):
 
 # Get request to get datasets
 def http_get_datasets():
-    url = SERVER_ADDRESS + "/get-datasets"
+    url = SERVER_ADDRESS + "/dataset/list"
     try:
         response = requests.get(url)
     except Exception as e:

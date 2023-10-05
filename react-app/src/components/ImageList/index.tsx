@@ -64,7 +64,7 @@ export default function ImageList({query, showDescription = false, onSelectPhoto
         //Also we may need to change the model, based in the new json response
         try {
             const {data} = await api.get(
-                `/get-images-metadata`,
+                `/image/list-metadata`,
                 {
                     dataset: dataset,
                     offset: (page - 1) * LIMIT,
