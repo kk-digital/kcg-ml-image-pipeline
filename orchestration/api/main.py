@@ -2,14 +2,10 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import pymongo
 from dotenv import dotenv_values
-from orchestration.api.add import router as add_router
-from orchestration.api.count import router as count_router
-from orchestration.api.delete import router as delete_router
-from orchestration.api.get import router as get_router
-from orchestration.api.list import router as list_router
-from orchestration.api.update import router as update_router
-from orchestration.api.data import router as data_router
+from orchestration.api.api_dataset import router as dataset_router
 from orchestration.api.api_image import router as image_router
+from orchestration.api.api_job import router as job_router
+from orchestration.api.api_ranking import router as ranking_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -23,14 +19,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(add_router)
-app.include_router(get_router)
-app.include_router(count_router)
-app.include_router(list_router)
-app.include_router(update_router)
-app.include_router(delete_router)
-app.include_router(data_router)
+app.include_router(dataset_router)
 app.include_router(image_router)
+app.include_router(job_router)
+app.include_router(ranking_router)
 
 
 def get_minio_client(minio_access_key, minio_secret_key):

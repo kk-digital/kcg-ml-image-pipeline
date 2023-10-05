@@ -1,6 +1,6 @@
 from fastapi import Request, HTTPException, APIRouter, Response
 
-from orchestration.api.schemas import Selection
+from orchestration.api.mongo_schemas import Selection
 import json
 import os
 from datetime import datetime
@@ -13,7 +13,7 @@ import base64
 router = APIRouter()
 
 
-@router.get("/image/random-image/{dataset}")
+@router.get("/image/random/{dataset}")
 def get_random_image(request: Request, dataset: str = None):
     # find
     documents = request.app.completed_jobs_collection.aggregate([
@@ -48,7 +48,7 @@ def get_image_data_by_filepath(request: Request, file_path: str = None):
 
     return response
 
-@router.get("/image/images-metadata")
+@router.get("/image/list-metadata")
 def get_images_metadata(request: Request, dataset: str = None, limit: int = 20, offset: int = 0):
     jobs = request.app.completed_jobs_collection.find({
         '$or': [

@@ -1,23 +1,14 @@
-from fastapi import Request, HTTPException, APIRouter, Response
 
-from orchestration.api.schemas import Selection
-import json
-import os
+from fastapi import Request, APIRouter
 from datetime import datetime
-from utility.minio import cmd
-from utility.path import separate_bucket_and_file_path, file_exists
-from PIL import Image
+import os
+import json
 from io import BytesIO
-import base64
+
+from orchestration.api.mongo_schemas import Selection
 
 router = APIRouter()
 
-
-@router.get("/get-datasets")
-def get_datasets(request: Request):
-    objects = cmd.get_list_of_objects(request.app.minio_client, "datasets")
-
-    return objects
 
 @router.post("/add-selection-datapoint/{dataset}")
 def add_selection_datapoint(request: Request, dataset: str, selection: Selection):
