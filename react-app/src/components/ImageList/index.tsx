@@ -60,8 +60,6 @@ export default function ImageList({query, showDescription = false, onSelectPhoto
     );
 
     let getImages = async () => {
-        //@mahdi: replace this endpoint with the endpoint to get images metadata
-        //Also we may need to change the model, based in the new json response
         try {
             const {data} = await api.get(
                 `/image/list-metadata`,
@@ -75,7 +73,10 @@ export default function ImageList({query, showDescription = false, onSelectPhoto
             if (data.length === 0) {
                 setHasMore(false);
             } else {
-                setPhotos((prevPhotos) => [...prevPhotos, ...data]);
+                // check if there are duplicate images
+                setPhotos((prevPhotos) => [...prevPhotos, ...data].filter(
+                    (photo, index, self) => index === self.findIndex((p) => p.image_hash === photo.image_hash)
+                ));
             }
         } catch (error) {
             console.error("Error fetching photos:", error);
