@@ -6,7 +6,7 @@ SERVER_ADRESS = 'http://127.0.0.1:8000'
 
 # Get request to get an available job
 def http_get_job(worker_type: str = None):
-    url = SERVER_ADRESS + "/job/list"
+    url = SERVER_ADRESS + "/job/get-job"
     if worker_type is not None:
         url = url + "?task_type={}".format(worker_type)
 
