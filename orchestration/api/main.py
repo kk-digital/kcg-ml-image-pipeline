@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 import pymongo
 from dotenv import dotenv_values
 from orchestration.api.add import router as add_router
@@ -12,6 +13,15 @@ from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
 app = FastAPI(title="Orchestration API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(add_router)
 app.include_router(get_router)
 app.include_router(count_router)
