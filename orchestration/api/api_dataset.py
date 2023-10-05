@@ -1,33 +1,28 @@
-from fastapi import Request, HTTPException, APIRouter
-from orchestration.api.schemas import SequentialID
-import json
+
+from fastapi import Request, HTTPException, APIRouter, Response
+from orchestration.api.mongo_schemas import SequentialID
+from utility.minio import cmd
 
 router = APIRouter()
 
 
-@router.get("/get-job")
-def get_job(request: Request, task_type: str = None):
-    query = {}
-    if task_type != None:
-        query = {"task_type": task_type}
+@router.delete("/dataset/clear-sequential-id")
+def clear_dataset_sequential_id_jobs(request: Request):
+    request.app.dataset_sequential_id_collection.delete_many({})
 
-    # find
-    job = request.app.pending_jobs_collection.find_one(query)
-    if job is None:
-        raise HTTPException(status_code=404)
-
-    # delete from pending
-    request.app.pending_jobs_collection.delete_one({"uuid": job["uuid"]})
-    # add to in progress
-    request.app.in_progress_jobs_collection.insert_one(job)
-
-    # remove the auto generated field
-    job.pop('_id', None)
-
-    return job
+    return True
 
 
-@router.get("/get-sequential-id/{dataset}")
+@router.get("/dataset/list")
+def get_datasets(request: Request):
+    objects = cmd.get_list_of_objects(request.app.minio_client, "datasets")
+
+    return objects
+
+
+
+
+@router.get("/dataset/sequential-id/{dataset}")
 def get_sequential_id(request: Request, dataset: str, limit: int = 1):
     sequential_id_arr = []
 

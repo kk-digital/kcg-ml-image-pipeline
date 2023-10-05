@@ -22,7 +22,7 @@ const ImageItem: React.FC<PhotoItemProps> = ({photo, showDescription = false}) =
             </div>
             <div className="bg-gray-100 rounded-lg">
                 <img
-                    src={`${api.baseUrl}/get-image-data-by-filepath?file_path=${_photo.image_path}`}
+                    src={`${api.baseUrl}/image/data-by-filepath?file_path=${_photo.image_path}`}
                     width={512}
                     height={512}
                     loading="lazy"

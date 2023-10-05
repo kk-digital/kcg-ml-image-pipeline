@@ -61,6 +61,7 @@ class GeneratedImageData:
                    data["positive_prompt"],
                    data["negative_prompt"],
                    data["cfg_strength"],
+                   data["seed"],
                    data["image_width"],
                    data["image_height"],
                    data["sampler"],
