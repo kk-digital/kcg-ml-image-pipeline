@@ -6,7 +6,6 @@ from utility.minio import cmd
 router = APIRouter()
 
 
-
 @router.delete("/dataset/clear-sequential-id")
 def clear_dataset_sequential_id_jobs(request: Request):
     request.app.dataset_sequential_id_collection.delete_many({})
