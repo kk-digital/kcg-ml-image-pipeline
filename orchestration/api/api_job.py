@@ -10,7 +10,7 @@ router = APIRouter()
 # -------------------- Get -------------------------
 
 
-@router.get("/job/get-job")
+@router.get("/get-job")
 def get_job(request: Request, task_type: str = None):
     query = {}
     if task_type != None:
