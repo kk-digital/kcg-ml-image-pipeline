@@ -19,7 +19,7 @@ def get_job(request: Request, task_type: str = None):
     # find
     job = request.app.pending_jobs_collection.find_one(query)
     if job is None:
-        raise HTTPException(status_code=404)
+        raise HTTPException(status_code=403)
 
     # delete from pending
     request.app.pending_jobs_collection.delete_one({"uuid": job["uuid"]})
