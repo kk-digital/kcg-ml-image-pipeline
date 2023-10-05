@@ -1,15 +1,7 @@
 from fastapi import Request, HTTPException, APIRouter, Response
 
-from orchestration.api.mongo_schemas import Selection
-import json
-import os
-from datetime import datetime
 from utility.minio import cmd
-from utility.path import separate_bucket_and_file_path, file_exists
-from PIL import Image
-from io import BytesIO
-import base64
-
+from utility.path import separate_bucket_and_file_path
 router = APIRouter()
 
 
@@ -34,7 +26,7 @@ def get_random_image(request: Request, dataset: str = None):
 
     return document
 
-@router.get("/image/by-filepath")
+@router.get("/image/data-by-filepath")
 def get_image_data_by_filepath(request: Request, file_path: str = None):
 
     bucket_name, file_path = separate_bucket_and_file_path(file_path)

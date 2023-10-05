@@ -1,16 +1,7 @@
 
 from fastapi import Request, HTTPException, APIRouter, Response
 from orchestration.api.mongo_schemas import SequentialID
-import json
-from orchestration.api.mongo_schemas import Selection
-import json
-import os
-from datetime import datetime
 from utility.minio import cmd
-from utility.path import separate_bucket_and_file_path, file_exists
-from PIL import Image
-from io import BytesIO
-import base64
 
 router = APIRouter()
 
