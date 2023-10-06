@@ -5,7 +5,7 @@ WORKDIR /training_worker
 COPY ./training_worker /training_worker/training_worker
 COPY ./utility /training_worker/utility
 COPY ./requirements.txt /training_worker/requirements.txt
-COPY ./requirements_scheduled_workers.txt /aggregator/requirements_scheduled_workers.txt
+COPY ./requirements_scheduled_workers.txt /training_worker/requirements_scheduled_workers.txt
 
 # install prerequisites
 RUN apt-get update && apt-get install -y python3 python3-pip && apt-get install -y python-is-python3
