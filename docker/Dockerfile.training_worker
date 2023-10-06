@@ -5,6 +5,7 @@ WORKDIR /training_worker
 COPY ./training_worker /training_worker/training_worker
 COPY ./utility /training_worker/utility
 COPY ./requirements.txt /training_worker/requirements.txt
+COPY ./requirements_scheduled_workers.txt /aggregator/requirements_scheduled_workers.txt
 
 # install prerequisites
 RUN apt-get update && apt-get install -y python3 python3-pip && apt-get install -y python-is-python3
@@ -12,5 +13,6 @@ RUN apt-get install -y unzip
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libasound-dev portaudio19-dev libportaudio2 libportaudiocpp0 libsndfile1 wget libgl1-mesa-glx
 
 RUN pip install -r /training_worker/requirements.txt
+RUN pip install -r /training_worker/requirements_scheduled_workers.txt
 
 ENTRYPOINT ["/training_worker/training_worker/run_training_worker.sh"]

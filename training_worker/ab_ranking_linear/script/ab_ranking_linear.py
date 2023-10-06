@@ -147,7 +147,11 @@ def run_ab_ranking_linear_task(training_task, minio_access_key, minio_secret_key
         report_output_path, \
         graph_output_path = train_ranking(dataset_name=training_task["dataset_name"],
                                           minio_access_key=minio_access_key,
-                                          minio_secret_key=minio_secret_key)
+                                          minio_secret_key=minio_secret_key,
+                                          epochs=training_task["epochs"],
+                                          learning_rate=training_task["learning_rate"],
+                                          buffer_size=training_task["buffer_size"],
+                                          train_percent=training_task["train_percent"])
 
     return model_output_path, report_output_path, graph_output_path
 
