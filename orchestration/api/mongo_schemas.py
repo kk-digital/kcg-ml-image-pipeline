@@ -111,3 +111,26 @@ class Selection(BaseModel):
             "selected_image_hash": self.selected_image_hash,
             "datetime": self.datetime,
         }
+
+
+class TrainingTask(BaseModel):
+    uuid: str  # required, should be passed by generator
+    task_type: str
+    dataset_name: str
+    task_creation_time: Union[str, None] = None
+    task_start_time: Union[str, None] = None
+    task_completion_time: Union[str, None] = None
+    task_error_str: Union[str, None] = None
+    task_output_file_dict: Union[dict, None] = None
+
+    def to_dict(self):
+        return {
+            "uuid": self.uuid,
+            "task_type": self.task_type,
+            "dataset_name": self.dataset_name,
+            "task_creation_time": self.task_creation_time,
+            "task_start_time": self.task_start_time,
+            "task_completion_time": self.task_completion_time,
+            "task_error_str": self.task_error_str,
+            "task_output_file_dict": self.task_output_file_dict,
+        }
