@@ -1,6 +1,6 @@
 #!/bin/bash
 
-curl -X 'POST' http://192.168.3.1:8111/add-job -H 'Content-Type: application/json' -d '{
+curl -X 'POST' http://192.168.3.1:8111/job/add -H 'Content-Type: application/json' -d '{
         "uuid": "1234567",
         "task_type": "image_generation_task",
         "model_name": "v1-5-pruned-emaonly",
@@ -16,7 +16,7 @@ curl -X 'POST' http://192.168.3.1:8111/add-job -H 'Content-Type: application/jso
             "negative_prompt": "low resolution, mediocre style, normal resolution",
             "cfg_strength": 12,
             "seed": "",
-            "dataset": "test-generations",
+            "dataset": "new-sample-dataset",
             "file_path": "[auto]",
             "num_images": 1,
             "image_width": 512,

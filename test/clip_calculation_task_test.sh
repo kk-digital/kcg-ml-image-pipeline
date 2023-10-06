@@ -1,6 +1,6 @@
 #!/bin/bash
 
-curl -X 'POST' http://192.168.3.1:8111/add-job -H 'Content-Type: application/json' -d '{
+curl -X 'POST' http://192.168.3.1:8111/job/add -H 'Content-Type: application/json' -d '{
         "uuid": "",
         "task_type": "clip_calculation_task",
         "model_name": "",

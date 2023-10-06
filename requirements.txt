@@ -23,3 +23,4 @@ lark
 diffusers
 termcolor
 msgpack
+matplotlib==3.7.1
