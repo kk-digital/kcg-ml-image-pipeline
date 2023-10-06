@@ -9,6 +9,7 @@ from datetime import datetime
 import math
 import threading
 from io import BytesIO
+from tqdm import tqdm
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
@@ -127,7 +128,7 @@ class ABRankingModel:
         # get number of batches to do per epoch
         training_num_batches = math.ceil(num_features / training_batch_size)
 
-        for epoch in range(epochs):
+        for epoch in tqdm(range(epochs), desc="Training epoch"):
             # fill data buffer
             # if buffer is empty, fill data
             fill_buffer_thread = threading.Thread(target=dataset_loader.fill_training_data_buffer)

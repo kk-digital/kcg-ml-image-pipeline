@@ -141,9 +141,10 @@ def train_ranking(dataset_name: str,
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
 
-def main():
-    train_ranking(dataset_name="environmental", epochs=10)
+
+def test_run():
+    train_ranking(dataset_name="icons", epochs=10)
 
 
 if __name__ == '__main__':
-    main()
+    test_run()
