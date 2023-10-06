@@ -117,6 +117,10 @@ class TrainingTask(BaseModel):
     uuid: str  # required, should be passed by generator
     task_type: str
     dataset_name: str
+    epochs: int
+    learning_rate: float
+    buffer_size: int
+    train_percent: float
     task_creation_time: Union[str, None] = None
     task_start_time: Union[str, None] = None
     task_completion_time: Union[str, None] = None
@@ -128,6 +132,10 @@ class TrainingTask(BaseModel):
             "uuid": self.uuid,
             "task_type": self.task_type,
             "dataset_name": self.dataset_name,
+            "epochs": self.epochs,
+            "learning_rate": self.learning_rate,
+            "buffer_size": self.buffer_size,
+            "train_percent": self.train_percent,
             "task_creation_time": self.task_creation_time,
             "task_start_time": self.task_start_time,
             "task_completion_time": self.task_completion_time,
