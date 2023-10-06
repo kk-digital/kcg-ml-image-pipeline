@@ -37,16 +37,6 @@ def add_job(request: Request, training_task: TrainingTask):
 
     # add task creation time
     training_task.task_creation_time = datetime.now()
-
-    # check if file_path is blank
-    if (training_task.task_input_dict is None or "file_path" not in training_task.task_input_dict or training_task.task_input_dict["file_path"] in [
-        '', "[auto]", "[default]"]) and "dataset" in training_task.task_input_dict:
-        dataset_name = training_task.task_input_dict["dataset"]
-        # get file path
-        sequential_id_arr = get_sequential_id(request, dataset=dataset_name)
-        new_file_path = "{}.jpg".format(sequential_id_arr[0])
-        training_task.task_input_dict["file_path"] = new_file_path
-
     request.app.training_pending_jobs_collection.insert_one(training_task.to_dict())
 
     return {"uuid": training_task.uuid, "creation_time": training_task.task_creation_time}
