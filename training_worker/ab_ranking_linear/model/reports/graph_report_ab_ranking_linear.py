@@ -2,7 +2,7 @@ import os
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 from io import BytesIO
-
+import torch
 
 def separate_values_based_on_targets(training_targets, validation_targets, train_prob_predictions,
                                      validation_prob_predictions, training_pred_scores_img_x,
@@ -43,6 +43,11 @@ def separate_values_based_on_targets(training_targets, validation_targets, train
             validation_pred_scores_img_x_target_0.append(validation_pred_scores_img_x[i])
             validation_pred_scores_img_y_target_0.append(validation_pred_scores_img_y[i])
 
+    train_prob_predictions_target_1 = torch.stack(train_prob_predictions_target_1)
+    train_prob_predictions_target_0 = torch.stack(train_prob_predictions_target_0)
+    validation_prob_predictions_target_1 = torch.stack(validation_prob_predictions_target_1)
+    validation_prob_predictions_target_0 = torch.stack(validation_prob_predictions_target_0)
+
     return train_prob_predictions_target_1, \
         train_prob_predictions_target_0, \
         validation_prob_predictions_target_1, \
@@ -82,7 +87,6 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
                                            validation_pred_scores_img_x,
                                            validation_pred_scores_img_y
                                            )
-
     train_x_axis_values_target_1 = [i for i in range(len(train_prob_predictions_target_1))]
     train_x_axis_values_target_0 = [i for i in range(len(train_prob_predictions_target_0))]
     validation_x_axis_values_target_1 = [i for i in range(len(validation_prob_predictions_target_1))]
