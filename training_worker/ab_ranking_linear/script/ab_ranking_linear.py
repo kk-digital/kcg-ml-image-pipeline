@@ -153,8 +153,8 @@ def run_ab_ranking_linear_task(training_task, minio_access_key, minio_secret_key
 
 
 def test_run():
-    train_ranking(minio_access_key="nkjYl5jO4QnpxQU0k0M1",
-                  minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
+    train_ranking(minio_access_key="",
+                  minio_secret_key="",
                   dataset_name="icons",
                   epochs=10)
 
