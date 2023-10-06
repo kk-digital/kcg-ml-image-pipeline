@@ -80,7 +80,7 @@ export default function Scrolling() {
 
     async function getDatasets() {
         try {
-            const {data} = await api.get(`/get-datasets`)
+            const {data} = await api.get(`/dataset/list`)
             setDatasets(data);
             setSelectedDatasets(data[0]);
         } catch (error) {

@@ -6,7 +6,7 @@ SERVER_ADRESS = 'http://192.168.3.1:8111'
 
 # Get request to get an available job
 def http_get_job(worker_type: str = None):
-    url = SERVER_ADRESS + "/get-job"
+    url = SERVER_ADRESS + "/job/get-job"
     if worker_type is not None:
         url = url + "?task_type={}".format(worker_type)
 
@@ -24,7 +24,7 @@ def http_get_job(worker_type: str = None):
 
 # Get request to get sequential id of a dataset
 def http_get_sequential_id(dataset_name: str, limit: int):
-    url = SERVER_ADRESS + "/get-sequential-id/{0}?limit={1}".format(dataset_name, limit)
+    url = SERVER_ADRESS + "/dataset/sequential-id/{0}?limit={1}".format(dataset_name, limit)
 
     try:
         response = requests.get(url)
@@ -39,7 +39,7 @@ def http_get_sequential_id(dataset_name: str, limit: int):
 
 
 def http_add_job(job):
-    url = SERVER_ADRESS + "/add-job"
+    url = SERVER_ADRESS + "/job/add"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
 
     try:
@@ -52,7 +52,7 @@ def http_add_job(job):
 
 
 def http_update_job_completed(job):
-    url = SERVER_ADRESS + "/update-job-completed"
+    url = SERVER_ADRESS + "/job/update-completed"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
 
     try:
@@ -65,7 +65,7 @@ def http_update_job_completed(job):
 
 
 def http_update_job_failed(job):
-    url = SERVER_ADRESS + "/update-job-failed"
+    url = SERVER_ADRESS + "/job/update-failed"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
 
     try:
