@@ -1,24 +1,23 @@
 import os
 import torch
-from dotenv import dotenv_values
 import sys
-from pytz import timezone
 from datetime import datetime
+from pytz import timezone
 
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
-sys.path.insert(0, os.path.join(base_directory, 'utils', 'dataset'))
 
 from utility.regression_utils import torchinfo_summary
-
-from ab_ranking_linear.model.ab_ranking_linear import ABRankingModel
-from ab_ranking_linear.model.reports.ab_ranking_linear_train_report import get_train_report
-from ab_ranking_linear.model.reports.graph_report_ab_ranking_linear import *
-from ab_ranking_linear.model.ab_ranking_data_loader import ABRankingDatasetLoader, split_ab_data_vectors
+from training_worker.ab_ranking_linear.model.ab_ranking_linear import ABRankingModel
+from training_worker.ab_ranking_linear.model.reports.ab_ranking_linear_train_report import get_train_report
+from training_worker.ab_ranking_linear.model.reports.graph_report_ab_ranking_linear import *
+from training_worker.ab_ranking_linear.model.ab_ranking_data_loader import ABRankingDatasetLoader
 from utility.minio import cmd
 
 
 def train_ranking(dataset_name: str,
+                  minio_access_key: str,
+                  minio_secret_key: str,
                   epochs=10000,
                   learning_rate=0.001,
                   buffer_size=20000,
@@ -29,12 +28,11 @@ def train_ranking(dataset_name: str,
     input_type = "clip-feature-vector"
     input_shape = 768
     output_path = "{}/models/ab_ranking_linear".format(dataset_name)
-    config = dotenv_values("./ab_ranking_linear/script/.env")
 
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name=dataset_name,
-                                            minio_access_key=config["MINIO_ACCESS_KEY"],
-                                            minio_secret_key=config["MINIO_SECRET_KEY"],
+                                            minio_access_key=minio_access_key,
+                                            minio_secret_key=minio_secret_key,
                                             buffer_size=buffer_size,
                                             train_percent=train_percent)
     dataset_loader.load_dataset()
@@ -141,9 +139,24 @@ def train_ranking(dataset_name: str,
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
 
+    return model_output_path, report_output_path, graph_output_path
+
+
+def run_ab_ranking_linear_task(training_task, minio_access_key, minio_secret_key):
+    model_output_path, \
+        report_output_path, \
+        graph_output_path = train_ranking(dataset_name=training_task["dataset_name"],
+                                          minio_access_key=minio_access_key,
+                                          minio_secret_key=minio_secret_key)
+
+    return model_output_path, report_output_path, graph_output_path
+
 
 def test_run():
-    train_ranking(dataset_name="icons", epochs=10)
+    train_ranking(minio_access_key="nkjYl5jO4QnpxQU0k0M1",
+                  minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
+                  dataset_name="icons",
+                  epochs=10)
 
 
 if __name__ == '__main__':
