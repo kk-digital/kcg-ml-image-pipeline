@@ -8,10 +8,12 @@ import copy
 from datetime import datetime
 import math
 import threading
+from io import BytesIO
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
 from ab_ranking_linear.model.ab_ranking_data_loader import ABRankingDatasetLoader
+from utility.minio import cmd
 
 
 class ABRankingLinearModel(nn.Module):
@@ -52,15 +54,10 @@ class ABRankingModel:
         model_str = str(self.model.state_dict())
         self.model_hash = hashlib.sha256(model_str.encode()).hexdigest()
 
-    def save(self, model_output_path):
-        # Building path where model will be saved
-        model_file_path = os.path.join(model_output_path, 'ab_ranking_linear.pth')
-        if not os.path.exists(model_output_path):
-            os.mkdir(model_output_path)
-
+    def save(self, minio_client, datasets_bucket, model_output_path):
         # Hashing the model with its current configuration
         self._hash_model()
-        self.file_path = model_file_path
+        self.file_path = model_output_path
         # Preparing the model to be saved
         model = {}
         model['model_dict'] = self.model.state_dict()
@@ -69,12 +66,17 @@ class ABRankingModel:
         model['file-path'] = self.file_path
         model['model-hash'] = self.model_hash
         model['date'] = self.date
-        # Saving the model to disk
-        torch.save(model, model_file_path)
 
-    def load(self, model_path):
+        # Saving the model to minio
+        buffer = BytesIO()
+        torch.save(model, buffer)
+
+        # upload the model
+        cmd.upload_data(minio_client, datasets_bucket, model_output_path, buffer)
+
+    def load(self, model_buffer):
         # Loading state dictionary
-        model = torch.load(model_path)
+        model = torch.load(model_buffer)
         # Restoring model metadata
         self.model_type = model['model-type']
         self.file_path = model['file-path']
@@ -99,10 +101,6 @@ class ABRankingModel:
 
         return loss
 
-    # training_image_x_features - the feature vectors of selected image
-    # training_image_y_features - the feature vector of the other/not selected image
-    # validation_image_x_features - the feature vectors of selected image
-    # validation_image_y_features - the feature vector of the other/not selected image
     def train(self,
               dataset_loader: ABRankingDatasetLoader,
               training_batch_size=16,
@@ -117,13 +115,16 @@ class ABRankingModel:
         loss_func = self.ab_ranking_bradley_terry_loss
 
         # get validation data
-        # validation_features_x, \
-            # validation_features_y, \
-            # validation_targets = dataset_loader.get_next_training_feature_vectors_and_target(200)
+        validation_features_x, \
+            validation_features_y, \
+            validation_targets = dataset_loader.get_validation_feature_vectors_and_target()
+
+        # num features * 2 bc we duplicate each ab data
+        # (x, y, 1.0)
+        # (y, x, 0.0)
+        num_features = dataset_loader.get_len_training_ab_data() * 2
 
         # get number of batches to do per epoch
-        # num_features = len(training_image_x_features)
-        num_features = 1000
         training_num_batches = math.ceil(num_features / training_batch_size)
 
         for epoch in range(epochs):
@@ -167,21 +168,58 @@ class ABRankingModel:
             training_loss_per_epoch.append(loss.item())
             validation_loss_per_epoch.append(validation_loss.item())
 
-        # # Calculating and storing performance metrics
-        # training_predicted_score_images_x = self.model.forward(training_image_x_features)
-        # training_predicted_score_images_y = self.model.forward(training_image_y_features)
-        # validation_predicted_score_images_x = self.model.forward(validation_image_x_features)
-        # validation_predicted_score_images_y = self.model.forward(validation_image_y_features)
+            # refill training ab data
+            dataset_loader.fill_training_ab_data()
 
-        # # Storing loss
-        # self.training_loss, training_pred_probabilities = loss_func(training_predicted_score_images_x,
-        #                                                             training_predicted_score_images_y,
-        #                                                             training_target_probabilities)
-        # self.validation_loss, validation_pred_probabilities = loss_func(validation_predicted_score_images_x,
-        #                                                                 validation_predicted_score_images_y,
-        #                                                                 validation_target_probabilities)
+        with torch.no_grad():
+            # fill data buffer
+            # if buffer is empty, fill data
+            fill_buffer_thread = threading.Thread(target=dataset_loader.fill_training_data_buffer)
+            fill_buffer_thread.start()
 
-        return training_loss_per_epoch, validation_loss_per_epoch
+            training_predicted_score_images_x = []
+            training_predicted_score_images_y = []
+            training_predicted_probabilities = []
+            training_target_probabilities = []
+
+            # get performance metrics
+            for i in range(training_num_batches):
+                num_data_to_get = training_batch_size
+                if i == training_num_batches - 1:
+                    num_data_to_get = num_features - (i * (training_batch_size))
+
+                batch_features_x, \
+                    batch_features_y,\
+                    batch_targets = dataset_loader.get_next_training_feature_vectors_and_target(num_data_to_get)
+
+                batch_predicted_score_images_x = self.model.forward(batch_features_x)
+                batch_predicted_score_images_y = self.model.forward(batch_features_y)
+                loss, batch_predicted_probabilities = loss_func(batch_predicted_score_images_x,
+                                                             batch_predicted_score_images_y,
+                                                             batch_targets)
+
+                training_predicted_score_images_x.extend(batch_predicted_score_images_x)
+                training_predicted_score_images_y.extend(batch_predicted_score_images_y)
+                training_predicted_probabilities.extend(batch_predicted_probabilities)
+                training_target_probabilities.extend(batch_targets)
+            self.training_loss = loss
+
+            validation_predicted_score_images_x = self.model.forward(validation_features_x)
+            validation_predicted_score_images_y = self.model.forward(validation_features_y)
+            self.validation_loss, validation_predicted_probabilities = loss_func(validation_predicted_score_images_x,
+                                                              validation_predicted_score_images_y,
+                                                              validation_targets)
+
+        return training_predicted_score_images_x,\
+            training_predicted_score_images_y, \
+            training_predicted_probabilities,\
+            training_target_probabilities,\
+            validation_predicted_score_images_x, \
+            validation_predicted_score_images_y,\
+            validation_predicted_probabilities, \
+            validation_targets,\
+            training_loss_per_epoch, \
+            validation_loss_per_epoch
 
     def ab_ranking_bradley_terry_loss(self, predicted_score_images_x, predicted_score_images_y, target_probabilities):
         epsilon = 0.000001

@@ -48,13 +48,13 @@ def delete_all_files_in_folder(folder_path):
             os.remove(file_path)
 
 
-def torchinfo_summary(model, data):
+def torchinfo_summary(model):
     # Capturing torchinfo output
     string_buffer = StringIO()
     sys.stdout = string_buffer
 
     # Running torchinfo
-    summary(model, input_size=data[0].size(), col_names=("input_size", "output_size", "num_params"))
+    summary(model)
 
     # Get the captured output as a string
     summary_string = string_buffer.getvalue()

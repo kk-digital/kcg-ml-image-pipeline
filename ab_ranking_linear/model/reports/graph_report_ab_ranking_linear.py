@@ -1,12 +1,66 @@
 import os
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
+from io import BytesIO
 
 
-def save_graph_report(train_prob_predictions, training_targets, validation_prob_predictions, validation_targets,
+def separate_values_based_on_targets(training_targets, validation_targets, train_prob_predictions,
+                                     validation_prob_predictions, training_pred_scores_img_x,
+                                     training_pred_scores_img_y, validation_pred_scores_img_x,
+                                     validation_pred_scores_img_y):
+    train_prob_predictions_target_1 = []
+    train_prob_predictions_target_0 = []
+    training_pred_scores_img_x_target_1 = []
+    training_pred_scores_img_y_target_1 = []
+    training_pred_scores_img_x_target_0 = []
+    training_pred_scores_img_y_target_0 = []
+
+    validation_prob_predictions_target_1 = []
+    validation_prob_predictions_target_0 = []
+    validation_pred_scores_img_x_target_1 = []
+    validation_pred_scores_img_y_target_1 = []
+    validation_pred_scores_img_x_target_0 = []
+    validation_pred_scores_img_y_target_0 = []
+    # separate training values with targets 1.0 and 0.0
+    for i in range(len(train_prob_predictions)):
+        if training_targets[i] == [1.0]:
+            train_prob_predictions_target_1.append(train_prob_predictions[i])
+            training_pred_scores_img_x_target_1.append(training_pred_scores_img_x[i])
+            training_pred_scores_img_y_target_1.append(training_pred_scores_img_y[i])
+        else:
+            train_prob_predictions_target_0.append(train_prob_predictions[i])
+            training_pred_scores_img_x_target_0.append(training_pred_scores_img_x[i])
+            training_pred_scores_img_y_target_0.append(training_pred_scores_img_y[i])
+
+    # separate validation values with targets 1.0 and 0.0
+    for i in range(len(validation_prob_predictions)):
+        if validation_targets[i] == [1.0]:
+            validation_prob_predictions_target_1.append(validation_prob_predictions[i])
+            validation_pred_scores_img_x_target_1.append(validation_pred_scores_img_x[i])
+            validation_pred_scores_img_y_target_1.append(validation_pred_scores_img_y[i])
+        else:
+            validation_prob_predictions_target_0.append(validation_prob_predictions[i])
+            validation_pred_scores_img_x_target_0.append(validation_pred_scores_img_x[i])
+            validation_pred_scores_img_y_target_0.append(validation_pred_scores_img_y[i])
+
+    return train_prob_predictions_target_1, \
+        train_prob_predictions_target_0, \
+        validation_prob_predictions_target_1, \
+        validation_prob_predictions_target_0, \
+        training_pred_scores_img_x_target_1, \
+        training_pred_scores_img_y_target_1, \
+        training_pred_scores_img_x_target_0, \
+        training_pred_scores_img_y_target_0, \
+        validation_pred_scores_img_x_target_1, \
+        validation_pred_scores_img_y_target_1, \
+        validation_pred_scores_img_x_target_0, \
+        validation_pred_scores_img_y_target_0
+
+
+def get_graph_report(train_prob_predictions, training_targets, validation_prob_predictions, validation_targets,
                       training_pred_scores_img_x, training_pred_scores_img_y, validation_pred_scores_img_x,
                       validation_pred_scores_img_y, training_total_size, validation_total_size, input_type,
-                      training_losses, validation_losses, epochs, learning_rate, graph_name, model_output_path):
+                      training_losses, validation_losses, epochs, learning_rate):
     train_prob_predictions_target_1, \
         train_prob_predictions_target_0, \
         validation_prob_predictions_target_1, \
@@ -191,60 +245,12 @@ def save_graph_report(train_prob_predictions, training_targets, validation_prob_
                                               epochs))
 
     # Save figure
-    graph_path = os.path.join(model_output_path, graph_name)
+    # graph_path = os.path.join(model_output_path, graph_name)
     plt.subplots_adjust(hspace=0.5)
-    plt.savefig(graph_path)
+    # plt.savefig(graph_path)
     # plt.show()
+    buf = BytesIO()
+    plt.savefig(buf, format='jpg')
+    buf.seek(0)
 
-
-def separate_values_based_on_targets(training_targets, validation_targets, train_prob_predictions,
-                                     validation_prob_predictions, training_pred_scores_img_x,
-                                     training_pred_scores_img_y, validation_pred_scores_img_x,
-                                     validation_pred_scores_img_y):
-    train_prob_predictions_target_1 = []
-    train_prob_predictions_target_0 = []
-    training_pred_scores_img_x_target_1 = []
-    training_pred_scores_img_y_target_1 = []
-    training_pred_scores_img_x_target_0 = []
-    training_pred_scores_img_y_target_0 = []
-
-    validation_prob_predictions_target_1 = []
-    validation_prob_predictions_target_0 = []
-    validation_pred_scores_img_x_target_1 = []
-    validation_pred_scores_img_y_target_1 = []
-    validation_pred_scores_img_x_target_0 = []
-    validation_pred_scores_img_y_target_0 = []
-    # separate training values with targets 1.0 and 0.0
-    for i in range(len(train_prob_predictions)):
-        if training_targets[i] == [1.0]:
-            train_prob_predictions_target_1.append(train_prob_predictions[i])
-            training_pred_scores_img_x_target_1.append(training_pred_scores_img_x[i])
-            training_pred_scores_img_y_target_1.append(training_pred_scores_img_y[i])
-        else:
-            train_prob_predictions_target_0.append(train_prob_predictions[i])
-            training_pred_scores_img_x_target_0.append(training_pred_scores_img_x[i])
-            training_pred_scores_img_y_target_0.append(training_pred_scores_img_y[i])
-
-    # separate validation values with targets 1.0 and 0.0
-    for i in range(len(validation_prob_predictions)):
-        if validation_targets[i] == [1.0]:
-            validation_prob_predictions_target_1.append(validation_prob_predictions[i])
-            validation_pred_scores_img_x_target_1.append(validation_pred_scores_img_x[i])
-            validation_pred_scores_img_y_target_1.append(validation_pred_scores_img_y[i])
-        else:
-            validation_prob_predictions_target_0.append(validation_prob_predictions[i])
-            validation_pred_scores_img_x_target_0.append(validation_pred_scores_img_x[i])
-            validation_pred_scores_img_y_target_0.append(validation_pred_scores_img_y[i])
-
-    return train_prob_predictions_target_1, \
-        train_prob_predictions_target_0, \
-        validation_prob_predictions_target_1, \
-        validation_prob_predictions_target_0, \
-        training_pred_scores_img_x_target_1, \
-        training_pred_scores_img_y_target_1, \
-        training_pred_scores_img_x_target_0, \
-        training_pred_scores_img_y_target_0, \
-        validation_pred_scores_img_x_target_1, \
-        validation_pred_scores_img_y_target_1, \
-        validation_pred_scores_img_x_target_0, \
-        validation_pred_scores_img_y_target_0
+    return buf
