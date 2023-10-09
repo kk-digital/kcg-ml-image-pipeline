@@ -1,10 +1,12 @@
 
 import argparse
 import sys
+import time
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
+from prompt_job_generator.http.request import http_get_completed_jobs_count, http_get_in_progress_jobs_count, http_get_pending_jobs_count
 from worker.prompt_generation.prompt_generator import (generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts,
                                                        generate_image_generation_jobs_using_generated_prompts_and_base_prompts)
 
@@ -77,10 +79,9 @@ def generate_mechs_image_generation_jobs():
 def main():
     args = parse_args()
 
-    while True:
-
-        sleep(1)
-    generate_mechs_image_generation_jobs()
+    print(http_get_completed_jobs_count())
+    print(http_get_in_progress_jobs_count())
+    print(http_get_pending_jobs_count())
 
 
 if __name__ == '__main__':
