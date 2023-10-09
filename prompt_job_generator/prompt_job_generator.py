@@ -344,7 +344,7 @@ def main():
                 dataset_jobs_to_add[dataset] = number_of_jobs_to_add - 1
                 added_atleast_one_job = True
 
-        time.sleep(0.01)
+        time.sleep(0.5)
 
 if __name__ == '__main__':
     main()
