@@ -291,9 +291,9 @@ def main():
 
             print(dataset)
             # get total number of jobs
-            print("total_jobs_in_queue_count ", total_jobs_in_queue_count)
-            total_jobs_in_queue_count = in_progress_job_count + pending_job_count
 
+            total_jobs_in_queue_count = in_progress_job_count + pending_job_count
+            print("total_jobs_in_queue_count ", total_jobs_in_queue_count)
             number_of_jobs_to_add = 0
 
             if target_job_count > total_jobs_in_queue_count:
