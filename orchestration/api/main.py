@@ -6,6 +6,7 @@ from orchestration.api.api_dataset import router as dataset_router
 from orchestration.api.api_image import router as image_router
 from orchestration.api.api_job import router as job_router
 from orchestration.api.api_ranking import router as ranking_router
+from orchestration.api.api_training import router as training_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -23,6 +24,7 @@ app.include_router(dataset_router)
 app.include_router(image_router)
 app.include_router(job_router)
 app.include_router(ranking_router)
+app.include_router(training_router)
 
 
 def get_minio_client(minio_access_key, minio_secret_key):
@@ -47,6 +49,12 @@ def startup_db_client():
 
     # used to store sequential ids of generated images
     app.dataset_sequential_id_collection = app.mongodb_db["dataset-sequential-id"]
+
+    # for training jobs
+    app.training_pending_jobs_collection = app.mongodb_db["training-pending-jobs"]
+    app.training_in_progress_jobs_collection = app.mongodb_db["training-in-progress-jobs"]
+    app.training_completed_jobs_collection = app.mongodb_db["training-completed-jobs"]
+    app.training_failed_jobs_collection = app.mongodb_db["training-failed-jobs"]
 
     print("Connected to the MongoDB database!")
 
