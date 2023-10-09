@@ -289,7 +289,9 @@ def main():
             # Equals: Time Speed (Jobs/Second) times 60*5 (300); 5 minutes
             target_job_count = 20 * dataset_job_per_second * dataset_rate
 
+            print(dataset)
             # get total number of jobs
+            print("total_jobs_in_queue_count ", total_jobs_in_queue_count)
             total_jobs_in_queue_count = in_progress_job_count + pending_job_count
 
             number_of_jobs_to_add = 0
