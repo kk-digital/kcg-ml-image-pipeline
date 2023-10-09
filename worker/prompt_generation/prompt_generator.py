@@ -608,7 +608,7 @@ def generate_image_generation_jobs_using_generated_prompts_and_base_prompts(phra
     # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
     # Chance for 0 base prompt phrases should be 30%
     # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
-    choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
+    choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
 
     base_prompt_list = generate_base_prompts(base_prompts_csv_path, choose_probability)
 
