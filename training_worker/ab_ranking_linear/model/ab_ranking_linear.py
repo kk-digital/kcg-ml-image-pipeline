@@ -37,7 +37,14 @@ class ABRankingLinearModel(nn.Module):
 
 class ABRankingModel:
     def __init__(self, inputs_shape):
-        self.model = ABRankingLinearModel(inputs_shape)
+        print("inputs_shape=", inputs_shape)
+        if torch.cuda.is_available():
+            device = 'cuda'
+        else:
+            device = 'cpu'
+        self._device = torch.device(device)
+
+        self.model = ABRankingLinearModel(inputs_shape).to(self._device)
         self.model_type = 'linear-regression'
         self.loss_func_name = ''
         self.file_path = ''
@@ -119,6 +126,9 @@ class ABRankingModel:
         validation_features_x, \
             validation_features_y, \
             validation_targets = dataset_loader.get_validation_feature_vectors_and_target()
+        validation_features_x = validation_features_x.to(self._device)
+        validation_features_y = validation_features_y.to(self._device)
+        validation_targets = validation_targets.to(self._device)
 
         # num features * 2 bc we duplicate each ab data
         # (x, y, 1.0)
@@ -147,7 +157,7 @@ class ABRankingModel:
 
                 batch_features_x, \
                     batch_features_y,\
-                    batch_targets = dataset_loader.get_next_training_feature_vectors_and_target(num_data_to_get)
+                    batch_targets = dataset_loader.get_next_training_feature_vectors_and_target(num_data_to_get, self._device)
 
                 loss = self.train_batch(optimizer,
                                         loss_func,
@@ -191,7 +201,7 @@ class ABRankingModel:
 
                 batch_features_x, \
                     batch_features_y,\
-                    batch_targets = dataset_loader.get_next_training_feature_vectors_and_target(num_data_to_get)
+                    batch_targets = dataset_loader.get_next_training_feature_vectors_and_target(num_data_to_get, self._device)
 
                 batch_predicted_score_images_x = self.model.forward(batch_features_x)
                 batch_predicted_score_images_y = self.model.forward(batch_features_y)
@@ -226,8 +236,8 @@ class ABRankingModel:
         epsilon = 0.000001
 
         # if score is negative N, make it 0
-        predicted_score_images_x = torch.max(predicted_score_images_x, torch.tensor([0.]))
-        predicted_score_images_y = torch.max(predicted_score_images_y, torch.tensor([0.]))
+        predicted_score_images_x = torch.max(predicted_score_images_x, torch.tensor([0.]).to(self._device))
+        predicted_score_images_y = torch.max(predicted_score_images_y, torch.tensor([0.]).to(self._device))
 
         # Calculate probability using Bradley Terry Formula: P(x>y) = score(x) / ( Score(x) + score(y))
         sum_predicted_score = predicted_score_images_x + predicted_score_images_y
