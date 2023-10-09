@@ -287,7 +287,7 @@ def main():
 
             # Target number of Jobs in Queue
             # Equals: Time Speed (Jobs/Second) times 60*5 (300); 5 minutes
-            target_job_count = 20 * dataset_job_per_second * dataset_rate
+            target_job_count = 5 * dataset_job_per_second * dataset_rate
 
             print(dataset)
             # get total number of jobs
