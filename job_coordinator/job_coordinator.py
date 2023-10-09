@@ -1,6 +1,9 @@
 
 import argparse
+import sys
 
+base_directory = "./"
+sys.path.insert(0, base_directory)
 
 from worker.prompt_generation.prompt_generator import generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts
 
