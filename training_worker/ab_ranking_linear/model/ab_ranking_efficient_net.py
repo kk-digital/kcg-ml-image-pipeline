@@ -116,7 +116,7 @@ class ABRankingEfficientNetModel:
         validation_loss_per_epoch = []
 
         optimizer = optim.AdamW(self.model.parameters(), lr=learning_rate, weight_decay=0.01)
-        self.model_type = 'image-pair-ranking-linear'
+        self.model_type = 'image-pair-ranking-efficient-net'
         self.loss_func_name = "ab_ranking_bradley_terry_loss"
         loss_func = self.ab_ranking_bradley_terry_loss
 
