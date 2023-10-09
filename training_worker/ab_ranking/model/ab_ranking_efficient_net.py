@@ -76,7 +76,7 @@ class ABRankingEfficientNetModel:
         # Saving the model to minio
         buffer = BytesIO()
         torch.save(model, buffer)
-
+        buffer.seek(0)
         # upload the model
         cmd.upload_data(minio_client, datasets_bucket, model_output_path, buffer)
 
