@@ -478,3 +478,56 @@ def run_generate_inpainting_generation_task(generation_task: GenerationTask):
         init_img_path=generation_task.task_input_dict["init_img_path"],
         mask_path=generation_task.task_input_dict["mask_path"],
     )
+
+
+class BasePrompt:
+    def __init__(self, index, prompt, token_size):
+        self.index = index
+        self.prompt = prompt
+        self.token_size = token_size
+
+    def __str__(self):
+        return f"Index: {self.index}, Prompt: {self.prompt}, Token Size: {self.token_size}"
+def parse_args():
+    parser = argparse.ArgumentParser(description="generate prompts")
+
+    # Required parameters
+    parser.add_argument("--base_prompts_path", type=str)
+
+    return parser.parse_args()
+
+def main():
+    args = parse_args()
+
+    base_prompts_path = args.base_prompts_path
+
+    # Initialize an empty list to store the data
+    data_list = []
+
+    # Specify the CSV file path
+    csv_file = base_prompts_path
+
+    base_prompt_list = []
+    # Open the CSV file and read its contents
+    with open(csv_file, newline='') as file:
+        csv_reader = csv.reader(file)
+
+        # Iterate through each row in the CSV file
+        for row in csv_reader:
+            data_list.append(row)
+
+    for index, item in enumerate(data_list):
+        if index == 0:
+            continue
+
+        base_prompt = BasePrompt(item[0], item[1], item[2])
+        base_prompt_list.append(base_prompt)
+
+    for item in base_prompt_list:
+        print(item)
+    # Print the resulting list
+   # print(base_prompt_list)
+
+
+if __name__ == '__main__':
+    main()
