@@ -40,19 +40,28 @@ class PromptJobGeneratorState:
         self.dataset_callbacks[dataset] = callback
 
     def get_callback(self, dataset):
-        return self.dataset_callbacks[dataset]
+        if dataset in self.dataset_callbacks:
+            return self.dataset_callbacks[dataset]
+        else:
+            return None
 
     def set_dataset_rate(self, dataset, rate):
         self.dataset_rate[dataset] = rate
 
     def get_dataset_rate(self, dataset):
-        return self.dataset_rate[dataset]
+        if dataset in self.dataset_rate:
+            return self.dataset_rate[dataset]
+        else:
+            return None
 
     def set_dataset_job_per_second(self, dataset, job_per_second):
         self.dataset_job_per_second[dataset] = job_per_second
 
     def get_dataset_job_per_second(self, dataset):
-        return self.dataset_job_per_second[dataset]
+        if dataset in self.dataset_job_per_second:
+            return self.dataset_job_per_second[dataset]
+        else:
+            return None
 
     def add_dataset_mask(self, dataset, init_image_path, mask_path):
         if dataset not in self.dataset_masks:
@@ -64,7 +73,11 @@ class PromptJobGeneratorState:
         })
 
     def get_random_dataset_mask(self, dataset):
-        mask_list = self.dataset_masks[dataset]
+        if dataset in self.dataset_masks:
+            mask_list = self.dataset_masks[dataset]
+        else:
+            mask_list = None
+
         if mask_list is None:
             return None
 
