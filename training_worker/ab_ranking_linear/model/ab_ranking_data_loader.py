@@ -225,7 +225,7 @@ class ABRankingDatasetLoader:
 
         self.fill_semaphore.release()
 
-    def get_next_training_feature_vectors_and_target(self, num_data):
+    def get_next_training_feature_vectors_and_target(self, num_data, device=None):
         image_x_feature_vectors = []
         image_y_feature_vectors = []
         target_probabilities = []
@@ -245,6 +245,11 @@ class ABRankingDatasetLoader:
         image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.float).squeeze()
         image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.float).squeeze()
         target_probabilities = torch.tensor(target_probabilities).to(torch.float)
+
+        if device is not None:
+            image_x_feature_vectors = image_x_feature_vectors.to(device)
+            image_y_feature_vectors = image_y_feature_vectors.to(device)
+            target_probabilities = target_probabilities.to(device)
 
         return image_x_feature_vectors, image_y_feature_vectors, target_probabilities
 

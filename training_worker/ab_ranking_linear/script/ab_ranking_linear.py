@@ -66,16 +66,20 @@ def train_ranking(dataset_name: str,
 
     # get number of correct predictions
     training_target_probabilities = torch.stack(training_target_probabilities)
+    training_predicted_probabilities = torch.stack(training_predicted_probabilities)
     training_predicted_score_images_x = torch.stack(training_predicted_score_images_x)
     training_predicted_score_images_y = torch.stack(training_predicted_score_images_y)
 
-    training_target_probabilities = training_target_probabilities .detach().cpu().numpy()
+    training_target_probabilities = training_target_probabilities.detach().cpu().numpy()
     validation_target_probabilities = validation_target_probabilities.detach().cpu().numpy()
     training_predicted_score_images_x = training_predicted_score_images_x.detach().cpu().numpy()
     training_predicted_score_images_y = training_predicted_score_images_y.detach().cpu().numpy()
     validation_predicted_score_images_x = validation_predicted_score_images_x.detach().cpu().numpy()
     validation_predicted_score_images_y = validation_predicted_score_images_y.detach().cpu().numpy()
 
+    training_predicted_probabilities = training_predicted_probabilities.detach().cpu()
+    validation_predicted_probabilities = validation_predicted_probabilities.detach().cpu()
+    
     train_sum_correct = 0
     for i in range(len(training_target_probabilities)):
         if training_target_probabilities[i] == [1.0]:
