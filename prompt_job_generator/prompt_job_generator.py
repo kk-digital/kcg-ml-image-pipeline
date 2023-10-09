@@ -288,13 +288,12 @@ def main():
 
             # Target number of Jobs in Queue
             # Equals: Time Speed (Jobs/Second) times 60*5 (300); 5 minutes
-            target_job_count = 5 * dataset_job_per_second * dataset_rate
+            target_job_count = 60*5 * dataset_job_per_second * dataset_rate
 
-            print(dataset)
             # get total number of jobs
 
             total_jobs_in_queue_count = in_progress_job_count + pending_job_count
-            print("total_jobs_in_queue_count ", total_jobs_in_queue_count)
+            print(dataset, ": total_jobs_in_queue_count ", total_jobs_in_queue_count)
             number_of_jobs_to_add = 0
 
             if target_job_count > total_jobs_in_queue_count:
@@ -344,7 +343,10 @@ def main():
                 dataset_jobs_to_add[dataset] = number_of_jobs_to_add - 1
                 added_atleast_one_job = True
 
-        time.sleep(2)
+        # sleep for n number of seconds
+        time_to_sleep_in_seconds = 2
+
+        time.sleep(time_to_sleep_in_seconds)
 
 if __name__ == '__main__':
     main()
