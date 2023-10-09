@@ -191,7 +191,7 @@ def main():
         'character' : 4,
         'mech' : 2,
         'propaganda-poster' : 1,
-        'environment' : 1
+        'environmental' : 1
     }
 
     # hard coded for now
@@ -201,7 +201,7 @@ def main():
         'character': 0.2,
         'mech': 0.2,
         'propaganda-poster': 0.5,
-        'environment': 0.5
+        'environmental': 0.5
     }
 
     while True:
