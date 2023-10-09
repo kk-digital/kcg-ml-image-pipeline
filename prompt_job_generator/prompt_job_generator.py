@@ -42,7 +42,7 @@ def generate_propaganda_posters_image_generation_jobs():
 
     csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
     prompt_count = 5
-    base_prompts_csv_path = 'input/base-prompts/icon/base_prompts_icon_1.csv'
+    base_prompts_csv_path = 'input/base-prompts/icon/base-prompts-icon-2.csv'
     dataset_name = 'propaganda-poster'
     csv_phrase_limit = 0
     positive_prefix = ""
@@ -59,7 +59,7 @@ def generate_propaganda_posters_image_generation_jobs():
 def main():
     args = parse_args()
 
-
+    generate_propaganda_posters_image_generation_jobs()
     generate_propaganda_posters_image_generation_jobs()
 
 

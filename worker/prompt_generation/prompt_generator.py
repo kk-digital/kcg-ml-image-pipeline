@@ -498,7 +498,7 @@ def generate_image_generation_jobs_using_generated_prompts_and_base_prompts(csv_
     base_prompts = ''
 
     for base_prompt in base_prompt_list:
-        base_prompts = base_prompts + base_prompt.prompt + ', '
+        base_prompts = base_prompts + base_prompt + ', '
 
 
     # get sequential ids
@@ -563,7 +563,7 @@ def generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts
     base_prompts = ''
 
     for base_prompt in base_prompt_list:
-        base_prompts = base_prompts + base_prompt.prompt + ', '
+        base_prompts = base_prompts + base_prompt + ', '
 
     # get sequential ids
     sequential_ids = request.http_get_sequential_id(dataset_name, prompt_count)
@@ -614,21 +614,12 @@ def generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts
         count += 1
 
 
-class BasePrompt:
-    def __init__(self, index, prompt, token_size):
-        self.index = index
-        self.prompt = prompt
-        self.token_size = token_size
-
-    def __str__(self):
-        return f"Index: {self.index}, Prompt: {self.prompt}, Token Size: {self.token_size}"
-
-
 def generate_base_prompts(base_prompts_csv_path):
     # N Base Prompt Phrases
     # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
     # Chance for 0 base prompt phrases should be 30%
-    choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
+    # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
+    choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
 
     # Initialize an empty list to store the data
     data_list = []
@@ -646,7 +637,7 @@ def generate_base_prompts(base_prompts_csv_path):
         if index == 0:
             continue
 
-        base_prompt = BasePrompt(item[0], item[1], item[2])
+        base_prompt = item[0]
         base_prompt_list.append(base_prompt)
 
     # Randomly choose the value of n based on the probabilities
