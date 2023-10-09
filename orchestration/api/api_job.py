@@ -157,6 +157,15 @@ def get_list_failed_jobs(request: Request):
     return jobs
 
 
+@router.get("/job/count-completed")
+def count_completed(request: Request, dataset: str = None):
+
+    jobs = list(request.app.completed_jobs_collection.find({
+        'task_input_dict.dataset': dataset
+    }))
+
+    return len(jobs)
+
 # ---------------- Update -------------------
 
 
