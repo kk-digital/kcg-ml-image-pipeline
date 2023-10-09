@@ -77,6 +77,9 @@ def generate_mechs_image_generation_jobs():
 def main():
     args = parse_args()
 
+    while True:
+
+        sleep(1)
     generate_mechs_image_generation_jobs()
 
 

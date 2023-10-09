@@ -166,6 +166,24 @@ def count_completed(request: Request, dataset: str = None):
 
     return len(jobs)
 
+@router.get("/job/count-pending")
+def count_completed(request: Request, dataset: str = None):
+
+    jobs = list(request.app.pending_jobs_collection.find({
+        'task_input_dict.dataset': dataset
+    }))
+
+    return len(jobs)
+
+@router.get("/job/count-in-progress")
+def count_completed(request: Request, dataset: str = None):
+
+    jobs = list(request.app.in_progress_jobs_collection.find({
+        'task_input_dict.dataset': dataset
+    }))
+
+    return len(jobs)
+
 # ---------------- Update -------------------
 
 
