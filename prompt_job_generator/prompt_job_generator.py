@@ -79,9 +79,9 @@ def generate_mechs_image_generation_jobs():
 def main():
     args = parse_args()
 
-    print(http_get_completed_jobs_count('icon'))
-    print(http_get_in_progress_jobs_count('icon'))
-    print(http_get_pending_jobs_count('icon'))
+    print(http_get_completed_jobs_count('icons'))
+    print(http_get_in_progress_jobs_count('icons'))
+    print(http_get_pending_jobs_count('icons'))
 
 
 if __name__ == '__main__':
