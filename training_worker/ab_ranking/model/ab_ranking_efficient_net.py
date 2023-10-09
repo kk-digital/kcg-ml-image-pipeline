@@ -1,3 +1,4 @@
+from io import BytesIO
 import os
 import sys
 import hashlib
@@ -5,47 +6,44 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import copy
-from datetime import datetime
 import math
-import threading
-from io import BytesIO
 from tqdm import tqdm
+from datetime import datetime
+import threading
+
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from training_worker.ab_ranking_linear.model.ab_ranking_linear_data_loader import ABRankingDatasetLoader
+from training_worker.ab_ranking.model.ab_ranking_efficient_net_data_loader import ABRankingDatasetLoader
 from utility.minio import cmd
+from training_worker.ab_ranking.model.efficient_net_model import EfficientNet as efficientnet_pytorch
 
 
-class ABRankingLinearModel(nn.Module):
-    def __init__(self, inputs_shape):
-        super(ABRankingLinearModel, self).__init__()
-        self.linear = nn.Linear(inputs_shape, 1)
-        self.identity = nn.Identity()
-        self.sigmoid = nn.Sigmoid()
+class EfficientNetModel(nn.Module):
+    def __init__(self, efficient_net_version="b0", in_channels=1, num_classes=1):
+        super(EfficientNetModel, self).__init__()
+        self.efficient_net = efficientnet_pytorch(efficient_net_version, in_channels=in_channels, num_classes=num_classes)
         self.bce_loss = nn.BCELoss()
-        self.tanh = nn.Tanh()
 
     def forward(self, x):
-        x = self.linear(x)
-        x = self.identity(x)
-        # x = ((self.tanh(x) + 1.0)/2) * 100
-        x = self.sigmoid(x) * 100
-
+        x = self.efficient_net(x)
         return x
 
 
-class ABRankingModel:
-    def __init__(self, inputs_shape):
-        print("inputs_shape=", inputs_shape)
+class ABRankingEfficientNetModel:
+    def __init__(self, efficient_net_version="b0", in_channels=1, num_classes=1):
+        print("efficient_net_version =", efficient_net_version)
+        print("in_channels =", in_channels)
+        print("num_classes =", num_classes)
+
         if torch.cuda.is_available():
             device = 'cuda'
         else:
             device = 'cpu'
         self._device = torch.device(device)
 
-        self.model = ABRankingLinearModel(inputs_shape).to(self._device)
-        self.model_type = 'ab-ranking-linear'
+        self.model = EfficientNetModel(efficient_net_version, in_channels, num_classes).to(self._device)
+        self.model_type = 'ab-ranking-efficient-net'
         self.loss_func_name = ''
         self.file_path = ''
         self.model_hash = ''
@@ -78,7 +76,7 @@ class ABRankingModel:
         # Saving the model to minio
         buffer = BytesIO()
         torch.save(model, buffer)
-
+        buffer.seek(0)
         # upload the model
         cmd.upload_data(minio_client, datasets_bucket, model_output_path, buffer)
 
@@ -118,7 +116,7 @@ class ABRankingModel:
         validation_loss_per_epoch = []
 
         optimizer = optim.AdamW(self.model.parameters(), lr=learning_rate, weight_decay=0.01)
-        self.model_type = 'image-pair-ranking-linear'
+        self.model_type = 'image-pair-ranking-efficient-net'
         self.loss_func_name = "ab_ranking_bradley_terry_loss"
         loss_func = self.ab_ranking_bradley_terry_loss
 
@@ -140,9 +138,7 @@ class ABRankingModel:
 
         for epoch in tqdm(range(epochs), desc="Training epoch"):
             # fill data buffer
-            # if buffer is empty, fill data
-            fill_buffer_thread = threading.Thread(target=dataset_loader.fill_training_data_buffer)
-            fill_buffer_thread.start()
+            dataset_loader.spawn_filling_workers()
 
             # get a copy of model
             model_copy = copy.deepcopy(self.model)
@@ -184,9 +180,7 @@ class ABRankingModel:
 
         with torch.no_grad():
             # fill data buffer
-            # if buffer is empty, fill data
-            fill_buffer_thread = threading.Thread(target=dataset_loader.fill_training_data_buffer)
-            fill_buffer_thread.start()
+            dataset_loader.spawn_filling_workers()
 
             training_predicted_score_images_x = []
             training_predicted_score_images_y = []

@@ -8,10 +8,10 @@ base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
 from utility.regression_utils import torchinfo_summary
-from training_worker.ab_ranking_linear.model.ab_ranking_efficient_net import ABRankingEfficientNetModel
-from training_worker.ab_ranking_linear.model.reports.ab_ranking_linear_train_report import get_train_report
-from training_worker.ab_ranking_linear.model.reports.graph_report_ab_ranking_linear import *
-from training_worker.ab_ranking_linear.model.ab_ranking_efficient_net_data_loader import ABRankingDatasetLoader
+from training_worker.ab_ranking.model.ab_ranking_efficient_net import ABRankingEfficientNetModel
+from training_worker.ab_ranking.model.reports.ab_ranking_linear_train_report import get_train_report
+from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import *
+from training_worker.ab_ranking.model.ab_ranking_efficient_net_data_loader import ABRankingDatasetLoader
 from utility.minio import cmd
 
 
