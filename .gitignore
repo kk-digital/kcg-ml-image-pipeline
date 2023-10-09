@@ -169,7 +169,7 @@ cython_debug/
 # /input/model/clip
 # /input/model/unet
 # Ignore all downloaded models, we don't have enough storage for that!
-/input/
+/input/model
 *.ckpt
 *.safetensors
 *.pt
