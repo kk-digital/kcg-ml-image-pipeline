@@ -1,7 +1,8 @@
 
+import requests
 import argparse
 import sys
-import requests
+
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
