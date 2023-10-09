@@ -196,9 +196,13 @@ def cleanup_completed_and_orphaned_jobs(request: Request):
 
     jobs = request.app.completed_jobs_collection.find({})
     for job in jobs:
-        file_path = job['task_output_file_dict']['output_file_path']
-        bucket_name, file_path = separate_bucket_and_file_path(file_path)
-        file_exists = cmd.is_object_exists(request.app.minio_client, bucket_name, file_path)
+        file_exists = True
+        try:
+            file_path = job['task_output_file_dict']['output_file_path']
+            bucket_name, file_path = separate_bucket_and_file_path(file_path)
+            file_exists = cmd.is_object_exists(request.app.minio_client, bucket_name, file_path)
+        except Exception as e:
+            file_exists = False
 
         if not file_exists:
             # remove from in progress
