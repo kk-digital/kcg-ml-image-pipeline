@@ -102,7 +102,6 @@ def generate_icon_generation_jobs(prompt_job_generator_state):
     prompt_count = 1
     base_prompts_csv_path = 'input/base-prompts/icon/base-prompts-icon-2.csv'
     dataset_name = 'icons'
-    csv_phrase_limit = 0
     positive_prefix = ""
     init_img_path = "./test/test_inpainting/white_512x512.jpg"
     mask_path = "./test/test_inpainting/icon_mask.png"
@@ -123,7 +122,6 @@ def generate_icon_generation_jobs(prompt_job_generator_state):
         prompt_count=prompt_count,
         base_prompts_csv_path=base_prompts_csv_path,
         dataset_name=dataset_name,
-        csv_phrase_limit=csv_phrase_limit,
         positive_prefix=positive_prefix,
         init_img_path=init_img_path,
         mask_path=mask_path
@@ -134,7 +132,6 @@ def generate_character_generation_jobs(prompt_job_generator_state):
     prompt_count = 1
     base_prompts_csv_path = 'input/base-prompts/icon/base-prompts-icon-2.csv'
     dataset_name = "character"
-    csv_phrase_limit = 0
     positive_prefix = ""
     init_img_path = "./test/test_inpainting/white_512x512.jpg"
     mask_path = "./test/test_inpainting/icon_mask.png"
@@ -154,7 +151,6 @@ def generate_character_generation_jobs(prompt_job_generator_state):
         prompt_count=prompt_count,
         base_prompts_csv_path=base_prompts_csv_path,
         dataset_name=dataset_name,
-        csv_phrase_limit=csv_phrase_limit,
         positive_prefix=positive_prefix,
         init_img_path=init_img_path,
         mask_path=mask_path
@@ -166,7 +162,6 @@ def generate_propaganda_posters_image_generation_jobs(prompt_job_generator_state
     prompt_count = 1
     base_prompts_csv_path = 'input/base-prompts/propaganda-poster/base-prompts-propaganda-poster.csv'
     dataset_name = 'propaganda-poster'
-    csv_phrase_limit = 0
     positive_prefix = ""
 
     print(f"Adding '{dataset_name}' generation job")
@@ -179,17 +174,13 @@ def generate_propaganda_posters_image_generation_jobs(prompt_job_generator_state
         prompt_count=prompt_count,
         base_prompts_csv_path=base_prompts_csv_path,
         dataset_name=dataset_name,
-        csv_phrase_limit=csv_phrase_limit,
         positive_prefix=positive_prefix,
     )
 
 def generate_mechs_image_generation_jobs(prompt_job_generator_state):
-
-
     prompt_count = 1
     base_prompts_csv_path = 'input/base-prompts/mech/base-prompts-mechs.csv'
     dataset_name = 'mech'
-    csv_phrase_limit = 0
     positive_prefix = ""
 
     print(f"Adding '{dataset_name}' generation job")
@@ -202,7 +193,6 @@ def generate_mechs_image_generation_jobs(prompt_job_generator_state):
         prompt_count=prompt_count,
         base_prompts_csv_path=base_prompts_csv_path,
         dataset_name=dataset_name,
-        csv_phrase_limit=csv_phrase_limit,
         positive_prefix=positive_prefix,
     )
 
