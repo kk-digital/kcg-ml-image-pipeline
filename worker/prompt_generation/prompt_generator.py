@@ -406,6 +406,7 @@ def generate_inpainting_generation_jobs_using_generated_prompts(csv_dataset_path
                                                                 positive_prefix="",
                                                                 init_img_path="./test/test_inpainting/white_512x512.jpg",
                                                                 mask_path="./test/test_inpainting/icon_mask.png"):
+
     prompts = generate_prompts_from_csv_proportional_selection(csv_dataset_path,
                                                                prompt_count,
                                                                csv_phrase_limit,
@@ -488,6 +489,41 @@ class BasePrompt:
 
     def __str__(self):
         return f"Index: {self.index}, Prompt: {self.prompt}, Token Size: {self.token_size}"
+
+
+def generate_base_prompts(base_prompts_path):
+    # N Base Prompt Phrases
+    # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
+    # Chance for 0 base prompt phrases should be 30%
+    choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
+
+    # Initialize an empty list to store the data
+    data_list = []
+    # Initialize empty base prompt list
+    base_prompt_list = []
+    # Open the CSV file and read its contents
+    with open(base_prompts_path, newline='') as file:
+        csv_reader = csv.reader(file)
+
+        # Iterate through each row in the CSV file
+        for row in csv_reader:
+            data_list.append(row)
+
+    for index, item in enumerate(data_list):
+        if index == 0:
+            continue
+
+        base_prompt = BasePrompt(item[0], item[1], item[2])
+        base_prompt_list.append(base_prompt)
+
+    # Randomly choose the value of n based on the probabilities
+    n = random.choices(range(len(choose_probability)), weights=choose_probability)[0]
+
+    # Randomly choose n elements from the list
+    selected_elements = random.sample(base_prompt_list, n)
+
+    return selected_elements
+
 def parse_args():
     parser = argparse.ArgumentParser(description="generate prompts")
 
@@ -501,27 +537,7 @@ def main():
 
     base_prompts_path = args.base_prompts_path
 
-    # Initialize an empty list to store the data
-    data_list = []
-
-    # Specify the CSV file path
-    csv_file = base_prompts_path
-
-    base_prompt_list = []
-    # Open the CSV file and read its contents
-    with open(csv_file, newline='') as file:
-        csv_reader = csv.reader(file)
-
-        # Iterate through each row in the CSV file
-        for row in csv_reader:
-            data_list.append(row)
-
-    for index, item in enumerate(data_list):
-        if index == 0:
-            continue
-
-        base_prompt = BasePrompt(item[0], item[1], item[2])
-        base_prompt_list.append(base_prompt)
+    base_prompt_list = generate_base_prompts(base_prompts_path)
 
     for item in base_prompt_list:
         print(item)
