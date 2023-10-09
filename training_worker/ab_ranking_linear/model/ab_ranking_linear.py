@@ -37,6 +37,7 @@ class ABRankingLinearModel(nn.Module):
 
 class ABRankingModel:
     def __init__(self, inputs_shape):
+        print("inputs_shape=", inputs_shape)
         self.model = ABRankingLinearModel(inputs_shape)
         self.model_type = 'linear-regression'
         self.loss_func_name = ''

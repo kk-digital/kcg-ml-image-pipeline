@@ -25,8 +25,8 @@ def train_ranking(dataset_name: str,
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
-    input_type = "clip-feature-vector"
-    input_shape = 768
+    input_type = "embedding-vector"
+    input_shape = 77*2*768
     output_path = "{}/models/ab_ranking_linear".format(dataset_name)
 
     # load dataset
@@ -157,9 +157,9 @@ def run_ab_ranking_linear_task(training_task, minio_access_key, minio_secret_key
 
 
 def test_run():
-    train_ranking(minio_access_key="",
-                  minio_secret_key="",
-                  dataset_name="icons",
+    train_ranking(minio_access_key="nkjYl5jO4QnpxQU0k0M1",
+                  minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
+                  dataset_name="character",
                   epochs=10)
 
 
