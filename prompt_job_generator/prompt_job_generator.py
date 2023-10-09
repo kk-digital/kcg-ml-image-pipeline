@@ -208,14 +208,22 @@ def main():
         # Update the dataset rates
         # TODO use orchestration api instead of hard coded values
         for dataset in list_datasets:
-            dataset_rate = dataset_rates_dictionary[dataset]
+            if dataset in dataset_rates_dictionary:
+                dataset_rate = dataset_rates_dictionary[dataset]
+            else:
+                dataset_rate = None
+
             if dataset_rate is not None:
                 prompt_job_generator_state.set_dataset_rate(dataset, dataset_rate)
 
             # Update the dataset job per second value
             # TODO use orchestration api instead of hard coded values
             for dataset in list_datasets:
-                dataset_job_per_second = dataset_job_per_second_dictionary[dataset]
+                if dataset in dataset_job_per_second_dictionary:
+                    dataset_job_per_second = dataset_job_per_second_dictionary[dataset]
+                else:
+                    dataset_job_per_second = None
+
                 if dataset_job_per_second is not None:
                     prompt_job_generator_state.set_dataset_job_per_second(dataset, dataset_job_per_second)
 
@@ -265,7 +273,10 @@ def main():
             added_atleast_one_job = False
 
             for dataset in list_datasets:
-                number_of_jobs_to_add = dataset_jobs_to_add[dataset]
+                if dataset in dataset_jobs_to_add:
+                    number_of_jobs_to_add = dataset_jobs_to_add[dataset]
+                else:
+                    number_of_jobs_to_add = None
 
                 # check if there is a missing value
                 # and skip the dataset
