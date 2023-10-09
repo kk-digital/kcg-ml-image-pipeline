@@ -130,11 +130,11 @@ def generate_icon_generation_jobs(prompt_job_generator_state):
 def generate_character_generation_jobs(prompt_job_generator_state):
     csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
     prompt_count = 1
-    base_prompts_csv_path = 'input/base-prompts/icon/base-prompts-icon-2.csv'
+    base_prompts_csv_path = 'input/base-prompts/character/base-prompts-waifu.csv'
     dataset_name = "character"
     positive_prefix = ""
     init_img_path = "./test/test_inpainting/white_512x512.jpg"
-    mask_path = "./test/test_inpainting/icon_mask.png"
+    mask_path = "./test/test_inpainting/character_mask.png"
 
     mask = prompt_job_generator_state.get_random_dataset_mask(dataset_name)
     if mask != None:
@@ -214,8 +214,9 @@ def main():
     # register function callbacks
     # used to spawn jobs for each job_type/dataset
     prompt_job_generator_state.register_callback("icons", generate_icon_generation_jobs)
-    prompt_job_generator_state.register_callback("character", generate_icon_generation_jobs)
     prompt_job_generator_state.register_callback("propaganda-poster", generate_propaganda_posters_image_generation_jobs)
+    prompt_job_generator_state.register_callback("mech", generate_mechs_image_generation_jobs)
+    prompt_job_generator_state.register_callback("character", generate_character_generation_jobs)
 
     # get list of datasets
     list_datasets = http_get_dataset_list()
