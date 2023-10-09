@@ -14,9 +14,9 @@ import threading
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from training_worker.ab_ranking_linear.model.ab_ranking_efficient_net_data_loader import ABRankingDatasetLoader
+from training_worker.ab_ranking.model.ab_ranking_efficient_net_data_loader import ABRankingDatasetLoader
 from utility.minio import cmd
-from training_worker.ab_ranking_linear.model.efficient_net_model import EfficientNet as efficientnet_pytorch
+from training_worker.ab_ranking.model.efficient_net_model import EfficientNet as efficientnet_pytorch
 
 
 class EfficientNetModel(nn.Module):
