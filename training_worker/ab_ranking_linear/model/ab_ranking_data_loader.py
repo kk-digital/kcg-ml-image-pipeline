@@ -97,7 +97,7 @@ class ABRankingDatasetLoader:
 
         # if exist then get paths for aggregated selection datapoints
         dataset_paths = get_aggregated_selection_datapoints(self.minio_client, self.dataset_name)
-        print("Dataset paths =", dataset_paths)
+        print("# of dataset paths retrieved=", len(dataset_paths))
         if len(dataset_paths) == 0:
             raise Exception("No selection datapoints json found.")
 
