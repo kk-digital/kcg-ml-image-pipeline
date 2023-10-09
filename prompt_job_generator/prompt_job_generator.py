@@ -243,7 +243,7 @@ def main():
 
             # Target number of Jobs in Queue
             # Equals: Time Speed (Jobs/Second) times 60*5 (300); 5 minutes
-            target_job_count = 60 * 5 * dataset_job_per_second * dataset_rate
+            target_job_count = 20 * dataset_job_per_second * dataset_rate
 
             # get total number of jobs
             total_jobs_in_queue_count = in_progress_job_count + pending_job_count
@@ -287,6 +287,7 @@ def main():
                     print("dataset callback not found for dataset ", dataset)
                     continue
 
+                print(f'number of jobs to spawn for dataset {dataset} is {number_of_jobs_to_add}')
                 # Adding a job
                 dataset_callback(prompt_job_generator_state)
 
