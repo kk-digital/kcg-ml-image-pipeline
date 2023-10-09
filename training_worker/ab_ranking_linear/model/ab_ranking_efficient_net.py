@@ -138,9 +138,7 @@ class ABRankingEfficientNetModel:
 
         for epoch in tqdm(range(epochs), desc="Training epoch"):
             # fill data buffer
-            # if buffer is empty, fill data
-            fill_buffer_thread = threading.Thread(target=dataset_loader.fill_training_data_buffer)
-            fill_buffer_thread.start()
+            dataset_loader.spawn_filling_workers()
 
             # get a copy of model
             model_copy = copy.deepcopy(self.model)
@@ -182,9 +180,7 @@ class ABRankingEfficientNetModel:
 
         with torch.no_grad():
             # fill data buffer
-            # if buffer is empty, fill data
-            fill_buffer_thread = threading.Thread(target=dataset_loader.fill_training_data_buffer)
-            fill_buffer_thread.start()
+            dataset_loader.spawn_filling_workers()
 
             training_predicted_score_images_x = []
             training_predicted_score_images_y = []

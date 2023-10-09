@@ -7,6 +7,7 @@ import torch
 from queue import Queue
 from threading import Semaphore
 import msgpack
+import threading
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -85,7 +86,8 @@ class ABRankingDatasetLoader:
         self.buffer_size = buffer_size  # N datapoints
         self.num_concurrent_loading = 8
 
-        self.fill_semaphore = Semaphore(1)  # One filling only
+        self.num_filling_workers = 5
+        self.fill_semaphore = Semaphore(self.num_filling_workers)  # One filling only
 
     def load_dataset(self):
         start_time = time.time()
@@ -224,6 +226,13 @@ class ABRankingDatasetLoader:
                     break
 
         self.fill_semaphore.release()
+
+    def spawn_filling_workers(self):
+        for i in range(self.num_filling_workers):
+            # fill data buffer
+            # if buffer is empty, fill data
+            fill_buffer_thread = threading.Thread(target=self.fill_training_data_buffer)
+            fill_buffer_thread.start()
 
     def get_next_training_feature_vectors_and_target(self, num_data, device=None):
         image_x_feature_vectors = []
