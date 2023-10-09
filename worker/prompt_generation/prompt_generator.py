@@ -481,6 +481,78 @@ def run_generate_inpainting_generation_task(generation_task: GenerationTask):
     )
 
 
+
+# use the dataset csv & the base prompt csv to generate inpainting jobs
+def generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts(csv_dataset_path,
+                                                                prompt_count,
+                                                                base_prompts_csv_path,
+                                                                dataset_name,
+                                                                csv_phrase_limit=0,
+                                                                positive_prefix="",
+                                                                init_img_path="./test/test_inpainting/white_512x512.jpg",
+                                                                mask_path="./test/test_inpainting/icon_mask.png"):
+
+    prompts = generate_prompts_from_csv_proportional_selection(csv_dataset_path,
+                                                               prompt_count,
+                                                               csv_phrase_limit,
+                                                               positive_prefix)
+
+    base_prompt_list = generate_base_prompts(base_prompts_csv_path)
+
+    base_prompts = ''
+
+    for base_prompt in base_prompt_list:
+        base_prompts = base_prompts + base_prompt.prompt + ', '
+
+    # get sequential ids
+    sequential_ids = request.http_get_sequential_id(dataset_name, prompt_count)
+
+    count = 0
+    # generate jobs
+    for prompt in prompts:
+        # generate UUID
+        task_uuid = str(uuid.uuid4())
+        task_type = "inpainting_generation_task"
+        model_name = "v1-5-pruned-emaonly"
+        model_file_name = "v1-5-pruned-emaonly"
+        model_file_path = "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors"
+        task_input_dict = {
+            "positive_prompt": base_prompts + prompt.positive_prompt_str,
+            "negative_prompt": prompt.negative_prompt_str,
+            "cfg_strength": 12,
+            "seed": "",
+            "dataset": dataset_name,
+            "file_path": sequential_ids[count]+".jpg",
+            "image_width": 512,
+            "image_height": 512,
+            "sampler": "ddim",
+            "sampler_steps": 20,
+            "init_img": init_img_path,
+            "init_mask": mask_path,
+            "mask_blur": 0,
+            "inpainting_fill_mode": 1,
+            "styles": [],
+            "resize_mode": 0,
+            "denoising_strength": 0.75,
+            "image_cfg_scale": 1.5,
+            "inpaint_full_res_padding": 32,
+            "inpainting_mask_invert": 0
+        }
+
+        generation_task = GenerationTask(uuid=task_uuid,
+                                         task_type=task_type,
+                                         model_name=model_name,
+                                         model_file_name=model_file_name,
+                                         model_file_path=model_file_path,
+                                         task_input_dict=task_input_dict)
+        generation_task_json = generation_task.to_dict()
+
+        # add job
+        request.http_add_job(generation_task_json)
+
+        count += 1
+
+
 class BasePrompt:
     def __init__(self, index, prompt, token_size):
         self.index = index
@@ -491,7 +563,7 @@ class BasePrompt:
         return f"Index: {self.index}, Prompt: {self.prompt}, Token Size: {self.token_size}"
 
 
-def generate_base_prompts(base_prompts_path):
+def generate_base_prompts(base_prompts_csv_path):
     # N Base Prompt Phrases
     # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
     # Chance for 0 base prompt phrases should be 30%
@@ -502,7 +574,7 @@ def generate_base_prompts(base_prompts_path):
     # Initialize empty base prompt list
     base_prompt_list = []
     # Open the CSV file and read its contents
-    with open(base_prompts_path, newline='') as file:
+    with open(base_prompts_csv_path, newline='') as file:
         csv_reader = csv.reader(file)
 
         # Iterate through each row in the CSV file
@@ -523,27 +595,3 @@ def generate_base_prompts(base_prompts_path):
     selected_elements = random.sample(base_prompt_list, n)
 
     return selected_elements
-
-def parse_args():
-    parser = argparse.ArgumentParser(description="generate prompts")
-
-    # Required parameters
-    parser.add_argument("--base_prompts_path", type=str)
-
-    return parser.parse_args()
-
-def main():
-    args = parse_args()
-
-    base_prompts_path = args.base_prompts_path
-
-    base_prompt_list = generate_base_prompts(base_prompts_path)
-
-    for item in base_prompt_list:
-        print(item)
-    # Print the resulting list
-   # print(base_prompt_list)
-
-
-if __name__ == '__main__':
-    main()
