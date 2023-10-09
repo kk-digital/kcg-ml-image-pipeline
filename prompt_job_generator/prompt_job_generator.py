@@ -80,8 +80,8 @@ class PromptJobGeneratorState:
 
         if mask_list is None:
             return None
-
-        return random.choices(mask_list)
+        random_index = random.randint(0, len(mask_list) - 1)
+        return mask_list[random_index]
 
 def generate_icon_generation_jobs(prompt_job_generator_state):
     csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
