@@ -94,6 +94,7 @@ def generate_icon_generation_jobs(prompt_job_generator_state):
     mask_path = "./test/test_inpainting/icon_mask.png"
 
     mask = prompt_job_generator_state.get_random_dataset_mask(dataset_name)
+    print(mask)
     if mask != None:
         init_img_path = mask['init_image']
         mask_path = mask['mask']
