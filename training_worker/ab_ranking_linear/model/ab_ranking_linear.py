@@ -37,7 +37,14 @@ class ABRankingLinearModel(nn.Module):
 
 class ABRankingModel:
     def __init__(self, inputs_shape):
-        self.model = ABRankingLinearModel(inputs_shape)
+        print("inputs_shape=", inputs_shape)
+        if torch.cuda.is_available():
+            device = 'cuda'
+        else:
+            device = 'cpu'
+        self._device = torch.device(device)
+
+        self.model = ABRankingLinearModel(inputs_shape).to(self._device)
         self.model_type = 'linear-regression'
         self.loss_func_name = ''
         self.file_path = ''
@@ -92,6 +99,10 @@ class ABRankingModel:
                     training_image_x_features,
                     training_image_y_features,
                     training_target_probabilities):
+        # get copy
+        training_image_x_features = training_image_x_features.to(self._device)
+        training_image_y_features = training_image_y_features.to(self._device)
+
         optimizer.zero_grad()
         predicted_score_images_x = self.model.forward(training_image_x_features)
         predicted_score_images_y = model_copy.forward(training_image_y_features)
@@ -99,6 +110,10 @@ class ABRankingModel:
         loss, _ = loss_func(predicted_score_images_x, predicted_score_images_y, training_target_probabilities)
         loss.backward()
         optimizer.step()
+
+        del training_image_x_features
+        del training_image_y_features
+        torch.cuda.empty_cache()
 
         return loss
 
