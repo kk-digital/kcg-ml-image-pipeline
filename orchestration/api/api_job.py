@@ -233,6 +233,6 @@ def cleanup_completed_and_orphaned_jobs(request: Request):
 
         if not file_exists:
             # remove from in progress
-            request.app.in_progress_jobs_collection.delete_one({"uuid": job['uuid']})
+            request.app.completed_jobs_collection.delete_one({"uuid": job['uuid']})
 
     return True
