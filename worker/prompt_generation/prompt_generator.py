@@ -595,7 +595,6 @@ def generate_image_generation_jobs_using_generated_prompts_and_base_prompts(phra
                                                             prompt_count,
                                                             base_prompts_csv_path,
                                                             dataset_name,
-                                                            csv_phrase_limit=0,
                                                             positive_prefix=""):
 
     prompts = generate_prompts_proportional_selection(phrases,
@@ -603,7 +602,6 @@ def generate_image_generation_jobs_using_generated_prompts_and_base_prompts(phra
                                                         positive_count_list,
                                                         negative_count_list,
                                                         prompt_count,
-                                                        csv_phrase_limit,
                                                         positive_prefix)
 
     # N Base Prompt Phrases
@@ -668,7 +666,6 @@ def generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts
                                                                 prompt_count,
                                                                 base_prompts_csv_path,
                                                                 dataset_name,
-                                                                csv_phrase_limit=0,
                                                                 positive_prefix="",
                                                                 init_img_path="./test/test_inpainting/white_512x512.jpg",
                                                                 mask_path="./test/test_inpainting/icon_mask.png"):
@@ -680,7 +677,6 @@ def generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts
                                                        positive_count_list,
                                                        negative_count_list,
                                                        prompt_count,
-                                                       csv_phrase_limit,
                                                        positive_prefix)
 
     # N Base Prompt Phrases
