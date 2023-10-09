@@ -1,8 +1,11 @@
 from fastapi import Request, APIRouter, HTTPException
+from utility.path import separate_bucket_and_file_path
+from utility.minio import cmd
 import uuid
 from datetime import datetime
 from orchestration.api.mongo_schemas import Task
 from orchestration.api.api_dataset import get_sequential_id
+
 
 router = APIRouter()
 
@@ -154,6 +157,33 @@ def get_list_failed_jobs(request: Request):
     return jobs
 
 
+@router.get("/job/count-completed")
+def count_completed(request: Request, dataset: str = None):
+
+    jobs = list(request.app.completed_jobs_collection.find({
+        'task_input_dict.dataset': dataset
+    }))
+
+    return len(jobs)
+
+@router.get("/job/count-pending")
+def count_completed(request: Request, dataset: str = None):
+
+    jobs = list(request.app.pending_jobs_collection.find({
+        'task_input_dict.dataset': dataset
+    }))
+
+    return len(jobs)
+
+@router.get("/job/count-in-progress")
+def count_completed(request: Request, dataset: str = None):
+
+    jobs = list(request.app.in_progress_jobs_collection.find({
+        'task_input_dict.dataset': dataset
+    }))
+
+    return len(jobs)
+
 # ---------------- Update -------------------
 
 
@@ -185,5 +215,24 @@ def update_job_failed(request: Request, task: Task):
 
     # remove from in progress
     request.app.in_progress_jobs_collection.delete_one({"uuid": task.uuid})
+
+    return True
+
+@router.delete("/job/cleanup-completed-and-orphaned")
+def cleanup_completed_and_orphaned_jobs(request: Request):
+
+    jobs = request.app.completed_jobs_collection.find({})
+    for job in jobs:
+        file_exists = True
+        try:
+            file_path = job['task_output_file_dict']['output_file_path']
+            bucket_name, file_path = separate_bucket_and_file_path(file_path)
+            file_exists = cmd.is_object_exists(request.app.minio_client, bucket_name, file_path)
+        except Exception as e:
+            file_exists = False
+
+        if not file_exists:
+            # remove from in progress
+            request.app.in_progress_jobs_collection.delete_one({"uuid": job['uuid']})
 
     return True
