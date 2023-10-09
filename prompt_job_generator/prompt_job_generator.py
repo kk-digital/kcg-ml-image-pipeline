@@ -56,11 +56,28 @@ def generate_propaganda_posters_image_generation_jobs():
         positive_prefix=positive_prefix,
     )
 
+def generate_mechs_image_generation_jobs():
+
+    csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
+    prompt_count = 5
+    base_prompts_csv_path = 'input/base-prompts/mech/base-prompts-mechs.csv'
+    dataset_name = 'propaganda-poster'
+    csv_phrase_limit = 0
+    positive_prefix = ""
+
+    generate_image_generation_jobs_using_generated_prompts_and_base_prompts(
+        csv_dataset_path=csv_dataset_path,
+        prompt_count=prompt_count,
+        base_prompts_csv_path=base_prompts_csv_path,
+        dataset_name=dataset_name,
+        csv_phrase_limit=csv_phrase_limit,
+        positive_prefix=positive_prefix,
+    )
+
 def main():
     args = parse_args()
 
-    generate_icon_generation_jobs()
-    generate_propaganda_posters_image_generation_jobs()
+    generate_mechs_image_generation_jobs()
 
 
 if __name__ == '__main__':
