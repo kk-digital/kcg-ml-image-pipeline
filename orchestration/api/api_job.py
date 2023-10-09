@@ -191,7 +191,7 @@ def update_job_failed(request: Request, task: Task):
 
     return True
 
-@router.put("/job/cleanup-completed-and-orphaned")
+@router.delete("/job/cleanup-completed-and-orphaned")
 def cleanup_completed_and_orphaned_jobs(request: Request):
 
     jobs = request.app.completed_jobs_collection.find({})
