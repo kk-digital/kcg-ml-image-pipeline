@@ -482,6 +482,65 @@ def run_generate_inpainting_generation_task(generation_task: GenerationTask):
 
 
 
+def generate_image_generation_jobs_using_generated_prompts_and_base_prompts(csv_dataset_path,
+                                                           prompt_count,
+                                                            base_prompts_csv_path,
+                                                           dataset_name,
+                                                           csv_phrase_limit=0,
+                                                           positive_prefix=""):
+    prompts = generate_prompts_from_csv_proportional_selection(csv_dataset_path,
+                                                               prompt_count,
+                                                               csv_phrase_limit,
+                                                               positive_prefix)
+
+    base_prompt_list = generate_base_prompts(base_prompts_csv_path)
+
+    base_prompts = ''
+
+    for base_prompt in base_prompt_list:
+        base_prompts = base_prompts + base_prompt.prompt + ', '
+
+
+    # get sequential ids
+    sequential_ids = request.http_get_sequential_id(dataset_name, prompt_count)
+
+    count = 0
+    # generate jobs
+    for prompt in prompts:
+        # generate UUID
+        task_uuid = str(uuid.uuid4())
+        task_type = "image_generation_task"
+        model_name = "v1-5-pruned-emaonly"
+        model_file_name = "v1-5-pruned-emaonly"
+        model_file_path = "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors"
+        task_input_dict = {
+            "positive_prompt": base_prompts + prompt.positive_prompt_str,
+            "negative_prompt": prompt.negative_prompt_str,
+            "cfg_strength": 12,
+            "seed": "",
+            "dataset": dataset_name,
+            "file_path": sequential_ids[count]+".jpg",
+            "num_images": 1,
+            "image_width": 512,
+            "image_height": 512,
+            "sampler": "ddim",
+            "sampler_steps": 20
+        }
+
+        generation_task = GenerationTask(uuid=task_uuid,
+                                         task_type=task_type,
+                                         model_name=model_name,
+                                         model_file_name=model_file_name,
+                                         model_file_path=model_file_path,
+                                         task_input_dict=task_input_dict)
+        generation_task_json = generation_task.to_dict()
+
+        # add job
+        request.http_add_job(generation_task_json)
+
+        count += 1
+
+
 # use the dataset csv & the base prompt csv to generate inpainting jobs
 def generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts(csv_dataset_path,
                                                                 prompt_count,
@@ -492,6 +551,8 @@ def generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts
                                                                 init_img_path="./test/test_inpainting/white_512x512.jpg",
                                                                 mask_path="./test/test_inpainting/icon_mask.png"):
 
+    # TODO load efficient net
+    # TODO get score from efficient net for prompt
     prompts = generate_prompts_from_csv_proportional_selection(csv_dataset_path,
                                                                prompt_count,
                                                                csv_phrase_limit,
