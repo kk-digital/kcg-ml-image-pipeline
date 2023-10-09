@@ -20,7 +20,7 @@ def parse_args():
 def generate_icon_generation_jobs():
     csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
     prompt_count = 5
-    base_prompts_csv_path = 'input/base-prompts/icon/base_prompts_icon_1.csv'
+    base_prompts_csv_path = 'input/base-prompts/icon/base-prompts-icon-2.csv'
     dataset_name = 'icons'
     csv_phrase_limit = 0
     positive_prefix = ""
@@ -42,7 +42,7 @@ def generate_propaganda_posters_image_generation_jobs():
 
     csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
     prompt_count = 5
-    base_prompts_csv_path = 'input/base-prompts/icon/base-prompts-icon-2.csv'
+    base_prompts_csv_path = 'input/base-prompts/propaganda-poster/base-prompts-propaganda-poster.csv'
     dataset_name = 'propaganda-poster'
     csv_phrase_limit = 0
     positive_prefix = ""
