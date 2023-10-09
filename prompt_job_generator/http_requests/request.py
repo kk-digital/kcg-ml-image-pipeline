@@ -1,7 +1,7 @@
 import requests
 
-#SERVER_ADRESS = 'http://192.168.3.1:8111'
-SERVER_ADRESS = 'http://127.0.0.1:8000'
+SERVER_ADRESS = 'http://192.168.3.1:8111'
+#SERVER_ADRESS = 'http://127.0.0.1:8000'
 
 def http_get_completed_jobs_count(dataset_name: str):
     url = SERVER_ADRESS + "/job/count-completed?dataset=" + dataset_name
