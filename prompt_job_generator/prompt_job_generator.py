@@ -186,7 +186,7 @@ def main():
 
     # --- http get dataset rates
     # hard coded for now
-    dataset_rates = {
+    dataset_rates_dictionary = {
         'icons': 4,
         'character' : 4,
         'mech' : 2,
@@ -196,7 +196,7 @@ def main():
 
     # hard coded for now
     # TODO use orchestration api to get those values
-    dataset_job_per_second = {
+    dataset_job_per_second_dictionary = {
         'icons': 0.2,
         'character': 0.2,
         'mech': 0.2,
@@ -208,14 +208,14 @@ def main():
         # Update the dataset rates
         # TODO use orchestration api instead of hard coded values
         for dataset in list_datasets:
-            dataset_rate = dataset_rates[dataset]
+            dataset_rate = dataset_rates_dictionary[dataset]
             if dataset_rate is not None:
                 prompt_job_generator_state.set_dataset_rate(dataset, dataset_rate)
 
             # Update the dataset job per second value
             # TODO use orchestration api instead of hard coded values
             for dataset in list_datasets:
-                dataset_job_per_second = dataset_job_per_second[dataset]
+                dataset_job_per_second = dataset_job_per_second_dictionary[dataset]
                 if dataset_job_per_second is not None:
                     prompt_job_generator_state.set_dataset_job_per_second(dataset, dataset_job_per_second)
 
