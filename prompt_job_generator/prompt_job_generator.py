@@ -11,7 +11,8 @@ sys.path.insert(0, base_directory)
 
 from prompt_job_generator.http_requests.request import http_get_completed_jobs_count, http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list
 from worker.prompt_generation.prompt_generator import (generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts,
-                                                       generate_image_generation_jobs_using_generated_prompts_and_base_prompts)
+                                                       generate_image_generation_jobs_using_generated_prompts_and_base_prompts,
+                                                       initialize_prompt_list_from_csv)
 
 def parse_args():
     parser = argparse.ArgumentParser(description="generate prompts")
@@ -35,6 +36,19 @@ class PromptJobGeneratorState:
         self.dataset_masks = {}
         # each dataset will have one callback to spawn the jobs
         self.dataset_callbacks = {}
+
+        self.phrases = None
+        self.phrases_token_size = None
+        self.positive_count_list = None
+        self.negative_count_list = None
+
+    def load_prompt_list_from_csv(self, csv_dataset_path, csv_phrase_limit):
+        phrases, phrases_token_size, positive_count_list, negative_count_list = initialize_prompt_list_from_csv(csv_dataset_path, csv_phrase_limit)
+
+        self.phrases = phrases
+        self.phrases_token_size = phrases_token_size
+        self.positive_count_list = positive_count_list
+        self.negative_count_list = negative_count_list
 
     def register_callback(self, dataset, callback):
         self.dataset_callbacks[dataset] = callback
@@ -85,7 +99,7 @@ class PromptJobGeneratorState:
 
 def generate_icon_generation_jobs(prompt_job_generator_state):
     csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
-    prompt_count = 5
+    prompt_count = 1
     base_prompts_csv_path = 'input/base-prompts/icon/base-prompts-icon-2.csv'
     dataset_name = 'icons'
     csv_phrase_limit = 0
@@ -102,7 +116,10 @@ def generate_icon_generation_jobs(prompt_job_generator_state):
     print(f"Adding '{dataset_name}' generation job")
 
     generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts(
-        csv_dataset_path=csv_dataset_path,
+        phrases=prompt_job_generator_state.phrases,
+        phrases_token_size=prompt_job_generator_state.phrases_token_size,
+        positive_count_list=prompt_job_generator_state.positive_count_list,
+        negative_count_list=prompt_job_generator_state.negative_count_list,
         prompt_count=prompt_count,
         base_prompts_csv_path=base_prompts_csv_path,
         dataset_name=dataset_name,
@@ -114,7 +131,7 @@ def generate_icon_generation_jobs(prompt_job_generator_state):
 
 def generate_character_generation_jobs(prompt_job_generator_state):
     csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
-    prompt_count = 5
+    prompt_count = 1
     base_prompts_csv_path = 'input/base-prompts/icon/base-prompts-icon-2.csv'
     dataset_name = "character"
     csv_phrase_limit = 0
@@ -130,7 +147,10 @@ def generate_character_generation_jobs(prompt_job_generator_state):
     print(f"Adding '{dataset_name}' generation job")
 
     generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts(
-        csv_dataset_path=csv_dataset_path,
+        phrases=prompt_job_generator_state.phrases,
+        phrases_token_size=prompt_job_generator_state.phrases_token_size,
+        positive_count_list=prompt_job_generator_state.positive_count_list,
+        negative_count_list=prompt_job_generator_state.negative_count_list,
         prompt_count=prompt_count,
         base_prompts_csv_path=base_prompts_csv_path,
         dataset_name=dataset_name,
@@ -143,7 +163,7 @@ def generate_character_generation_jobs(prompt_job_generator_state):
 def generate_propaganda_posters_image_generation_jobs(prompt_job_generator_state):
 
     csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
-    prompt_count = 5
+    prompt_count = 1
     base_prompts_csv_path = 'input/base-prompts/propaganda-poster/base-prompts-propaganda-poster.csv'
     dataset_name = 'propaganda-poster'
     csv_phrase_limit = 0
@@ -152,7 +172,10 @@ def generate_propaganda_posters_image_generation_jobs(prompt_job_generator_state
     print(f"Adding '{dataset_name}' generation job")
 
     generate_image_generation_jobs_using_generated_prompts_and_base_prompts(
-        csv_dataset_path=csv_dataset_path,
+        phrases=prompt_job_generator_state.phrases,
+        phrases_token_size=prompt_job_generator_state.phrases_token_size,
+        positive_count_list=prompt_job_generator_state.positive_count_list,
+        negative_count_list=prompt_job_generator_state.negative_count_list,
         prompt_count=prompt_count,
         base_prompts_csv_path=base_prompts_csv_path,
         dataset_name=dataset_name,
@@ -162,8 +185,8 @@ def generate_propaganda_posters_image_generation_jobs(prompt_job_generator_state
 
 def generate_mechs_image_generation_jobs(prompt_job_generator_state):
 
-    csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
-    prompt_count = 5
+
+    prompt_count = 1
     base_prompts_csv_path = 'input/base-prompts/mech/base-prompts-mechs.csv'
     dataset_name = 'mech'
     csv_phrase_limit = 0
@@ -172,7 +195,10 @@ def generate_mechs_image_generation_jobs(prompt_job_generator_state):
     print(f"Adding '{dataset_name}' generation job")
 
     generate_image_generation_jobs_using_generated_prompts_and_base_prompts(
-        csv_dataset_path=csv_dataset_path,
+        phrases = prompt_job_generator_state.phrases,
+        phrases_token_size=prompt_job_generator_state.phrases_token_size,
+        positive_count_list=prompt_job_generator_state.positive_count_list,
+        negative_count_list=prompt_job_generator_state.negative_count_list,
         prompt_count=prompt_count,
         base_prompts_csv_path=base_prompts_csv_path,
         dataset_name=dataset_name,
@@ -183,7 +209,13 @@ def generate_mechs_image_generation_jobs(prompt_job_generator_state):
 def main():
     args = parse_args()
 
+    csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
+    csv_phrase_limit = 0
+
     prompt_job_generator_state = PromptJobGeneratorState()
+
+    # loading civitai prompt csv file
+    prompt_job_generator_state.load_prompt_list_from_csv(csv_dataset_path, csv_phrase_limit)
 
     # Adding dataset masks
     prompt_job_generator_state.add_dataset_mask("icons", "./test/test_inpainting/white_512x512.jpg", "./test/test_inpainting/icon_mask.png")
