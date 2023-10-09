@@ -19,9 +19,6 @@ def get_datasets(request: Request):
 
     return objects
 
-
-
-
 @router.get("/dataset/sequential-id/{dataset}")
 def get_sequential_id(request: Request, dataset: str, limit: int = 1):
     sequential_id_arr = []
