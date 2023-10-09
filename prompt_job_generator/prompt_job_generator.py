@@ -1,63 +1,14 @@
 
-import requests
 import argparse
 import sys
-
+import time
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
+from prompt_job_generator.http_requests.request import http_get_completed_jobs_count, http_get_in_progress_jobs_count, http_get_pending_jobs_count
 from worker.prompt_generation.prompt_generator import (generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts,
                                                        generate_image_generation_jobs_using_generated_prompts_and_base_prompts)
-
-
-SERVER_ADRESS = 'http://127.0.0.1:8000'
-
-def http_get_completed_jobs_count(dataset_name: str):
-    url = SERVER_ADRESS + "/job/count-completed?dataset=" + dataset_name
-
-    try:
-        response = requests.get(url)
-    except Exception as e:
-        print('request exception ', e)
-
-    if response.status_code == 200:
-        job_json = response.json()
-        return job_json
-
-    return None
-
-
-def http_get_pending_jobs_count(dataset_name: str):
-    url = SERVER_ADRESS + "/job/count-pending?dataset=" + dataset_name
-
-    try:
-        response = requests.get(url)
-    except Exception as e:
-        print('request exception ', e)
-
-    if response.status_code == 200:
-        job_json = response.json()
-        return job_json
-
-    return None
-
-
-def http_get_in_progress_jobs_count(dataset_name: str):
-    url = SERVER_ADRESS + "/job/count-in-progress?dataset=" + dataset_name
-
-    try:
-        response = requests.get(url)
-    except Exception as e:
-        print('request exception ', e)
-
-    if response.status_code == 200:
-        job_json = response.json()
-        return job_json
-
-    return None
-
-
 
 def parse_args():
     parser = argparse.ArgumentParser(description="generate prompts")
@@ -128,9 +79,9 @@ def generate_mechs_image_generation_jobs():
 def main():
     args = parse_args()
 
-    print(http_get_completed_jobs_count())
-    print(http_get_in_progress_jobs_count())
-    print(http_get_pending_jobs_count())
+    print(http_get_completed_jobs_count('icon'))
+    print(http_get_in_progress_jobs_count('icon'))
+    print(http_get_pending_jobs_count('icon'))
 
 
 if __name__ == '__main__':
