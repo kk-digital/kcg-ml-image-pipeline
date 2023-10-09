@@ -59,7 +59,7 @@ def generate_propaganda_posters_image_generation_jobs():
 def main():
     args = parse_args()
 
-    generate_propaganda_posters_image_generation_jobs()
+    generate_icon_generation_jobs()
     generate_propaganda_posters_image_generation_jobs()
 
 
