@@ -61,7 +61,7 @@ def generate_mechs_image_generation_jobs():
     csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
     prompt_count = 5
     base_prompts_csv_path = 'input/base-prompts/mech/base-prompts-mechs.csv'
-    dataset_name = 'propaganda-poster'
+    dataset_name = 'mech'
     csv_phrase_limit = 0
     positive_prefix = ""
 
