@@ -43,7 +43,7 @@ def generate_propaganda_posters_image_generation_jobs():
     csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
     prompt_count = 5
     base_prompts_csv_path = 'input/base-prompts/icon/base_prompts_icon_1.csv'
-    dataset_name = 'icons'
+    dataset_name = 'propaganda-poster'
     csv_phrase_limit = 0
     positive_prefix = ""
 
