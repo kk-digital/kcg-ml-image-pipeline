@@ -22,7 +22,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def update_dataset_prompt_queue(prompt_job_generator_state, list_datasets)
+def update_dataset_prompt_queue(prompt_job_generator_state, list_datasets):
     # if dataset list is null return
     if list_datasets is None:
         return
