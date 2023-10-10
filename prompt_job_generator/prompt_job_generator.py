@@ -357,8 +357,8 @@ def update_dataset_job_queue_size(prompt_job_generator_state, list_datasets):
         # Equals: Time Speed (Jobs/Second) times 60*5 (300); 5 minutes
         job_queue_target = 60 * 5 * dataset_job_per_second
 
-        prompt_job_generator_state.set_job_queue_size(dataset, job_queue_size)
-        prompt_job_generator_state.set_job_queue_target(dataset, job_queue_target)
+        prompt_job_generator_state.set_dataset_job_queue_size(dataset, job_queue_size)
+        prompt_job_generator_state.set_dataset_job_queue_target(dataset, job_queue_target)
 
 def update_dataset_values_background_thread(prompt_job_generator_state):
 
