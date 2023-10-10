@@ -185,7 +185,7 @@ def generate_mechs_image_generation_jobs(prompt_job_generator_state):
 
     print(f"Adding '{dataset_name}' generation job")
 
-    generate_image_generation_jobs_using_generated_prompts_and_base_prompts(
+    generate_image_generation_jobs_using_generated_promptgs_and_base_prompts(
         phrases = prompt_job_generator_state.phrases,
         phrases_token_size=prompt_job_generator_state.phrases_token_size,
         positive_count_list=prompt_job_generator_state.positive_count_list,
