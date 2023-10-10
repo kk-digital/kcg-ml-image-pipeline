@@ -3,7 +3,6 @@ import argparse
 import sys
 import time
 import threading
-import queue
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -22,18 +21,16 @@ def parse_args():
 
     return parser.parse_args()
 
-class PromptGenerationPromptQueue
-    def __init__(self, queue_size):
-        self.queue_dictionary = {}
-        self.queue_size = queue_size
 
-    def update(self, dataset_list):
+def update_dataset_prompt_queue(prompt_job_generator_state, list_datasets)
+    # if dataset list is null return
+    if list_datasets is None:
+        return
 
-        if self.queue.qsize() < self.queue_size:
-            self.queue.put(element)
-        else:
-            print("Queue is full. Element not added.")
+    prompt_queue = prompt_job_generator_state.prompt_queue
 
+    for dataset in list_datasets:
+        prompt_queue.update(prompt_job_generator_state, dataset)
 
 def update_dataset_rates(prompt_job_generator_state, list_datasets):
 
@@ -104,6 +101,17 @@ def update_dataset_job_queue_size(prompt_job_generator_state, list_datasets):
         prompt_job_generator_state.set_dataset_job_queue_size(dataset, job_queue_size)
         prompt_job_generator_state.set_dataset_job_queue_target(dataset, job_queue_target)
 
+def update_dataset_prompt_queue_background_thread(prompt_job_generator_state):
+
+    while True:
+        # get list of datasets
+        list_datasets = http_get_dataset_list()
+
+        update_dataset_prompt_queue(prompt_job_generator_state, list_datasets)
+
+        sleep_time_in_seconds = 1.0
+        time.sleep(sleep_time_in_seconds)
+
 def update_dataset_values_background_thread(prompt_job_generator_state):
 
     while True:
@@ -147,7 +155,20 @@ def main():
     prompt_job_generator_state.load_efficient_net_model('character', 'datasets',
                                           'character/models/ranking/ab_ranking_efficient_net/2023-10-10.pth')
 
+    # setting the base prompt csv for each dataset
+    prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('icons',
+                                                                    'input/dataset-config/icon/base-prompts-icon-2.csv')
+    prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('propaganda-poster',
+                                                                    'input/dataset-config/propaganda-poster/base-prompts-propaganda-poster.csv')
+    prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('mech',
+                                                                    'input/dataset-config/mech/base-prompts-mechs.csv')
+    prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('character',
+                                                                    'input/dataset-config/character/base-prompts-waifu.csv')
+
     thread = threading.Thread(target=update_dataset_values_background_thread, args=(prompt_job_generator_state,))
+    thread.start()
+
+    thread = threading.Thread(target=update_dataset_prompt_queue_background_thread, args=(prompt_job_generator_state,))
     thread.start()
 
     # get list of datasets

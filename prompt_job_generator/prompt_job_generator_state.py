@@ -12,6 +12,7 @@ from stable_diffusion import CLIPTextEmbedder
 from utility.minio import cmd
 from training_worker.ab_ranking.model.ab_ranking_efficient_net import ABRankingEfficientNetModel
 from worker.prompt_generation.prompt_generator import (initialize_prompt_list_from_csv)
+from prompt_generation_prompt_queue import PromptGenerationPromptQueue
 
 class PromptJobGeneratorState:
     def __init__(self, device):
@@ -38,6 +39,8 @@ class PromptJobGeneratorState:
 
         # minio connection
         self.minio_client = None
+
+        self.prompt_queue = PromptGenerationPromptQueue(1024)
 
         self.phrases = None
         self.phrases_token_size = None
