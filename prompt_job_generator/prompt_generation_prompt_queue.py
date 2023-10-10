@@ -59,6 +59,9 @@ class PromptGenerationPromptQueue:
 
         base_prompts_csv_path = self.get_dataset_base_prompt(dataset)
 
+        print('dataset : ', dataset)
+        print('base_prompts_csv_path ', base_prompts_csv_path)
+
         # number of total prompts to generate before choosing n prompts
         total_prompt_count = prompt_count * 10
 
