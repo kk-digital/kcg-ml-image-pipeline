@@ -35,9 +35,11 @@ class PromptJobGeneratorState:
         self.dataset_rate = {}
         self.total_rate = 0
         self.dataset_rate_lock = threading.Lock()
-        # keep the dataset_job_per_second in this dictionary
+        # keep the dataset_job_queue_size in this dictionary
         # should update using orchestration api
-        self.dataset_job_per_second = {}
+        self.dataset_job_queue_size = {}
+        self.dataset_job_queue_target = {}
+        self.dataset_job_queue_size_lock = threading.lock()
         # each dataset will have a list of masks
         # only relevent if its an inpainting job
         self.dataset_masks = {}
@@ -131,13 +133,26 @@ class PromptJobGeneratorState:
             else:
                 return None
 
-    def set_dataset_job_per_second(self, dataset, job_per_second):
-        self.dataset_job_per_second[dataset] = job_per_second
+    def set_dataset_job_queue_size(self, dataset, job_queue_size):
+        with self.dataset_job_queue_size_lock:
+            self.dataset_job_queue_size[dataset] = job_queue_size
 
-    def get_dataset_job_per_second(self, dataset):
-        if dataset in self.dataset_job_per_second:
-            return self.dataset_job_per_second[dataset]
-        else:
+    def set_dataset_job_queue_target(self, dataset, job_queue_target):
+        with self.dataset_job_queue_size_lock:
+            self.dataset_job_queue_target[dataset] = job_queue_target
+
+    def get_dataset_job_queue_size(self, dataset):
+        with self.dataset_job_queue_size_lock:
+            if dataset in self.dataset_job_queue_size:
+                return self.dataset_job_queue_size[dataset]
+
+            return None
+
+    def get_dataset_job_queue_target(self, dataset):
+        with self.dataset_job_queue_size_lock:
+            if dataset in self.dataset_job_queue_target:
+                return self.dataset_job_queue_target[dataset]
+
             return None
 
     def add_dataset_mask(self, dataset, init_image_path, mask_path):
@@ -276,9 +291,7 @@ def generate_mechs_image_generation_jobs(prompt_job_generator_state):
     )
 
 
-def update_dataset_rates(prompt_job_generator_state):
-    # get list of datasets
-    list_datasets = http_get_dataset_list()
+def update_dataset_rates(prompt_job_generator_state, list_datasets):
 
     # if dataset list is null return
     if list_datasets is None:
@@ -302,10 +315,59 @@ def update_dataset_rates(prompt_job_generator_state):
 
     prompt_job_generator_state.set_total_rate(total_rate)
 
-def update_dataset_rates_background_thread(prompt_job_generator_state):
+
+def update_dataset_job_queue_size(prompt_job_generator_state, list_datasets):
+
+    # if dataset list is null return
+    if list_datasets is None:
+        return
+
+    # hard coded for now
+    # TODO use orchestration api to get those values
+    dataset_job_per_second_dictionary = {
+        'icons': 0.2,
+        'character': 0.2,
+        'mech': 0.2,
+        'propaganda-poster': 0.5,
+        'environmental': 0.5
+    }
+
+    # loop through all datasets and
+    # for each dataset update the job_queue_size & job_queue_target
+    # from orchestration api rates
+    for dataset in list_datasets:
+
+        # get the number of jobs available for the dataset
+        in_progress_job_count = http_get_in_progress_jobs_count(dataset)
+        pending_job_count = http_get_pending_jobs_count(dataset)
+
+        if in_progress_job_count is None or pending_job_count is None:
+            continue
+
+        if dataset in dataset_job_per_second_dictionary:
+            dataset_job_per_second = dataset_job_per_second_dictionary[dataset]
+        else:
+            dataset_job_per_second = None
+
+        if dataset_job_per_second is None:
+            continue
+
+        job_queue_size = in_progress_job_count + pending_job_count
+        # Target number of Jobs in Queue
+        # Equals: Time Speed (Jobs/Second) times 60*5 (300); 5 minutes
+        job_queue_target = 60 * 5 * dataset_job_per_second
+
+        prompt_job_generator_state.set_job_queue_size(dataset, job_queue_size)
+        prompt_job_generator_state.set_job_queue_target(dataset, job_queue_target)
+
+def update_dataset_values_background_thread(prompt_job_generator_state):
 
     while True:
-        update_dataset_rates(prompt_job_generator_state)
+        # get list of datasets
+        list_datasets = http_get_dataset_list()
+
+        update_dataset_rates(prompt_job_generator_state, list_datasets)
+        update_dataset_job_queue_size(prompt_job_generator_state, list_datasets)
 
         sleep_time_in_seconds = 1.0
         time.sleep(sleep_time_in_seconds)
@@ -341,72 +403,50 @@ def main():
     prompt_job_generator_state.load_efficient_net_model('character', 'datasets',
                                           'character/models/ranking/ab_ranking_efficient_net/2023-10-10.pth')
 
-    thread = threading.Thread(target=update_dataset_rates_background_thread, args=(prompt_job_generator_state,))
+    thread = threading.Thread(target=update_dataset_values_background_thread, args=(prompt_job_generator_state,))
     thread.start()
 
     # get list of datasets
     list_datasets = http_get_dataset_list()
 
-    # hard coded for now
-    # TODO use orchestration api to get those values
-    dataset_job_per_second_dictionary = {
-        'icons': 0.2,
-        'character': 0.2,
-        'mech': 0.2,
-        'propaganda-poster': 0.5,
-        'environmental': 0.5
-    }
-
     while True:
-        # Update the dataset job per second value
-        # TODO use orchestration api instead of hard coded values
-        for dataset in list_datasets:
-            if dataset in dataset_job_per_second_dictionary:
-                dataset_job_per_second = dataset_job_per_second_dictionary[dataset]
-            else:
-                dataset_job_per_second = None
-
-            if dataset_job_per_second is not None:
-                prompt_job_generator_state.set_dataset_job_per_second(dataset, dataset_job_per_second)
-
 
         # dictionary that maps dataset => number of jobs to add
-        dataset_jobs_to_add = {}
+        dataset_number_jobs_to_add = {}
 
         for dataset in list_datasets:
             dataset_rate = prompt_job_generator_state.get_dataset_rate(dataset)
-            dataset_job_per_second = prompt_job_generator_state.get_dataset_job_per_second(dataset)
+            dataset_job_queue_size = prompt_job_generator_state.get_dataset_job_queue_size(dataset)
+            dataset_job_queue_target = prompt_job_generator_state.get_dataset_job_queue_target(dataset)
 
             # if dataset_rate is not found just move on
             if dataset_rate == None:
                 print("dataset rate not found for dataset ", dataset)
                 continue
 
-            # if dataset_job_per_second is not found just move on
-            if dataset_job_per_second == None:
-                print("dataset dataset_job_per_second not found for dataset ", dataset)
+            if dataset_job_queue_size is None:
+                print("dataset job queue size is not found for dataset : ", dataset)
                 continue
 
-            # get the number of jobs available for the dataset
-            in_progress_job_count = http_get_in_progress_jobs_count(dataset)
-            pending_job_count = http_get_pending_jobs_count(dataset)
+            if dataset_job_queue_target is None:
+                print("dataset job queue target is not found for dataset : ", dataset)
+                continue
 
-            # Target number of Jobs in Queue
-            # Equals: Time Speed (Jobs/Second) times 60*5 (300); 5 minutes
-            target_job_count = 60*5 * dataset_job_per_second * dataset_rate
-
-            # get total number of jobs
-
-            total_jobs_in_queue_count = in_progress_job_count + pending_job_count
-            print(dataset, ": total_jobs_in_queue_count ", total_jobs_in_queue_count)
             number_of_jobs_to_add = 0
 
-            if target_job_count > total_jobs_in_queue_count:
-                number_of_jobs_to_add = target_job_count - total_jobs_in_queue_count
+            if dataset_job_queue_target > dataset_job_queue_size:
+                number_of_jobs_to_add = dataset_job_queue_target - dataset_job_queue_size
 
-            dataset_jobs_to_add[dataset] = number_of_jobs_to_add
+            dataset_number_jobs_to_add[dataset] = number_of_jobs_to_add
 
 
+        # If JobQueueSize < JobQueueTarget
+        #- then keep "updating"/ adding
+        #- for each Dataset, TodoJob[i] += DatasetRate[i] / TotalRate
+        #- then at end of loop, if >1.0, then emit job for that dataset
+        dataset_todo_jobs = {}
+        for dataset in list_datasets:
+            dataset_todo_jobs[dataset] = 0
 
         # Make sure we stop lopping
         # If there are no added jobs
@@ -416,36 +456,39 @@ def main():
             added_atleast_one_job = False
 
             for dataset in list_datasets:
-                if dataset in dataset_jobs_to_add:
-                    number_of_jobs_to_add = dataset_jobs_to_add[dataset]
-                else:
-                    number_of_jobs_to_add = None
+                # get dataset rate
+                # dataset rates should update in background using
+                # orchestration api
+                dataset_rate = prompt_job_generator_state.get_dataset_rate(dataset)
 
-                # check if there is a missing value
-                # and skip the dataset
-                if number_of_jobs_to_add == None:
+                # if dataset_rate does not exist skip this dataset
+                if dataset_rate is None:
                     continue
 
-                # if there are no jobs to add
-                # skip the dataset
-                if number_of_jobs_to_add <= 0:
-                    continue
+                number_of_jobs_to_add = dataset_number_jobs_to_add[dataset]
 
-                # get dataset callback
-                # used to spawn the job
-                # if the callback is not found
-                # just move on
-                dataset_callback = prompt_job_generator_state.get_callback(dataset)
+                if number_of_jobs_to_add > 0:
+                    dataset_todo_jobs[dataset] += dataset_rate
 
-                if dataset_callback == None:
-                    print("dataset callback not found for dataset ", dataset)
-                    continue
+                if dataset_todo_jobs[dataset] >= 1.0:
+                    # spawn job
+                    dataset_todo_jobs[dataset] -= 1.0
+                    dataset_number_jobs_to_add[dataset] = number_of_jobs_to_add - 1
 
-                print(f'number of jobs to spawn for dataset {dataset} is {number_of_jobs_to_add}')
-                # Adding a job
-                dataset_callback(prompt_job_generator_state)
+                    # get dataset callback
+                    # used to spawn the job
+                    # if the callback is not found
+                    # just move on
+                    dataset_callback = prompt_job_generator_state.get_callback(dataset)
 
-                dataset_jobs_to_add[dataset] = number_of_jobs_to_add - 1
+                    if dataset_callback == None:
+                        print("dataset callback not found for dataset ", dataset)
+                        continue
+
+                    print(f'number of jobs to spawn for dataset {dataset} is {number_of_jobs_to_add}')
+                    # Adding a job
+                    dataset_callback(prompt_job_generator_state)
+
                 added_atleast_one_job = True
 
         # sleep for n number of seconds
