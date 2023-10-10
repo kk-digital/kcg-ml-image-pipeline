@@ -39,6 +39,16 @@ class PromptGenerationPromptQueue:
 
         return scored_prompt
 
+    def database_prompt_available(self, dataset):
+        if dataset not in self.queue_dictionary:
+            return None
+
+        dataset_queue = self.queue_dictionary[dataset]
+
+        if dataset_queue.qsize() <= 0:
+            return False
+
+        return True
     def update(self, prompt_job_generator_state, dataset):
         if dataset not in self.queue_dictionary:
             self.queue_dictionary[dataset] = queue.Queue()

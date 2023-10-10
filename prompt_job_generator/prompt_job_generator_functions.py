@@ -23,6 +23,9 @@ def generate_icon_generation_jobs(prompt_job_generator_state):
     prompt_queue = prompt_job_generator_state.prompt_queue
     scored_prompt = prompt_queue.get_dataset_prompt(dataset_name)
 
+    if scored_prompt is None:
+        return
+
     positive_prompt = scored_prompt.positive_prompt
     negative_prompt = scored_prompt.negative_prompt
 
@@ -50,6 +53,9 @@ def generate_character_generation_jobs(prompt_job_generator_state):
     prompt_queue = prompt_job_generator_state.prompt_queue
     scored_prompt = prompt_queue.get_dataset_prompt(dataset_name)
 
+    if scored_prompt is None:
+        return
+
     positive_prompt = scored_prompt.positive_prompt
     negative_prompt = scored_prompt.negative_prompt
 
@@ -71,6 +77,9 @@ def generate_propaganda_posters_image_generation_jobs(prompt_job_generator_state
     prompt_queue = prompt_job_generator_state.prompt_queue
     scored_prompt = prompt_queue.get_dataset_prompt(dataset_name)
 
+    if scored_prompt is None:
+        return
+
     positive_prompt = scored_prompt.positive_prompt
     negative_prompt = scored_prompt.negative_prompt
 
@@ -88,6 +97,9 @@ def generate_mechs_image_generation_jobs(prompt_job_generator_state):
 
     prompt_queue = prompt_job_generator_state.prompt_queue
     scored_prompt = prompt_queue.get_dataset_prompt(dataset_name)
+
+    if scored_prompt is None:
+        return
 
     positive_prompt = scored_prompt.positive_prompt
     negative_prompt = scored_prompt.negative_prompt
