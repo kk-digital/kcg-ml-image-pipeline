@@ -580,64 +580,10 @@ def run_generate_inpainting_generation_task(generation_task: GenerationTask):
 
 
 
-def generate_image_generation_jobs(phrases,
-                                    phrases_token_size,
-                                    positive_count_list,
-                                    negative_count_list,
-                                    prompt_count,
-                                    base_prompts_csv_path,
-                                    dataset_name,
-                                    positive_prefix="",
-                                   efficient_net_model=None,
-                                   clip_text_embedder=None):
-
-
-    prompts = generate_prompts_proportional_selection(phrases,
-                                                        phrases_token_size,
-                                                        positive_count_list,
-                                                        negative_count_list,
-                                                        prompt_count,
-                                                        positive_prefix)
-
-    # N Base Prompt Phrases
-    # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
-    # Chance for 0 base prompt phrases should be 30%
-    # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
-    choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-
-    base_prompt_list = generate_base_prompts(base_prompts_csv_path, choose_probability)
-
-    base_prompts = ''
-
-    for base_prompt in base_prompt_list:
-        base_prompts = base_prompts + base_prompt + ', '
-
-    top_prompt = None
-    highest_score = -99999999
-    for prompt in prompts:
-        prompt_score = 0
-        if efficient_net_model is not None and clip_text_embedder is not None:
-            positive_text_prompt = base_prompts + prompt.positive_prompt_str
-            negative_text_prompt = prompt.negative_prompt_str
-            # get prompt embeddings
-            positive_prompt_embeddings = clip_text_embedder(positive_text_prompt)
-            negative_prompt_embeddings = clip_text_embedder(negative_text_prompt)
-
-            prompt_score = efficient_net_model.predict_positive_negative(positive_prompt_embeddings,
-                                                                         negative_prompt_embeddings).item()
-
-        # check if we have a top prompt
-        if prompt_score > highest_score:
-            top_prompt = prompt
-            highest_score = prompt_score
-
-    if top_prompt is None:
-        return
-
-    print('Highest score ', highest_score)
+def generate_image_generation_jobs(positive_prompt, negative_prompt, dataset_name):
 
     # get sequential ids
-    sequential_ids = request.http_get_sequential_id(dataset_name, prompt_count)
+    sequential_ids = request.http_get_sequential_id(dataset_name, 1)
 
     count = 0
     # generate UUID
@@ -647,8 +593,8 @@ def generate_image_generation_jobs(phrases,
     model_file_name = "v1-5-pruned-emaonly"
     model_file_path = "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors"
     task_input_dict = {
-        "positive_prompt": base_prompts + top_prompt.positive_prompt_str,
-        "negative_prompt": top_prompt.negative_prompt_str,
+        "positive_prompt": positive_prompt,
+        "negative_prompt": negative_prompt,
         "cfg_strength": 12,
         "seed": "",
         "dataset": dataset_name,
@@ -676,66 +622,11 @@ def generate_image_generation_jobs(phrases,
 
 
 # use the dataset csv & the base prompt csv to generate inpainting jobs
-def generate_inpainting_job(phrases,
-                            phrases_token_size,
-                            positive_count_list,
-                            negative_count_list,
-                            prompt_count,
-                            base_prompts_csv_path,
+def generate_inpainting_job(positive_prompt,
+                            negative_prompt,
                             dataset_name,
-                            positive_prefix="",
                             init_img_path="./test/test_inpainting/white_512x512.jpg",
-                            mask_path="./test/test_inpainting/icon_mask.png",
-                            efficient_net_model=None,
-                            clip_text_embedder=None):
-
-    # TODO load efficient net
-    # TODO get score from efficient net for prompt
-    prompts = generate_prompts_proportional_selection(phrases,
-                                                       phrases_token_size,
-                                                       positive_count_list,
-                                                       negative_count_list,
-                                                       prompt_count,
-                                                       positive_prefix)
-
-    # N Base Prompt Phrases
-    # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
-    # Chance for 0 base prompt phrases should be 30%
-    # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
-    choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-
-    base_prompt_list = generate_base_prompts(base_prompts_csv_path, choose_probability)
-
-    base_prompts = ''
-
-    for base_prompt in base_prompt_list:
-        base_prompts = base_prompts + base_prompt + ', '
-
-
-
-    top_prompt = None
-    highest_score = -99999999
-    for prompt in prompts:
-        prompt_score = 0
-        if efficient_net_model is not None and clip_text_embedder is not None:
-            positive_text_prompt = base_prompts + prompt.positive_prompt_str
-            negative_text_prompt = prompt.negative_prompt_str
-            # get prompt embeddings
-            positive_prompt_embeddings = clip_text_embedder(positive_text_prompt)
-            negative_prompt_embeddings = clip_text_embedder(negative_text_prompt)
-
-            prompt_score = efficient_net_model.predict_positive_negative(positive_prompt_embeddings, negative_prompt_embeddings).item()
-
-        # check if we have a top prompt
-        if prompt_score > highest_score:
-            top_prompt = prompt
-            highest_score = prompt_score
-
-
-    if top_prompt is None:
-        return
-
-    print('Highest score ', highest_score)
+                            mask_path="./test/test_inpainting/icon_mask.png"):
 
     # get sequential ids
     sequential_ids = request.http_get_sequential_id(dataset_name, 1)
@@ -746,8 +637,8 @@ def generate_inpainting_job(phrases,
     model_file_name = "v1-5-pruned-emaonly"
     model_file_path = "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors"
     task_input_dict = {
-        "positive_prompt": base_prompts + top_prompt.positive_prompt_str,
-        "negative_prompt": top_prompt.negative_prompt_str,
+        "positive_prompt": positive_prompt,
+        "negative_prompt": negative_prompt,
         "cfg_strength": 12,
         "seed": "",
         "dataset": dataset_name,
