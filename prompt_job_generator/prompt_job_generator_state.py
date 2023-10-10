@@ -40,7 +40,7 @@ class PromptJobGeneratorState:
         # minio connection
         self.minio_client = None
 
-        self.prompt_queue = PromptGenerationPromptQueue(64)
+        self.prompt_queue = PromptGenerationPromptQueue(16)
 
         self.phrases = None
         self.phrases_token_size = None
