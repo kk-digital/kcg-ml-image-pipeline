@@ -247,7 +247,9 @@ class ABRankingEfficientNetModel:
             return outputs
 
     def predict_positive_negative(self, positive_input, negative_input):
-        inputs = torch.stack(positive_input, negative_input)
+        positive_input = positive_input.squeeze()
+        negative_input = negative_input.squeeze()
+        inputs = torch.stack((positive_input, negative_input))
         return self.predict(inputs)
 
 
