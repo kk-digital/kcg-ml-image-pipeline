@@ -60,8 +60,6 @@ class PromptGenerationPromptQueue:
             prompts = self.generate_prompts(prompt_job_generator_state, dataset, prompt_count)
             for prompt in prompts:
                 dataset_queue.put(prompt)
-        else:
-            print("Queue is full. Element not added.")
 
     def generate_prompts(self, prompt_job_generator_state, dataset, prompt_count):
 
