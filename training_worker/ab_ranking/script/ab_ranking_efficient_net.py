@@ -26,7 +26,9 @@ def train_ranking(dataset_name: str,
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
     input_type = "embedding-vector"
-    output_path = "{}/models/ab_ranking_efficient_net".format(dataset_name)
+    output_path = "{}/models/ranking/ab_ranking_efficient_net".format(dataset_name)
+    training_batch_size = 1
+    weight_decay = 0.01
 
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name=dataset_name,
@@ -52,9 +54,10 @@ def train_ranking(dataset_name: str,
         validation_target_probabilities, \
         training_loss_per_epoch, \
         validation_loss_per_epoch = ab_model.train(dataset_loader=dataset_loader,
-                                                                        training_batch_size=1,
-                                                                        epochs=epochs,
-                                                                        learning_rate=learning_rate)
+                                                    training_batch_size=training_batch_size,
+                                                    epochs=epochs,
+                                                    learning_rate=learning_rate,
+                                                    weight_decay=weight_decay)
 
     # Upload model to minio
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
@@ -111,7 +114,10 @@ def train_ranking(dataset_name: str,
                                   training_predicted_score_images_x,
                                   training_predicted_score_images_y,
                                   validation_predicted_score_images_x,
-                                  validation_predicted_score_images_y)
+                                  validation_predicted_score_images_y,
+                                  training_batch_size,
+                                  learning_rate,
+                                  weight_decay)
 
     # Upload model to minio
     report_name = "{}.txt".format(date_now)
@@ -140,7 +146,9 @@ def train_ranking(dataset_name: str,
                                     training_loss_per_epoch,
                                     validation_loss_per_epoch,
                                     epochs,
-                                    learning_rate)
+                                    learning_rate,
+                                    training_batch_size,
+                                    weight_decay)
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
 

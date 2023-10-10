@@ -23,15 +23,12 @@ class EfficientNetModel(nn.Module):
     def __init__(self, efficient_net_version="b0", in_channels=1, num_classes=1):
         super(EfficientNetModel, self).__init__()
         self.efficient_net = efficientnet_pytorch(efficient_net_version, in_channels=in_channels, num_classes=num_classes)
-        self.sigmoid = nn.Sigmoid()
         self.bce_loss = nn.BCELoss()
-        self.relu = nn.ReLU()
 
     def forward(self, x):
         x1 = self.efficient_net(x)
-        x2 = self.sigmoid(x1)
 
-        return x2
+        return x1
 
 
 class ABRankingEfficientNetModel:
@@ -99,11 +96,12 @@ class ABRankingEfficientNetModel:
               dataset_loader: ABRankingDatasetLoader,
               training_batch_size=4,
               epochs=100,
-              learning_rate=0.001):
+              learning_rate=0.001,
+              weight_decay=0.01):
         training_loss_per_epoch = []
         validation_loss_per_epoch = []
 
-        optimizer = optim.AdamW(self.model.parameters(), lr=learning_rate, weight_decay=0.01)
+        optimizer = optim.AdamW(self.model.parameters(), lr=learning_rate, weight_decay=weight_decay)
         self.model_type = 'image-pair-ranking-efficient-net'
         self.loss_func_name = "bce"
 
@@ -133,17 +131,26 @@ class ABRankingEfficientNetModel:
                 if i == training_num_batches - 1:
                     num_data_to_get = num_features - (i * (training_batch_size))
 
-                batch_features_x, \
-                    batch_features_y,\
-                    batch_targets = dataset_loader.get_next_training_feature_vectors_and_target(num_data_to_get, self._device)
+                batch_features_x_orig, \
+                    batch_features_y_orig,\
+                    batch_targets_orig = dataset_loader.get_next_training_feature_vectors_and_target(num_data_to_get, self._device)
 
-                optimizer.zero_grad()
-                predicted_score_images_x = self.model.forward(batch_features_x)
+                batch_features_x = batch_features_x_orig.clone().requires_grad_(True).to(self._device)
+                batch_features_y = batch_features_y_orig.clone().requires_grad_(True).to(self._device)
+                batch_targets = batch_targets_orig.clone().requires_grad_(True).to(self._device)
+
                 with torch.no_grad():
                     predicted_score_images_y = self.model.forward(batch_features_y)
 
-                predicted_score_images_y_copy = predicted_score_images_y.clone().detach().requires_grad_(True)
-                batch_pred_probabilities = self.forward_bradley_terry(predicted_score_images_x, predicted_score_images_y_copy)
+                optimizer.zero_grad()
+                predicted_score_images_x = self.model.forward(batch_features_x)
+
+                batch_pred_probabilities = self.forward_bradley_terry(predicted_score_images_x, predicted_score_images_y)
+
+                # assert
+                for pred_prob in batch_pred_probabilities:
+                    assert pred_prob.item() >= 0.0
+                    assert pred_prob.item() <= 1.0
                 loss = self.model.bce_loss(batch_pred_probabilities, batch_targets)
                 loss.backward()
                 optimizer.step()

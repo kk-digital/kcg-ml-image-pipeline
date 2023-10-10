@@ -1,9 +1,13 @@
 def get_train_report(model_class, dataset_path, training_percent, training_size, validation_size, train_sum_correct,
                      validation_sum_correct, nn_summary, training_pred_scores_img_x, training_pred_scores_img_y,
-                     validation_pred_scores_img_x, validation_pred_scores_img_y):
+                     validation_pred_scores_img_x, validation_pred_scores_img_y, training_batch_size, learning_rate,
+                     weight_decay):
     report_str = "Training Report:\n\n"
     report_str += "model: {}\n".format(model_class.model_type)
     report_str += "model-date: {}\n".format(model_class.date)
+    report_str += "training batch size: {}\n".format(training_batch_size)
+    report_str += "learning rate: {}\n".format(learning_rate)
+    report_str += "weight decay: {}\n".format(weight_decay)
 
     report_str += "\n=================Dataset Info==================\n"
     report_str += "dataset-path: {}\n".format(dataset_path)
