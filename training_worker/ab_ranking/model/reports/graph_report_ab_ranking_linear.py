@@ -124,10 +124,11 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
     predicted_prob.set_title("Sample vs Predicted Probability".format(input_type))
     predicted_prob.legend()
 
-    graph_range_y = [-0.2, 1.2]
-    graph_range_x = [0, max(len(train_x_axis_values_target_1), len(train_x_axis_values_target_0))]
-    predicted_prob.set_xlim(graph_range_x)
-    predicted_prob.set_ylim(graph_range_y)
+    # graph_range_y = [-0.2, 1.2]
+    # graph_range_x = [0, max(len(train_x_axis_values_target_1), len(train_x_axis_values_target_0))]
+    # predicted_prob.set_xlim(graph_range_x)
+    # predicted_prob.set_ylim(graph_range_y)
+    predicted_prob.autoscale(enable=True, axis='y')
 
     # training loss, validation loss plot
     epochs_x_axis = [i for i in range(epochs)]
@@ -141,11 +142,11 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
     loss_per_epoch.set_title("Loss Per Epoch".format(input_type))
     loss_per_epoch.legend()
 
-    graph_range_y = [0, 2]
-    graph_range_x = [0, epochs]
-    loss_per_epoch.set_xlim(graph_range_x)
-    loss_per_epoch.set_ylim(graph_range_y)
-
+    # graph_range_y = [0, 2]
+    # graph_range_x = [0, epochs]
+    # loss_per_epoch.set_xlim(graph_range_x)
+    # loss_per_epoch.set_ylim(graph_range_y)
+    loss_per_epoch.autoscale(enable=True, axis='y')
     # Training Residuals
     # Calculate train residuals
     training_residuals_target_1 = [abs(1.0 - train_prob_predictions_target_1[i].item()) for i in
@@ -254,7 +255,7 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
     # plt.savefig(graph_path)
     # plt.show()
     buf = BytesIO()
-    plt.savefig(buf, format='jpg')
+    plt.savefig(buf, format='png')
     buf.seek(0)
 
     return buf

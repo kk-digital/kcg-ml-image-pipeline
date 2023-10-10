@@ -161,18 +161,16 @@ class ABRankingDatasetLoader:
         embeddings_img_1_data = get_object(self.minio_client, embeddings_path_img_1)
         embeddings_img_1_data = msgpack.unpackb(embeddings_img_1_data)
         embeddings_img_1_embeddings_vector = []
-        embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["positive_embedding"]["__ndarray__"][0])
-        embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["negative_embedding"]["__ndarray__"][0])
+        embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["positive_embedding"]["__ndarray__"])
+        embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["negative_embedding"]["__ndarray__"])
         embeddings_img_1_embeddings_vector = np.array(embeddings_img_1_embeddings_vector)
-        # embeddings_img_1_embeddings_vector = embeddings_img_1_embeddings_vector.flatten()
 
         embeddings_img_2_data = get_object(self.minio_client, embeddings_path_img_2)
         embeddings_img_2_data = msgpack.unpackb(embeddings_img_2_data)
         embeddings_img_2_embeddings_vector = []
-        embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["positive_embedding"]["__ndarray__"][0])
-        embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["negative_embedding"]["__ndarray__"][0])
+        embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["positive_embedding"]["__ndarray__"])
+        embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["negative_embedding"]["__ndarray__"])
         embeddings_img_2_embeddings_vector = np.array(embeddings_img_2_embeddings_vector)
-        # embeddings_img_2_embeddings_vector = embeddings_img_2_embeddings_vector.flatten()
 
         # if image 1 is the selected
         if selected_image_index == 0:
@@ -251,8 +249,9 @@ class ABRankingDatasetLoader:
 
         target_probabilities = np.array(target_probabilities)
 
-        image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.float).unsqueeze(dim=3)
-        image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.float).unsqueeze(dim=3)
+        image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.float)
+        image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.float)
+
         target_probabilities = torch.tensor(target_probabilities).to(torch.float)
 
         if device is not None:
@@ -282,8 +281,8 @@ class ABRankingDatasetLoader:
         image_y_feature_vectors = np.array(image_y_feature_vectors, dtype=np.float32)
         target_probabilities = np.array(target_probabilities)
 
-        image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.float).unsqueeze(dim=3)
-        image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.float).unsqueeze(dim=3)
+        image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.float)
+        image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.float)
         target_probabilities = torch.tensor(target_probabilities).to(torch.float)
 
         return image_x_feature_vectors, image_y_feature_vectors, target_probabilities
