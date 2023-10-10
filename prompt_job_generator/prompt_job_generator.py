@@ -172,6 +172,8 @@ def main():
                                                                     'input/dataset-config/mech/base-prompts-mechs.csv')
     prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('character',
                                                                     'input/dataset-config/character/base-prompts-waifu.csv')
+    prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('environmental',
+                                                                    'input/dataset-config/icon/base-prompts-icon-2.csv')
 
     thread = threading.Thread(target=update_dataset_values_background_thread, args=(prompt_job_generator_state,))
     thread.start()
