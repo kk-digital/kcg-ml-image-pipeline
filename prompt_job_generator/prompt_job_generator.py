@@ -4,6 +4,7 @@ import random
 import sys
 import time
 import io
+import threading
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -12,7 +13,7 @@ from configs.model_config import ModelPathConfig
 from stable_diffusion.model_paths import (SDconfigs, CLIPconfigs)
 from stable_diffusion import CLIPTextEmbedder
 from utility.minio import cmd
-from prompt_job_generator.http_requests.request import http_get_completed_jobs_count, http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list
+from prompt_job_generator.http_requests.request import http_get_dataset_rate, http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list
 from worker.prompt_generation.prompt_generator import (generate_inpainting_job,
                                                        generate_image_generation_jobs,
                                                        initialize_prompt_list_from_csv)
@@ -32,6 +33,8 @@ class PromptJobGeneratorState:
         # keep the dataset_rate in this dictionary
         # should update using orchestration api
         self.dataset_rate = {}
+        self.total_rate = 0
+        self.dataset_rate_lock = threading.Lock()
         # keep the dataset_job_per_second in this dictionary
         # should update using orchestration api
         self.dataset_job_per_second = {}
@@ -114,13 +117,19 @@ class PromptJobGeneratorState:
             return None
 
     def set_dataset_rate(self, dataset, rate):
-        self.dataset_rate[dataset] = rate
+        with self.dataset_rate_lock:
+            self.dataset_rate[dataset] = rate
+
+    def set_total_rate(self, total_rate):
+        with self.dataset_rate_lock:
+            self.total_rate = total_rate
 
     def get_dataset_rate(self, dataset):
-        if dataset in self.dataset_rate:
-            return self.dataset_rate[dataset]
-        else:
-            return None
+        with self.dataset_rate_lock:
+            if dataset in self.dataset_rate:
+                return self.dataset_rate[dataset]
+            else:
+                return None
 
     def set_dataset_job_per_second(self, dataset, job_per_second):
         self.dataset_job_per_second[dataset] = job_per_second
@@ -266,6 +275,41 @@ def generate_mechs_image_generation_jobs(prompt_job_generator_state):
         clip_text_embedder=prompt_job_generator_state.clip_text_embedder
     )
 
+
+def update_dataset_rates(prompt_job_generator_state):
+    # get list of datasets
+    list_datasets = http_get_dataset_list()
+
+    # if dataset list is null return
+    if list_datasets is None:
+        return
+
+    # loop through all datasets and
+    # for each dataset update the dataset_rate
+    # from orchestration api rates
+    total_rate = 0
+    for dataset in list_datasets:
+        dataset_rate_json = http_get_dataset_rate(dataset)
+
+        if dataset_rate_json is None:
+            continue
+
+        dataset_rate = dataset_rate_json['dataset_rate']
+
+        total_rate += dataset_rate
+
+        prompt_job_generator_state.set_dataset_rate(dataset, dataset_rate)
+
+    prompt_job_generator_state.set_total_rate(total_rate)
+
+def update_dataset_rates_background_thread(prompt_job_generator_state):
+
+    while True:
+        update_dataset_rates(prompt_job_generator_state)
+
+        sleep_time_in_seconds = 1.0
+        time.sleep(sleep_time_in_seconds)
+
 def main():
     args = parse_args()
 
@@ -297,18 +341,11 @@ def main():
     prompt_job_generator_state.load_efficient_net_model('character', 'datasets',
                                           'character/models/ranking/ab_ranking_efficient_net/2023-10-10.pth')
 
+    thread = threading.Thread(target=update_dataset_rates_background_thread, args=(prompt_job_generator_state,))
+    thread.start()
+
     # get list of datasets
     list_datasets = http_get_dataset_list()
-
-    # --- http get dataset rates
-    # hard coded for now
-    dataset_rates_dictionary = {
-        'icons': 4,
-        'character' : 4,
-        'mech' : 1,
-        'propaganda-poster' : 2,
-        'environmental' : 1
-    }
 
     # hard coded for now
     # TODO use orchestration api to get those values
@@ -321,27 +358,16 @@ def main():
     }
 
     while True:
-        # Update the dataset rates
+        # Update the dataset job per second value
         # TODO use orchestration api instead of hard coded values
         for dataset in list_datasets:
-            if dataset in dataset_rates_dictionary:
-                dataset_rate = dataset_rates_dictionary[dataset]
+            if dataset in dataset_job_per_second_dictionary:
+                dataset_job_per_second = dataset_job_per_second_dictionary[dataset]
             else:
-                dataset_rate = None
+                dataset_job_per_second = None
 
-            if dataset_rate is not None:
-                prompt_job_generator_state.set_dataset_rate(dataset, dataset_rate)
-
-            # Update the dataset job per second value
-            # TODO use orchestration api instead of hard coded values
-            for dataset in list_datasets:
-                if dataset in dataset_job_per_second_dictionary:
-                    dataset_job_per_second = dataset_job_per_second_dictionary[dataset]
-                else:
-                    dataset_job_per_second = None
-
-                if dataset_job_per_second is not None:
-                    prompt_job_generator_state.set_dataset_job_per_second(dataset, dataset_job_per_second)
+            if dataset_job_per_second is not None:
+                prompt_job_generator_state.set_dataset_job_per_second(dataset, dataset_job_per_second)
 
 
         # dictionary that maps dataset => number of jobs to add
