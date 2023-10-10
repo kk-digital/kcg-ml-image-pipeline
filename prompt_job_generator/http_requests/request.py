@@ -70,7 +70,7 @@ def http_get_dataset_list():
     return None
 
 def http_get_dataset_rate(dataset_name: str):
-    url = SERVER_ADRESS + f"/dataset/get-date/{dataset_name}"
+    url = SERVER_ADRESS + f"/dataset/get-rate/{dataset_name}"
 
     try:
         response = requests.get(url)
