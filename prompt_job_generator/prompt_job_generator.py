@@ -9,7 +9,7 @@ sys.path.insert(0, base_directory)
 
 from prompt_job_generator_state import PromptJobGeneratorState
 from prompt_job_generator_functions import generate_icon_generation_jobs, generate_character_generation_jobs, generate_mechs_image_generation_jobs, generate_propaganda_posters_image_generation_jobs
-from prompt_job_generator.http_requests.request import http_get_dataset_rate, http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list
+from prompt_job_generator.http_requests.request import http_get_all_dataset_rate, http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list
 
 
 
@@ -38,17 +38,25 @@ def update_dataset_rates(prompt_job_generator_state, list_datasets):
     if list_datasets is None:
         return
 
+    dataset_rate_json = http_get_all_dataset_rate()
+    dataset_rate_dictionary = {}
+
+    for dataset_rate in dataset_rate_json:
+        dataset = dataset_rate['dataset_name']
+        dataset_rate = dataset_rate['dataset_rate']
+
+        dataset_rate_dictionary[dataset] = dataset_rate
+
     # loop through all datasets and
     # for each dataset update the dataset_rate
     # from orchestration api rates
     total_rate = 0
     for dataset in list_datasets:
-        dataset_rate_json = http_get_dataset_rate(dataset)
 
-        if dataset_rate_json is None:
+        if dataset not in dataset_rate_dictionary:
             continue
 
-        dataset_rate = int(dataset_rate_json['dataset_rate'])
+        dataset_rate = int(dataset_rate_dictionary[dataset])
 
         total_rate += dataset_rate
 
