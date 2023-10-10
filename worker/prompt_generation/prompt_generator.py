@@ -672,7 +672,7 @@ def generate_inpainting_job(phrases,
                             init_img_path="./test/test_inpainting/white_512x512.jpg",
                             mask_path="./test/test_inpainting/icon_mask.png",
                             efficient_net_model=None,
-                            util_clip=None):
+                            clip_text_embedder=None):
 
     # TODO load efficient net
     # TODO get score from efficient net for prompt
@@ -699,13 +699,19 @@ def generate_inpainting_job(phrases,
 
 
     top_prompt = None
+    highest_score = -99999999
     for prompt in prompts:
         prompt_score = 0
-        if efficient_net_model is not None and prompt_embedder is not None:
+        if efficient_net_model is not None and clip_text_embedder is not None:
             text_prompt = base_prompts + top_prompt.positive_prompt_str
             # get prompt embeddings
+            prompt_embeddings = clip_text_embedder(text_prompt)
+            prompt_score = efficient_net_model(prompt_embeddings)
 
-            prompt_score = efficient_net_model()
+        # check if we have a top prompt
+        if prompt_score > highest_score:
+            top_prompt = prompt
+            highest_score = prompt_score
 
 
     if top_prompt is None:

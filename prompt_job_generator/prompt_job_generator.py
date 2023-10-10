@@ -8,7 +8,9 @@ import io
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from utility.clip.clip import ClipModel
+from configs.model_config import ModelPathConfig
+from stable_diffusion.model_paths import (SDconfigs, CLIPconfigs)
+from stable_diffusion import CLIPTextEmbedder
 from utility.minio import cmd
 from prompt_job_generator.http_requests.request import http_get_completed_jobs_count, http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list
 from worker.prompt_generation.prompt_generator import (generate_inpainting_job,
@@ -47,21 +49,23 @@ class PromptJobGeneratorState:
         # minio connection
         self.minio_client = None
 
-        # open ai clip model
-        self.util_clip = ClipModel()
-
         self.phrases = None
         self.phrases_token_size = None
         self.positive_count_list = None
         self.negative_count_list = None
         self.device = device
+        self.config = ModelPathConfig()
+        self.clip_text_embedder = CLIPTextEmbedder(device=self.device)
 
     def configure_minio(self, minio_access_key, minio_secret_key):
         self.minio_client = cmd.get_minio_client(minio_access_key, minio_secret_key)
 
     def load_clip_model(self):
         # Load the clip model
-        self.util_clip.load_clip()
+        self.clip_text_embedder.load_submodels(
+            tokenizer_path=self.config.get_model_folder_path(CLIPconfigs.TXT_EMB_TOKENIZER),
+            transformer_path=self.config.get_model_folder_path(CLIPconfigs.TXT_EMB_TEXT_MODEL)
+        )
 
     def load_efficient_net_model(self, dataset, dataset_bucket, model_path):
 
@@ -149,7 +153,7 @@ class PromptJobGeneratorState:
 
 
 def generate_icon_generation_jobs(prompt_job_generator_state):
-    prompt_count = 1
+    prompt_count = 100
     base_prompts_csv_path = 'input/dataset-config/icon/base-prompts-icon-2.csv'
     dataset_name = 'icons'
     positive_prefix = ""
@@ -178,7 +182,7 @@ def generate_icon_generation_jobs(prompt_job_generator_state):
         init_img_path=init_img_path,
         mask_path=mask_path,
         efficient_net_model=efficient_net_model,
-        util_clip=prompt_job_generator_state.util_clip
+        clip_text_embedder=prompt_job_generator_state.clip_text_embedder
 
     )
 
@@ -197,7 +201,9 @@ def generate_character_generation_jobs(prompt_job_generator_state):
 
     print(f"Adding '{dataset_name}' generation job")
 
-    generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts(
+    efficient_net_model = prompt_job_generator_state.get_efficient_net_model(dataset_name)
+
+    generate_inpainting_job(
         phrases=prompt_job_generator_state.phrases,
         phrases_token_size=prompt_job_generator_state.phrases_token_size,
         positive_count_list=prompt_job_generator_state.positive_count_list,
@@ -207,7 +213,10 @@ def generate_character_generation_jobs(prompt_job_generator_state):
         dataset_name=dataset_name,
         positive_prefix=positive_prefix,
         init_img_path=init_img_path,
-        mask_path=mask_path
+        mask_path=mask_path,
+        efficient_net_model=efficient_net_model,
+        clip_text_embedder=prompt_job_generator_state.clip_text_embedder
+
     )
 
 def generate_propaganda_posters_image_generation_jobs(prompt_job_generator_state):
@@ -287,9 +296,9 @@ def main():
     dataset_rates_dictionary = {
         'icons': 4,
         'character' : 4,
-        'mech' : 2,
-        'propaganda-poster' : 1,
-        'environmental' : 1
+        'mech' : 0,
+        'propaganda-poster' : 0,
+        'environmental' : 0
     }
 
     # hard coded for now
