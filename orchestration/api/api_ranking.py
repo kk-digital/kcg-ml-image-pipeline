@@ -49,7 +49,7 @@ def add_relevancy_selection_datapoint(request: Request, dataset: str, selection:
 
     # prepare path
     file_name = "{}-{}.json".format(time, selection.username)
-    path = "data/ranking/relevancy"
+    path = "data/relevancy/aggregate"
     full_path = os.path.join(dataset, path, file_name)
 
     # convert to bytes
