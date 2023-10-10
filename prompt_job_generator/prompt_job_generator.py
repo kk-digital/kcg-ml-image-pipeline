@@ -469,6 +469,7 @@ def main():
 
                 if number_of_jobs_to_add > 0:
                     dataset_todo_jobs[dataset] += dataset_rate
+                    added_atleast_one_job = True
 
                 if dataset_todo_jobs[dataset] >= 1.0:
                     # spawn job
@@ -488,8 +489,6 @@ def main():
                     print(f'number of jobs to spawn for dataset {dataset} is {number_of_jobs_to_add}')
                     # Adding a job
                     dataset_callback(prompt_job_generator_state)
-
-                    added_atleast_one_job = True
 
         # sleep for n number of seconds
         time_to_sleep_in_seconds = 2
