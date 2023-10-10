@@ -291,6 +291,14 @@ def main():
     prompt_job_generator_state.load_efficient_net_model('character', 'datasets',
                                           'character/models/ab_ranking_efficient_net/2023-10-10.pth')
 
+    prompt_job_generator_state.load_efficient_net_model('icons', 'datasets',
+                                                        'character/models/ab_ranking_efficient_net/2023-10-10.pth')
+
+
+    print(prompt_job_generator_state.get_efficient_net_model('character'))
+    print(prompt_job_generator_state.get_efficient_net_model('icons'))
+    return
+
     # get list of datasets
     list_datasets = http_get_dataset_list()
 
