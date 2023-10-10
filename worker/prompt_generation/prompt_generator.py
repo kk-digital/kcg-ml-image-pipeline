@@ -706,7 +706,8 @@ def generate_inpainting_job(phrases,
             text_prompt = base_prompts + prompt.positive_prompt_str
             # get prompt embeddings
             prompt_embeddings = clip_text_embedder(text_prompt)
-            prompt_score = efficient_net_model(prompt_embeddings)
+            prompt_score = efficient_net_model.predict(prompt_embeddings)
+            print(prompt_score)
 
         # check if we have a top prompt
         if prompt_score > highest_score:
