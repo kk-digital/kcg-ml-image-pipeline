@@ -251,9 +251,11 @@ class ABRankingEfficientNetModel:
         positive_input = positive_input.squeeze()
         negative_input = negative_input.squeeze()
 
+        # make is [2, 77, 768]
         inputs = torch.stack((positive_input, negative_input))
 
-        inputs = inputs.unsqueeze()
+        # make is [1, 2, 77, 768]
+        inputs = inputs.unsqueeze(0)
 
         return self.predict(inputs)
 
