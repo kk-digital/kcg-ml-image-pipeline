@@ -456,13 +456,11 @@ def main():
             added_atleast_one_job = False
 
             for dataset in list_datasets:
-                print(dataset)
                 # get dataset rate
                 # dataset rates should update in background using
                 # orchestration api
                 dataset_rate = prompt_job_generator_state.get_dataset_rate(dataset)
 
-                print("rate : ", dataset_rate)
                 # if dataset_rate does not exist skip this dataset
                 if dataset_rate is None:
                     continue
@@ -484,7 +482,6 @@ def main():
                     # just move on
                     dataset_callback = prompt_job_generator_state.get_callback(dataset)
 
-                    print("callback ", dataset_callback)
                     if dataset_callback == None:
                         print("dataset callback not found for dataset ", dataset)
                         continue
