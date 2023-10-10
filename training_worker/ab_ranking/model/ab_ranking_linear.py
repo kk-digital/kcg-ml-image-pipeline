@@ -13,7 +13,7 @@ from tqdm import tqdm
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from training_worker.ab_ranking_linear.model.ab_ranking_data_loader import ABRankingDatasetLoader
+from training_worker.ab_ranking.model.ab_ranking_linear_data_loader import ABRankingDatasetLoader
 from utility.minio import cmd
 
 
@@ -45,7 +45,7 @@ class ABRankingModel:
         self._device = torch.device(device)
 
         self.model = ABRankingLinearModel(inputs_shape).to(self._device)
-        self.model_type = 'linear-regression'
+        self.model_type = 'ab-ranking-linear'
         self.loss_func_name = ''
         self.file_path = ''
         self.model_hash = ''
@@ -78,7 +78,8 @@ class ABRankingModel:
         # Saving the model to minio
         buffer = BytesIO()
         torch.save(model, buffer)
-
+        buffer.seek(0)
+        
         # upload the model
         cmd.upload_data(minio_client, datasets_bucket, model_output_path, buffer)
 
