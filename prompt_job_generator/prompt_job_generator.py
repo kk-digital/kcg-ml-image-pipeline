@@ -261,12 +261,13 @@ def generate_mechs_image_generation_jobs(prompt_job_generator_state):
 def main():
     args = parse_args()
 
+    device = 'cuda'
     minio_access_key = 'v048BpXpWrsVIHUfdAix'
     minio_secret_key = '4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu'
     csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
     csv_phrase_limit = 0
 
-    prompt_job_generator_state = PromptJobGeneratorState()
+    prompt_job_generator_state = PromptJobGeneratorState(device=device)
 
     prompt_job_generator_state.configure_minio(minio_access_key, minio_secret_key)
     prompt_job_generator_state.load_clip_model()
