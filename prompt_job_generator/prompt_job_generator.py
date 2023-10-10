@@ -241,6 +241,16 @@ def main():
                 if dataset not in dataset_number_jobs_to_add:
                     continue
 
+                # get dataset callback
+                # used to spawn the job
+                # if the callback is not found
+                # just move on
+                dataset_callback = prompt_job_generator_state.get_callback(dataset)
+
+                if dataset_callback == None:
+                    print("dataset callback not found for dataset ", dataset)
+                    continue
+
                 number_of_jobs_to_add = dataset_number_jobs_to_add[dataset]
 
                 if number_of_jobs_to_add > 0:
@@ -251,16 +261,6 @@ def main():
                     # spawn job
                     dataset_todo_jobs[dataset] -= 1.0
                     dataset_number_jobs_to_add[dataset] = number_of_jobs_to_add - 1
-
-                    # get dataset callback
-                    # used to spawn the job
-                    # if the callback is not found
-                    # just move on
-                    dataset_callback = prompt_job_generator_state.get_callback(dataset)
-
-                    if dataset_callback == None:
-                        print("dataset callback not found for dataset ", dataset)
-                        continue
 
                     print(f'number of jobs to spawn for dataset {dataset} is {number_of_jobs_to_add}')
                     # Adding a job
