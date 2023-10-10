@@ -185,6 +185,7 @@ def main():
     list_datasets = http_get_dataset_list()
     update_dataset_prompt_queue(prompt_job_generator_state, list_datasets)
 
+    return
     while True:
 
         # dictionary that maps dataset => number of jobs to add
