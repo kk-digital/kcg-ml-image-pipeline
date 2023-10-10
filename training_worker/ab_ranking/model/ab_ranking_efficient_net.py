@@ -240,23 +240,20 @@ class ABRankingEfficientNetModel:
 
         return self.model.bce_loss(pred_probabilities, target_probabilities), pred_probabilities
 
-    def predict(self, inputs):
-        with torch.no_grad():
-            outputs = self.model.forward(inputs).squeeze()
-
-            return outputs
-
     def predict_positive_negative(self, positive_input, negative_input):
         # get rid of the 1 dimension at start
         positive_input = positive_input.squeeze()
         negative_input = negative_input.squeeze()
 
-        # make is [2, 77, 768]
+        # make it [2, 77, 768]
         inputs = torch.stack((positive_input, negative_input))
 
-        # make is [1, 2, 77, 768]
+        # make it [1, 2, 77, 768]
         inputs = inputs.unsqueeze(0)
 
-        return self.predict(inputs)
+        with torch.no_grad():
+            outputs = self.model.forward(inputs).squeeze()
+
+            return outputs
 
 
