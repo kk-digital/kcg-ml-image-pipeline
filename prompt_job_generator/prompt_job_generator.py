@@ -153,7 +153,7 @@ class PromptJobGeneratorState:
 
 
 def generate_icon_generation_jobs(prompt_job_generator_state):
-    prompt_count = 100
+    prompt_count = 1000
     base_prompts_csv_path = 'input/dataset-config/icon/base-prompts-icon-2.csv'
     dataset_name = 'icons'
     positive_prefix = ""
@@ -187,7 +187,7 @@ def generate_icon_generation_jobs(prompt_job_generator_state):
     )
 
 def generate_character_generation_jobs(prompt_job_generator_state):
-    prompt_count = 1
+    prompt_count = 1000
     base_prompts_csv_path = 'input/dataset-config/character/base-prompts-waifu.csv'
     dataset_name = "character"
     positive_prefix = ""

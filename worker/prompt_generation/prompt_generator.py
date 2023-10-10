@@ -717,6 +717,8 @@ def generate_inpainting_job(phrases,
     if top_prompt is None:
         return
 
+    print('Highest score ', highest_score)
+
     # get sequential ids
     sequential_ids = request.http_get_sequential_id(dataset_name, 1)
 
