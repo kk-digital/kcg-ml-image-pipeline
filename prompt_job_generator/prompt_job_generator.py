@@ -244,6 +244,10 @@ def main():
                 if dataset not in dataset_number_jobs_to_add:
                     continue
 
+                if not prompt_job_generator_state.prompt_queue.database_prompt_available(dataset):
+                    print('no prompt is available for dataset ', dataset)
+                    continue
+
                 # get dataset callback
                 # used to spawn the job
                 # if the callback is not found
