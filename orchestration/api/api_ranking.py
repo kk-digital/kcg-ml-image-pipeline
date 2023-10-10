@@ -11,6 +11,16 @@ from orchestration.api.mongo_schemas import Selection
 router = APIRouter()
 
 
+@router.get("/ranking/list-selection-policies")
+def list_policies(request: Request):
+    # hard code policies for now
+    policies = ["random-unifrom",
+                "top k variance",
+                "error sampling"]
+
+    return policies
+
+
 @router.post("/add-selection-datapoint/{dataset}")
 def add_selection_datapoint(request: Request, dataset: str, selection: Selection):
     time = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
