@@ -703,7 +703,7 @@ def generate_inpainting_job(phrases,
     for prompt in prompts:
         prompt_score = 0
         if efficient_net_model is not None and clip_text_embedder is not None:
-            text_prompt = base_prompts + top_prompt.positive_prompt_str
+            text_prompt = base_prompts + prompt.positive_prompt_str
             # get prompt embeddings
             prompt_embeddings = clip_text_embedder(text_prompt)
             prompt_score = efficient_net_model(prompt_embeddings)
