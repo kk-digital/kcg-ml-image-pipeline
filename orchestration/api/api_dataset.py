@@ -52,27 +52,43 @@ def get_sequential_id(request: Request, dataset: str, limit: int = 1):
 
 
 # -------------------- Dataset rate -------------------------
-@router.get("/dataset/get-rate/{dataset}")
+@router.get("/dataset/get-rate")
 def get_rate(request: Request, dataset: str):
     # find
     query = {"dataset_name": dataset}
-    job = request.app.dataset_rate_collection.find_one(query)
-    if job is None:
+    item = request.app.dataset_rate_collection.find_one(query)
+    if item is None:
         raise HTTPException(status_code=404)
 
     # remove the auto generated field
-    job.pop('_id', None)
+    item.pop('_id', None)
 
-    return job
+    return item
 
 
-@router.put("/dataset/set-rate/{dataset}")
+@router.get("/dataset/get-all-dataset-rate")
+def get_all_dataset_rate(request: Request):
+    dataset_rates = []
+    # find
+    items = request.app.dataset_rate_collection.find({})
+    if items is None:
+        raise HTTPException(status_code=404)
+
+    for item in items:
+        # remove the auto generated field
+        item.pop('_id', None)
+        dataset_rates.append(item)
+
+    return dataset_rates
+
+
+@router.put("/dataset/set-rate")
 def set_rate(request: Request, dataset, rate=0):
     date_now = datetime.now()
     # check if exist
     query = {"dataset_name": dataset}
-    job = request.app.dataset_rate_collection.find_one(query)
-    if job is None:
+    item = request.app.dataset_rate_collection.find_one(query)
+    if item is None:
         # add one
         dataset_rate = {
             "dataset_name": dataset,
