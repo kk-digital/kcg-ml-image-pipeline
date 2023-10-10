@@ -53,7 +53,7 @@ def get_sequential_id(request: Request, dataset: str, limit: int = 1):
 
 # -------------------- Dataset rate -------------------------
 @router.get("/dataset/get-rate/{dataset}")
-def get_job(request: Request, dataset: str):
+def get_rate(request: Request, dataset: str):
     # find
     query = {"dataset_name": dataset}
     job = request.app.dataset_rate_collection.find_one(query)
@@ -67,7 +67,7 @@ def get_job(request: Request, dataset: str):
 
 
 @router.put("/dataset/set-rate/{dataset}")
-def update_job_completed(request: Request, dataset, rate=0):
+def set_rate(request: Request, dataset, rate=0):
     date_now = datetime.now()
     # check if exist
     query = {"dataset_name": dataset}
