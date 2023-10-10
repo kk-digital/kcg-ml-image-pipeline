@@ -183,6 +183,7 @@ def main():
 
     # get list of datasets
     list_datasets = http_get_dataset_list()
+    update_dataset_prompt_queue(prompt_job_generator_state, list_datasets)
 
     while True:
 
