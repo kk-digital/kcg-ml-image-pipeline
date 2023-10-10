@@ -51,7 +51,7 @@ def train_ranking(dataset_name: str,
         validation_target_probabilities, \
         training_loss_per_epoch, \
         validation_loss_per_epoch = ab_model.train(dataset_loader=dataset_loader,
-                                                                        training_batch_size=16,
+                                                                        training_batch_size=4,
                                                                         epochs=epochs,
                                                                         learning_rate=learning_rate)
 
@@ -113,7 +113,7 @@ def train_ranking(dataset_name: str,
                                   validation_predicted_score_images_y)
 
     # Upload model to minio
-    report_name = "{}_report.txt".format(date_now)
+    report_name = "{}.txt".format(date_now)
     report_output_path = os.path.join(output_path,  report_name)
 
     report_buffer = BytesIO(report_str.encode(encoding='UTF-8'))
@@ -122,7 +122,7 @@ def train_ranking(dataset_name: str,
     cmd.upload_data(dataset_loader.minio_client, bucket_name, report_output_path, report_buffer)
 
     # show and save graph
-    graph_name = "{}_graph.jpg".format(date_now)
+    graph_name = "{}.png".format(date_now)
     graph_output_path = os.path.join(output_path, graph_name)
 
     graph_buffer = get_graph_report(training_predicted_probabilities,
