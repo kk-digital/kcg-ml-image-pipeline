@@ -179,8 +179,6 @@ def main():
     list_datasets = http_get_dataset_list()
     update_dataset_prompt_queue(prompt_job_generator_state, list_datasets)
 
-    return
-
     thread = threading.Thread(target=update_dataset_values_background_thread, args=(prompt_job_generator_state,))
     thread.start()
 
