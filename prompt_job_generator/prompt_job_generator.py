@@ -489,7 +489,7 @@ def main():
                     # Adding a job
                     dataset_callback(prompt_job_generator_state)
 
-                added_atleast_one_job = True
+                    added_atleast_one_job = True
 
         # sleep for n number of seconds
         time_to_sleep_in_seconds = 2
