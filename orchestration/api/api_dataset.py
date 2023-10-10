@@ -1,8 +1,7 @@
-
 from fastapi import Request, HTTPException, APIRouter, Response
 from orchestration.api.mongo_schemas import SequentialID
 from utility.minio import cmd
-
+from datetime import datetime
 router = APIRouter()
 
 
@@ -50,3 +49,41 @@ def get_sequential_id(request: Request, dataset: str, limit: int = 1):
     request.app.dataset_sequential_id_collection.update_one({"dataset_name": dataset}, new_values)
 
     return sequential_id_arr
+
+
+# -------------------- Dataset rate -------------------------
+@router.get("/dataset/get-rate/{dataset}")
+def get_rate(request: Request, dataset: str):
+    # find
+    query = {"dataset_name": dataset}
+    job = request.app.dataset_rate_collection.find_one(query)
+    if job is None:
+        raise HTTPException(status_code=404)
+
+    # remove the auto generated field
+    job.pop('_id', None)
+
+    return job
+
+
+@router.put("/dataset/set-rate/{dataset}")
+def set_rate(request: Request, dataset, rate=0):
+    date_now = datetime.now()
+    # check if exist
+    query = {"dataset_name": dataset}
+    job = request.app.dataset_rate_collection.find_one(query)
+    if job is None:
+        # add one
+        dataset_rate = {
+            "dataset_name": dataset,
+            "last_update": date_now,
+            "dataset_rate": rate,
+        }
+        request.app.dataset_rate_collection.insert_one(dataset_rate)
+
+    # update
+    new_values = {"$set": {"last_update": date_now,
+                           "dataset_rate": rate}}
+    request.app.dataset_rate_collection.update_one(query, new_values)
+
+    return True
