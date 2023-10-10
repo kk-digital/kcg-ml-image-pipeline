@@ -146,3 +146,14 @@ def is_object_exists(client, bucket_name, object_name):
         return True
 
     return False
+
+def get_minio_client(minio_access_key, minio_secret_key, try_count=5):
+    # check first if minio client is available
+    minio_client = None
+    try_index = 0
+    while minio_client is None and try_index < try_count:
+        # check minio server
+        try_index = try_index + 1
+        if is_minio_server_accesssible():
+            minio_client = connect_to_minio_client(minio_access_key, minio_secret_key)
+            return minio_client
