@@ -1,11 +1,11 @@
-from fastapi import Request, APIRouter
+from fastapi import Request, APIRouter, Query
 from utility.minio import cmd
 import json
 
 router = APIRouter()
 
-@router.get("/models/list-relevancy/{dataset}")
-def get_relevancy_models(request: Request, dataset: str):
+@router.get("/models/rank-relevancy/list-models")
+def get_relevancy_models(request: Request, dataset: str = Query(...)):
     # Bucket name
     bucket_name = "datasets"
     
@@ -24,7 +24,7 @@ def get_relevancy_models(request: Request, dataset: str):
             model_content = json.loads(data.read().decode('utf-8'))
             
             # Extract model name from the JSON file name (like '2023-10-09.json') and append .pth
-            model_name = obj.split('/')[-1].split('.')[0] + '.pth'
+            model_name = obj.split('/')[-1].split('.')[0] 
             
             # Construct a new dictionary with model_name at the top
             arranged_content = {
@@ -38,8 +38,8 @@ def get_relevancy_models(request: Request, dataset: str):
     return models_list
 
 
-@router.get("/models/list-ranking/{dataset}")
-def get_ranking_models(request: Request, dataset: str):
+@router.get("/models/rank-embedding/list-models")
+def get_ranking_models(request: Request, dataset: str = Query(...)):
     # Bucket name
     bucket_name = "datasets"
     
@@ -54,7 +54,7 @@ def get_ranking_models(request: Request, dataset: str):
         if obj.endswith('.json'):
             data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, obj)
             model_content = json.loads(data.read().decode('utf-8'))
-            model_name = obj.split('/')[-1].split('.')[0] + '.pth'
+            model_name = obj.split('/')[-1].split('.')[0] 
             arranged_content = {
                 'model_name': model_name,
                 **model_content
