@@ -4,7 +4,7 @@ import queue
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from worker.prompt_generation.prompt_generator import generate_prompts_proportional_selection, generate_base_prompts
+from worker.prompt_generation.prompt_generator import generate_prompts_proportional_selection, generate_base_prompts, load_base_prompts
 
 class PromptGenerationPromptQueue:
     def __init__(self, queue_size):
@@ -49,6 +49,7 @@ class PromptGenerationPromptQueue:
             return False
 
         return True
+
     def update(self, prompt_job_generator_state, dataset):
         if dataset not in self.queue_dictionary:
             self.queue_dictionary[dataset] = queue.Queue()
@@ -88,6 +89,7 @@ class PromptGenerationPromptQueue:
                                                           prompt_job_generator_state.negative_count_list,
                                                           total_prompt_count,
                                                           '')
+        base_prompt_list = load_base_prompts(base_prompts_csv_path)
 
         scored_prompts = []
         for prompt in prompts:
@@ -98,7 +100,7 @@ class PromptGenerationPromptQueue:
             # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
             choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
 
-            base_prompt_list = generate_base_prompts(base_prompts_csv_path, choose_probability)
+            base_prompt_list = generate_base_prompts(base_prompt_list, choose_probability)
 
             base_prompts = ''
 

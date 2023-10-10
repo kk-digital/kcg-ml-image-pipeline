@@ -672,11 +672,11 @@ def generate_inpainting_job(positive_prompt,
     request.http_add_job(generation_task_json)
 
 
-def generate_base_prompts(base_prompts_csv_path, choose_probability):
+def load_base_prompts(base_prompts_csv_path):
     if base_prompts_csv_path is None:
         return []
 
-    # Initialize an empty list to store the data
+        # Initialize an empty list to store the data
     data_list = []
     # Initialize empty base prompt list
     base_prompt_list = []
@@ -694,6 +694,10 @@ def generate_base_prompts(base_prompts_csv_path, choose_probability):
 
         base_prompt = item[0]
         base_prompt_list.append(base_prompt)
+
+    return base_prompt_list
+
+def generate_base_prompts(base_prompt_list, choose_probability):
 
     # Randomly choose the value of n based on the probabilities
     n = random.choices(range(len(choose_probability)), weights=choose_probability)[0]

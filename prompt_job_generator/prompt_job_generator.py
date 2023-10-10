@@ -12,7 +12,6 @@ from prompt_job_generator_functions import generate_icon_generation_jobs, genera
 from prompt_job_generator.http_requests.request import http_get_all_dataset_rate, http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list
 
 
-
 def parse_args():
     parser = argparse.ArgumentParser(description="generate prompts")
 
