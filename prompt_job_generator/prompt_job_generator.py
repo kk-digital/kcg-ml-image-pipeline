@@ -289,10 +289,10 @@ def main():
     prompt_job_generator_state.register_callback("character", generate_character_generation_jobs)
 
     prompt_job_generator_state.load_efficient_net_model('character', 'datasets',
-                                          'character/models/ab_ranking_efficient_net/2023-10-10.pth')
+                                          'character/models/ranking/ab_ranking_efficient_net/2023-10-10.pth')
 
     prompt_job_generator_state.load_efficient_net_model('icons', 'datasets',
-                                                        'character/models/ab_ranking_efficient_net/2023-10-10.pth')
+                                                        'character/models/ranking/ab_ranking_efficient_net/2023-10-10.pth')
 
 
     print(prompt_job_generator_state.get_efficient_net_model('character'))
