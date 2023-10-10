@@ -153,7 +153,7 @@ class PromptJobGeneratorState:
 
 
 def generate_icon_generation_jobs(prompt_job_generator_state):
-    prompt_count = 100
+    prompt_count = 20
     base_prompts_csv_path = 'input/dataset-config/icon/base-prompts-icon-2.csv'
     dataset_name = 'icons'
     positive_prefix = ""
@@ -187,7 +187,7 @@ def generate_icon_generation_jobs(prompt_job_generator_state):
     )
 
 def generate_character_generation_jobs(prompt_job_generator_state):
-    prompt_count = 100
+    prompt_count = 20
     base_prompts_csv_path = 'input/dataset-config/character/base-prompts-waifu.csv'
     dataset_name = "character"
     positive_prefix = ""
@@ -221,7 +221,7 @@ def generate_character_generation_jobs(prompt_job_generator_state):
 
 def generate_propaganda_posters_image_generation_jobs(prompt_job_generator_state):
 
-    prompt_count = 100
+    prompt_count = 20
     base_prompts_csv_path = 'input/dataset-config/propaganda-poster/base-prompts-propaganda-poster.csv'
     dataset_name = 'propaganda-poster'
     positive_prefix = ""
@@ -244,7 +244,7 @@ def generate_propaganda_posters_image_generation_jobs(prompt_job_generator_state
     )
 
 def generate_mechs_image_generation_jobs(prompt_job_generator_state):
-    prompt_count = 100
+    prompt_count = 20
     base_prompts_csv_path = 'input/dataset-config/mech/base-prompts-mechs.csv'
     dataset_name = 'mech'
     positive_prefix = ""
