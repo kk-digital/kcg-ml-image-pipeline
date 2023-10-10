@@ -14,7 +14,7 @@ from stable_diffusion import CLIPTextEmbedder
 from utility.minio import cmd
 from prompt_job_generator.http_requests.request import http_get_completed_jobs_count, http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list
 from worker.prompt_generation.prompt_generator import (generate_inpainting_job,
-                                                       generate_image_generation_jobs_using_generated_prompts_and_base_prompts,
+                                                       generate_image_generation_jobs,
                                                        initialize_prompt_list_from_csv)
 from training_worker.ab_ranking.model.ab_ranking_efficient_net import ABRankingEfficientNetModel
 
@@ -221,14 +221,16 @@ def generate_character_generation_jobs(prompt_job_generator_state):
 
 def generate_propaganda_posters_image_generation_jobs(prompt_job_generator_state):
 
-    prompt_count = 1
+    prompt_count = 100
     base_prompts_csv_path = 'input/dataset-config/propaganda-poster/base-prompts-propaganda-poster.csv'
     dataset_name = 'propaganda-poster'
     positive_prefix = ""
 
     print(f"Adding '{dataset_name}' generation job")
 
-    generate_image_generation_jobs_using_generated_prompts_and_base_prompts(
+    efficient_net_model = prompt_job_generator_state.get_efficient_net_model(dataset_name)
+
+    generate_image_generation_jobs(
         phrases=prompt_job_generator_state.phrases,
         phrases_token_size=prompt_job_generator_state.phrases_token_size,
         positive_count_list=prompt_job_generator_state.positive_count_list,
@@ -237,17 +239,21 @@ def generate_propaganda_posters_image_generation_jobs(prompt_job_generator_state
         base_prompts_csv_path=base_prompts_csv_path,
         dataset_name=dataset_name,
         positive_prefix=positive_prefix,
+        efficient_net_model=efficient_net_model,
+        clip_text_embedder=prompt_job_generator_state.clip_text_embedder
     )
 
 def generate_mechs_image_generation_jobs(prompt_job_generator_state):
-    prompt_count = 1
+    prompt_count = 100
     base_prompts_csv_path = 'input/dataset-config/mech/base-prompts-mechs.csv'
     dataset_name = 'mech'
     positive_prefix = ""
 
     print(f"Adding '{dataset_name}' generation job")
 
-    generate_image_generation_jobs_using_generated_prompts_and_base_prompts(
+    efficient_net_model = prompt_job_generator_state.get_efficient_net_model(dataset_name)
+
+    generate_image_generation_jobs(
         phrases = prompt_job_generator_state.phrases,
         phrases_token_size=prompt_job_generator_state.phrases_token_size,
         positive_count_list=prompt_job_generator_state.positive_count_list,
@@ -256,6 +262,8 @@ def generate_mechs_image_generation_jobs(prompt_job_generator_state):
         base_prompts_csv_path=base_prompts_csv_path,
         dataset_name=dataset_name,
         positive_prefix=positive_prefix,
+        efficient_net_model=efficient_net_model,
+        clip_text_embedder=prompt_job_generator_state.clip_text_embedder
     )
 
 def main():
@@ -297,9 +305,9 @@ def main():
     dataset_rates_dictionary = {
         'icons': 4,
         'character' : 4,
-        'mech' : 0,
-        'propaganda-poster' : 0,
-        'environmental' : 0
+        'mech' : 1,
+        'propaganda-poster' : 2,
+        'environmental' : 1
     }
 
     # hard coded for now
