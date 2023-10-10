@@ -304,6 +304,8 @@ def update_dataset_rates(prompt_job_generator_state, list_datasets):
     for dataset in list_datasets:
         dataset_rate_json = http_get_dataset_rate(dataset)
 
+        print('dataset_rate : ', dataset_rate_json)
+
         if dataset_rate_json is None:
             continue
 
