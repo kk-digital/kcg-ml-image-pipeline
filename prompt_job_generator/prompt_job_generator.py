@@ -8,9 +8,10 @@ import io
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
+from utility.clip.clip import ClipModel
 from utility.minio import cmd
 from prompt_job_generator.http_requests.request import http_get_completed_jobs_count, http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list
-from worker.prompt_generation.prompt_generator import (generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts,
+from worker.prompt_generation.prompt_generator import (generate_inpainting_job,
                                                        generate_image_generation_jobs_using_generated_prompts_and_base_prompts,
                                                        initialize_prompt_list_from_csv)
 from training_worker.ab_ranking.model.ab_ranking_efficient_net import ABRankingEfficientNetModel
@@ -25,7 +26,7 @@ def parse_args():
 
 
 class PromptJobGeneratorState:
-    def __init__(self):
+    def __init__(self, device):
         # keep the dataset_rate in this dictionary
         # should update using orchestration api
         self.dataset_rate = {}
@@ -46,15 +47,21 @@ class PromptJobGeneratorState:
         # minio connection
         self.minio_client = None
 
+        # open ai clip model
+        self.util_clip = ClipModel()
+
         self.phrases = None
         self.phrases_token_size = None
         self.positive_count_list = None
         self.negative_count_list = None
+        self.device = device
 
     def configure_minio(self, minio_access_key, minio_secret_key):
         self.minio_client = cmd.get_minio_client(minio_access_key, minio_secret_key)
 
-
+    def load_clip_model(self):
+        # Load the clip model
+        self.util_clip.load_clip()
 
     def load_efficient_net_model(self, dataset, dataset_bucket, model_path):
 
@@ -76,6 +83,14 @@ class PromptJobGeneratorState:
 
         self.prompt_efficient_net_model_dictionary[dataset] = efficient_net_model
 
+    def get_efficient_net_model(self, dataset):
+        # try to get the efficient net model
+        # if the efficient net model is not found
+        # for the dataset return None
+        if dataset in self.prompt_efficient_net_model_dictionary:
+            return self.prompt_efficient_net_model_dictionary[dataset]
+
+        return None
 
     def load_prompt_list_from_csv(self, csv_dataset_path, csv_phrase_limit):
         phrases, phrases_token_size, positive_count_list, negative_count_list = initialize_prompt_list_from_csv(csv_dataset_path, csv_phrase_limit)
@@ -132,6 +147,7 @@ class PromptJobGeneratorState:
         random_index = random.randint(0, len(mask_list) - 1)
         return mask_list[random_index]
 
+
 def generate_icon_generation_jobs(prompt_job_generator_state):
     prompt_count = 1
     base_prompts_csv_path = 'input/dataset-config/icon/base-prompts-icon-2.csv'
@@ -141,14 +157,16 @@ def generate_icon_generation_jobs(prompt_job_generator_state):
     mask_path = "./test/test_inpainting/icon_mask.png"
 
     mask = prompt_job_generator_state.get_random_dataset_mask(dataset_name)
-    print(mask)
+
     if mask != None:
         init_img_path = mask['init_image']
         mask_path = mask['mask']
 
     print(f"Adding '{dataset_name}' generation job")
 
-    generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts(
+    efficient_net_model = prompt_job_generator_state.get_efficient_net_model(dataset_name)
+
+    generate_inpainting_job(
         phrases=prompt_job_generator_state.phrases,
         phrases_token_size=prompt_job_generator_state.phrases_token_size,
         positive_count_list=prompt_job_generator_state.positive_count_list,
@@ -158,7 +176,10 @@ def generate_icon_generation_jobs(prompt_job_generator_state):
         dataset_name=dataset_name,
         positive_prefix=positive_prefix,
         init_img_path=init_img_path,
-        mask_path=mask_path
+        mask_path=mask_path,
+        efficient_net_model=efficient_net_model,
+        util_clip=prompt_job_generator_state.util_clip
+
     )
 
 def generate_character_generation_jobs(prompt_job_generator_state):
@@ -239,6 +260,7 @@ def main():
     prompt_job_generator_state = PromptJobGeneratorState()
 
     prompt_job_generator_state.configure_minio(minio_access_key, minio_secret_key)
+    prompt_job_generator_state.load_clip_model()
 
     # loading civitai prompt csv file
     prompt_job_generator_state.load_prompt_list_from_csv(csv_dataset_path, csv_phrase_limit)
@@ -257,7 +279,6 @@ def main():
     prompt_job_generator_state.load_efficient_net_model('character', 'datasets',
                                           'character/models/ab_ranking_efficient_net/2023-10-10.pth')
 
-    return
     # get list of datasets
     list_datasets = http_get_dataset_list()
 
