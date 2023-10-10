@@ -238,6 +238,9 @@ def main():
                 if dataset_rate is None:
                     continue
 
+                if dataset not in dataset_number_jobs_to_add:
+                    continue
+
                 number_of_jobs_to_add = dataset_number_jobs_to_add[dataset]
 
                 if number_of_jobs_to_add > 0:
