@@ -175,17 +175,18 @@ def main():
     prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('environmental',
                                                                     'input/dataset-config/icon/base-prompts-icon-2.csv')
 
+    # get list of datasets
+    list_datasets = http_get_dataset_list()
+    update_dataset_prompt_queue(prompt_job_generator_state, list_datasets)
+
+    return
+
     thread = threading.Thread(target=update_dataset_values_background_thread, args=(prompt_job_generator_state,))
     thread.start()
 
     thread = threading.Thread(target=update_dataset_prompt_queue_background_thread, args=(prompt_job_generator_state,))
     thread.start()
 
-    # get list of datasets
-    list_datasets = http_get_dataset_list()
-    update_dataset_prompt_queue(prompt_job_generator_state, list_datasets)
-
-    return
     while True:
 
         # dictionary that maps dataset => number of jobs to add
