@@ -4,15 +4,15 @@ import random
 import sys
 import time
 
-from PIL import Image
-
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
+from utility.minio import cmd
 from prompt_job_generator.http_requests.request import http_get_completed_jobs_count, http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list
 from worker.prompt_generation.prompt_generator import (generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts,
                                                        generate_image_generation_jobs_using_generated_prompts_and_base_prompts,
                                                        initialize_prompt_list_from_csv)
+from training_worker.ab_ranking.model.ab_ranking_efficient_net import ABRankingEfficientNetModel
 
 def parse_args():
     parser = argparse.ArgumentParser(description="generate prompts")
@@ -36,11 +36,38 @@ class PromptJobGeneratorState:
         self.dataset_masks = {}
         # each dataset will have one callback to spawn the jobs
         self.dataset_callbacks = {}
+        # efficient net model we use for scoring prompts
+        # each dataset will have its own  model
+        # input : prompts
+        # output : prompt_score
+        self.prompt_efficient_net_model_dictionary = {}
+
+        # minio connection
+        self.minio_client = None
 
         self.phrases = None
         self.phrases_token_size = None
         self.positive_count_list = None
         self.negative_count_list = None
+
+    def configure_minio(self, minio_access_key, minio_secret_key):
+        self.minio_client = cmd.get_minio_client(minio_access_key, minio_secret_key)
+
+
+
+    def load_efficient_net_model(self, dataset, dataset_bucket, model_path):
+
+        efficient_net_model = ABRankingEfficientNetModel()
+
+        model_file_data = cmd.get_file_from_minio(self.minio_client, dataset_bucket, model_path)
+
+        if model_file_data is None:
+            return
+
+        efficient_net_model.load(model_file_data)
+
+        self.prompt_efficient_net_model_dictionary[dataset] = efficient_net_model
+
 
     def load_prompt_list_from_csv(self, csv_dataset_path, csv_phrase_limit):
         phrases, phrases_token_size, positive_count_list, negative_count_list = initialize_prompt_list_from_csv(csv_dataset_path, csv_phrase_limit)
@@ -98,7 +125,6 @@ class PromptJobGeneratorState:
         return mask_list[random_index]
 
 def generate_icon_generation_jobs(prompt_job_generator_state):
-    csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
     prompt_count = 1
     base_prompts_csv_path = 'input/dataset-config/icon/base-prompts-icon-2.csv'
     dataset_name = 'icons'
@@ -128,7 +154,6 @@ def generate_icon_generation_jobs(prompt_job_generator_state):
     )
 
 def generate_character_generation_jobs(prompt_job_generator_state):
-    csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
     prompt_count = 1
     base_prompts_csv_path = 'input/dataset-config/character/base-prompts-waifu.csv'
     dataset_name = "character"
@@ -158,7 +183,6 @@ def generate_character_generation_jobs(prompt_job_generator_state):
 
 def generate_propaganda_posters_image_generation_jobs(prompt_job_generator_state):
 
-    csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
     prompt_count = 1
     base_prompts_csv_path = 'input/dataset-config/propaganda-poster/base-prompts-propaganda-poster.csv'
     dataset_name = 'propaganda-poster'
@@ -199,10 +223,14 @@ def generate_mechs_image_generation_jobs(prompt_job_generator_state):
 def main():
     args = parse_args()
 
+    minio_access_key = 'v048BpXpWrsVIHUfdAix'
+    minio_secret_key = '4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu'
     csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
     csv_phrase_limit = 0
 
     prompt_job_generator_state = PromptJobGeneratorState()
+
+    prompt_job_generator_state.configure_minio(minio_access_key, minio_secret_key)
 
     # loading civitai prompt csv file
     prompt_job_generator_state.load_prompt_list_from_csv(csv_dataset_path, csv_phrase_limit)
@@ -218,6 +246,10 @@ def main():
     prompt_job_generator_state.register_callback("mech", generate_mechs_image_generation_jobs)
     prompt_job_generator_state.register_callback("character", generate_character_generation_jobs)
 
+    prompt_job_generator_state.load_efficient_net_model('character', 'datasets',
+                                          'character/models/ab_ranking_efficient_net/2023-10-10.pth')
+
+    return
     # get list of datasets
     list_datasets = http_get_dataset_list()
 
