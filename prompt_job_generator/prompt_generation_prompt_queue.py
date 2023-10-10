@@ -89,7 +89,8 @@ class PromptGenerationPromptQueue:
                                                           prompt_job_generator_state.negative_count_list,
                                                           total_prompt_count,
                                                           '')
-        base_prompt_list = load_base_prompts(base_prompts_csv_path)
+
+        base_prompt_population = load_base_prompts(base_prompts_csv_path)
 
         scored_prompts = []
         for prompt in prompts:
@@ -100,7 +101,7 @@ class PromptGenerationPromptQueue:
             # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
             choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
 
-            base_prompt_list = generate_base_prompts(base_prompt_list, choose_probability)
+            base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
 
             base_prompts = ''
 

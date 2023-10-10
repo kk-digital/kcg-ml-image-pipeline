@@ -702,6 +702,9 @@ def generate_base_prompts(base_prompt_list, choose_probability):
     # Randomly choose the value of n based on the probabilities
     n = random.choices(range(len(choose_probability)), weights=choose_probability)[0]
 
+    if n >= len(base_prompt_list):
+        return base_prompt_list
+
     # Randomly choose n elements from the list
     selected_elements = random.sample(base_prompt_list, n)
 
