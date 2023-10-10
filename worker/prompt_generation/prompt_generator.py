@@ -673,6 +673,8 @@ def generate_inpainting_job(positive_prompt,
 
 
 def generate_base_prompts(base_prompts_csv_path, choose_probability):
+    if base_prompts_csv_path is None:
+        return []
 
     # Initialize an empty list to store the data
     data_list = []

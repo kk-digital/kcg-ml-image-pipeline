@@ -68,6 +68,7 @@ class PromptGenerationPromptQueue:
         if base_prompts_csv_path is None:
             print('base prompt file is not found for dataset ', dataset)
 
+
         efficient_net_model = prompt_job_generator_state.get_efficient_net_model(dataset)
 
         if efficient_net_model is None:
