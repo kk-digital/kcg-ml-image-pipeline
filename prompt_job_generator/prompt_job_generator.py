@@ -58,7 +58,7 @@ class PromptJobGeneratorState:
 
     def load_efficient_net_model(self, dataset, dataset_bucket, model_path):
 
-        efficient_net_model = ABRankingEfficientNetModel()
+        efficient_net_model = ABRankingEfficientNetModel(in_channels=2)
 
         model_file_data = cmd.get_file_from_minio(self.minio_client, dataset_bucket, model_path)
 
