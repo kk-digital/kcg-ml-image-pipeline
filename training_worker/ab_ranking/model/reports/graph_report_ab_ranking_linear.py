@@ -65,7 +65,7 @@ def separate_values_based_on_targets(training_targets, validation_targets, train
 def get_graph_report(train_prob_predictions, training_targets, validation_prob_predictions, validation_targets,
                       training_pred_scores_img_x, training_pred_scores_img_y, validation_pred_scores_img_x,
                       validation_pred_scores_img_y, training_total_size, validation_total_size, input_type,
-                      training_losses, validation_losses, epochs, learning_rate):
+                      training_losses, validation_losses, epochs, learning_rate,training_batch_size, weight_decay):
     train_prob_predictions_target_1, \
         train_prob_predictions_target_0, \
         validation_prob_predictions_target_1, \
@@ -93,16 +93,18 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
     validation_x_axis_values_target_0 = [i for i in range(len(validation_prob_predictions_target_0))]
 
     # Initialize all graphs/subplots
-    plt.figure(figsize=(22, 10))
-    predicted_prob = plt.subplot2grid((4, 2), (0, 0), rowspan=1, colspan=1)
-    loss_per_epoch = plt.subplot2grid((4, 2), (0, 1), rowspan=1, colspan=1)
-    train_residual_histogram = plt.subplot2grid((4, 2), (1, 0), rowspan=1, colspan=1)
-    validation_residual_histogram = plt.subplot2grid((4, 2), (1, 1), rowspan=1, colspan=1)
-    train_target_1_predicted_scores = plt.subplot2grid((4, 2), (2, 0), rowspan=1, colspan=1)
-    train_target_0_predicted_scores = plt.subplot2grid((4, 2), (2, 1), rowspan=1, colspan=1)
-    validation_target_1_predicted_scores = plt.subplot2grid((4, 2), (3, 0), rowspan=1, colspan=1)
-    validation_target_0_predicted_scores = plt.subplot2grid((4, 2), (3, 1), rowspan=1, colspan=1)
-
+    plt.figure(figsize=(22, 15))
+    predicted_prob = plt.subplot2grid((6, 2), (0, 0), rowspan=1, colspan=1)
+    loss_per_epoch = plt.subplot2grid((6, 2), (0, 1), rowspan=1, colspan=1)
+    train_scores_histogram = plt.subplot2grid((6, 2), (1, 0), rowspan=1, colspan=1)
+    validation_scores_histogram = plt.subplot2grid((6, 2), (1, 1), rowspan=1, colspan=1)
+    train_residual_histogram = plt.subplot2grid((6, 2), (2, 0), rowspan=1, colspan=1)
+    validation_residual_histogram = plt.subplot2grid((6, 2), (2, 1), rowspan=1, colspan=1)
+    train_target_1_predicted_scores = plt.subplot2grid((6, 2), (3, 0), rowspan=1, colspan=1)
+    train_target_0_predicted_scores = plt.subplot2grid((6, 2), (3, 1), rowspan=1, colspan=1)
+    validation_target_1_predicted_scores = plt.subplot2grid((6, 2), (4, 0), rowspan=1, colspan=1)
+    validation_target_0_predicted_scores = plt.subplot2grid((6, 2), (4, 1), rowspan=1, colspan=1)
+    # ----------------------------------------------------------------------------------------------------------------#
     # predicted_prob
     predicted_prob.scatter(train_x_axis_values_target_1, train_prob_predictions_target_1,
                            label="Train samples with target 1.0 ({0})".format(len(train_prob_predictions_target_1)),
@@ -130,6 +132,7 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
     # predicted_prob.set_ylim(graph_range_y)
     predicted_prob.autoscale(enable=True, axis='y')
 
+
     # training loss, validation loss plot
     epochs_x_axis = [i for i in range(epochs)]
     loss_per_epoch.plot(epochs_x_axis, training_losses,
@@ -147,6 +150,27 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
     # loss_per_epoch.set_xlim(graph_range_x)
     # loss_per_epoch.set_ylim(graph_range_y)
     loss_per_epoch.autoscale(enable=True, axis='y')
+    # ----------------------------------------------------------------------------------------------------------------#
+    # Training Score Histogram
+    training_scores_predictions = training_pred_scores_img_x + training_pred_scores_img_y
+    train_scores_histogram.set_xlabel("Predicted Score")
+    train_scores_histogram.set_ylabel("Frequency")
+    train_scores_histogram.set_title("Train Scores Histogram".format(input_type))
+    train_scores_histogram.hist(training_scores_predictions, weights=[1 / len(training_scores_predictions)] * len(training_scores_predictions),
+                                  bins=10)
+    train_scores_histogram.yaxis.set_major_formatter(PercentFormatter(1))
+
+    # Validation Score Histogram
+    validation_scores_predictions = validation_pred_scores_img_x + validation_pred_scores_img_y
+
+    validation_scores_histogram.set_xlabel("Predicted Score")
+    validation_scores_histogram.set_ylabel("Frequency")
+    validation_scores_histogram.set_title("Validation Scores Histogram".format(input_type))
+    validation_scores_histogram.hist(validation_scores_predictions,
+                                       weights=[1 / len(validation_scores_predictions)] * len(validation_scores_predictions), bins=10)
+    validation_scores_histogram.yaxis.set_major_formatter(PercentFormatter(1))
+    # ----------------------------------------------------------------------------------------------------------------#
+
     # Training Residuals
     # Calculate train residuals
     training_residuals_target_1 = [abs(1.0 - train_prob_predictions_target_1[i].item()) for i in
@@ -175,6 +199,7 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
     validation_residual_histogram.hist(validation_residuals,
                                        weights=[1 / len(validation_residuals)] * len(validation_residuals), bins=10)
     validation_residual_histogram.yaxis.set_major_formatter(PercentFormatter(1))
+    # ----------------------------------------------------------------------------------------------------------------#
 
     # train_target_1_predicted_scores
     train_target_1_predicted_scores.scatter(train_x_axis_values_target_1, training_pred_scores_img_x_target_1,
@@ -205,6 +230,7 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
     train_target_0_predicted_scores.set_ylabel("Predicted Score")
     train_target_0_predicted_scores.set_title("Train Predicted Score for target 0.0".format(input_type))
     train_target_0_predicted_scores.legend()
+    # ----------------------------------------------------------------------------------------------------------------#
 
     # validation_target_1_predicted_scores
     validation_target_1_predicted_scores.scatter(validation_x_axis_values_target_1,
@@ -239,15 +265,20 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
     validation_target_0_predicted_scores.set_ylabel("Predicted Score")
     validation_target_0_predicted_scores.set_title("Validation Predicted Score for target 0.0".format(input_type))
     validation_target_0_predicted_scores.legend()
+    # ----------------------------------------------------------------------------------------------------------------#
 
     # add additional info on top left side
     plt.figtext(0, 0.85, "Training size = {}\n"
                          "Validation size = {}\n"
                          "Learning rate = {}\n"
-                         "Epochs = {}".format(training_total_size,
+                         "Epochs = {}\n"
+                         "Training batch size = {}\n"
+                         "Weight decay".format(training_total_size,
                                               validation_total_size,
                                               learning_rate,
-                                              epochs))
+                                              epochs,
+                                               training_batch_size,
+                                               weight_decay))
 
     # Save figure
     # graph_path = os.path.join(model_output_path, graph_name)
