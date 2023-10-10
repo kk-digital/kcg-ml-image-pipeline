@@ -32,7 +32,7 @@ def add_selection_datapoint(request: Request, dataset: str, selection: Selection
     return True
 
 
-@router.post("/relevancy/add-selection-datapoint/{dataset}")
+@router.post("/ranking/submit-relevance-data/{dataset}")
 def add_relevancy_selection_datapoint(request: Request, dataset: str, selection: Selection):
     time = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     selection.datetime = time
