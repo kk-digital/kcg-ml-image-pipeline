@@ -1,8 +1,7 @@
-
 from fastapi import Request, HTTPException, APIRouter, Response
 from orchestration.api.mongo_schemas import SequentialID
 from utility.minio import cmd
-
+from datetime import datetime
 router = APIRouter()
 
 
@@ -18,9 +17,6 @@ def get_datasets(request: Request):
     objects = cmd.get_list_of_objects(request.app.minio_client, "datasets")
 
     return objects
-
-
-
 
 @router.get("/dataset/sequential-id/{dataset}")
 def get_sequential_id(request: Request, dataset: str, limit: int = 1):
@@ -53,3 +49,57 @@ def get_sequential_id(request: Request, dataset: str, limit: int = 1):
     request.app.dataset_sequential_id_collection.update_one({"dataset_name": dataset}, new_values)
 
     return sequential_id_arr
+
+
+# -------------------- Dataset rate -------------------------
+@router.get("/dataset/get-rate")
+def get_rate(request: Request, dataset: str):
+    # find
+    query = {"dataset_name": dataset}
+    item = request.app.dataset_rate_collection.find_one(query)
+    if item is None:
+        raise HTTPException(status_code=404)
+
+    # remove the auto generated field
+    item.pop('_id', None)
+
+    return item
+
+
+@router.get("/dataset/get-all-dataset-rate")
+def get_all_dataset_rate(request: Request):
+    dataset_rates = []
+    # find
+    items = request.app.dataset_rate_collection.find({})
+    if items is None:
+        raise HTTPException(status_code=404)
+
+    for item in items:
+        # remove the auto generated field
+        item.pop('_id', None)
+        dataset_rates.append(item)
+
+    return dataset_rates
+
+
+@router.put("/dataset/set-rate")
+def set_rate(request: Request, dataset, rate=0):
+    date_now = datetime.now()
+    # check if exist
+    query = {"dataset_name": dataset}
+    item = request.app.dataset_rate_collection.find_one(query)
+    if item is None:
+        # add one
+        dataset_rate = {
+            "dataset_name": dataset,
+            "last_update": date_now,
+            "dataset_rate": rate,
+        }
+        request.app.dataset_rate_collection.insert_one(dataset_rate)
+
+    # update
+    new_values = {"$set": {"last_update": date_now,
+                           "dataset_rate": rate}}
+    request.app.dataset_rate_collection.update_one(query, new_values)
+
+    return True
