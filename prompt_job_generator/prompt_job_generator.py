@@ -100,7 +100,7 @@ class PromptJobGeneratorState:
 def generate_icon_generation_jobs(prompt_job_generator_state):
     csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
     prompt_count = 1
-    base_prompts_csv_path = 'input/base-prompts/icon/base-prompts-icon-2.csv'
+    base_prompts_csv_path = 'input/dataset-config/icon/base-prompts-icon-2.csv'
     dataset_name = 'icons'
     positive_prefix = ""
     init_img_path = "./test/test_inpainting/white_512x512.jpg"
@@ -130,7 +130,7 @@ def generate_icon_generation_jobs(prompt_job_generator_state):
 def generate_character_generation_jobs(prompt_job_generator_state):
     csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
     prompt_count = 1
-    base_prompts_csv_path = 'input/base-prompts/character/base-prompts-waifu.csv'
+    base_prompts_csv_path = 'input/dataset-config/character/base-prompts-waifu.csv'
     dataset_name = "character"
     positive_prefix = ""
     init_img_path = "./test/test_inpainting/white_512x512.jpg"
@@ -160,7 +160,7 @@ def generate_propaganda_posters_image_generation_jobs(prompt_job_generator_state
 
     csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
     prompt_count = 1
-    base_prompts_csv_path = 'input/base-prompts/propaganda-poster/base-prompts-propaganda-poster.csv'
+    base_prompts_csv_path = 'input/dataset-config/propaganda-poster/base-prompts-propaganda-poster.csv'
     dataset_name = 'propaganda-poster'
     positive_prefix = ""
 
@@ -179,13 +179,13 @@ def generate_propaganda_posters_image_generation_jobs(prompt_job_generator_state
 
 def generate_mechs_image_generation_jobs(prompt_job_generator_state):
     prompt_count = 1
-    base_prompts_csv_path = 'input/base-prompts/mech/base-prompts-mechs.csv'
+    base_prompts_csv_path = 'input/dataset-config/mech/base-prompts-mechs.csv'
     dataset_name = 'mech'
     positive_prefix = ""
 
     print(f"Adding '{dataset_name}' generation job")
 
-    generate_image_generation_jobs_using_generated_promptgs_and_base_prompts(
+    generate_image_generation_jobs_using_generated_prompts_and_base_prompts(
         phrases = prompt_job_generator_state.phrases,
         phrases_token_size=prompt_job_generator_state.phrases_token_size,
         positive_count_list=prompt_job_generator_state.positive_count_list,
