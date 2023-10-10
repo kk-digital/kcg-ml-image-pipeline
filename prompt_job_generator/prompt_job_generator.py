@@ -203,6 +203,8 @@ def generate_character_generation_jobs(prompt_job_generator_state):
 
     efficient_net_model = prompt_job_generator_state.get_efficient_net_model(dataset_name)
 
+    print(efficient_net_model)
+
     generate_inpainting_job(
         phrases=prompt_job_generator_state.phrases,
         phrases_token_size=prompt_job_generator_state.phrases_token_size,
