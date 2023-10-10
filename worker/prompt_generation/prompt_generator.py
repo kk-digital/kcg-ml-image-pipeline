@@ -349,6 +349,112 @@ def generate_prompts_from_csv_proportional_selection(csv_dataset_path,
     return generated_prompts
 
 
+def generate_prompts_proportional_selection(phrases,
+                                            phrases_token_size,
+                                            positive_count_list,
+                                            negative_count_list,
+                                            prompt_count,
+                                            positive_prefix=""):
+    generated_prompts = []
+    max_token_size = 75
+    comma_token_size = 1
+
+    total_len_phrases = len(phrases)
+
+    positive_phrases, \
+        positive_token_size, \
+        positive_count, \
+        positive_cumulative_sum = get_sorted_list_with_cumulative(phrases, phrases_token_size, positive_count_list)
+
+    positive_total_cumulative = positive_cumulative_sum[-1]
+
+    negative_phrases, \
+        negative_token_size, \
+        negative_count, \
+        negative_cumulative_sum = get_sorted_list_with_cumulative(phrases, phrases_token_size, negative_count_list)
+
+    negative_total_cumulative = negative_cumulative_sum[-1]
+
+    # del unused var at this point
+    del phrases
+    del phrases_token_size
+    del positive_count_list
+    del negative_count_list
+
+    positive_prefix_token_size = 0
+    if positive_prefix != "":
+        # get token size for prefix
+        enc = tiktoken.get_encoding("cl100k_base")
+        positive_prefix_prompt_tokens = enc.encode(positive_prefix)
+        positive_prefix_token_size = len(positive_prefix_prompt_tokens)
+
+    print("Generating {} prompts...".format(prompt_count))
+    for i in tqdm(range(0, prompt_count)):
+        positive_prompt_total_token_size = positive_prefix_token_size
+        negative_prompt_total_token_size = 0
+        positive_prompt = []
+        negative_prompt = []
+        prompt_vector = [0] * total_len_phrases
+
+        # positive prompt
+        while positive_prompt_total_token_size < max_token_size:
+            random_int = random.randint(0, positive_total_cumulative)
+            random_index = find_first_element_binary_search(positive_cumulative_sum, random_int)
+            if prompt_vector[random_index] != 0:
+                continue
+
+            prompt_index = random_index
+            random_prompt = positive_phrases[prompt_index]
+
+            chosen_phrase_size = positive_token_size[prompt_index]
+            sum_token_size = positive_prompt_total_token_size + chosen_phrase_size + comma_token_size
+            if sum_token_size < max_token_size:
+                # update used array
+                prompt_vector[prompt_index] = 1
+                positive_prompt.append(random_prompt)
+                positive_prompt_total_token_size = sum_token_size
+            else:
+                break
+
+        # negative prompt
+        while negative_prompt_total_token_size < max_token_size:
+            random_int = random.randint(0, negative_total_cumulative)
+            random_index = find_first_element_binary_search(negative_cumulative_sum, random_int)
+
+            if prompt_vector[random_index] != 0:
+                continue
+
+            prompt_index = random_index
+            random_prompt = negative_phrases[prompt_index]
+
+            chosen_phrase_size = negative_token_size[prompt_index]
+            sum_token_size = negative_prompt_total_token_size + chosen_phrase_size + comma_token_size
+            if sum_token_size < max_token_size:
+                # update used array
+                prompt_vector[prompt_index] = -1
+                negative_prompt.append(random_prompt)
+                negative_prompt_total_token_size = sum_token_size
+            else:
+                break
+
+        positive_prompt_str = ', '.join([prompt.Phrase for prompt in positive_prompt])
+        if positive_prefix != "":
+            positive_prompt_str = "{}, {}".format(positive_prefix, positive_prompt_str)
+        negative_prompt_str = ', '.join([prompt.Phrase for prompt in negative_prompt])
+
+        num_topics = len([prompt.Phrase for prompt in positive_prompt if "topic" in prompt.Types])
+        num_modifiers = len([prompt.Phrase for prompt in positive_prompt if "modifier" in prompt.Types])
+        num_styles = len([prompt.Phrase for prompt in positive_prompt if "style" in prompt.Types])
+        num_constraints = len([prompt.Phrase for prompt in positive_prompt if "constraint" in prompt.Types])
+
+        prompt = GeneratedPrompt(positive_prompt_str, negative_prompt_str, num_topics, num_modifiers,
+                            num_styles, num_constraints, prompt_vector)
+
+        # save prompt json
+        generated_prompts.append(prompt)
+
+    return generated_prompts
+
 def generate_image_generation_jobs_using_generated_prompts(csv_dataset_path,
                                                            prompt_count,
                                                            dataset_name,
@@ -482,22 +588,27 @@ def run_generate_inpainting_generation_task(generation_task: GenerationTask):
 
 
 
-def generate_image_generation_jobs_using_generated_prompts_and_base_prompts(csv_dataset_path,
-                                                           prompt_count,
+def generate_image_generation_jobs_using_generated_prompts_and_base_prompts(phrases,
+                                                            phrases_token_size,
+                                                            positive_count_list,
+                                                            negative_count_list,
+                                                            prompt_count,
                                                             base_prompts_csv_path,
-                                                           dataset_name,
-                                                           csv_phrase_limit=0,
-                                                           positive_prefix=""):
-    prompts = generate_prompts_from_csv_proportional_selection(csv_dataset_path,
-                                                               prompt_count,
-                                                               csv_phrase_limit,
-                                                               positive_prefix)
+                                                            dataset_name,
+                                                            positive_prefix=""):
+
+    prompts = generate_prompts_proportional_selection(phrases,
+                                                        phrases_token_size,
+                                                        positive_count_list,
+                                                        negative_count_list,
+                                                        prompt_count,
+                                                        positive_prefix)
 
     # N Base Prompt Phrases
     # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
     # Chance for 0 base prompt phrases should be 30%
     # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
-    choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
+    choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
 
     base_prompt_list = generate_base_prompts(base_prompts_csv_path, choose_probability)
 
@@ -548,21 +659,25 @@ def generate_image_generation_jobs_using_generated_prompts_and_base_prompts(csv_
 
 
 # use the dataset csv & the base prompt csv to generate inpainting jobs
-def generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts(csv_dataset_path,
+def generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts(phrases,
+                                                                phrases_token_size,
+                                                                positive_count_list,
+                                                                negative_count_list,
                                                                 prompt_count,
                                                                 base_prompts_csv_path,
                                                                 dataset_name,
-                                                                csv_phrase_limit=0,
                                                                 positive_prefix="",
                                                                 init_img_path="./test/test_inpainting/white_512x512.jpg",
                                                                 mask_path="./test/test_inpainting/icon_mask.png"):
 
     # TODO load efficient net
     # TODO get score from efficient net for prompt
-    prompts = generate_prompts_from_csv_proportional_selection(csv_dataset_path,
-                                                               prompt_count,
-                                                               csv_phrase_limit,
-                                                               positive_prefix)
+    prompts = generate_prompts_proportional_selection(phrases,
+                                                       phrases_token_size,
+                                                       positive_count_list,
+                                                       negative_count_list,
+                                                       prompt_count,
+                                                       positive_prefix)
 
     # N Base Prompt Phrases
     # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases

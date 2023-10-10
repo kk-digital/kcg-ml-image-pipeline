@@ -8,10 +8,10 @@ base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
 from utility.regression_utils import torchinfo_summary
-from training_worker.ab_ranking_linear.model.ab_ranking_efficient_net import ABRankingEfficientNetModel
-from training_worker.ab_ranking_linear.model.reports.ab_ranking_linear_train_report import get_train_report
-from training_worker.ab_ranking_linear.model.reports.graph_report_ab_ranking_linear import *
-from training_worker.ab_ranking_linear.model.ab_ranking_efficient_net_data_loader import ABRankingDatasetLoader
+from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
+from training_worker.ab_ranking.model.reports.ab_ranking_linear_train_report import get_train_report
+from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import *
+from training_worker.ab_ranking.model.ab_ranking_linear_data_loader import ABRankingDatasetLoader
 from utility.minio import cmd
 
 
@@ -26,7 +26,8 @@ def train_ranking(dataset_name: str,
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
     input_type = "embedding-vector"
-    output_path = "{}/models/ab_ranking_efficient_net".format(dataset_name)
+    input_shape = 77*2*768
+    output_path = "{}/models/ab_ranking_linear".format(dataset_name)
 
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name=dataset_name,
@@ -39,9 +40,7 @@ def train_ranking(dataset_name: str,
     training_total_size = dataset_loader.get_len_training_ab_data() * 2
     validation_total_size = dataset_loader.get_len_validation_ab_data() * 2
 
-    ab_model = ABRankingEfficientNetModel(efficient_net_version="b0",
-                                          in_channels=154,
-                                          num_classes=1)
+    ab_model = ABRankingModel(inputs_shape=input_shape)
     training_predicted_score_images_x, \
         training_predicted_score_images_y, \
         training_predicted_probabilities, \
@@ -52,7 +51,7 @@ def train_ranking(dataset_name: str,
         validation_target_probabilities, \
         training_loss_per_epoch, \
         validation_loss_per_epoch = ab_model.train(dataset_loader=dataset_loader,
-                                                                        training_batch_size=16,
+                                                                        training_batch_size=4,
                                                                         epochs=epochs,
                                                                         learning_rate=learning_rate)
 
@@ -114,7 +113,7 @@ def train_ranking(dataset_name: str,
                                   validation_predicted_score_images_y)
 
     # Upload model to minio
-    report_name = "{}_report.txt".format(date_now)
+    report_name = "{}.txt".format(date_now)
     report_output_path = os.path.join(output_path,  report_name)
 
     report_buffer = BytesIO(report_str.encode(encoding='UTF-8'))
@@ -123,7 +122,7 @@ def train_ranking(dataset_name: str,
     cmd.upload_data(dataset_loader.minio_client, bucket_name, report_output_path, report_buffer)
 
     # show and save graph
-    graph_name = "{}_graph.jpg".format(date_now)
+    graph_name = "{}.png".format(date_now)
     graph_output_path = os.path.join(output_path, graph_name)
 
     graph_buffer = get_graph_report(training_predicted_probabilities,
@@ -147,7 +146,7 @@ def train_ranking(dataset_name: str,
     return model_output_path, report_output_path, graph_output_path
 
 
-def run_ab_ranking_efficient_net_task(training_task, minio_access_key, minio_secret_key):
+def run_ab_ranking_linear_task(training_task, minio_access_key, minio_secret_key):
     model_output_path, \
         report_output_path, \
         graph_output_path = train_ranking(dataset_name=training_task["dataset_name"],
