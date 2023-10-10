@@ -3,6 +3,7 @@ import argparse
 import random
 import sys
 import time
+import io
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -64,7 +65,14 @@ class PromptJobGeneratorState:
         if model_file_data is None:
             return
 
-        efficient_net_model.load(model_file_data)
+        # Create a BytesIO object and write the downloaded content into it
+        byte_buffer = io.BytesIO()
+        for data in model_file_data.stream(amt=8192):
+            byte_buffer.write(data)
+        # Reset the buffer's position to the beginning
+        byte_buffer.seek(0)
+
+        efficient_net_model.load(byte_buffer)
 
         self.prompt_efficient_net_model_dictionary[dataset] = efficient_net_model
 
