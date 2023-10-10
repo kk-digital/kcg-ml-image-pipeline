@@ -39,7 +39,7 @@ class PromptJobGeneratorState:
         # should update using orchestration api
         self.dataset_job_queue_size = {}
         self.dataset_job_queue_target = {}
-        self.dataset_job_queue_size_lock = threading.lock()
+        self.dataset_job_queue_size_lock = threading.Lock()
         # each dataset will have a list of masks
         # only relevent if its an inpainting job
         self.dataset_masks = {}
