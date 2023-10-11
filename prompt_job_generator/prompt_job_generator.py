@@ -245,15 +245,15 @@ def main():
 
             # if dataset_rate is not found just move on
             if dataset_rate == None:
-                print("dataset rate not found for dataset ", dataset)
+                p# rint("dataset rate not found for dataset ", dataset)
                 continue
 
             if dataset_job_queue_size is None:
-                print("dataset job queue size is not found for dataset : ", dataset)
+                # print("dataset job queue size is not found for dataset : ", dataset)
                 continue
 
             if dataset_job_queue_target is None:
-                print("dataset job queue target is not found for dataset : ", dataset)
+                # print("dataset job queue target is not found for dataset : ", dataset)
                 continue
 
             number_of_jobs_to_add = 0
@@ -291,7 +291,7 @@ def main():
                     continue
 
                 if not prompt_job_generator_state.prompt_queue.database_prompt_available(dataset):
-                    print('no prompt is available for dataset ', dataset)
+                    # print('no prompt is available for dataset ', dataset)
                     break
 
                 # get dataset callback
@@ -301,7 +301,7 @@ def main():
                 dataset_callback = prompt_job_generator_state.get_callback(dataset)
 
                 if dataset_callback == None:
-                    print("dataset callback not found for dataset ", dataset)
+                    # print("dataset callback not found for dataset ", dataset)
                     continue
 
                 number_of_jobs_to_add = dataset_number_jobs_to_add[dataset]
