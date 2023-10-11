@@ -24,6 +24,7 @@ class EfficientNetModel(nn.Module):
         super(EfficientNetModel, self).__init__()
         self.efficient_net = efficientnet_pytorch(efficient_net_version, in_channels=in_channels, num_classes=num_classes)
         self.bce_loss = nn.BCELoss()
+        self.sigmoid_fn = nn.Sigmoid()
 
     def forward(self, x):
         x1 = self.efficient_net(x)
@@ -113,10 +114,8 @@ class ABRankingEfficientNetModel:
         validation_features_y = validation_features_y.to(self._device)
         validation_targets = validation_targets.to(self._device)
 
-        # num features * 2 bc we duplicate each ab data
-        # (x, y, 1.0)
-        # (y, x, 0.0)
-        num_features = dataset_loader.get_len_training_ab_data() * 2
+        # get total number of training features
+        num_features = dataset_loader.get_len_training_ab_data()
 
         # get number of batches to do per epoch
         training_num_batches = math.ceil(num_features / training_batch_size)
@@ -228,9 +227,14 @@ class ABRankingEfficientNetModel:
         predicted_score_images_y = torch.max(predicted_score_images_y, torch.tensor([0.], device=self._device))
 
         # Calculate probability using Bradley Terry Formula: P(x>y) = score(x) / ( Score(x) + score(y))
-        sum_predicted_score = torch.add(predicted_score_images_x, predicted_score_images_y)
-        sum_predicted_score = torch.add(sum_predicted_score, epsilon)
-        pred_probabilities = torch.div(predicted_score_images_x, sum_predicted_score)
+        # sum_predicted_score = torch.add(predicted_score_images_x, predicted_score_images_y)
+        # sum_predicted_score = torch.add(sum_predicted_score, epsilon)
+        # pred_probabilities = torch.div(predicted_score_images_x, sum_predicted_score)
+
+        # prob = sigmoid( (x-y) / 100 )
+        diff_predicted_score = torch.sub(predicted_score_images_x, predicted_score_images_y)
+        res_predicted_score = torch.div(diff_predicted_score, 100.0)
+        pred_probabilities = self.model.sigmoid_fn(res_predicted_score)
 
         return pred_probabilities
 
