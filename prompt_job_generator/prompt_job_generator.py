@@ -247,15 +247,15 @@ def main():
 
             # if dataset_rate is not found just move on
             if dataset_rate == None:
-                # print("dataset rate not found for dataset ", dataset)
+                 print("dataset rate not found for dataset ", dataset)
                 continue
 
             if dataset_job_queue_size is None:
-                # print("dataset job queue size is not found for dataset : ", dataset)
+                 print("dataset job queue size is not found for dataset : ", dataset)
                 continue
 
             if dataset_job_queue_target is None:
-                # print("dataset job queue target is not found for dataset : ", dataset)
+                 print("dataset job queue target is not found for dataset : ", dataset)
                 continue
 
             number_of_jobs_to_add = 0
