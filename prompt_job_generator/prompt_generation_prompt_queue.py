@@ -80,6 +80,7 @@ class PromptGenerationPromptQueue:
         if efficient_net_model is None:
             print('efficient net model is not found for dataset ', dataset)
 
+        print(f'generating {total_prompt_count} prompts for dataset {dataset}')
         prompts = generate_prompts_proportional_selection(prompt_job_generator_state.phrases,
                                                           prompt_job_generator_state.phrases_token_size,
                                                           prompt_job_generator_state.positive_count_list,
