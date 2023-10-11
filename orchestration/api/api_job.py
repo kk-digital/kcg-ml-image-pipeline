@@ -249,7 +249,8 @@ def get_job_generation_rate(request: Request, dataset: str, sample_size : int):
     # to get Images/Second = ImageTaskGenerationRate (images/second estimate), over window of last N=50 images
 
     # Query to find the n newest elements based on the task_completion_time
-    jobs = list(request.app.completed_jobs_collection.find({}).sort("task_creation_time", pymongo.DESCENDING).limit(sample_size))
+    jobs = list(request.app.completed_jobs_collection.find({}).sort("task_creation_time",
+                                                                    pymongo.ASCENDING).limit(sample_size))
 
     total_jobs = len(jobs)
     job_per_second = 0.0
