@@ -1,19 +1,11 @@
-import argparse
-import os
-import sys
-import time
 import random
 import tiktoken
 import sys
 import os
-import shutil
-import json
 import math
 import csv
-import torch
 import uuid
 from tqdm import tqdm
-import numpy as np
 
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
@@ -349,6 +341,112 @@ def generate_prompts_from_csv_proportional_selection(csv_dataset_path,
     return generated_prompts
 
 
+def generate_prompts_proportional_selection(phrases,
+                                            phrases_token_size,
+                                            positive_count_list,
+                                            negative_count_list,
+                                            prompt_count,
+                                            positive_prefix=""):
+    generated_prompts = []
+    max_token_size = 75
+    comma_token_size = 1
+
+    total_len_phrases = len(phrases)
+
+    positive_phrases, \
+        positive_token_size, \
+        positive_count, \
+        positive_cumulative_sum = get_sorted_list_with_cumulative(phrases, phrases_token_size, positive_count_list)
+
+    positive_total_cumulative = positive_cumulative_sum[-1]
+
+    negative_phrases, \
+        negative_token_size, \
+        negative_count, \
+        negative_cumulative_sum = get_sorted_list_with_cumulative(phrases, phrases_token_size, negative_count_list)
+
+    negative_total_cumulative = negative_cumulative_sum[-1]
+
+    # del unused var at this point
+    del phrases
+    del phrases_token_size
+    del positive_count_list
+    del negative_count_list
+
+    positive_prefix_token_size = 0
+    if positive_prefix != "":
+        # get token size for prefix
+        enc = tiktoken.get_encoding("cl100k_base")
+        positive_prefix_prompt_tokens = enc.encode(positive_prefix)
+        positive_prefix_token_size = len(positive_prefix_prompt_tokens)
+
+    print("Generating {} prompts...".format(prompt_count))
+    for i in tqdm(range(0, prompt_count)):
+        positive_prompt_total_token_size = positive_prefix_token_size
+        negative_prompt_total_token_size = 0
+        positive_prompt = []
+        negative_prompt = []
+        prompt_vector = [0] * total_len_phrases
+
+        # positive prompt
+        while positive_prompt_total_token_size < max_token_size:
+            random_int = random.randint(0, positive_total_cumulative)
+            random_index = find_first_element_binary_search(positive_cumulative_sum, random_int)
+            if prompt_vector[random_index] != 0:
+                continue
+
+            prompt_index = random_index
+            random_prompt = positive_phrases[prompt_index]
+
+            chosen_phrase_size = positive_token_size[prompt_index]
+            sum_token_size = positive_prompt_total_token_size + chosen_phrase_size + comma_token_size
+            if sum_token_size < max_token_size:
+                # update used array
+                prompt_vector[prompt_index] = 1
+                positive_prompt.append(random_prompt)
+                positive_prompt_total_token_size = sum_token_size
+            else:
+                break
+
+        # negative prompt
+        while negative_prompt_total_token_size < max_token_size:
+            random_int = random.randint(0, negative_total_cumulative)
+            random_index = find_first_element_binary_search(negative_cumulative_sum, random_int)
+
+            if prompt_vector[random_index] != 0:
+                continue
+
+            prompt_index = random_index
+            random_prompt = negative_phrases[prompt_index]
+
+            chosen_phrase_size = negative_token_size[prompt_index]
+            sum_token_size = negative_prompt_total_token_size + chosen_phrase_size + comma_token_size
+            if sum_token_size < max_token_size:
+                # update used array
+                prompt_vector[prompt_index] = -1
+                negative_prompt.append(random_prompt)
+                negative_prompt_total_token_size = sum_token_size
+            else:
+                break
+
+        positive_prompt_str = ', '.join([prompt.Phrase for prompt in positive_prompt])
+        if positive_prefix != "":
+            positive_prompt_str = "{}, {}".format(positive_prefix, positive_prompt_str)
+        negative_prompt_str = ', '.join([prompt.Phrase for prompt in negative_prompt])
+
+        num_topics = len([prompt.Phrase for prompt in positive_prompt if "topic" in prompt.Types])
+        num_modifiers = len([prompt.Phrase for prompt in positive_prompt if "modifier" in prompt.Types])
+        num_styles = len([prompt.Phrase for prompt in positive_prompt if "style" in prompt.Types])
+        num_constraints = len([prompt.Phrase for prompt in positive_prompt if "constraint" in prompt.Types])
+
+        prompt = GeneratedPrompt(positive_prompt_str, negative_prompt_str, num_topics, num_modifiers,
+                            num_styles, num_constraints, prompt_vector)
+
+        # save prompt json
+        generated_prompts.append(prompt)
+
+    return generated_prompts
+
 def generate_image_generation_jobs_using_generated_prompts(csv_dataset_path,
                                                            prompt_count,
                                                            dataset_name,
@@ -482,153 +580,103 @@ def run_generate_inpainting_generation_task(generation_task: GenerationTask):
 
 
 
-def generate_image_generation_jobs_using_generated_prompts_and_base_prompts(csv_dataset_path,
-                                                           prompt_count,
-                                                            base_prompts_csv_path,
-                                                           dataset_name,
-                                                           csv_phrase_limit=0,
-                                                           positive_prefix=""):
-    prompts = generate_prompts_from_csv_proportional_selection(csv_dataset_path,
-                                                               prompt_count,
-                                                               csv_phrase_limit,
-                                                               positive_prefix)
-
-    # N Base Prompt Phrases
-    # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
-    # Chance for 0 base prompt phrases should be 30%
-    # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
-    choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
-
-    base_prompt_list = generate_base_prompts(base_prompts_csv_path, choose_probability)
-
-    base_prompts = ''
-
-    for base_prompt in base_prompt_list:
-        base_prompts = base_prompts + base_prompt + ', '
-
+def generate_image_generation_jobs(positive_prompt, negative_prompt, dataset_name):
 
     # get sequential ids
-    sequential_ids = request.http_get_sequential_id(dataset_name, prompt_count)
+    sequential_ids = request.http_get_sequential_id(dataset_name, 1)
 
     count = 0
-    # generate jobs
-    for prompt in prompts:
-        # generate UUID
-        task_uuid = str(uuid.uuid4())
-        task_type = "image_generation_task"
-        model_name = "v1-5-pruned-emaonly"
-        model_file_name = "v1-5-pruned-emaonly"
-        model_file_path = "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors"
-        task_input_dict = {
-            "positive_prompt": base_prompts + prompt.positive_prompt_str,
-            "negative_prompt": prompt.negative_prompt_str,
-            "cfg_strength": 12,
-            "seed": "",
-            "dataset": dataset_name,
-            "file_path": sequential_ids[count]+".jpg",
-            "num_images": 1,
-            "image_width": 512,
-            "image_height": 512,
-            "sampler": "ddim",
-            "sampler_steps": 20
-        }
+    # generate UUID
+    task_uuid = str(uuid.uuid4())
+    task_type = "image_generation_task"
+    model_name = "v1-5-pruned-emaonly"
+    model_file_name = "v1-5-pruned-emaonly"
+    model_file_path = "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors"
+    task_input_dict = {
+        "positive_prompt": positive_prompt,
+        "negative_prompt": negative_prompt,
+        "cfg_strength": 12,
+        "seed": "",
+        "dataset": dataset_name,
+        "file_path": sequential_ids[count]+".jpg",
+        "num_images": 1,
+        "image_width": 512,
+        "image_height": 512,
+        "sampler": "ddim",
+        "sampler_steps": 20
+    }
 
-        generation_task = GenerationTask(uuid=task_uuid,
-                                         task_type=task_type,
-                                         model_name=model_name,
-                                         model_file_name=model_file_name,
-                                         model_file_path=model_file_path,
-                                         task_input_dict=task_input_dict)
-        generation_task_json = generation_task.to_dict()
+    generation_task = GenerationTask(uuid=task_uuid,
+                                     task_type=task_type,
+                                     model_name=model_name,
+                                     model_file_name=model_file_name,
+                                     model_file_path=model_file_path,
+                                     task_input_dict=task_input_dict)
+    generation_task_json = generation_task.to_dict()
 
-        # add job
-        request.http_add_job(generation_task_json)
+    # add job
+    request.http_add_job(generation_task_json)
 
-        count += 1
+
+
 
 
 # use the dataset csv & the base prompt csv to generate inpainting jobs
-def generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts(csv_dataset_path,
-                                                                prompt_count,
-                                                                base_prompts_csv_path,
-                                                                dataset_name,
-                                                                csv_phrase_limit=0,
-                                                                positive_prefix="",
-                                                                init_img_path="./test/test_inpainting/white_512x512.jpg",
-                                                                mask_path="./test/test_inpainting/icon_mask.png"):
-
-    # TODO load efficient net
-    # TODO get score from efficient net for prompt
-    prompts = generate_prompts_from_csv_proportional_selection(csv_dataset_path,
-                                                               prompt_count,
-                                                               csv_phrase_limit,
-                                                               positive_prefix)
-
-    # N Base Prompt Phrases
-    # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
-    # Chance for 0 base prompt phrases should be 30%
-    # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
-    choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-
-    base_prompt_list = generate_base_prompts(base_prompts_csv_path, choose_probability)
-
-    base_prompts = ''
-
-    for base_prompt in base_prompt_list:
-        base_prompts = base_prompts + base_prompt + ', '
+def generate_inpainting_job(positive_prompt,
+                            negative_prompt,
+                            dataset_name,
+                            init_img_path="./test/test_inpainting/white_512x512.jpg",
+                            mask_path="./test/test_inpainting/icon_mask.png"):
 
     # get sequential ids
-    sequential_ids = request.http_get_sequential_id(dataset_name, prompt_count)
+    sequential_ids = request.http_get_sequential_id(dataset_name, 1)
 
-    count = 0
-    # generate jobs
-    for prompt in prompts:
-        # generate UUID
-        task_uuid = str(uuid.uuid4())
-        task_type = "inpainting_generation_task"
-        model_name = "v1-5-pruned-emaonly"
-        model_file_name = "v1-5-pruned-emaonly"
-        model_file_path = "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors"
-        task_input_dict = {
-            "positive_prompt": base_prompts + prompt.positive_prompt_str,
-            "negative_prompt": prompt.negative_prompt_str,
-            "cfg_strength": 12,
-            "seed": "",
-            "dataset": dataset_name,
-            "file_path": sequential_ids[count]+".jpg",
-            "image_width": 512,
-            "image_height": 512,
-            "sampler": "ddim",
-            "sampler_steps": 20,
-            "init_img": init_img_path,
-            "init_mask": mask_path,
-            "mask_blur": 0,
-            "inpainting_fill_mode": 1,
-            "styles": [],
-            "resize_mode": 0,
-            "denoising_strength": 0.75,
-            "image_cfg_scale": 1.5,
-            "inpaint_full_res_padding": 32,
-            "inpainting_mask_invert": 0
-        }
-
-        generation_task = GenerationTask(uuid=task_uuid,
-                                         task_type=task_type,
-                                         model_name=model_name,
-                                         model_file_name=model_file_name,
-                                         model_file_path=model_file_path,
-                                         task_input_dict=task_input_dict)
-        generation_task_json = generation_task.to_dict()
-
-        # add job
-        request.http_add_job(generation_task_json)
-
-        count += 1
+    task_uuid = str(uuid.uuid4())
+    task_type = "inpainting_generation_task"
+    model_name = "v1-5-pruned-emaonly"
+    model_file_name = "v1-5-pruned-emaonly"
+    model_file_path = "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors"
+    task_input_dict = {
+        "positive_prompt": positive_prompt,
+        "negative_prompt": negative_prompt,
+        "cfg_strength": 12,
+        "seed": "",
+        "dataset": dataset_name,
+        "file_path": sequential_ids[0] + ".jpg",
+        "image_width": 512,
+        "image_height": 512,
+        "sampler": "ddim",
+        "sampler_steps": 20,
+        "init_img": init_img_path,
+        "init_mask": mask_path,
+        "mask_blur": 0,
+        "inpainting_fill_mode": 1,
+        "styles": [],
+        "resize_mode": 0,
+        "denoising_strength": 0.75,
+        "image_cfg_scale": 1.5,
+        "inpaint_full_res_padding": 32,
+        "inpainting_mask_invert": 0
+    }
 
 
-def generate_base_prompts(base_prompts_csv_path, choose_probability):
+    generation_task = GenerationTask(uuid=task_uuid,
+                                     task_type=task_type,
+                                     model_name=model_name,
+                                     model_file_name=model_file_name,
+                                     model_file_path=model_file_path,
+                                     task_input_dict=task_input_dict)
+    generation_task_json = generation_task.to_dict()
 
-    # Initialize an empty list to store the data
+    # add job
+    request.http_add_job(generation_task_json)
+
+
+def load_base_prompts(base_prompts_csv_path):
+    if base_prompts_csv_path is None:
+        return []
+
+        # Initialize an empty list to store the data
     data_list = []
     # Initialize empty base prompt list
     base_prompt_list = []
@@ -647,8 +695,15 @@ def generate_base_prompts(base_prompts_csv_path, choose_probability):
         base_prompt = item[0]
         base_prompt_list.append(base_prompt)
 
+    return base_prompt_list
+
+def generate_base_prompts(base_prompt_list, choose_probability):
+
     # Randomly choose the value of n based on the probabilities
     n = random.choices(range(len(choose_probability)), weights=choose_probability)[0]
+
+    if n >= len(base_prompt_list):
+        return base_prompt_list
 
     # Randomly choose n elements from the list
     selected_elements = random.sample(base_prompt_list, n)

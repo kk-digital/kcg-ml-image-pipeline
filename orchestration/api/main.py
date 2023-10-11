@@ -58,6 +58,14 @@ def startup_db_client():
     app.training_completed_jobs_collection = app.mongodb_db["training-completed-jobs"]
     app.training_failed_jobs_collection = app.mongodb_db["training-failed-jobs"]
 
+    # dataset rate
+    app.dataset_rate_collection = app.mongodb_db["dataset_rate"]
+
+    # dataset generation policy
+    app.dataset_generation_policy_collection = app.mongodb_db["dataset_generation_policy"]
+    # dataset top-k value
+    app.dataset_top_k_collection = app.mongodb_db["dataset_top_k"]
+
     print("Connected to the MongoDB database!")
 
     # get minio client

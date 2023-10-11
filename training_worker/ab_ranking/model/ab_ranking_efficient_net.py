@@ -24,10 +24,12 @@ class EfficientNetModel(nn.Module):
         super(EfficientNetModel, self).__init__()
         self.efficient_net = efficientnet_pytorch(efficient_net_version, in_channels=in_channels, num_classes=num_classes)
         self.bce_loss = nn.BCELoss()
+        self.sigmoid_fn = nn.Sigmoid()
 
     def forward(self, x):
-        x = self.efficient_net(x)
-        return x
+        x1 = self.efficient_net(x)
+
+        return x1
 
 
 class ABRankingEfficientNetModel:
@@ -90,35 +92,19 @@ class ABRankingEfficientNetModel:
         self.date = model['date']
         self.model.load_state_dict(model['model_dict'])
 
-    def train_batch(self,
-                    optimizer,
-                    loss_func,
-                    model_copy,
-                    training_image_x_features,
-                    training_image_y_features,
-                    training_target_probabilities):
-        optimizer.zero_grad()
-        predicted_score_images_x = self.model.forward(training_image_x_features)
-        predicted_score_images_y = model_copy.forward(training_image_y_features)
-
-        loss, _ = loss_func(predicted_score_images_x, predicted_score_images_y, training_target_probabilities)
-        loss.backward()
-        optimizer.step()
-
-        return loss
 
     def train(self,
               dataset_loader: ABRankingDatasetLoader,
-              training_batch_size=16,
+              training_batch_size=4,
               epochs=100,
-              learning_rate=0.001):
+              learning_rate=0.001,
+              weight_decay=0.01):
         training_loss_per_epoch = []
         validation_loss_per_epoch = []
 
-        optimizer = optim.AdamW(self.model.parameters(), lr=learning_rate, weight_decay=0.01)
+        optimizer = optim.AdamW(self.model.parameters(), lr=learning_rate, weight_decay=weight_decay)
         self.model_type = 'image-pair-ranking-efficient-net'
-        self.loss_func_name = "ab_ranking_bradley_terry_loss"
-        loss_func = self.ab_ranking_bradley_terry_loss
+        self.loss_func_name = "bce"
 
         # get validation data
         validation_features_x, \
@@ -128,10 +114,8 @@ class ABRankingEfficientNetModel:
         validation_features_y = validation_features_y.to(self._device)
         validation_targets = validation_targets.to(self._device)
 
-        # num features * 2 bc we duplicate each ab data
-        # (x, y, 1.0)
-        # (y, x, 0.0)
-        num_features = dataset_loader.get_len_training_ab_data() * 2
+        # get total number of training features
+        num_features = dataset_loader.get_len_training_ab_data()
 
         # get number of batches to do per epoch
         training_num_batches = math.ceil(num_features / training_batch_size)
@@ -140,34 +124,43 @@ class ABRankingEfficientNetModel:
             # fill data buffer
             dataset_loader.spawn_filling_workers()
 
-            # get a copy of model
-            model_copy = copy.deepcopy(self.model)
-            # freeze weights of model_copy
-            for param in model_copy.parameters():
-                param.requires_grad = False
-
             for i in range(training_num_batches):
                 num_data_to_get = training_batch_size
+                # last batch
                 if i == training_num_batches - 1:
                     num_data_to_get = num_features - (i * (training_batch_size))
 
-                batch_features_x, \
-                    batch_features_y,\
-                    batch_targets = dataset_loader.get_next_training_feature_vectors_and_target(num_data_to_get, self._device)
+                batch_features_x_orig, \
+                    batch_features_y_orig,\
+                    batch_targets_orig = dataset_loader.get_next_training_feature_vectors_and_target(num_data_to_get, self._device)
 
-                loss = self.train_batch(optimizer,
-                                        loss_func,
-                                        model_copy,
-                                        batch_features_x,
-                                        batch_features_y,
-                                        batch_targets)
+                batch_features_x = batch_features_x_orig.clone().requires_grad_(True).to(self._device)
+                batch_features_y = batch_features_y_orig.clone().requires_grad_(True).to(self._device)
+                batch_targets = batch_targets_orig.clone().requires_grad_(True).to(self._device)
 
-            # Validation step
+                with torch.no_grad():
+                    predicted_score_images_y = self.model.forward(batch_features_y)
+
+                optimizer.zero_grad()
+                predicted_score_images_x = self.model.forward(batch_features_x)
+
+                batch_pred_probabilities = self.forward_bradley_terry(predicted_score_images_x, predicted_score_images_y)
+
+                # assert
+                for pred_prob in batch_pred_probabilities:
+                    assert pred_prob.item() >= 0.0
+                    assert pred_prob.item() <= 1.0
+                loss = self.model.bce_loss(batch_pred_probabilities, batch_targets)
+                loss.backward()
+                optimizer.step()
+
+
+            # Calculate Validation Loss
             with torch.no_grad():
                 predicted_score_images_x = self.model.forward(validation_features_x)
                 predicted_score_images_y = self.model.forward(validation_features_y)
-                validation_loss, _ = loss_func(predicted_score_images_x, predicted_score_images_y,
-                                               validation_targets)
+                batch_pred_probabilities = self.forward_bradley_terry(predicted_score_images_x, predicted_score_images_y)
+                validation_loss = self.model.bce_loss(batch_pred_probabilities, validation_targets)
 
             if epoch % 10 == 0:
                 print(
@@ -199,21 +192,21 @@ class ABRankingEfficientNetModel:
 
                 batch_predicted_score_images_x = self.model.forward(batch_features_x)
                 batch_predicted_score_images_y = self.model.forward(batch_features_y)
-                loss, batch_predicted_probabilities = loss_func(batch_predicted_score_images_x,
-                                                             batch_predicted_score_images_y,
-                                                             batch_targets)
+                batch_pred_probabilities = self.forward_bradley_terry(batch_predicted_score_images_x,
+                                                             batch_predicted_score_images_y)
+                loss = self.model.bce_loss(batch_pred_probabilities, batch_targets)
 
                 training_predicted_score_images_x.extend(batch_predicted_score_images_x)
                 training_predicted_score_images_y.extend(batch_predicted_score_images_y)
-                training_predicted_probabilities.extend(batch_predicted_probabilities)
+                training_predicted_probabilities.extend(batch_pred_probabilities)
                 training_target_probabilities.extend(batch_targets)
             self.training_loss = loss
 
             validation_predicted_score_images_x = self.model.forward(validation_features_x)
             validation_predicted_score_images_y = self.model.forward(validation_features_y)
-            self.validation_loss, validation_predicted_probabilities = loss_func(validation_predicted_score_images_x,
-                                                              validation_predicted_score_images_y,
-                                                              validation_targets)
+            validation_predicted_probabilities = self.forward_bradley_terry(validation_predicted_score_images_x,
+                                                              validation_predicted_score_images_y)
+            self.validation_loss = self.model.bce_loss(validation_predicted_probabilities, validation_targets)
 
         return training_predicted_score_images_x,\
             training_predicted_score_images_y, \
@@ -226,21 +219,36 @@ class ABRankingEfficientNetModel:
             training_loss_per_epoch, \
             validation_loss_per_epoch
 
-    def ab_ranking_bradley_terry_loss(self, predicted_score_images_x, predicted_score_images_y, target_probabilities):
+    def forward_bradley_terry(self, predicted_score_images_x, predicted_score_images_y):
         epsilon = 0.000001
 
         # if score is negative N, make it 0
-        predicted_score_images_x = torch.max(predicted_score_images_x, torch.tensor([0.]).to(self._device))
-        predicted_score_images_y = torch.max(predicted_score_images_y, torch.tensor([0.]).to(self._device))
+        predicted_score_images_x = torch.max(predicted_score_images_x, torch.tensor([0.], device=self._device))
+        predicted_score_images_y = torch.max(predicted_score_images_y, torch.tensor([0.], device=self._device))
 
         # Calculate probability using Bradley Terry Formula: P(x>y) = score(x) / ( Score(x) + score(y))
-        sum_predicted_score = predicted_score_images_x + predicted_score_images_y
-        sum_predicted_score = torch.add(sum_predicted_score, epsilon)
-        pred_probabilities = torch.div(predicted_score_images_x, sum_predicted_score)
+        # sum_predicted_score = torch.add(predicted_score_images_x, predicted_score_images_y)
+        # sum_predicted_score = torch.add(sum_predicted_score, epsilon)
+        # pred_probabilities = torch.div(predicted_score_images_x, sum_predicted_score)
 
-        return self.model.bce_loss(pred_probabilities, target_probabilities), pred_probabilities
+        # prob = sigmoid( (x-y) / 100 )
+        diff_predicted_score = torch.sub(predicted_score_images_x, predicted_score_images_y)
+        res_predicted_score = torch.div(diff_predicted_score, 100.0)
+        pred_probabilities = self.model.sigmoid_fn(res_predicted_score)
 
-    def predict(self, inputs):
+        return pred_probabilities
+
+    def predict_positive_negative(self, positive_input, negative_input):
+        # get rid of the 1 dimension at start
+        positive_input = positive_input.squeeze()
+        negative_input = negative_input.squeeze()
+
+        # make it [2, 77, 768]
+        inputs = torch.stack((positive_input, negative_input))
+
+        # make it [1, 2, 77, 768]
+        inputs = inputs.unsqueeze(0)
+
         with torch.no_grad():
             outputs = self.model.forward(inputs).squeeze()
 

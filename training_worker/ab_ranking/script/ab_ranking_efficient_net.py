@@ -13,7 +13,7 @@ from training_worker.ab_ranking.model.reports.ab_ranking_linear_train_report imp
 from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import *
 from training_worker.ab_ranking.model.ab_ranking_efficient_net_data_loader import ABRankingDatasetLoader
 from utility.minio import cmd
-
+from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
 
 def train_ranking(dataset_name: str,
                   minio_access_key: str,
@@ -26,7 +26,9 @@ def train_ranking(dataset_name: str,
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
     input_type = "embedding-vector"
-    output_path = "{}/models/ab_ranking_efficient_net".format(dataset_name)
+    output_path = "{}/models/ranking/ab_ranking_efficient_net".format(dataset_name)
+    training_batch_size = 1
+    weight_decay = 0.01
 
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name=dataset_name,
@@ -36,11 +38,11 @@ def train_ranking(dataset_name: str,
                                             train_percent=train_percent)
     dataset_loader.load_dataset()
 
-    training_total_size = dataset_loader.get_len_training_ab_data() * 2
-    validation_total_size = dataset_loader.get_len_validation_ab_data() * 2
+    training_total_size = dataset_loader.get_len_training_ab_data()
+    validation_total_size = dataset_loader.get_len_validation_ab_data()
 
     ab_model = ABRankingEfficientNetModel(efficient_net_version="b0",
-                                          in_channels=154,
+                                          in_channels=2,
                                           num_classes=1)
     training_predicted_score_images_x, \
         training_predicted_score_images_y, \
@@ -52,9 +54,10 @@ def train_ranking(dataset_name: str,
         validation_target_probabilities, \
         training_loss_per_epoch, \
         validation_loss_per_epoch = ab_model.train(dataset_loader=dataset_loader,
-                                                                        training_batch_size=16,
-                                                                        epochs=epochs,
-                                                                        learning_rate=learning_rate)
+                                                    training_batch_size=training_batch_size,
+                                                    epochs=epochs,
+                                                    learning_rate=learning_rate,
+                                                    weight_decay=weight_decay)
 
     # Upload model to minio
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
@@ -111,10 +114,13 @@ def train_ranking(dataset_name: str,
                                   training_predicted_score_images_x,
                                   training_predicted_score_images_y,
                                   validation_predicted_score_images_x,
-                                  validation_predicted_score_images_y)
+                                  validation_predicted_score_images_y,
+                                  training_batch_size,
+                                  learning_rate,
+                                  weight_decay)
 
     # Upload model to minio
-    report_name = "{}_report.txt".format(date_now)
+    report_name = "{}.txt".format(date_now)
     report_output_path = os.path.join(output_path,  report_name)
 
     report_buffer = BytesIO(report_str.encode(encoding='UTF-8'))
@@ -123,7 +129,7 @@ def train_ranking(dataset_name: str,
     cmd.upload_data(dataset_loader.minio_client, bucket_name, report_output_path, report_buffer)
 
     # show and save graph
-    graph_name = "{}_graph.jpg".format(date_now)
+    graph_name = "{}.png".format(date_now)
     graph_output_path = os.path.join(output_path, graph_name)
 
     graph_buffer = get_graph_report(training_predicted_probabilities,
@@ -140,9 +146,17 @@ def train_ranking(dataset_name: str,
                                     training_loss_per_epoch,
                                     validation_loss_per_epoch,
                                     epochs,
-                                    learning_rate)
+                                    learning_rate,
+                                    training_batch_size,
+                                    weight_decay)
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
+
+    # get model card and upload
+    model_card_name = "{}.json".format(date_now)
+    model_card_name_output_path = os.path.join(output_path, model_card_name)
+    model_card_buf = get_model_card_buf(ab_model, training_total_size, validation_total_size, graph_output_path)
+    cmd.upload_data(dataset_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
 
     return model_output_path, report_output_path, graph_output_path
 

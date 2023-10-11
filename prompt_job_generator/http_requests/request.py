@@ -53,3 +53,51 @@ def http_get_in_progress_jobs_count(dataset_name: str):
 
     return None
 
+
+def http_get_dataset_list():
+    url = SERVER_ADRESS + "/dataset/list"
+
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            job_json = response.json()
+            return job_json
+
+    except Exception as e:
+        print('request exception ', e)
+
+    return None
+
+def http_get_dataset_rate(dataset_name: str):
+    url = SERVER_ADRESS + f"/dataset/get-rate?dataset={dataset_name}"
+
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            job_json = response.json()
+            return job_json
+
+    except Exception as e:
+        print('request exception ', e)
+
+
+    return None
+
+def http_get_all_dataset_rate():
+    url = SERVER_ADRESS + f"/dataset/get-all-dataset-rate"
+
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            job_json = response.json()
+            return job_json
+
+    except Exception as e:
+        print('request exception ', e)
+
+
+    return None
+
