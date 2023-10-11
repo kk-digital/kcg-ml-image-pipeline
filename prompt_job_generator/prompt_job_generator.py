@@ -242,12 +242,8 @@ def main():
         # If there are no added jobs
         added_atleast_one_job = True
 
-        ctx = 0
         while added_atleast_one_job:
             added_atleast_one_job = False
-
-            if ctx > 5:
-                return
 
             for dataset in list_datasets:
                 # get dataset rate
@@ -281,7 +277,6 @@ def main():
                     added_atleast_one_job = True
 
                 if dataset_todo_jobs[dataset] >= 1.0:
-                    ctx = ctx + 1
                     # spawn job
                     dataset_todo_jobs[dataset] -= 1.0
                     dataset_number_jobs_to_add[dataset] = number_of_jobs_to_add - 1
