@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime
 from orchestration.api.mongo_schemas import Task
 from orchestration.api.api_dataset import get_sequential_id
+import pymongo
 
 
 router = APIRouter()
@@ -236,3 +237,33 @@ def cleanup_completed_and_orphaned_jobs(request: Request):
             request.app.completed_jobs_collection.delete_one({"uuid": job['uuid']})
 
     return True
+
+# --------------- Job generation rate ---------------------
+
+@router.get("/job/get-dataset-job-per-second")
+def get_job_generation_rate(request: Request, dataset: str, sample_size : int):
+
+    # 1. Take last N=50 image generations (only time stamp when it was submitted)
+    # 2. Sort by Time Stamp
+    # 3. Use TimeStamp of Oldest, divided by N=50;
+    # to get Images/Second = ImageTaskGenerationRate (images/second estimate), over window of last N=50 images
+    query = {
+        'task_input_dict.dataset': dataset
+    }
+    # Query to find the n newest elements based on the task_completion_time
+    jobs = list(request.app.completed_jobs_collection.find(query).sort("task_creation_time",
+                                                                    pymongo.DESCENDING).limit(sample_size))
+
+    total_jobs = len(jobs)
+    job_per_second = 0.0
+    for job in jobs:
+        task_start_time = job['task_start_time']
+        task_completion_time = job['task_completion_time']
+
+        task_start_time = datetime.strptime(task_start_time, '%Y-%m-%d %H:%M:%S')
+        task_completion_time = datetime.strptime(task_completion_time, '%Y-%m-%d %H:%M:%S')
+
+        difference_in_seconds = (task_completion_time - task_start_time).total_seconds()
+        job_per_second += difference_in_seconds / total_jobs
+
+    return job_per_second
