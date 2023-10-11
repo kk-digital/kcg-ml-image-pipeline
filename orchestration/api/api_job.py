@@ -240,6 +240,10 @@ def cleanup_completed_and_orphaned_jobs(request: Request):
 
 # --------------- Job generation rate ---------------------
 
+# Define a function to extract the date-time from each dictionary
+def get_task_creation_time(job):
+    return datetime.strptime(job["task_creation_time"], "%Y-%m-%d %H:%M:%S")
+
 @router.get("/job/get-dataset-job-per-second")
 def get_job_generation_rate(request: Request, dataset: str, sample_size : int):
 
@@ -249,8 +253,11 @@ def get_job_generation_rate(request: Request, dataset: str, sample_size : int):
     # to get Images/Second = ImageTaskGenerationRate (images/second estimate), over window of last N=50 images
 
     # Query to find the n newest elements based on the task_completion_time
-    jobs = list(request.app.completed_jobs_collection.find({}).sort("task_creation_time",
-                                                                    pymongo.ASCENDING).limit(sample_size))
+    jobs = list(request.app.completed_jobs_collection.find({}))
+
+    sorted_data = sorted(jobs, key=get_task_creation_time)
+
+    jobs = sorted_data[:sample_size]
 
     total_jobs = len(jobs)
     job_per_second = 0.0
