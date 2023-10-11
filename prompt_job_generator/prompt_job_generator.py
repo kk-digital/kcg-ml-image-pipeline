@@ -259,9 +259,6 @@ def main():
                 if dataset_rate is None:
                     continue
 
-                if dataset not in dataset_number_jobs_to_add:
-                    continue
-
                 if not prompt_job_generator_state.prompt_queue.database_prompt_available(dataset):
                     print('no prompt is available for dataset ', dataset)
                     continue
