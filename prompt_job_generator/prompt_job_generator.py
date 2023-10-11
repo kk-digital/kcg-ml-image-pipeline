@@ -292,7 +292,7 @@ def main():
 
                 if not prompt_job_generator_state.prompt_queue.database_prompt_available(dataset):
                     print('no prompt is available for dataset ', dataset)
-                    continue
+                    break
 
                 # get dataset callback
                 # used to spawn the job
