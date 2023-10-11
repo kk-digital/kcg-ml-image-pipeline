@@ -8,7 +8,7 @@ from queue import Queue
 from threading import Semaphore
 import msgpack
 import threading
-
+from random import shuffle
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
@@ -107,13 +107,44 @@ class ABRankingDatasetLoader:
         num_validations = round((len(dataset_paths) * (1.0 - self.train_percent)))
         validation_ab_data_list = dataset_paths[:num_validations]
         training_ab_data_list = dataset_paths[num_validations:]
-        self.training_dataset_paths_copy = training_ab_data_list
+
+        # training
+        # duplicate each one
+        # for target 1.0 and 0.0
+        duplicated_training_list = []
+        for path in training_ab_data_list:
+            duplicated_training_list.append((path, 1.0))
+            duplicated_training_list.append((path, 0.0))
+
+        # shuffle
+        shuffled_training_list = []
+        index_shuf = list(range(len(duplicated_training_list)))
+        shuffle(index_shuf)
+        for i in index_shuf:
+            shuffled_training_list.append(duplicated_training_list[i])
+
+        self.training_dataset_paths_copy = shuffled_training_list
+
+        # validation
+        # duplicate each one
+        # for target 1.0 and 0.0
+        duplicated_validation_list = []
+        for path in validation_ab_data_list:
+            duplicated_validation_list.append((path, 1.0))
+            duplicated_validation_list.append((path, 0.0))
+
+        # shuffle
+        shuffled_validation_list = []
+        index_shuf = list(range(len(duplicated_validation_list)))
+        shuffle(index_shuf)
+        for i in index_shuf:
+            shuffled_validation_list.append(duplicated_validation_list[i])
 
         # put to their queue
-        for data in validation_ab_data_list:
+        for data in shuffled_validation_list:
             self.validation_dataset_paths_queue.put(data)
 
-        for data in training_ab_data_list:
+        for data in shuffled_training_list:
             self.training_dataset_paths_queue.put(data)
 
         print("Dataset loaded...")
@@ -129,7 +160,10 @@ class ABRankingDatasetLoader:
     def get_len_validation_ab_data(self):
         return self.validation_dataset_paths_queue.qsize()
 
-    def get_selection_datapoint_image_pair(self, dataset_path):
+    def get_selection_datapoint_image_pair(self, dataset):
+        dataset_path = dataset[0]
+        data_target = dataset[1]
+
         image_pair_data_list = []
 
         # load json object from minio
@@ -182,12 +216,12 @@ class ABRankingDatasetLoader:
             selected_embeddings_vector = embeddings_img_2_embeddings_vector
             other_embeddings_vector = embeddings_img_1_embeddings_vector
 
-        image_pair_target_1 = (selected_embeddings_vector, other_embeddings_vector, [1.0])
-        image_pair_data_list.append(image_pair_target_1)
+        if data_target == 1.0:
+            image_pair = (selected_embeddings_vector, other_embeddings_vector, [data_target])
+        else:
+            image_pair = (other_embeddings_vector, selected_embeddings_vector, [data_target])
 
-        # (y, x) = 0.0
-        image_pair_target_0 = (other_embeddings_vector, selected_embeddings_vector, [0.0])
-        image_pair_data_list.append(image_pair_target_0)
+        image_pair_data_list.append(image_pair)
 
         return image_pair_data_list
 
