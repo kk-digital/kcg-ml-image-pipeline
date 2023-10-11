@@ -262,7 +262,7 @@ def get_job_generation_rate(request: Request, dataset: str, sample_size : int):
     # Query to find the n newest elements based on the task_completion_time
     jobs = list(request.app.completed_jobs_collection.find({}))
 
-    sorted_data = sorted(jobs, key=get_task_start_time)
+    sorted_data = sorted(jobs, key=get_task_start_time, reverse=True)
 
     jobs = sorted_data[:sample_size]
 
