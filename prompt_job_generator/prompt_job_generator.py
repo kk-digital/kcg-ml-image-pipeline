@@ -232,8 +232,9 @@ def main():
     thread = threading.Thread(target=update_dataset_prompt_queue_background_thread, args=(prompt_job_generator_state,))
     thread.start()
 
+    print('starting prompt job generator')
     while True:
-
+        print('looking for datasets')
         # dictionary that maps dataset => number of jobs to add
         dataset_number_jobs_to_add = {}
 
