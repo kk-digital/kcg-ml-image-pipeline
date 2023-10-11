@@ -109,7 +109,7 @@ def set_rate(request: Request, dataset, rate=0):
 # -------------------- Dataset generation policy -------------------------
 
 @router.get("/dataset/get-all-dataset-generation-policy")
-def get_all_dataset_rate(request: Request):
+def get_all_dataset_generation_policy(request: Request):
     dataset_generation_policies = []
     # find
     items = request.app.dataset_generation_policy_collection.find({})
@@ -125,7 +125,7 @@ def get_all_dataset_rate(request: Request):
 
 
 @router.get("/dataset/get-generation-policy")
-def get_rate(request: Request, dataset: str):
+def get_generation_policy(request: Request, dataset: str):
     # find
     query = {"dataset_name": dataset}
     item = request.app.dataset_generation_policy_collection.find_one(query)
@@ -139,7 +139,7 @@ def get_rate(request: Request, dataset: str):
 
 
 @router.put("/dataset/set-generation-policy")
-def set_rate(request: Request, dataset, generation_policy='top-k'):
+def set_generation_policy(request: Request, dataset, generation_policy='top-k'):
     date_now = datetime.now()
     # check if exist
     # and remove all entries
@@ -158,7 +158,7 @@ def set_rate(request: Request, dataset, generation_policy='top-k'):
 
 
 @router.get("/dataset/get-top-k")
-def get_rate(request: Request, dataset: str):
+def get_top_k(request: Request, dataset: str):
     # find
     query = {"dataset_name": dataset}
     item = request.app.dataset_top_k_collection.find_one(query)
@@ -172,7 +172,7 @@ def get_rate(request: Request, dataset: str):
 
 
 @router.put("/dataset/set-top-k")
-def set_rate(request: Request, dataset, top_k=0.1):
+def set_top_k(request: Request, dataset, top_k=0.1):
     date_now = datetime.now()
     # check if exist
     # and remove all entries
