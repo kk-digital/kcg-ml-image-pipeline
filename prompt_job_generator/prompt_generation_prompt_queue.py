@@ -72,7 +72,7 @@ class PromptGenerationPromptQueue:
         # number of total prompts to generate before choosing n prompts
         if generation_policy == 'top-k':
             top_k = prompt_job_generator_state.get_dataset_top_k(dataset)
-            print('top k : ', top_k)
+            print('top k : ', top_k, " for dataset ", dataset)
             # if the generation policy is top-k we generate
             # more prompts so that the top-k are allways equal to prompt_count
             # example:  if top-k is 0.1 and we need 1 prompt, we generate 10 and choose best one
