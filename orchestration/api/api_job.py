@@ -241,8 +241,8 @@ def cleanup_completed_and_orphaned_jobs(request: Request):
 # --------------- Job generation rate ---------------------
 
 # Define a function to extract the date-time from each dictionary
-def get_task_creation_time(job):
-    return datetime.strptime(job["task_creation_time"], "%Y-%m-%d %H:%M:%S")
+def get_task_start_time(job):
+    return datetime.strptime(job["task_start_time"], "%Y-%m-%d %H:%M:%S")
 
 @router.get("/job/get-dataset-job-per-second")
 def get_job_generation_rate(request: Request, dataset: str, sample_size : int):
@@ -255,7 +255,7 @@ def get_job_generation_rate(request: Request, dataset: str, sample_size : int):
     # Query to find the n newest elements based on the task_completion_time
     jobs = list(request.app.completed_jobs_collection.find({}))
 
-    sorted_data = sorted(jobs, key=get_task_creation_time)
+    sorted_data = sorted(jobs, key=get_task_start_time)
 
     jobs = sorted_data[:sample_size]
 
