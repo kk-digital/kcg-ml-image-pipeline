@@ -246,6 +246,8 @@ def get_task_start_time(job):
 
     try:
         date = datetime.strptime(job["task_start_time"], "%Y-%m-%d %H:%M:%S")
+    except Exception as e:
+        date = datetime(1900, 1, 1)
 
     return date
 
