@@ -1,5 +1,4 @@
-
-from fastapi import Request, APIRouter
+from fastapi import Request, APIRouter, Query
 from datetime import datetime
 from utility.minio import cmd
 import os
@@ -21,8 +20,12 @@ def list_policies(request: Request):
     return policies
 
 
-@router.post("/add-selection-datapoint/{dataset}")
-def add_selection_datapoint(request: Request, dataset: str, selection: Selection):
+@router.post("/rank/add-ranking-data-point")
+def add_selection_datapoint(
+    request: Request, 
+    selection: Selection,
+    dataset: str = Query(...)  # dataset now as a query parameter  
+):
     time = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     selection.datetime = time
 
@@ -42,8 +45,8 @@ def add_selection_datapoint(request: Request, dataset: str, selection: Selection
     return True
 
 
-@router.post("/ranking/submit-relevance-data/{dataset}")
-def add_relevancy_selection_datapoint(request: Request, dataset: str, relevance_selection: RelevanceSelection):
+@router.post("/ranking/submit-relevance-data")
+def add_relevancy_selection_datapoint(request: Request, relevance_selection: RelevanceSelection, dataset: str = Query(...)):
     time = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     relevance_selection.datetime = time
 
@@ -61,3 +64,4 @@ def add_relevancy_selection_datapoint(request: Request, dataset: str, relevance_
     cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
 
     return True
+
