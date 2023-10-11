@@ -128,7 +128,7 @@ def update_dataset_prompt_generation_policy(prompt_job_generator_state, list_dat
     dataset_generation_policy_dictionary = {}
 
     for dataset_generation_policy in dataset_generation_policy_json:
-        dataset = dataset_generation_policy_json['dataset_name']
+        dataset = dataset_generation_policy['dataset_name']
         generation_policy = dataset_generation_policy['generation_policy']
 
         dataset_generation_policy_dictionary[dataset] = generation_policy
