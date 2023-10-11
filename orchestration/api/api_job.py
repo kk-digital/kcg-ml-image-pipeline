@@ -265,6 +265,8 @@ def get_job_generation_rate(request: Request, dataset: str, sample_size : int):
     sorted_data = sorted(jobs, key=get_task_start_time, reverse=True)
 
     jobs = sorted_data[:sample_size]
+    for job in jobs:
+        print(job["task_start_time"])
 
     total_jobs = len(jobs)
     job_per_second = 0.0
