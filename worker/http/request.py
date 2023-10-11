@@ -39,7 +39,7 @@ def http_get_sequential_id(dataset_name: str, limit: int):
 
 
 def http_add_job(job):
-    url = SERVER_ADRESS + "/job/add"
+    url = SERVER_ADRESS + "/queue/image-generation/add"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
 
     try:
