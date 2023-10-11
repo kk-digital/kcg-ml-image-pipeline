@@ -16,20 +16,35 @@ def parse_args():
     parser = argparse.ArgumentParser(description="generate prompts")
 
     # Required parameters
-    parser.add_argument("--base_prompts_path", type=str)
+    parser.add_argument("--device", type=str, default='cuda')
+    parser.add_argument("--minio_access_key", type=str, default='v048BpXpWrsVIHUfdAix')
+    parser.add_argument("--minio_secret_key", type=str, default='4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu')
+    parser.add_argument("--csv_dataset_path", type=str, default='input/civitai_phrases_database_v6.csv')
 
     return parser.parse_args()
 
 
-def update_dataset_prompt_queue(prompt_job_generator_state, list_datasets):
+def update_dataset_prompt_queue(prompt_job_generator_state, dataset):
+    prompt_queue = prompt_job_generator_state.prompt_queue
+
+    prompt_queue.update(prompt_job_generator_state, dataset)
+
+
+def update_datasets_prompt_queue(prompt_job_generator_state, list_datasets):
     # if dataset list is null return
     if list_datasets is None:
         return
 
-    prompt_queue = prompt_job_generator_state.prompt_queue
+    thread_list = []
 
     for dataset in list_datasets:
-        prompt_queue.update(prompt_job_generator_state, dataset)
+        thread = threading.Thread(target=update_dataset_prompt_queue,
+                                  args=(prompt_job_generator_state, dataset, ))
+        thread.start()
+        thread_list.append(thread)
+
+    for thread in thread_list:
+        thread.join()
 
 def update_dataset_rates(prompt_job_generator_state, list_datasets):
 
@@ -114,7 +129,7 @@ def update_dataset_prompt_queue_background_thread(prompt_job_generator_state):
         # get list of datasets
         list_datasets = http_get_dataset_list()
 
-        update_dataset_prompt_queue(prompt_job_generator_state, list_datasets)
+        update_datasets_prompt_queue(prompt_job_generator_state, list_datasets)
 
         sleep_time_in_seconds = 1.0
         time.sleep(sleep_time_in_seconds)
@@ -134,10 +149,10 @@ def update_dataset_values_background_thread(prompt_job_generator_state):
 def main():
     args = parse_args()
 
-    device = 'cuda'
-    minio_access_key = 'v048BpXpWrsVIHUfdAix'
-    minio_secret_key = '4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu'
-    csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
+    device = args.device
+    minio_access_key = args.minio_access_key
+    minio_secret_key = args.minio_secret_key
+    csv_dataset_path = args.csv_dataset_path
     csv_phrase_limit = 0
 
     prompt_job_generator_state = PromptJobGeneratorState(device=device)
@@ -176,7 +191,7 @@ def main():
 
     # get list of datasets
     list_datasets = http_get_dataset_list()
-    update_dataset_prompt_queue(prompt_job_generator_state, list_datasets)
+    update_datasets_prompt_queue(prompt_job_generator_state, list_datasets)
 
     thread = threading.Thread(target=update_dataset_values_background_thread, args=(prompt_job_generator_state,))
     thread.start()
@@ -235,12 +250,10 @@ def main():
                 # dataset rates should update in background using
                 # orchestration api
                 dataset_rate = prompt_job_generator_state.get_dataset_rate(dataset)
+                total_rate = prompt_job_generator_state.total_rate
 
                 # if dataset_rate does not exist skip this dataset
                 if dataset_rate is None:
-                    continue
-
-                if dataset not in dataset_number_jobs_to_add:
                     continue
 
                 if not prompt_job_generator_state.prompt_queue.database_prompt_available(dataset):
@@ -260,7 +273,7 @@ def main():
                 number_of_jobs_to_add = dataset_number_jobs_to_add[dataset]
 
                 if number_of_jobs_to_add > 0:
-                    dataset_todo_jobs[dataset] += dataset_rate
+                    dataset_todo_jobs[dataset] += (dataset_rate / total_rate)
                     added_atleast_one_job = True
 
                 if dataset_todo_jobs[dataset] >= 1.0:
