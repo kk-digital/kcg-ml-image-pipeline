@@ -264,6 +264,7 @@ def get_job_generation_rate(request: Request, dataset: str, sample_size : int):
         task_completion_time = datetime.strptime(task_completion_time, '%Y-%m-%d %H:%M:%S')
 
         difference_in_seconds = (task_completion_time - task_start_time).total_seconds()
-        job_per_second += difference_in_seconds / total_jobs
+        this_job_per_second = 1.0 / difference_in_seconds
+        job_per_second += this_job_per_second / total_jobs
 
     return job_per_second
