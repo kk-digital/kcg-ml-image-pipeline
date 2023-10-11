@@ -582,6 +582,7 @@ def run_generate_inpainting_generation_task(generation_task: GenerationTask):
 
 def generate_image_generation_jobs(positive_prompt, negative_prompt, dataset_name):
 
+    print('###### ----- generate_image_generation_jobs')
     # get sequential ids
     sequential_ids = request.http_get_sequential_id(dataset_name, 1)
 
@@ -627,7 +628,7 @@ def generate_inpainting_job(positive_prompt,
                             dataset_name,
                             init_img_path="./test/test_inpainting/white_512x512.jpg",
                             mask_path="./test/test_inpainting/icon_mask.png"):
-
+    return
     # get sequential ids
     sequential_ids = request.http_get_sequential_id(dataset_name, 1)
 

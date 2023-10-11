@@ -16,7 +16,10 @@ def parse_args():
     parser = argparse.ArgumentParser(description="generate prompts")
 
     # Required parameters
-    parser.add_argument("--base_prompts_path", type=str)
+    parser.add_argument("--device", type=str, default='cuda')
+    parser.add_argument("--minio_access_key", type=str, default='v048BpXpWrsVIHUfdAix')
+    parser.add_argument("--minio_secret_key", type=str, default='4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu')
+    parser.add_argument("--csv_dataset_path", type=str, default='input/civitai_phrases_database_v6.csv')
 
     return parser.parse_args()
 
@@ -146,10 +149,10 @@ def update_dataset_values_background_thread(prompt_job_generator_state):
 def main():
     args = parse_args()
 
-    device = 'cuda'
-    minio_access_key = 'v048BpXpWrsVIHUfdAix'
-    minio_secret_key = '4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu'
-    csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
+    device = args.device
+    minio_access_key = args.minio_access_key
+    minio_secret_key = args.minio_secret_key
+    csv_dataset_path = args.csv_dataset_path
     csv_phrase_limit = 0
 
     prompt_job_generator_state = PromptJobGeneratorState(device=device)
