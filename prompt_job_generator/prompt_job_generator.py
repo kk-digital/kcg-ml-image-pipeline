@@ -254,6 +254,7 @@ def main():
                 # dataset rates should update in background using
                 # orchestration api
                 dataset_rate = prompt_job_generator_state.get_dataset_rate(dataset)
+                total_rate = prompt_job_generator_state.total_rate
 
                 # if dataset_rate does not exist skip this dataset
                 if dataset_rate is None:
@@ -276,7 +277,7 @@ def main():
                 number_of_jobs_to_add = dataset_number_jobs_to_add[dataset]
 
                 if number_of_jobs_to_add > 0:
-                    dataset_todo_jobs[dataset] += dataset_rate
+                    dataset_todo_jobs[dataset] += (dataset_rate / total_rate)
                     added_atleast_one_job = True
 
                 if dataset_todo_jobs[dataset] >= 1.0:
