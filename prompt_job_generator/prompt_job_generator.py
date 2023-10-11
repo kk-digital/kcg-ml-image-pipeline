@@ -151,7 +151,6 @@ def update_dataset_prompt_generation_policy(prompt_job_generator_state, list_dat
             else:
                 top_k = float(top_k['top_k'])
 
-            print('setting top k : ', top_k, ' for datatset ', dataset)
             prompt_job_generator_state.set_dataset_top_k(dataset, top_k)
 
 
