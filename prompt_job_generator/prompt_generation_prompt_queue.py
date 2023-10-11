@@ -79,6 +79,8 @@ class PromptGenerationPromptQueue:
         else:
             total_prompt_count = prompt_count * 8
 
+        total_prompt_count = int(total_prompt_count)
+
         if base_prompts_csv_path is None:
             print('base prompt file is not found for dataset ', dataset)
 
