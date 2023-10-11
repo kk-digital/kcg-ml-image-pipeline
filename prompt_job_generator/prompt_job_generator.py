@@ -240,6 +240,7 @@ def main():
         dataset_number_jobs_to_add = {}
 
         for dataset in list_datasets:
+            print('dataset : ', dataset)
             dataset_rate = prompt_job_generator_state.get_dataset_rate(dataset)
             dataset_job_queue_size = prompt_job_generator_state.get_dataset_job_queue_size(dataset)
             dataset_job_queue_target = prompt_job_generator_state.get_dataset_job_queue_target(dataset)
@@ -261,6 +262,8 @@ def main():
 
             if dataset_job_queue_target > dataset_job_queue_size:
                 number_of_jobs_to_add = dataset_job_queue_target - dataset_job_queue_size
+
+                print('number_of_jobs_to_add ', number_of_jobs_to_add)
 
             dataset_number_jobs_to_add[dataset] = number_of_jobs_to_add
 
