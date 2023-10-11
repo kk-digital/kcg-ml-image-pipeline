@@ -113,6 +113,23 @@ class Selection(BaseModel):
         }
 
 
+class RelevanceSelection(BaseModel):
+    username: str
+    image_hash: str
+    image_path: str
+    relevance: int  # if relevant, should be 1, otherwise 0
+    datetime: Union[str, None] = None
+
+    def to_dict(self):
+        return {
+            "username": self.username,
+            "image_hash": self.image_hash,
+            "image_path": self.image_path,
+            "relevance": self.relevance,
+            "datetime": self.datetime,
+        }
+
+
 class TrainingTask(BaseModel):
     uuid: str  # required, should be passed by generator
     task_type: str
