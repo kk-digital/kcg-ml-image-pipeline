@@ -13,7 +13,7 @@ from utility.minio import cmd
 from training_worker.ab_ranking.model.ab_ranking_efficient_net import ABRankingEfficientNetModel
 from worker.prompt_generation.prompt_generator import (initialize_prompt_list_from_csv)
 from prompt_generation_prompt_queue import PromptGenerationPromptQueue
-from prompt_job_generator_constants import PROMPT_QUEUE_SIZE
+from prompt_job_generator_constants import PROMPT_QUEUE_SIZE, DEFAULT_PROMPT_GENERATION_POLICY, DEFAULT_TOP_K_VALUE
 
 class PromptJobGeneratorState:
     def __init__(self, device):
@@ -27,6 +27,12 @@ class PromptJobGeneratorState:
         self.dataset_job_queue_size = {}
         self.dataset_job_queue_target = {}
         self.dataset_job_queue_size_lock = threading.Lock()
+        # dataset prompt generation policy
+        # defaults to top-k
+        self.dataset_prompt_generation_policy_dictionary = {}
+        # used to store prompt generation data like top-k value
+        self.dataset_prompt_generation_data_dictionary = {}
+        self.dataset_prompt_generation_lock = threading.Lock()
         # each dataset will have a list of masks
         # only relevent if its an inpainting job
         self.dataset_masks = {}
@@ -106,6 +112,26 @@ class PromptJobGeneratorState:
             return self.dataset_callbacks[dataset]
         else:
             return None
+
+    def set_dataset_prompt_generation_policy(self, dataset, generation_policy):
+        with self.dataset_prompt_generation_lock:
+            self.dataset_prompt_generation_policy_dictionary[dataset] = generation_policy
+
+    def get_dataset_prompt_generation_policy(self, dataset):
+        with self.dataset_prompt_generation_lock:
+            if dataset in self.dataset_prompt_generation_policy_dictionary:
+                return self.dataset_prompt_generation_policy_dictionary[dataset]
+            return DEFAULT_PROMPT_GENERATION_POLICY
+
+    def set_dataset_top_k(self, dataset, top_k):
+        with self.dataset_prompt_generation_lock:
+            self.dataset_prompt_generation_data_dictionary[dataset] = top_k
+
+    def get_dataset_top_k(self, dataset):
+        with self.dataset_prompt_generation_lock:
+            if dataset in self.dataset_prompt_generation_data_dictionary:
+                return self.dataset_prompt_generation_data_dictionary[dataset]
+            return DEFAULT_TOP_K_VALUE
 
     def set_dataset_rate(self, dataset, rate):
         with self.dataset_rate_lock:

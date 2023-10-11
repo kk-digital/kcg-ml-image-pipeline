@@ -115,8 +115,8 @@ def http_get_dataset_generation_policy(dataset : str):
     return None
 
 
-def http_get_all_dataset_generation_policy(dataset : str):
-    url = SERVER_ADRESS + f"/dataset/get-all-dataset-generation-policy?dataset={dataset}"
+def http_get_all_dataset_generation_policy():
+    url = SERVER_ADRESS + f"/dataset/get-all-dataset-generation-policy"
 
     try:
         response = requests.get(url)
