@@ -38,8 +38,8 @@ def train_ranking(dataset_name: str,
                                             train_percent=train_percent)
     dataset_loader.load_dataset()
 
-    training_total_size = dataset_loader.get_len_training_ab_data() * 2
-    validation_total_size = dataset_loader.get_len_validation_ab_data() * 2
+    training_total_size = dataset_loader.get_len_training_ab_data()
+    validation_total_size = dataset_loader.get_len_validation_ab_data()
 
     ab_model = ABRankingEfficientNetModel(efficient_net_version="b0",
                                           in_channels=2,
