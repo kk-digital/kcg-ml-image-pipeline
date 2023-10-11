@@ -150,7 +150,7 @@ def update_dataset_prompt_generation_policy(prompt_job_generator_state, list_dat
             if top_k is None:
                 top_k = DEFAULT_TOP_K_VALUE
             else:
-                top_k = top_k['top_k']
+                top_k = float(top_k['top_k'])
 
             prompt_job_generator_state.set_dataset_top_k(dataset, top_k)
 
