@@ -21,15 +21,27 @@ def parse_args():
     return parser.parse_args()
 
 
-def update_dataset_prompt_queue(prompt_job_generator_state, list_datasets):
+def update_dataset_prompt_queue(prompt_job_generator_state, dataset):
+    prompt_queue = prompt_job_generator_state.prompt_queue
+
+    prompt_queue.update(prompt_job_generator_state, dataset)
+
+
+def update_datasets_prompt_queue(prompt_job_generator_state, list_datasets):
     # if dataset list is null return
     if list_datasets is None:
         return
 
-    prompt_queue = prompt_job_generator_state.prompt_queue
+    thread_list = []
 
     for dataset in list_datasets:
-        prompt_queue.update(prompt_job_generator_state, dataset)
+        thread = threading.Thread(target=update_dataset_prompt_queue,
+                                  args=(prompt_job_generator_state, dataset, ))
+        thread.start()
+        thread_list.append(thread)
+
+    for thread in thread_list:
+        thread.join()
 
 def update_dataset_rates(prompt_job_generator_state, list_datasets):
 
@@ -114,7 +126,7 @@ def update_dataset_prompt_queue_background_thread(prompt_job_generator_state):
         # get list of datasets
         list_datasets = http_get_dataset_list()
 
-        update_dataset_prompt_queue(prompt_job_generator_state, list_datasets)
+        update_datasets_prompt_queue(prompt_job_generator_state, list_datasets)
 
         sleep_time_in_seconds = 1.0
         time.sleep(sleep_time_in_seconds)
@@ -176,7 +188,7 @@ def main():
 
     # get list of datasets
     list_datasets = http_get_dataset_list()
-    update_dataset_prompt_queue(prompt_job_generator_state, list_datasets)
+    update_datasets_prompt_queue(prompt_job_generator_state, list_datasets)
 
     thread = threading.Thread(target=update_dataset_values_background_thread, args=(prompt_job_generator_state,))
     thread.start()
