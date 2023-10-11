@@ -255,6 +255,7 @@ def get_job_generation_rate(request: Request, dataset: str, sample_size : int):
     total_jobs = len(jobs)
     job_per_second = 0.0
     for job in jobs:
+        print(job["task_creation_time"])
         task_start_time = job['task_start_time']
         task_completion_time = job['task_completion_time']
 
