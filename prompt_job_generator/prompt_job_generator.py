@@ -285,7 +285,7 @@ def main():
                     dataset_todo_jobs[dataset] -= 1.0
                     dataset_number_jobs_to_add[dataset] = number_of_jobs_to_add - 1
 
-                    print(f'number of jobs to spawn for dataset {dataset} is {number_of_jobs_to_add}')
+                    print(f'###### ----{dataset_rate}---- number of jobs to spawn for dataset {dataset} is {number_of_jobs_to_add}')
                     # Adding a job
                     dataset_callback(prompt_job_generator_state)
 
