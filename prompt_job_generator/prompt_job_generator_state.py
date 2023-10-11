@@ -13,6 +13,7 @@ from utility.minio import cmd
 from training_worker.ab_ranking.model.ab_ranking_efficient_net import ABRankingEfficientNetModel
 from worker.prompt_generation.prompt_generator import (initialize_prompt_list_from_csv)
 from prompt_generation_prompt_queue import PromptGenerationPromptQueue
+from prompt_job_generator_constants import PROMPT_QUEUE_SIZE
 
 class PromptJobGeneratorState:
     def __init__(self, device):
@@ -40,7 +41,7 @@ class PromptJobGeneratorState:
         # minio connection
         self.minio_client = None
 
-        self.prompt_queue = PromptGenerationPromptQueue(16)
+        self.prompt_queue = PromptGenerationPromptQueue(PROMPT_QUEUE_SIZE)
 
         self.phrases = None
         self.phrases_token_size = None

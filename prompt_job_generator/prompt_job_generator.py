@@ -9,7 +9,9 @@ sys.path.insert(0, base_directory)
 
 from prompt_job_generator_state import PromptJobGeneratorState
 from prompt_job_generator_functions import generate_icon_generation_jobs, generate_character_generation_jobs, generate_mechs_image_generation_jobs, generate_propaganda_posters_image_generation_jobs
-from prompt_job_generator.http_requests.request import http_get_all_dataset_rate, http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list
+from prompt_job_generator.http_requests.request import (http_get_all_dataset_rate, http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list,
+                                                        http_get_dataset_job_per_second)
+from prompt_job_generator_constants import JOB_PER_SECOND_SAMPLE_SIZE
 
 
 def parse_args():
@@ -85,16 +87,6 @@ def update_dataset_job_queue_size(prompt_job_generator_state, list_datasets):
     if list_datasets is None:
         return
 
-    # hard coded for now
-    # TODO use orchestration api to get those values
-    dataset_job_per_second_dictionary = {
-        'icons': 0.2,
-        'character': 0.2,
-        'mech': 0.2,
-        'propaganda-poster': 0.5,
-        'environmental': 0.5
-    }
-
     # loop through all datasets and
     # for each dataset update the job_queue_size & job_queue_target
     # from orchestration api rates
@@ -103,22 +95,18 @@ def update_dataset_job_queue_size(prompt_job_generator_state, list_datasets):
         # get the number of jobs available for the dataset
         in_progress_job_count = http_get_in_progress_jobs_count(dataset)
         pending_job_count = http_get_pending_jobs_count(dataset)
+        job_per_second = http_get_dataset_job_per_second(dataset, JOB_PER_SECOND_SAMPLE_SIZE)
+
+        if job_per_second is None:
+            job_per_second = 0.2
 
         if in_progress_job_count is None or pending_job_count is None:
-            continue
-
-        if dataset in dataset_job_per_second_dictionary:
-            dataset_job_per_second = dataset_job_per_second_dictionary[dataset]
-        else:
-            dataset_job_per_second = None
-
-        if dataset_job_per_second is None:
             continue
 
         job_queue_size = in_progress_job_count + pending_job_count
         # Target number of Jobs in Queue
         # Equals: Time Speed (Jobs/Second) times 60*5 (300); 5 minutes
-        job_queue_target = 60 * 5 * dataset_job_per_second
+        job_queue_target = 60 * 5 * job_per_second
 
         prompt_job_generator_state.set_dataset_job_queue_size(dataset, job_queue_size)
         prompt_job_generator_state.set_dataset_job_queue_target(dataset, job_queue_target)
