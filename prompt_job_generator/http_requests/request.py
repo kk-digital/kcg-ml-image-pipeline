@@ -148,7 +148,7 @@ def http_get_dataset_top_k_value(dataset : str):
 
 
 def http_get_dataset_job_per_second(dataset : str, sample_size : int):
-    url = SERVER_ADRESS + f"/dataset/get-dataset-job-per-second?dataset={dataset}&sample_size={sample_size}"
+    url = SERVER_ADRESS + f"/job/get-dataset-job-per-second?dataset={dataset}&sample_size={sample_size}"
 
     try:
         response = requests.get(url)
