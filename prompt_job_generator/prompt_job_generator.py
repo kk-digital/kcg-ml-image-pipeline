@@ -98,6 +98,8 @@ def update_dataset_job_queue_size(prompt_job_generator_state, list_datasets):
         pending_job_count = http_get_pending_jobs_count(dataset)
         job_per_second = http_get_dataset_job_per_second(dataset, JOB_PER_SECOND_SAMPLE_SIZE)
 
+        print('job_per_second ', job_per_second)
+
         if job_per_second is None:
             job_per_second = 0.2
 
@@ -245,7 +247,7 @@ def main():
 
             # if dataset_rate is not found just move on
             if dataset_rate == None:
-                p# rint("dataset rate not found for dataset ", dataset)
+                # print("dataset rate not found for dataset ", dataset)
                 continue
 
             if dataset_job_queue_size is None:
