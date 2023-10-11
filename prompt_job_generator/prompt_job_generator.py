@@ -1,208 +1,164 @@
 
 import argparse
-import random
 import sys
 import time
-
-from PIL import Image
+import threading
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from prompt_job_generator.http_requests.request import http_get_completed_jobs_count, http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list
-from worker.prompt_generation.prompt_generator import (generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts,
-                                                       generate_image_generation_jobs_using_generated_prompts_and_base_prompts,
-                                                       initialize_prompt_list_from_csv)
+from prompt_job_generator_state import PromptJobGeneratorState
+from prompt_job_generator_functions import generate_icon_generation_jobs, generate_character_generation_jobs, generate_mechs_image_generation_jobs, generate_propaganda_posters_image_generation_jobs
+from prompt_job_generator.http_requests.request import http_get_all_dataset_rate, http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="generate prompts")
 
     # Required parameters
-    parser.add_argument("--base_prompts_path", type=str)
+    parser.add_argument("--device", type=str, default='cuda')
+    parser.add_argument("--minio_access_key", type=str, default='v048BpXpWrsVIHUfdAix')
+    parser.add_argument("--minio_secret_key", type=str, default='4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu')
+    parser.add_argument("--csv_dataset_path", type=str, default='input/civitai_phrases_database_v6.csv')
 
     return parser.parse_args()
 
 
-class PromptJobGeneratorState:
-    def __init__(self):
-        # keep the dataset_rate in this dictionary
-        # should update using orchestration api
-        self.dataset_rate = {}
-        # keep the dataset_job_per_second in this dictionary
-        # should update using orchestration api
-        self.dataset_job_per_second = {}
-        # each dataset will have a list of masks
-        # only relevent if its an inpainting job
-        self.dataset_masks = {}
-        # each dataset will have one callback to spawn the jobs
-        self.dataset_callbacks = {}
+def update_dataset_prompt_queue(prompt_job_generator_state, dataset):
+    prompt_queue = prompt_job_generator_state.prompt_queue
 
-        self.phrases = None
-        self.phrases_token_size = None
-        self.positive_count_list = None
-        self.negative_count_list = None
+    prompt_queue.update(prompt_job_generator_state, dataset)
 
-    def load_prompt_list_from_csv(self, csv_dataset_path, csv_phrase_limit):
-        phrases, phrases_token_size, positive_count_list, negative_count_list = initialize_prompt_list_from_csv(csv_dataset_path, csv_phrase_limit)
 
-        self.phrases = phrases
-        self.phrases_token_size = phrases_token_size
-        self.positive_count_list = positive_count_list
-        self.negative_count_list = negative_count_list
+def update_datasets_prompt_queue(prompt_job_generator_state, list_datasets):
+    # if dataset list is null return
+    if list_datasets is None:
+        return
 
-    def register_callback(self, dataset, callback):
-        self.dataset_callbacks[dataset] = callback
+    thread_list = []
 
-    def get_callback(self, dataset):
-        if dataset in self.dataset_callbacks:
-            return self.dataset_callbacks[dataset]
+    for dataset in list_datasets:
+        thread = threading.Thread(target=update_dataset_prompt_queue,
+                                  args=(prompt_job_generator_state, dataset, ))
+        thread.start()
+        thread_list.append(thread)
+
+    for thread in thread_list:
+        thread.join()
+
+def update_dataset_rates(prompt_job_generator_state, list_datasets):
+
+    # if dataset list is null return
+    if list_datasets is None:
+        return
+
+    dataset_rate_json = http_get_all_dataset_rate()
+    dataset_rate_dictionary = {}
+
+    for dataset_rate in dataset_rate_json:
+        dataset = dataset_rate['dataset_name']
+        dataset_rate = dataset_rate['dataset_rate']
+
+        dataset_rate_dictionary[dataset] = dataset_rate
+
+    # loop through all datasets and
+    # for each dataset update the dataset_rate
+    # from orchestration api rates
+    total_rate = 0
+    for dataset in list_datasets:
+
+        if dataset not in dataset_rate_dictionary:
+            continue
+
+        dataset_rate = int(dataset_rate_dictionary[dataset])
+
+        total_rate += dataset_rate
+
+        prompt_job_generator_state.set_dataset_rate(dataset, dataset_rate)
+
+    prompt_job_generator_state.set_total_rate(total_rate)
+
+
+def update_dataset_job_queue_size(prompt_job_generator_state, list_datasets):
+
+    # if dataset list is null return
+    if list_datasets is None:
+        return
+
+    # hard coded for now
+    # TODO use orchestration api to get those values
+    dataset_job_per_second_dictionary = {
+        'icons': 0.2,
+        'character': 0.2,
+        'mech': 0.2,
+        'propaganda-poster': 0.5,
+        'environmental': 0.5
+    }
+
+    # loop through all datasets and
+    # for each dataset update the job_queue_size & job_queue_target
+    # from orchestration api rates
+    for dataset in list_datasets:
+
+        # get the number of jobs available for the dataset
+        in_progress_job_count = http_get_in_progress_jobs_count(dataset)
+        pending_job_count = http_get_pending_jobs_count(dataset)
+
+        if in_progress_job_count is None or pending_job_count is None:
+            continue
+
+        if dataset in dataset_job_per_second_dictionary:
+            dataset_job_per_second = dataset_job_per_second_dictionary[dataset]
         else:
-            return None
+            dataset_job_per_second = None
 
-    def set_dataset_rate(self, dataset, rate):
-        self.dataset_rate[dataset] = rate
+        if dataset_job_per_second is None:
+            continue
 
-    def get_dataset_rate(self, dataset):
-        if dataset in self.dataset_rate:
-            return self.dataset_rate[dataset]
-        else:
-            return None
+        job_queue_size = in_progress_job_count + pending_job_count
+        # Target number of Jobs in Queue
+        # Equals: Time Speed (Jobs/Second) times 60*5 (300); 5 minutes
+        job_queue_target = 60 * 5 * dataset_job_per_second
 
-    def set_dataset_job_per_second(self, dataset, job_per_second):
-        self.dataset_job_per_second[dataset] = job_per_second
+        prompt_job_generator_state.set_dataset_job_queue_size(dataset, job_queue_size)
+        prompt_job_generator_state.set_dataset_job_queue_target(dataset, job_queue_target)
 
-    def get_dataset_job_per_second(self, dataset):
-        if dataset in self.dataset_job_per_second:
-            return self.dataset_job_per_second[dataset]
-        else:
-            return None
+def update_dataset_prompt_queue_background_thread(prompt_job_generator_state):
 
-    def add_dataset_mask(self, dataset, init_image_path, mask_path):
-        if dataset not in self.dataset_masks:
-            self.dataset_masks[dataset] = []
+    while True:
+        # get list of datasets
+        list_datasets = http_get_dataset_list()
 
-        self.dataset_masks[dataset].append({
-            'init_image' : init_image_path,
-            'mask' : mask_path
-        })
+        update_datasets_prompt_queue(prompt_job_generator_state, list_datasets)
 
-    def get_random_dataset_mask(self, dataset):
-        if dataset in self.dataset_masks:
-            mask_list = self.dataset_masks[dataset]
-        else:
-            mask_list = None
+        sleep_time_in_seconds = 1.0
+        time.sleep(sleep_time_in_seconds)
 
-        if mask_list is None:
-            return None
-        random_index = random.randint(0, len(mask_list) - 1)
-        return mask_list[random_index]
+def update_dataset_values_background_thread(prompt_job_generator_state):
 
-def generate_icon_generation_jobs(prompt_job_generator_state):
-    csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
-    prompt_count = 1
-    base_prompts_csv_path = 'input/base-prompts/icon/base-prompts-icon-2.csv'
-    dataset_name = 'icons'
-    positive_prefix = ""
-    init_img_path = "./test/test_inpainting/white_512x512.jpg"
-    mask_path = "./test/test_inpainting/icon_mask.png"
+    while True:
+        # get list of datasets
+        list_datasets = http_get_dataset_list()
 
-    mask = prompt_job_generator_state.get_random_dataset_mask(dataset_name)
-    print(mask)
-    if mask != None:
-        init_img_path = mask['init_image']
-        mask_path = mask['mask']
+        update_dataset_rates(prompt_job_generator_state, list_datasets)
+        update_dataset_job_queue_size(prompt_job_generator_state, list_datasets)
 
-    print(f"Adding '{dataset_name}' generation job")
-
-    generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts(
-        phrases=prompt_job_generator_state.phrases,
-        phrases_token_size=prompt_job_generator_state.phrases_token_size,
-        positive_count_list=prompt_job_generator_state.positive_count_list,
-        negative_count_list=prompt_job_generator_state.negative_count_list,
-        prompt_count=prompt_count,
-        base_prompts_csv_path=base_prompts_csv_path,
-        dataset_name=dataset_name,
-        positive_prefix=positive_prefix,
-        init_img_path=init_img_path,
-        mask_path=mask_path
-    )
-
-def generate_character_generation_jobs(prompt_job_generator_state):
-    csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
-    prompt_count = 1
-    base_prompts_csv_path = 'input/base-prompts/character/base-prompts-waifu.csv'
-    dataset_name = "character"
-    positive_prefix = ""
-    init_img_path = "./test/test_inpainting/white_512x512.jpg"
-    mask_path = "./test/test_inpainting/character_mask.png"
-
-    mask = prompt_job_generator_state.get_random_dataset_mask(dataset_name)
-    if mask != None:
-        init_img_path = mask['init_image']
-        mask_path = mask['mask']
-
-    print(f"Adding '{dataset_name}' generation job")
-
-    generate_inpainting_generation_jobs_using_generated_prompts_and_base_prompts(
-        phrases=prompt_job_generator_state.phrases,
-        phrases_token_size=prompt_job_generator_state.phrases_token_size,
-        positive_count_list=prompt_job_generator_state.positive_count_list,
-        negative_count_list=prompt_job_generator_state.negative_count_list,
-        prompt_count=prompt_count,
-        base_prompts_csv_path=base_prompts_csv_path,
-        dataset_name=dataset_name,
-        positive_prefix=positive_prefix,
-        init_img_path=init_img_path,
-        mask_path=mask_path
-    )
-
-def generate_propaganda_posters_image_generation_jobs(prompt_job_generator_state):
-
-    csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
-    prompt_count = 1
-    base_prompts_csv_path = 'input/base-prompts/propaganda-poster/base-prompts-propaganda-poster.csv'
-    dataset_name = 'propaganda-poster'
-    positive_prefix = ""
-
-    print(f"Adding '{dataset_name}' generation job")
-
-    generate_image_generation_jobs_using_generated_prompts_and_base_prompts(
-        phrases=prompt_job_generator_state.phrases,
-        phrases_token_size=prompt_job_generator_state.phrases_token_size,
-        positive_count_list=prompt_job_generator_state.positive_count_list,
-        negative_count_list=prompt_job_generator_state.negative_count_list,
-        prompt_count=prompt_count,
-        base_prompts_csv_path=base_prompts_csv_path,
-        dataset_name=dataset_name,
-        positive_prefix=positive_prefix,
-    )
-
-def generate_mechs_image_generation_jobs(prompt_job_generator_state):
-    prompt_count = 1
-    base_prompts_csv_path = 'input/base-prompts/mech/base-prompts-mechs.csv'
-    dataset_name = 'mech'
-    positive_prefix = ""
-
-    print(f"Adding '{dataset_name}' generation job")
-
-    generate_image_generation_jobs_using_generated_prompts_and_base_prompts(
-        phrases = prompt_job_generator_state.phrases,
-        phrases_token_size=prompt_job_generator_state.phrases_token_size,
-        positive_count_list=prompt_job_generator_state.positive_count_list,
-        negative_count_list=prompt_job_generator_state.negative_count_list,
-        prompt_count=prompt_count,
-        base_prompts_csv_path=base_prompts_csv_path,
-        dataset_name=dataset_name,
-        positive_prefix=positive_prefix,
-    )
+        sleep_time_in_seconds = 1.0
+        time.sleep(sleep_time_in_seconds)
 
 def main():
     args = parse_args()
 
-    csv_dataset_path = 'input/civitai_phrases_database_v6.csv'
+    device = args.device
+    minio_access_key = args.minio_access_key
+    minio_secret_key = args.minio_secret_key
+    csv_dataset_path = args.csv_dataset_path
     csv_phrase_limit = 0
 
-    prompt_job_generator_state = PromptJobGeneratorState()
+    prompt_job_generator_state = PromptJobGeneratorState(device=device)
+
+    prompt_job_generator_state.configure_minio(minio_access_key, minio_secret_key)
+    prompt_job_generator_state.load_clip_model()
 
     # loading civitai prompt csv file
     prompt_job_generator_state.load_prompt_list_from_csv(csv_dataset_path, csv_phrase_limit)
@@ -218,90 +174,69 @@ def main():
     prompt_job_generator_state.register_callback("mech", generate_mechs_image_generation_jobs)
     prompt_job_generator_state.register_callback("character", generate_character_generation_jobs)
 
+    prompt_job_generator_state.load_efficient_net_model('character', 'datasets',
+                                          'character/models/ranking/ab_ranking_efficient_net/2023-10-10.pth')
+
+    # setting the base prompt csv for each dataset
+    prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('icons',
+                                                                    'input/dataset-config/icon/base-prompts-icon-2.csv')
+    prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('propaganda-poster',
+                                                                    'input/dataset-config/propaganda-poster/base-prompts-propaganda-poster.csv')
+    prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('mech',
+                                                                    'input/dataset-config/mech/base-prompts-mechs.csv')
+    prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('character',
+                                                                    'input/dataset-config/character/base-prompts-waifu.csv')
+    prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('environmental',
+                                                                    'input/dataset-config/icon/base-prompts-icon-2.csv')
+
     # get list of datasets
     list_datasets = http_get_dataset_list()
+    update_datasets_prompt_queue(prompt_job_generator_state, list_datasets)
 
-    # --- http get dataset rates
-    # hard coded for now
-    dataset_rates_dictionary = {
-        'icons': 4,
-        'character' : 4,
-        'mech' : 2,
-        'propaganda-poster' : 1,
-        'environmental' : 1
-    }
+    thread = threading.Thread(target=update_dataset_values_background_thread, args=(prompt_job_generator_state,))
+    thread.start()
 
-    # hard coded for now
-    # TODO use orchestration api to get those values
-    dataset_job_per_second_dictionary = {
-        'icons': 0.2,
-        'character': 0.2,
-        'mech': 0.2,
-        'propaganda-poster': 0.5,
-        'environmental': 0.5
-    }
+    thread = threading.Thread(target=update_dataset_prompt_queue_background_thread, args=(prompt_job_generator_state,))
+    thread.start()
 
     while True:
-        # Update the dataset rates
-        # TODO use orchestration api instead of hard coded values
-        for dataset in list_datasets:
-            if dataset in dataset_rates_dictionary:
-                dataset_rate = dataset_rates_dictionary[dataset]
-            else:
-                dataset_rate = None
-
-            if dataset_rate is not None:
-                prompt_job_generator_state.set_dataset_rate(dataset, dataset_rate)
-
-            # Update the dataset job per second value
-            # TODO use orchestration api instead of hard coded values
-            for dataset in list_datasets:
-                if dataset in dataset_job_per_second_dictionary:
-                    dataset_job_per_second = dataset_job_per_second_dictionary[dataset]
-                else:
-                    dataset_job_per_second = None
-
-                if dataset_job_per_second is not None:
-                    prompt_job_generator_state.set_dataset_job_per_second(dataset, dataset_job_per_second)
-
 
         # dictionary that maps dataset => number of jobs to add
-        dataset_jobs_to_add = {}
+        dataset_number_jobs_to_add = {}
 
         for dataset in list_datasets:
             dataset_rate = prompt_job_generator_state.get_dataset_rate(dataset)
-            dataset_job_per_second = prompt_job_generator_state.get_dataset_job_per_second(dataset)
+            dataset_job_queue_size = prompt_job_generator_state.get_dataset_job_queue_size(dataset)
+            dataset_job_queue_target = prompt_job_generator_state.get_dataset_job_queue_target(dataset)
 
             # if dataset_rate is not found just move on
             if dataset_rate == None:
                 print("dataset rate not found for dataset ", dataset)
                 continue
 
-            # if dataset_job_per_second is not found just move on
-            if dataset_job_per_second == None:
-                print("dataset dataset_job_per_second not found for dataset ", dataset)
+            if dataset_job_queue_size is None:
+                print("dataset job queue size is not found for dataset : ", dataset)
                 continue
 
-            # get the number of jobs available for the dataset
-            in_progress_job_count = http_get_in_progress_jobs_count(dataset)
-            pending_job_count = http_get_pending_jobs_count(dataset)
+            if dataset_job_queue_target is None:
+                print("dataset job queue target is not found for dataset : ", dataset)
+                continue
 
-            # Target number of Jobs in Queue
-            # Equals: Time Speed (Jobs/Second) times 60*5 (300); 5 minutes
-            target_job_count = 60*5 * dataset_job_per_second * dataset_rate
-
-            # get total number of jobs
-
-            total_jobs_in_queue_count = in_progress_job_count + pending_job_count
-            print(dataset, ": total_jobs_in_queue_count ", total_jobs_in_queue_count)
             number_of_jobs_to_add = 0
 
-            if target_job_count > total_jobs_in_queue_count:
-                number_of_jobs_to_add = target_job_count - total_jobs_in_queue_count
+            if dataset_job_queue_target > dataset_job_queue_size:
+                number_of_jobs_to_add = dataset_job_queue_target - dataset_job_queue_size
 
-            dataset_jobs_to_add[dataset] = number_of_jobs_to_add
+            dataset_number_jobs_to_add[dataset] = number_of_jobs_to_add
 
 
+        # If JobQueueSize < JobQueueTarget
+        #- then keep "updating"/ adding
+        #- for each Dataset, TodoJob[i] += DatasetRate[i] / TotalRate
+        #- then at end of loop, if >1.0, then emit job for that dataset
+        dataset_todo_jobs = {}
+        for dataset in list_datasets:
+            dataset_todo_jobs[dataset] = 0
 
         # Make sure we stop lopping
         # If there are no added jobs
@@ -311,19 +246,18 @@ def main():
             added_atleast_one_job = False
 
             for dataset in list_datasets:
-                if dataset in dataset_jobs_to_add:
-                    number_of_jobs_to_add = dataset_jobs_to_add[dataset]
-                else:
-                    number_of_jobs_to_add = None
+                # get dataset rate
+                # dataset rates should update in background using
+                # orchestration api
+                dataset_rate = prompt_job_generator_state.get_dataset_rate(dataset)
+                total_rate = prompt_job_generator_state.total_rate
 
-                # check if there is a missing value
-                # and skip the dataset
-                if number_of_jobs_to_add == None:
+                # if dataset_rate does not exist skip this dataset
+                if dataset_rate is None:
                     continue
 
-                # if there are no jobs to add
-                # skip the dataset
-                if number_of_jobs_to_add <= 0:
+                if not prompt_job_generator_state.prompt_queue.database_prompt_available(dataset):
+                    print('no prompt is available for dataset ', dataset)
                     continue
 
                 # get dataset callback
@@ -336,12 +270,20 @@ def main():
                     print("dataset callback not found for dataset ", dataset)
                     continue
 
-                print(f'number of jobs to spawn for dataset {dataset} is {number_of_jobs_to_add}')
-                # Adding a job
-                dataset_callback(prompt_job_generator_state)
+                number_of_jobs_to_add = dataset_number_jobs_to_add[dataset]
 
-                dataset_jobs_to_add[dataset] = number_of_jobs_to_add - 1
-                added_atleast_one_job = True
+                if number_of_jobs_to_add > 0:
+                    dataset_todo_jobs[dataset] += (dataset_rate / total_rate)
+                    added_atleast_one_job = True
+
+                if dataset_todo_jobs[dataset] >= 1.0:
+                    # spawn job
+                    dataset_todo_jobs[dataset] -= 1.0
+                    dataset_number_jobs_to_add[dataset] = number_of_jobs_to_add - 1
+
+                    print(f'number of jobs to spawn for dataset {dataset} is {number_of_jobs_to_add}')
+                    # Adding a job
+                    dataset_callback(prompt_job_generator_state)
 
         # sleep for n number of seconds
         time_to_sleep_in_seconds = 2
