@@ -1,5 +1,5 @@
 
-from fastapi import Request, APIRouter
+from fastapi import Request, APIRouter, Query
 from datetime import datetime
 from utility.minio import cmd
 import os
@@ -11,8 +11,12 @@ from orchestration.api.mongo_schemas import Selection
 router = APIRouter()
 
 
-@router.post("/add-selection-datapoint/{dataset}")
-def add_selection_datapoint(request: Request, dataset: str, selection: Selection):
+@router.post("/rank/add-ranking-data-point")
+def add_selection_datapoint(
+    request: Request, 
+    selection: Selection,
+    dataset: str = Query(...)  # dataset now as a query parameter  
+):
     time = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     selection.datetime = time
 
@@ -30,3 +34,7 @@ def add_selection_datapoint(request: Request, dataset: str, selection: Selection
     cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
 
     return True
+
+
+
+

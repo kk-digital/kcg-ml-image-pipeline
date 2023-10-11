@@ -13,7 +13,7 @@ router = APIRouter()
 # -------------------- Get -------------------------
 
 
-@router.get("/job/get-job")
+@router.get("/queue/image-generation/get-job")
 def get_job(request: Request, task_type: str = None):
     query = {}
     if task_type != None:
@@ -35,7 +35,7 @@ def get_job(request: Request, task_type: str = None):
     return job
 
  # --------------------- Add ---------------------------
-@router.post("/job/add", description="Add a job to db")
+@router.post("/queue/image-generation/add", description="Add a job to db")
 def add_job(request: Request, task: Task):
     if task.uuid in ["", None]:
         # generate since its empty
@@ -61,25 +61,25 @@ def add_job(request: Request, task: Task):
 
 
 # -------------- Get jobs count ----------------------
-@router.get("/job/pending-count")
+@router.get("/queue/image-generation/pending-count")
 def get_pending_job_count(request: Request):
     count = request.app.pending_jobs_collection.count_documents({})
     return count
 
 
-@router.get("/job/in-progress-count")
+@router.get("/queue/image-generation/in-progress-count")
 def get_in_progress_job_count(request: Request):
     count = request.app.in_progress_jobs_collection.count_documents({})
     return count
 
 
-@router.get("/job/completed-count")
+@router.get("/queue/image-generation/completed-count")
 def get_completed_job_count(request: Request):
     count = request.app.completed_jobs_collection.count_documents({})
     return count
 
 
-@router.get("/job/failed-count")
+@router.get("/queue/image-generation/failed-count")
 def get_failed_job_count(request: Request):
     count = request.app.failed_jobs_collection.count_documents({})
     return count
@@ -87,27 +87,27 @@ def get_failed_job_count(request: Request):
 
 
 # ----------------- delete jobs ----------------------
-@router.delete("/job/clear-all-pending")
+@router.delete("/queue/image-generation/clear-all-pending")
 def clear_all_pending_jobs(request: Request):
     request.app.pending_jobs_collection.delete_many({})
 
     return True
 
 
-@router.delete("/job/clear-all-in-progress")
+@router.delete("/queue/image-generation/clear-all-in-progress")
 def clear_all_in_progress_jobs(request: Request):
     request.app.in_progress_jobs_collection.delete_many({})
 
     return True
 
 
-@router.delete("/job/clear-all-failed")
+@router.delete("/queue/image-generation/clear-all-failed")
 def clear_all_failed_jobs(request: Request):
     request.app.failed_jobs_collection.delete_many({})
 
     return True
 
-@router.delete("/job/clear-all-completed")
+@router.delete("/queue/image-generation/clear-all-completed")
 def clear_all_completed_jobs(request: Request):
     request.app.completed_jobs_collection.delete_many({})
 
@@ -117,7 +117,7 @@ def clear_all_completed_jobs(request: Request):
 
  # --------------------- List ----------------------
 
-@router.get("/job/list-pending")
+@router.get("/queue/image-generation/list-pending")
 def get_list_pending_jobs(request: Request):
     jobs = list(request.app.pending_jobs_collection.find({}))
 
@@ -127,7 +127,7 @@ def get_list_pending_jobs(request: Request):
     return jobs
 
 
-@router.get("/job/list-in-progress")
+@router.get("/queue/image-generation/list-in-progress")
 def get_list_in_progress_jobs(request: Request):
     jobs = list(request.app.in_progress_jobs_collection.find({}))
 
@@ -137,7 +137,7 @@ def get_list_in_progress_jobs(request: Request):
     return jobs
 
 
-@router.get("/job/list-completed")
+@router.get("/queue/image-generation/list-completed")
 def get_list_completed_jobs(request: Request):
     jobs = list(request.app.completed_jobs_collection.find({}))
 
@@ -147,7 +147,7 @@ def get_list_completed_jobs(request: Request):
     return jobs
 
 
-@router.get("/job/list-failed")
+@router.get("/queue/image-generation/list-failed")
 def get_list_failed_jobs(request: Request):
     jobs = list(request.app.failed_jobs_collection.find({}))
 
@@ -157,7 +157,7 @@ def get_list_failed_jobs(request: Request):
     return jobs
 
 
-@router.get("/job/count-completed")
+@router.get("/queue/image-generation/count-completed")
 def count_completed(request: Request, dataset: str = None):
 
     jobs = list(request.app.completed_jobs_collection.find({
@@ -166,7 +166,7 @@ def count_completed(request: Request, dataset: str = None):
 
     return len(jobs)
 
-@router.get("/job/count-pending")
+@router.get("/queue/image-generation/count-pending")
 def count_completed(request: Request, dataset: str = None):
 
     jobs = list(request.app.pending_jobs_collection.find({
@@ -175,7 +175,7 @@ def count_completed(request: Request, dataset: str = None):
 
     return len(jobs)
 
-@router.get("/job/count-in-progress")
+@router.get("/queue/image-generation/count-in-progress")
 def count_completed(request: Request, dataset: str = None):
 
     jobs = list(request.app.in_progress_jobs_collection.find({
@@ -187,7 +187,7 @@ def count_completed(request: Request, dataset: str = None):
 # ---------------- Update -------------------
 
 
-@router.put("/job/update-completed", description="Update in progress job and mark as completed.")
+@router.put("/queue/image-generation/update-completed", description="Update in progress job and mark as completed.")
 def update_job_completed(request: Request, task: Task):
     # check if exist
     job = request.app.in_progress_jobs_collection.find_one({"uuid": task.uuid})
@@ -203,7 +203,7 @@ def update_job_completed(request: Request, task: Task):
     return True
 
 
-@router.put("/job/update-failed", description="Update in progress job and mark as failed.")
+@router.put("/queue/image-generation/update-failed", description="Update in progress job and mark as failed.")
 def update_job_failed(request: Request, task: Task):
     # check if exist
     job = request.app.in_progress_jobs_collection.find_one({"uuid": task.uuid})
@@ -218,7 +218,7 @@ def update_job_failed(request: Request, task: Task):
 
     return True
 
-@router.delete("/job/cleanup-completed-and-orphaned")
+@router.delete("/queue/image-generation/cleanup-completed-and-orphaned")
 def cleanup_completed_and_orphaned_jobs(request: Request):
 
     jobs = request.app.completed_jobs_collection.find({})
