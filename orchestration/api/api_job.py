@@ -242,7 +242,13 @@ def cleanup_completed_and_orphaned_jobs(request: Request):
 
 # Define a function to extract the date-time from each dictionary
 def get_task_start_time(job):
-    return datetime.strptime(job["task_start_time"], "%Y-%m-%d %H:%M:%S")
+    date = datetime(1900, 1, 1)
+    try:
+        date = datetime.strptime(job["task_start_time"], "%Y-%m-%d %H:%M:%S")
+    except Exception as e:
+        #...
+
+    return date
 
 @router.get("/job/get-dataset-job-per-second")
 def get_job_generation_rate(request: Request, dataset: str, sample_size : int):
