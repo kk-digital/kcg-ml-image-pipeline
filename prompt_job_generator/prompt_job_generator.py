@@ -263,7 +263,7 @@ def main():
             if dataset_job_queue_target > dataset_job_queue_size:
                 number_of_jobs_to_add = dataset_job_queue_target - dataset_job_queue_size
 
-                print('number_of_jobs_to_add ', number_of_jobs_to_add)
+            print('number_of_jobs_to_add ', number_of_jobs_to_add)
 
             dataset_number_jobs_to_add[dataset] = number_of_jobs_to_add
 
