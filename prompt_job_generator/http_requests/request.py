@@ -5,7 +5,7 @@ SERVER_ADRESS = 'http://192.168.3.1:8111'
 
 
 def http_get_completed_jobs_count(dataset_name: str):
-    url = SERVER_ADRESS + "/job/count-completed?dataset=" + dataset_name
+    url = SERVER_ADRESS + "/queue/image-generation/count-completed?dataset=" + dataset_name
 
     try:
         response = requests.get(url)
@@ -21,7 +21,7 @@ def http_get_completed_jobs_count(dataset_name: str):
 
 
 def http_get_pending_jobs_count(dataset_name: str):
-    url = SERVER_ADRESS + "/job/count-pending?dataset=" + dataset_name
+    url = SERVER_ADRESS + "/queue/image-generation/count-pending?dataset=" + dataset_name
 
     try:
         response = requests.get(url)
@@ -37,7 +37,7 @@ def http_get_pending_jobs_count(dataset_name: str):
 
 
 def http_get_in_progress_jobs_count(dataset_name: str):
-    url = SERVER_ADRESS + "/job/count-in-progress?dataset=" + dataset_name
+    url = SERVER_ADRESS + "/queue/image-generation/count-in-progress?dataset=" + dataset_name
 
     try:
         response = requests.get(url)
