@@ -98,14 +98,11 @@ def update_dataset_job_queue_size(prompt_job_generator_state, list_datasets):
         pending_job_count = http_get_pending_jobs_count(dataset)
         job_per_second = http_get_dataset_job_per_second(dataset, JOB_PER_SECOND_SAMPLE_SIZE)
 
-        print('job_per_second ', job_per_second)
-
         if job_per_second is None:
             job_per_second = 0.2
 
         # TODO remove this bullshit
         if job_per_second > 1:
-            print('###  BUG find out why its doing this')
             job_per_second = 0.2
 
         if in_progress_job_count is None or pending_job_count is None:
@@ -178,7 +175,7 @@ def update_dataset_values_background_thread(prompt_job_generator_state):
         update_dataset_job_queue_size(prompt_job_generator_state, list_datasets)
         update_dataset_prompt_generation_policy(prompt_job_generator_state, list_datasets)
 
-        sleep_time_in_seconds = 1.0
+        sleep_time_in_seconds = 2.0
         time.sleep(sleep_time_in_seconds)
 
 
