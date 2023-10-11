@@ -247,12 +247,12 @@ def get_job_generation_rate(request: Request, dataset: str, sample_size : int):
     # 2. Sort by Time Stamp
     # 3. Use TimeStamp of Oldest, divided by N=50;
     # to get Images/Second = ImageTaskGenerationRate (images/second estimate), over window of last N=50 images
-
+    query = {
+        'task_input_dict.dataset': dataset
+    }
     # Query to find the n newest elements based on the task_completion_time
-    jobs = list(request.app.completed_jobs_collection.find({}).sort("task_creation_time",
+    jobs = list(request.app.completed_jobs_collection.find(query).sort("task_creation_time",
                                                                     pymongo.DESCENDING).limit(sample_size))
-    for job in jobs:
-        print(job["task_creation_time"])
 
     total_jobs = len(jobs)
     job_per_second = 0.0
