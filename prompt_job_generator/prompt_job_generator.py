@@ -149,8 +149,9 @@ def update_dataset_prompt_generation_policy(prompt_job_generator_state, list_dat
             top_k = http_get_dataset_top_k_value(dataset)
             if top_k is None:
                 top_k = DEFAULT_TOP_K_VALUE
+            else:
+                top_k = top_k['top-k']
 
-            print('##########', top_k)
             prompt_job_generator_state.set_dataset_top_k(dataset, top_k)
 
 
