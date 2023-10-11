@@ -101,6 +101,11 @@ def update_dataset_job_queue_size(prompt_job_generator_state, list_datasets):
         if job_per_second is None:
             job_per_second = 0.2
 
+        # TODO remove this bullshit
+        if job_per_second > 1:
+            print('###  BUG find out why its doing this')
+            job_per_second = 0.2
+
         if in_progress_job_count is None or pending_job_count is None:
             continue
 
@@ -140,7 +145,7 @@ def update_dataset_prompt_generation_policy(prompt_job_generator_state, list_dat
 
         prompt_job_generator_state.set_dataset_prompt_generation_policy(dataset, generation_policy)
 
-        if generation_policy is 'top-k':
+        if generation_policy == 'top-k':
             top_k = http_get_dataset_top_k_value(dataset)
             if top_k is None:
                 top_k = DEFAULT_TOP_K_VALUE

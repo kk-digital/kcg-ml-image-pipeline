@@ -64,12 +64,20 @@ class PromptGenerationPromptQueue:
 
     def generate_prompts(self, prompt_job_generator_state, dataset, prompt_count):
 
-        clip_text_embedder = prompt_job_generator_state.clip_text_embedder
+        generation_policy = prompt_job_generator_state.get_dataset_prompt_generation_policy(dataset)
 
+        clip_text_embedder = prompt_job_generator_state.clip_text_embedder
         base_prompts_csv_path = self.get_dataset_base_prompt(dataset)
 
         # number of total prompts to generate before choosing n prompts
-        total_prompt_count = prompt_count * 8
+        if generation_policy == 'top-k':
+            top_k = prompt_job_generator_state.get_dataset_top_k(dataset)
+            # if the generation policy is top-k we generate
+            # more prompts so that the top-k are allways equal to prompt_count
+            # example:  if top-k is 0.1 and we need 1 prompt, we generate 10 and choose best one
+            total_prompt_count = prompt_count * (1.0 / top_k)
+        else:
+            total_prompt_count = prompt_count * 8
 
         if base_prompts_csv_path is None:
             print('base prompt file is not found for dataset ', dataset)
