@@ -242,7 +242,7 @@ def main():
         # If there are no added jobs
         added_atleast_one_job = True
 
-        int ctx = 0
+        ctx = 0
         while added_atleast_one_job:
             added_atleast_one_job = False
 
