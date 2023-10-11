@@ -6,7 +6,7 @@ SERVER_ADRESS = 'http://192.168.3.1:8111'
 
 # Get request to get an available job
 def http_get_job(worker_type: str = None):
-    url = SERVER_ADRESS + "/job/get-job"
+    url = SERVER_ADRESS + "/queue/image-generation/get-job"
     if worker_type is not None:
         url = url + "?task_type={}".format(worker_type)
 
@@ -52,7 +52,7 @@ def http_add_job(job):
 
 
 def http_update_job_completed(job):
-    url = SERVER_ADRESS + "/job/update-completed"
+    url = SERVER_ADRESS + "/queue/image-generation/update-completed"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
 
     try:
@@ -65,7 +65,7 @@ def http_update_job_completed(job):
 
 
 def http_update_job_failed(job):
-    url = SERVER_ADRESS + "/job/update-failed"
+    url = SERVER_ADRESS + "/queue/image-generation/update-failed"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
 
     try:
