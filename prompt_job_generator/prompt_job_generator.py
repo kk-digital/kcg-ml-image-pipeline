@@ -238,6 +238,8 @@ def main():
         dataset_number_jobs_to_add = {}
 
         for dataset in list_datasets:
+            dataset_number_jobs_to_add[dataset] = 0
+
             dataset_rate = prompt_job_generator_state.get_dataset_rate(dataset)
             dataset_job_queue_size = prompt_job_generator_state.get_dataset_job_queue_size(dataset)
             dataset_job_queue_target = prompt_job_generator_state.get_dataset_job_queue_target(dataset)
