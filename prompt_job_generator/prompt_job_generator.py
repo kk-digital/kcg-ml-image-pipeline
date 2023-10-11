@@ -291,7 +291,7 @@ def main():
                     continue
 
                 if not prompt_job_generator_state.prompt_queue.database_prompt_available(dataset):
-                    # print('no prompt is available for dataset ', dataset)
+                    print('no prompt is available for dataset ', dataset)
                     break
 
                 # get dataset callback
