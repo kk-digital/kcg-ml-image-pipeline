@@ -95,9 +95,6 @@ def generate_mechs_image_generation_jobs(prompt_job_generator_state):
 
     random_mask = prompt_job_generator_state.get_random_dataset_mask(dataset_name)
 
-    print(prompt_job_generator_state.dataset_masks)
-    print(random_mask)
-
     init_img_path = random_mask['init_image']
     mask_path = random_mask['mask']
 
