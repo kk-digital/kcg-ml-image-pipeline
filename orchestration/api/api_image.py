@@ -51,7 +51,7 @@ def get_random_image_date_range(request: Request, dataset : str = None, start_da
     # convert curser type to list
     documents = list(documents)
     if len(documents) == 0:
-        raise HTTPException(status_code=404)
+        raise HTTPException(status_code=203)
 
     # get only the first index
     document = documents[0]
