@@ -89,9 +89,19 @@ def generate_propaganda_posters_image_generation_jobs(prompt_job_generator_state
         dataset_name=dataset_name,
     )
 
-def generate_mechs_image_generation_jobs(prompt_job_generator_state):
 
-    dataset_name = 'mech'
+def generate_mechs_image_generation_jobs(prompt_job_generator_state):
+    dataset_name = "mech"
+
+    random_mask = prompt_job_generator_state.get_random_dataset_mask(dataset_name)
+
+    init_img_path = random_mask['init_image']
+    mask_path = random_mask['mask']
+
+    mask = prompt_job_generator_state.get_random_dataset_mask(dataset_name)
+    if mask != None:
+        init_img_path = mask['init_image']
+        mask_path = mask['mask']
 
     print(f"Adding '{dataset_name}' generation job")
 
@@ -104,9 +114,12 @@ def generate_mechs_image_generation_jobs(prompt_job_generator_state):
     positive_prompt = scored_prompt.positive_prompt
     negative_prompt = scored_prompt.negative_prompt
 
-    generate_image_generation_jobs(
+    generate_inpainting_job(
         positive_prompt=positive_prompt,
         negative_prompt=negative_prompt,
         dataset_name=dataset_name,
+        init_img_path=init_img_path,
+        mask_path=mask_path,
+
     )
 
