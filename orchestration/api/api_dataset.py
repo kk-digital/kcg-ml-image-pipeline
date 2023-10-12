@@ -1,4 +1,4 @@
-from fastapi import Request, HTTPException, APIRouter, Response
+from fastapi import Request, HTTPException, APIRouter, Response, Query
 from orchestration.api.mongo_schemas import SequentialID
 from utility.minio import cmd
 from datetime import datetime
@@ -56,30 +56,82 @@ def get_sequential_id(request: Request, dataset: str, limit: int = 1):
 def get_rate(request: Request, dataset: str):
     # find
     query = {"dataset_name": dataset}
-    item = request.app.dataset_rate_collection.find_one(query)
+    item = request.app.dataset_config_collection.find_one(query)
     if item is None:
         raise HTTPException(status_code=404)
 
     # remove the auto generated field
     item.pop('_id', None)
 
+    return item["dataset_rate"]
+
+@router.get("/dataset/get-dataset-config")
+def get_dataset_config(request: Request, dataset: str = Query(...)):
+    bucket_name = "datasets"
+    
+    # Find the item for the specific dataset
+    item = request.app.dataset_config_collection.find_one({"dataset_name": dataset})
+    
+    if item is None:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    # remove the auto generated field
+    item.pop('_id', None)
+    
+    dataset_name = item["dataset_name"]
+
+    # For relevancy model
+    prefix_relevancy = f"{dataset_name}/models/relevancy/ab_ranking_efficient_net"
+    relevancy_models = cmd.get_list_of_objects_with_prefix(request.app.minio_client, bucket_name, prefix_relevancy)
+    # Assuming you only want the latest or the first .json filename
+    relevancy_model_filename = next((obj.split('/')[-1].split('.json')[0] for obj in relevancy_models if obj.endswith('.json')), "")
+    item["relevance_model_filename"] = relevancy_model_filename
+
+    # For ranking model
+    prefix_ranking = f"{dataset_name}/models/ranking/ab_ranking_efficient_net"
+    ranking_models = cmd.get_list_of_objects_with_prefix(request.app.minio_client, bucket_name, prefix_ranking)
+    # Again, assuming you only want the latest or the first .json filename
+    ranking_model_filename = next((obj.split('/')[-1].split('.json')[0] for obj in ranking_models if obj.endswith('.json')), "")
+    item["ranking_model_filename"] = ranking_model_filename
+
     return item
 
 
-@router.get("/dataset/get-all-dataset-rate")
-def get_all_dataset_rate(request: Request):
-    dataset_rates = []
+@router.get("/dataset/get-all-dataset-config")
+def get_all_dataset_config(request: Request):
+    dataset_configs = []
+    bucket_name = "datasets"
+    
     # find
-    items = request.app.dataset_rate_collection.find({})
+    items = request.app.dataset_config_collection.find({})
     if items is None:
         raise HTTPException(status_code=404)
 
     for item in items:
         # remove the auto generated field
         item.pop('_id', None)
-        dataset_rates.append(item)
+        
+        dataset_name = item["dataset_name"]
 
-    return dataset_rates
+        # For relevancy model
+        prefix_relevancy = f"{dataset_name}/models/relevancy/ab_ranking_efficient_net"
+        relevancy_models = cmd.get_list_of_objects_with_prefix(request.app.minio_client, bucket_name, prefix_relevancy)
+        # Assuming you only want the latest or the first .json filename
+        relevancy_model_filename = next((obj.split('/')[-1].split('.json')[0] for obj in relevancy_models if obj.endswith('.json')), "")
+        item["relevance_model_filename"] = relevancy_model_filename
+
+        # For ranking model
+        prefix_ranking = f"{dataset_name}/models/ranking/ab_ranking_efficient_net"
+        ranking_models = cmd.get_list_of_objects_with_prefix(request.app.minio_client, bucket_name, prefix_ranking)
+        # Again, assuming you only want the latest or the first .json filename
+        ranking_model_filename = next((obj.split('/')[-1].split('.json')[0] for obj in ranking_models if obj.endswith('.json')), "")
+        item["ranking_model_filename"] = ranking_model_filename
+
+        dataset_configs.append(item)
+
+    return dataset_configs
+
+
 
 
 @router.put("/dataset/set-rate")
@@ -87,20 +139,21 @@ def set_rate(request: Request, dataset, rate=0):
     date_now = datetime.now()
     # check if exist
     query = {"dataset_name": dataset}
-    item = request.app.dataset_rate_collection.find_one(query)
+    item = request.app.dataset_config_collection.find_one(query)
     if item is None:
         # add one
-        dataset_rate = {
+        dataset_config = {
             "dataset_name": dataset,
             "last_update": date_now,
             "dataset_rate": rate,
+            "relevance_model_filename": "",
+            "ranking_model_filename": "",
         }
-        request.app.dataset_rate_collection.insert_one(dataset_rate)
-
-    # update
-    new_values = {"$set": {"last_update": date_now,
-                           "dataset_rate": rate}}
-    request.app.dataset_rate_collection.update_one(query, new_values)
+        request.app.dataset_config_collection.insert_one(dataset_config)
+    else:
+        # update
+        new_values = {"$set": {"last_update": date_now, "dataset_rate": rate}}
+        request.app.dataset_config_collection.update_one(query, new_values)
 
     return True
 
