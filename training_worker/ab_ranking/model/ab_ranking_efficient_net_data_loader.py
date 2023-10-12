@@ -119,7 +119,7 @@ class ABRankingDatasetLoader:
         duplicated_training_list = []
         for path in training_ab_data_list:
             duplicated_training_list.append((path, 1.0))
-            duplicated_training_list.append((path, 0.0))
+            # duplicated_training_list.append((path, 0.0))
 
         # shuffle
         shuffled_training_list = []
@@ -136,7 +136,7 @@ class ABRankingDatasetLoader:
         duplicated_validation_list = []
         for path in validation_ab_data_list:
             duplicated_validation_list.append((path, 1.0))
-            duplicated_validation_list.append((path, 0.0))
+            # duplicated_validation_list.append((path, 0.0))
 
         # shuffle
         shuffled_validation_list = []
@@ -211,25 +211,32 @@ class ABRankingDatasetLoader:
         embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["negative_embedding"]["__ndarray__"])
         embeddings_img_2_embeddings_vector = np.array(embeddings_img_2_embeddings_vector)
 
-        # if image 1 is the selected
-        if selected_image_index == 0:
-            selected_embeddings_vector = embeddings_img_1_embeddings_vector
-            other_embeddings_vector = embeddings_img_2_embeddings_vector
+        # # if image 1 is the selected
+        # if selected_image_index == 0:
+        #     selected_embeddings_vector = embeddings_img_1_embeddings_vector
+        #     other_embeddings_vector = embeddings_img_2_embeddings_vector
+        #
+        # # image 2 is selected
+        # else:
+        #     selected_embeddings_vector = embeddings_img_2_embeddings_vector
+        #     other_embeddings_vector = embeddings_img_1_embeddings_vector
 
-        # image 2 is selected
-        else:
-            selected_embeddings_vector = embeddings_img_2_embeddings_vector
-            other_embeddings_vector = embeddings_img_1_embeddings_vector
-
-        if data_target == 1.0:
-            image_pair = (selected_embeddings_vector, other_embeddings_vector, [data_target])
-        else:
-            image_pair = (other_embeddings_vector, selected_embeddings_vector, [data_target])
+        # if data_target == 1.0:
+        #     image_pair = (selected_embeddings_vector, other_embeddings_vector, [data_target])
+        # else:
+        #     image_pair = (other_embeddings_vector, selected_embeddings_vector, [data_target])
 
         # if data_target == 1.0:
         #     image_pair = (self.rand_a, self.rand_b, [data_target])
         # else:
         #     image_pair = (self.rand_b, self.rand_a, [data_target])
+
+        if selected_image_index == 0:
+            target = [0.0]
+        else:
+            target = [1.0]
+
+        image_pair = (embeddings_img_1_embeddings_vector, embeddings_img_2_embeddings_vector, target)
 
         image_pair_data_list.append(image_pair)
 
