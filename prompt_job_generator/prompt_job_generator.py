@@ -214,7 +214,7 @@ def main():
 
     mech_masks = find_png_files('./input/mask/mech')
     for mask in mech_masks:
-        prompt_job_generator_state.add_dataset_mask("character", "./test/test_inpainting/white_512x512.jpg",
+        prompt_job_generator_state.add_dataset_mask("mech", "./test/test_inpainting/white_512x512.jpg",
                                                     mask)
 
     # register function callbacks
