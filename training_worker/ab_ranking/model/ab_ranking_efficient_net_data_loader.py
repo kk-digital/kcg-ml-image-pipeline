@@ -89,6 +89,11 @@ class ABRankingDatasetLoader:
         self.num_filling_workers = 5
         self.fill_semaphore = Semaphore(self.num_filling_workers)  # One filling only
 
+        # random
+        # self.rand_a = np.random.rand(2, 77, 768)
+        # self.rand_b = np.random.rand(2, 77, 768)
+        # print("rand a shape=", self.rand_a.shape)
+
     def load_dataset(self):
         start_time = time.time()
         print("Loading dataset references...")
@@ -220,6 +225,11 @@ class ABRankingDatasetLoader:
             image_pair = (selected_embeddings_vector, other_embeddings_vector, [data_target])
         else:
             image_pair = (other_embeddings_vector, selected_embeddings_vector, [data_target])
+
+        # if data_target == 1.0:
+        #     image_pair = (self.rand_a, self.rand_b, [data_target])
+        # else:
+        #     image_pair = (self.rand_b, self.rand_a, [data_target])
 
         image_pair_data_list.append(image_pair)
 
