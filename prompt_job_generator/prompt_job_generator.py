@@ -202,6 +202,8 @@ def main():
 
     # register function callbacks
     # used to spawn jobs for each job_type/dataset
+    # when we want to spawn a job for a specific dataset
+    # we call this function
     prompt_job_generator_state.register_callback("icons", generate_icon_generation_jobs)
     prompt_job_generator_state.register_callback("propaganda-poster", generate_propaganda_posters_image_generation_jobs)
     prompt_job_generator_state.register_callback("mech", generate_mechs_image_generation_jobs)
