@@ -21,14 +21,16 @@ def train_ranking(dataset_name: str,
                   epochs=10000,
                   learning_rate=0.001,
                   buffer_size=20000,
-                  train_percent=0.9):
+                  train_percent=0.9,
+                  training_batch_size=1,
+                  weight_decay=0.01):
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
     input_type = "embedding-vector"
     output_path = "{}/models/ranking/ab_ranking_efficient_net".format(dataset_name)
-    training_batch_size = 1
-    weight_decay = 0.01
+
+
 
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name=dataset_name,
@@ -73,6 +75,10 @@ def train_ranking(dataset_name: str,
     training_predicted_probabilities = torch.stack(training_predicted_probabilities)
     training_predicted_score_images_x = torch.stack(training_predicted_score_images_x)
     training_predicted_score_images_y = torch.stack(training_predicted_score_images_y)
+
+    validation_predicted_score_images_x = torch.stack(validation_predicted_score_images_x)
+    validation_predicted_score_images_y = torch.stack(validation_predicted_score_images_y)
+    validation_predicted_probabilities = torch.stack(validation_predicted_probabilities)
 
     training_target_probabilities = training_target_probabilities.detach().cpu().numpy()
     validation_target_probabilities = validation_target_probabilities.detach().cpu().numpy()
@@ -179,7 +185,12 @@ def test_run():
     train_ranking(minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
                   dataset_name="character",
-                  epochs=10)
+                  epochs=10,
+                  learning_rate=0.01,
+                  buffer_size=20000,
+                  train_percent=0.9,
+                  training_batch_size=1,
+                  weight_decay=0.0)
 
 
 if __name__ == '__main__':
