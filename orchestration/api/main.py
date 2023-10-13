@@ -59,7 +59,7 @@ def startup_db_client():
     app.training_failed_jobs_collection = app.mongodb_db["training-failed-jobs"]
 
     # dataset rate
-    app.dataset_rate_collection = app.mongodb_db["dataset_rate"]
+    app.dataset_config_collection = app.mongodb_db["dataset_config"]
 
     # dataset generation policy
     app.dataset_generation_policy_collection = app.mongodb_db["dataset_generation_policy"]

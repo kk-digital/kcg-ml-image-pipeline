@@ -1,4 +1,4 @@
-from fastapi import Request, HTTPException, APIRouter, Response
+from fastapi import Request, HTTPException, APIRouter, Response, Query
 from orchestration.api.mongo_schemas import SequentialID
 from utility.minio import cmd
 from datetime import datetime
@@ -56,9 +56,22 @@ def get_sequential_id(request: Request, dataset: str, limit: int = 1):
 def get_rate(request: Request, dataset: str):
     # find
     query = {"dataset_name": dataset}
-    item = request.app.dataset_rate_collection.find_one(query)
+    item = request.app.dataset_config_collection.find_one(query)
     if item is None:
         raise HTTPException(status_code=404)
+
+    # remove the auto generated field
+    item.pop('_id', None)
+
+    return item["dataset_rate"]
+
+@router.get("/dataset/get-dataset-config")
+def get_dataset_config(request: Request, dataset: str = Query(...)):
+    # Find the item for the specific dataset
+    item = request.app.dataset_config_collection.find_one({"dataset_name": dataset})
+    
+    if item is None:
+        raise HTTPException(status_code=404, detail="Dataset not found")
 
     # remove the auto generated field
     item.pop('_id', None)
@@ -66,44 +79,88 @@ def get_rate(request: Request, dataset: str):
     return item
 
 
-@router.get("/dataset/get-all-dataset-rate")
-def get_all_dataset_rate(request: Request):
-    dataset_rates = []
+
+@router.get("/dataset/get-all-dataset-config")
+def get_all_dataset_config(request: Request):
+    dataset_configs = []
+    
     # find
-    items = request.app.dataset_rate_collection.find({})
+    items = request.app.dataset_config_collection.find({})
     if items is None:
         raise HTTPException(status_code=404)
 
     for item in items:
         # remove the auto generated field
         item.pop('_id', None)
-        dataset_rates.append(item)
+        dataset_configs.append(item)
 
-    return dataset_rates
-
+    return dataset_configs
 
 @router.put("/dataset/set-rate")
 def set_rate(request: Request, dataset, rate=0):
     date_now = datetime.now()
     # check if exist
     query = {"dataset_name": dataset}
-    item = request.app.dataset_rate_collection.find_one(query)
+    item = request.app.dataset_config_collection.find_one(query)
     if item is None:
         # add one
-        dataset_rate = {
+        dataset_config = {
             "dataset_name": dataset,
             "last_update": date_now,
             "dataset_rate": rate,
+            "relevance_model": "",
+            "ranking_model": "",
         }
-        request.app.dataset_rate_collection.insert_one(dataset_rate)
-
-    # update
-    new_values = {"$set": {"last_update": date_now,
-                           "dataset_rate": rate}}
-    request.app.dataset_rate_collection.update_one(query, new_values)
+        request.app.dataset_config_collection.insert_one(dataset_config)
+    else:
+        # update
+        new_values = {"$set": {"last_update": date_now, "dataset_rate": rate}}
+        request.app.dataset_config_collection.update_one(query, new_values)
 
     return True
 
+@router.put("/dataset/set-relevance-model")
+def set_relevance_model(request: Request, dataset: str, relevance_model: str):
+    date_now = datetime.now()
+    # check if dataset exists
+    query = {"dataset_name": dataset}
+    item = request.app.dataset_config_collection.find_one(query)
+    
+    if item is None:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    
+    # update the relevance model
+    new_values = {
+        "$set": {
+            "last_update": date_now,
+            "relevance_model": relevance_model
+        }
+    }
+    request.app.dataset_config_collection.update_one(query, new_values)
+
+    return True
+
+
+@router.put("/dataset/set-ranking-model")
+def set_ranking_model(request: Request, dataset: str, ranking_model: str):
+    date_now = datetime.now()
+    # check if dataset exists
+    query = {"dataset_name": dataset}
+    item = request.app.dataset_config_collection.find_one(query)
+    
+    if item is None:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    
+    # update the ranking model
+    new_values = {
+        "$set": {
+            "last_update": date_now,
+            "ranking_model": ranking_model
+        }
+    }
+    request.app.dataset_config_collection.update_one(query, new_values)
+
+    return True
 
 
 # -------------------- Dataset generation policy -------------------------

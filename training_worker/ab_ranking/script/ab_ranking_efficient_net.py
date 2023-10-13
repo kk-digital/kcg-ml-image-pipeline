@@ -11,7 +11,7 @@ from utility.regression_utils import torchinfo_summary
 from training_worker.ab_ranking.model.ab_ranking_efficient_net import ABRankingEfficientNetModel
 from training_worker.ab_ranking.model.reports.ab_ranking_linear_train_report import get_train_report
 from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import *
-from training_worker.ab_ranking.model.ab_ranking_efficient_net_data_loader import ABRankingDatasetLoader
+from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDatasetLoader
 from utility.minio import cmd
 from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
 
@@ -21,14 +21,16 @@ def train_ranking(dataset_name: str,
                   epochs=10000,
                   learning_rate=0.001,
                   buffer_size=20000,
-                  train_percent=0.9):
+                  train_percent=0.9,
+                  training_batch_size=1,
+                  weight_decay=0.01):
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
     input_type = "embedding-vector"
     output_path = "{}/models/ranking/ab_ranking_efficient_net".format(dataset_name)
-    training_batch_size = 1
-    weight_decay = 0.01
+
+
 
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name=dataset_name,
@@ -73,6 +75,10 @@ def train_ranking(dataset_name: str,
     training_predicted_probabilities = torch.stack(training_predicted_probabilities)
     training_predicted_score_images_x = torch.stack(training_predicted_score_images_x)
     training_predicted_score_images_y = torch.stack(training_predicted_score_images_y)
+
+    validation_predicted_score_images_x = torch.stack(validation_predicted_score_images_x)
+    validation_predicted_score_images_y = torch.stack(validation_predicted_score_images_y)
+    validation_predicted_probabilities = torch.stack(validation_predicted_probabilities)
 
     training_target_probabilities = training_target_probabilities.detach().cpu().numpy()
     validation_target_probabilities = validation_target_probabilities.detach().cpu().numpy()
@@ -178,8 +184,13 @@ def run_ab_ranking_efficient_net_task(training_task, minio_access_key, minio_sec
 def test_run():
     train_ranking(minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
-                  dataset_name="character",
-                  epochs=10)
+                  dataset_name="environmental",
+                  epochs=100,
+                  learning_rate=0.01,
+                  buffer_size=20000,
+                  train_percent=0.9,
+                  training_batch_size=1,
+                  weight_decay=0.0)
 
 
 if __name__ == '__main__':
