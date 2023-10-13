@@ -3,6 +3,7 @@ import argparse
 import sys
 import time
 import threading
+import os
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -179,6 +180,17 @@ def update_dataset_values_background_thread(prompt_job_generator_state):
         time.sleep(sleep_time_in_seconds)
 
 
+def find_png_files(folder_path):
+    jpg_files = []
+    for root, dirs, files in os.walk(folder_path):
+        for file in files:
+            if file.lower().endswith('.png'):
+                jpg_file_path = os.path.join(root, file)
+                jpg_files.append(jpg_file_path)
+
+    return jpg_files
+
+
 def main():
     args = parse_args()
 
@@ -200,8 +212,15 @@ def main():
     prompt_job_generator_state.add_dataset_mask("icons", "./test/test_inpainting/white_512x512.jpg", "./test/test_inpainting/icon_mask.png")
     prompt_job_generator_state.add_dataset_mask("character", "./test/test_inpainting/white_512x512.jpg", "./test/test_inpainting/character_mask.png")
 
+    mech_masks = find_png_files('./input/mask/mech')
+    for mask in mech_masks:
+        prompt_job_generator_state.add_dataset_mask("mech", "./test/test_inpainting/white_512x512.jpg",
+                                                    mask)
+
     # register function callbacks
     # used to spawn jobs for each job_type/dataset
+    # when we want to spawn a job for a specific dataset
+    # we call this function
     prompt_job_generator_state.register_callback("icons", generate_icon_generation_jobs)
     prompt_job_generator_state.register_callback("propaganda-poster", generate_propaganda_posters_image_generation_jobs)
     prompt_job_generator_state.register_callback("mech", generate_mechs_image_generation_jobs)
