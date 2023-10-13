@@ -84,10 +84,9 @@ class PromptGenerationPromptQueue:
         if base_prompts_csv_path is None:
             print('base prompt file is not found for dataset ', dataset)
 
+        scoring_model = prompt_job_generator_state.get_dataset_scoring_model(dataset)
 
-        efficient_net_model = prompt_job_generator_state.get_efficient_net_model(dataset)
-
-        if efficient_net_model is None:
+        if scoring_model is None:
             print('efficient net model is not found for dataset ', dataset)
 
         print(f'generating {total_prompt_count} prompts for dataset {dataset}')
@@ -120,13 +119,13 @@ class PromptGenerationPromptQueue:
             negative_text_prompt = prompt.negative_prompt_str
 
             prompt_score = 0
-            if efficient_net_model is not None and clip_text_embedder is not None:
+            if scoring_model is not None and clip_text_embedder is not None:
                 # get prompt embeddings
                 positive_prompt_embeddings = clip_text_embedder(positive_text_prompt)
                 negative_prompt_embeddings = clip_text_embedder(negative_text_prompt)
 
-                prompt_score = efficient_net_model.predict_positive_negative(positive_prompt_embeddings,
-                                                                             negative_prompt_embeddings).item()
+                prompt_score = scoring_model.predict(positive_prompt_embeddings,
+                                                               negative_prompt_embeddings).item()
 
             scored_prompt = ScoredPrompt(prompt_score, positive_text_prompt, negative_text_prompt)
             scored_prompts.append(scored_prompt)

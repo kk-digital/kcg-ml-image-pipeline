@@ -172,7 +172,12 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
 
         if model_type == 'image-pair-ranking-efficient-net':
             prompt_job_generator_state.load_efficient_net_model(bucket_name, 'datasets', file_path)
-        elif model_type == ''
+        elif model_type == 'ab_ranking_efficient_net':
+            prompt_job_generator_state.load_efficient_net_model(bucket_name, 'datasets', file_path)
+        elif model_type == 'ab_ranking_linear':
+            prompt_job_generator_state.load_linear_model(bucket_name, 'datasets', file_path)
+
+        print(f'Loaded model {dataset_model_name} for dataset {dataset}')
 
 def update_dataset_prompt_queue_background_thread(prompt_job_generator_state):
 
@@ -267,7 +272,7 @@ def main():
     update_datasets_prompt_queue(prompt_job_generator_state, list_datasets)
 
     # load the models at the start for each dataset
-    load_dataset_models()
+    load_dataset_models(list_datasets)
 
     prompt_job_generator_state.load_efficient_net_model('character', 'datasets',
                                           'character/models/ranking/ab_ranking_efficient_net/2023-10-10.pth')
