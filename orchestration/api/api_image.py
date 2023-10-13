@@ -11,27 +11,33 @@ router = APIRouter()
 def get_random_image(request: Request, dataset: str = Query(...), size: int = Query(...)):  
     # Use Query to get the dataset and size from query parameters
 
-    # Use $sample to get 'size' random documents
-    documents = request.app.completed_jobs_collection.aggregate([
-        {"$match": {"task_input_dict.dataset": dataset}},
-        {"$sample": {"size": size}}
-    ])
+    distinct_documents = []
+    tried_ids = set()
 
-    # Convert cursor type to list
-    documents = list(documents)
-    if len(documents) < size:
-        raise HTTPException(status_code=404, detail=f"Not enough distinct images available for requested size of {size}")
+    while len(distinct_documents) < size:
+        # Use $sample to get 'size' random documents
+        documents = request.app.completed_jobs_collection.aggregate([
+            {"$match": {"task_input_dict.dataset": dataset, "_id": {"$nin": list(tried_ids)}}},  # Exclude already tried ids
+            {"$sample": {"size": size - len(distinct_documents)}}  # Only fetch the remaining needed size
+        ])
 
-    # Verify that the images are distinct
-    image_ids = [doc["_id"] for doc in documents]
-    if len(image_ids) != len(set(image_ids)):
-        raise HTTPException(status_code=400, detail="Randomly selected duplicate images. Try again.")
+        # Convert cursor type to list
+        documents = list(documents)
+        distinct_documents.extend(documents)
 
-    for doc in documents:
+        # Store the tried image ids
+        tried_ids.update([doc["_id"] for doc in documents])
+
+        # Ensure only distinct images are retained
+        seen = set()
+        distinct_documents = [doc for doc in distinct_documents if doc["_id"] not in seen and not seen.add(doc["_id"])]
+
+    for doc in distinct_documents:
         doc.pop('_id', None)  # remove the auto generated field
     
     # Return the images as a list in the response
-    return {"images": documents}
+    return {"images": distinct_documents}
+
 
 
 @router.get("/image/random_date_range")
