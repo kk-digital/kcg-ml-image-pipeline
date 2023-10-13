@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Union
 
 
@@ -132,10 +132,14 @@ class RelevanceSelection(BaseModel):
 
 class TrainingTask(BaseModel):
     uuid: str  # required, should be passed by generator
-    task_type: str
-    dataset_name: str
+    model_name: str = Field(pattern="^[a-zA-Z0-9_-]+$")  # Constrains model name to the required characters
+    model_task: str = Field(pattern="^(ranking-clip|ranking-embedding|relevance-embedding)$")  # constraints based on the given model tasks
+    model_architecture: str 
+    dataset: str
+    learning_rate: float = 0.01
+    weight_decay: float = 0.01
+    training_time_kimgs: int = 10
     epochs: int
-    learning_rate: float
     buffer_size: int
     train_percent: float
     task_creation_time: Union[str, None] = None
@@ -147,10 +151,14 @@ class TrainingTask(BaseModel):
     def to_dict(self):
         return {
             "uuid": self.uuid,
-            "task_type": self.task_type,
-            "dataset_name": self.dataset_name,
-            "epochs": self.epochs,
+            "model_name": self.model_name,
+            "model_task": self.model_task,
+            "model_architecture": self.model_architecture,
+            "dataset": self.dataset,
             "learning_rate": self.learning_rate,
+            "weight_decay": self.weight_decay,
+            "training_time_kimgs": self.training_time_kimgs,
+            "epochs": self.epochs,
             "buffer_size": self.buffer_size,
             "train_percent": self.train_percent,
             "task_creation_time": self.task_creation_time,

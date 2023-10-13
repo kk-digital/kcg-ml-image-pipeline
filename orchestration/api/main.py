@@ -61,11 +61,6 @@ def startup_db_client():
     # dataset rate
     app.dataset_config_collection = app.mongodb_db["dataset_config"]
 
-    # dataset generation policy
-    app.dataset_generation_policy_collection = app.mongodb_db["dataset_generation_policy"]
-    # dataset top-k value
-    app.dataset_top_k_collection = app.mongodb_db["dataset_top_k"]
-
     print("Connected to the MongoDB database!")
 
     # get minio client
