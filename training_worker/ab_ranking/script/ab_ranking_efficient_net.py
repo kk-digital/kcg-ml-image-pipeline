@@ -11,7 +11,7 @@ from utility.regression_utils import torchinfo_summary
 from training_worker.ab_ranking.model.ab_ranking_efficient_net import ABRankingEfficientNetModel
 from training_worker.ab_ranking.model.reports.ab_ranking_linear_train_report import get_train_report
 from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import *
-from training_worker.ab_ranking.model.ab_ranking_efficient_net_data_loader import ABRankingDatasetLoader
+from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDatasetLoader
 from utility.minio import cmd
 from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
 
@@ -184,8 +184,8 @@ def run_ab_ranking_efficient_net_task(training_task, minio_access_key, minio_sec
 def test_run():
     train_ranking(minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
-                  dataset_name="character",
-                  epochs=10,
+                  dataset_name="environmental",
+                  epochs=100,
                   learning_rate=0.01,
                   buffer_size=20000,
                   train_percent=0.9,
