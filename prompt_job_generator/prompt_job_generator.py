@@ -15,6 +15,8 @@ from prompt_job_generator.http_requests.request import (http_get_all_dataset_rat
                                                         http_get_all_dataset_config, http_get_dataset_model_list)
 from prompt_job_generator_constants import JOB_PER_SECOND_SAMPLE_SIZE, DEFAULT_TOP_K_VALUE
 
+from utility.path import separate_bucket_and_file_path
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="generate prompts")
@@ -152,6 +154,26 @@ def update_dataset_job_queue_size(prompt_job_generator_state, list_datasets):
         prompt_job_generator_state.set_dataset_job_queue_target(dataset, job_queue_target)
 
 
+def load_dataset_models(prompt_job_generator_state, dataset_list):
+
+    if dataset_list is None:
+        return
+
+    for dataset in dataset_list:
+        dataset_model_name = prompt_job_generator_state.get_dataset_ranking_model(dataset)
+
+        model_info = prompt_job_generator_state.get_dataset_model_info(dataset, dataset_model_name)
+
+        model_type = model_info['model_type']
+
+        model_path = model_info['model_path']
+
+        bucket_name, file_path = separate_bucket_and_file_path(model_path)
+
+        if model_type == 'image-pair-ranking-efficient-net':
+            prompt_job_generator_state.load_efficient_net_model(bucket_name, 'datasets', file_path)
+        elif model_type == ''
+
 def update_dataset_prompt_queue_background_thread(prompt_job_generator_state):
 
     while True:
@@ -244,7 +266,8 @@ def main():
     update_dataset_job_queue_size(prompt_job_generator_state, list_datasets)
     update_datasets_prompt_queue(prompt_job_generator_state, list_datasets)
 
-    # set the models at the start for each dataset
+    # load the models at the start for each dataset
+    load_dataset_models()
 
     prompt_job_generator_state.load_efficient_net_model('character', 'datasets',
                                           'character/models/ranking/ab_ranking_efficient_net/2023-10-10.pth')

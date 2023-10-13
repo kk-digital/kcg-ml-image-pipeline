@@ -36,6 +36,7 @@ class PromptJobGeneratorState:
         # input : prompts
         # output : prompt_score
         self.prompt_efficient_net_model_dictionary = {}
+        self.prompt_linear_model_dictionary = {}
         self.dataset_model_list = {}
         self.dataset_model_lock = threading.Lock()
 
@@ -80,14 +81,16 @@ class PromptJobGeneratorState:
 
         efficient_net_model.load(byte_buffer)
 
-        self.prompt_efficient_net_model_dictionary[dataset] = efficient_net_model
+        with self.dataset_model_lock:
+            self.prompt_efficient_net_model_dictionary[dataset] = efficient_net_model
 
     def get_efficient_net_model(self, dataset):
         # try to get the efficient net model
         # if the efficient net model is not found
         # for the dataset return None
-        if dataset in self.prompt_efficient_net_model_dictionary:
-            return self.prompt_efficient_net_model_dictionary[dataset]
+        with self.dataset_model_lock:
+            if dataset in self.prompt_efficient_net_model_dictionary:
+                return self.prompt_efficient_net_model_dictionary[dataset]
 
         return None
 
@@ -116,7 +119,15 @@ class PromptJobGeneratorState:
         with self.dataset_model_lock:
             if dataset in self.dataset_model_list:
                 return self.dataset_model_list[dataset]
-            return []
+            return {}
+
+    def get_dataset_model_info(self, dataset, model_name):
+        model_dictionary = self.get_dataset_model_list(dataset)
+
+        if model_name in model_dictionary:
+            return model_dictionary[model_name]
+
+        return None
 
     def set_dataset_data(self, dataset, dataset_data):
         with self.dataset_prompt_generation_data_lock:
