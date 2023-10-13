@@ -14,7 +14,7 @@ import threading
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from training_worker.ab_ranking.model.ab_ranking_efficient_net_data_loader import ABRankingDatasetLoader
+from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDatasetLoader
 from utility.minio import cmd
 from training_worker.ab_ranking.model.efficient_net_model import EfficientNet as efficientnet_pytorch
 
@@ -183,8 +183,6 @@ class ABRankingEfficientNetModel:
                     assert validation_target.shape == pred_probability.shape
                     validation_loss = self.model.mse_loss(pred_probability, validation_target)
 
-
-            # if epoch % 10 == 0:
             if loss is None:
                 loss = validation_loss
             print(
