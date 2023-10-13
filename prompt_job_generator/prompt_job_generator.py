@@ -13,7 +13,7 @@ from prompt_job_generator_functions import generate_icon_generation_jobs, genera
 from prompt_job_generator.http_requests.request import (http_get_all_dataset_rate, http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list,
                                                         http_get_dataset_job_per_second, http_get_all_dataset_generation_policy, http_get_dataset_top_k_value,
                                                         http_get_all_dataset_config, http_get_dataset_model_list)
-from prompt_job_generator_constants import JOB_PER_SECOND_SAMPLE_SIZE, DEFAULT_TOP_K_VALUE
+from prompt_job_generator_constants import JOB_PER_SECOND_SAMPLE_SIZE, DEFAULT_TOP_K_VALUE, DEFAULT_DATASET_RATE
 
 from utility.path import separate_bucket_and_file_path
 
@@ -106,11 +106,17 @@ def update_dataset_config_data(prompt_job_generator_state, list_datasets):
         # the number type fields we get from the orchestration api
         # have to be converted from string to number
         # convert the string to float
-        dataset_rate = float(dataset_data['dataset_rate'])
-        dataset_data['dataset_rate'] = dataset_rate
+        if 'dataset_rate' in dataset_data:
+            dataset_rate = float(dataset_data['dataset_rate'])
+            dataset_data['dataset_rate'] = dataset_rate
+        else:
+            dataset_rate = DEFAULT_DATASET_RATE
 
-        dataset_top_k = float(dataset_data['dataset_top_k'])
-        dataset_data['dataset_top_k'] = dataset_top_k
+        if 'top_k' in dataset_data:
+            dataset_top_k = float(dataset_data['top_k'])
+            dataset_data['dataset_top_k'] = dataset_top_k
+        else:
+            dataset_top_k = DEFAULT_TOP_K_VALUE
 
         total_rate += dataset_rate
 
