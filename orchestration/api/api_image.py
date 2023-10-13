@@ -8,25 +8,31 @@ router = APIRouter()
 
 
 @router.get("/image/random")
-def get_random_image(request: Request, dataset: str = Query(...)):  # Use Query to get the dataset from query parameters
-    # find
+def get_random_image(request: Request, dataset: str = Query(...), size: int = Query(...)):  
+    # Use Query to get the dataset and size from query parameters
+
+    # Use $sample to get 'size' random documents
     documents = request.app.completed_jobs_collection.aggregate([
         {"$match": {"task_input_dict.dataset": dataset}},
-        {"$sample": {"size": 1}}
+        {"$sample": {"size": size}}
     ])
 
-    # convert curser type to list
+    # Convert cursor type to list
     documents = list(documents)
-    if len(documents) == 0:
-        raise HTTPException(status_code=404)
+    if len(documents) < size:
+        raise HTTPException(status_code=404, detail=f"Not enough distinct images available for requested size of {size}")
 
-    # get only the first index
-    document = documents[0]
+    # Verify that the images are distinct
+    image_ids = [doc["_id"] for doc in documents]
+    if len(image_ids) != len(set(image_ids)):
+        raise HTTPException(status_code=400, detail="Randomly selected duplicate images. Try again.")
 
-    # remove the auto generated field
-    document.pop('_id', None)
+    for doc in documents:
+        doc.pop('_id', None)  # remove the auto generated field
+    
+    # Return the images as a list in the response
+    return {"images": documents}
 
-    return document
 
 @router.get("/image/data-by-filepath")
 def get_image_data_by_filepath(request: Request, file_path: str = None):
