@@ -75,6 +75,20 @@ def get_dataset_config(request: Request, dataset: str = Query(...)):
 
     # remove the auto generated field
     item.pop('_id', None)
+    
+    # Fetch top-k
+    top_k_item = request.app.dataset_top_k_collection.find_one({"dataset_name": dataset})
+    if top_k_item:
+        item["top_k"] = top_k_item["top_k"]
+    else:
+        item["top_k"] = None
+
+    # Fetch generation-policy
+    gen_policy_item = request.app.dataset_generation_policy_collection.find_one({"dataset_name": dataset})
+    if gen_policy_item:
+        item["generation_policy"] = gen_policy_item["generation_policy"]
+    else:
+        item["generation_policy"] = None
 
     return item
 
@@ -92,6 +106,21 @@ def get_all_dataset_config(request: Request):
     for item in items:
         # remove the auto generated field
         item.pop('_id', None)
+        
+        # Fetch top-k for this dataset
+        top_k_item = request.app.dataset_top_k_collection.find_one({"dataset_name": item["dataset_name"]})
+        if top_k_item:
+            item["top_k"] = top_k_item["top_k"]
+        else:
+            item["top_k"] = None
+
+        # Fetch generation-policy for this dataset
+        gen_policy_item = request.app.dataset_generation_policy_collection.find_one({"dataset_name": item["dataset_name"]})
+        if gen_policy_item:
+            item["generation_policy"] = gen_policy_item["generation_policy"]
+        else:
+            item["generation_policy"] = None
+        
         dataset_configs.append(item)
 
     return dataset_configs
