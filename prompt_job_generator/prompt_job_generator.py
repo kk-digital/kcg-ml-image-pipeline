@@ -207,6 +207,8 @@ def update_dataset_values_background_thread(prompt_job_generator_state):
         update_dataset_config_data(prompt_job_generator_state, list_datasets)
         update_dataset_job_queue_size(prompt_job_generator_state, list_datasets)
 
+        load_dataset_models(prompt_job_generator_state, list_datasets)
+
         sleep_time_in_seconds = 2.0
         time.sleep(sleep_time_in_seconds)
 
@@ -278,7 +280,7 @@ def main():
     update_datasets_prompt_queue(prompt_job_generator_state, list_datasets)
 
     # load the models at the start for each dataset
-    load_dataset_models(list_datasets)
+    load_dataset_models(prompt_job_generator_state, list_datasets)
 
     prompt_job_generator_state.load_efficient_net_model('character', 'datasets',
                                           'character/models/ranking/ab_ranking_efficient_net/2023-10-10.pth')
