@@ -12,7 +12,7 @@ from prompt_job_generator_state import PromptJobGeneratorState
 from prompt_job_generator_functions import generate_icon_generation_jobs, generate_character_generation_jobs, generate_mechs_image_generation_jobs, generate_propaganda_posters_image_generation_jobs
 from prompt_job_generator.http_requests.request import (http_get_all_dataset_rate, http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list,
                                                         http_get_dataset_job_per_second, http_get_all_dataset_generation_policy, http_get_dataset_top_k_value,
-                                                        http_get_all_dataset_config)
+                                                        http_get_all_dataset_config, http_get_dataset_model_list)
 from prompt_job_generator_constants import JOB_PER_SECOND_SAMPLE_SIZE, DEFAULT_TOP_K_VALUE
 
 
@@ -49,6 +49,31 @@ def update_datasets_prompt_queue(prompt_job_generator_state, list_datasets):
 
     for thread in thread_list:
         thread.join()
+
+
+def update_database_model_list(prompt_job_generator_state, list_datasets):
+
+    # if dataset list is null return
+    if list_datasets is None:
+        return
+
+    # loop through all datasets and
+    # for each dataset update the model_list
+    # from orchestration api
+    for dataset in list_datasets:
+
+        dataset_model_list = http_get_dataset_model_list(dataset)
+
+        if dataset_model_list is None:
+            continue
+
+        dataset_model_dictionary = {}
+
+        for item in dataset_model_list:
+            model_name = item['model_name']
+            dataset_model_dictionary[model_name] = item
+
+        prompt_job_generator_state.set_dataset_model_list(dataset, dataset_model_dictionary)
 
 
 def update_dataset_config_data(prompt_job_generator_state, list_datasets):
@@ -145,6 +170,7 @@ def update_dataset_values_background_thread(prompt_job_generator_state):
         # get list of datasets
         list_datasets = http_get_dataset_list()
 
+        update_database_model_list(prompt_job_generator_state, list_datasets)
         update_dataset_config_data(prompt_job_generator_state, list_datasets)
         update_dataset_job_queue_size(prompt_job_generator_state, list_datasets)
 
@@ -198,9 +224,6 @@ def main():
     prompt_job_generator_state.register_callback("mech", generate_mechs_image_generation_jobs)
     prompt_job_generator_state.register_callback("character", generate_character_generation_jobs)
 
-    prompt_job_generator_state.load_efficient_net_model('character', 'datasets',
-                                          'character/models/ranking/ab_ranking_efficient_net/2023-10-10.pth')
-
     # setting the base prompt csv for each dataset
     prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('icons',
                                                                     'input/dataset-config/icon/base-prompts-icon-2.csv')
@@ -216,9 +239,15 @@ def main():
     # get list of datasets
     list_datasets = http_get_dataset_list()
 
+    update_database_model_list(prompt_job_generator_state, list_datasets)
     update_dataset_config_data(prompt_job_generator_state, list_datasets)
     update_dataset_job_queue_size(prompt_job_generator_state, list_datasets)
     update_datasets_prompt_queue(prompt_job_generator_state, list_datasets)
+
+    # set the models at the start for each dataset
+
+    prompt_job_generator_state.load_efficient_net_model('character', 'datasets',
+                                          'character/models/ranking/ab_ranking_efficient_net/2023-10-10.pth')
 
     thread = threading.Thread(target=update_dataset_values_background_thread, args=(prompt_job_generator_state,))
     thread.start()

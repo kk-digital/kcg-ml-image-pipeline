@@ -36,6 +36,8 @@ class PromptJobGeneratorState:
         # input : prompts
         # output : prompt_score
         self.prompt_efficient_net_model_dictionary = {}
+        self.dataset_model_list = {}
+        self.dataset_model_lock = threading.Lock()
 
         # minio connection
         self.minio_client = None
@@ -105,6 +107,16 @@ class PromptJobGeneratorState:
             return self.dataset_callbacks[dataset]
         else:
             return None
+
+    def set_dataset_model_list(self, dataset, model_list):
+        with self.dataset_model_lock:
+            self.dataset_model_list[dataset] = model_list
+
+    def get_dataset_model_list(self, dataset):
+        with self.dataset_model_lock:
+            if dataset in self.dataset_model_list:
+                return self.dataset_model_list[dataset]
+            return []
 
     def set_dataset_data(self, dataset, dataset_data):
         with self.dataset_prompt_generation_data_lock:
