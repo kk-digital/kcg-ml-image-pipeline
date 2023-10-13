@@ -13,26 +13,19 @@ from utility.minio import cmd
 from training_worker.ab_ranking.model.ab_ranking_efficient_net import ABRankingEfficientNetModel
 from worker.prompt_generation.prompt_generator import (initialize_prompt_list_from_csv)
 from prompt_generation_prompt_queue import PromptGenerationPromptQueue
-from prompt_job_generator_constants import PROMPT_QUEUE_SIZE, DEFAULT_PROMPT_GENERATION_POLICY, DEFAULT_TOP_K_VALUE
+from prompt_job_generator_constants import PROMPT_QUEUE_SIZE, DEFAULT_PROMPT_GENERATION_POLICY, DEFAULT_TOP_K_VALUE, DEFAULT_DATASET_RATE
 
 class PromptJobGeneratorState:
     def __init__(self, device):
-        # keep the dataset_rate in this dictionary
-        # should update using orchestration api
-        self.dataset_rate = {}
         self.total_rate = 0
-        self.dataset_rate_lock = threading.Lock()
         # keep the dataset_job_queue_size in this dictionary
         # should update using orchestration api
         self.dataset_job_queue_size = {}
         self.dataset_job_queue_target = {}
         self.dataset_job_queue_size_lock = threading.Lock()
-        # dataset prompt generation policy
-        # defaults to top-k
-        self.dataset_prompt_generation_policy_dictionary = {}
-        # used to store prompt generation data like top-k value
+        # used to store prompt generation data like top-k, dataset_rate value
         self.dataset_prompt_generation_data_dictionary = {}
-        self.dataset_prompt_generation_lock = threading.Lock()
+        self.dataset_prompt_generation_data_lock = threading.Lock()
         # each dataset will have a list of masks
         # only relevent if its an inpainting job
         self.dataset_masks = {}
@@ -113,40 +106,45 @@ class PromptJobGeneratorState:
         else:
             return None
 
-    def set_dataset_prompt_generation_policy(self, dataset, generation_policy):
-        with self.dataset_prompt_generation_lock:
-            self.dataset_prompt_generation_policy_dictionary[dataset] = generation_policy
+    def set_dataset_data(self, dataset, dataset_data):
+        with self.dataset_prompt_generation_data_lock:
+            self.dataset_prompt_generation_data_dictionary[dataset] = dataset_data
 
     def get_dataset_prompt_generation_policy(self, dataset):
-        with self.dataset_prompt_generation_lock:
-            if dataset in self.dataset_prompt_generation_policy_dictionary:
-                return self.dataset_prompt_generation_policy_dictionary[dataset]
+        with self.dataset_prompt_generation_data_lock:
+            if dataset in self.dataset_prompt_generation_data_dictionary:
+                return self.dataset_prompt_generation_data_dictionary[dataset]['generation_policy']
             return DEFAULT_PROMPT_GENERATION_POLICY
 
-    def set_dataset_top_k(self, dataset, top_k):
-        with self.dataset_prompt_generation_lock:
-            self.dataset_prompt_generation_data_dictionary[dataset] = top_k
-
     def get_dataset_top_k(self, dataset):
-        with self.dataset_prompt_generation_lock:
+        with self.dataset_prompt_generation_data_lock:
             if dataset in self.dataset_prompt_generation_data_dictionary:
-                return self.dataset_prompt_generation_data_dictionary[dataset]
+                return self.dataset_prompt_generation_data_dictionary[dataset]['top_k']
             return DEFAULT_TOP_K_VALUE
 
-    def set_dataset_rate(self, dataset, rate):
-        with self.dataset_rate_lock:
-            self.dataset_rate[dataset] = rate
+    def get_dataset_rate(self, dataset):
+        with self.dataset_prompt_generation_data_lock:
+            if dataset in self.dataset_prompt_generation_data_dictionary:
+                return self.dataset_prompt_generation_data_dictionary[dataset]['dataset_rate']
+            else:
+                return DEFAULT_DATASET_RATE
+
+    def get_dataset_relevance_model(self, dataset):
+        with self.dataset_prompt_generation_data_lock:
+            if dataset in self.dataset_prompt_generation_data_dictionary:
+                return self.dataset_prompt_generation_data_dictionary[dataset]['relevance_model']
+            else:
+                return ""
+
+    def get_dataset_ranking_model(self, dataset):
+        with self.dataset_prompt_generation_data_lock:
+            if dataset in self.dataset_prompt_generation_data_dictionary:
+                return self.dataset_prompt_generation_data_dictionary[dataset]['ranking_model']
+            else:
+                return ""
 
     def set_total_rate(self, total_rate):
-        with self.dataset_rate_lock:
-            self.total_rate = total_rate
-
-    def get_dataset_rate(self, dataset):
-        with self.dataset_rate_lock:
-            if dataset in self.dataset_rate:
-                return self.dataset_rate[dataset]
-            else:
-                return None
+        self.total_rate = total_rate
 
     def set_dataset_job_queue_size(self, dataset, job_queue_size):
         with self.dataset_job_queue_size_lock:
