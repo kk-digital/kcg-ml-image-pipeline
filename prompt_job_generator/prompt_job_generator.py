@@ -170,6 +170,9 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
 
         model_info = prompt_job_generator_state.get_dataset_model_info(dataset, dataset_model_name)
 
+        if model_info is None:
+            continue
+
         model_type = model_info['model_type']
 
         model_path = model_info['model_path']
