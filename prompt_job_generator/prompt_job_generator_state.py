@@ -169,35 +169,37 @@ class PromptJobGeneratorState:
     def get_dataset_prompt_generation_policy(self, dataset):
         with self.dataset_prompt_generation_data_lock:
             if dataset in self.dataset_prompt_generation_data_dictionary:
-                return self.dataset_prompt_generation_data_dictionary[dataset]['generation_policy']
+                if 'generation_policy' in self.dataset_prompt_generation_data_dictionary[dataset]:
+                    return self.dataset_prompt_generation_data_dictionary[dataset]['generation_policy']
             return DEFAULT_PROMPT_GENERATION_POLICY
 
     def get_dataset_top_k(self, dataset):
         with self.dataset_prompt_generation_data_lock:
             if dataset in self.dataset_prompt_generation_data_dictionary:
-                return self.dataset_prompt_generation_data_dictionary[dataset]['top_k']
+                if 'top-k' in self.dataset_prompt_generation_data_dictionary[dataset]:
+                    return self.dataset_prompt_generation_data_dictionary[dataset]['top_k']
             return DEFAULT_TOP_K_VALUE
 
     def get_dataset_rate(self, dataset):
         with self.dataset_prompt_generation_data_lock:
             if dataset in self.dataset_prompt_generation_data_dictionary:
-                return self.dataset_prompt_generation_data_dictionary[dataset]['dataset_rate']
-            else:
-                return DEFAULT_DATASET_RATE
+                if 'dataset_rate' in self.dataset_prompt_generation_data_dictionary[dataset]:
+                    return self.dataset_prompt_generation_data_dictionary[dataset]['dataset_rate']
+            return DEFAULT_DATASET_RATE
 
     def get_dataset_relevance_model(self, dataset):
         with self.dataset_prompt_generation_data_lock:
             if dataset in self.dataset_prompt_generation_data_dictionary:
-                return self.dataset_prompt_generation_data_dictionary[dataset]['relevance_model']
-            else:
-                return ""
+                if 'relevance_model' in self.dataset_prompt_generation_data_dictionary[dataset]:
+                    return self.dataset_prompt_generation_data_dictionary[dataset]['relevance_model']
+            return ""
 
     def get_dataset_ranking_model(self, dataset):
         with self.dataset_prompt_generation_data_lock:
             if dataset in self.dataset_prompt_generation_data_dictionary:
-                return self.dataset_prompt_generation_data_dictionary[dataset]['ranking_model']
-            else:
-                return ""
+                if 'ranking_model' in self.dataset_prompt_generation_data_dictionary[dataset]:
+                    return self.dataset_prompt_generation_data_dictionary[dataset]['ranking_model']
+            return ""
 
     def get_dataset_scoring_model(self, dataset):
         dataset_model_name = self.get_dataset_ranking_model(dataset)
