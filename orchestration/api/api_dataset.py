@@ -65,6 +65,29 @@ def get_rate(request: Request, dataset: str):
 
     return item["dataset_rate"]
 
+@router.put("/dataset/set-rate")
+def set_rate(request: Request, dataset, rate=0):
+    date_now = datetime.now()
+    # check if exist
+    query = {"dataset_name": dataset}
+    item = request.app.dataset_config_collection.find_one(query)
+    if item is None:
+        # add one
+        dataset_config = {
+            "dataset_name": dataset,
+            "last_update": date_now,
+            "dataset_rate": rate,
+            "relevance_model": "",
+            "ranking_model": "",
+        }
+        request.app.dataset_config_collection.insert_one(dataset_config)
+    else:
+        # update
+        new_values = {"$set": {"last_update": date_now, "dataset_rate": rate}}
+        request.app.dataset_config_collection.update_one(query, new_values)
+
+    return True
+
 @router.get("/dataset/get-dataset-config")
 def get_dataset_config(request: Request, dataset: str = Query(...)):
     # Find the item for the specific dataset
@@ -95,28 +118,6 @@ def get_all_dataset_config(request: Request):
 
     return dataset_configs
 
-@router.put("/dataset/set-rate")
-def set_rate(request: Request, dataset, rate=0):
-    date_now = datetime.now()
-    # check if exist
-    query = {"dataset_name": dataset}
-    item = request.app.dataset_config_collection.find_one(query)
-    if item is None:
-        # add one
-        dataset_config = {
-            "dataset_name": dataset,
-            "last_update": date_now,
-            "dataset_rate": rate,
-            "relevance_model": "",
-            "ranking_model": "",
-        }
-        request.app.dataset_config_collection.insert_one(dataset_config)
-    else:
-        # update
-        new_values = {"$set": {"last_update": date_now, "dataset_rate": rate}}
-        request.app.dataset_config_collection.update_one(query, new_values)
-
-    return True
 
 @router.put("/dataset/set-relevance-model")
 def set_relevance_model(request: Request, dataset: str, relevance_model: str):
@@ -185,13 +186,10 @@ def get_generation_policy(request: Request, dataset: str):
     # find
     query = {"dataset_name": dataset}
     item = request.app.dataset_config_collection.find_one(query)
-    if item is None:
+    if item is None or "generation_policy" not in item:
         raise HTTPException(status_code=204)
 
-    # remove the auto generated field
-    item.pop('_id', None)
-
-    return item
+    return item["generation_policy"]
 
 
 @router.put("/dataset/set-generation-policy")
@@ -225,13 +223,10 @@ def get_top_k(request: Request, dataset: str):
     # find
     query = {"dataset_name": dataset}
     item = request.app.dataset_config_collection.find_one(query)
-    if item is None:
+    if item is None or "top_k" not in item:
         raise HTTPException(status_code=204)
 
-    # remove the auto generated field
-    item.pop('_id', None)
-
-    return item
+    return item["top_k"]
 
 
 @router.put("/dataset/set-top-k")
