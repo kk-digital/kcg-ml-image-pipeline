@@ -14,7 +14,7 @@ import threading
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from training_worker.ab_ranking.model.ab_ranking_efficient_net_data_loader import ABRankingDatasetLoader
+from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDatasetLoader
 from utility.minio import cmd
 from training_worker.ab_ranking.model.efficient_net_model import EfficientNet as efficientnet_pytorch
 
@@ -119,78 +119,76 @@ class ABRankingEfficientNetModel:
         # get number of batches to do per epoch
         training_num_batches = math.ceil(num_features / training_batch_size)
         loss = None
-        with torch.autograd.detect_anomaly():
-            for epoch in tqdm(range(epochs), desc="Training epoch"):
-                # Only train after 0th epoch
-                if epoch != 0:
-                    # fill data buffer
-                    dataset_loader.spawn_filling_workers()
+        for epoch in tqdm(range(epochs), desc="Training epoch"):
+            # Only train after 0th epoch
+            if epoch != 0:
+                # fill data buffer
+                dataset_loader.spawn_filling_workers()
 
-                    for i in range(training_num_batches):
-                        num_data_to_get = training_batch_size
-                        # last batch
-                        if i == training_num_batches - 1:
-                            num_data_to_get = num_features - (i * (training_batch_size))
+                for i in range(training_num_batches):
+                    num_data_to_get = training_batch_size
+                    # last batch
+                    if i == training_num_batches - 1:
+                        num_data_to_get = num_features - (i * (training_batch_size))
 
-                        batch_features_x_orig, \
-                            batch_features_y_orig,\
-                            batch_targets_orig = dataset_loader.get_next_training_feature_vectors_and_target(num_data_to_get, self._device)
+                    batch_features_x_orig, \
+                        batch_features_y_orig,\
+                        batch_targets_orig = dataset_loader.get_next_training_feature_vectors_and_target(num_data_to_get, self._device)
 
-                        batch_features_x = batch_features_x_orig.clone().requires_grad_(True).to(self._device)
-                        batch_features_y = batch_features_y_orig.clone().requires_grad_(True).to(self._device)
-                        batch_targets = batch_targets_orig.clone().requires_grad_(True).to(self._device)
+                    batch_features_x = batch_features_x_orig.clone().requires_grad_(True).to(self._device)
+                    batch_features_y = batch_features_y_orig.clone().requires_grad_(True).to(self._device)
+                    batch_targets = batch_targets_orig.clone().requires_grad_(True).to(self._device)
 
-                        with torch.no_grad():
-                            predicted_score_images_y = self.model.forward(batch_features_y)
+                    with torch.no_grad():
+                        predicted_score_images_y = self.model.forward(batch_features_y)
 
-                        optimizer.zero_grad()
-                        predicted_score_images_x = self.model.forward(batch_features_x)
+                    optimizer.zero_grad()
+                    predicted_score_images_x = self.model.forward(batch_features_x)
 
-                        batch_pred_probabilities = self.forward_bradley_terry(predicted_score_images_x, predicted_score_images_y)
+                    batch_pred_probabilities = self.forward_bradley_terry(predicted_score_images_x, predicted_score_images_y)
 
-                        # assert
-                        for pred_prob in batch_pred_probabilities:
-                            assert pred_prob.item() >= 0.0
-                            assert pred_prob.item() <= 1.0
+                    # assert
+                    for pred_prob in batch_pred_probabilities:
+                        assert pred_prob.item() >= 0.0
+                        assert pred_prob.item() <= 1.0
 
-                        assert batch_targets.shape == batch_pred_probabilities.shape
-                        loss = self.model.mse_loss(batch_pred_probabilities, batch_targets)
-                        loss.backward()
-                        optimizer.step()
+                    assert batch_targets.shape == batch_pred_probabilities.shape
+                    loss = self.model.mse_loss(batch_pred_probabilities, batch_targets)
+                    loss.backward()
+                    optimizer.step()
 
-                    for name, param in self.model.named_parameters():
-                        if torch.isnan(param.grad).any():
-                            print("nan gradient found")
-                            raise SystemExit
-                        print("param={}, grad={}".format(name, param.grad))
-                    # refill training ab data
-                    dataset_loader.fill_training_ab_data()
+                for name, param in self.model.named_parameters():
+                    if torch.isnan(param.grad).any():
+                        print("nan gradient found")
+                        raise SystemExit
+                    # print("param={}, grad={}".format(name, param.grad))
+                    
+                # refill training ab data
+                dataset_loader.fill_training_ab_data()
 
-                # Calculate Validation Loss
-                with torch.no_grad():
-                    for i in range(len(validation_features_x)):
-                        validation_feature_x = validation_features_x[i]
-                        validation_feature_x = validation_feature_x.unsqueeze(0)
-                        validation_feature_y = validation_features_y[i]
-                        validation_feature_y = validation_feature_y.unsqueeze(0)
+            # Calculate Validation Loss
+            with torch.no_grad():
+                for i in range(len(validation_features_x)):
+                    validation_feature_x = validation_features_x[i]
+                    validation_feature_x = validation_feature_x.unsqueeze(0)
+                    validation_feature_y = validation_features_y[i]
+                    validation_feature_y = validation_feature_y.unsqueeze(0)
 
-                        validation_target = validation_targets[i]
-                        validation_target = validation_target.unsqueeze(0)
-                        predicted_score_image_x = self.model.forward(validation_feature_x)
-                        predicted_score_image_y = self.model.forward(validation_feature_y)
-                        pred_probability = self.forward_bradley_terry(predicted_score_image_x, predicted_score_image_y)
+                    validation_target = validation_targets[i]
+                    validation_target = validation_target.unsqueeze(0)
+                    predicted_score_image_x = self.model.forward(validation_feature_x)
+                    predicted_score_image_y = self.model.forward(validation_feature_y)
+                    pred_probability = self.forward_bradley_terry(predicted_score_image_x, predicted_score_image_y)
 
-                        assert validation_target.shape == pred_probability.shape
-                        validation_loss = self.model.mse_loss(pred_probability, validation_target)
+                    assert validation_target.shape == pred_probability.shape
+                    validation_loss = self.model.mse_loss(pred_probability, validation_target)
 
-
-                # if epoch % 10 == 0:
-                if loss is None:
-                    loss = validation_loss
-                print(
-                        f"Epoch {epoch}/{epochs} | Loss: {loss.item():.4f} | Validation Loss: {validation_loss.item():.4f}")
-                training_loss_per_epoch.append(loss.item())
-                validation_loss_per_epoch.append(validation_loss.item())
+            if loss is None:
+                loss = validation_loss
+            print(
+                    f"Epoch {epoch}/{epochs} | Loss: {loss.item():.4f} | Validation Loss: {validation_loss.item():.4f}")
+            training_loss_per_epoch.append(loss.item())
+            validation_loss_per_epoch.append(validation_loss.item())
 
         with torch.no_grad():
             # fill data buffer

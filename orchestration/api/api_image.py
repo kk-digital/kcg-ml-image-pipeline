@@ -8,25 +8,37 @@ router = APIRouter()
 
 
 @router.get("/image/random")
-def get_random_image(request: Request, dataset: str = Query(...)):  # Use Query to get the dataset from query parameters
-    # find
-    documents = request.app.completed_jobs_collection.aggregate([
-        {"$match": {"task_input_dict.dataset": dataset}},
-        {"$sample": {"size": 1}}
-    ])
+def get_random_image(request: Request, dataset: str = Query(...), size: int = Query(...)):  
+    # Use Query to get the dataset and size from query parameters
 
-    # convert curser type to list
-    documents = list(documents)
-    if len(documents) == 0:
-        raise HTTPException(status_code=404)
+    distinct_documents = []
+    tried_ids = set()
 
-    # get only the first index
-    document = documents[0]
+    while len(distinct_documents) < size:
+        # Use $sample to get 'size' random documents
+        documents = request.app.completed_jobs_collection.aggregate([
+            {"$match": {"task_input_dict.dataset": dataset, "_id": {"$nin": list(tried_ids)}}},  # Exclude already tried ids
+            {"$sample": {"size": size - len(distinct_documents)}}  # Only fetch the remaining needed size
+        ])
 
-    # remove the auto generated field
-    document.pop('_id', None)
+        # Convert cursor type to list
+        documents = list(documents)
+        distinct_documents.extend(documents)
 
-    return document
+        # Store the tried image ids
+        tried_ids.update([doc["_id"] for doc in documents])
+
+        # Ensure only distinct images are retained
+        seen = set()
+        distinct_documents = [doc for doc in distinct_documents if doc["_id"] not in seen and not seen.add(doc["_id"])]
+
+    for doc in distinct_documents:
+        doc.pop('_id', None)  # remove the auto generated field
+    
+    # Return the images as a list in the response
+    return {"images": distinct_documents}
+
+
 
 @router.get("/image/random_date_range")
 def get_random_image_date_range(request: Request, dataset : str = None, start_date: str = None, end_date: str = None):

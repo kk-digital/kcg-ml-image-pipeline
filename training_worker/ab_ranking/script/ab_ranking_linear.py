@@ -11,7 +11,7 @@ from utility.regression_utils import torchinfo_summary
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from training_worker.ab_ranking.model.reports.ab_ranking_linear_train_report import get_train_report
 from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import *
-from training_worker.ab_ranking.model.ab_ranking_linear_data_loader import ABRankingDatasetLoader
+from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDatasetLoader
 from utility.minio import cmd
 
 
@@ -21,13 +21,15 @@ def train_ranking(dataset_name: str,
                   epochs=10000,
                   learning_rate=0.001,
                   buffer_size=20000,
-                  train_percent=0.9):
+                  train_percent=0.9,
+                  training_batch_size=1,
+                  weight_decay=0.01):
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
     input_type = "embedding-vector"
-    input_shape = 77*2*768
-    output_path = "{}/models/ab_ranking_linear".format(dataset_name)
+    input_shape = 2*768
+    output_path = "{}/models/ranking/ab_ranking_linear".format(dataset_name)
 
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name=dataset_name,
@@ -37,8 +39,8 @@ def train_ranking(dataset_name: str,
                                             train_percent=train_percent)
     dataset_loader.load_dataset()
 
-    training_total_size = dataset_loader.get_len_training_ab_data() * 2
-    validation_total_size = dataset_loader.get_len_validation_ab_data() * 2
+    training_total_size = dataset_loader.get_len_training_ab_data()
+    validation_total_size = dataset_loader.get_len_validation_ab_data()
 
     ab_model = ABRankingModel(inputs_shape=input_shape)
     training_predicted_score_images_x, \
@@ -51,9 +53,10 @@ def train_ranking(dataset_name: str,
         validation_target_probabilities, \
         training_loss_per_epoch, \
         validation_loss_per_epoch = ab_model.train(dataset_loader=dataset_loader,
-                                                                        training_batch_size=4,
-                                                                        epochs=epochs,
-                                                                        learning_rate=learning_rate)
+                                                   training_batch_size=training_batch_size,
+                                                   epochs=epochs,
+                                                   learning_rate=learning_rate,
+                                                   weight_decay=weight_decay)
 
     # Upload model to minio
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
@@ -69,6 +72,10 @@ def train_ranking(dataset_name: str,
     training_predicted_probabilities = torch.stack(training_predicted_probabilities)
     training_predicted_score_images_x = torch.stack(training_predicted_score_images_x)
     training_predicted_score_images_y = torch.stack(training_predicted_score_images_y)
+
+    validation_predicted_score_images_x = torch.stack(validation_predicted_score_images_x)
+    validation_predicted_score_images_y = torch.stack(validation_predicted_score_images_y)
+    validation_predicted_probabilities = torch.stack(validation_predicted_probabilities)
 
     training_target_probabilities = training_target_probabilities.detach().cpu().numpy()
     validation_target_probabilities = validation_target_probabilities.detach().cpu().numpy()
@@ -110,7 +117,10 @@ def train_ranking(dataset_name: str,
                                   training_predicted_score_images_x,
                                   training_predicted_score_images_y,
                                   validation_predicted_score_images_x,
-                                  validation_predicted_score_images_y)
+                                  validation_predicted_score_images_y,
+                                  training_batch_size,
+                                  learning_rate,
+                                  weight_decay)
 
     # Upload model to minio
     report_name = "{}.txt".format(date_now)
@@ -139,7 +149,9 @@ def train_ranking(dataset_name: str,
                                     training_loss_per_epoch,
                                     validation_loss_per_epoch,
                                     epochs,
-                                    learning_rate)
+                                    learning_rate,
+                                    training_batch_size,
+                                    weight_decay)
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
 
@@ -164,7 +176,12 @@ def test_run():
     train_ranking(minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
                   dataset_name="character",
-                  epochs=10)
+                  epochs=100,
+                  learning_rate=0.001,
+                  buffer_size=20000,
+                  train_percent=0.9,
+                  training_batch_size=1,
+                  weight_decay=0.01)
 
 
 if __name__ == '__main__':
