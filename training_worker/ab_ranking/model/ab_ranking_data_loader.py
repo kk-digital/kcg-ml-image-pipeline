@@ -7,7 +7,8 @@ import torch
 from queue import Queue
 from threading import Semaphore
 import msgpack
-
+import threading
+from random import shuffle
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
@@ -85,7 +86,13 @@ class ABRankingDatasetLoader:
         self.buffer_size = buffer_size  # N datapoints
         self.num_concurrent_loading = 8
 
-        self.fill_semaphore = Semaphore(1)  # One filling only
+        self.num_filling_workers = 5
+        self.fill_semaphore = Semaphore(self.num_filling_workers)  # One filling only
+
+        # # random
+        # self.rand_a = np.random.rand(2, 77, 768)
+        # self.rand_b = np.random.rand(2, 77, 768)
+        # print("rand a shape=", self.rand_a.shape)
 
     def load_dataset(self):
         start_time = time.time()
@@ -105,13 +112,44 @@ class ABRankingDatasetLoader:
         num_validations = round((len(dataset_paths) * (1.0 - self.train_percent)))
         validation_ab_data_list = dataset_paths[:num_validations]
         training_ab_data_list = dataset_paths[num_validations:]
-        self.training_dataset_paths_copy = training_ab_data_list
+
+        # training
+        # duplicate each one
+        # for target 1.0 and 0.0
+        duplicated_training_list = []
+        for path in training_ab_data_list:
+            duplicated_training_list.append((path, 1.0))
+            duplicated_training_list.append((path, 0.0))
+
+        # shuffle
+        shuffled_training_list = []
+        index_shuf = list(range(len(duplicated_training_list)))
+        shuffle(index_shuf)
+        for i in index_shuf:
+            shuffled_training_list.append(duplicated_training_list[i])
+
+        self.training_dataset_paths_copy = shuffled_training_list
+
+        # validation
+        # duplicate each one
+        # for target 1.0 and 0.0
+        duplicated_validation_list = []
+        for path in validation_ab_data_list:
+            duplicated_validation_list.append((path, 1.0))
+            duplicated_validation_list.append((path, 0.0))
+
+        # shuffle
+        shuffled_validation_list = []
+        index_shuf = list(range(len(duplicated_validation_list)))
+        shuffle(index_shuf)
+        for i in index_shuf:
+            shuffled_validation_list.append(duplicated_validation_list[i])
 
         # put to their queue
-        for data in validation_ab_data_list:
+        for data in shuffled_validation_list:
             self.validation_dataset_paths_queue.put(data)
 
-        for data in training_ab_data_list:
+        for data in shuffled_training_list:
             self.training_dataset_paths_queue.put(data)
 
         print("Dataset loaded...")
@@ -127,7 +165,10 @@ class ABRankingDatasetLoader:
     def get_len_validation_ab_data(self):
         return self.validation_dataset_paths_queue.qsize()
 
-    def get_selection_datapoint_image_pair(self, dataset_path):
+    def get_selection_datapoint_image_pair(self, dataset):
+        dataset_path = dataset[0]
+        data_target = dataset[1]
+
         image_pair_data_list = []
 
         # load json object from minio
@@ -159,18 +200,16 @@ class ABRankingDatasetLoader:
         embeddings_img_1_data = get_object(self.minio_client, embeddings_path_img_1)
         embeddings_img_1_data = msgpack.unpackb(embeddings_img_1_data)
         embeddings_img_1_embeddings_vector = []
-        embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["positive_embedding"]["__ndarray__"][0])
-        embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["negative_embedding"]["__ndarray__"][0])
+        embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["positive_embedding"]["__ndarray__"])
+        embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["negative_embedding"]["__ndarray__"])
         embeddings_img_1_embeddings_vector = np.array(embeddings_img_1_embeddings_vector)
-        embeddings_img_1_embeddings_vector = embeddings_img_1_embeddings_vector.flatten()
 
         embeddings_img_2_data = get_object(self.minio_client, embeddings_path_img_2)
         embeddings_img_2_data = msgpack.unpackb(embeddings_img_2_data)
         embeddings_img_2_embeddings_vector = []
-        embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["positive_embedding"]["__ndarray__"][0])
-        embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["negative_embedding"]["__ndarray__"][0])
+        embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["positive_embedding"]["__ndarray__"])
+        embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["negative_embedding"]["__ndarray__"])
         embeddings_img_2_embeddings_vector = np.array(embeddings_img_2_embeddings_vector)
-        embeddings_img_2_embeddings_vector = embeddings_img_2_embeddings_vector.flatten()
 
         # if image 1 is the selected
         if selected_image_index == 0:
@@ -182,12 +221,18 @@ class ABRankingDatasetLoader:
             selected_embeddings_vector = embeddings_img_2_embeddings_vector
             other_embeddings_vector = embeddings_img_1_embeddings_vector
 
-        image_pair_target_1 = (selected_embeddings_vector, other_embeddings_vector, [1.0])
-        image_pair_data_list.append(image_pair_target_1)
+        if data_target == 1.0:
+            image_pair = (selected_embeddings_vector, other_embeddings_vector, [data_target])
+        else:
+            image_pair = (other_embeddings_vector, selected_embeddings_vector, [data_target])
 
-        # (y, x) = 0.0
-        image_pair_target_0 = (other_embeddings_vector, selected_embeddings_vector, [0.0])
-        image_pair_data_list.append(image_pair_target_0)
+        # for test
+        # if data_target == 1.0:
+        #     image_pair = (self.rand_a, self.rand_b, [data_target])
+        # else:
+        #     image_pair = (self.rand_b, self.rand_a, [data_target])
+
+        image_pair_data_list.append(image_pair)
 
         return image_pair_data_list
 
@@ -225,6 +270,13 @@ class ABRankingDatasetLoader:
 
         self.fill_semaphore.release()
 
+    def spawn_filling_workers(self):
+        for i in range(self.num_filling_workers):
+            # fill data buffer
+            # if buffer is empty, fill data
+            fill_buffer_thread = threading.Thread(target=self.fill_training_data_buffer)
+            fill_buffer_thread.start()
+
     def get_next_training_feature_vectors_and_target(self, num_data, device=None):
         image_x_feature_vectors = []
         image_y_feature_vectors = []
@@ -242,8 +294,9 @@ class ABRankingDatasetLoader:
 
         target_probabilities = np.array(target_probabilities)
 
-        image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.float).squeeze()
-        image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.float).squeeze()
+        image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.float)
+        image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.float)
+
         target_probabilities = torch.tensor(target_probabilities).to(torch.float)
 
         if device is not None:
@@ -273,8 +326,88 @@ class ABRankingDatasetLoader:
         image_y_feature_vectors = np.array(image_y_feature_vectors, dtype=np.float32)
         target_probabilities = np.array(target_probabilities)
 
-        image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.float).squeeze()
-        image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.float).squeeze()
+        image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.float)
+        image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.float)
         target_probabilities = torch.tensor(target_probabilities).to(torch.float)
+
+        return image_x_feature_vectors, image_y_feature_vectors, target_probabilities
+
+# ------------------------------- For AB Ranking Linear -------------------------------
+    def get_next_training_feature_vectors_and_target_linear(self, num_data, device=None):
+        image_x_feature_vectors = []
+        image_y_feature_vectors = []
+        target_probabilities = []
+
+        for _ in range(num_data):
+            training_image_pair_data = self.training_image_pair_data_buffer.get()
+            image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(training_image_pair_data)
+            image_x_feature_vectors.append(image_x_feature_vector)
+            image_y_feature_vectors.append(image_y_feature_vector)
+            target_probabilities.append(target_probability)
+
+        image_x_feature_vectors = np.array(image_x_feature_vectors, dtype=np.float32)
+        image_y_feature_vectors = np.array(image_y_feature_vectors, dtype=np.float32)
+
+        target_probabilities = np.array(target_probabilities)
+
+        image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.float)
+        image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.float)
+
+        target_probabilities = torch.tensor(target_probabilities).to(torch.float)
+
+        # do average pooling
+        image_x_feature_vectors = torch.mean(image_x_feature_vectors, dim=2)
+        image_y_feature_vectors = torch.mean(image_y_feature_vectors, dim=2)
+
+        # then concatenate
+        image_x_feature_vectors = image_x_feature_vectors.reshape(len(image_x_feature_vectors), -1)
+        image_y_feature_vectors = image_y_feature_vectors.reshape(len(image_y_feature_vectors), -1)
+
+        if device is not None:
+            image_x_feature_vectors = image_x_feature_vectors.to(device)
+            image_y_feature_vectors = image_y_feature_vectors.to(device)
+            target_probabilities = target_probabilities.to(device)
+
+        return image_x_feature_vectors, image_y_feature_vectors, target_probabilities
+
+    def get_validation_feature_vectors_and_target_linear(self, device=None):
+        image_x_feature_vectors = []
+        image_y_feature_vectors = []
+        target_probabilities = []
+
+        # get ab data
+        while self.validation_dataset_paths_queue.qsize() > 0:
+            dataset_path = self.validation_dataset_paths_queue.get()
+            image_pair_data_list = self.get_selection_datapoint_image_pair(dataset_path)
+            for image_pair in image_pair_data_list:
+                image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
+                    image_pair)
+                image_x_feature_vectors.append(image_x_feature_vector)
+                image_y_feature_vectors.append(image_y_feature_vector)
+                target_probabilities.append(target_probability)
+
+        image_x_feature_vectors = np.array(image_x_feature_vectors, dtype=np.float32)
+        image_y_feature_vectors = np.array(image_y_feature_vectors, dtype=np.float32)
+        target_probabilities = np.array(target_probabilities)
+
+        image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.float)
+        image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.float)
+        target_probabilities = torch.tensor(target_probabilities).to(torch.float)
+
+        print("feature shape=", image_x_feature_vectors.shape)
+        # do average pooling
+        image_x_feature_vectors = torch.mean(image_x_feature_vectors, dim=2)
+        image_y_feature_vectors = torch.mean(image_y_feature_vectors, dim=2)
+        print("feature shape after average pooling=", image_x_feature_vectors.shape)
+
+        # then concatenate
+        image_x_feature_vectors = image_x_feature_vectors.reshape(len(image_x_feature_vectors), -1)
+        image_y_feature_vectors = image_y_feature_vectors.reshape(len(image_y_feature_vectors), -1)
+        print("feature shape after reshape=", image_x_feature_vectors.shape)
+
+        if device is not None:
+            image_x_feature_vectors = image_x_feature_vectors.to(device)
+            image_y_feature_vectors = image_y_feature_vectors.to(device)
+            target_probabilities = target_probabilities.to(device)
 
         return image_x_feature_vectors, image_y_feature_vectors, target_probabilities

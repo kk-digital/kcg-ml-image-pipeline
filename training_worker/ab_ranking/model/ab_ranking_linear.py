@@ -13,7 +13,7 @@ from tqdm import tqdm
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from training_worker.ab_ranking.model.ab_ranking_linear_data_loader import ABRankingDatasetLoader
+from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDatasetLoader
 from utility.minio import cmd
 
 
@@ -23,14 +23,15 @@ class ABRankingLinearModel(nn.Module):
         self.linear = nn.Linear(inputs_shape, 1)
         self.identity = nn.Identity()
         self.sigmoid = nn.Sigmoid()
-        self.bce_loss = nn.BCELoss()
+        self.mse_loss = nn.MSELoss()
+        self.l1_loss = nn.L1Loss()
         self.tanh = nn.Tanh()
 
     def forward(self, x):
         x = self.linear(x)
         x = self.identity(x)
         # x = ((self.tanh(x) + 1.0)/2) * 100
-        x = self.sigmoid(x) * 100
+        # x = self.sigmoid(x)
 
         return x
 
@@ -97,82 +98,102 @@ class ABRankingModel:
               dataset_loader: ABRankingDatasetLoader,
               training_batch_size=4,
               epochs=100,
-              learning_rate=0.001):
+              learning_rate=0.001,
+              weight_decay=0.01):
         training_loss_per_epoch = []
         validation_loss_per_epoch = []
 
-        optimizer = optim.AdamW(self.model.parameters(), lr=learning_rate, weight_decay=0.01)
+        optimizer = optim.AdamW(self.model.parameters(), lr=learning_rate, weight_decay=weight_decay)
         self.model_type = 'image-pair-ranking-linear'
-        self.loss_func_name = "bce"
+        self.loss_func_name = "L1"
 
         # get validation data
         validation_features_x, \
             validation_features_y, \
-            validation_targets = dataset_loader.get_validation_feature_vectors_and_target()
-        validation_features_x = validation_features_x.to(self._device)
-        validation_features_y = validation_features_y.to(self._device)
-        validation_targets = validation_targets.to(self._device)
+            validation_targets = dataset_loader.get_validation_feature_vectors_and_target_linear(self._device)
 
-        # num features * 2 bc we duplicate each ab data
-        # (x, y, 1.0)
-        # (y, x, 0.0)
-        num_features = dataset_loader.get_len_training_ab_data() * 2
+        # get total number of training features
+        num_features = dataset_loader.get_len_training_ab_data()
 
         # get number of batches to do per epoch
         training_num_batches = math.ceil(num_features / training_batch_size)
-
+        loss = None
         for epoch in tqdm(range(epochs), desc="Training epoch"):
-            # fill data buffer
-            # if buffer is empty, fill data
-            fill_buffer_thread = threading.Thread(target=dataset_loader.fill_training_data_buffer)
-            fill_buffer_thread.start()
+            # Only train after 0th epoch
+            if epoch != 0:
+                # fill data buffer
+                dataset_loader.spawn_filling_workers()
 
-            # get a copy of model
-            model_copy = copy.deepcopy(self.model)
-            # freeze weights of model_copy
-            for param in model_copy.parameters():
-                param.requires_grad = False
+                for i in range(training_num_batches):
+                    num_data_to_get = training_batch_size
+                    # last batch
+                    if i == training_num_batches - 1:
+                        num_data_to_get = num_features - (i * (training_batch_size))
 
-            for i in range(training_num_batches):
-                num_data_to_get = training_batch_size
-                if i == training_num_batches - 1:
-                    num_data_to_get = num_features - (i * (training_batch_size))
+                    batch_features_x_orig, \
+                        batch_features_y_orig, \
+                        batch_targets_orig = dataset_loader.get_next_training_feature_vectors_and_target_linear(
+                        num_data_to_get, self._device)
 
-                batch_features_x, \
-                    batch_features_y,\
-                    batch_targets = dataset_loader.get_next_training_feature_vectors_and_target(num_data_to_get, self._device)
+                    batch_features_x = batch_features_x_orig.clone().requires_grad_(True).to(self._device)
+                    # batch_features_y = batch_features_y_orig.clone().requires_grad_(True).to(self._device)
+                    batch_targets = batch_targets_orig.clone().requires_grad_(True).to(self._device)
 
-                optimizer.zero_grad()
-                predicted_score_images_x = self.model.forward(batch_features_x)
-                predicted_score_images_y = model_copy.forward(batch_features_y)
+                    # with torch.no_grad():
+                        # predicted_score_images_y = self.model.forward(batch_features_y)
 
-                batch_pred_probabilities = self.forward_bradley_terry(predicted_score_images_x, predicted_score_images_y)
-                loss = self.model.bce_loss(batch_pred_probabilities, batch_targets)
-                loss.backward()
-                optimizer.step()
+                    optimizer.zero_grad()
+                    predicted_score_images_x = self.model.forward(batch_features_x)
 
+                    # batch_pred_probabilities = self.forward_bradley_terry(predicted_score_images_x,
+                    #                                                       predicted_score_images_y)
 
-            # Validation step
+                    # assert
+                    # for pred_prob in batch_pred_probabilities:
+                    #     assert pred_prob.item() >= 0.0
+                    #     assert pred_prob.item() <= 1.0
+
+                    # assert batch_targets.shape == batch_pred_probabilities.shape
+                    loss = self.model.l1_loss(predicted_score_images_x, batch_targets)
+                    loss.backward()
+                    optimizer.step()
+
+                for name, param in self.model.named_parameters():
+                    if torch.isnan(param.grad).any():
+                        print("nan gradient found")
+                        raise SystemExit
+                    # print("param={}, grad={}".format(name, param.grad))
+
+                # refill training ab data
+                dataset_loader.fill_training_ab_data()
+
+            # Calculate Validation Loss
             with torch.no_grad():
-                predicted_score_images_x = self.model.forward(validation_features_x)
-                predicted_score_images_y = self.model.forward(validation_features_y)
-                validation_pred_probabilities = self.forward_bradley_terry(predicted_score_images_x, predicted_score_images_y)
-                validation_loss = self.model.bce_loss(validation_pred_probabilities, validation_targets)
+                for i in range(len(validation_features_x)):
+                    validation_feature_x = validation_features_x[i]
+                    validation_feature_x = validation_feature_x.unsqueeze(0)
+                    validation_feature_y = validation_features_y[i]
+                    validation_feature_y = validation_feature_y.unsqueeze(0)
 
-            if epoch % 10 == 0:
-                print(
-                    f"Epoch {epoch}/{epochs} | Loss: {loss.item():.4f} | Validation Loss: {validation_loss.item():.4f}")
+                    validation_target = validation_targets[i]
+                    validation_target = validation_target.unsqueeze(0)
+                    predicted_score_image_x = self.model.forward(validation_feature_x)
+                    # predicted_score_image_y = self.model.forward(validation_feature_y)
+                    # pred_probability = self.forward_bradley_terry(predicted_score_image_x, predicted_score_image_y)
+
+                    # assert validation_target.shape == pred_probability.shape
+                    validation_loss = self.model.l1_loss(predicted_score_image_x, validation_target)
+
+            if loss is None:
+                loss = validation_loss
+            print(
+                f"Epoch {epoch}/{epochs} | Loss: {loss.item():.4f} | Validation Loss: {validation_loss.item():.4f}")
             training_loss_per_epoch.append(loss.item())
             validation_loss_per_epoch.append(validation_loss.item())
 
-            # refill training ab data
-            dataset_loader.fill_training_ab_data()
-
         with torch.no_grad():
             # fill data buffer
-            # if buffer is empty, fill data
-            fill_buffer_thread = threading.Thread(target=dataset_loader.fill_training_data_buffer)
-            fill_buffer_thread.start()
+            dataset_loader.spawn_filling_workers()
 
             training_predicted_score_images_x = []
             training_predicted_score_images_y = []
@@ -186,53 +207,94 @@ class ABRankingModel:
                     num_data_to_get = num_features - (i * (training_batch_size))
 
                 batch_features_x, \
-                    batch_features_y,\
-                    batch_targets = dataset_loader.get_next_training_feature_vectors_and_target(num_data_to_get, self._device)
+                    batch_features_y, \
+                    batch_targets = dataset_loader.get_next_training_feature_vectors_and_target_linear(num_data_to_get,
+                                                                                                self._device)
 
                 batch_predicted_score_images_x = self.model.forward(batch_features_x)
                 batch_predicted_score_images_y = self.model.forward(batch_features_y)
-                batch_predicted_probabilities = self.forward_bradley_terry(batch_predicted_score_images_x,
-                                                             batch_predicted_score_images_y)
-                loss = self.model.bce_loss(batch_predicted_probabilities, batch_targets)
+                batch_pred_probabilities = self.forward_bradley_terry(batch_predicted_score_images_x,
+                                                                      batch_predicted_score_images_y)
+                assert batch_targets.shape == batch_pred_probabilities.shape
+                loss = self.model.l1_loss(batch_predicted_score_images_x, batch_targets)
 
                 training_predicted_score_images_x.extend(batch_predicted_score_images_x)
                 training_predicted_score_images_y.extend(batch_predicted_score_images_y)
-                training_predicted_probabilities.extend(batch_predicted_probabilities)
+                training_predicted_probabilities.extend(batch_pred_probabilities)
                 training_target_probabilities.extend(batch_targets)
             self.training_loss = loss
 
-            validation_predicted_score_images_x = self.model.forward(validation_features_x)
-            validation_predicted_score_images_y = self.model.forward(validation_features_y)
-            validation_predicted_probabilities = self.forward_bradley_terry(validation_predicted_score_images_x,
-                                                                            validation_predicted_score_images_y)
-            self.validation_loss = self.model.bce_loss(validation_predicted_probabilities, validation_targets)
+            # validation
+            validation_predicted_score_images_x = []
+            validation_predicted_score_images_y = []
+            validation_predicted_probabilities = []
+            for i in range(len(validation_features_x)):
+                validation_feature_x = validation_features_x[i]
+                validation_feature_x = validation_feature_x.unsqueeze(0)
+                validation_feature_y = validation_features_y[i]
+                validation_feature_y = validation_feature_y.unsqueeze(0)
 
-        return training_predicted_score_images_x,\
+                validation_target = validation_targets[i]
+                validation_target = validation_target.unsqueeze(0)
+
+                predicted_score_image_x = self.model.forward(validation_feature_x)
+                predicted_score_image_y = self.model.forward(validation_feature_y)
+                pred_probability = self.forward_bradley_terry(predicted_score_image_x, predicted_score_image_y)
+                assert validation_target.shape == pred_probability.shape
+                validation_loss = self.model.l1_loss(predicted_score_image_x, validation_target)
+                validation_predicted_score_images_x.append(predicted_score_image_x)
+                validation_predicted_score_images_y.append(predicted_score_image_y)
+                validation_predicted_probabilities.append(pred_probability)
+
+            self.validation_loss = validation_loss
+
+        return training_predicted_score_images_x, \
             training_predicted_score_images_y, \
-            training_predicted_probabilities,\
-            training_target_probabilities,\
+            training_predicted_probabilities, \
+            training_target_probabilities, \
             validation_predicted_score_images_x, \
-            validation_predicted_score_images_y,\
+            validation_predicted_score_images_y, \
             validation_predicted_probabilities, \
-            validation_targets,\
+            validation_targets, \
             training_loss_per_epoch, \
             validation_loss_per_epoch
 
-    def forward_bradley_terry(self, predicted_score_images_x, predicted_score_images_y, target_probabilities):
+    def forward_bradley_terry(self, predicted_score_images_x, predicted_score_images_y):
         epsilon = 0.000001
 
         # if score is negative N, make it 0
-        predicted_score_images_x = torch.max(predicted_score_images_x, torch.tensor([0.]).to(self._device))
-        predicted_score_images_y = torch.max(predicted_score_images_y, torch.tensor([0.]).to(self._device))
+        predicted_score_images_x = torch.max(predicted_score_images_x, torch.tensor([0.], device=self._device))
+        predicted_score_images_y = torch.max(predicted_score_images_y, torch.tensor([0.], device=self._device))
 
         # Calculate probability using Bradley Terry Formula: P(x>y) = score(x) / ( Score(x) + score(y))
-        sum_predicted_score = predicted_score_images_x + predicted_score_images_y
+        sum_predicted_score = torch.add(predicted_score_images_x, predicted_score_images_y)
         sum_predicted_score = torch.add(sum_predicted_score, epsilon)
         pred_probabilities = torch.div(predicted_score_images_x, sum_predicted_score)
 
+        # prob = sigmoid( (x-y) / 100 )
+        # diff_predicted_score = torch.sub(predicted_score_images_x, predicted_score_images_y)
+        # res_predicted_score = torch.div(diff_predicted_score, 100.0)
+        # pred_probabilities = torch.sigmoid(res_predicted_score)
+
         return pred_probabilities
 
-    def predict(self, inputs):
+    def predict_positive_negative(self, positive_input, negative_input):
+        # get rid of the 1 dimension at start
+        positive_input = positive_input.squeeze()
+        negative_input = negative_input.squeeze()
+
+        # make it [2, 77, 768]
+        inputs = torch.stack((positive_input, negative_input))
+
+        # make it [1, 2, 77, 768]
+        inputs = inputs.unsqueeze(0)
+
+        # do average pooling
+        inputs = torch.mean(inputs, dim=2)
+
+        # then concatenate
+        inputs = inputs.reshape(len(inputs), -1)
+
         with torch.no_grad():
             outputs = self.model.forward(inputs).squeeze()
 
