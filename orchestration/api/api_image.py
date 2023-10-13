@@ -28,6 +28,39 @@ def get_random_image(request: Request, dataset: str = Query(...)):  # Use Query 
 
     return document
 
+@router.get("/image/random_date_range")
+def get_random_image_date_range(request: Request, dataset : str = None, start_date: str = None, end_date: str = None):
+
+    query = {
+        'task_input_dict.dataset': dataset
+    }
+
+    # Update the query based on provided start_date and end_date
+    if start_date and end_date:
+        query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
+    elif start_date:
+        query['task_creation_time'] = {'$gte': start_date}
+    elif end_date:
+        query['task_creation_time'] = {'$lte': end_date}
+
+    documents = request.app.completed_jobs_collection.aggregate([
+        {"$match": query},
+        {"$sample": {"size": 1}}
+    ])
+
+    # convert curser type to list
+    documents = list(documents)
+    if len(documents) == 0:
+        return []
+
+    # get only the first index
+    document = documents[0]
+
+    # remove the auto generated field
+    document.pop('_id', None)
+
+    return document
+
 @router.get("/image/data-by-filepath")
 def get_image_data_by_filepath(request: Request, file_path: str = None):
 
