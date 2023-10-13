@@ -75,23 +75,8 @@ def get_dataset_config(request: Request, dataset: str = Query(...)):
 
     # remove the auto generated field
     item.pop('_id', None)
-    
-    # Fetch top-k
-    top_k_item = request.app.dataset_top_k_collection.find_one({"dataset_name": dataset})
-    if top_k_item:
-        item["top_k"] = top_k_item["top_k"]
-    else:
-        item["top_k"] = None
-
-    # Fetch generation-policy
-    gen_policy_item = request.app.dataset_generation_policy_collection.find_one({"dataset_name": dataset})
-    if gen_policy_item:
-        item["generation_policy"] = gen_policy_item["generation_policy"]
-    else:
-        item["generation_policy"] = None
 
     return item
-
 
 
 @router.get("/dataset/get-all-dataset-config")
@@ -106,21 +91,6 @@ def get_all_dataset_config(request: Request):
     for item in items:
         # remove the auto generated field
         item.pop('_id', None)
-        
-        # Fetch top-k for this dataset
-        top_k_item = request.app.dataset_top_k_collection.find_one({"dataset_name": item["dataset_name"]})
-        if top_k_item:
-            item["top_k"] = top_k_item["top_k"]
-        else:
-            item["top_k"] = None
-
-        # Fetch generation-policy for this dataset
-        gen_policy_item = request.app.dataset_generation_policy_collection.find_one({"dataset_name": item["dataset_name"]})
-        if gen_policy_item:
-            item["generation_policy"] = gen_policy_item["generation_policy"]
-        else:
-            item["generation_policy"] = None
-        
         dataset_configs.append(item)
 
     return dataset_configs
@@ -214,7 +184,7 @@ def get_all_dataset_generation_policy(request: Request):
 def get_generation_policy(request: Request, dataset: str):
     # find
     query = {"dataset_name": dataset}
-    item = request.app.dataset_generation_policy_collection.find_one(query)
+    item = request.app.dataset_config_collection.find_one(query)
     if item is None:
         raise HTTPException(status_code=204)
 
@@ -227,18 +197,25 @@ def get_generation_policy(request: Request, dataset: str):
 @router.put("/dataset/set-generation-policy")
 def set_generation_policy(request: Request, dataset, generation_policy='top-k'):
     date_now = datetime.now()
-    # check if exist
-    # and remove all entries
+    
+    # Check if exist
     query = {"dataset_name": dataset}
-    request.app.dataset_generation_policy_collection.delete_many(query)
-
-    # add one
-    dataset_generation_policy = {
-        "dataset_name": dataset,
-        "last_update": date_now,
-        "generation_policy": generation_policy,
-    }
-    request.app.dataset_generation_policy_collection.insert_one(dataset_generation_policy)
+    item = request.app.dataset_config_collection.find_one(query)
+    
+    if item is None:
+        # Add a new entry
+        dataset_config = {
+            "dataset_name": dataset,
+            "last_update": date_now,
+            "generation_policy": generation_policy,
+            "relevance_model": "",
+            "ranking_model": "",
+        }
+        request.app.dataset_config_collection.insert_one(dataset_config)
+    else:
+        # Update the existing entry
+        new_values = {"$set": {"last_update": date_now, "generation_policy": generation_policy}}
+        request.app.dataset_config_collection.update_one(query, new_values)
 
     return True
 
@@ -247,7 +224,7 @@ def set_generation_policy(request: Request, dataset, generation_policy='top-k'):
 def get_top_k(request: Request, dataset: str):
     # find
     query = {"dataset_name": dataset}
-    item = request.app.dataset_top_k_collection.find_one(query)
+    item = request.app.dataset_config_collection.find_one(query)
     if item is None:
         raise HTTPException(status_code=204)
 
@@ -260,17 +237,24 @@ def get_top_k(request: Request, dataset: str):
 @router.put("/dataset/set-top-k")
 def set_top_k(request: Request, dataset, top_k=0.1):
     date_now = datetime.now()
-    # check if exist
-    # and remove all entries
+    
+    # Check if exist
     query = {"dataset_name": dataset}
-    request.app.dataset_top_k_collection.delete_many(query)
-
-    # add one
-    dataset_top_k = {
-        "dataset_name": dataset,
-        "last_update": date_now,
-        "top_k": top_k,
-    }
-    request.app.dataset_top_k_collection.insert_one(dataset_top_k)
+    item = request.app.dataset_config_collection.find_one(query)
+    
+    if item is None:
+        # Add a new entry
+        dataset_config = {
+            "dataset_name": dataset,
+            "last_update": date_now,
+            "top_k": top_k,
+            "relevance_model": "",
+            "ranking_model": "",
+        }
+        request.app.dataset_config_collection.insert_one(dataset_config)
+    else:
+        # Update the existing entry
+        new_values = {"$set": {"last_update": date_now, "top_k": top_k}}
+        request.app.dataset_config_collection.update_one(query, new_values)
 
     return True
