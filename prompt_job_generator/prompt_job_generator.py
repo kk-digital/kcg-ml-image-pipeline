@@ -280,10 +280,13 @@ def main():
     update_database_model_list(prompt_job_generator_state, list_datasets)
     update_dataset_config_data(prompt_job_generator_state, list_datasets)
     update_dataset_job_queue_size(prompt_job_generator_state, list_datasets)
-    update_datasets_prompt_queue(prompt_job_generator_state, list_datasets)
 
     # load the models at the start for each dataset
     load_dataset_models(prompt_job_generator_state, list_datasets)
+
+    # generate prompts in the prompt queue
+    update_datasets_prompt_queue(prompt_job_generator_state, list_datasets)
+
 
     thread = threading.Thread(target=update_dataset_values_background_thread, args=(prompt_job_generator_state,))
     thread.start()
