@@ -98,7 +98,7 @@ class PromptJobGeneratorState:
 
     def load_linear_model(self, dataset, dataset_bucket, model_path):
 
-        linear_model = ABRankingModel(768*77)
+        linear_model = ABRankingModel(768*2)
 
         model_file_data = cmd.get_file_from_minio(self.minio_client, dataset_bucket, model_path)
 
