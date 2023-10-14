@@ -87,7 +87,7 @@ class PromptGenerationPromptQueue:
         scoring_model = prompt_job_generator_state.get_dataset_scoring_model(dataset)
 
         if scoring_model is None:
-            print('efficient net model is not found for dataset ', dataset)
+            print('prompt scoring model is not found for dataset ', dataset)
 
         print(f'generating {total_prompt_count} prompts for dataset {dataset} using model {scoring_model}')
         prompts = generate_prompts_proportional_selection(prompt_job_generator_state.phrases,

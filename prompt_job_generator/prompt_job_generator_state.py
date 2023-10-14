@@ -206,6 +206,8 @@ class PromptJobGeneratorState:
 
         model_info = self.get_dataset_model_info(dataset, dataset_model_name)
 
+        print(model_info)
+
         if model_info is None:
             return
 
@@ -217,7 +219,6 @@ class PromptJobGeneratorState:
             return self.get_efficient_net_model(dataset)
         elif model_type == 'ab_ranking_linear':
             return self.get_linear_model(dataset)
-
 
     def set_total_rate(self, total_rate):
         self.total_rate = total_rate
