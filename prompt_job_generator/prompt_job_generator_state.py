@@ -211,7 +211,7 @@ class PromptJobGeneratorState:
         if model_info is None:
             return
 
-        model_type = model_info['model_type']
+        model_type = model_info['model_architecture']
 
         if model_type == 'image-pair-ranking-efficient-net':
             return self.get_efficient_net_model(dataset)
