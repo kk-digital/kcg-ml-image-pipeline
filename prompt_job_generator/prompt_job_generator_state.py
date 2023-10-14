@@ -206,8 +206,6 @@ class PromptJobGeneratorState:
 
         model_info = self.get_dataset_model_info(dataset, dataset_model_name)
 
-        print(model_info)
-
         if model_info is None:
             return
 
