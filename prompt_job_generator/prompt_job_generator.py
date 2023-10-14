@@ -154,7 +154,7 @@ def update_dataset_job_queue_size(prompt_job_generator_state, list_datasets):
         job_queue_size = in_progress_job_count + pending_job_count
         # Target number of Jobs in Queue
         # Equals: Time Speed (Jobs/Second) times 60*5 (300); 5 minutes
-        job_queue_target = 60 * 5 * job_per_second
+        job_queue_target = int(60 * 5 * job_per_second)
 
         prompt_job_generator_state.set_dataset_job_queue_size(dataset, job_queue_size)
         prompt_job_generator_state.set_dataset_job_queue_target(dataset, job_queue_target)
