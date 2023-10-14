@@ -9,7 +9,7 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from prompt_job_generator_state import PromptJobGeneratorState
-from prompt_job_generator_functions import generate_icon_generation_jobs, generate_character_generation_jobs, generate_mechs_image_generation_jobs, generate_propaganda_posters_image_generation_jobs
+from prompt_job_generator_functions import generate_icon_generation_jobs, generate_character_generation_jobs, generate_mechs_image_generation_jobs, generate_propaganda_posters_image_generation_jobs, generate_environmental_image_generation_jobs
 from prompt_job_generator.http_requests.request import (http_get_all_dataset_rate, http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list,
                                                         http_get_dataset_job_per_second, http_get_all_dataset_generation_policy, http_get_dataset_top_k_value,
                                                         http_get_all_dataset_config, http_get_dataset_model_list)
@@ -261,6 +261,7 @@ def main():
     prompt_job_generator_state.register_callback("propaganda-poster", generate_propaganda_posters_image_generation_jobs)
     prompt_job_generator_state.register_callback("mech", generate_mechs_image_generation_jobs)
     prompt_job_generator_state.register_callback("character", generate_character_generation_jobs)
+    prompt_job_generator_state.register_callback("environmental", generate_environmental_image_generation_jobs)
 
     # setting the base prompt csv for each dataset
     prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('icons',
@@ -272,7 +273,7 @@ def main():
     prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('character',
                                                                     'input/dataset-config/character/base-prompts-waifu.csv')
     prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('environmental',
-                                                                    'input/dataset-config/icon/base-prompts-icon-2.csv')
+                                                                    'input/dataset-config/character/base-prompts-waifu.csv')
 
     # get list of datasets
     list_datasets = http_get_dataset_list()
