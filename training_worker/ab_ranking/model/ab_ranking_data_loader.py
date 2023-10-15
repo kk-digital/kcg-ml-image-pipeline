@@ -63,20 +63,24 @@ def split_ab_data_vectors(image_pair_data):
 class ABRankingDatasetLoader:
     def __init__(self,
                  dataset_name,
-                 minio_access_key,
-                 minio_secret_key,
+                 minio_addr=None,
+                 minio_access_key=None,
+                 minio_secret_key=None,
                  buffer_size=20000,
                  train_percent=0.9):
         self.dataset_name = dataset_name
 
         self.minio_access_key = minio_access_key
         self.minio_secret_key = minio_secret_key
-        self.minio_client = cmd.get_minio_client(self.minio_access_key, self.minio_secret_key)
+        self.minio_client = cmd.get_minio_client(minio_access_key=self.minio_access_key,
+                                                 minio_secret_key=self.minio_secret_key,
+                                                 minio_addr=minio_addr)
 
         self.train_percent = train_percent
         self.training_dataset_paths_copy = []
         self.training_dataset_paths_queue = Queue()
         self.validation_dataset_paths_queue = Queue()
+        self.total_num_data = 0
 
         # these will contain features and targets with limit buffer size
         self.training_image_pair_data_buffer = Queue()
@@ -88,6 +92,10 @@ class ABRankingDatasetLoader:
 
         self.num_filling_workers = 5
         self.fill_semaphore = Semaphore(self.num_filling_workers)  # One filling only
+
+        # image data selected index count
+        self.image_selected_index_0_count = 0
+        self.image_selected_index_1_count = 0
 
         # # random
         # self.rand_a = np.random.rand(2, 77, 768)
@@ -152,6 +160,7 @@ class ABRankingDatasetLoader:
         for data in shuffled_training_list:
             self.training_dataset_paths_queue.put(data)
 
+        self.total_num_data = len(shuffled_training_list) + len(shuffled_validation_list)
         print("Dataset loaded...")
         print("Time elapsed: {0}s".format(format(time.time() - start_time, ".2f")))
 
@@ -164,6 +173,13 @@ class ABRankingDatasetLoader:
 
     def get_len_validation_ab_data(self):
         return self.validation_dataset_paths_queue.qsize()
+
+    def get_image_selected_index_data(self):
+        selected_index_0_count = self.image_selected_index_0_count
+        selected_index_1_count = self.image_selected_index_1_count
+        total_count = selected_index_0_count + selected_index_1_count
+
+        return selected_index_0_count, selected_index_1_count, total_count
 
     def get_selection_datapoint_image_pair(self, dataset):
         dataset_path = dataset[0]
@@ -221,10 +237,18 @@ class ABRankingDatasetLoader:
             selected_embeddings_vector = embeddings_img_2_embeddings_vector
             other_embeddings_vector = embeddings_img_1_embeddings_vector
 
+
         if data_target == 1.0:
             image_pair = (selected_embeddings_vector, other_embeddings_vector, [data_target])
         else:
             image_pair = (other_embeddings_vector, selected_embeddings_vector, [data_target])
+
+        # add for training report
+        if (self.image_selected_index_0_count + self.image_selected_index_1_count) < self.total_num_data:
+            if selected_image_index == 0:
+                self.image_selected_index_0_count += 1
+            else:
+                self.image_selected_index_1_count += 1
 
         # for test
         # if data_target == 1.0:

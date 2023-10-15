@@ -5,7 +5,7 @@ import sys
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from worker.minio.minio import get_minio_client
+from utility.minio.cmd import get_minio_client
 from stable_diffusion import StableDiffusion, CLIPTextEmbedder
 from configs.model_config import ModelPathConfig
 from stable_diffusion.model_paths import (SDconfigs, CLIPconfigs)
