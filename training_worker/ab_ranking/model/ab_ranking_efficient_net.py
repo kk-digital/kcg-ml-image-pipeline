@@ -153,7 +153,7 @@ class ABRankingEfficientNetModel:
                         assert pred_prob.item() <= 1.0
 
                     assert batch_targets.shape == batch_pred_probabilities.shape
-                    loss = self.model.mse_loss(batch_pred_probabilities, batch_targets)
+                    loss = self.model.mse_loss(predicted_score_images_x, batch_targets)
                     loss.backward()
                     optimizer.step()
 
@@ -181,7 +181,7 @@ class ABRankingEfficientNetModel:
                     pred_probability = self.forward_bradley_terry(predicted_score_image_x, predicted_score_image_y)
 
                     assert validation_target.shape == pred_probability.shape
-                    validation_loss = self.model.mse_loss(pred_probability, validation_target)
+                    validation_loss = self.model.mse_loss(predicted_score_image_x, validation_target)
 
             if loss is None:
                 loss = validation_loss
@@ -214,7 +214,7 @@ class ABRankingEfficientNetModel:
                 batch_pred_probabilities = self.forward_bradley_terry(batch_predicted_score_images_x,
                                                              batch_predicted_score_images_y)
                 assert batch_targets.shape ==batch_pred_probabilities.shape
-                loss = self.model.mse_loss(batch_pred_probabilities, batch_targets)
+                loss = self.model.mse_loss(batch_predicted_score_images_x, batch_targets)
 
                 training_predicted_score_images_x.extend(batch_predicted_score_images_x)
                 training_predicted_score_images_y.extend(batch_predicted_score_images_y)
@@ -239,7 +239,7 @@ class ABRankingEfficientNetModel:
                 predicted_score_image_y = self.model.forward(validation_feature_y)
                 pred_probability = self.forward_bradley_terry(predicted_score_image_x, predicted_score_image_y)
                 assert validation_target.shape == pred_probability.shape
-                validation_loss = self.model.mse_loss(pred_probability, validation_target)
+                validation_loss = self.model.mse_loss(predicted_score_image_x, validation_target)
                 validation_predicted_score_images_x.append(predicted_score_image_x)
                 validation_predicted_score_images_y.append(predicted_score_image_y)
                 validation_predicted_probabilities.append(pred_probability)
