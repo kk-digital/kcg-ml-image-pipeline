@@ -16,8 +16,9 @@ from utility.minio import cmd
 
 
 def train_ranking(dataset_name: str,
-                  minio_access_key: str,
-                  minio_secret_key: str,
+                  minio_addr=None,
+                  minio_access_key=None,
+                  minio_secret_key=None,
                   epochs=10000,
                   learning_rate=0.001,
                   buffer_size=20000,
@@ -33,6 +34,7 @@ def train_ranking(dataset_name: str,
 
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name=dataset_name,
+                                            minio_addr=minio_addr,
                                             minio_access_key=minio_access_key,
                                             minio_secret_key=minio_secret_key,
                                             buffer_size=buffer_size,
@@ -72,6 +74,8 @@ def train_ranking(dataset_name: str,
     training_predicted_probabilities = torch.stack(training_predicted_probabilities)
     training_predicted_score_images_x = torch.stack(training_predicted_score_images_x)
     training_predicted_score_images_y = torch.stack(training_predicted_score_images_y)
+    training_loss_per_epoch = torch.stack(training_loss_per_epoch)
+    validation_loss_per_epoch = torch.stack(validation_loss_per_epoch)
 
     validation_predicted_score_images_x = torch.stack(validation_predicted_score_images_x)
     validation_predicted_score_images_y = torch.stack(validation_predicted_score_images_y)
@@ -86,6 +90,9 @@ def train_ranking(dataset_name: str,
 
     training_predicted_probabilities = training_predicted_probabilities.detach().cpu()
     validation_predicted_probabilities = validation_predicted_probabilities.detach().cpu()
+
+    training_loss_per_epoch = training_loss_per_epoch.detach().cpu()
+    validation_loss_per_epoch = validation_loss_per_epoch.detach().cpu()
     
     train_sum_correct = 0
     for i in range(len(training_target_probabilities)):
@@ -105,6 +112,7 @@ def train_ranking(dataset_name: str,
             if validation_predicted_score_images_x[i] < validation_predicted_score_images_y[i]:
                 validation_sum_correct += 1
 
+    selected_index_0_count, selected_index_1_count, total_images_count = dataset_loader.get_image_selected_index_data()
     # save report
     report_str = get_train_report(ab_model,
                                   training_dataset_path,
@@ -120,7 +128,10 @@ def train_ranking(dataset_name: str,
                                   validation_predicted_score_images_y,
                                   training_batch_size,
                                   learning_rate,
-                                  weight_decay)
+                                  weight_decay,
+                                  selected_index_0_count,
+                                  selected_index_1_count,
+                                  total_images_count)
 
     # Upload model to minio
     report_name = "{}.txt".format(date_now)
@@ -173,9 +184,10 @@ def run_ab_ranking_linear_task(training_task, minio_access_key, minio_secret_key
 
 
 def test_run():
-    train_ranking(minio_access_key="nkjYl5jO4QnpxQU0k0M1",
+    train_ranking(minio_addr=None,  # will use defualt if none is given
+                  minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
-                  dataset_name="character",
+                  dataset_name="environmental",
                   epochs=100,
                   learning_rate=0.001,
                   buffer_size=20000,
