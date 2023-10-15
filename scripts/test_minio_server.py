@@ -17,7 +17,6 @@ try:
     response = requests.get("http://" + MINIO_ADDRESS + "/minio/health/live", timeout=5)
     if response.status_code == 200:
         print("MinIO server is accessible.")
-        cmd.get_list_of_objects(client, "datasets")
     else:
         print("MinIO server is not accessible. Status code:", response.status_code)
 except requests.RequestException as e:
