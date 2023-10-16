@@ -163,7 +163,7 @@ class ABRankingEfficientNetModel:
                     loss.backward()
                     optimizer.step()
 
-                    training_loss_arr.append(loss)
+                    training_loss_arr.append(loss.detach().cpu())
 
                 if debug_asserts:
                     for name, param in self.model.named_parameters():
@@ -185,7 +185,7 @@ class ABRankingEfficientNetModel:
                     validation_target = validation_target.unsqueeze(0)
                     predicted_score_image_x = self.model.forward(validation_feature_x)
                     validation_loss = self.model.mse_loss(predicted_score_image_x, validation_target)
-                    validation_loss_arr.append(validation_loss)
+                    validation_loss_arr.append(validation_loss.detach().cpu())
 
             # calculate epoch loss
             # epoch's training loss
@@ -204,8 +204,8 @@ class ABRankingEfficientNetModel:
             training_loss_per_epoch.append(epoch_training_loss)
             validation_loss_per_epoch.append(epoch_validation_loss)
 
-            self.training_loss = epoch_training_loss
-            self.validation_loss = epoch_validation_loss
+            self.training_loss = epoch_training_loss.detach().cpu()
+            self.validation_loss = epoch_validation_loss.detach().cpu()
 
         with torch.no_grad():
             # fill data buffer
