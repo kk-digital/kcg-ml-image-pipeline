@@ -152,7 +152,7 @@ class ABRankingModel:
                     loss.backward()
                     optimizer.step()
 
-                    training_loss_arr.append(loss)
+                    training_loss_arr.append(loss.detach().cpu())
 
                 if debug_asserts:
                     for name, param in self.model.named_parameters():
@@ -177,7 +177,7 @@ class ABRankingModel:
                     if debug_asserts:
                         assert predicted_score_image_x.shape == validation_target.shape
                     validation_loss = self.model.l1_loss(predicted_score_image_x, validation_target)
-                    validation_loss_arr.append(validation_loss)
+                    validation_loss_arr.append(validation_loss.detach().cpu())
 
             # calculate epoch loss
             # epoch's training loss
@@ -196,8 +196,8 @@ class ABRankingModel:
             training_loss_per_epoch.append(epoch_training_loss)
             validation_loss_per_epoch.append(epoch_validation_loss)
 
-            self.training_loss = epoch_training_loss
-            self.validation_loss = epoch_validation_loss
+            self.training_loss = epoch_training_loss.detach().cpu()
+            self.validation_loss = epoch_validation_loss.detach().cpu()
 
         # Calculate model performance
         with torch.no_grad():
