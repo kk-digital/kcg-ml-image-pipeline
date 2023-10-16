@@ -26,6 +26,7 @@ class ABRankingLinearModel(nn.Module):
         self.mse_loss = nn.MSELoss()
         self.l1_loss = nn.L1Loss()
         self.tanh = nn.Tanh()
+        self.relu_fn = nn.ReLU()
 
     def forward(self, x):
         x = self.linear(x)
@@ -148,11 +149,18 @@ class ABRankingModel:
 
                     if debug_asserts:
                         assert predicted_score_images_x.shape == batch_targets.shape
+
+                    # add loss penalty
+                    neg_score = torch.multiply(predicted_score_images_x, -1.0)
+                    negative_score_loss_penalty = self.model.relu_fn(neg_score)
+
                     loss = self.model.l1_loss(predicted_score_images_x, batch_targets)
+                    loss = torch.add(loss, negative_score_loss_penalty)
+
                     loss.backward()
                     optimizer.step()
 
-                    training_loss_arr.append(loss)
+                    training_loss_arr.append(loss.detach().cpu())
 
                 if debug_asserts:
                     for name, param in self.model.named_parameters():
@@ -176,8 +184,14 @@ class ABRankingModel:
 
                     if debug_asserts:
                         assert predicted_score_image_x.shape == validation_target.shape
+
+                    # add loss penalty
+                    neg_score = torch.multiply(predicted_score_image_x, -1.0)
+                    negative_score_loss_penalty = self.model.relu_fn(neg_score)
+
                     validation_loss = self.model.l1_loss(predicted_score_image_x, validation_target)
-                    validation_loss_arr.append(validation_loss)
+                    validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
+                    validation_loss_arr.append(validation_loss.detach().cpu())
 
             # calculate epoch loss
             # epoch's training loss
@@ -196,8 +210,8 @@ class ABRankingModel:
             training_loss_per_epoch.append(epoch_training_loss)
             validation_loss_per_epoch.append(epoch_validation_loss)
 
-            self.training_loss = epoch_training_loss
-            self.validation_loss = epoch_validation_loss
+            self.training_loss = epoch_training_loss.detach().cpu()
+            self.validation_loss = epoch_validation_loss.detach().cpu()
 
         # Calculate model performance
         with torch.no_grad():
@@ -275,18 +289,18 @@ class ABRankingModel:
         epsilon = 0.000001
 
         # if score is negative N, make it 0
-        predicted_score_images_x = torch.max(predicted_score_images_x, torch.tensor([0.], device=self._device))
-        predicted_score_images_y = torch.max(predicted_score_images_y, torch.tensor([0.], device=self._device))
+        # predicted_score_images_x = torch.max(predicted_score_images_x, torch.tensor([0.], device=self._device))
+        # predicted_score_images_y = torch.max(predicted_score_images_y, torch.tensor([0.], device=self._device))
 
         # Calculate probability using Bradley Terry Formula: P(x>y) = score(x) / ( Score(x) + score(y))
-        sum_predicted_score = torch.add(predicted_score_images_x, predicted_score_images_y)
-        sum_predicted_score = torch.add(sum_predicted_score, epsilon)
-        pred_probabilities = torch.div(predicted_score_images_x, sum_predicted_score)
+        # sum_predicted_score = torch.add(predicted_score_images_x, predicted_score_images_y)
+        # sum_predicted_score = torch.add(sum_predicted_score, epsilon)
+        # pred_probabilities = torch.div(predicted_score_images_x, sum_predicted_score)
 
         # prob = sigmoid( (x-y) / 100 )
-        # diff_predicted_score = torch.sub(predicted_score_images_x, predicted_score_images_y)
-        # res_predicted_score = torch.div(diff_predicted_score, 100.0)
-        # pred_probabilities = torch.sigmoid(res_predicted_score)
+        diff_predicted_score = torch.sub(predicted_score_images_x, predicted_score_images_y)
+        res_predicted_score = torch.div(diff_predicted_score, 1.0)
+        pred_probabilities = torch.sigmoid(res_predicted_score)
 
         return pred_probabilities
 
