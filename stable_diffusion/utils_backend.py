@@ -13,6 +13,12 @@ def get_device(device=None):
     device_priority = {
         'cuda': [torch.cuda.is_available,
                  lambda x: logger.debug(f'Using CUDA device {torch.cuda.get_device_name(x)}')],
+        'cuda:0': [torch.cuda.is_available,
+                 lambda x: logger.debug(f'Using CUDA device {torch.cuda.get_device_name(x)}')],
+        'cuda:1': [torch.cuda.is_available,
+                 lambda x: logger.debug(f'Using CUDA device {torch.cuda.get_device_name(x)}')],
+        'cuda:2': [torch.cuda.is_available,
+                 lambda x: logger.debug(f'Using CUDA device {torch.cuda.get_device_name(x)}')],
         'mps': [torch.backends.mps.is_available, lambda _: logger.debug('Using MPS device')],
         'cpu': [lambda: True, lambda x: logger.warning(
             f'You are running this script without CUDA or MPS (current device: {x}). It may be very slow')
