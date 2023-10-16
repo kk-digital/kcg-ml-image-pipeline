@@ -273,7 +273,7 @@ def main():
     prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('character',
                                                                     'input/dataset-config/character/base-prompts-waifu.csv')
     prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('environmental',
-                                                                    'input/dataset-config/character/base-prompts-environmental.csv')
+                                                                    'input/dataset-config/environmental/base-prompts-environmental.csv')
 
     # get list of datasets
     list_datasets = http_get_dataset_list()

@@ -121,7 +121,7 @@ def parse_args():
     parser.add_argument("--prompt_count", type=int, default=1)
     parser.add_argument("--csv_dataset_path", type=str, default='input/civitai_phrases_database_v6.csv')
     parser.add_argument("--csv_base_prompts", type=str,
-                        default='input/dataset-config/character/base-prompts-environmental.csv')
+                        default='input/dataset-config/environmental/base-prompts-environmental.csv')
 
     parser.add_argument("--model_path", type=str,
                         default='environmental/models/ranking/ab_ranking_linear/2023-10-13.pth')
