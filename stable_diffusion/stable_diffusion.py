@@ -122,7 +122,7 @@ class StableDiffusion:
         """
         Encode an image in the latent space
         """
-        orig_image = load_img(orig_img).to(self.device)
+        orig_image = load_img(orig_img).to(self._device)
         # Encode the image in the latent space and make `batch_size` copies of it
         orig = self.model.autoencoder_encode(orig_image).repeat(batch_size, 1, 1, 1)
         return orig
@@ -133,7 +133,7 @@ class StableDiffusion:
         autocast = get_autocast()
 
         with autocast:
-            return self.model.autoencoder_encode(image.to(self.device))
+            return self.model.autoencoder_encode(image.to(self._device))
 
     def get_image_from_latent(self, x: torch.Tensor):
         return self.model.autoencoder_decode(x)
@@ -144,16 +144,16 @@ class StableDiffusion:
         autocast = get_autocast()
 
         with autocast:
-            return self.get_image_from_latent(x.to(self.device))
+            return self.get_image_from_latent(x.to(self._device))
 
     def prepare_mask(self, mask: Optional[torch.Tensor], orig: torch.Tensor):
         # If `mask` is not provided,
         # we set a sample mask to preserve the bottom half of the image
         if mask is None:
-            mask = torch.zeros_like(orig, device=self.device)
+            mask = torch.zeros_like(orig, device=self._device)
             mask[:, :, mask.shape[2] // 2:, :] = 1.0
         else:
-            mask = mask.to(self.device)
+            mask = mask.to(self._device)
 
         return mask
 
@@ -226,7 +226,7 @@ class StableDiffusion:
 
     def quick_initialize(self):
         self.model = LatentDiffusion(
-            device=self.device,
+            device=self._device,
         )
         self.initialize_sampler()
         return self.model
@@ -242,7 +242,7 @@ class StableDiffusion:
         try:
             self.model = initialize_latent_diffusion(
                 path=path,
-                device=self.device,
+                device=self._device,
                 autoencoder=autoencoder,
                 clip_text_embedder=clip_text_embedder,
                 unet_model=unet_model,
