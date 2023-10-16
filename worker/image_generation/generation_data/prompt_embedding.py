@@ -1,7 +1,7 @@
 import msgpack
 import numpy as np
 
-class GeneratedImageEmbedding:
+class PromptEmbedding:
     job_uuid: str
     creation_time: str
     dataset: str
