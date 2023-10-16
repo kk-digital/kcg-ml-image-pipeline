@@ -66,16 +66,10 @@ def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count, c
         scored_prompt = ScoredPrompt(prompt_score, positive_text_prompt, negative_text_prompt)
         scored_prompts.append(scored_prompt)
 
-    for item in scored_prompts:
-        print(item.score)
     # Sort the list based on the maximize_int1 function
     sorted_scored_prompts = sorted(scored_prompts, key=maximize_score)
 
-    print('-------------------------')
     chosen_scored_prompts = sorted_scored_prompts[:prompt_count]
-
-    for item in chosen_scored_prompts:
-        print(item.score)
 
     return chosen_scored_prompts
 
@@ -118,7 +112,7 @@ def parse_args():
     parser.add_argument("--device", type=str, default='cuda')
     parser.add_argument("--dataset", type=str, default='environmental')
     parser.add_argument("--top_k", type=float, default=0.1)
-    parser.add_argument("--prompt_count", type=int, default=1)
+    parser.add_argument("--prompt_count", type=int, default=3000)
     parser.add_argument("--csv_dataset_path", type=str, default='input/civitai_phrases_database_v6.csv')
     parser.add_argument("--csv_base_prompts", type=str,
                         default='input/dataset-config/environmental/base-prompts-environmental.csv')
