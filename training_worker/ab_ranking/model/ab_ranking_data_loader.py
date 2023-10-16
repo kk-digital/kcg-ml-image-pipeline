@@ -67,7 +67,8 @@ class ABRankingDatasetLoader:
                  minio_access_key=None,
                  minio_secret_key=None,
                  buffer_size=20000,
-                 train_percent=0.9):
+                 train_percent=0.9,
+                 load_to_ram=False):
         self.dataset_name = dataset_name
 
         self.minio_access_key = minio_access_key
@@ -81,6 +82,11 @@ class ABRankingDatasetLoader:
         self.training_dataset_paths_queue = Queue()
         self.validation_dataset_paths_queue = Queue()
         self.total_num_data = 0
+
+        # load all data to ram
+        self.load_to_ram = load_to_ram
+        self.current_training_data_index = 0
+        self.training_image_pair_data_arr = []
 
         # these will contain features and targets with limit buffer size
         self.training_image_pair_data_buffer = Queue()
@@ -161,10 +167,18 @@ class ABRankingDatasetLoader:
             self.training_dataset_paths_queue.put(data)
 
         self.total_num_data = len(shuffled_training_list) + len(shuffled_validation_list)
+
+        if self.load_to_ram:
+            self.load_all_data(shuffled_training_list)
+
         print("Dataset loaded...")
         print("Time elapsed: {0}s".format(format(time.time() - start_time, ".2f")))
 
     def fill_training_ab_data(self):
+        if self.load_to_ram:
+            self.current_training_data_index = 0
+            return
+
         for data in self.training_dataset_paths_copy:
             self.training_dataset_paths_queue.put(data)
 
@@ -184,8 +198,6 @@ class ABRankingDatasetLoader:
     def get_selection_datapoint_image_pair(self, dataset):
         dataset_path = dataset[0]
         data_target = dataset[1]
-
-        image_pair_data_list = []
 
         # load json object from minio
         data = get_object(self.minio_client, dataset_path)
@@ -256,9 +268,13 @@ class ABRankingDatasetLoader:
         # else:
         #     image_pair = (self.rand_b, self.rand_a, [data_target])
 
-        image_pair_data_list.append(image_pair)
+        return image_pair
 
-        return image_pair_data_list
+    def load_all_data(self, paths_list):
+        print("Loading all training data to ram...")
+        for path in paths_list:
+            image_pair_data = self.get_selection_datapoint_image_pair(path)
+            self.training_image_pair_data_arr.append(image_pair_data)
 
     def get_training_data_and_save_to_buffer(self, dataset_path):
         # get data
@@ -295,6 +311,10 @@ class ABRankingDatasetLoader:
         self.fill_semaphore.release()
 
     def spawn_filling_workers(self):
+        if self.load_to_ram:
+            # we don't need to fill, so return
+            return
+
         for i in range(self.num_filling_workers):
             # fill data buffer
             # if buffer is empty, fill data
@@ -306,12 +326,23 @@ class ABRankingDatasetLoader:
         image_y_feature_vectors = []
         target_probabilities = []
 
-        for _ in range(num_data):
-            training_image_pair_data = self.training_image_pair_data_buffer.get()
-            image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(training_image_pair_data)
-            image_x_feature_vectors.append(image_x_feature_vector)
-            image_y_feature_vectors.append(image_y_feature_vector)
-            target_probabilities.append(target_probability)
+        if self.load_to_ram:
+            for _ in range(num_data):
+                training_image_pair_data = self.training_image_pair_data_arr[self.current_training_data_index]
+                image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
+                    training_image_pair_data)
+                image_x_feature_vectors.append(image_x_feature_vector)
+                image_y_feature_vectors.append(image_y_feature_vector)
+                target_probabilities.append(target_probability)
+                self.current_training_data_index += 1
+
+        else:
+            for _ in range(num_data):
+                training_image_pair_data = self.training_image_pair_data_buffer.get()
+                image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(training_image_pair_data)
+                image_x_feature_vectors.append(image_x_feature_vector)
+                image_y_feature_vectors.append(image_y_feature_vector)
+                target_probabilities.append(target_probability)
 
         image_x_feature_vectors = np.array(image_x_feature_vectors, dtype=np.float32)
         image_y_feature_vectors = np.array(image_y_feature_vectors, dtype=np.float32)
@@ -338,13 +369,13 @@ class ABRankingDatasetLoader:
         # get ab data
         while self.validation_dataset_paths_queue.qsize() > 0:
             dataset_path = self.validation_dataset_paths_queue.get()
-            image_pair_data_list = self.get_selection_datapoint_image_pair(dataset_path)
-            for image_pair in image_pair_data_list:
-                image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
-                    image_pair)
-                image_x_feature_vectors.append(image_x_feature_vector)
-                image_y_feature_vectors.append(image_y_feature_vector)
-                target_probabilities.append(target_probability)
+            image_pair = self.get_selection_datapoint_image_pair(dataset_path)
+
+            image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
+                image_pair)
+            image_x_feature_vectors.append(image_x_feature_vector)
+            image_y_feature_vectors.append(image_y_feature_vector)
+            target_probabilities.append(target_probability)
 
         image_x_feature_vectors = np.array(image_x_feature_vectors, dtype=np.float32)
         image_y_feature_vectors = np.array(image_y_feature_vectors, dtype=np.float32)
@@ -362,12 +393,24 @@ class ABRankingDatasetLoader:
         image_y_feature_vectors = []
         target_probabilities = []
 
-        for _ in range(num_data):
-            training_image_pair_data = self.training_image_pair_data_buffer.get()
-            image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(training_image_pair_data)
-            image_x_feature_vectors.append(image_x_feature_vector)
-            image_y_feature_vectors.append(image_y_feature_vector)
-            target_probabilities.append(target_probability)
+        if self.load_to_ram:
+            for _ in range(num_data):
+                training_image_pair_data = self.training_image_pair_data_arr[self.current_training_data_index]
+                image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
+                    training_image_pair_data)
+                image_x_feature_vectors.append(image_x_feature_vector)
+                image_y_feature_vectors.append(image_y_feature_vector)
+                target_probabilities.append(target_probability)
+                self.current_training_data_index += 1
+
+        else:
+            for _ in range(num_data):
+                training_image_pair_data = self.training_image_pair_data_buffer.get()
+                image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
+                    training_image_pair_data)
+                image_x_feature_vectors.append(image_x_feature_vector)
+                image_y_feature_vectors.append(image_y_feature_vector)
+                target_probabilities.append(target_probability)
 
         image_x_feature_vectors = np.array(image_x_feature_vectors, dtype=np.float32)
         image_y_feature_vectors = np.array(image_y_feature_vectors, dtype=np.float32)
@@ -402,13 +445,13 @@ class ABRankingDatasetLoader:
         # get ab data
         while self.validation_dataset_paths_queue.qsize() > 0:
             dataset_path = self.validation_dataset_paths_queue.get()
-            image_pair_data_list = self.get_selection_datapoint_image_pair(dataset_path)
-            for image_pair in image_pair_data_list:
-                image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
-                    image_pair)
-                image_x_feature_vectors.append(image_x_feature_vector)
-                image_y_feature_vectors.append(image_y_feature_vector)
-                target_probabilities.append(target_probability)
+            image_pair = self.get_selection_datapoint_image_pair(dataset_path)
+
+            image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
+                image_pair)
+            image_x_feature_vectors.append(image_x_feature_vector)
+            image_y_feature_vectors.append(image_y_feature_vector)
+            target_probabilities.append(target_probability)
 
         image_x_feature_vectors = np.array(image_x_feature_vectors, dtype=np.float32)
         image_y_feature_vectors = np.array(image_y_feature_vectors, dtype=np.float32)
