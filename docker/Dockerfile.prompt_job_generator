@@ -1,0 +1,19 @@
+FROM docker.io/nvidia/cuda:11.3.1-cudnn8-runtime-ubuntu20.04
+
+# Copy repo
+COPY ./ /kcg-ml-image-pipeline
+WORKDIR /kcg-ml-image-pipeline
+
+# create clip model dir and copy model
+RUN mkdir -p /.cache/huggingface
+COPY ./hub /.cache/huggingface/hub
+RUN chmod -R 777 /.cache
+
+# install prerequisites
+RUN apt-get update && apt-get install -y python3 python3-pip && apt-get install -y python-is-python3
+RUN apt-get install -y unzip
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libasound-dev portaudio19-dev libportaudio2 libportaudiocpp0 libsndfile1 wget libgl1-mesa-glx
+
+RUN pip install -r /kcg-ml-image-pipeline/requirements.txt
+
+ENTRYPOINT ["/kcg-ml-image-pipeline/prompt_job_generator/prompt_job_generator.sh"]
