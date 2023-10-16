@@ -99,6 +99,22 @@ def http_get_all_dataset_rate():
     return None
 
 
+def http_get_all_dataset_config():
+    url = SERVER_ADRESS + f"/dataset/get-all-dataset-config"
+
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            job_json = response.json()
+            return job_json
+
+    except Exception as e:
+        print('request exception ', e)
+
+    return None
+
+
 def http_get_dataset_generation_policy(dataset : str):
     url = SERVER_ADRESS + f"/dataset/get-generation-policy?dataset={dataset}"
 
@@ -149,6 +165,22 @@ def http_get_dataset_top_k_value(dataset : str):
 
 def http_get_dataset_job_per_second(dataset : str, sample_size : int):
     url = SERVER_ADRESS + f"/job/get-dataset-job-per-second?dataset={dataset}&sample_size={sample_size}"
+
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            job_json = response.json()
+            return job_json
+
+    except Exception as e:
+        print('request exception ', e)
+
+    return None
+
+
+def http_get_dataset_model_list(dataset_name: str):
+    url = SERVER_ADRESS + f"/models/rank-embedding/list-models?dataset={dataset_name}"
 
     try:
         response = requests.get(url)

@@ -304,7 +304,7 @@ class ABRankingModel:
 
         return pred_probabilities
 
-    def predict_positive_negative(self, positive_input, negative_input):
+    def predict(self, positive_input, negative_input):
         # get rid of the 1 dimension at start
         positive_input = positive_input.squeeze()
         negative_input = negative_input.squeeze()
