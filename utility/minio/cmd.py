@@ -9,17 +9,22 @@ from utility.utils_logger import logger
 MINIO_ADDRESS = "192.168.3.5:9000"
 
 
-def get_minio_client(minio_access_key, minio_secret_key):
+def get_minio_client(minio_access_key, minio_secret_key, minio_addr=None):
     # check first if minio client is available
     minio_client = None
     while minio_client is None:
         # check minio server
         if is_minio_server_accesssible():
-            minio_client = connect_to_minio_client(minio_access_key, minio_secret_key)
+            minio_client = connect_to_minio_client(minio_addr, minio_access_key, minio_secret_key)
             return minio_client
 
 
-def connect_to_minio_client(access_key=None, secret_key=None):
+def connect_to_minio_client(minio_addr=None, access_key=None, secret_key=None,):
+    global MINIO_ADDRESS
+
+    if minio_addr is not None:
+        MINIO_ADDRESS = minio_addr
+
     print("Connecting to minio client...")
     client = Minio(MINIO_ADDRESS, access_key, secret_key, secure=False)
     print("Successfully connected to minio client...")
@@ -146,14 +151,3 @@ def is_object_exists(client, bucket_name, object_name):
         return True
 
     return False
-
-def get_minio_client(minio_access_key, minio_secret_key, try_count=5):
-    # check first if minio client is available
-    minio_client = None
-    try_index = 0
-    while minio_client is None and try_index < try_count:
-        # check minio server
-        try_index = try_index + 1
-        if is_minio_server_accesssible():
-            minio_client = connect_to_minio_client(minio_access_key, minio_secret_key)
-            return minio_client

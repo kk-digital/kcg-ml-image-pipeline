@@ -1,5 +1,17 @@
 # kcg-ml-image-pipeline
 
+- [kcg-ml-image-pipeline](#kcg-ml-image-pipeline)
+  - [Prerequisites](#prerequisites)
+    - [Use Python Environment:](#use-python-environment)
+    - [Install Dependencies](#install-dependencies)
+    - [Install MongoDB and Running MongoDB](#install-mongodb-and-running-mongodb)
+  - [Orchestration API](#orchestration-api)
+  - [Worker](#worker)
+    - [Prompt Generator](#prompt-generator)
+  - [Model Training](#model-training)
+    - [AB Ranking Linear Model](#ab-ranking-linear-model)
+    - [AB Ranking Efficient Net Model](#ab-ranking-efficient-net-model)
+
 ## Prerequisites
 ### Use Python Environment:
 Create an env by running:
@@ -110,4 +122,17 @@ Example Usage:
 python ./prompt_generation/scripts/prompt_generator.py --num-prompts 10000 --positive-prefix "icon, game icon, crystal, high resolution, contour, game icon, jewels, minerals, stones, gems, flat, vector art, game art, stylized, cell shaded, 8bit, 16bit, retro, russian futurism" --csv-phrase-limit 512 --csv-path ./input/civitai_phrases_database_v6.csv --output ./output/prompt_list_civitai_10000 --positive-ratio-threshold 3 --negative-ratio-threshold 3
 ```
 
+## Model Training
+### AB Ranking Linear Model
+To train ab ranking linear model:
+1. Install dependencies by running `pip install -r requirements.txt`
+2. Go to [ab_ranking_linear test run entrypoint](https://github.com/kk-digital/kcg-ml-image-pipeline/blob/main/training_worker/ab_ranking/script/ab_ranking_linear.py#L175)
+2. Input the minio server's address, your minio secret, and your minio access key.
+3. Run using `python python ./training_worker/ab_ranking/script/ab_ranking_linear.py`
 
+### AB Ranking Efficient Net Model
+To train ab ranking linear model:
+1. Install dependencies by running `pip install -r requirements.txt`
+2. Go to [ab_ranking_efficient_net test run entrypoint](https://github.com/kk-digital/kcg-ml-image-pipeline/blob/main/training_worker/ab_ranking/script/ab_ranking_efficient_net.py#L184)
+2. Input the minio server's address, your minio secret, and your minio access key.
+3. Run using `python python ./training_worker/ab_ranking/script/ab_ranking_efficient_net.py`
