@@ -14,6 +14,8 @@ from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
 from training_worker.ab_ranking.model.ab_ranking_efficient_net import ABRankingEfficientNetModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
+from worker.prompt_generation.prompt_generator import (generate_inpainting_job,
+                                                       generate_image_generation_jobs)
 
 def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count, csv_dataset_path, base_prompts_csv_path, top_k):
 
@@ -105,6 +107,25 @@ def load_linear_model(minio_client, dataset_bucket, model_path):
     return linear_model
 
 
+def generate_environmental_image_generation_jobs(scored_prompt):
+
+    dataset_name = 'environmental'
+
+    print(f"Adding '{dataset_name}' generation job")
+
+
+    if scored_prompt is None:
+        return
+
+    positive_prompt = scored_prompt.positive_prompt
+    negative_prompt = scored_prompt.negative_prompt
+
+    generate_image_generation_jobs(
+        positive_prompt=positive_prompt,
+        negative_prompt=negative_prompt,
+        dataset_name=dataset_name,
+    )
+
 def parse_args():
     parser = argparse.ArgumentParser(description="generate prompts")
 
@@ -112,7 +133,7 @@ def parse_args():
     parser.add_argument("--device", type=str, default='cuda')
     parser.add_argument("--dataset", type=str, default='environmental')
     parser.add_argument("--top_k", type=float, default=0.1)
-    parser.add_argument("--prompt_count", type=int, default=3000)
+    parser.add_argument("--prompt_count", type=int, default=1)
     parser.add_argument("--csv_dataset_path", type=str, default='input/civitai_phrases_database_v6.csv')
     parser.add_argument("--csv_base_prompts", type=str,
                         default='input/dataset-config/environmental/base-prompts-environmental.csv')
@@ -152,8 +173,11 @@ def main():
 
     scoring_model = load_linear_model(minio_client, 'datasets', model_path)
 
-    generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count, csv_dataset_path,
+    prompt_list = generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count, csv_dataset_path,
                          csv_base_prompts, top_k)
+
+    for prompt in prompt_list:
+        generate_environmental_image_generation_jobs(prompt)
 
 
 if __name__ == '__main__':
