@@ -12,6 +12,7 @@ from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from training_worker.ab_ranking.model.reports.ab_ranking_linear_train_report import get_train_report
 from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import *
 from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDatasetLoader
+from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
 from utility.minio import cmd
 
 
@@ -29,9 +30,11 @@ def train_ranking(dataset_name: str,
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
-    input_type = "embedding-vector"
+    network_type= "linear"
+    input_type = "embedding"
+    output_type = "score"
     input_shape = 2*768
-    output_path = "{}/models/ranking/ab_ranking_linear".format(dataset_name)
+    output_path = "{}/models/ranking/ab_ranking_linear-test".format(dataset_name)
 
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name=dataset_name,
@@ -158,13 +161,20 @@ def train_ranking(dataset_name: str,
                                     validation_predicted_score_images_y,
                                     training_total_size,
                                     validation_total_size,
-                                    input_type,
                                     training_loss_per_epoch,
                                     validation_loss_per_epoch,
                                     epochs,
                                     learning_rate,
                                     training_batch_size,
-                                    weight_decay)
+                                    weight_decay,
+                                    date_now,
+                                    network_type,
+                                    input_type,
+                                    output_type,
+                                    train_sum_correct,
+                                    validation_sum_correct,
+                                    ab_model.loss_func_name,
+                                    dataset_name)
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
 

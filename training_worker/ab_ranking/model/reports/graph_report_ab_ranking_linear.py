@@ -66,8 +66,10 @@ def separate_values_based_on_targets(training_targets, validation_targets, train
 
 def get_graph_report(train_prob_predictions, training_targets, validation_prob_predictions, validation_targets,
                       training_pred_scores_img_x, training_pred_scores_img_y, validation_pred_scores_img_x,
-                      validation_pred_scores_img_y, training_total_size, validation_total_size, input_type,
-                      training_losses, validation_losses, epochs, learning_rate,training_batch_size, weight_decay):
+                      validation_pred_scores_img_y, training_total_size, validation_total_size,
+                      training_losses, validation_losses, epochs, learning_rate,training_batch_size,
+                     weight_decay, date, network_type, input_type, output_type, train_sum_correct,
+                                    validation_sum_correct, loss_func, dataset_name):
     train_prob_predictions_target_1, \
         train_prob_predictions_target_0, \
         validation_prob_predictions_target_1, \
@@ -125,7 +127,7 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
 
     predicted_prob.set_xlabel("Sample")
     predicted_prob.set_ylabel("Predicted Probability")
-    predicted_prob.set_title("Sample vs Predicted Probability".format(input_type))
+    predicted_prob.set_title("Sample vs Predicted Probability")
     predicted_prob.legend()
 
     predicted_prob.autoscale(enable=True, axis='y')
@@ -139,7 +141,7 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
 
     loss_per_epoch.set_xlabel("Epoch")
     loss_per_epoch.set_ylabel("Loss")
-    loss_per_epoch.set_title("Loss Per Epoch".format(input_type))
+    loss_per_epoch.set_title("Loss Per Epoch")
     loss_per_epoch.legend()
     loss_per_epoch.autoscale(enable=True, axis='y')
     # ----------------------------------------------------------------------------------------------------------------#
@@ -148,7 +150,7 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
     training_scores_predictions = np.append(training_pred_scores_img_x, training_pred_scores_img_y)
     train_scores_histogram.set_xlabel("Predicted Score")
     train_scores_histogram.set_ylabel("Frequency")
-    train_scores_histogram.set_title("Train Scores Histogram".format(input_type))
+    train_scores_histogram.set_title("Train Scores Histogram")
     train_scores_histogram.hist(training_scores_predictions)
     train_scores_histogram.yaxis.set_major_formatter(PercentFormatter(1))
 
@@ -157,7 +159,7 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
 
     validation_scores_histogram.set_xlabel("Predicted Score")
     validation_scores_histogram.set_ylabel("Frequency")
-    validation_scores_histogram.set_title("Validation Scores Histogram".format(input_type))
+    validation_scores_histogram.set_title("Validation Scores Histogram")
     validation_scores_histogram.hist(validation_scores_predictions)
     validation_scores_histogram.yaxis.set_major_formatter(PercentFormatter(1))
     # ----------------------------------------------------------------------------------------------------------------#
@@ -172,7 +174,7 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
 
     train_residual_histogram.set_xlabel("Residual")
     train_residual_histogram.set_ylabel("Frequency")
-    train_residual_histogram.set_title("Train Residual Histogram".format(input_type))
+    train_residual_histogram.set_title("Train Residual Histogram")
     train_residual_histogram.hist(training_residuals)
     train_residual_histogram.yaxis.set_major_formatter(PercentFormatter(1))
 
@@ -185,7 +187,7 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
 
     validation_residual_histogram.set_xlabel("Residual")
     validation_residual_histogram.set_ylabel("Frequency")
-    validation_residual_histogram.set_title("Validation Residual Histogram".format(input_type))
+    validation_residual_histogram.set_title("Validation Residual Histogram")
     validation_residual_histogram.hist(validation_residuals)
     validation_residual_histogram.yaxis.set_major_formatter(PercentFormatter(1))
     # ----------------------------------------------------------------------------------------------------------------#
@@ -202,7 +204,7 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
 
     train_target_1_predicted_scores.set_xlabel("Sample")
     train_target_1_predicted_scores.set_ylabel("Predicted Score")
-    train_target_1_predicted_scores.set_title("Train Predicted Score for target 1.0".format(input_type))
+    train_target_1_predicted_scores.set_title("Train Predicted Score for target 1.0")
     train_target_1_predicted_scores.legend()
 
     # validation_target_1_predicted_scores
@@ -219,7 +221,7 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
 
     validation_target_1_predicted_scores.set_xlabel("Sample")
     validation_target_1_predicted_scores.set_ylabel("Predicted Score")
-    validation_target_1_predicted_scores.set_title("Validation Predicted Score for target 1.0".format(input_type))
+    validation_target_1_predicted_scores.set_title("Validation Predicted Score for target 1.0")
     validation_target_1_predicted_scores.legend()
 
 
@@ -236,7 +238,7 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
 
     train_target_0_predicted_scores.set_xlabel("Sample")
     train_target_0_predicted_scores.set_ylabel("Predicted Score")
-    train_target_0_predicted_scores.set_title("Train Predicted Score for target 0.0".format(input_type))
+    train_target_0_predicted_scores.set_title("Train Predicted Score for target 0.0")
     train_target_0_predicted_scores.legend()
 
     # validation_target_0_predicted_scores
@@ -253,22 +255,41 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
 
     validation_target_0_predicted_scores.set_xlabel("Sample")
     validation_target_0_predicted_scores.set_ylabel("Predicted Score")
-    validation_target_0_predicted_scores.set_title("Validation Predicted Score for target 0.0".format(input_type))
+    validation_target_0_predicted_scores.set_title("Validation Predicted Score for target 0.0")
     validation_target_0_predicted_scores.legend()
     # ----------------------------------------------------------------------------------------------------------------#
 
     # add additional info on top left side
-    plt.figtext(0, 0.85, "Training size = {}\n"
+    plt.figtext(0, 0.65, "Date = {}\n"
+                         "Dataset = {}\n"
+                         "Network type = {}\n"
+                         "Input type = {}\n"
+                         "Output type= {}\n\n"
+                         "Training size = {}\n"
                          "Validation size = {}\n"
+                         "Train Correct Predictions \n= {}({:02.02f}%)\n"
+                         "Validation Correct \nPredictions = {}({:02.02f}%)\n\n"
                          "Learning rate = {}\n"
                          "Epochs = {}\n"
                          "Training batch size = {}\n"
-                         "Weight decay = {}".format(training_total_size,
-                                                    validation_total_size,
-                                                    learning_rate,
-                                                    epochs,
-                                                    training_batch_size,
-                                                    weight_decay))
+                         "Weight decay = {}\n"
+                         "Loss func = {}\n".format(date,
+                                                   dataset_name,
+                                                   network_type,
+                                                   input_type,
+                                                   output_type,
+                                                   training_total_size,
+                                                   validation_total_size,
+                                                   train_sum_correct,
+                                                   (train_sum_correct / training_total_size) * 100,
+                                                   validation_sum_correct,
+                                                   (validation_sum_correct / validation_total_size) * 100,
+                                                   learning_rate,
+                                                   epochs,
+                                                   training_batch_size,
+                                                   weight_decay,
+                                                   loss_func)
+                )
 
     # Save figure
     # graph_path = os.path.join(model_output_path, graph_name)

@@ -29,7 +29,10 @@ def train_ranking(dataset_name: str,
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
-    input_type = "embedding-vector"
+    efficient_net_version = "b0"
+    network_type = "efficient-net-{}".format(efficient_net_version)
+    input_type = "embedding"
+    output_type = "score"
     output_path = "{}/models/ranking/ab_ranking_efficient_net".format(dataset_name)
 
 
@@ -47,7 +50,7 @@ def train_ranking(dataset_name: str,
     training_total_size = dataset_loader.get_len_training_ab_data()
     validation_total_size = dataset_loader.get_len_validation_ab_data()
 
-    ab_model = ABRankingEfficientNetModel(efficient_net_version="b0",
+    ab_model = ABRankingEfficientNetModel(efficient_net_version=efficient_net_version,
                                           in_channels=2,
                                           num_classes=1)
     training_predicted_score_images_x, \
@@ -161,13 +164,20 @@ def train_ranking(dataset_name: str,
                                     validation_predicted_score_images_y,
                                     training_total_size,
                                     validation_total_size,
-                                    input_type,
                                     training_loss_per_epoch,
                                     validation_loss_per_epoch,
                                     epochs,
                                     learning_rate,
                                     training_batch_size,
-                                    weight_decay)
+                                    weight_decay,
+                                    date_now,
+                                    network_type,
+                                    input_type,
+                                    output_type,
+                                    train_sum_correct,
+                                    validation_sum_correct,
+                                    ab_model.loss_func_name,
+                                    dataset_name)
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
 
