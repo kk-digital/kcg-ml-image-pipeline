@@ -4,10 +4,6 @@ FROM docker.io/nvidia/cuda:11.3.1-cudnn8-runtime-ubuntu20.04
 COPY ./ /kcg-ml-image-pipeline
 WORKDIR /kcg-ml-image-pipeline
 
-RUN ls -l
-RUN ls -l /kcg-ml-image-pipeline
-COPY ./requirements.txt /kcg-ml-image-pipeline/requirements.txt
-
 # create clip model dir and copy model
 RUN mkdir -p /.cache/huggingface
 COPY ./hub /.cache/huggingface/hub
