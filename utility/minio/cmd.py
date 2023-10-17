@@ -6,24 +6,25 @@ from utility.utils_logger import logger
 
 # TODO: remove hardcode in the future
 #  use config file
-MINIO_ADDRESS = "192.168.3.5:9000"
+#MINIO_ADDRESS = "192.168.3.5:9000"
 
 
-def get_minio_client(minio_access_key, minio_secret_key, minio_ip_addr=None):
+def get_minio_client(minio_access_key, minio_secret_key, minio_addr=None):
     # check first if minio client is available
     minio_client = None
+    print(minio_addr)
     while minio_client is None:
         # check minio server
-        if is_minio_server_accesssible():
-            minio_client = connect_to_minio_client(minio_ip_addr, minio_access_key, minio_secret_key)
+        if is_minio_server_accesssible(minio_addr):
+            minio_client = connect_to_minio_client(minio_addr, minio_access_key, minio_secret_key)
             return minio_client
 
 
-def connect_to_minio_client(minio_ip_addr=None, access_key=None, secret_key=None,):
+def connect_to_minio_client(minio_addr=None, access_key=None, secret_key=None,):
     global MINIO_ADDRESS
 
-    if minio_ip_addr is not None:
-        MINIO_ADDRESS = minio_ip_addr
+    if minio_addr is not None:
+        MINIO_ADDRESS = minio_addr
 
     print("Connecting to minio client...")
     client = Minio(MINIO_ADDRESS, access_key, secret_key, secure=False)
@@ -31,10 +32,10 @@ def connect_to_minio_client(minio_ip_addr=None, access_key=None, secret_key=None
     return client
 
 
-def is_minio_server_accesssible():
+def is_minio_server_accesssible(minio_addr):
     print("Checking if minio server is accessible...")
     try:
-        r = requests.head("http://" + MINIO_ADDRESS + "/minio/health/live", timeout=5)
+        r = requests.head("http://" + minio_addr + "/minio/health/live", timeout=5)
     except:
         print("Minio server is not accessible...")
         return False
