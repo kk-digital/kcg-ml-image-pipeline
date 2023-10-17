@@ -24,7 +24,8 @@ def train_ranking(dataset_name: str,
                   buffer_size=20000,
                   train_percent=0.9,
                   training_batch_size=1,
-                  weight_decay=0.01):
+                  weight_decay=0.01,
+                  load_data_to_ram=False):
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
@@ -38,7 +39,8 @@ def train_ranking(dataset_name: str,
                                             minio_access_key=minio_access_key,
                                             minio_secret_key=minio_secret_key,
                                             buffer_size=buffer_size,
-                                            train_percent=train_percent)
+                                            train_percent=train_percent,
+                                            load_to_ram=load_data_to_ram)
     dataset_loader.load_dataset()
 
     training_total_size = dataset_loader.get_len_training_ab_data()
@@ -166,6 +168,12 @@ def train_ranking(dataset_name: str,
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
 
+    # get model card and upload
+    model_card_name = "{}.json".format(date_now)
+    model_card_name_output_path = os.path.join(output_path, model_card_name)
+    model_card_buf = get_model_card_buf(ab_model, training_total_size, validation_total_size, graph_output_path)
+    cmd.upload_data(dataset_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
+
     return model_output_path, report_output_path, graph_output_path
 
 
@@ -193,7 +201,8 @@ def test_run():
                   buffer_size=20000,
                   train_percent=0.9,
                   training_batch_size=1,
-                  weight_decay=0.01)
+                  weight_decay=0.01,
+                  load_data_to_ram=True)
 
 
 if __name__ == '__main__':
