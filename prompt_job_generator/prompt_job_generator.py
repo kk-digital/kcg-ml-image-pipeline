@@ -9,10 +9,13 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from prompt_job_generator_state import PromptJobGeneratorState
-from prompt_job_generator_functions import generate_icon_generation_jobs, generate_character_generation_jobs, generate_mechs_image_generation_jobs, generate_propaganda_posters_image_generation_jobs
+from prompt_job_generator_functions import generate_icon_generation_jobs, generate_character_generation_jobs, generate_mechs_image_generation_jobs, generate_propaganda_posters_image_generation_jobs, generate_environmental_image_generation_jobs
 from prompt_job_generator.http_requests.request import (http_get_all_dataset_rate, http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list,
-                                                        http_get_dataset_job_per_second, http_get_all_dataset_generation_policy, http_get_dataset_top_k_value)
-from prompt_job_generator_constants import JOB_PER_SECOND_SAMPLE_SIZE, DEFAULT_TOP_K_VALUE
+                                                        http_get_dataset_job_per_second, http_get_all_dataset_generation_policy, http_get_dataset_top_k_value,
+                                                        http_get_all_dataset_config, http_get_dataset_model_list)
+from prompt_job_generator_constants import JOB_PER_SECOND_SAMPLE_SIZE, DEFAULT_TOP_K_VALUE, DEFAULT_DATASET_RATE
+
+from utility.path import separate_bucket_and_file_path
 
 
 def parse_args():
@@ -50,20 +53,44 @@ def update_datasets_prompt_queue(prompt_job_generator_state, list_datasets):
         thread.join()
 
 
-def update_dataset_rates(prompt_job_generator_state, list_datasets):
+def update_database_model_list(prompt_job_generator_state, list_datasets):
 
     # if dataset list is null return
     if list_datasets is None:
         return
 
-    dataset_rate_json = http_get_all_dataset_rate()
-    dataset_rate_dictionary = {}
+    # loop through all datasets and
+    # for each dataset update the model_list
+    # from orchestration api
+    for dataset in list_datasets:
 
-    for dataset_rate in dataset_rate_json:
-        dataset = dataset_rate['dataset_name']
-        dataset_rate = dataset_rate['dataset_rate']
+        dataset_model_list = http_get_dataset_model_list(dataset)
 
-        dataset_rate_dictionary[dataset] = dataset_rate
+        if dataset_model_list is None:
+            continue
+
+        dataset_model_dictionary = {}
+
+        for item in dataset_model_list:
+            model_name = item['model_name']
+            dataset_model_dictionary[model_name] = item
+
+        prompt_job_generator_state.set_dataset_model_list(dataset, dataset_model_dictionary)
+
+
+def update_dataset_config_data(prompt_job_generator_state, list_datasets):
+
+    # if dataset list is null return
+    if list_datasets is None:
+        return
+
+    dataset_config_json = http_get_all_dataset_config()
+    dataset_config_dictionary = {}
+
+    for dataset_config in dataset_config_json:
+        dataset = dataset_config['dataset_name']
+
+        dataset_config_dictionary[dataset] = dataset_config
 
     # loop through all datasets and
     # for each dataset update the dataset_rate
@@ -71,14 +98,29 @@ def update_dataset_rates(prompt_job_generator_state, list_datasets):
     total_rate = 0
     for dataset in list_datasets:
 
-        if dataset not in dataset_rate_dictionary:
+        if dataset not in dataset_config_dictionary:
             continue
 
-        dataset_rate = int(dataset_rate_dictionary[dataset])
+        dataset_data = dataset_config_dictionary[dataset]
+
+        # the number type fields we get from the orchestration api
+        # have to be converted from string to number
+        # convert the string to float
+        if 'dataset_rate' in dataset_data:
+            dataset_rate = float(dataset_data['dataset_rate'])
+            dataset_data['dataset_rate'] = dataset_rate
+        else:
+            dataset_rate = DEFAULT_DATASET_RATE
+
+        if 'top_k' in dataset_data:
+            dataset_top_k = float(dataset_data['top_k'])
+            dataset_data['dataset_top_k'] = dataset_top_k
+        else:
+            dataset_top_k = DEFAULT_TOP_K_VALUE
 
         total_rate += dataset_rate
 
-        prompt_job_generator_state.set_dataset_rate(dataset, dataset_rate)
+        prompt_job_generator_state.set_dataset_data(dataset, dataset_data)
 
     prompt_job_generator_state.set_total_rate(total_rate)
 
@@ -112,48 +154,39 @@ def update_dataset_job_queue_size(prompt_job_generator_state, list_datasets):
         job_queue_size = in_progress_job_count + pending_job_count
         # Target number of Jobs in Queue
         # Equals: Time Speed (Jobs/Second) times 60*5 (300); 5 minutes
-        job_queue_target = 60 * 5 * job_per_second
+        job_queue_target = int(60 * 5 * job_per_second)
 
         prompt_job_generator_state.set_dataset_job_queue_size(dataset, job_queue_size)
         prompt_job_generator_state.set_dataset_job_queue_target(dataset, job_queue_target)
 
 
-def update_dataset_prompt_generation_policy(prompt_job_generator_state, list_datasets):
+def load_dataset_models(prompt_job_generator_state, dataset_list):
 
-    # if dataset list is null return
-    if list_datasets is None:
+    if dataset_list is None:
         return
 
-    dataset_generation_policy_json = http_get_all_dataset_generation_policy()
-    dataset_generation_policy_dictionary = {}
+    for dataset in dataset_list:
+        dataset_model_name = prompt_job_generator_state.get_dataset_ranking_model(dataset)
 
-    for dataset_generation_policy in dataset_generation_policy_json:
-        dataset = dataset_generation_policy['dataset_name']
-        generation_policy = dataset_generation_policy['generation_policy']
+        model_info = prompt_job_generator_state.get_dataset_model_info(dataset, dataset_model_name)
 
-        dataset_generation_policy_dictionary[dataset] = generation_policy
-
-    # loop through all datasets and
-    # for each dataset update the generation policy
-    # from orchestration api rates
-    for dataset in list_datasets:
-
-        if dataset not in dataset_generation_policy_dictionary:
+        if model_info is None:
             continue
 
-        generation_policy = dataset_generation_policy_dictionary[dataset]
+        model_type = model_info['model_architecture']
 
-        prompt_job_generator_state.set_dataset_prompt_generation_policy(dataset, generation_policy)
+        model_path = model_info['model_path']
 
-        if generation_policy == 'top-k':
-            top_k = http_get_dataset_top_k_value(dataset)
-            if top_k is None:
-                top_k = DEFAULT_TOP_K_VALUE
-            else:
-                top_k = float(top_k['top_k'])
+        bucket_name, file_path = separate_bucket_and_file_path(model_path)
 
-            prompt_job_generator_state.set_dataset_top_k(dataset, top_k)
+        if model_type == 'image-pair-ranking-efficient-net':
+            prompt_job_generator_state.load_efficient_net_model(bucket_name, 'datasets', model_path)
+        elif model_type == 'ab_ranking_efficient_net':
+            prompt_job_generator_state.load_efficient_net_model(bucket_name, 'datasets', model_path)
+        elif model_type == 'ab_ranking_linear':
+            prompt_job_generator_state.load_linear_model(bucket_name, 'datasets', model_path)
 
+        print(f'Loaded model {dataset_model_name} for dataset {dataset}')
 
 def update_dataset_prompt_queue_background_thread(prompt_job_generator_state):
 
@@ -166,15 +199,18 @@ def update_dataset_prompt_queue_background_thread(prompt_job_generator_state):
         sleep_time_in_seconds = 1.0
         time.sleep(sleep_time_in_seconds)
 
+
 def update_dataset_values_background_thread(prompt_job_generator_state):
 
     while True:
         # get list of datasets
         list_datasets = http_get_dataset_list()
 
-        update_dataset_rates(prompt_job_generator_state, list_datasets)
+        update_database_model_list(prompt_job_generator_state, list_datasets)
+        update_dataset_config_data(prompt_job_generator_state, list_datasets)
         update_dataset_job_queue_size(prompt_job_generator_state, list_datasets)
-        update_dataset_prompt_generation_policy(prompt_job_generator_state, list_datasets)
+
+        load_dataset_models(prompt_job_generator_state, list_datasets)
 
         sleep_time_in_seconds = 2.0
         time.sleep(sleep_time_in_seconds)
@@ -225,9 +261,7 @@ def main():
     prompt_job_generator_state.register_callback("propaganda-poster", generate_propaganda_posters_image_generation_jobs)
     prompt_job_generator_state.register_callback("mech", generate_mechs_image_generation_jobs)
     prompt_job_generator_state.register_callback("character", generate_character_generation_jobs)
-
-    prompt_job_generator_state.load_efficient_net_model('character', 'datasets',
-                                          'character/models/ranking/ab_ranking_efficient_net/2023-10-10.pth')
+    prompt_job_generator_state.register_callback("environmental", generate_environmental_image_generation_jobs)
 
     # setting the base prompt csv for each dataset
     prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('icons',
@@ -239,15 +273,21 @@ def main():
     prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('character',
                                                                     'input/dataset-config/character/base-prompts-waifu.csv')
     prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('environmental',
-                                                                    'input/dataset-config/icon/base-prompts-icon-2.csv')
+                                                                    'input/dataset-config/environmental/base-prompts-environmental.csv')
 
     # get list of datasets
     list_datasets = http_get_dataset_list()
 
-    update_dataset_rates(prompt_job_generator_state, list_datasets)
+    update_database_model_list(prompt_job_generator_state, list_datasets)
+    update_dataset_config_data(prompt_job_generator_state, list_datasets)
     update_dataset_job_queue_size(prompt_job_generator_state, list_datasets)
-    update_dataset_prompt_generation_policy(prompt_job_generator_state, list_datasets)
+
+    # load the models at the start for each dataset
+    load_dataset_models(prompt_job_generator_state, list_datasets)
+
+    # generate prompts in the prompt queue
     update_datasets_prompt_queue(prompt_job_generator_state, list_datasets)
+
 
     thread = threading.Thread(target=update_dataset_values_background_thread, args=(prompt_job_generator_state,))
     thread.start()

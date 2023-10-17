@@ -23,7 +23,7 @@ class WorkerState:
         self.job_queue = queue.Queue()
         self.load_clip = load_clip
         if load_clip:
-            self.clip = clip.ClipModel()
+            self.clip = clip.ClipModel(device=device)
 
     def load_models(self, model_path='input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors'):
         # NOTE: Initializing stable diffusion
