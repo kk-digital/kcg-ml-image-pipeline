@@ -64,7 +64,7 @@ def split_ab_data_vectors(image_pair_data):
 class ABRankingDatasetLoader:
     def __init__(self,
                  dataset_name,
-                 minio_addr=None,
+                 minio_ip_addr=None,
                  minio_access_key=None,
                  minio_secret_key=None,
                  buffer_size=20000,
@@ -76,7 +76,7 @@ class ABRankingDatasetLoader:
         self.minio_secret_key = minio_secret_key
         self.minio_client = cmd.get_minio_client(minio_access_key=self.minio_access_key,
                                                  minio_secret_key=self.minio_secret_key,
-                                                 minio_addr=minio_addr)
+                                                 minio_ip_addr=minio_ip_addr)
 
         self.train_percent = train_percent
         self.training_dataset_paths_copy = []
