@@ -39,6 +39,7 @@ def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count, c
 
     base_prompt_population = load_base_prompts(base_prompts_csv_path)
 
+    print('Scoring Generated Prompts ')
     scored_prompts = []
     for index in tqdm(range(0, len(prompts))):
 
