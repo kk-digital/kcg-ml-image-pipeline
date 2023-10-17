@@ -116,9 +116,6 @@ def generate_character_generation_jobs(scored_prompt):
     init_img_path = "./test/test_inpainting/white_512x512.jpg"
     mask_path = "./test/test_inpainting/character_mask.png"
 
-
-    print(f"Adding '{dataset_name}' generation job")
-
     if scored_prompt is None:
         return
 
@@ -137,9 +134,6 @@ def generate_character_generation_jobs(scored_prompt):
 def generate_environmental_image_generation_jobs(scored_prompt):
 
     dataset_name = 'environmental'
-
-    print(f"Adding '{dataset_name}' generation job")
-
 
     if scored_prompt is None:
         return
