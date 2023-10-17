@@ -279,7 +279,6 @@ def process_jobs(worker_state):
             generation_task = GenerationTask.from_dict(job)
 
             try:
-                a = 1 / 0
                 if task_type == 'inpainting_generation_task':
                     output_file_path, output_file_hash, img_data = run_inpainting_generation_task(worker_state,
                                                                                                       generation_task)
