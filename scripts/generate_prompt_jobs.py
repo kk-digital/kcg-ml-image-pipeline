@@ -2,6 +2,8 @@ import argparse
 import sys
 import io
 
+from tqdm import tqdm
+
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
@@ -38,8 +40,9 @@ def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count, c
     base_prompt_population = load_base_prompts(base_prompts_csv_path)
 
     scored_prompts = []
-    for prompt in prompts:
+    for index in tqdm(range(0, len(prompts))):
 
+        prompt = prompts[index]
         # N Base Prompt Phrases
         # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
         # Chance for 0 base prompt phrases should be 30%
