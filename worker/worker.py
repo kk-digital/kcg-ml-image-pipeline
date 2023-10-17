@@ -324,8 +324,8 @@ def process_jobs(worker_state):
                     job['task_error_str'] = e
                     request.http_update_job_failed(job)
             except Exception as e:
-                error(thread_state, f"generation task failed: {e}")
-                job['task_error_str'] = str(traceback.format_exc())
+                error(thread_state, f"generation task failed: {traceback.format_exc()}")
+                job['task_error_str'] = str(e)
                 request.http_update_job_failed(job)
 
             job_end_time = time.time()
