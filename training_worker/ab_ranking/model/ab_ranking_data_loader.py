@@ -9,6 +9,7 @@ from threading import Semaphore
 import msgpack
 import threading
 from random import shuffle
+from tqdm import tqdm
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
@@ -272,7 +273,7 @@ class ABRankingDatasetLoader:
 
     def load_all_data(self, paths_list):
         print("Loading all training data to ram...")
-        for path in paths_list:
+        for path in tqdm(paths_list):
             image_pair_data = self.get_selection_datapoint_image_pair(path)
             self.training_image_pair_data_arr.append(image_pair_data)
 
