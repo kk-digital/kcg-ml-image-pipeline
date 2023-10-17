@@ -24,7 +24,8 @@ def train_ranking(dataset_name: str,
                   buffer_size=20000,
                   train_percent=0.9,
                   training_batch_size=1,
-                  weight_decay=0.01):
+                  weight_decay=0.01,
+                  load_data_to_ram=False):
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
@@ -39,7 +40,8 @@ def train_ranking(dataset_name: str,
                                             minio_access_key=minio_access_key,
                                             minio_secret_key=minio_secret_key,
                                             buffer_size=buffer_size,
-                                            train_percent=train_percent)
+                                            train_percent=train_percent,
+                                            load_to_ram=load_data_to_ram)
     dataset_loader.load_dataset()
 
     training_total_size = dataset_loader.get_len_training_ab_data()
@@ -198,12 +200,14 @@ def test_run():
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
                   dataset_name="environmental",
                   epochs=100,
-                  learning_rate=0.01,
+                  learning_rate=0.001,
                   buffer_size=20000,
                   train_percent=0.9,
                   training_batch_size=1,
-                  weight_decay=0.0)
+                  weight_decay=0.01,
+                  load_data_to_ram=True)
 
 
 if __name__ == '__main__':
+
     test_run()

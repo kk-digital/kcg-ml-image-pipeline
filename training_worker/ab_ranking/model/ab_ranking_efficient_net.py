@@ -23,7 +23,7 @@ class EfficientNetModel(nn.Module):
     def __init__(self, efficient_net_version="b0", in_channels=1, num_classes=1):
         super(EfficientNetModel, self).__init__()
         self.efficient_net = efficientnet_pytorch(efficient_net_version, in_channels=in_channels, num_classes=num_classes)
-        self.mse_loss = nn.MSELoss()
+        self.l1_loss = nn.L1Loss()
         self.relu_fn = nn.ReLU()
 
     def forward(self, x):
@@ -104,7 +104,7 @@ class ABRankingEfficientNetModel:
 
         optimizer = optim.AdamW(self.model.parameters(), lr=learning_rate, weight_decay=weight_decay)
         self.model_type = 'image-pair-ranking-efficient-net'
-        self.loss_func_name = "mse"
+        self.loss_func_name = "l1"
 
         # get validation data
         validation_features_x, \
@@ -164,7 +164,7 @@ class ABRankingEfficientNetModel:
                     neg_score = torch.multiply(predicted_score_images_x, -1.0)
                     negative_score_loss_penalty = self.model.relu_fn(neg_score)
 
-                    loss = self.model.mse_loss(predicted_score_images_x, batch_targets)
+                    loss = self.model.l1_loss(predicted_score_images_x, batch_targets)
                     loss = torch.add(loss, negative_score_loss_penalty)
 
                     loss.backward()
@@ -196,7 +196,7 @@ class ABRankingEfficientNetModel:
                     neg_score = torch.multiply(predicted_score_image_x, -1.0)
                     negative_score_loss_penalty = self.model.relu_fn(neg_score)
 
-                    validation_loss = self.model.mse_loss(predicted_score_image_x, validation_target)
+                    validation_loss = self.model.l1_loss(predicted_score_image_x, validation_target)
                     validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
 
                     validation_loss_arr.append(validation_loss.detach().cpu())

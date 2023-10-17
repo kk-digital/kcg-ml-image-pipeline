@@ -7,9 +7,11 @@ from torch.mps import current_allocated_memory as mps_current_allocated_memory
 
 from utility.utils_logger import logger
 
-
-
 def get_device(device=None):
+    if device is not None:
+        return torch.device(device)
+
+    # if none
     device_priority = {
         'cuda': [torch.cuda.is_available,
                  lambda x: logger.debug(f'Using CUDA device {torch.cuda.get_device_name(x)}')],
@@ -19,16 +21,10 @@ def get_device(device=None):
                 ]
     }
 
-    if device is None or device not in device_priority:
-        for _device, (availability_check, log_msg) in device_priority.items():
-            if availability_check():
-                log_msg(_device)
-                return torch.device(_device)
-
-    availability_check, log_msg = device_priority[device]
-    if availability_check():
-        log_msg(device)
-        return torch.device(device)
+    for _device, (availability_check, log_msg) in device_priority.items():
+        if availability_check():
+            log_msg(_device)
+            return torch.device(_device)
 
     raise Exception(f'Device {device if device else "any"} not available.')
 

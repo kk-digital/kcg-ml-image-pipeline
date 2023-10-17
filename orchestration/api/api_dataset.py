@@ -169,7 +169,7 @@ def set_ranking_model(request: Request, dataset: str, ranking_model: str):
 def get_all_dataset_generation_policy(request: Request):
     dataset_generation_policies = []
     # find
-    items = request.app.dataset_generation_policy_collection.find({})
+    items = request.app.dataset_config_collection.find({})
     if items is None:
         raise HTTPException(status_code=204)
 

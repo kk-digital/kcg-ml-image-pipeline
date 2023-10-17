@@ -7,8 +7,31 @@ from utility.path import separate_bucket_and_file_path
 router = APIRouter()
 
 
-@router.get("/image/random")
-def get_random_image(request: Request, dataset: str = Query(...), size: int = Query(...)):  
+@router.get("/image/get_random_image")
+def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the size parameter
+  
+    # Use $sample to get one random document
+    documents = request.app.completed_jobs_collection.aggregate([
+        {"$match": {"task_input_dict.dataset": dataset}},
+        {"$sample": {"size": 1}}
+    ])
+
+    # Convert cursor type to list
+    documents = list(documents)
+
+    # Ensure the list isn't empty (this is just a safety check)
+    if not documents:
+        raise HTTPException(status_code=404, detail="No image found for the given dataset")
+
+    # Remove the auto generated _id field from the document
+    documents[0].pop('_id', None)
+
+    # Return the image in the response
+    return {"image": documents[0]}  
+    
+
+@router.get("/image/get_random_image_list")
+def get_random_image_list(request: Request, dataset: str = Query(...), size: int = Query(1)):  
     # Use Query to get the dataset and size from query parameters
 
     distinct_documents = []
@@ -37,7 +60,6 @@ def get_random_image(request: Request, dataset: str = Query(...), size: int = Qu
     
     # Return the images as a list in the response
     return {"images": distinct_documents}
-
 
 
 @router.get("/image/random_date_range")

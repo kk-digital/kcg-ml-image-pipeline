@@ -14,6 +14,6 @@ RUN apt-get update && apt-get install -y python3 python3-pip && apt-get install 
 RUN apt-get install -y unzip
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libasound-dev portaudio19-dev libportaudio2 libportaudiocpp0 libsndfile1 wget libgl1-mesa-glx
 
-RUN pip install -r /kcg-ml-image-pipeline/requirements.txt
+RUN python3 -m pip install -r /kcg-ml-image-pipeline/requirements.txt
 
-ENTRYPOINT ["/kcg-ml-image-pipeline/worker/run_worker.sh"]
+ENTRYPOINT ["/kcg-ml-image-pipeline/prompt_job_generator/prompt_job_generator.sh"]
