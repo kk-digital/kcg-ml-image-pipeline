@@ -8,10 +8,10 @@ router = APIRouter()
 
 # -------------------- Get -------------------------
 @router.get("/queue/model-training/get-job")
-def get_job(request: Request, task_type: str = None):
+def get_job(request: Request, model_task: str = None):
     query = {}
-    if task_type:
-        query = {"task_type": task_type}
+    if model_task:
+        query = {"model_task": model_task}
 
     # find
     job = request.app.training_pending_jobs_collection.find_one(query)

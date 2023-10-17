@@ -88,6 +88,7 @@ def get_ranking_models(request: Request, dataset: str = Query(...)):
     return models_list
 
 
+
 @router.get("/models/get-model-card")
 def get_model_card(request: Request, file_path: str = Query(...)):
     bucket_name = "datasets"

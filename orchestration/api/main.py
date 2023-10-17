@@ -35,7 +35,7 @@ def get_minio_client(minio_access_key, minio_secret_key):
     while minio_client is None:
         # check minio server
         if cmd.is_minio_server_accesssible():
-            minio_client = cmd.connect_to_minio_client(minio_access_key, minio_secret_key)
+            minio_client = cmd.connect_to_minio_client(access_key=minio_access_key, secret_key=minio_secret_key)
             return minio_client
 
 
@@ -60,11 +60,6 @@ def startup_db_client():
 
     # dataset rate
     app.dataset_config_collection = app.mongodb_db["dataset_config"]
-
-    # dataset generation policy
-    app.dataset_generation_policy_collection = app.mongodb_db["dataset_generation_policy"]
-    # dataset top-k value
-    app.dataset_top_k_collection = app.mongodb_db["dataset_top_k"]
 
     print("Connected to the MongoDB database!")
 
