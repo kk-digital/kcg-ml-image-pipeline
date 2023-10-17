@@ -76,7 +76,8 @@ def initialize_autoencoder(device=None, encoder=None, decoder=None, emb_channels
         autoencoder = Autoencoder(emb_channels=emb_channels,
                                   encoder=encoder,
                                   decoder=decoder,
-                                  z_channels=z_channels).to(device)
+                                  z_channels=z_channels,
+                                  device=device).to(device)
     return autoencoder
 
 
