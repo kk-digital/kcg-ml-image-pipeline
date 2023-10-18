@@ -3,8 +3,8 @@ from typing import Union
 
 
 class Task(BaseModel):
-    uuid: str  # required, should be passed by generator
     task_type: str
+    uuid: str  # required, should be passed by generator
     model_name: Union[str, None] = None
     model_file_name: Union[str, None] = None
     model_file_path: Union[str, None] = None
@@ -19,8 +19,8 @@ class Task(BaseModel):
 
     def to_dict(self):
         return {
-            "uuid": self.uuid,
             "task_type": self.task_type,
+            "uuid": self.uuid,
             "model_name": self.model_name,
             "model_file_name": self.model_file_name,
             "model_file_path": self.model_file_path,
