@@ -22,8 +22,6 @@ class ABRankingLinearModel(nn.Module):
         super(ABRankingLinearModel, self).__init__()
         self.inputs_shape = inputs_shape
         self.linear = nn.Linear(inputs_shape, 1)
-        self.identity = nn.Identity()
-        self.sigmoid = nn.Sigmoid()
         self.mse_loss = nn.MSELoss()
         self.l1_loss = nn.L1Loss()
         self.tanh = nn.Tanh()
@@ -102,7 +100,7 @@ class ABRankingModel:
               epochs=100,
               learning_rate=0.001,
               weight_decay=0.01,
-              debug_asserts=False):
+              debug_asserts=True):
         training_loss_per_epoch = []
         validation_loss_per_epoch = []
 
