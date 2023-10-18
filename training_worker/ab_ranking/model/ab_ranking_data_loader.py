@@ -138,8 +138,8 @@ class ABRankingDatasetLoader:
             duplicated_training_list.append((path, 0.0))
 
             # for test
-            if len(duplicated_training_list) >= 2:
-                break
+            # if len(duplicated_training_list) >= 2:
+            #     break
 
         # shuffle
         shuffled_training_list = []
@@ -159,8 +159,8 @@ class ABRankingDatasetLoader:
             duplicated_validation_list.append((path, 0.0))
 
             # for test
-            if len(duplicated_validation_list) >= 2:
-                break
+            # if len(duplicated_validation_list) >= 2:
+            #     break
 
         # shuffle
         shuffled_validation_list = []
