@@ -6,7 +6,7 @@ WORKDIR /kcg-ml-image-pipeline
 
 # create clip model dir and copy model
 RUN mkdir -p /.cache/huggingface
-COPY ./hub /.cache/huggingface/hub
+COPY ./hub/ /.cache/huggingface/hub/
 RUN chmod -R 777 /.cache
 
 # install prerequisites

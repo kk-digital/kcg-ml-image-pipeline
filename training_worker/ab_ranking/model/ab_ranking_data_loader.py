@@ -88,6 +88,7 @@ class ABRankingDatasetLoader:
         self.load_to_ram = load_to_ram
         self.current_training_data_index = 0
         self.training_image_pair_data_arr = []
+        self.datapoints_per_sec = 0
 
         # these will contain features and targets with limit buffer size
         self.training_image_pair_data_buffer = Queue()
@@ -136,6 +137,10 @@ class ABRankingDatasetLoader:
             duplicated_training_list.append((path, 1.0))
             duplicated_training_list.append((path, 0.0))
 
+            # for test
+            if len(duplicated_training_list) >= 2:
+                break
+
         # shuffle
         shuffled_training_list = []
         index_shuf = list(range(len(duplicated_training_list)))
@@ -152,6 +157,10 @@ class ABRankingDatasetLoader:
         for path in validation_ab_data_list:
             duplicated_validation_list.append((path, 1.0))
             duplicated_validation_list.append((path, 0.0))
+
+            # for test
+            if len(duplicated_validation_list) >= 2:
+                break
 
         # shuffle
         shuffled_validation_list = []
@@ -232,7 +241,6 @@ class ABRankingDatasetLoader:
         embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["positive_embedding"]["__ndarray__"])
         embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["negative_embedding"]["__ndarray__"])
         embeddings_img_1_embeddings_vector = np.array(embeddings_img_1_embeddings_vector)
-
         embeddings_img_2_data = get_object(self.minio_client, embeddings_path_img_2)
         embeddings_img_2_data = msgpack.unpackb(embeddings_img_2_data)
         embeddings_img_2_embeddings_vector = []
@@ -273,9 +281,15 @@ class ABRankingDatasetLoader:
 
     def load_all_data(self, paths_list):
         print("Loading all training data to ram...")
+        start_time = time.time()
+
         for path in tqdm(paths_list):
             image_pair_data = self.get_selection_datapoint_image_pair(path)
             self.training_image_pair_data_arr.append(image_pair_data)
+
+        time_elapsed=time.time() - start_time
+        print("Time elapsed: {0}s".format(format(time_elapsed, ".2f")))
+        self.datapoints_per_sec = len(paths_list) / time_elapsed
 
     def get_training_data_and_save_to_buffer(self, dataset_path):
         # get data
@@ -352,8 +366,13 @@ class ABRankingDatasetLoader:
 
         image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.float)
         image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.float)
-
         target_probabilities = torch.tensor(target_probabilities).to(torch.float)
+
+        # do average pooling
+        image_x_feature_vectors = torch.mean(image_x_feature_vectors, dim=2)
+        image_y_feature_vectors = torch.mean(image_y_feature_vectors, dim=2)
+        image_x_feature_vectors = image_x_feature_vectors.unsqueeze(2)
+        image_y_feature_vectors = image_y_feature_vectors.unsqueeze(2)
 
         if device is not None:
             image_x_feature_vectors = image_x_feature_vectors.to(device)
@@ -385,6 +404,15 @@ class ABRankingDatasetLoader:
         image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.float)
         image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.float)
         target_probabilities = torch.tensor(target_probabilities).to(torch.float)
+        print("feature shape =", image_x_feature_vectors.shape)
+
+        # do average pooling
+        image_x_feature_vectors = torch.mean(image_x_feature_vectors, dim=2)
+        image_y_feature_vectors = torch.mean(image_y_feature_vectors, dim=2)
+
+        image_x_feature_vectors = image_x_feature_vectors.unsqueeze(2)
+        image_y_feature_vectors = image_y_feature_vectors.unsqueeze(2)
+        print("feature shape after average pooling and unsqueeze=", image_x_feature_vectors.shape)
 
         return image_x_feature_vectors, image_y_feature_vectors, target_probabilities
 
@@ -462,7 +490,6 @@ class ABRankingDatasetLoader:
         image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.float)
         target_probabilities = torch.tensor(target_probabilities).to(torch.float)
 
-        print("feature shape=", image_x_feature_vectors.shape)
         # do average pooling
         image_x_feature_vectors = torch.mean(image_x_feature_vectors, dim=2)
         image_y_feature_vectors = torch.mean(image_y_feature_vectors, dim=2)
