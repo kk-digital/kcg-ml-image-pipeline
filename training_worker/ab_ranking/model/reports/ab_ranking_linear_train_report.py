@@ -1,7 +1,8 @@
 def get_train_report(model_class, dataset_path, training_percent, training_size, validation_size, train_sum_correct,
                      validation_sum_correct, nn_summary, training_pred_scores_img_x, training_pred_scores_img_y,
                      validation_pred_scores_img_x, validation_pred_scores_img_y, training_batch_size, learning_rate,
-                     weight_decay, image_selected_index_0_count, image_selected_index_1_count, image_selected_total_count):
+                     weight_decay, image_selected_index_0_count, image_selected_index_1_count, image_selected_total_count,
+                     datapoints_per_sec):
     report_str = "Training Report:\n\n"
     report_str += "model: {}\n".format(model_class.model_type)
     report_str += "model-date: {}\n".format(model_class.date)
@@ -22,6 +23,9 @@ def get_train_report(model_class, dataset_path, training_percent, training_size,
 
     report_str += '\nimage-selected-index-0-count: {0}({1:04}%)\n'.format(image_selected_index_0_count, round((image_selected_index_0_count/image_selected_total_count)*100, 2))
     report_str += 'image-selected-index-1-count: {0}({1:04}%)\n'.format(image_selected_index_1_count, round((image_selected_index_1_count/image_selected_total_count)*100, 2))
+
+    report_str += '\nDataset Loader Info\n'
+    report_str += 'datapoints per sec = {}\n'.format(datapoints_per_sec)
 
     report_str += "\n===================NN Info=====================\n\n"
     report_str += nn_summary
