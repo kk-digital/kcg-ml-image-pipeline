@@ -26,7 +26,8 @@ def train_ranking(dataset_name: str,
                   train_percent=0.9,
                   training_batch_size=1,
                   weight_decay=0.01,
-                  load_data_to_ram=False):
+                  load_data_to_ram=False,
+                  debug_asserts=False):
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
@@ -34,7 +35,7 @@ def train_ranking(dataset_name: str,
     input_type = "embedding"
     output_type = "score"
     input_shape = 2*768
-    output_path = "{}/models/ranking/ab_ranking_linear-test".format(dataset_name)
+    output_path = "{}/models/ranking/ab_ranking_linear".format(dataset_name)
 
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name=dataset_name,
@@ -63,7 +64,8 @@ def train_ranking(dataset_name: str,
                                                    training_batch_size=training_batch_size,
                                                    epochs=epochs,
                                                    learning_rate=learning_rate,
-                                                   weight_decay=weight_decay)
+                                                   weight_decay=weight_decay,
+                                                   debug_asserts=debug_asserts)
 
     # Upload model to minio
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
@@ -136,7 +138,8 @@ def train_ranking(dataset_name: str,
                                   weight_decay,
                                   selected_index_0_count,
                                   selected_index_1_count,
-                                  total_images_count)
+                                  total_images_count,
+                                  dataset_loader.datapoints_per_sec)
 
     # Upload model to minio
     report_name = "{}.txt".format(date_now)
@@ -205,14 +208,15 @@ def test_run():
     train_ranking(minio_addr=None,  # will use defualt if none is given
                   minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
-                  dataset_name="environmental",
-                  epochs=100,
-                  learning_rate=0.001,
+                  dataset_name="character",
+                  epochs=200,
+                  learning_rate=0.1,
                   buffer_size=20000,
                   train_percent=0.9,
                   training_batch_size=1,
                   weight_decay=0.01,
-                  load_data_to_ram=True)
+                  load_data_to_ram=True,
+                  debug_asserts=True)
 
 
 if __name__ == '__main__':

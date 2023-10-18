@@ -171,13 +171,15 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
     training_residuals_target_0 = [abs(0.0 - train_prob_predictions_target_0[i].item()) for i in
                                    range(len(train_prob_predictions_target_0))]
 
-    assert max(training_residuals_target_0) < 1.0
-    assert max(training_residuals_target_1) > 0.0
+    assert max(training_residuals_target_0) <= 1.0
+    assert min(training_residuals_target_0) >= 0.0
+    assert max(training_residuals_target_1) <= 1.0
+    assert min(training_residuals_target_1) >= 0.0
 
-    # print("training pred prob target 1=", train_prob_predictions_target_1)
-    # print("training pred prob target 0=", train_prob_predictions_target_0)
-    # print("training residuals 1=", training_residuals_target_1)
-    # print("training residuals 0=", training_residuals_target_0)
+    print("training pred prob target 1=", train_prob_predictions_target_1)
+    print("training pred prob target 0=", train_prob_predictions_target_0)
+    print("training residuals 1=", training_residuals_target_1)
+    print("training residuals 0=", training_residuals_target_0)
     training_residuals = np.append(training_residuals_target_1, training_residuals_target_0)
 
     train_residual_histogram.set_xlabel("Residual")
@@ -192,8 +194,10 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
     validation_residuals_target_0 = [abs(0.0 - validation_prob_predictions_target_0[i].item()) for i in
                                      range(len(validation_prob_predictions_target_0))]
 
-    assert max(validation_residuals_target_0) < 1.0
-    assert max(validation_residuals_target_1) > 0.0
+    assert max(validation_residuals_target_0) <= 1.0
+    assert min(validation_residuals_target_0) >= 0.0
+    assert max(validation_residuals_target_1) <= 1.0
+    assert min(validation_residuals_target_1) >= 0.0
     validation_residuals = np.append(validation_residuals_target_1, validation_residuals_target_0)
 
     validation_residual_histogram.set_xlabel("Residual")

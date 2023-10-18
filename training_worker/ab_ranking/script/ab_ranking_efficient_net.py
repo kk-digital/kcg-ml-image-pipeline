@@ -25,7 +25,8 @@ def train_ranking(dataset_name: str,
                   train_percent=0.9,
                   training_batch_size=1,
                   weight_decay=0.01,
-                  load_data_to_ram=False):
+                  load_data_to_ram=False,
+                  debug_asserts=False):
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
@@ -66,7 +67,8 @@ def train_ranking(dataset_name: str,
                                                     training_batch_size=training_batch_size,
                                                     epochs=epochs,
                                                     learning_rate=learning_rate,
-                                                    weight_decay=weight_decay)
+                                                    weight_decay=weight_decay,
+                                                   debug_asserts=debug_asserts)
 
     # Upload model to minio
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
@@ -139,7 +141,8 @@ def train_ranking(dataset_name: str,
                                   weight_decay,
                                   selected_index_0_count,
                                   selected_index_1_count,
-                                  total_images_count)
+                                  total_images_count,
+                                  dataset_loader.datapoints_per_sec)
 
     # Upload model to minio
     report_name = "{}.txt".format(date_now)
@@ -215,7 +218,8 @@ def test_run():
                   train_percent=0.9,
                   training_batch_size=1,
                   weight_decay=0.01,
-                  load_data_to_ram=True)
+                  load_data_to_ram=True,
+                  debug_asserts=True)
 
 
 if __name__ == '__main__':
