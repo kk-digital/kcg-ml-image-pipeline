@@ -62,7 +62,7 @@ def get_random_image_list(request: Request, dataset: str = Query(...), size: int
     return {"images": distinct_documents}
 
 
-@router.get("/image/random_date_range")
+@router.get("/image/get_random_image_by_date_range")
 def get_random_image_date_range(
     request: Request,
     dataset: str = None,
