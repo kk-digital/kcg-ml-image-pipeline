@@ -22,8 +22,6 @@ class ABRankingLinearModel(nn.Module):
         super(ABRankingLinearModel, self).__init__()
         self.inputs_shape = inputs_shape
         self.linear = nn.Linear(inputs_shape, 1)
-        self.identity = nn.Identity()
-        self.sigmoid = nn.Sigmoid()
         self.mse_loss = nn.MSELoss()
         self.l1_loss = nn.L1Loss()
         self.tanh = nn.Tanh()
@@ -98,11 +96,11 @@ class ABRankingModel:
 
     def train(self,
               dataset_loader: ABRankingDatasetLoader,
-              training_batch_size=4,
+              training_batch_size=1,
               epochs=100,
               learning_rate=0.001,
               weight_decay=0.01,
-              debug_asserts=False):
+              debug_asserts=True):
         training_loss_per_epoch = []
         validation_loss_per_epoch = []
 
@@ -151,14 +149,15 @@ class ABRankingModel:
                     batch_features_y = batch_features_y_orig.clone().requires_grad_(True).to(self._device)
                     batch_targets = batch_targets_orig.clone().requires_grad_(True).to(self._device)
 
-                    optimizer.zero_grad()
-
-                    predicted_score_images_x = self.model.forward(batch_features_x)
                     with torch.no_grad():
                         predicted_score_images_y = self.model.forward(batch_features_y)
 
+                    optimizer.zero_grad()
+                    predicted_score_images_x = self.model.forward(batch_features_x)
+
+                    predicted_score_images_y_copy = predicted_score_images_y.clone().requires_grad_(True).to(self._device)
                     batch_pred_probabilities = self.forward_bradley_terry(predicted_score_images_x,
-                                                                          predicted_score_images_y)
+                                                                          predicted_score_images_y_copy)
 
                     if debug_asserts:
                         assert batch_pred_probabilities.shape == batch_targets.shape
