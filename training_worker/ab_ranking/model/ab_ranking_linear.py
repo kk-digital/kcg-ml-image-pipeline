@@ -320,8 +320,8 @@ class ABRankingModel:
             epsilon = 0.000001
 
             # if score is negative N, make it 0
-            predicted_score_images_x = torch.max(predicted_score_images_x, torch.tensor([0.], device=self._device))
-            predicted_score_images_y = torch.max(predicted_score_images_y, torch.tensor([0.], device=self._device))
+            # predicted_score_images_x = torch.max(predicted_score_images_x, torch.tensor([0.], device=self._device))
+            # predicted_score_images_y = torch.max(predicted_score_images_y, torch.tensor([0.], device=self._device))
 
             # Calculate probability using Bradley Terry Formula: P(x>y) = score(x) / ( Score(x) + score(y))
             sum_predicted_score = torch.add(predicted_score_images_x, predicted_score_images_y)
