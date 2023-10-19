@@ -205,10 +205,10 @@ def run_ab_ranking_linear_task(training_task, minio_access_key, minio_secret_key
 
 
 def test_run():
-    train_ranking(minio_addr=None,  # will use defualt if none is given
+    train_ranking(minio_addr=None,  # will use default if none is given
                   minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
-                  dataset_name="character",
+                  dataset_name="environmental",
                   epochs=200,
                   learning_rate=0.1,
                   buffer_size=20000,

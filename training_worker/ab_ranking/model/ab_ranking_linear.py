@@ -179,7 +179,7 @@ class ABRankingModel:
                         if torch.isnan(param.grad).any():
                             print("nan gradient found")
                             raise SystemExit
-                        print("param={}, grad={}".format(name, param.grad))
+                        # print("param={}, grad={}".format(name, param.grad))
 
                 # refill training ab data
                 dataset_loader.fill_training_ab_data()
@@ -309,11 +309,11 @@ class ABRankingModel:
     def forward_bradley_terry(self, predicted_score_images_x, predicted_score_images_y, use_sigmoid=True):
         if use_sigmoid:
             # scale the score
-            scaled_score_image_x = torch.multiply(1000.0, predicted_score_images_x)
-            scaled_score_image_y = torch.multiply(1000.0, predicted_score_images_y)
+            # scaled_score_image_x = torch.multiply(1000.0, predicted_score_images_x)
+            # scaled_score_image_y = torch.multiply(1000.0, predicted_score_images_y)
 
             # prob = sigmoid( (x-y) / 100 )
-            diff_predicted_score = torch.sub(scaled_score_image_x, scaled_score_image_y)
+            diff_predicted_score = torch.sub(predicted_score_images_x, predicted_score_images_y)
             res_predicted_score = torch.div(diff_predicted_score, 50.0)
             pred_probabilities = torch.sigmoid(res_predicted_score)
         else:

@@ -22,7 +22,7 @@ from training_worker.ab_ranking.model.efficient_net_model import EfficientNet as
 class EfficientNetModel(nn.Module):
     def __init__(self, efficient_net_version="b0", in_channels=1, num_classes=1):
         super(EfficientNetModel, self).__init__()
-        self.inputs_shape =  (in_channels, 1, 768)
+        self.inputs_shape =  (in_channels, 77, 768)
         self.efficient_net = efficientnet_pytorch(efficient_net_version, in_channels=in_channels, num_classes=num_classes)
         self.l1_loss = nn.L1Loss()
         self.relu_fn = nn.ReLU()
@@ -311,11 +311,11 @@ class ABRankingEfficientNetModel:
     def forward_bradley_terry(self, predicted_score_images_x, predicted_score_images_y, use_sigmoid=True):
         if use_sigmoid:
             # scale the score
-            scaled_score_image_x = torch.multiply(1000.0, predicted_score_images_x)
-            scaled_score_image_y = torch.multiply(1000.0, predicted_score_images_y)
+            # scaled_score_image_x = torch.multiply(1000.0, predicted_score_images_x)
+            # scaled_score_image_y = torch.multiply(1000.0, predicted_score_images_y)
 
             # prob = sigmoid( (x-y) / 100 )
-            diff_predicted_score = torch.sub(scaled_score_image_x, scaled_score_image_y)
+            diff_predicted_score = torch.sub(predicted_score_images_x, predicted_score_images_y)
             res_predicted_score = torch.div(diff_predicted_score, 50.0)
             pred_probabilities = torch.sigmoid(res_predicted_score)
         else:

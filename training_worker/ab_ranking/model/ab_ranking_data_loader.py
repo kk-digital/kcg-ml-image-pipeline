@@ -371,8 +371,8 @@ class ABRankingDatasetLoader:
         target_probabilities = torch.tensor(target_probabilities).to(torch.float)
 
         if normalize:
-            image_x_feature_vectors = normalize(image_x_feature_vectors, p=1.0, dim=2)
-            image_y_feature_vectors = normalize(image_y_feature_vectors, p=1.0, dim=2)
+            image_x_feature_vectors = torch_normalize(image_x_feature_vectors, p=1.0, dim=2)
+            image_y_feature_vectors = torch_normalize(image_y_feature_vectors, p=1.0, dim=2)
         else:
             # do average pooling
             image_x_feature_vectors = torch.mean(image_x_feature_vectors, dim=2)
@@ -413,8 +413,8 @@ class ABRankingDatasetLoader:
         print("feature shape =", image_x_feature_vectors.shape)
 
         if normalize:
-            image_x_feature_vectors = normalize(image_x_feature_vectors, p=1.0, dim=2)
-            image_y_feature_vectors = normalize(image_y_feature_vectors, p=1.0, dim=2)
+            image_x_feature_vectors = torch_normalize(image_x_feature_vectors, p=1.0, dim=2)
+            image_y_feature_vectors = torch_normalize(image_y_feature_vectors, p=1.0, dim=2)
             print("feature shape after normalizing=", image_x_feature_vectors.shape)
         else:
             # do average pooling
