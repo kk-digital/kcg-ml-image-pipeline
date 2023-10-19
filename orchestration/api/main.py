@@ -8,6 +8,7 @@ from orchestration.api.api_job import router as job_router
 from orchestration.api.api_ranking import router as ranking_router
 from orchestration.api.api_training import router as training_router
 from orchestration.api.api_model import router as model_router
+from orchestration.api.api_tag import router as tag_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -27,6 +28,7 @@ app.include_router(job_router)
 app.include_router(ranking_router)
 app.include_router(training_router)
 app.include_router(model_router)
+app.include_router(tag_router)
 
 
 def get_minio_client(minio_access_key, minio_secret_key):
@@ -60,6 +62,10 @@ def startup_db_client():
 
     # dataset rate
     app.dataset_config_collection = app.mongodb_db["dataset_config"]
+
+    # tags
+    app.tag_definitions_collection = app.mongodb_db["tag_definitions"]
+    app.image_tags_collection = app.mongodb_db["image_tags"]
 
     print("Connected to the MongoDB database!")
 
