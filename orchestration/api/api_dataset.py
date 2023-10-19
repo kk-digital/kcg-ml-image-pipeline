@@ -292,7 +292,6 @@ def get_relevance_threshold(request: Request, dataset: str):
 def get_relevance_policy(request: Request, dataset: str):
     dataset_config = request.app.dataset_config_collection.find_one({"dataset_name": dataset})
     if dataset_config is not None:
-        relevance_threshold = dataset_config.get("relevance_threshold", None)
         generation_policy = dataset_config.get("generation_policy", None)
         return {
             "generation_policy": generation_policy
