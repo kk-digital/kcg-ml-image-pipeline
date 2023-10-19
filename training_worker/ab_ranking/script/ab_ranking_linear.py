@@ -12,11 +12,12 @@ from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from training_worker.ab_ranking.model.reports.ab_ranking_linear_train_report import get_train_report
 from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import *
 from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDatasetLoader
+from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
 from utility.minio import cmd
 
 
 def train_ranking(dataset_name: str,
-                  minio_addr=None,
+                  minio_ip_addr=None,
                   minio_access_key=None,
                   minio_secret_key=None,
                   epochs=10000,
@@ -24,21 +25,26 @@ def train_ranking(dataset_name: str,
                   buffer_size=20000,
                   train_percent=0.9,
                   training_batch_size=1,
-                  weight_decay=0.01):
+                  weight_decay=0.01,
+                  load_data_to_ram=False,
+                  debug_asserts=False):
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
-    input_type = "embedding-vector"
+    network_type= "linear"
+    input_type = "embedding"
+    output_type = "score"
     input_shape = 2*768
     output_path = "{}/models/ranking/ab_ranking_linear".format(dataset_name)
 
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name=dataset_name,
-                                            minio_addr=minio_addr,
+                                            minio_ip_addr=minio_ip_addr,
                                             minio_access_key=minio_access_key,
                                             minio_secret_key=minio_secret_key,
                                             buffer_size=buffer_size,
-                                            train_percent=train_percent)
+                                            train_percent=train_percent,
+                                            load_to_ram=load_data_to_ram)
     dataset_loader.load_dataset()
 
     training_total_size = dataset_loader.get_len_training_ab_data()
@@ -58,7 +64,8 @@ def train_ranking(dataset_name: str,
                                                    training_batch_size=training_batch_size,
                                                    epochs=epochs,
                                                    learning_rate=learning_rate,
-                                                   weight_decay=weight_decay)
+                                                   weight_decay=weight_decay,
+                                                   debug_asserts=debug_asserts)
 
     # Upload model to minio
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
@@ -131,7 +138,8 @@ def train_ranking(dataset_name: str,
                                   weight_decay,
                                   selected_index_0_count,
                                   selected_index_1_count,
-                                  total_images_count)
+                                  total_images_count,
+                                  dataset_loader.datapoints_per_sec)
 
     # Upload model to minio
     report_name = "{}.txt".format(date_now)
@@ -156,15 +164,28 @@ def train_ranking(dataset_name: str,
                                     validation_predicted_score_images_y,
                                     training_total_size,
                                     validation_total_size,
-                                    input_type,
                                     training_loss_per_epoch,
                                     validation_loss_per_epoch,
                                     epochs,
                                     learning_rate,
                                     training_batch_size,
-                                    weight_decay)
+                                    weight_decay,
+                                    date_now,
+                                    network_type,
+                                    input_type,
+                                    output_type,
+                                    train_sum_correct,
+                                    validation_sum_correct,
+                                    ab_model.loss_func_name,
+                                    dataset_name)
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
+
+    # get model card and upload
+    model_card_name = "{}.json".format(date_now)
+    model_card_name_output_path = os.path.join(output_path, model_card_name)
+    model_card_buf = get_model_card_buf(ab_model, training_total_size, validation_total_size, graph_output_path)
+    cmd.upload_data(dataset_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
 
     return model_output_path, report_output_path, graph_output_path
 
@@ -184,16 +205,18 @@ def run_ab_ranking_linear_task(training_task, minio_access_key, minio_secret_key
 
 
 def test_run():
-    train_ranking(minio_addr=None,  # will use defualt if none is given
+    train_ranking(minio_ip_addr=None,  # will use defualt if none is given
                   minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
-                  dataset_name="environmental",
-                  epochs=100,
-                  learning_rate=0.001,
+                  dataset_name="character",
+                  epochs=200,
+                  learning_rate=0.1,
                   buffer_size=20000,
                   train_percent=0.9,
                   training_batch_size=1,
-                  weight_decay=0.01)
+                  weight_decay=0.01,
+                  load_data_to_ram=True,
+                  debug_asserts=True)
 
 
 if __name__ == '__main__':

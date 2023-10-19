@@ -23,17 +23,15 @@ class WorkerState:
         self.job_queue = queue.Queue()
         self.load_clip = load_clip
         if load_clip:
-            self.clip = clip.ClipModel()
+            self.clip = clip.ClipModel(device=device)
 
     def load_models(self, model_path='input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors'):
         # NOTE: Initializing stable diffusion
         self.stable_diffusion = StableDiffusion(device=self.device)
-
         self.stable_diffusion.quick_initialize().load_autoencoder(self.config.get_model(SDconfigs.VAE)).load_decoder(
             self.config.get_model(SDconfigs.VAE_DECODER))
         self.stable_diffusion.model.load_unet(self.config.get_model(SDconfigs.UNET))
         self.stable_diffusion.initialize_latent_diffusion(path=model_path, force_submodels_init=True)
-
         self.clip_text_embedder = CLIPTextEmbedder(device=self.device)
 
         self.clip_text_embedder.load_submodels(

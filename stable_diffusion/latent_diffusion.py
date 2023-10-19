@@ -101,7 +101,6 @@ class LatentDiffusion(nn.Module):
         super().__init__()
 
         self.device = get_device(device)
-
         # Wrap the [U-Net](model/unet.html) to keep the same model structure as
         # [CompVis/stable-diffusion](https://github.com/CompVis/stable-diffusion).
         self.model = UNetWrapper(unet_model)

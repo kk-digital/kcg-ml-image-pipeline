@@ -40,7 +40,8 @@ def initialize_encoder(device=None,
                           in_channels=in_channels,
                           channels=channels,
                           channel_multipliers=channel_multipliers,
-                          n_resnet_blocks=n_resnet_blocks).to(device)
+                          n_resnet_blocks=n_resnet_blocks,
+                          device=device).to(device)
     return encoder
 
 
@@ -56,7 +57,8 @@ def initialize_decoder(device=None,
                           z_channels=z_channels,
                           channels=channels,
                           channel_multipliers=channel_multipliers,
-                          n_resnet_blocks=n_resnet_blocks).to(device)
+                          n_resnet_blocks=n_resnet_blocks,
+                          device=device).to(device)
     return decoder
     # Initialize the autoencoder
 
@@ -76,7 +78,8 @@ def initialize_autoencoder(device=None, encoder=None, decoder=None, emb_channels
         autoencoder = Autoencoder(emb_channels=emb_channels,
                                   encoder=encoder,
                                   decoder=decoder,
-                                  z_channels=z_channels).to(device)
+                                  z_channels=z_channels,
+                                  device=device).to(device)
     return autoencoder
 
 
@@ -194,7 +197,8 @@ def initialize_unet(device=None,
                                channel_multipliers=channel_multipliers,
                                n_heads=n_heads,
                                tf_layers=tf_layers,
-                               d_cond=d_cond).to(device)
+                               d_cond=d_cond,
+                               device=device).to(device)
         # unet_model.save()
         # torch.save(unet_model, UNET_PATH)
     return unet_model
@@ -214,6 +218,7 @@ def initialize_latent_diffusion(path: Union[str, Path] = None, device=None, auto
     ### Load [`LatentDiffusion` model](latent_diffusion.html)
     """
     device = get_device(device)
+
     # Initialize the submodels, if not given
     if force_submodels_init:
         if autoencoder is None:
@@ -223,6 +228,7 @@ def initialize_latent_diffusion(path: Union[str, Path] = None, device=None, auto
         if unet_model is None:
             unet_model = initialize_unet(device=device)
 
+
     # Initialize the Latent Diffusion model
     with section('Latent Diffusion model initialization'):
         model = LatentDiffusion(linear_start=0.00085,
@@ -231,7 +237,8 @@ def initialize_latent_diffusion(path: Union[str, Path] = None, device=None, auto
                                 latent_scaling_factor=0.18215,
                                 autoencoder=autoencoder,
                                 clip_embedder=clip_text_embedder,
-                                unet_model=unet_model)
+                                unet_model=unet_model,
+                                device=device)
     if path is not None:
         # Load the checkpoint
 

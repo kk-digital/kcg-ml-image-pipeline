@@ -7,6 +7,7 @@ from PIL import Image
 from termcolor import colored
 import os
 import threading
+import traceback
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -322,7 +323,7 @@ def process_jobs(worker_state):
                     job['task_error_str'] = e
                     request.http_update_job_failed(job)
             except Exception as e:
-                error(thread_state, f"generation task failed: {e}")
+                error(thread_state, f"generation task failed: {traceback.format_exc()}")
                 job['task_error_str'] = str(e)
                 request.http_update_job_failed(job)
 

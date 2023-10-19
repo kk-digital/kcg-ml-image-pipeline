@@ -45,9 +45,7 @@ class Autoencoder(nn.Module):
         :param z_channels: is the number of channels in the embedding space
         """
         super().__init__()
-
         self.device = get_device(device)
-
         self.encoder = encoder
         self.decoder = decoder
         self.z_channels = z_channels

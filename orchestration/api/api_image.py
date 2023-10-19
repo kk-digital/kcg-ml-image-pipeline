@@ -7,8 +7,31 @@ from utility.path import separate_bucket_and_file_path
 router = APIRouter()
 
 
-@router.get("/image/random")
-def get_random_image(request: Request, dataset: str = Query(...), size: int = Query(...)):  
+@router.get("/image/get_random_image")
+def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the size parameter
+  
+    # Use $sample to get one random document
+    documents = request.app.completed_jobs_collection.aggregate([
+        {"$match": {"task_input_dict.dataset": dataset}},
+        {"$sample": {"size": 1}}
+    ])
+
+    # Convert cursor type to list
+    documents = list(documents)
+
+    # Ensure the list isn't empty (this is just a safety check)
+    if not documents:
+        raise HTTPException(status_code=404, detail="No image found for the given dataset")
+
+    # Remove the auto generated _id field from the document
+    documents[0].pop('_id', None)
+
+    # Return the image in the response
+    return {"image": documents[0]}  
+    
+
+@router.get("/image/get_random_image_list")
+def get_random_image_list(request: Request, dataset: str = Query(...), size: int = Query(1)):  
     # Use Query to get the dataset and size from query parameters
 
     distinct_documents = []
@@ -39,9 +62,14 @@ def get_random_image(request: Request, dataset: str = Query(...), size: int = Qu
     return {"images": distinct_documents}
 
 
-
-@router.get("/image/random_date_range")
-def get_random_image_date_range(request: Request, dataset : str = None, start_date: str = None, end_date: str = None):
+@router.get("/image/get_random_image_by_date_range")
+def get_random_image_date_range(
+    request: Request,
+    dataset: str = None,
+    start_date: str = None,
+    end_date: str = None,
+    size: int = None
+):
 
     query = {
         'task_input_dict.dataset': dataset
@@ -55,23 +83,23 @@ def get_random_image_date_range(request: Request, dataset : str = None, start_da
     elif end_date:
         query['task_creation_time'] = {'$lte': end_date}
 
-    documents = request.app.completed_jobs_collection.aggregate([
-        {"$match": query},
-        {"$sample": {"size": 1}}
-    ])
+    # Create the aggregation pipeline
+    aggregation_pipeline = [{"$match": query}]
 
-    # convert curser type to list
+    # Add the $sample stage if the size is provided
+    if size:
+        aggregation_pipeline.append({"$sample": {"size": size}})
+
+    documents = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
+
+    # Convert the cursor to a list
     documents = list(documents)
-    if len(documents) == 0:
-        return []
 
-    # get only the first index
-    document = documents[0]
+    # Remove the auto-generated field for each document
+    for document in documents:
+        document.pop('_id', None)
 
-    # remove the auto generated field
-    document.pop('_id', None)
-
-    return document
+    return documents
 
 @router.get("/image/data-by-filepath")
 def get_image_data_by_filepath(request: Request, file_path: str = None):

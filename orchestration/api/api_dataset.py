@@ -169,7 +169,7 @@ def set_ranking_model(request: Request, dataset: str, ranking_model: str):
 def get_all_dataset_generation_policy(request: Request):
     dataset_generation_policies = []
     # find
-    items = request.app.dataset_generation_policy_collection.find({})
+    items = request.app.dataset_config_collection.find({})
     if items is None:
         raise HTTPException(status_code=204)
 
@@ -181,7 +181,7 @@ def get_all_dataset_generation_policy(request: Request):
     return dataset_generation_policies
 
 
-@router.get("/dataset/get-generation-policy")
+@router.get("/dataset/settings/get-generation-policy")
 def get_generation_policy(request: Request, dataset: str):
     # find
     query = {"dataset_name": dataset}
@@ -192,7 +192,7 @@ def get_generation_policy(request: Request, dataset: str):
     return item["generation_policy"]
 
 
-@router.put("/dataset/set-generation-policy")
+@router.put("/dataset/settings/set-generation-policy")
 def set_generation_policy(request: Request, dataset, generation_policy='top-k'):
     date_now = datetime.now()
     
@@ -218,7 +218,7 @@ def set_generation_policy(request: Request, dataset, generation_policy='top-k'):
     return True
 
 
-@router.get("/dataset/get-top-k")
+@router.get("/dataset/settings/get-top-k")
 def get_top_k(request: Request, dataset: str):
     # find
     query = {"dataset_name": dataset}
@@ -229,7 +229,7 @@ def get_top_k(request: Request, dataset: str):
     return item["top_k"]
 
 
-@router.put("/dataset/set-top-k")
+@router.put("/dataset/settings/set-top-k")
 def set_top_k(request: Request, dataset, top_k=0.1):
     date_now = datetime.now()
     
@@ -253,3 +253,54 @@ def set_top_k(request: Request, dataset, top_k=0.1):
         request.app.dataset_config_collection.update_one(query, new_values)
 
     return True
+
+
+@router.post("/dataset/settings/set-option-set-generation-relevance-threshold")
+def set_option_set_generation_relevance_threshold(request: Request, dataset: str, threshold: float, generation_policy: str):
+    dataset_config = request.app.dataset_config_collection.find_one({"dataset_name": dataset})
+    if dataset_config is not None:
+        request.app.dataset_config_collection.update_one(
+            {"dataset_name": dataset}, 
+            {"$set": {
+                "relevance_threshold": threshold,
+                "generation_policy": generation_policy
+            }}
+        )
+    else:
+        request.app.dataset_config_collection.insert_one(
+            {
+                "dataset_name": dataset, 
+                "relevance_threshold": threshold, 
+                "generation_policy": generation_policy
+            }
+        )
+    return {
+        "status": "success",
+        "message": "Relevance threshold and generation policy set successfully."
+    }
+
+
+@router.get("/dataset/settings/get-relevance-threshold")
+def get_relevance_threshold(request: Request, dataset: str):
+    dataset_config = request.app.dataset_config_collection.find_one({"dataset_name": dataset})
+    if dataset_config is not None and "relevance_threshold" in dataset_config:
+        return {"relevance_threshold": dataset_config["relevance_threshold"]}
+    else:
+        raise HTTPException(status_code=404, detail="Relevance threshold not found.")
+
+@router.get("/dataset/settings/get-relevance-policy")
+def get_relevance_policy(request: Request, dataset: str):
+    dataset_config = request.app.dataset_config_collection.find_one({"dataset_name": dataset})
+    if dataset_config is not None:
+        relevance_threshold = dataset_config.get("relevance_threshold", None)
+        generation_policy = dataset_config.get("generation_policy", None)
+        return {
+            "relevance_threshold": relevance_threshold,
+            "generation_policy": generation_policy
+        }
+    else:
+        raise HTTPException(status_code=404, detail="Dataset not found.")
+
+@router.get("/dataset/settings/get-options-list-generation-policies")
+def list_generation_policies():
+    return {"generation_policies": ["generation-off", "rate-generation", "rate-generation-top-k"]}
