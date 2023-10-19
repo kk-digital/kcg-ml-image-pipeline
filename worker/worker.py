@@ -130,6 +130,10 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
     embedded_prompts = worker_state.clip_text_embedder(positive_prompts)
     negative_embedded_prompts = worker_state.clip_text_embedder(negative_prompts)
 
+    # Convert embeddings to float32
+    embedded_prompts = embedded_prompts.to(torch.float32)
+    negative_embedded_prompts = negative_embedded_prompts.to(torch.float32)
+
     # save image meta data
     save_image_data_to_minio(worker_state.minio_client, generation_task.uuid, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), dataset,
                              output_file_path.replace('.jpg', '_data.msgpack'), output_file_hash,
@@ -220,7 +224,7 @@ def upload_image_data_and_update_job_status(worker_state, job, generation_task, 
     embedded_prompts = clip_text_embedder(positive_prompts)
     negative_embedded_prompts = clip_text_embedder(negative_prompts)
 
-    # Convert to float32
+    # Convert embeddings to float32
     embedded_prompts = embedded_prompts.to(torch.float32)
     negative_embedded_prompts = negative_embedded_prompts.to(torch.float32)
 
