@@ -5,7 +5,7 @@ from transformers import CLIPModel, CLIPImageProcessor
 
 
 class ClipModel:
-    def __init__(self, verbose=True, clip_skip=False):
+    def __init__(self, verbose=True, clip_skip=False, device=None):
         self.verbose = verbose
         self.clip_model = ""
         self.feature_type = "clip"
@@ -13,9 +13,11 @@ class ClipModel:
         if clip_skip:
             self.feature_type += "-skip"
 
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        if self.device == "cpu" and self.verbose:
-            print("CUDA is not available. Running on CPU.")
+        self.device = device
+        if device is None:
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+            if self.device == "cpu" and self.verbose:
+                print("CUDA is not available. Running on CPU.")
 
         self.model = None
         self.preprocess = None
