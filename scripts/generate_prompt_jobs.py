@@ -2,6 +2,8 @@ import argparse
 import sys
 import io
 
+from tqdm import tqdm
+
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
@@ -37,9 +39,11 @@ def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count, c
 
     base_prompt_population = load_base_prompts(base_prompts_csv_path)
 
+    print('Scoring Generated Prompts ')
     scored_prompts = []
-    for prompt in prompts:
+    for index in tqdm(range(0, len(prompts))):
 
+        prompt = prompts[index]
         # N Base Prompt Phrases
         # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
         # Chance for 0 base prompt phrases should be 30%
@@ -106,13 +110,30 @@ def load_linear_model(minio_client, dataset_bucket, model_path):
 
     return linear_model
 
+def generate_character_generation_jobs(scored_prompt):
+
+    dataset_name = "character"
+    init_img_path = "./test/test_inpainting/white_512x512.jpg"
+    mask_path = "./test/test_inpainting/character_mask.png"
+
+    if scored_prompt is None:
+        return
+
+    positive_prompt = scored_prompt.positive_prompt
+    negative_prompt = scored_prompt.negative_prompt
+
+    generate_inpainting_job(
+        positive_prompt=positive_prompt,
+        negative_prompt=negative_prompt,
+        dataset_name=dataset_name,
+        init_img_path=init_img_path,
+        mask_path=mask_path,
+
+    )
 
 def generate_environmental_image_generation_jobs(scored_prompt):
 
     dataset_name = 'environmental'
-
-    print(f"Adding '{dataset_name}' generation job")
-
 
     if scored_prompt is None:
         return
@@ -176,9 +197,12 @@ def main():
     prompt_list = generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count, csv_dataset_path,
                          csv_base_prompts, top_k)
 
-    for prompt in prompt_list:
-        generate_environmental_image_generation_jobs(prompt)
-
+    if dataset == 'environmental':
+        for prompt in prompt_list:
+            generate_environmental_image_generation_jobs(prompt)
+    elif dataset == 'character':
+        for prompt in prompt_list:
+            generate_character_generation_jobs(prompt)
 
 if __name__ == '__main__':
     main()
