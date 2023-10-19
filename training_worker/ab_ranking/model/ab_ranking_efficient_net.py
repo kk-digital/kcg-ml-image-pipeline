@@ -110,7 +110,7 @@ class ABRankingEfficientNetModel:
         # get validation data
         validation_features_x, \
             validation_features_y, \
-            validation_targets = dataset_loader.get_validation_feature_vectors_and_target()
+            validation_targets = dataset_loader.get_validation_feature_vectors_and_target_efficient_net()
         validation_features_x = validation_features_x.to(self._device)
         validation_features_y = validation_features_y.to(self._device)
         validation_targets = validation_targets.to(self._device)
@@ -140,7 +140,7 @@ class ABRankingEfficientNetModel:
 
                     batch_features_x_orig, \
                         batch_features_y_orig,\
-                        batch_targets_orig = dataset_loader.get_next_training_feature_vectors_and_target(num_data_to_get, self._device)
+                        batch_targets_orig = dataset_loader.get_next_training_feature_vectors_and_target_efficient_net(num_data_to_get, self._device)
 
                     if debug_asserts:
                         assert batch_features_x_orig.shape == (training_batch_size,) + self.model.inputs_shape
@@ -253,7 +253,7 @@ class ABRankingEfficientNetModel:
 
                 batch_features_x, \
                     batch_features_y,\
-                    batch_targets = dataset_loader.get_next_training_feature_vectors_and_target(num_data_to_get, self._device)
+                    batch_targets = dataset_loader.get_next_training_feature_vectors_and_target_efficient_net(num_data_to_get, self._device)
 
                 batch_predicted_score_images_x = self.model.forward(batch_features_x)
                 batch_predicted_score_images_y = self.model.forward(batch_features_y)
