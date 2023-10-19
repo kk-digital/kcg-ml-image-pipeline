@@ -16,7 +16,7 @@ from utility.minio import cmd
 from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
 
 def train_ranking(dataset_name: str,
-                  minio_addr=None,
+                  minio_ip_addr=None,
                   minio_access_key=None,
                   minio_secret_key=None,
                   epochs=10000,
@@ -40,7 +40,7 @@ def train_ranking(dataset_name: str,
 
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name=dataset_name,
-                                            minio_addr=minio_addr,
+                                            minio_ip_addr=minio_ip_addr,
                                             minio_access_key=minio_access_key,
                                             minio_secret_key=minio_secret_key,
                                             buffer_size=buffer_size,
@@ -207,8 +207,8 @@ def run_ab_ranking_efficient_net_task(training_task, minio_access_key, minio_sec
     return model_output_path, report_output_path, graph_output_path
 
 
-def test_run(minio_addr,minio_access_key,minio_secret_key,batch_size,epochs,lr):
-    train_ranking(minio_addr=minio_addr,  # will use defualt if none is given
+def test_run(minio_ip_addr,minio_access_key,minio_secret_key,batch_size,epochs,lr):
+    train_ranking(minio_ip_addr=minio_ip_addr,  # will use defualt if none is given
                   minio_access_key=minio_access_key,
                   minio_secret_key=minio_secret_key,
                   dataset_name="environmental",
