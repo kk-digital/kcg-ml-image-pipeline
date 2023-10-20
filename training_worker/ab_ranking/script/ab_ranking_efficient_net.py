@@ -3,10 +3,10 @@ import torch
 import sys
 from datetime import datetime
 from pytz import timezone
-
+import argparse
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
-
+#sys.path.insert(0, '/content/drive/MyDrive/github/new/kcg-ml-image-pipeline')
 from utility.regression_utils import torchinfo_summary
 from training_worker.ab_ranking.model.ab_ranking_efficient_net import ABRankingEfficientNetModel
 from training_worker.ab_ranking.model.reports.ab_ranking_linear_train_report import get_train_report
@@ -206,22 +206,35 @@ def run_ab_ranking_efficient_net_task(training_task, minio_access_key, minio_sec
 
     return model_output_path, report_output_path, graph_output_path
 
-
-def test_run():
-    train_ranking(minio_addr=None,  # will use default if none is given
-                  minio_access_key="nkjYl5jO4QnpxQU0k0M1",
-                  minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
+def test_run(minio_addr,minio_access_key,minio_secret_key,batch_size,epochs,lr):
+    train_ranking(minio_addr=minio_addr,  # will use defualt if none is given
+                  minio_access_key=minio_access_key,
+                  minio_secret_key=minio_secret_key,
                   dataset_name="environmental",
-                  epochs=100,
-                  learning_rate=0.1,
+                  epochs=epochs,
+                  learning_rate=lr,
                   buffer_size=20000,
                   train_percent=0.9,
-                  training_batch_size=1,
+                  training_batch_size=batch_size,
                   weight_decay=0.01,
                   load_data_to_ram=True,
                   debug_asserts=True)
 
 
 if __name__ == '__main__':
-
-    test_run()
+    parser = argparse.ArgumentParser() # get a parser object
+    parser.add_argument('--minio_addr', metavar='minio_addr', required=True,
+                      help='minio server ip address')
+    parser.add_argument('--minio_access_key', metavar='minio_access_key', required=True,
+                      help='access key for the minio account')
+    parser.add_argument('--minio_secret_key', metavar='minio_secret_key', required=True,
+                      help='secret key for the minio account')  
+    parser.add_argument('--batch_size', metavar='batch_size', required=True,
+                      help='batch size for training')  
+    parser.add_argument('--epochs', metavar='epochs', required=True,
+                      help='number of epochs for training') 
+    parser.add_argument('--lr', metavar='lr', required=True,
+                      help='learning rate for training')                                             
+                                                             
+    args = parser.parse_args()
+    test_run(args.minio_addr,args.minio_access_key,args.minio_secret_key,int(args.batch_size),int(args.epochs),float(args.lr))

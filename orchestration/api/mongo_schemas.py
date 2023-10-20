@@ -1,10 +1,10 @@
 from pydantic import BaseModel, Field
-from typing import Union
+from typing import Union, Optional
 
 
 class Task(BaseModel):
-    uuid: str  # required, should be passed by generator
     task_type: str
+    uuid: str  # required, should be passed by generator
     model_name: Union[str, None] = None
     model_file_name: Union[str, None] = None
     model_file_path: Union[str, None] = None
@@ -19,8 +19,8 @@ class Task(BaseModel):
 
     def to_dict(self):
         return {
-            "uuid": self.uuid,
             "task_type": self.task_type,
+            "uuid": self.uuid,
             "model_name": self.model_name,
             "model_file_name": self.model_file_name,
             "model_file_path": self.model_file_path,
@@ -167,3 +167,42 @@ class TrainingTask(BaseModel):
             "task_error_str": self.task_error_str,
             "task_output_file_dict": self.task_output_file_dict,
         }
+
+
+class TagDefinition(BaseModel):
+    tag_id: Optional[int] = None
+    tag_string: str = Field(..., description="Name of the tag")
+    tag_category: str = Field(..., description="Category of the tag")
+    tag_description: str = Field(..., description="Description of the tag")
+    user_who_created: str = Field(..., description="User who created the tag")
+    creation_time: Optional[str] = None 
+
+    def to_dict(self):
+        return {
+            "tag_id": self.tag_id,
+            "tag_string": self.tag_string,
+            "tag_category": self.tag_category,
+            "tag_description": self.tag_description,
+            "user_who_created": self.user_who_created,
+            "creation_time": self.creation_time
+        }
+
+
+class ImageTag(BaseModel):
+    tag_id: Optional[int] = None
+    image_id: int
+    image_hash: str
+    user_who_created: str = Field(..., description="User who created the tag")
+    creation_time: Union[str, None] = None 
+    
+    def to_dict(self):
+        return {
+            "tag_id": self.tag_id,
+            "image_id": self.image_id,
+            "image_hash": self.image_hash,
+            "user_who_created": self.user_who_created,
+            "creation_time": self.creation_time
+        }
+        
+
+
