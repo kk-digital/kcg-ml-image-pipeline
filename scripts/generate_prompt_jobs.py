@@ -224,7 +224,8 @@ def main():
     scoring_model = load_linear_model(minio_client, 'datasets', model_path)
 
     print(f'generating {prompt_count} prompts for dataset {dataset}')
-    for index in tqdm(range(0, prompt_count)):
+    for index in range(0, prompt_count):
+        print('generating ', index ,' out of ', prompt_count)
         prompt_list = generate_prompts(clip_text_embedder, dataset, scoring_model, 1, csv_dataset_path,
                              csv_base_prompts, top_k)
 
