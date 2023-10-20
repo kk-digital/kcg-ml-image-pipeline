@@ -6,7 +6,7 @@ from utility.utils_logger import logger
 
 # TODO: remove hardcode in the future
 #  use config file
-MINIO_ADDRESS = "123.176.98.90:9000"
+MINIO_ADDRESS = "192.168.3.5:9000"
 
 
 def get_minio_client(minio_access_key, minio_secret_key, minio_addr=None):
