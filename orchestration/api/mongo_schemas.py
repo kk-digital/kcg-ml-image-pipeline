@@ -192,7 +192,6 @@ class TagDefinition(BaseModel):
 
 class ImageTag(BaseModel):
     tag_id: Optional[int] = None
-    image_id: int
     image_hash: str
     user_who_created: str = Field(..., description="User who created the tag")
     creation_time: Union[str, None] = None 
@@ -200,7 +199,6 @@ class ImageTag(BaseModel):
     def to_dict(self):
         return {
             "tag_id": self.tag_id,
-            "image_id": self.image_id,
             "image_hash": self.image_hash,
             "user_who_created": self.user_who_created,
             "creation_time": self.creation_time

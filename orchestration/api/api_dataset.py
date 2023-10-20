@@ -2,6 +2,8 @@ from fastapi import Request, HTTPException, APIRouter, Response, Query
 from orchestration.api.mongo_schemas import SequentialID
 from utility.minio import cmd
 from datetime import datetime
+from .api_utils import PrettyJSONResponse
+
 router = APIRouter()
 
 
@@ -88,7 +90,7 @@ def set_rate(request: Request, dataset, rate=0):
 
     return True
 
-@router.get("/dataset/get-dataset-config")
+@router.get("/dataset/get-dataset-config", response_class=PrettyJSONResponse)
 def get_dataset_config(request: Request, dataset: str = Query(...)):
     # Find the item for the specific dataset
     item = request.app.dataset_config_collection.find_one({"dataset_name": dataset})
@@ -102,7 +104,7 @@ def get_dataset_config(request: Request, dataset: str = Query(...)):
     return item
 
 
-@router.get("/dataset/get-all-dataset-config")
+@router.get("/dataset/get-all-dataset-config", response_class=PrettyJSONResponse)
 def get_all_dataset_config(request: Request):
     dataset_configs = []
     
