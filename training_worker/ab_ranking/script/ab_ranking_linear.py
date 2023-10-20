@@ -208,7 +208,7 @@ def test_run():
     train_ranking(minio_ip_addr=None,  # will use defualt if none is given
                   minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
-                  dataset_name="character",
+                  dataset_name="environmental",
                   epochs=200,
                   learning_rate=0.1,
                   buffer_size=20000,

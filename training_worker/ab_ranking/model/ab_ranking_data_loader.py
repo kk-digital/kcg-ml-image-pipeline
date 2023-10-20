@@ -4,6 +4,7 @@ import json
 import numpy as np
 import time
 import torch
+from torch.nn.functional import normalize as torch_normalize
 from queue import Queue
 from threading import Semaphore
 import msgpack
@@ -336,7 +337,8 @@ class ABRankingDatasetLoader:
             fill_buffer_thread = threading.Thread(target=self.fill_training_data_buffer)
             fill_buffer_thread.start()
 
-    def get_next_training_feature_vectors_and_target(self, num_data, device=None):
+    # ------------------------------- For AB Ranking Efficient Net -------------------------------
+    def get_next_training_feature_vectors_and_target_efficient_net(self, num_data, device=None, normalize=True):
         image_x_feature_vectors = []
         image_y_feature_vectors = []
         target_probabilities = []
@@ -368,11 +370,15 @@ class ABRankingDatasetLoader:
         image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.float)
         target_probabilities = torch.tensor(target_probabilities).to(torch.float)
 
-        # do average pooling
-        image_x_feature_vectors = torch.mean(image_x_feature_vectors, dim=2)
-        image_y_feature_vectors = torch.mean(image_y_feature_vectors, dim=2)
-        image_x_feature_vectors = image_x_feature_vectors.unsqueeze(2)
-        image_y_feature_vectors = image_y_feature_vectors.unsqueeze(2)
+        if normalize:
+            image_x_feature_vectors = torch_normalize(image_x_feature_vectors, p=1.0, dim=2)
+            image_y_feature_vectors = torch_normalize(image_y_feature_vectors, p=1.0, dim=2)
+        else:
+            # do average pooling
+            image_x_feature_vectors = torch.mean(image_x_feature_vectors, dim=2)
+            image_y_feature_vectors = torch.mean(image_y_feature_vectors, dim=2)
+            image_x_feature_vectors = image_x_feature_vectors.unsqueeze(2)
+            image_y_feature_vectors = image_y_feature_vectors.unsqueeze(2)
 
         if device is not None:
             image_x_feature_vectors = image_x_feature_vectors.to(device)
@@ -381,7 +387,7 @@ class ABRankingDatasetLoader:
 
         return image_x_feature_vectors, image_y_feature_vectors, target_probabilities
 
-    def get_validation_feature_vectors_and_target(self):
+    def get_validation_feature_vectors_and_target_efficient_net(self, normalize=True):
         image_x_feature_vectors = []
         image_y_feature_vectors = []
         target_probabilities = []
@@ -406,13 +412,18 @@ class ABRankingDatasetLoader:
         target_probabilities = torch.tensor(target_probabilities).to(torch.float)
         print("feature shape =", image_x_feature_vectors.shape)
 
-        # do average pooling
-        image_x_feature_vectors = torch.mean(image_x_feature_vectors, dim=2)
-        image_y_feature_vectors = torch.mean(image_y_feature_vectors, dim=2)
+        if normalize:
+            image_x_feature_vectors = torch_normalize(image_x_feature_vectors, p=1.0, dim=2)
+            image_y_feature_vectors = torch_normalize(image_y_feature_vectors, p=1.0, dim=2)
+            print("feature shape after normalizing=", image_x_feature_vectors.shape)
+        else:
+            # do average pooling
+            image_x_feature_vectors = torch.mean(image_x_feature_vectors, dim=2)
+            image_y_feature_vectors = torch.mean(image_y_feature_vectors, dim=2)
 
-        image_x_feature_vectors = image_x_feature_vectors.unsqueeze(2)
-        image_y_feature_vectors = image_y_feature_vectors.unsqueeze(2)
-        print("feature shape after average pooling and unsqueeze=", image_x_feature_vectors.shape)
+            image_x_feature_vectors = image_x_feature_vectors.unsqueeze(2)
+            image_y_feature_vectors = image_y_feature_vectors.unsqueeze(2)
+            print("feature shape after average pooling and unsqueeze=", image_x_feature_vectors.shape)
 
         return image_x_feature_vectors, image_y_feature_vectors, target_probabilities
 
