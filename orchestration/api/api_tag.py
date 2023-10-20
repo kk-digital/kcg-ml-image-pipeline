@@ -3,6 +3,7 @@ from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
 from orchestration.api.mongo_schemas import TagDefinition, ImageTag
 from typing import Union
+from .api_utils import PrettyJSONResponse
 
 
 router = APIRouter()
@@ -63,7 +64,7 @@ def delete_tag_definition(request: Request, tag_id: int):
     raise HTTPException(status_code=400, detail="Tag deletion is not supported.")
 
 
-@router.get("/tags/list_tag_definition", response_model=List[Dict[str, Union[int, str]]])
+@router.get("/tags/list_tag_definition", response_class=PrettyJSONResponse)
 def list_tag_definitions(request: Request):
     # Query all the tag definitions
     tags_cursor = request.app.tag_definitions_collection.find({})
@@ -74,12 +75,49 @@ def list_tag_definitions(request: Request):
             "tag_id": tag["tag_id"],
             "tag_string": tag["tag_string"],
             "tag_category": tag["tag_category"],
+            "tag_vector_index": tag.get("tag_vector_index", -1),  # Use default value if tag_vector_index is absent
             "tag_description": tag["tag_description"],
             "user_who_created": tag["user_who_created"]
         }
         result.append(tag_data)
 
     return result
+
+
+@router.put("/tags/set_tag_vector_index")
+def set_tag_vector_index(request: Request, tag_id: int, vector_index: int):
+    # Find the tag definition using the provided tag_id
+    query = {"tag_id": tag_id}
+    tag = request.app.tag_definitions_collection.find_one(query)
+
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag definition not found.")
+
+    # Check if any other tag has the same vector index
+    existing_tag = request.app.tag_definitions_collection.find_one({"tag_vector_index": vector_index})
+    if existing_tag and existing_tag["tag_id"] != tag_id:
+        raise HTTPException(status_code=400, detail="Another tag already has the same vector index.")
+
+    # Update the tag vector index
+    update_query = {"$set": {"tag_vector_index": vector_index}}
+    request.app.tag_definitions_collection.update_one(query, update_query)
+
+    return {"status": "success", "message": "Tag vector index updated successfully."}
+
+
+@router.get("/tags/get_tag_vector_index")
+def get_tag_vector_index(request: Request, tag_id: int):
+    # Find the tag definition using the provided tag_id
+    query = {"tag_id": tag_id}
+    tag = request.app.tag_definitions_collection.find_one(query)
+
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag definition not found.")
+
+    vector_index = tag.get("tag_vector_index", -1)
+    return {"tag_vector_index": vector_index}
+
+
 
 
 @router.post("/tags/add_tag_to_image", response_model=ImageTag)
