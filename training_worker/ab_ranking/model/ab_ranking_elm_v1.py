@@ -17,27 +17,47 @@ from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDat
 from utility.minio import cmd
 
 
-class ABRankingLinearModel(nn.Module):
-    def __init__(self, inputs_shape):
-        super(ABRankingLinearModel, self).__init__()
+class ABRankingELMBaseModel(nn.Module):
+    def __init__(self, inputs_shape, num_random_layers=2):
+        super(ABRankingELMBaseModel, self).__init__()
         self.inputs_shape = inputs_shape
-        self.linear = nn.Linear(inputs_shape, 1)
-        self.mse_loss = nn.MSELoss()
+        self.output_size = 1
+
         self.l1_loss = nn.L1Loss()
-        self.tanh = nn.Tanh()
+        self.num_random_layers = num_random_layers
+        self.random_layers = []
+        self.linear_last_layer = nn.Linear(self.inputs_shape, self.output_size)
+
+        self.random_layers_init()
 
     # for score
-    def forward(self, input):
-        assert input.shape == (1, self.inputs_shape)
+    def forward(self, x):
+        assert x.shape == (1, self.inputs_shape)
 
-        output = self.linear(input)
+        # go through random layers first
+        for i in range(self.num_random_layers):
+            x = self.random_layers[i](x)
+
+        output = self.linear_last_layer(x)
 
         assert output.shape == (1,1)
         return output
 
+    # TODO: add bias for the layers too
+    def random_layers_init(self):
+        for i in range(self.num_random_layers):
+            random_layer = nn.ReLU()
+            # give random weights
+            random_layer.weight = nn.Parameter(torch.randn(self.inputs_shape), requires_grad=False)
 
-class ABRankingModel:
-    def __init__(self, inputs_shape):
+            # freeze weights
+            random_layer.requires_grad_(False)
+
+            self.random_layers.append(random_layer)
+
+
+class ABRankingELMModel:
+    def __init__(self, inputs_shape, num_random_layers=2):
         print("inputs_shape=", inputs_shape)
         if torch.cuda.is_available():
             device = 'cuda'
@@ -45,8 +65,8 @@ class ABRankingModel:
             device = 'cpu'
         self._device = torch.device(device)
 
-        self.model = ABRankingLinearModel(inputs_shape).to(self._device)
-        self.model_type = 'ab-ranking-linear'
+        self.model = ABRankingELMBaseModel(inputs_shape, num_random_layers).to(self._device)
+        self.model_type = 'ab-ranking-elm-v1'
         self.loss_func_name = ''
         self.file_path = ''
         self.model_hash = ''
@@ -105,7 +125,7 @@ class ABRankingModel:
         validation_loss_per_epoch = []
 
         optimizer = optim.AdamW(self.model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-        self.model_type = 'image-pair-ranking-linear'
+        self.model_type = 'image-pair-ranking-elm-v1'
         self.loss_func_name = "L1"
 
         # get validation data
@@ -176,9 +196,10 @@ class ABRankingModel:
 
                 if debug_asserts:
                     for name, param in self.model.named_parameters():
-                        if torch.isnan(param.grad).any():
-                            print("nan gradient found")
-                            raise SystemExit
+                        if param.grad is not None:
+                            if torch.isnan(param.grad).any():
+                                print("nan gradient found")
+                                raise SystemExit
                         # print("param={}, grad={}".format(name, param.grad))
 
                 # refill training ab data

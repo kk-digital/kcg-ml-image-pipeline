@@ -20,9 +20,9 @@ from training_worker.ab_ranking.model.efficient_net_model import EfficientNet as
 
 
 class EfficientNetModel(nn.Module):
-    def __init__(self, efficient_net_version="b0", in_channels=1, num_classes=1):
+    def __init__(self, efficient_net_version="b0", in_channels=1, num_classes=1, inputs_shape=(1, 1, 768*2)):
         super(EfficientNetModel, self).__init__()
-        self.inputs_shape =  (in_channels, 1, 768)
+        self.inputs_shape = inputs_shape
         self.efficient_net = efficientnet_pytorch(efficient_net_version, in_channels=in_channels, num_classes=num_classes)
         self.l1_loss = nn.L1Loss()
         self.relu_fn = nn.ReLU()
@@ -34,7 +34,7 @@ class EfficientNetModel(nn.Module):
 
 
 class ABRankingEfficientNetModel:
-    def __init__(self, efficient_net_version="b0", in_channels=1, num_classes=1):
+    def __init__(self, efficient_net_version="b0", in_channels=1, num_classes=1, inputs_shape=(1, 1, 768*2)):
         print("efficient_net_version =", efficient_net_version)
         print("in_channels =", in_channels)
         print("num_classes =", num_classes)
@@ -45,7 +45,7 @@ class ABRankingEfficientNetModel:
             device = 'cpu'
         self._device = torch.device(device)
 
-        self.model = EfficientNetModel(efficient_net_version, in_channels, num_classes).to(self._device)
+        self.model = EfficientNetModel(efficient_net_version, in_channels, num_classes, inputs_shape).to(self._device)
         self.model_type = 'ab-ranking-efficient-net'
         self.loss_func_name = ''
         self.file_path = ''
@@ -158,7 +158,7 @@ class ABRankingEfficientNetModel:
                     predicted_score_images_x = self.model.forward(batch_features_x)
 
                     predicted_score_images_y_copy = predicted_score_images_y.clone().requires_grad_(True).to(self._device)
-                    batch_pred_probabilities = self.forward_bradley_terry(predicted_score_images_x, predicted_score_images_y_copy)
+                    batch_pred_probabilities = self.forward_elo(predicted_score_images_x, predicted_score_images_y_copy)
 
                     if debug_asserts:
                         # assert
@@ -202,7 +202,7 @@ class ABRankingEfficientNetModel:
 
                     predicted_score_image_x = self.model.forward(validation_feature_x)
                     predicted_score_image_y = self.model.forward(validation_feature_y)
-                    validation_probability = self.forward_bradley_terry(predicted_score_image_x, predicted_score_image_y)
+                    validation_probability = self.forward_elo(predicted_score_image_x, predicted_score_image_y)
 
                     if debug_asserts:
                         assert validation_probability.shape == validation_target.shape
@@ -257,11 +257,11 @@ class ABRankingEfficientNetModel:
 
                 batch_predicted_score_images_x = self.model.forward(batch_features_x)
                 batch_predicted_score_images_y = self.model.forward(batch_features_y)
-                batch_pred_probabilities = self.forward_bradley_terry(batch_predicted_score_images_x,
+                batch_pred_probabilities = self.forward_elo(batch_predicted_score_images_x,
                                                              batch_predicted_score_images_y)
                 if debug_asserts:
                     # assert pred(x,y) = 1- pred(y,x)
-                    batch_pred_probabilities_inverse = self.forward_bradley_terry(batch_predicted_score_images_y,
+                    batch_pred_probabilities_inverse = self.forward_elo(batch_predicted_score_images_y,
                                                                                   batch_predicted_score_images_x)
                     tensor_ones = torch.tensor([1.0] * len(batch_pred_probabilities_inverse)).to(self._device)
                     assert torch.allclose(batch_pred_probabilities,
@@ -285,10 +285,10 @@ class ABRankingEfficientNetModel:
 
                 predicted_score_image_x = self.model.forward(validation_feature_x)
                 predicted_score_image_y = self.model.forward(validation_feature_y)
-                pred_probability = self.forward_bradley_terry(predicted_score_image_x, predicted_score_image_y)
+                pred_probability = self.forward_elo(predicted_score_image_x, predicted_score_image_y)
                 if debug_asserts:
                     # assert pred(x,y) = 1- pred(y,x)
-                    pred_probability_inverse = self.forward_bradley_terry(predicted_score_image_y, predicted_score_image_x)
+                    pred_probability_inverse = self.forward_elo(predicted_score_image_y, predicted_score_image_x)
                     tensor_ones = torch.tensor([1.0] * len(pred_probability_inverse)).to(self._device)
                     assert torch.allclose(pred_probability, torch.subtract(tensor_ones, pred_probability_inverse), atol=1e-05)
 
@@ -311,11 +311,11 @@ class ABRankingEfficientNetModel:
     def forward_bradley_terry(self, predicted_score_images_x, predicted_score_images_y, use_sigmoid=True):
         if use_sigmoid:
             # scale the score
-            scaled_score_image_x = torch.multiply(1000.0, predicted_score_images_x)
-            scaled_score_image_y = torch.multiply(1000.0, predicted_score_images_y)
+            # scaled_score_image_x = torch.multiply(1000.0, predicted_score_images_x)
+            # scaled_score_image_y = torch.multiply(1000.0, predicted_score_images_y)
 
             # prob = sigmoid( (x-y) / 100 )
-            diff_predicted_score = torch.sub(scaled_score_image_x, scaled_score_image_y)
+            diff_predicted_score = torch.sub(predicted_score_images_x, predicted_score_images_y)
             res_predicted_score = torch.div(diff_predicted_score, 50.0)
             pred_probabilities = torch.sigmoid(res_predicted_score)
         else:
@@ -331,6 +331,16 @@ class ABRankingEfficientNetModel:
             pred_probabilities = torch.div(predicted_score_images_x, sum_predicted_score)
 
         return pred_probabilities
+
+    def forward_elo(self, predicted_score_images_x, predicted_score_images_y):
+        # elo = 1 / (1+10^((Rb-Ra)/400))
+        diff_score = torch.sub(predicted_score_images_x, predicted_score_images_y)
+        quotient_score = torch.div(diff_score, 400.0)
+        pred_score_denominator = torch.pow(10, quotient_score)
+        pred_score_denominator_sum = torch.add(1.0, pred_score_denominator)
+        pred_elo = torch.div(1.0, pred_score_denominator_sum)
+
+        return pred_elo
 
     def predict(self, positive_input, negative_input):
         # get rid of the 1 dimension at start
