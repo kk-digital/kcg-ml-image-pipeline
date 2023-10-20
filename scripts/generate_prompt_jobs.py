@@ -149,13 +149,10 @@ def generate_waifu_generation_jobs(scored_prompt):
     positive_prompt = scored_prompt.positive_prompt
     negative_prompt = scored_prompt.negative_prompt
 
-    generate_inpainting_job(
+    generate_image_generation_jobs(
         positive_prompt=positive_prompt,
         negative_prompt=negative_prompt,
         dataset_name=dataset_name,
-        init_img_path=init_img_path,
-        mask_path=mask_path,
-
     )
 
 
