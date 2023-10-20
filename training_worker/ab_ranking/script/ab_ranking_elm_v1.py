@@ -3,17 +3,17 @@ import torch
 import sys
 from datetime import datetime
 from pytz import timezone
-import argparse
+
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
-#sys.path.insert(0, '/content/drive/MyDrive/github/new/kcg-ml-image-pipeline')
+
 from utility.regression_utils import torchinfo_summary
-from training_worker.ab_ranking.model.ab_ranking_efficient_net import ABRankingEfficientNetModel
+from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.reports.ab_ranking_linear_train_report import get_train_report
 from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import *
 from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDatasetLoader
-from utility.minio import cmd
 from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
+from utility.minio import cmd
 from training_worker.ab_ranking.model import constants
 
 
@@ -30,19 +30,16 @@ def train_ranking(dataset_name: str,
                   load_data_to_ram=False,
                   debug_asserts=False,
                   pooling_strategy=constants.AVERAGE_POOLING,
-                  normalize_vectors=False):
+                  normalize_vectors=False,
+                  num_random_layers=2):
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
-    efficient_net_version = "b0"
-    network_type = "efficient-net-{}".format(efficient_net_version)
+    network_type = "elm-v1"
     input_type = "embedding"
-    in_channels = 1
-    inputs_shape = (in_channels, 1, 768*2)
     output_type = "score"
-    output_path = "{}/models/ranking/ab_ranking_efficient_net".format(dataset_name)
-
-
+    input_shape = 2 * 768
+    output_path = "{}/models/ranking/ab_ranking_elm_v1".format(dataset_name)
 
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name=dataset_name,
@@ -59,10 +56,7 @@ def train_ranking(dataset_name: str,
     training_total_size = dataset_loader.get_len_training_ab_data()
     validation_total_size = dataset_loader.get_len_validation_ab_data()
 
-    ab_model = ABRankingEfficientNetModel(efficient_net_version=efficient_net_version,
-                                          in_channels=in_channels,
-                                          num_classes=1,
-                                          inputs_shape=inputs_shape)
+    ab_model = ABRankingELMModel(inputs_shape=input_shape, num_random_layers=num_random_layers)
     training_predicted_score_images_x, \
         training_predicted_score_images_y, \
         training_predicted_probabilities, \
@@ -73,10 +67,10 @@ def train_ranking(dataset_name: str,
         validation_target_probabilities, \
         training_loss_per_epoch, \
         validation_loss_per_epoch = ab_model.train(dataset_loader=dataset_loader,
-                                                    training_batch_size=training_batch_size,
-                                                    epochs=epochs,
-                                                    learning_rate=learning_rate,
-                                                    weight_decay=weight_decay,
+                                                   training_batch_size=training_batch_size,
+                                                   epochs=epochs,
+                                                   learning_rate=learning_rate,
+                                                   weight_decay=weight_decay,
                                                    debug_asserts=debug_asserts)
 
     # Upload model to minio
@@ -155,7 +149,7 @@ def train_ranking(dataset_name: str,
 
     # Upload model to minio
     report_name = "{}.txt".format(date_now)
-    report_output_path = os.path.join(output_path,  report_name)
+    report_output_path = os.path.join(output_path, report_name)
 
     report_buffer = BytesIO(report_str.encode(encoding='UTF-8'))
 
@@ -185,7 +179,7 @@ def train_ranking(dataset_name: str,
                                     date_now,
                                     network_type,
                                     input_type,
-                                    inputs_shape,
+                                    input_shape,
                                     output_type,
                                     train_sum_correct,
                                     validation_sum_correct,
@@ -194,7 +188,7 @@ def train_ranking(dataset_name: str,
                                     pooling_strategy,
                                     normalize_vectors)
     # upload the graph report
-    cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
+    cmd.upload_data(dataset_loader.minio_client, bucket_name, graph_output_path, graph_buffer)
 
     # get model card and upload
     model_card_name = "{}.json".format(date_now)
@@ -205,7 +199,7 @@ def train_ranking(dataset_name: str,
     return model_output_path, report_output_path, graph_output_path
 
 
-def run_ab_ranking_efficient_net_task(training_task, minio_access_key, minio_secret_key):
+def run_ab_ranking_elm_v1_task(training_task, minio_access_key, minio_secret_key):
     model_output_path, \
         report_output_path, \
         graph_output_path = train_ranking(dataset_name=training_task["dataset_name"],
@@ -219,37 +213,23 @@ def run_ab_ranking_efficient_net_task(training_task, minio_access_key, minio_sec
     return model_output_path, report_output_path, graph_output_path
 
 
-def test_run(minio_ip_addr,minio_access_key,minio_secret_key,batch_size,epochs,lr):
-    train_ranking(minio_ip_addr=minio_ip_addr,  # will use defualt if none is given
-                  minio_access_key=minio_access_key,
-                  minio_secret_key=minio_secret_key,
+def test_run():
+    train_ranking(minio_ip_addr=None,  # will use defualt if none is given
+                  minio_access_key="nkjYl5jO4QnpxQU0k0M1",
+                  minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
                   dataset_name="environmental",
-                  epochs=epochs,
-                  learning_rate=lr,
+                  epochs=200,
+                  learning_rate=0.1,
                   buffer_size=20000,
                   train_percent=0.9,
-                  training_batch_size=batch_size,
+                  training_batch_size=1,
                   weight_decay=0.01,
                   load_data_to_ram=True,
                   debug_asserts=True,
-                  pooling_strategy=constants.MAX_POOLING,
-                  normalize_vectors=True)
+                  pooling_strategy=constants.AVERAGE_POOLING,
+                  normalize_vectors=False,
+                  num_random_layers=2)
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser() # get a parser object
-    parser.add_argument('--minio-addr', metavar='minio-addr', default=None, required=False,
-                      help='minio server ip address')
-    parser.add_argument('--minio-access-key', metavar='minio-access-key', required=True,
-                      help='access key for the minio account')
-    parser.add_argument('--minio-secret-key', metavar='minio-secret-key', required=True,
-                      help='secret key for the minio account')  
-    parser.add_argument('--batch-size', metavar='batch-size', required=True,
-                      help='batch size for training')  
-    parser.add_argument('--epochs', metavar='epochs', required=True,
-                      help='number of epochs for training') 
-    parser.add_argument('--lr', metavar='lr', required=True,
-                      help='learning rate for training')                                             
-                                                             
-    args = parser.parse_args()
-    test_run(args.minio_addr,args.minio_access_key,args.minio_secret_key,int(args.batch_size),int(args.epochs),float(args.lr))
+    test_run()
