@@ -14,6 +14,7 @@ from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear imp
 from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDatasetLoader
 from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
 from utility.minio import cmd
+from training_worker.ab_ranking.model import constants
 
 
 def train_ranking(dataset_name: str,
@@ -27,7 +28,9 @@ def train_ranking(dataset_name: str,
                   training_batch_size=1,
                   weight_decay=0.01,
                   load_data_to_ram=False,
-                  debug_asserts=False):
+                  debug_asserts=False,
+                  pooling_strategy=constants.AVERAGE_POOLING,
+                  normalize_vectors=False):
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
@@ -44,7 +47,9 @@ def train_ranking(dataset_name: str,
                                             minio_secret_key=minio_secret_key,
                                             buffer_size=buffer_size,
                                             train_percent=train_percent,
-                                            load_to_ram=load_data_to_ram)
+                                            load_to_ram=load_data_to_ram,
+                                            pooling_strategy=pooling_strategy,
+                                            normalize_vectors=normalize_vectors)
     dataset_loader.load_dataset()
 
     training_total_size = dataset_loader.get_len_training_ab_data()
@@ -173,11 +178,14 @@ def train_ranking(dataset_name: str,
                                     date_now,
                                     network_type,
                                     input_type,
+                                    input_shape,
                                     output_type,
                                     train_sum_correct,
                                     validation_sum_correct,
                                     ab_model.loss_func_name,
-                                    dataset_name)
+                                    dataset_name,
+                                    pooling_strategy,
+                                    normalize_vectors)
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
 
@@ -208,7 +216,7 @@ def test_run():
     train_ranking(minio_ip_addr=None,  # will use defualt if none is given
                   minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
-                  dataset_name="character",
+                  dataset_name="environmental",
                   epochs=200,
                   learning_rate=0.1,
                   buffer_size=20000,
@@ -216,7 +224,9 @@ def test_run():
                   training_batch_size=1,
                   weight_decay=0.01,
                   load_data_to_ram=True,
-                  debug_asserts=True)
+                  debug_asserts=True,
+                  pooling_strategy=constants.AVERAGE_POOLING,
+                  normalize_vectors=False)
 
 
 if __name__ == '__main__':

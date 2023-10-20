@@ -174,6 +174,7 @@ class TagDefinition(BaseModel):
     tag_string: str = Field(..., description="Name of the tag")
     tag_category: str = Field(..., description="Category of the tag")
     tag_description: str = Field(..., description="Description of the tag")
+    tag_vector_index: Optional[int] = Field(-1, description="Tag definition vector index")
     user_who_created: str = Field(..., description="User who created the tag")
     creation_time: Optional[str] = None 
 
@@ -183,6 +184,7 @@ class TagDefinition(BaseModel):
             "tag_string": self.tag_string,
             "tag_category": self.tag_category,
             "tag_description": self.tag_description,
+            "tag_vector_index": self.tag_vector_index,
             "user_who_created": self.user_who_created,
             "creation_time": self.creation_time
         }

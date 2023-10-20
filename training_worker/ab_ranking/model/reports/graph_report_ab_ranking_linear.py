@@ -4,6 +4,10 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 from io import BytesIO
 import torch
+import sys
+base_directory = os.getcwd()
+sys.path.insert(0, base_directory)
+
 
 def separate_values_based_on_targets(training_targets, validation_targets, train_prob_predictions,
                                      validation_prob_predictions, training_pred_scores_img_x,
@@ -68,8 +72,9 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
                       training_pred_scores_img_x, training_pred_scores_img_y, validation_pred_scores_img_x,
                       validation_pred_scores_img_y, training_total_size, validation_total_size,
                       training_losses, validation_losses, epochs, learning_rate,training_batch_size,
-                     weight_decay, date, network_type, input_type, output_type, train_sum_correct,
-                                    validation_sum_correct, loss_func, dataset_name):
+                     weight_decay, date, network_type, input_type, input_shape, output_type, train_sum_correct,
+                                    validation_sum_correct, loss_func, dataset_name, pooling_strategy: int,
+                                                   normalize_vectors):
     train_prob_predictions_target_1, \
         train_prob_predictions_target_0, \
         validation_prob_predictions_target_1, \
@@ -273,25 +278,35 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
     validation_target_0_predicted_scores.set_title("Validation Predicted Score for target 0.0")
     validation_target_0_predicted_scores.legend()
     # ----------------------------------------------------------------------------------------------------------------#
+    pooling_strategy_str = "average pooling"
+    if pooling_strategy == 1:
+        pooling_strategy_str = "max pooling"
 
     # add additional info on top left side
     plt.figtext(0, 0.65, "Date = {}\n"
                          "Dataset = {}\n"
                          "Network type = {}\n"
                          "Input type = {}\n"
+                         "Input shape = {}\n"
                          "Output type= {}\n\n"
+                         ""
                          "Training size = {}\n"
                          "Validation size = {}\n"
                          "Train Correct Predictions \n= {}({:02.02f}%)\n"
                          "Validation Correct \nPredictions = {}({:02.02f}%)\n\n"
+                         ""
                          "Learning rate = {}\n"
                          "Epochs = {}\n"
                          "Training batch size = {}\n"
                          "Weight decay = {}\n"
-                         "Loss func = {}\n".format(date,
+                         "Loss func = {}\n\n"
+                         ""
+                         "Pooling strategy = {}\n"
+                         "Normalize vectors= {}\n".format(date,
                                                    dataset_name,
                                                    network_type,
                                                    input_type,
+                                                   input_shape,
                                                    output_type,
                                                    training_total_size,
                                                    validation_total_size,
@@ -303,7 +318,9 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
                                                    epochs,
                                                    training_batch_size,
                                                    weight_decay,
-                                                   loss_func)
+                                                   loss_func,
+                                                   pooling_strategy_str,
+                                                   normalize_vectors)
                 )
 
     # Save figure
