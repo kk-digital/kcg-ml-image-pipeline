@@ -29,8 +29,6 @@ def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count,
     phrases, phrases_token_size, positive_count_list, negative_count_list = initialize_prompt_list_from_csv(
         csv_dataset_path, 0)
 
-
-    print(f'generating {total_prompt_count} prompts for dataset {dataset}')
     prompts = generate_prompts_proportional_selection(phrases,
                                                       phrases_token_size,
                                                       positive_count_list,
@@ -45,7 +43,7 @@ def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count,
 
     print('Scoring Generated Prompts ')
     scored_prompts = []
-    for index in tqdm(range(0, len(prompts))):
+    for index in range(0, len(prompts)):
 
         prompt = prompts[index]
         # N Base Prompt Phrases
@@ -138,6 +136,30 @@ def generate_character_generation_jobs(scored_prompt):
 
     )
 
+
+def generate_waifu_generation_jobs(scored_prompt):
+
+    dataset_name = "waifu"
+    init_img_path = "./test/test_inpainting/white_512x512.jpg"
+    mask_path = "./test/test_inpainting/character_mask.png"
+
+    if scored_prompt is None:
+        return
+
+    positive_prompt = scored_prompt.positive_prompt
+    negative_prompt = scored_prompt.negative_prompt
+
+    generate_inpainting_job(
+        positive_prompt=positive_prompt,
+        negative_prompt=negative_prompt,
+        dataset_name=dataset_name,
+        init_img_path=init_img_path,
+        mask_path=mask_path,
+
+    )
+
+
+
 def generate_environmental_image_generation_jobs(scored_prompt):
 
     dataset_name = 'environmental'
@@ -201,15 +223,20 @@ def main():
 
     scoring_model = load_linear_model(minio_client, 'datasets', model_path)
 
-    prompt_list = generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count, csv_dataset_path,
-                         csv_base_prompts, top_k)
+    print(f'generating {prompt_count} prompts for dataset {dataset}')
+    for index in tqdm(range(0, prompt_count)):
+        prompt_list = generate_prompts(clip_text_embedder, dataset, scoring_model, 1, csv_dataset_path,
+                             csv_base_prompts, top_k)
 
-    if dataset == 'environmental':
-        for prompt in prompt_list:
-            generate_environmental_image_generation_jobs(prompt)
-    elif dataset == 'character':
-        for prompt in prompt_list:
-            generate_character_generation_jobs(prompt)
+        if dataset == 'environmental':
+            for prompt in prompt_list:
+                generate_environmental_image_generation_jobs(prompt)
+        elif dataset == 'character':
+            for prompt in prompt_list:
+                generate_character_generation_jobs(prompt)
+        elif dataset == 'waifu':
+            for prompt in prompt_list:
+                generate_waifu_generation_jobs(prompt)
 
 if __name__ == '__main__':
     main()
