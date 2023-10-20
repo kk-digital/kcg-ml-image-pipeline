@@ -219,9 +219,10 @@ def main():
 
     minio_client = cmd.get_minio_client(minio_access_key, minio_secret_key)
 
-    bucket_name, file_path = separate_bucket_and_file_path(model_path)
-
-    scoring_model = load_linear_model(minio_client, 'datasets', model_path)
+    if minio_client is not None:
+        scoring_model = load_linear_model(minio_client, 'datasets', model_path)
+    else:
+        scoring_model = None
 
     print(f'generating {prompt_count} prompts for dataset {dataset}')
     for index in range(0, prompt_count):
