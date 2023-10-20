@@ -19,7 +19,8 @@ from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from worker.prompt_generation.prompt_generator import (generate_inpainting_job,
                                                        generate_image_generation_jobs)
 
-def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count, csv_dataset_path, base_prompts_csv_path, top_k):
+def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count,
+                     csv_dataset_path, base_prompts_csv_path, top_k):
 
     total_prompt_count = prompt_count * (1.0 / top_k)
 
@@ -37,7 +38,10 @@ def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count, c
                                                       total_prompt_count,
                                                       '')
 
-    base_prompt_population = load_base_prompts(base_prompts_csv_path)
+    if base_prompts_csv_path != '' and base_prompts_csv_path is not None:
+        base_prompt_population = load_base_prompts(base_prompts_csv_path)
+    else:
+        base_prompt_population = None
 
     print('Scoring Generated Prompts ')
     scored_prompts = []
@@ -50,7 +54,10 @@ def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count, c
         # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
         choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
 
-        base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
+        if base_prompt_population is not None:
+            base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
+        else:
+            base_prompt_list = []
 
         base_prompts = ''
 
@@ -157,10 +164,10 @@ def parse_args():
     parser.add_argument("--prompt_count", type=int, default=1)
     parser.add_argument("--csv_dataset_path", type=str, default='input/civitai_phrases_database_v6.csv')
     parser.add_argument("--csv_base_prompts", type=str,
-                        default='input/dataset-config/environmental/base-prompts-environmental.csv')
+                        default='')
 
     parser.add_argument("--model_path", type=str,
-                        default='environmental/models/ranking/ab_ranking_linear/2023-10-13.pth')
+                        default='')
 
     parser.add_argument("--minio_access_key", type=str, default='v048BpXpWrsVIHUfdAix')
     parser.add_argument("--minio_secret_key", type=str, default='4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu')
