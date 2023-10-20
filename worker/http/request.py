@@ -1,14 +1,12 @@
 import requests
 
-SERVER_ADRESS = '192.168.3.1:8111'
+SERVER_ADRESS = 'http://192.168.3.1:8111'
+#SERVER_ADRESS = 'http://127.0.0.1:8000'
 
 
 # Get request to get an available job
-def http_get_job(worker_type: str = None, minio_ip_addr=None):
-    if minio_ip_addr is None:
-        minio_ip_addr=SERVER_ADRESS
-
-    url = 'http://'+ minio_ip_addr + "/queue/image-generation/get-job"
+def http_get_job(worker_type: str = None):
+    url = SERVER_ADRESS + "/queue/image-generation/get-job"
     if worker_type is not None:
         url = url + "?task_type={}".format(worker_type)
 
@@ -25,11 +23,8 @@ def http_get_job(worker_type: str = None, minio_ip_addr=None):
 
 
 # Get request to get sequential id of a dataset
-def http_get_sequential_id(dataset_name: str, limit: int, minio_ip_addr=None):
-    if minio_ip_addr is None:
-        minio_ip_addr=SERVER_ADRESS
-
-    url = 'http://'+ SERVER_ADRESS + "/dataset/sequential-id/{0}?limit={1}".format(dataset_name, limit)
+def http_get_sequential_id(dataset_name: str, limit: int):
+    url = SERVER_ADRESS + "/dataset/sequential-id/{0}?limit={1}".format(dataset_name, limit)
 
     try:
         response = requests.get(url)
@@ -43,11 +38,8 @@ def http_get_sequential_id(dataset_name: str, limit: int, minio_ip_addr=None):
     return None
 
 
-def http_add_job(job, minio_ip_addr= None):
-    if minio_ip_addr is None:
-        minio_ip_addr=SERVER_ADRESS
-
-    url = 'http://' + SERVER_ADRESS + "/queue/image-generation/add"
+def http_add_job(job):
+    url = SERVER_ADRESS + "/queue/image-generation/add"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
 
     try:
@@ -59,11 +51,8 @@ def http_add_job(job, minio_ip_addr= None):
         print(f"POST request failed with status code: {response.status_code}")
 
 
-def http_update_job_completed(job, minio_ip_addr=None):
-    if minio_ip_addr is None:
-        minio_ip_addr=SERVER_ADRESS
-
-    url = 'http://' + SERVER_ADRESS + "/queue/image-generation/update-completed"
+def http_update_job_completed(job):
+    url = SERVER_ADRESS + "/queue/image-generation/update-completed"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
 
     try:
@@ -75,11 +64,8 @@ def http_update_job_completed(job, minio_ip_addr=None):
         print(f"request failed with status code: {response.status_code}")
 
 
-def http_update_job_failed(job, minio_ip_addr=None):
-    if minio_ip_addr is None:
-        minio_ip_addr=SERVER_ADRESS
-
-    url = 'http://' + SERVER_ADRESS + "/queue/image-generation/update-failed"
+def http_update_job_failed(job):
+    url = SERVER_ADRESS + "/queue/image-generation/update-failed"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
 
     try:

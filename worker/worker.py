@@ -154,8 +154,6 @@ def parse_args():
     # Required parameters
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--queue_size", type=int, default=8)
-    parser.add_argument("--minio-address", type=str, default=None,
-                        help="IP adress of the MinIO server")
     parser.add_argument("--minio-access-key", type=str,
                         help="The minio access key to use so worker can upload files to minio server")
     parser.add_argument("--minio-secret-key", type=str,
@@ -166,13 +164,13 @@ def parse_args():
     return parser.parse_args()
 
 
-def get_job_if_exist(worker_type_list, minio_ip_addr=None):
+def get_job_if_exist(worker_type_list):
     job = None
     for worker_type in worker_type_list:
         if worker_type == "":
-            job = request.http_get_job(minio_ip_addr)
+            job = request.http_get_job()
         else:
-            job = request.http_get_job(worker_type, minio_ip_addr)
+            job = request.http_get_job(worker_type)
 
         if job is not None:
             break
@@ -204,7 +202,6 @@ def upload_data_and_update_job_status(job, output_file_path, output_file_hash, d
 
 
 def upload_image_data_and_update_job_status(worker_state, job, generation_task, seed, output_file_path, output_file_hash, data):
-    print('test print here')
     start_time = time.time()
     bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
 
@@ -372,7 +369,7 @@ def main():
         load_clip = True
 
     # Initialize worker state
-    worker_state = WorkerState(args.device,  args.minio_address, args.minio_access_key, args.minio_secret_key, queue_size, load_clip)
+    worker_state = WorkerState(args.device, args.minio_access_key, args.minio_secret_key, queue_size, load_clip)
     # Loading models
     worker_state.load_models()
 
@@ -394,7 +391,7 @@ def main():
         # try to find a job
         # if job exists add it to job queue
         # if not sleep for a while
-        job = get_job_if_exist(worker_type_list, args.minio_address)
+        job = get_job_if_exist(worker_type_list)
         if job != None:
             info(thread_state, 'Found job ! ')
             worker_state.job_queue.put(job)
