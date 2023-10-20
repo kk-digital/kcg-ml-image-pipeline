@@ -119,22 +119,28 @@ def get_tag_vector_index(request: Request, tag_id: int):
 
 
 
-
 @router.post("/tags/add_tag_to_image", response_model=ImageTag)
-def add_tag_to_image(request: Request, image_tag: ImageTag):
+def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_created: str):
     date_now = datetime.now().isoformat()
     
     # Check if the tag exists by tag_id in the tag_definitions_collection
-    existing_tag = request.app.tag_definitions_collection.find_one({"tag_id": image_tag.tag_id})
+    existing_tag = request.app.tag_definitions_collection.find_one({"tag_id": tag_id})
     if not existing_tag:
         raise HTTPException(status_code=404, detail="Tag does not exist!")
 
+    # Get the image from completed_jobs_collection using file_hash
+    image = request.app.completed_jobs_collection.find_one({
+        'task_output_file_dict.output_file_hash': file_hash
+    })
+
+    if not image:
+        raise HTTPException(status_code=404, detail="No image found with the given hash")
+    
     # Create association between image and tag in the image_tags_collection
     image_tag_data = {
-        "tag_id": existing_tag["tag_id"],
-        "image_id": image_tag.image_id,
-        "image_hash": image_tag.image_hash,
-        "user_who_created": existing_tag["user_who_created"],
+        "tag_id": tag_id,
+        "image_hash": file_hash,
+        "user_who_created": user_who_created,
         "creation_time": date_now
     }
 
@@ -142,10 +148,11 @@ def add_tag_to_image(request: Request, image_tag: ImageTag):
     return image_tag_data
 
 
+
 @router.delete("/tags/remove_tag_from_image")
-def remove_image_tag(request: Request, image_hash: str):
+def remove_image_tag(request: Request, file_hash: str):
     query = {
-        "image_hash": image_hash
+        "image_hash": file_hash
     }
     
     result = request.app.image_tags_collection.delete_many(query)  
@@ -153,13 +160,13 @@ def remove_image_tag(request: Request, image_hash: str):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Tags for the given image hash not found!")
     
-    return {"status": "success", "message": f"tags removed successfully."}
+    return {"status": "success", "message": f"Tags removed successfully."}
 
 
 @router.get("/tags/get_tag_list_for_image", response_model=List[TagDefinition])
-def get_tag_list_for_image(request: Request, image_hash: str):
+def get_tag_list_for_image(request: Request, file_hash: str):
     # Fetch image tags based on image_hash
-    image_tags_cursor = request.app.image_tags_collection.find({"image_hash": image_hash})
+    image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash})
     
     tag_ids = [tag_data["tag_id"] for tag_data in image_tags_cursor]
     
@@ -168,6 +175,7 @@ def get_tag_list_for_image(request: Request, image_hash: str):
     tags_list = [TagDefinition(**tag_data) for tag_data in tags_cursor]
     
     return tags_list
+
 
 @router.get("/tags/get_images_by_tag", response_model=List[ImageTag])
 def get_tagged_images(request: Request, tag_id: int):
@@ -178,12 +186,11 @@ def get_tagged_images(request: Request, tag_id: int):
         ImageTag(
             tag_id=int(tag_data["tag_id"]),
             image_hash=str(tag_data["image_hash"]),
-            image_id=tag_data["image_id"],
             user_who_created=tag_data["user_who_created"],
-            creation_time=tag_data.get("creation_time", None)  # Use get() method with default None if not found
+            creation_time=tag_data.get("creation_time", None)
         ) 
         for tag_data in image_tags_cursor 
-        if tag_data.get("image_hash") and tag_data.get("image_id") and tag_data.get("user_who_created")
+        if tag_data.get("image_hash") and tag_data.get("user_who_created")
     ]
     
     # If no image details found, raise an exception
@@ -193,7 +200,8 @@ def get_tagged_images(request: Request, tag_id: int):
     return image_info_list
 
 
-@router.get("/tags/get_all_tagged_images", response_model=List[ImageTag])
+
+@router.get("/tags/get_all_tagged_images", response_model=List[ImageTag], response_class=PrettyJSONResponse)
 def get_all_tagged_images(request: Request):
     # Fetch all tagged image details
     image_tags_cursor = request.app.image_tags_collection.find({})
@@ -202,12 +210,11 @@ def get_all_tagged_images(request: Request):
         ImageTag(
             tag_id=int(tag_data["tag_id"]),
             image_hash=str(tag_data["image_hash"]),
-            image_id=tag_data["image_id"],
             user_who_created=tag_data["user_who_created"],
-            creation_time=tag_data.get("creation_time", None)  # Use get() method with default None if not found
+            creation_time=tag_data.get("creation_time", None)
         ) 
         for tag_data in image_tags_cursor 
-        if tag_data.get("image_hash") and tag_data.get("image_id") and tag_data.get("user_who_created")
+        if tag_data.get("image_hash") and tag_data.get("user_who_created")
     ]
 
     # If no tagged image details found, raise an exception
@@ -215,3 +222,4 @@ def get_all_tagged_images(request: Request):
         raise HTTPException(status_code=404, detail="No tagged images found!")
 
     return image_info_list
+

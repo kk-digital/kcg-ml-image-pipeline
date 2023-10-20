@@ -4,7 +4,6 @@ from utility.minio import cmd
 import os
 import json
 from io import BytesIO
-
 from orchestration.api.mongo_schemas import Selection, RelevanceSelection
 
 router = APIRouter()
