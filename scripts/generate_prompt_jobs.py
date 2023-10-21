@@ -140,8 +140,6 @@ def generate_character_generation_jobs(scored_prompt):
 def generate_waifu_generation_jobs(scored_prompt):
 
     dataset_name = "waifu"
-    init_img_path = "./test/test_inpainting/white_512x512.jpg"
-    mask_path = "./test/test_inpainting/character_mask.png"
 
     if scored_prompt is None:
         return
@@ -155,6 +153,22 @@ def generate_waifu_generation_jobs(scored_prompt):
         dataset_name=dataset_name,
     )
 
+
+def generate_propaganda_poster_generation_jobs(scored_prompt):
+
+    dataset_name = "propaganda-poster"
+
+    if scored_prompt is None:
+        return
+
+    positive_prompt = scored_prompt.positive_prompt
+    negative_prompt = scored_prompt.negative_prompt
+
+    generate_image_generation_jobs(
+        positive_prompt=positive_prompt,
+        negative_prompt=negative_prompt,
+        dataset_name=dataset_name,
+    )
 
 
 def generate_environmental_image_generation_jobs(scored_prompt):
@@ -236,6 +250,9 @@ def main():
         elif dataset == 'waifu':
             for prompt in prompt_list:
                 generate_waifu_generation_jobs(prompt)
+        elif dataset == 'propaganda-poster':
+            for prompt in prompt_list:
+                generate_propaganda_poster_generation_jobs(prompt)
 
 if __name__ == '__main__':
     main()
