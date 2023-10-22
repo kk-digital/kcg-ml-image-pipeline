@@ -374,6 +374,10 @@ def main():
 
                 number_of_jobs_to_add = dataset_number_jobs_to_add[dataset]
 
+                if dataset == 'mech':
+                    print("------- ", number_of_jobs_to_add)
+                    print("------- ", dataset_rate)
+
                 if number_of_jobs_to_add >= 1 and dataset_rate > 0:
                     dataset_todo_jobs[dataset] += (dataset_rate / total_rate)
                     added_atleast_one_job = True
