@@ -285,9 +285,12 @@ def main():
     # load the models at the start for each dataset
     load_dataset_models(prompt_job_generator_state, list_datasets)
 
+    print("generating starting prompts")
+
     # generate prompts in the prompt queue
     update_datasets_prompt_queue(prompt_job_generator_state, list_datasets)
 
+    print("starting threads")
 
     thread = threading.Thread(target=update_dataset_values_background_thread, args=(prompt_job_generator_state,))
     thread.start()
