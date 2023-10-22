@@ -257,6 +257,9 @@ def get_job_generation_rate(request: Request, dataset: str, sample_size : int):
                                                                     pymongo.DESCENDING).limit(sample_size))
 
     total_jobs = len(jobs)
+    if total_jobs == 0:
+        return 1.0
+
     job_per_second = 0.0
     for job in jobs:
         task_start_time = job['task_start_time']

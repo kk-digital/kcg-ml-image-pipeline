@@ -145,6 +145,9 @@ def update_dataset_job_queue_size(prompt_job_generator_state, list_datasets):
         if job_per_second is None:
             job_per_second = 0.2
 
+        if job_per_second == 0:
+            job_per_second = 0.2
+
         # TODO remove this bullshit
         if job_per_second > 1:
             job_per_second = 0.2
