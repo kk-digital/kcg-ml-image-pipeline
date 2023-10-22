@@ -44,11 +44,11 @@ def update_datasets_prompt_queue(prompt_job_generator_state, list_datasets):
     thread_list = []
 
     for dataset in list_datasets:
-        #thread = threading.Thread(target=update_dataset_prompt_queue,
-        #                          args=(prompt_job_generator_state, dataset, ))
-        #thread.start()
-        #thread_list.append(thread)
-        update_dataset_prompt_queue(prompt_job_generator_state, dataset)
+        thread = threading.Thread(target=update_dataset_prompt_queue,
+                                  args=(prompt_job_generator_state, dataset, ))
+        thread.start()
+        thread_list.append(thread)
+        #update_dataset_prompt_queue(prompt_job_generator_state, dataset)
 
     for thread in thread_list:
         thread.join()
