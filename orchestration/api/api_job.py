@@ -6,7 +6,7 @@ from datetime import datetime
 from orchestration.api.mongo_schemas import Task
 from orchestration.api.api_dataset import get_sequential_id
 import pymongo
-
+from .api_utils import PrettyJSONResponse
 
 router = APIRouter()
 
@@ -88,7 +88,6 @@ def get_failed_job_count(request: Request):
     return count
 
 
-
 # ----------------- delete jobs ----------------------
 @router.delete("/queue/image-generation/clear-all-pending")
 def clear_all_pending_jobs(request: Request):
@@ -120,7 +119,7 @@ def clear_all_completed_jobs(request: Request):
 
  # --------------------- List ----------------------
 
-@router.get("/queue/image-generation/list-pending")
+@router.get("/queue/image-generation/list-pending", response_class=PrettyJSONResponse)
 def get_list_pending_jobs(request: Request):
     jobs = list(request.app.pending_jobs_collection.find({}))
 
@@ -130,7 +129,7 @@ def get_list_pending_jobs(request: Request):
     return jobs
 
 
-@router.get("/queue/image-generation/list-in-progress")
+@router.get("/queue/image-generation/list-in-progress", response_class=PrettyJSONResponse)
 def get_list_in_progress_jobs(request: Request):
     jobs = list(request.app.in_progress_jobs_collection.find({}))
 
@@ -140,7 +139,7 @@ def get_list_in_progress_jobs(request: Request):
     return jobs
 
 
-@router.get("/queue/image-generation/list-completed")
+@router.get("/queue/image-generation/list-completed", response_class=PrettyJSONResponse)
 def get_list_completed_jobs(request: Request):
     jobs = list(request.app.completed_jobs_collection.find({}))
 
@@ -150,7 +149,7 @@ def get_list_completed_jobs(request: Request):
     return jobs
 
 
-@router.get("/queue/image-generation/list-failed")
+@router.get("/queue/image-generation/list-failed", response_class=PrettyJSONResponse)
 def get_list_failed_jobs(request: Request):
     jobs = list(request.app.failed_jobs_collection.find({}))
 

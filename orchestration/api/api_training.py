@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 from orchestration.api.mongo_schemas import TrainingTask
 from orchestration.api.api_dataset import get_sequential_id
+from .api_utils import PrettyJSONResponse
 
 router = APIRouter()
 
@@ -109,7 +110,7 @@ def clear_all_completed_jobs(request: Request, dataset: str = Query(...)):
 
 
  # --------------------- List ----------------------
-@router.get("/queue/model-training/list-pending-jobs")
+@router.get("/queue/model-training/list-pending-jobs", response_class=PrettyJSONResponse)
 def get_list_pending_jobs(request: Request):
     jobs = list(request.app.training_pending_jobs_collection.find({}))
 
@@ -119,7 +120,7 @@ def get_list_pending_jobs(request: Request):
     return jobs
 
 
-@router.get("/queue/model-training/list-inprogress-jobs")
+@router.get("/queue/model-training/list-inprogress-jobs", response_class=PrettyJSONResponse)
 def get_list_in_progress_jobs(request: Request):
     jobs = list(request.app.training_in_progress_jobs_collection.find({}))
 
@@ -129,7 +130,7 @@ def get_list_in_progress_jobs(request: Request):
     return jobs
 
 
-@router.get("/queue/model-training/list-completed-jobs")
+@router.get("/queue/model-training/list-completed-jobs", response_class=PrettyJSONResponse)
 def get_list_completed_jobs(request: Request):
     jobs = list(request.app.training_completed_jobs_collection.find({}))
 
@@ -139,7 +140,7 @@ def get_list_completed_jobs(request: Request):
     return jobs
 
 
-@router.get("/queue/model-training/list-failed-jobs")
+@router.get("/queue/model-training/list-failed-jobs", response_class=PrettyJSONResponse)
 def get_list_failed_jobs(request: Request):
     jobs = list(request.app.training_failed_jobs_collection.find({}))
 
