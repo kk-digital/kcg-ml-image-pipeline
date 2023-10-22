@@ -389,7 +389,7 @@ def main():
 
         # sleep for n number of seconds
         time_to_sleep_in_seconds = 2
-
+        print('sleep for ', time_to_sleep_in_seconds, ' seconds')
         time.sleep(time_to_sleep_in_seconds)
 
 if __name__ == '__main__':
