@@ -39,7 +39,7 @@ def generate_prompts(clip_text_embedder, scoring_model,
                      base_prompt_population, current_index,
                      prompt_count, prompts, prompt_multiplier):
 
-    batch_size = 1
+    batch_size = 16
     current_index_in_batch = 0
     positive_prompt_batch = []
     negative_prompt_batch = []
