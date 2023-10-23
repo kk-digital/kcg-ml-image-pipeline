@@ -85,7 +85,8 @@ def generate_prompts(clip_text_embedder, scoring_model,
     scored_prompts = []
     batch_index = 0
     for batch in batch_list:
-        print(f'batch {batch_index + 1} out of {len(batch_list)}')
+        batch_index = batch_index + 1
+        print(f'batch {batch_index} out of {len(batch_list)}')
         positive_prompt_embeddings_list = clip_text_embedder(batch.positive_prompt_list)
         negative_prompt_embeddings_list = clip_text_embedder(batch.negative_prompt_list)
 
