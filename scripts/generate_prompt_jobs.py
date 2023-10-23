@@ -82,7 +82,7 @@ def generate_prompts(clip_text_embedder, scoring_model,
         current_index_in_batch = current_index_in_batch + 1
 
         if (current_index_in_batch % batch_size == batch_size or
-                current_index_in_batch == len(prompts)):
+                current_index_in_batch == prompt_multiplier):
 
             this_batch = PromptBatch(positive_prompt_batch, negative_prompt_batch)
             batch_list.append(this_batch)
