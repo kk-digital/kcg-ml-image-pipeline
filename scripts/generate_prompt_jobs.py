@@ -42,7 +42,9 @@ class PromptBatch:
 
 
 
-def generate_prompts(clip_text_embedder, scoring_model, base_prompt_population, current_index, prompt_count, prompts, prompt_multiplier):
+def generate_prompts(clip_text_embedder, scoring_model,
+                     base_prompt_population, current_index,
+                     prompt_count, prompts, prompt_multiplier):
 
     batch_size = 16
     current_index_in_batch = 0
@@ -99,6 +101,8 @@ def generate_prompts(clip_text_embedder, scoring_model, base_prompt_population, 
                                                  positive_prompt_embeddings, negative_prompt_embeddings)
 
             prompt_embeddings_list.append(prompt_embeddings)
+
+    print('embeddings : ', prompt_embeddings)
 
     print('Scoring Generated Prompts ')
     scored_prompts = []
