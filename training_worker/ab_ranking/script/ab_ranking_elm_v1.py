@@ -32,6 +32,7 @@ def train_ranking(dataset_name: str,
                   pooling_strategy=constants.AVERAGE_POOLING,
                   normalize_vectors=False,
                   num_random_layers=2):
+    date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
@@ -74,7 +75,6 @@ def train_ranking(dataset_name: str,
                                                    debug_asserts=debug_asserts)
 
     # Upload model to minio
-    date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     model_name = "{}.pth".format(date_now)
     model_output_path = os.path.join(output_path, model_name)
     ab_model.save(dataset_loader.minio_client, bucket_name, model_output_path)
@@ -227,7 +227,7 @@ def test_run():
                   load_data_to_ram=True,
                   debug_asserts=True,
                   pooling_strategy=constants.AVERAGE_POOLING,
-                  normalize_vectors=False,
+                  normalize_vectors=True,
                   num_random_layers=2)
 
 

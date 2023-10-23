@@ -9,21 +9,25 @@ from utility.utils_logger import logger
 MINIO_ADDRESS = "192.168.3.5:9000"
 
 
-def get_minio_client(minio_access_key, minio_secret_key, minio_addr=None):
+def get_minio_client(minio_access_key, minio_secret_key, minio_ip_addr=None):
+    global MINIO_ADDRESS
+
+    if minio_ip_addr is not None:
+        MINIO_ADDRESS = minio_ip_addr
     # check first if minio client is available
     minio_client = None
     while minio_client is None:
         # check minio server
         if is_minio_server_accesssible():
-            minio_client = connect_to_minio_client(minio_addr, minio_access_key, minio_secret_key)
+            minio_client = connect_to_minio_client(MINIO_ADDRESS, minio_access_key, minio_secret_key)
             return minio_client
 
 
-def connect_to_minio_client(minio_addr=None, access_key=None, secret_key=None,):
+def connect_to_minio_client(minio_ip_addr=None, access_key=None, secret_key=None,):
     global MINIO_ADDRESS
 
-    if minio_addr is not None:
-        MINIO_ADDRESS = minio_addr
+    if minio_ip_addr is not None:
+        MINIO_ADDRESS = minio_ip_addr
 
     print("Connecting to minio client...")
     client = Minio(MINIO_ADDRESS, access_key, secret_key, secure=False)
