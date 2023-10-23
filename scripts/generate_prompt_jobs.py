@@ -196,6 +196,8 @@ def generate_propaganda_poster_generation_jobs(scored_prompt):
     positive_prompt = scored_prompt.positive_prompt
     negative_prompt = scored_prompt.negative_prompt
 
+    print(f'spawning {dataset_name} job')
+
     generate_image_generation_jobs(
         positive_prompt=positive_prompt,
         negative_prompt=negative_prompt,
