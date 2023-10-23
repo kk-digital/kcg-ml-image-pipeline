@@ -28,7 +28,21 @@ def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the
     documents[0].pop('_id', None)
 
     # Return the image in the response
-    return {"image": documents[0]}  
+    return {"image": documents[0]}
+
+@router.get("/image/get_image_details")
+def get_image_details(request: Request, image_path: str = Query(...)):
+    # Query the database to retrieve the image details by its ID
+    document = request.app.completed_jobs_collection.find_one({"file_path": image_path})
+
+    if document is None:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    # Remove the auto-generated _id field from the document
+    document.pop('_id', None)
+
+    # Return the image details
+    return {"image_details": document}  
     
 
 @router.get("/image/get_random_image_list", response_class=PrettyJSONResponse)
