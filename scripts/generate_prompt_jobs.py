@@ -39,7 +39,7 @@ def generate_prompts(clip_text_embedder, scoring_model,
                      base_prompt_population, current_index,
                      prompt_count, prompts, prompt_multiplier):
 
-    batch_size = 4
+    batch_size = 1
     current_index_in_batch = 0
     positive_prompt_batch = []
     negative_prompt_batch = []
@@ -106,6 +106,9 @@ def generate_prompts(clip_text_embedder, scoring_model,
                                          negative_prompt)
             scored_prompts.append(scored_prompt)
 
+        del positive_prompt_embeddings_list
+        del negative_prompt_embeddings_list
+        torch.cuda.empty_cache()
 
     # Sort the list based on the maximize_int1 function
     sorted_scored_prompts = sorted(scored_prompts, key=maximize_score)
