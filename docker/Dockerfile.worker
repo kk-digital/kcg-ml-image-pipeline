@@ -6,7 +6,7 @@ WORKDIR /kcg-ml-image-pipeline
 
 # create clip model dir and copy model
 RUN mkdir -p /.cache/huggingface
-COPY ./hub/ /.cache/huggingface/hub/
+COPY ./hub/ /root/.cache/huggingface/hub/
 RUN chmod -R 777 /.cache
 
 # install prerequisites
@@ -14,6 +14,8 @@ RUN apt-get update && apt-get install -y python3 python3-pip && apt-get install 
 RUN apt-get install -y unzip
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libasound-dev portaudio19-dev libportaudio2 libportaudiocpp0 libsndfile1 wget libgl1-mesa-glx
 
+RUN pip config set global.index-url http://192.168.3.1:5010/root/pypi/
+RUN pip config set global.trusted-host 192.168.3.1
 RUN pip install -r /kcg-ml-image-pipeline/requirements.txt
 
 ENTRYPOINT ["/kcg-ml-image-pipeline/worker/run_worker.sh"]
