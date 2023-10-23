@@ -269,7 +269,7 @@ def main():
 
     print(f'generating {prompt_count} prompts for dataset {dataset}')
 
-    prompt_multiplier = (1.0 / top_k)
+    prompt_multiplier = int(1.0 / top_k)
 
     total_prompt_count = prompt_count * prompt_multiplier
 
