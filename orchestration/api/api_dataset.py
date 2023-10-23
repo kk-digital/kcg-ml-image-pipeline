@@ -1,6 +1,7 @@
 from fastapi import Request, HTTPException, APIRouter, Response, Query
 from orchestration.api.mongo_schemas import SequentialID
 from utility.minio import cmd
+import json
 from datetime import datetime
 from .api_utils import PrettyJSONResponse
 
@@ -163,4 +164,75 @@ def set_ranking_model(request: Request, dataset: str, ranking_model: str):
     request.app.dataset_config_collection.update_one(query, new_values)
 
     return True
+
+@router.get("/datasets/rank/list", response_class=PrettyJSONResponse)
+def list_ranking_files(request: Request, dataset: str):
+    # Construct the path prefix for ranking
+    path_prefix = f"{dataset}/data/ranking/aggregate"
+    
+    # Fetch the list of objects with the given prefix
+    objects = cmd.get_list_of_objects_with_prefix(request.app.minio_client, "datasets", path_prefix)
+    
+    # Filter out non-JSON files
+    json_files = [obj for obj in objects if obj.endswith('.json')]
+    
+    if not json_files:
+        raise HTTPException(status_code=404, detail=f"No JSON files found in {path_prefix}.")
+    
+    return json_files
+
+
+@router.get("/datasets/relevancy/list", response_class=PrettyJSONResponse)
+def list_relevancy_files(request: Request, dataset: str):
+    # Construct the path prefix for relevancy
+    path_prefix = f"{dataset}/data/relevancy/aggregate"
+    
+    # Fetch the list of objects with the given prefix
+    objects = cmd.get_list_of_objects_with_prefix(request.app.minio_client, "datasets", path_prefix)
+    
+    # Filter out non-JSON files
+    json_files = [obj for obj in objects if obj.endswith('.json')]
+    
+    if not json_files:
+        raise HTTPException(status_code=404, detail=f"No JSON files found in {path_prefix}.")
+    
+    return json_files
+
+
+@router.get("/datasets/rank/read", response_class=PrettyJSONResponse)
+def read_ranking_file(request: Request, dataset: str, filename: str = Query(..., description="Filename of the JSON to read")):
+    # Construct the object name for ranking
+    object_name = f"{dataset}/data/ranking/aggregate/{filename}"
+    
+    # Fetch the content of the specified JSON file
+    data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
+    
+    if data is None:
+        raise HTTPException(status_code=404, detail=f"File {filename} not found.")
+
+    file_content = ""
+    for chunk in data.stream(32*1024):
+        file_content += chunk.decode('utf-8')
+    
+    # Return the content of the JSON file
+    return json.loads(file_content)
+
+
+@router.get("/datasets/relevancy/read", response_class=PrettyJSONResponse)
+def read_relevancy_file(request: Request, dataset: str, filename: str = Query(..., description="Filename of the JSON to read")):
+    # Construct the object name for relevancy
+    object_name = f"{dataset}/data/relevancy/aggregate/{filename}"
+    
+    # Fetch the content of the specified JSON file
+    data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
+    
+    if data is None:
+        raise HTTPException(status_code=404, detail=f"File {filename} not found.")
+
+    file_content = ""
+    for chunk in data.stream(32*1024):
+        file_content += chunk.decode('utf-8')
+    
+    # Return the content of the JSON file
+    return json.loads(file_content)
 
