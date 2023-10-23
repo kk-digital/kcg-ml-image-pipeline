@@ -1,6 +1,7 @@
 import argparse
 import sys
 import io
+from datetime import datetime
 
 import torch.cuda
 from tqdm import tqdm
@@ -265,6 +266,8 @@ def main():
 
     print(f'generating {prompt_count} prompts for dataset {dataset}')
 
+    begin_time = datetime.now()
+
     prompt_multiplier = int(1.0 / top_k)
 
     total_prompt_count = prompt_count * prompt_multiplier
@@ -304,6 +307,11 @@ def main():
         elif dataset == 'propaganda-poster':
             for prompt in prompt_list:
                 generate_propaganda_poster_generation_jobs(prompt)
+
+    end_time = datetime.now()
+    elapsed_time = end_time - begin_time
+
+    print(f"Execution time: {elapsed_time}")
 
 if __name__ == '__main__':
     main()
