@@ -101,10 +101,6 @@ def generate_prompts(clip_text_embedder, scoring_model,
                 prompt_score = scoring_model.predict(positive_prompt_embeddings,
                                                      negative_prompt_embeddings).item()
 
-            del positive_prompt_embeddings_list[index]
-            del negative_prompt_embeddings_list[index]
-            torch.cuda.empty_cache()
-
             scored_prompt = ScoredPrompt(prompt_score, positive_prompt,
                                          negative_prompt)
             scored_prompts.append(scored_prompt)
