@@ -292,24 +292,91 @@ def main():
     else:
         base_prompt_population = None
 
+    current_index_in_batch = 0
+    positive_prompt_batch = []
+    negative_prompt_batch = []
+    batch_list = []
+
+    for index in range(0, total_prompt_count):
+
+        prompt = prompts[index]
+        # N Base Prompt Phrases
+        # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
+        # Chance for 0 base prompt phrases should be 30%
+        # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
+        choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+
+        if base_prompt_population is not None:
+            base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
+        else:
+            base_prompt_list = []
+
+        base_prompts = ''
+
+        for base_prompt in base_prompt_list:
+            base_prompts = base_prompts + base_prompt + ', '
+
+        positive_text_prompt = base_prompts + prompt.positive_prompt_str
+        negative_text_prompt = prompt.negative_prompt_str
+
+        positive_prompt_batch.append(positive_text_prompt)
+        negative_prompt_batch.append(negative_text_prompt)
+
+        current_index_in_batch = current_index_in_batch + 1
+
+        if (current_index_in_batch % batch_size == 0 or
+                current_index_in_batch == prompt_multiplier):
+            this_batch = PromptBatch(positive_prompt_batch, negative_prompt_batch)
+            batch_list.append(this_batch)
+            positive_prompt_batch = []
+            negative_prompt_batch = []
+
+    print('Scoring Generated Prompts ')
+    scored_prompts = []
+    batch_index = 0
+    for batch in batch_list:
+        batch_index = batch_index + 1
+        print(f'batch {batch_index} out of {len(batch_list)}')
+        positive_prompt_embeddings_list = clip_text_embedder(batch.positive_prompt_list)
+        negative_prompt_embeddings_list = clip_text_embedder(batch.negative_prompt_list)
+
+        for index in range(len(batch.positive_prompt_list)):
+            positive_prompt = batch.positive_prompt_list[index]
+            negative_prompt = batch.negative_prompt_list[index]
+            positive_prompt_embeddings = positive_prompt_embeddings_list[index]
+            negative_prompt_embeddings = negative_prompt_embeddings_list[index]
+
+            prompt_score = 0
+            if scoring_model is not None and clip_text_embedder is not None:
+                prompt_score = scoring_model.predict(positive_prompt_embeddings,
+                                                     negative_prompt_embeddings).item()
+
+            scored_prompt = ScoredPrompt(prompt_score, positive_prompt,
+                                         negative_prompt)
+            scored_prompts.append(scored_prompt)
+
+        del positive_prompt_embeddings_list
+        del negative_prompt_embeddings_list
+        torch.cuda.empty_cache()
+
+    # Sort the list based on the maximize_int1 function
+    sorted_scored_prompts = sorted(scored_prompts, key=maximize_score)
+    chosen_scored_prompts = sorted_scored_prompts[:prompt_count]
+
+
     for index in range(0, prompt_count):
         print('generating ', index ,' out of ', prompt_count)
 
-        prompt_list = generate_prompts(clip_text_embedder, scoring_model, base_prompt_population,
-                                       index, 1, prompts, prompt_multiplier, batch_size)
+        prompt = chosen_scored_prompts[index]
 
         if dataset == 'environmental':
-            for prompt in prompt_list:
-                generate_environmental_image_generation_jobs(prompt)
+            generate_environmental_image_generation_jobs(prompt)
         elif dataset == 'character':
-            for prompt in prompt_list:
-                generate_character_generation_jobs(prompt)
+            generate_character_generation_jobs(prompt)
         elif dataset == 'waifu':
-            for prompt in prompt_list:
-                generate_waifu_generation_jobs(prompt)
+            generate_waifu_generation_jobs(prompt)
         elif dataset == 'propaganda-poster':
-            for prompt in prompt_list:
-                generate_propaganda_poster_generation_jobs(prompt)
+            generate_propaganda_poster_generation_jobs(prompt)
 
     end_time = datetime.now()
     elapsed_time = end_time - begin_time
