@@ -102,7 +102,7 @@ def generate_prompts(clip_text_embedder, scoring_model,
 
             prompt_embeddings_list.append(prompt_embeddings)
 
-    print('embeddings : ', prompt_embeddings)
+    print('embeddings : ', prompt_embeddings_list)
 
     print('Scoring Generated Prompts ')
     scored_prompts = []
