@@ -8,7 +8,7 @@ base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
 from utility.regression_utils import torchinfo_summary
-from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
+from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.reports.ab_ranking_linear_train_report import get_train_report
 from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import *
 from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDatasetLoader
@@ -30,16 +30,17 @@ def train_ranking(dataset_name: str,
                   load_data_to_ram=False,
                   debug_asserts=False,
                   pooling_strategy=constants.AVERAGE_POOLING,
-                  normalize_vectors=False):
+                  normalize_vectors=False,
+                  num_random_layers=2):
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
-    network_type= "linear"
+    network_type = "elm-v1"
     input_type = "embedding"
     output_type = "score"
-    input_shape = 2*768
-    output_path = "{}/models/ranking/ab_ranking_linear".format(dataset_name)
+    input_shape = 2 * 768
+    output_path = "{}/models/ranking/ab_ranking_elm_v1".format(dataset_name)
 
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name=dataset_name,
@@ -56,7 +57,7 @@ def train_ranking(dataset_name: str,
     training_total_size = dataset_loader.get_len_training_ab_data()
     validation_total_size = dataset_loader.get_len_validation_ab_data()
 
-    ab_model = ABRankingModel(inputs_shape=input_shape)
+    ab_model = ABRankingELMModel(inputs_shape=input_shape, num_random_layers=num_random_layers)
     training_predicted_score_images_x, \
         training_predicted_score_images_y, \
         training_predicted_probabilities, \
@@ -105,7 +106,7 @@ def train_ranking(dataset_name: str,
 
     training_loss_per_epoch = training_loss_per_epoch.detach().cpu()
     validation_loss_per_epoch = validation_loss_per_epoch.detach().cpu()
-    
+
     train_sum_correct = 0
     for i in range(len(training_target_probabilities)):
         if training_target_probabilities[i] == [1.0]:
@@ -148,7 +149,7 @@ def train_ranking(dataset_name: str,
 
     # Upload model to minio
     report_name = "{}.txt".format(date_now)
-    report_output_path = os.path.join(output_path,  report_name)
+    report_output_path = os.path.join(output_path, report_name)
 
     report_buffer = BytesIO(report_str.encode(encoding='UTF-8'))
 
@@ -187,7 +188,7 @@ def train_ranking(dataset_name: str,
                                     pooling_strategy,
                                     normalize_vectors)
     # upload the graph report
-    cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
+    cmd.upload_data(dataset_loader.minio_client, bucket_name, graph_output_path, graph_buffer)
 
     # get model card and upload
     model_card_name = "{}.json".format(date_now)
@@ -198,7 +199,7 @@ def train_ranking(dataset_name: str,
     return model_output_path, report_output_path, graph_output_path
 
 
-def run_ab_ranking_linear_task(training_task, minio_access_key, minio_secret_key):
+def run_ab_ranking_elm_v1_task(training_task, minio_access_key, minio_secret_key):
     model_output_path, \
         report_output_path, \
         graph_output_path = train_ranking(dataset_name=training_task["dataset_name"],
@@ -226,7 +227,8 @@ def test_run():
                   load_data_to_ram=True,
                   debug_asserts=True,
                   pooling_strategy=constants.AVERAGE_POOLING,
-                  normalize_vectors=True)
+                  normalize_vectors=True,
+                  num_random_layers=2)
 
 
 if __name__ == '__main__':
