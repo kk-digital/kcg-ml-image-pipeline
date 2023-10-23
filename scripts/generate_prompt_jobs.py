@@ -42,27 +42,7 @@ class PromptBatch:
 
 
 
-def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count,
-                     csv_dataset_path, base_prompts_csv_path, top_k):
-
-    total_prompt_count = prompt_count * (1.0 / top_k)
-
-    total_prompt_count = int(total_prompt_count)
-
-    phrases, phrases_token_size, positive_count_list, negative_count_list = initialize_prompt_list_from_csv(
-        csv_dataset_path, 0)
-
-    prompts = generate_prompts_proportional_selection(phrases,
-                                                      phrases_token_size,
-                                                      positive_count_list,
-                                                      negative_count_list,
-                                                      total_prompt_count,
-                                                      '')
-
-    if base_prompts_csv_path != '' and base_prompts_csv_path is not None:
-        base_prompt_population = load_base_prompts(base_prompts_csv_path)
-    else:
-        base_prompt_population = None
+def generate_prompts(clip_text_embedder, scoring_model, base_prompt_population, current_index, prompt_count, prompts, prompt_multiplier):
 
     batch_size = 16
     current_index_in_batch = 0
@@ -70,9 +50,9 @@ def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count,
     negative_prompt_batch = []
     batch_list = []
     prompt_embeddings_list = []
-    for index in range(0, len(prompts)):
+    for index in range(0, prompt_multiplier):
 
-        prompt = prompts[index]
+        prompt = prompts[current_index + index]
         # N Base Prompt Phrases
         # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
         # Chance for 0 base prompt phrases should be 30%
@@ -288,10 +268,33 @@ def main():
         scoring_model = None
 
     print(f'generating {prompt_count} prompts for dataset {dataset}')
+
+    prompt_multiplier = (1.0 / top_k)
+
+    total_prompt_count = prompt_count * prompt_multiplier
+
+    total_prompt_count = int(total_prompt_count)
+
+    phrases, phrases_token_size, positive_count_list, negative_count_list = initialize_prompt_list_from_csv(
+        csv_dataset_path, 0)
+
+    prompts = generate_prompts_proportional_selection(phrases,
+                                                      phrases_token_size,
+                                                      positive_count_list,
+                                                      negative_count_list,
+                                                      total_prompt_count,
+                                                      '')
+
+    if csv_base_prompts != '' and csv_base_prompts is not None:
+        base_prompt_population = load_base_prompts(csv_base_prompts)
+    else:
+        base_prompt_population = None
+
     for index in range(0, prompt_count):
         print('generating ', index ,' out of ', prompt_count)
-        prompt_list = generate_prompts(clip_text_embedder, dataset, scoring_model, 1, csv_dataset_path,
-                             csv_base_prompts, top_k)
+
+        prompt_list = generate_prompts(clip_text_embedder, scoring_model, base_prompt_population,
+                                       index, 1, prompts, prompt_multiplier)
 
         if dataset == 'environmental':
             for prompt in prompt_list:
