@@ -298,6 +298,7 @@ def main():
         prompt_list = generate_prompts(clip_text_embedder, scoring_model, base_prompt_population,
                                        index, 1, prompts, prompt_multiplier)
 
+        print(prompt_list)
         if dataset == 'environmental':
             for prompt in prompt_list:
                 generate_environmental_image_generation_jobs(prompt)
