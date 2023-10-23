@@ -87,6 +87,8 @@ def generate_prompts(clip_text_embedder, scoring_model,
             positive_prompt_batch = []
             negative_prompt_batch = []
 
+    print('embeddings : ', batch_list)
+
     for batch in batch_list:
         positive_prompt_embeddings_list = clip_text_embedder(batch.positive_prompt_list)
         negative_prompt_embeddings_list = clip_text_embedder(batch.negative_prompt_list)
@@ -102,7 +104,7 @@ def generate_prompts(clip_text_embedder, scoring_model,
 
             prompt_embeddings_list.append(prompt_embeddings)
 
-    print('embeddings : ', prompt_embeddings_list)
+
 
     print('Scoring Generated Prompts ')
     scored_prompts = []
