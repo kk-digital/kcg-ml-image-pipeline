@@ -20,14 +20,6 @@ from worker.prompt_generation.prompt_generator import (generate_inpainting_job,
                                                        generate_image_generation_jobs)
 
 
-class PromptEmbeddings:
-    def __init__(self, positive_prompt, negative_prompt, positive_prompt_embeddings, negative_prompt_embeddings):
-        self.positive_prompt = positive_prompt
-        self.negative_prompt = negative_prompt
-        self.positive_prompt_embeddings = positive_prompt_embeddings
-        self.negative_prompt_embeddings = negative_prompt_embeddings
-
-
 class ScoredPrompt:
     def __init__(self, score, positive_prompt, negative_prompt):
         self.score = score
@@ -51,7 +43,6 @@ def generate_prompts(clip_text_embedder, scoring_model,
     positive_prompt_batch = []
     negative_prompt_batch = []
     batch_list = []
-    prompt_embeddings_list = []
 
     for index in range(0, prompt_multiplier):
 
@@ -88,6 +79,9 @@ def generate_prompts(clip_text_embedder, scoring_model,
             positive_prompt_batch = []
             negative_prompt_batch = []
 
+
+    print('Scoring Generated Prompts ')
+    scored_prompts = []
     for batch in batch_list:
         positive_prompt_embeddings_list = clip_text_embedder(batch.positive_prompt_list)
         negative_prompt_embeddings_list = clip_text_embedder(batch.negative_prompt_list)
@@ -98,27 +92,15 @@ def generate_prompts(clip_text_embedder, scoring_model,
             positive_prompt_embeddings = positive_prompt_embeddings_list[index]
             negative_prompt_embeddings = negative_prompt_embeddings_list[index]
 
-            prompt_embeddings = PromptEmbeddings(positive_prompt, negative_prompt,
-                                                 positive_prompt_embeddings, negative_prompt_embeddings)
+            prompt_score = 0
+            if scoring_model is not None and clip_text_embedder is not None:
+                prompt_score = scoring_model.predict(positive_prompt_embeddings,
+                                                     negative_prompt_embeddings).item()
 
-            prompt_embeddings_list.append(prompt_embeddings)
+            scored_prompt = ScoredPrompt(prompt_score, positive_prompt,
+                                         negative_prompt)
+            scored_prompts.append(scored_prompt)
 
-
-
-    print('Scoring Generated Prompts ')
-    scored_prompts = []
-    for index in range(0, len(prompt_embeddings_list)):
-
-        prompt_embeddings = prompt_embeddings_list[index]
-
-        prompt_score = 0
-        if scoring_model is not None and clip_text_embedder is not None:
-
-            prompt_score = scoring_model.predict(prompt_embeddings.positive_prompt_embeddings,
-                                                 prompt_embeddings.negative_prompt_embeddings).item()
-
-        scored_prompt = ScoredPrompt(prompt_score, prompt_embeddings.positive_prompt, prompt_embeddings.negative_prompt)
-        scored_prompts.append(scored_prompt)
 
     # Sort the list based on the maximize_int1 function
     sorted_scored_prompts = sorted(scored_prompts, key=maximize_score)
