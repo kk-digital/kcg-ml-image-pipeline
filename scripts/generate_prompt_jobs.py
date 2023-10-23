@@ -19,6 +19,21 @@ from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from worker.prompt_generation.prompt_generator import (generate_inpainting_job,
                                                        generate_image_generation_jobs)
 
+
+class PromptEmbeddings:
+    def __init__(self, positive_prompt_embeddings, negative_prompt_embeddings):
+        self.positive_prompt_embeddings = positive_prompt_embeddings
+        self.negative_prompt_embeddings = negative_prompt_embeddings
+
+
+class PromptText:
+    def __init__(self, positive_prompt, negative_prompt):
+        self.positive_prompt = positive_prompt
+        self.negative_prompt = negative_prompt
+
+
+
+
 def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count,
                      csv_dataset_path, base_prompts_csv_path, top_k):
 
@@ -40,6 +55,45 @@ def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count,
         base_prompt_population = load_base_prompts(base_prompts_csv_path)
     else:
         base_prompt_population = None
+
+    batch_size = 16
+    current_index_in_batch = 0
+    batch = []
+    batch_list = []
+    prompt_embeddings = []
+    for index in range(0, len(prompts)):
+
+        prompt = prompts[index]
+        # N Base Prompt Phrases
+        # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
+        # Chance for 0 base prompt phrases should be 30%
+        # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
+        choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+
+        if base_prompt_population is not None:
+            base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
+        else:
+            base_prompt_list = []
+
+        base_prompts = ''
+
+        for base_prompt in base_prompt_list:
+            base_prompts = base_prompts + base_prompt + ', '
+
+        positive_text_prompt = base_prompts + prompt.positive_prompt_str
+        negative_text_prompt = prompt.negative_prompt_str
+
+        batch.append(PromptText(positive_prompt=positive_text_prompt, negative_prompt=negative_text_prompt))
+        current_index_in_batch = current_index_in_batch + 1
+
+        if current_index_in_batch == batch_size:
+            batch_list.append(batch)
+            batch = []
+            current_index_in_batch = 0
+
+    for batch in batch_list:
+        positive_prompt_embeddings = clip_text_embedder(batch.)
+        negative_prompt_embeddings = clip_text_embedder(negative_text_prompt)
 
     print('Scoring Generated Prompts ')
     scored_prompts = []
