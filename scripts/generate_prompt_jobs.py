@@ -2,6 +2,7 @@ import argparse
 import sys
 import io
 
+import torch.cuda
 from tqdm import tqdm
 
 base_directory = "./"
@@ -96,6 +97,10 @@ def generate_prompts(clip_text_embedder, scoring_model,
             if scoring_model is not None and clip_text_embedder is not None:
                 prompt_score = scoring_model.predict(positive_prompt_embeddings,
                                                      negative_prompt_embeddings).item()
+
+            del positive_prompt_embeddings_list[index]
+            del negative_prompt_embeddings_list[index]
+            torch.cuda.empty_cache()
 
             scored_prompt = ScoredPrompt(prompt_score, positive_prompt,
                                          negative_prompt)
