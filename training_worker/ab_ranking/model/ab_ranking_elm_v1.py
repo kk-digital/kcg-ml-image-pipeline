@@ -183,16 +183,16 @@ class ABRankingELMModel:
                         assert batch_pred_probabilities.shape == batch_targets.shape
 
                     # add loss penalty
-                    # neg_score = torch.multiply(predicted_score_images_x, -1.0)
-                    # negative_score_loss_penalty = torch.relu(neg_score)
+                    neg_score = torch.multiply(predicted_score_images_x, -1.0)
+                    negative_score_loss_penalty = torch.relu(neg_score)
 
-                    loss = self.model.l1_loss(batch_pred_probabilities, batch_targets)
-                    # loss2 = torch.add(loss1, negative_score_loss_penalty)
+                    loss1 = self.model.l1_loss(batch_pred_probabilities, batch_targets)
+                    loss2 = torch.add(loss1, negative_score_loss_penalty)
 
-                    loss.backward()
+                    loss2.backward()
                     optimizer.step()
 
-                    training_loss_arr.append(loss.detach().cpu())
+                    training_loss_arr.append(loss2.detach().cpu())
 
                 if debug_asserts:
                     for name, param in self.model.named_parameters():
@@ -227,11 +227,11 @@ class ABRankingELMModel:
                         assert validation_pred_probabilities.shape == validation_target.shape
 
                     # add loss penalty
-                    # neg_score = torch.multiply(predicted_score_image_x, -1.0)
-                    # negative_score_loss_penalty = torch.relu(neg_score)
+                    neg_score = torch.multiply(predicted_score_image_x, -1.0)
+                    negative_score_loss_penalty = torch.relu(neg_score)
 
                     validation_loss = self.model.l1_loss(validation_pred_probabilities, validation_target)
-                    # validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
+                    validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
                     validation_loss_arr.append(validation_loss.detach().cpu())
 
             # calculate epoch loss
