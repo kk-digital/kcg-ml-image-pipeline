@@ -144,11 +144,12 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
     loss_per_epoch.plot(epochs_x_axis, validation_losses,
                         label="Validation Loss", c="#14e33a", zorder=0)
 
+    loss_per_epoch.set_ylim(bottom=0, top=1.0)
     loss_per_epoch.set_xlabel("Epoch")
     loss_per_epoch.set_ylabel("Loss")
     loss_per_epoch.set_title("Loss Per Epoch")
     loss_per_epoch.legend()
-    loss_per_epoch.autoscale(enable=True, axis='y')
+    # loss_per_epoch.autoscale(enable=True, axis='y')
     # ----------------------------------------------------------------------------------------------------------------#
     # Training Score Histogram
 
@@ -181,10 +182,10 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
     assert max(training_residuals_target_1) <= 1.0
     assert min(training_residuals_target_1) >= 0.0
 
-    print("training pred prob target 1=", train_prob_predictions_target_1)
-    print("training pred prob target 0=", train_prob_predictions_target_0)
-    print("training residuals 1=", training_residuals_target_1)
-    print("training residuals 0=", training_residuals_target_0)
+    # print("training pred prob target 1=", train_prob_predictions_target_1)
+    # print("training pred prob target 0=", train_prob_predictions_target_0)
+    # print("training residuals 1=", training_residuals_target_1)
+    # print("training residuals 0=", training_residuals_target_0)
     training_residuals = np.append(training_residuals_target_1, training_residuals_target_0)
 
     train_residual_histogram.set_xlabel("Residual")
