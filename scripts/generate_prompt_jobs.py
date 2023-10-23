@@ -85,7 +85,7 @@ def generate_prompts(clip_text_embedder, scoring_model,
     scored_prompts = []
     for batch in batch_list:
         print(f"Current GPU memory usage: {torch.cuda.memory_allocated('cuda:0') / 1024 ** 2} MB")
-        print(batch.positive_prompt_list)
+        print(len(batch.positive_prompt_list))
 
         positive_prompt_embeddings_list = clip_text_embedder(batch.positive_prompt_list)
         negative_prompt_embeddings_list = clip_text_embedder(batch.negative_prompt_list)
