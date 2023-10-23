@@ -52,6 +52,8 @@ def generate_prompts(clip_text_embedder, scoring_model,
     negative_prompt_batch = []
     batch_list = []
     prompt_embeddings_list = []
+
+    print('multi : ', prompt_multiplier)
     for index in range(0, prompt_multiplier):
 
         prompt = prompts[current_index + index]
@@ -87,7 +89,7 @@ def generate_prompts(clip_text_embedder, scoring_model,
             positive_prompt_batch = []
             negative_prompt_batch = []
 
-    print('embeddings : ', batch_list)
+    print('batch_list : ', batch_list)
 
     for batch in batch_list:
         positive_prompt_embeddings_list = clip_text_embedder(batch.positive_prompt_list)
