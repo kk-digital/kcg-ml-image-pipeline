@@ -46,14 +46,13 @@ def generate_prompts(clip_text_embedder, scoring_model,
                      base_prompt_population, current_index,
                      prompt_count, prompts, prompt_multiplier):
 
-    batch_size = 16
+    batch_size = 8
     current_index_in_batch = 0
     positive_prompt_batch = []
     negative_prompt_batch = []
     batch_list = []
     prompt_embeddings_list = []
 
-    print('multi : ', prompt_multiplier)
     for index in range(0, prompt_multiplier):
 
         prompt = prompts[current_index + index]
@@ -88,8 +87,6 @@ def generate_prompts(clip_text_embedder, scoring_model,
             batch_list.append(this_batch)
             positive_prompt_batch = []
             negative_prompt_batch = []
-
-    print('batch_list : ', batch_list)
 
     for batch in batch_list:
         positive_prompt_embeddings_list = clip_text_embedder(batch.positive_prompt_list)
@@ -306,7 +303,6 @@ def main():
         prompt_list = generate_prompts(clip_text_embedder, scoring_model, base_prompt_population,
                                        index, 1, prompts, prompt_multiplier)
 
-        print(prompt_list)
         if dataset == 'environmental':
             for prompt in prompt_list:
                 generate_environmental_image_generation_jobs(prompt)
