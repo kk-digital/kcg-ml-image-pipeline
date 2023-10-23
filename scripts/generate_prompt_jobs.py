@@ -19,7 +19,8 @@ from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from worker.prompt_generation.prompt_generator import (generate_inpainting_job,
                                                        generate_image_generation_jobs)
 
-def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count, csv_dataset_path, base_prompts_csv_path, top_k):
+def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count,
+                     csv_dataset_path, base_prompts_csv_path, top_k):
 
     total_prompt_count = prompt_count * (1.0 / top_k)
 
@@ -28,8 +29,6 @@ def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count, c
     phrases, phrases_token_size, positive_count_list, negative_count_list = initialize_prompt_list_from_csv(
         csv_dataset_path, 0)
 
-
-    print(f'generating {total_prompt_count} prompts for dataset {dataset}')
     prompts = generate_prompts_proportional_selection(phrases,
                                                       phrases_token_size,
                                                       positive_count_list,
@@ -37,11 +36,14 @@ def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count, c
                                                       total_prompt_count,
                                                       '')
 
-    base_prompt_population = load_base_prompts(base_prompts_csv_path)
+    if base_prompts_csv_path != '' and base_prompts_csv_path is not None:
+        base_prompt_population = load_base_prompts(base_prompts_csv_path)
+    else:
+        base_prompt_population = None
 
     print('Scoring Generated Prompts ')
     scored_prompts = []
-    for index in tqdm(range(0, len(prompts))):
+    for index in range(0, len(prompts)):
 
         prompt = prompts[index]
         # N Base Prompt Phrases
@@ -50,7 +52,10 @@ def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count, c
         # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
         choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
 
-        base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
+        if base_prompt_population is not None:
+            base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
+        else:
+            base_prompt_list = []
 
         base_prompts = ''
 
@@ -131,6 +136,41 @@ def generate_character_generation_jobs(scored_prompt):
 
     )
 
+
+def generate_waifu_generation_jobs(scored_prompt):
+
+    dataset_name = "waifu"
+
+    if scored_prompt is None:
+        return
+
+    positive_prompt = scored_prompt.positive_prompt
+    negative_prompt = scored_prompt.negative_prompt
+
+    generate_image_generation_jobs(
+        positive_prompt=positive_prompt,
+        negative_prompt=negative_prompt,
+        dataset_name=dataset_name,
+    )
+
+
+def generate_propaganda_poster_generation_jobs(scored_prompt):
+
+    dataset_name = "propaganda-poster"
+
+    if scored_prompt is None:
+        return
+
+    positive_prompt = scored_prompt.positive_prompt
+    negative_prompt = scored_prompt.negative_prompt
+
+    generate_image_generation_jobs(
+        positive_prompt=positive_prompt,
+        negative_prompt=negative_prompt,
+        dataset_name=dataset_name,
+    )
+
+
 def generate_environmental_image_generation_jobs(scored_prompt):
 
     dataset_name = 'environmental'
@@ -157,10 +197,10 @@ def parse_args():
     parser.add_argument("--prompt_count", type=int, default=1)
     parser.add_argument("--csv_dataset_path", type=str, default='input/civitai_phrases_database_v6.csv')
     parser.add_argument("--csv_base_prompts", type=str,
-                        default='input/dataset-config/environmental/base-prompts-environmental.csv')
+                        default='')
 
     parser.add_argument("--model_path", type=str,
-                        default='environmental/models/ranking/ab_ranking_linear/2023-10-13.pth')
+                        default='')
 
     parser.add_argument("--minio_access_key", type=str, default='v048BpXpWrsVIHUfdAix')
     parser.add_argument("--minio_secret_key", type=str, default='4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu')
@@ -190,19 +230,29 @@ def main():
 
     minio_client = cmd.get_minio_client(minio_access_key, minio_secret_key)
 
-    bucket_name, file_path = separate_bucket_and_file_path(model_path)
+    if minio_client is not None:
+        scoring_model = load_linear_model(minio_client, 'datasets', model_path)
+    else:
+        scoring_model = None
 
-    scoring_model = load_linear_model(minio_client, 'datasets', model_path)
+    print(f'generating {prompt_count} prompts for dataset {dataset}')
+    for index in range(0, prompt_count):
+        print('generating ', index ,' out of ', prompt_count)
+        prompt_list = generate_prompts(clip_text_embedder, dataset, scoring_model, 1, csv_dataset_path,
+                             csv_base_prompts, top_k)
 
-    prompt_list = generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count, csv_dataset_path,
-                         csv_base_prompts, top_k)
-
-    if dataset == 'environmental':
-        for prompt in prompt_list:
-            generate_environmental_image_generation_jobs(prompt)
-    elif dataset == 'character':
-        for prompt in prompt_list:
-            generate_character_generation_jobs(prompt)
+        if dataset == 'environmental':
+            for prompt in prompt_list:
+                generate_environmental_image_generation_jobs(prompt)
+        elif dataset == 'character':
+            for prompt in prompt_list:
+                generate_character_generation_jobs(prompt)
+        elif dataset == 'waifu':
+            for prompt in prompt_list:
+                generate_waifu_generation_jobs(prompt)
+        elif dataset == 'propaganda-poster':
+            for prompt in prompt_list:
+                generate_propaganda_poster_generation_jobs(prompt)
 
 if __name__ == '__main__':
     main()
