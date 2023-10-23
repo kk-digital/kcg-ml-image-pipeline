@@ -21,16 +21,24 @@ from worker.prompt_generation.prompt_generator import (generate_inpainting_job,
 
 
 class PromptEmbeddings:
-    def __init__(self, positive_prompt_embeddings, negative_prompt_embeddings):
+    def __init__(self, positive_prompt, negative_prompt, positive_prompt_embeddings, negative_prompt_embeddings):
+        self.positive_prompt = positive_prompt
+        self.negative_prompt = negative_prompt
         self.positive_prompt_embeddings = positive_prompt_embeddings
         self.negative_prompt_embeddings = negative_prompt_embeddings
 
 
-class PromptText:
-    def __init__(self, positive_prompt, negative_prompt):
+class ScoredPrompt:
+    def __init__(self, score, positive_prompt, negative_prompt):
+        self.score = score
         self.positive_prompt = positive_prompt
         self.negative_prompt = negative_prompt
 
+
+class PromptBatch:
+    def __init__(self, positive_prompt_list, negative_prompt_list):
+        self.positive_prompt_list = positive_prompt_list
+        self.negative_prompt_list = negative_prompt_list
 
 
 
@@ -58,9 +66,10 @@ def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count,
 
     batch_size = 16
     current_index_in_batch = 0
-    batch = []
+    positive_prompt_batch = []
+    negative_prompt_batch = []
     batch_list = []
-    prompt_embeddings = []
+    prompt_embeddings_list = []
     for index in range(0, len(prompts)):
 
         prompt = prompts[index]
@@ -83,52 +92,47 @@ def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count,
         positive_text_prompt = base_prompts + prompt.positive_prompt_str
         negative_text_prompt = prompt.negative_prompt_str
 
-        batch.append(PromptText(positive_prompt=positive_text_prompt, negative_prompt=negative_text_prompt))
+        positive_prompt_batch.append(positive_text_prompt)
+        negative_prompt_batch.append(negative_text_prompt)
+
         current_index_in_batch = current_index_in_batch + 1
 
-        if current_index_in_batch == batch_size:
-            batch_list.append(batch)
-            batch = []
-            current_index_in_batch = 0
+        if (current_index_in_batch % batch_size == batch_size or
+                current_index_in_batch == len(prompts)):
+
+            this_batch = PromptBatch(positive_prompt_batch, negative_prompt_batch)
+            batch_list.append(this_batch)
+            positive_prompt_batch = []
+            negative_prompt_batch = []
 
     for batch in batch_list:
-        positive_prompt_embeddings = clip_text_embedder(batch.)
-        negative_prompt_embeddings = clip_text_embedder(negative_text_prompt)
+        positive_prompt_embeddings_list = clip_text_embedder(batch.positive_prompt_list)
+        negative_prompt_embeddings_list = clip_text_embedder(batch.negative_prompt_list)
+
+        for index in range(len(batch.positive_prompt_list)):
+            positive_prompt = batch.positive_prompt_list[index]
+            negative_prompt = batch.negative_prompt_list[index]
+            positive_prompt_embeddings = positive_prompt_embeddings_list[index]
+            negative_prompt_embeddings = negative_prompt_embeddings_list[index]
+
+            prompt_embeddings = PromptEmbeddings(positive_prompt, negative_prompt,
+                                                 positive_prompt_embeddings, negative_prompt_embeddings)
+
+            prompt_embeddings_list.append(prompt_embeddings)
 
     print('Scoring Generated Prompts ')
     scored_prompts = []
-    for index in range(0, len(prompts)):
+    for index in range(0, len(prompt_embeddings_list)):
 
-        prompt = prompts[index]
-        # N Base Prompt Phrases
-        # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
-        # Chance for 0 base prompt phrases should be 30%
-        # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
-        choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-
-        if base_prompt_population is not None:
-            base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
-        else:
-            base_prompt_list = []
-
-        base_prompts = ''
-
-        for base_prompt in base_prompt_list:
-            base_prompts = base_prompts + base_prompt + ', '
-
-        positive_text_prompt = base_prompts + prompt.positive_prompt_str
-        negative_text_prompt = prompt.negative_prompt_str
+        prompt_embeddings = prompt_embeddings_list[index]
 
         prompt_score = 0
         if scoring_model is not None and clip_text_embedder is not None:
-            # get prompt embeddings
-            positive_prompt_embeddings = clip_text_embedder(positive_text_prompt)
-            negative_prompt_embeddings = clip_text_embedder(negative_text_prompt)
 
-            prompt_score = scoring_model.predict(positive_prompt_embeddings,
-                                                           negative_prompt_embeddings).item()
+            prompt_score = scoring_model.predict(prompt_embeddings.positive_prompt_embeddings,
+                                                 prompt_embeddings.negative_prompt_embeddings).item()
 
-        scored_prompt = ScoredPrompt(prompt_score, positive_text_prompt, negative_text_prompt)
+        scored_prompt = ScoredPrompt(prompt_score, prompt_embeddings.positive_prompt, prompt_embeddings.negative_prompt)
         scored_prompts.append(scored_prompt)
 
     # Sort the list based on the maximize_int1 function
@@ -137,12 +141,6 @@ def generate_prompts(clip_text_embedder, dataset, scoring_model, prompt_count,
     chosen_scored_prompts = sorted_scored_prompts[:prompt_count]
 
     return chosen_scored_prompts
-
-class ScoredPrompt:
-    def __init__(self, score, positive_prompt, negative_prompt):
-        self.score = score
-        self.positive_prompt = positive_prompt
-        self.negative_prompt = negative_prompt
 
 
 def maximize_score(scored_prompt):
