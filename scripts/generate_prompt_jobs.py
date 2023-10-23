@@ -69,7 +69,6 @@ def generate_prompts(clip_text_embedder, scoring_model,
 
         positive_prompt_batch.append(positive_text_prompt)
         negative_prompt_batch.append(negative_text_prompt)
-        print(current_index_in_batch)
 
         current_index_in_batch = current_index_in_batch + 1
 
