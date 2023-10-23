@@ -38,9 +38,8 @@ class PromptBatch:
 
 def generate_prompts(clip_text_embedder, scoring_model,
                      base_prompt_population, current_index,
-                     prompt_count, prompts, prompt_multiplier):
+                     prompt_count, prompts, prompt_multiplier, batch_size):
 
-    batch_size = 16
     current_index_in_batch = 0
     positive_prompt_batch = []
     negative_prompt_batch = []
@@ -234,6 +233,9 @@ def parse_args():
     parser.add_argument("--minio_access_key", type=str, default='v048BpXpWrsVIHUfdAix')
     parser.add_argument("--minio_secret_key", type=str, default='4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu')
 
+
+    parser.add_argument("--batch_size", type=int, default=1)
+
     return parser.parse_args()
 
 
@@ -249,6 +251,7 @@ def main():
     minio_secret_key = args.minio_secret_key
     minio_access_key = args.minio_access_key
     model_path = args.model_path
+    batch_size = args.batch_size
 
     clip_text_embedder = CLIPTextEmbedder(device=device)
     config = ModelPathConfig()
@@ -293,7 +296,7 @@ def main():
         print('generating ', index ,' out of ', prompt_count)
 
         prompt_list = generate_prompts(clip_text_embedder, scoring_model, base_prompt_population,
-                                       index, 1, prompts, prompt_multiplier)
+                                       index, 1, prompts, prompt_multiplier, batch_size)
 
         if dataset == 'environmental':
             for prompt in prompt_list:
