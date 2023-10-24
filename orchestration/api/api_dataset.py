@@ -239,7 +239,7 @@ def read_relevancy_file(request: Request, dataset: str, filename: str = Query(..
 
 
 @router.put("/datasets/rank/update_datapoint")
-async def update_ranking_file(request: Request, dataset: str, filename: str, update_data: FlaggedDataUpdate):
+def update_ranking_file(request: Request, dataset: str, filename: str, update_data: FlaggedDataUpdate):
     # Construct the object name based on the dataset
     object_name = f"{dataset}/data/ranking/aggregate/{filename}"
     
