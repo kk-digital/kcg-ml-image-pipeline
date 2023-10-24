@@ -120,6 +120,8 @@ class ABRankingELMModel:
               epochs=100,
               learning_rate=0.001,
               weight_decay=0.01,
+              add_loss_penalty=False,
+              randomize_data_per_epoch=True,
               debug_asserts=True):
         training_loss_per_epoch = []
         validation_loss_per_epoch = []
@@ -182,17 +184,18 @@ class ABRankingELMModel:
                     if debug_asserts:
                         assert batch_pred_probabilities.shape == batch_targets.shape
 
-                    # add loss penalty
-                    neg_score = torch.multiply(predicted_score_images_x, -1.0)
-                    negative_score_loss_penalty = torch.relu(neg_score)
+                    loss = self.model.l1_loss(batch_pred_probabilities, batch_targets)
 
-                    loss1 = self.model.l1_loss(batch_pred_probabilities, batch_targets)
-                    loss2 = torch.add(loss1, negative_score_loss_penalty)
+                    if add_loss_penalty:
+                        # add loss penalty
+                        neg_score = torch.multiply(predicted_score_images_x, -1.0)
+                        negative_score_loss_penalty = torch.relu(neg_score)
+                        loss = torch.add(loss, negative_score_loss_penalty)
 
-                    loss2.backward()
+                    loss.backward()
                     optimizer.step()
 
-                    training_loss_arr.append(loss2.detach().cpu())
+                    training_loss_arr.append(loss.detach().cpu())
 
                 if debug_asserts:
                     for name, param in self.model.named_parameters():
@@ -201,6 +204,9 @@ class ABRankingELMModel:
                                 print("nan gradient found")
                                 raise SystemExit
                         # print("param={}, grad={}".format(name, param.grad))
+
+                if randomize_data_per_epoch:
+                    dataset_loader.shuffle_training_data()
 
                 # refill training ab data
                 dataset_loader.fill_training_ab_data()
@@ -226,12 +232,14 @@ class ABRankingELMModel:
                     if debug_asserts:
                         assert validation_pred_probabilities.shape == validation_target.shape
 
-                    # add loss penalty
-                    neg_score = torch.multiply(predicted_score_image_x, -1.0)
-                    negative_score_loss_penalty = torch.relu(neg_score)
-
                     validation_loss = self.model.l1_loss(validation_pred_probabilities, validation_target)
-                    validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
+
+                    if add_loss_penalty:
+                        # add loss penalty
+                        neg_score = torch.multiply(predicted_score_image_x, -1.0)
+                        negative_score_loss_penalty = torch.relu(neg_score)
+                        validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
+
                     validation_loss_arr.append(validation_loss.detach().cpu())
 
             # calculate epoch loss

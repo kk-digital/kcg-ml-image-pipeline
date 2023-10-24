@@ -217,7 +217,7 @@ def test_run():
                   minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
                   dataset_name="environmental",
-                  epochs=200,
+                  epochs=10,
                   learning_rate=0.1,
                   buffer_size=20000,
                   train_percent=0.9,

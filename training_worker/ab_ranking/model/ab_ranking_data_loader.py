@@ -9,7 +9,7 @@ from queue import Queue
 from threading import Semaphore
 import msgpack
 import threading
-from random import shuffle
+from random import shuffle, choice
 from tqdm import tqdm
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -72,7 +72,9 @@ class ABRankingDatasetLoader:
                  train_percent=0.9,
                  load_to_ram=False,
                  pooling_strategy=constants.AVERAGE_POOLING,
-                 normalize_vectors=False):
+                 normalize_vectors=False,
+                 target_option=constants.TARGET_1_AND_0,
+                 duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL):
         self.dataset_name = dataset_name
 
         self.minio_access_key = minio_access_key
@@ -84,6 +86,8 @@ class ABRankingDatasetLoader:
         # config
         self.pooling_strategy = pooling_strategy
         self.normalize_vectors = normalize_vectors
+        self.target_option = target_option
+        self.duplicate_flip_option = duplicate_flip_option
 
         self.train_percent = train_percent
         self.training_dataset_paths_copy = []
@@ -141,8 +145,18 @@ class ABRankingDatasetLoader:
         # for target 1.0 and 0.0
         duplicated_training_list = []
         for path in training_ab_data_list:
-            duplicated_training_list.append((path, 1.0))
-            duplicated_training_list.append((path, 0.0))
+            if (self.target_option == constants.TARGET_1_AND_0) or (self.target_option == constants.TARGET_1_ONLY):
+                duplicated_training_list.append((path, 1.0))
+
+            if (self.target_option == constants.TARGET_1_AND_0) or (self.target_option == constants.TARGET_0_ONLY):
+                if (self.target_option == constants.TARGET_1_AND_0) and (self.duplicate_flip_option == constants.DUPLICATE_AND_FLIP_RANDOM):
+                    # then should have 50/50 chance of being duplicated or not
+                    rand_int = choice([0, 1])
+                    if rand_int == 1:
+                        # then dont duplicate
+                        continue
+
+                duplicated_training_list.append((path, 0.0))
 
             # for test
             # if len(duplicated_training_list) >= 2:
@@ -162,8 +176,17 @@ class ABRankingDatasetLoader:
         # for target 1.0 and 0.0
         duplicated_validation_list = []
         for path in validation_ab_data_list:
-            duplicated_validation_list.append((path, 1.0))
-            duplicated_validation_list.append((path, 0.0))
+            if (self.target_option == constants.TARGET_1_AND_0) or (self.target_option == constants.TARGET_1_ONLY):
+                duplicated_validation_list.append((path, 1.0))
+
+            if (self.target_option == constants.TARGET_1_AND_0) or (self.target_option == constants.TARGET_0_ONLY):
+                if (self.target_option == constants.TARGET_1_AND_0) and (self.duplicate_flip_option == constants.DUPLICATE_AND_FLIP_RANDOM):
+                    # then should have 50/50 chance of being duplicated or not
+                    rand_int = choice([0, 1])
+                    if rand_int == 1:
+                        # then dont duplicate
+                        continue
+                duplicated_validation_list.append((path, 0.0))
 
             # for test
             # if len(duplicated_validation_list) >= 2:
@@ -297,6 +320,17 @@ class ABRankingDatasetLoader:
         time_elapsed=time.time() - start_time
         print("Time elapsed: {0}s".format(format(time_elapsed, ".2f")))
         self.datapoints_per_sec = len(paths_list) / time_elapsed
+
+    def shuffle_training_data(self):
+        print("Shuffling training data...")
+        # shuffle
+        shuffled_training_data = []
+        index_shuf = list(range(len(self.training_image_pair_data_arr)))
+        shuffle(index_shuf)
+        for i in index_shuf:
+            shuffled_training_data.append(self.training_image_pair_data_arr[i])
+
+        self.training_image_pair_data_arr = shuffled_training_data
 
     def get_training_data_and_save_to_buffer(self, dataset_path):
         # get data
