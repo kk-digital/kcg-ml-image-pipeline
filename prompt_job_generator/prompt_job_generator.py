@@ -269,11 +269,11 @@ def main():
 
     # setting the base prompt csv for each dataset
     prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('icons',
-                                                                    'input/dataset-config/icon/base-prompts-icon-2.csv')
+                                                                    'input/dataset-config/icon/base-prompts-dsp.csv')
     prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('propaganda-poster',
                                                                     'input/dataset-config/propaganda-poster/base-prompts-propaganda-poster.csv')
     prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('mech',
-                                                                    'input/dataset-config/mech/base-prompts-mechs.csv')
+                                                                    'input/dataset-config/mech/base-prompts-dsp.csv')
     prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('character',
                                                                     'input/dataset-config/character/base-prompts-waifu.csv')
     prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('environmental',

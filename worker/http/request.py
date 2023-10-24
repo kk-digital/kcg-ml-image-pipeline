@@ -12,12 +12,13 @@ def http_get_job(worker_type: str = None):
 
     try:
         response = requests.get(url)
+
+        if response.status_code == 200:
+            job_json = response.json()
+            return job_json
+
     except Exception as e:
         print('request exception ', e)
-
-    if response.status_code == 200:
-        job_json = response.json()
-        return job_json
 
     return None
 
