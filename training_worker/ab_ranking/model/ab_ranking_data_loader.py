@@ -624,3 +624,169 @@ class ABRankingDatasetLoader:
             target_probabilities = target_probabilities.to(device)
 
         return image_x_feature_vectors, image_y_feature_vectors, target_probabilities
+
+    # ------------------------------- For Hyperparamter Search -------------------------------
+    def get_selection_datapoint_image_pair_hyperparameter(self, dataset, selection_datapoints_dict, embeddings_dict):
+        dataset_path = dataset[0]
+        data_target = dataset[1]
+
+        # load json object
+        ab_data = selection_datapoints_dict[dataset_path]
+
+        selected_image_index = ab_data.selected_image_index
+        file_path_img_1 = ab_data.image_1_path
+        file_path_img_2 = ab_data.image_2_path
+
+        # embeddings are in file_path_embedding.msgpack
+        embeddings_path_img_1 = file_path_img_1.replace(".jpg", "_embedding.msgpack")
+        embeddings_path_img_1 = embeddings_path_img_1.replace("datasets/", "")
+
+        embeddings_path_img_2 = file_path_img_2.replace(".jpg", "_embedding.msgpack")
+        embeddings_path_img_2 = embeddings_path_img_2.replace("datasets/", "")
+
+        embeddings_img_1_data = embeddings_dict[embeddings_path_img_1]
+        embeddings_img_1_embeddings_vector = []
+        embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["positive_embedding"]["__ndarray__"])
+        embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["negative_embedding"]["__ndarray__"])
+        embeddings_img_1_embeddings_vector = np.array(embeddings_img_1_embeddings_vector)
+
+        embeddings_img_2_data = embeddings_dict[embeddings_path_img_2]
+        embeddings_img_2_embeddings_vector = []
+        embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["positive_embedding"]["__ndarray__"])
+        embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["negative_embedding"]["__ndarray__"])
+        embeddings_img_2_embeddings_vector = np.array(embeddings_img_2_embeddings_vector)
+
+        # if image 1 is the selected
+        if selected_image_index == 0:
+            selected_embeddings_vector = embeddings_img_1_embeddings_vector
+            other_embeddings_vector = embeddings_img_2_embeddings_vector
+
+        # image 2 is selected
+        else:
+            selected_embeddings_vector = embeddings_img_2_embeddings_vector
+            other_embeddings_vector = embeddings_img_1_embeddings_vector
+
+
+        if data_target == 1.0:
+            image_pair = (selected_embeddings_vector, other_embeddings_vector, [data_target])
+        else:
+            image_pair = (other_embeddings_vector, selected_embeddings_vector, [data_target])
+
+        # add for training report
+        if (self.image_selected_index_0_count + self.image_selected_index_1_count) < self.total_num_data:
+            if selected_image_index == 0:
+                self.image_selected_index_0_count += 1
+            else:
+                self.image_selected_index_1_count += 1
+
+        return image_pair
+
+    def load_all_training_data_hyperparameter(self, paths_list, selection_datapoints_dict, embeddings_dict):
+        print("Loading all training data to ram...")
+        start_time = time.time()
+
+        for path in tqdm(paths_list):
+            image_pair_data = self.get_selection_datapoint_image_pair_hyperparameter(path, selection_datapoints_dict, embeddings_dict)
+            self.training_image_pair_data_arr.append(image_pair_data)
+
+        time_elapsed=time.time() - start_time
+        print("Time elapsed: {0}s".format(format(time_elapsed, ".2f")))
+        self.datapoints_per_sec = len(paths_list) / time_elapsed
+
+    def load_all_validation_data_hyperparameter(self, paths_list, selection_datapoints_dict, embeddings_dict):
+        print("Loading all validation data to ram...")
+        start_time = time.time()
+
+        for path in tqdm(paths_list):
+            image_pair_data = self.get_selection_datapoint_image_pair_hyperparameter(path, selection_datapoints_dict, embeddings_dict)
+            self.validation_image_pair_data_arr.append(image_pair_data)
+
+        time_elapsed=time.time() - start_time
+        print("Time elapsed: {0}s".format(format(time_elapsed, ".2f")))
+
+    def load_dataset_hyperparameter(self, dataset_paths, selection_datapoints_dict, embeddings_dict):
+        start_time = time.time()
+
+        print("# of dataset paths=", len(dataset_paths))
+        if len(dataset_paths) == 0:
+            raise Exception("No selection datapoints json found.")
+
+        # calculate num validations
+        num_validations = round((len(dataset_paths) * (1.0 - self.train_percent)))
+        validation_ab_data_list = dataset_paths[:num_validations]
+        training_ab_data_list = dataset_paths[num_validations:]
+
+        # training
+        # duplicate each one
+        # for target 1.0 and 0.0
+        duplicated_training_list = []
+        for path in training_ab_data_list:
+            if (self.target_option == constants.TARGET_1_AND_0) or (self.target_option == constants.TARGET_1_ONLY):
+                duplicated_training_list.append((path, 1.0))
+
+            if (self.target_option == constants.TARGET_1_AND_0) or (self.target_option == constants.TARGET_0_ONLY):
+                if (self.target_option == constants.TARGET_1_AND_0) and (self.duplicate_flip_option == constants.DUPLICATE_AND_FLIP_RANDOM):
+                    # then should have 50/50 chance of being duplicated or not
+                    rand_int = choice([0, 1])
+                    if rand_int == 1:
+                        # then dont duplicate
+                        continue
+
+                duplicated_training_list.append((path, 0.0))
+
+            # for test
+            # if len(duplicated_training_list) >= 2:
+            #     break
+
+        # shuffle
+        shuffled_training_list = []
+        index_shuf = list(range(len(duplicated_training_list)))
+        shuffle(index_shuf)
+        for i in index_shuf:
+            shuffled_training_list.append(duplicated_training_list[i])
+
+        self.training_dataset_paths_copy = shuffled_training_list
+
+        # validation
+        # duplicate each one
+        # for target 1.0 and 0.0
+        duplicated_validation_list = []
+        for path in validation_ab_data_list:
+            if (self.target_option == constants.TARGET_1_AND_0) or (self.target_option == constants.TARGET_1_ONLY):
+                duplicated_validation_list.append((path, 1.0))
+
+            if (self.target_option == constants.TARGET_1_AND_0) or (self.target_option == constants.TARGET_0_ONLY):
+                if (self.target_option == constants.TARGET_1_AND_0) and (self.duplicate_flip_option == constants.DUPLICATE_AND_FLIP_RANDOM):
+                    # then should have 50/50 chance of being duplicated or not
+                    rand_int = choice([0, 1])
+                    if rand_int == 1:
+                        # then dont duplicate
+                        continue
+                duplicated_validation_list.append((path, 0.0))
+
+            # for test
+            # if len(duplicated_validation_list) >= 2:
+            #     break
+
+        # shuffle
+        shuffled_validation_list = []
+        index_shuf = list(range(len(duplicated_validation_list)))
+        shuffle(index_shuf)
+        for i in index_shuf:
+            shuffled_validation_list.append(duplicated_validation_list[i])
+
+        # put to their queue
+        for data in shuffled_validation_list:
+            self.validation_dataset_paths_queue.put(data)
+
+        for data in shuffled_training_list:
+            self.training_dataset_paths_queue.put(data)
+
+        self.total_num_data = len(shuffled_training_list) + len(shuffled_validation_list)
+
+        if self.load_to_ram:
+            self.load_all_training_data_hyperparameter(shuffled_training_list, selection_datapoints_dict, embeddings_dict)
+            self.load_all_validation_data_hyperparameter(shuffled_validation_list, selection_datapoints_dict, embeddings_dict)
+
+        print("Dataset loaded...")
+        print("Time elapsed: {0}s".format(format(time.time() - start_time, ".2f")))

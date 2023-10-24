@@ -18,7 +18,7 @@ from utility.minio import cmd
 
 
 class ABRankingELMBaseModel(nn.Module):
-    def __init__(self, inputs_shape, num_random_layers=2):
+    def __init__(self, inputs_shape, num_random_layers=2, elm_sparsity=0.0):
         super(ABRankingELMBaseModel, self).__init__()
         self.inputs_shape = inputs_shape
         self.output_size = 1
@@ -28,7 +28,7 @@ class ABRankingELMBaseModel(nn.Module):
         self.random_layers = []
         self.linear_last_layer = nn.Linear(self.inputs_shape, self.output_size)
 
-        self.random_layers_init()
+        self.random_layers_init(elm_sparsity)
 
     # for score
     def forward(self, x):
@@ -44,7 +44,7 @@ class ABRankingELMBaseModel(nn.Module):
         return output
 
     # TODO: add bias for the layers too
-    def random_layers_init(self):
+    def random_layers_init(self, elm_sparsity=0.0):
         for i in range(self.num_random_layers):
             random_layer = nn.ReLU()
             # give random weights
@@ -57,7 +57,7 @@ class ABRankingELMBaseModel(nn.Module):
 
 
 class ABRankingELMModel:
-    def __init__(self, inputs_shape, num_random_layers=2):
+    def __init__(self, inputs_shape, num_random_layers=2, elm_sparsity=0.0):
         print("inputs_shape=", inputs_shape)
         if torch.cuda.is_available():
             device = 'cuda'
@@ -65,7 +65,7 @@ class ABRankingELMModel:
             device = 'cpu'
         self._device = torch.device(device)
 
-        self.model = ABRankingELMBaseModel(inputs_shape, num_random_layers).to(self._device)
+        self.model = ABRankingELMBaseModel(inputs_shape, num_random_layers, elm_sparsity).to(self._device)
         self.model_type = 'ab-ranking-elm-v1'
         self.loss_func_name = ''
         self.file_path = ''
@@ -178,7 +178,7 @@ class ABRankingELMModel:
                     predicted_score_images_x = self.model.forward(batch_features_x)
 
                     predicted_score_images_y_copy = predicted_score_images_y.clone().requires_grad_(True).to(self._device)
-                    batch_pred_probabilities = self.forward_bradley_terry(predicted_score_images_x,
+                    batch_pred_probabilities = forward_bradley_terry(predicted_score_images_x,
                                                                           predicted_score_images_y_copy)
 
                     if debug_asserts:
@@ -226,7 +226,7 @@ class ABRankingELMModel:
                     with torch.no_grad():
                         predicted_score_image_y = self.model.forward(validation_feature_y)
 
-                    validation_pred_probabilities = self.forward_bradley_terry(predicted_score_image_x,
+                    validation_pred_probabilities = forward_bradley_terry(predicted_score_image_x,
                                                                           predicted_score_image_y)
 
                     if debug_asserts:
@@ -286,11 +286,11 @@ class ABRankingELMModel:
                 batch_predicted_score_images_x = self.model.forward(batch_features_x)
                 batch_predicted_score_images_y = self.model.forward(batch_features_y)
 
-                batch_pred_probabilities = self.forward_bradley_terry(batch_predicted_score_images_x,
+                batch_pred_probabilities = forward_bradley_terry(batch_predicted_score_images_x,
                                                                       batch_predicted_score_images_y)
                 if debug_asserts:
                     # assert pred(x,y) = 1- pred(y,x)
-                    batch_pred_probabilities_inverse = self.forward_bradley_terry(batch_predicted_score_images_y,
+                    batch_pred_probabilities_inverse = forward_bradley_terry(batch_predicted_score_images_y,
                                                                                   batch_predicted_score_images_x)
                     tensor_ones = torch.tensor([1.0] * len(batch_pred_probabilities_inverse)).to(self._device)
                     assert torch.allclose(batch_pred_probabilities, torch.subtract(tensor_ones, batch_pred_probabilities_inverse), atol=1e-05)
@@ -312,11 +312,11 @@ class ABRankingELMModel:
 
                 predicted_score_image_x = self.model.forward(validation_feature_x)
                 predicted_score_image_y = self.model.forward(validation_feature_y)
-                pred_probability = self.forward_bradley_terry(predicted_score_image_x, predicted_score_image_y)
+                pred_probability = forward_bradley_terry(predicted_score_image_x, predicted_score_image_y)
 
                 if debug_asserts:
                     # assert pred(x,y) = 1- pred(y,x)
-                    pred_probability_inverse = self.forward_bradley_terry(predicted_score_image_y, predicted_score_image_x)
+                    pred_probability_inverse = forward_bradley_terry(predicted_score_image_y, predicted_score_image_x)
                     tensor_ones = torch.tensor([1.0] * len(pred_probability_inverse)).to(self._device)
                     assert torch.allclose(pred_probability, torch.subtract(tensor_ones, pred_probability_inverse), atol=1e-05)
 
@@ -334,30 +334,6 @@ class ABRankingELMModel:
             validation_targets, \
             training_loss_per_epoch, \
             validation_loss_per_epoch
-
-    def forward_bradley_terry(self, predicted_score_images_x, predicted_score_images_y, use_sigmoid=True):
-        if use_sigmoid:
-            # scale the score
-            # scaled_score_image_x = torch.multiply(1000.0, predicted_score_images_x)
-            # scaled_score_image_y = torch.multiply(1000.0, predicted_score_images_y)
-
-            # prob = sigmoid( (x-y) / 100 )
-            diff_predicted_score = torch.sub(predicted_score_images_x, predicted_score_images_y)
-            res_predicted_score = torch.div(diff_predicted_score, 50.0)
-            pred_probabilities = torch.sigmoid(res_predicted_score)
-        else:
-            epsilon = 0.000001
-
-            # if score is negative N, make it 0
-            # predicted_score_images_x = torch.max(predicted_score_images_x, torch.tensor([0.], device=self._device))
-            # predicted_score_images_y = torch.max(predicted_score_images_y, torch.tensor([0.], device=self._device))
-
-            # Calculate probability using Bradley Terry Formula: P(x>y) = score(x) / ( Score(x) + score(y))
-            sum_predicted_score = torch.add(predicted_score_images_x, predicted_score_images_y)
-            sum_predicted_score = torch.add(sum_predicted_score, epsilon)
-            pred_probabilities = torch.div(predicted_score_images_x, sum_predicted_score)
-
-        return pred_probabilities
 
     def predict(self, positive_input, negative_input):
         # get rid of the 1 dimension at start
@@ -382,3 +358,26 @@ class ABRankingELMModel:
             return outputs
 
 
+def forward_bradley_terry(predicted_score_images_x, predicted_score_images_y, use_sigmoid=True):
+    if use_sigmoid:
+        # scale the score
+        # scaled_score_image_x = torch.multiply(1000.0, predicted_score_images_x)
+        # scaled_score_image_y = torch.multiply(1000.0, predicted_score_images_y)
+
+        # prob = sigmoid( (x-y) / 100 )
+        diff_predicted_score = torch.sub(predicted_score_images_x, predicted_score_images_y)
+        res_predicted_score = torch.div(diff_predicted_score, 50.0)
+        pred_probabilities = torch.sigmoid(res_predicted_score)
+    else:
+        epsilon = 0.000001
+
+        # if score is negative N, make it 0
+        # predicted_score_images_x = torch.max(predicted_score_images_x, torch.tensor([0.], device=self._device))
+        # predicted_score_images_y = torch.max(predicted_score_images_y, torch.tensor([0.], device=self._device))
+
+        # Calculate probability using Bradley Terry Formula: P(x>y) = score(x) / ( Score(x) + score(y))
+        sum_predicted_score = torch.add(predicted_score_images_x, predicted_score_images_y)
+        sum_predicted_score = torch.add(sum_predicted_score, epsilon)
+        pred_probabilities = torch.div(predicted_score_images_x, sum_predicted_score)
+
+    return pred_probabilities
