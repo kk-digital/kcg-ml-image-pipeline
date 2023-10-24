@@ -99,6 +99,7 @@ class ABRankingDatasetLoader:
         self.load_to_ram = load_to_ram
         self.current_training_data_index = 0
         self.training_image_pair_data_arr = []
+        self.validation_image_pair_data_arr = []
         self.datapoints_per_sec = 0
 
         # these will contain features and targets with limit buffer size
@@ -209,7 +210,8 @@ class ABRankingDatasetLoader:
         self.total_num_data = len(shuffled_training_list) + len(shuffled_validation_list)
 
         if self.load_to_ram:
-            self.load_all_data(shuffled_training_list)
+            self.load_all_training_data(shuffled_training_list)
+            self.load_all_validation_data(shuffled_validation_list)
 
         print("Dataset loaded...")
         print("Time elapsed: {0}s".format(format(time.time() - start_time, ".2f")))
@@ -309,7 +311,7 @@ class ABRankingDatasetLoader:
 
         return image_pair
 
-    def load_all_data(self, paths_list):
+    def load_all_training_data(self, paths_list):
         print("Loading all training data to ram...")
         start_time = time.time()
 
@@ -320,6 +322,18 @@ class ABRankingDatasetLoader:
         time_elapsed=time.time() - start_time
         print("Time elapsed: {0}s".format(format(time_elapsed, ".2f")))
         self.datapoints_per_sec = len(paths_list) / time_elapsed
+
+    def load_all_validation_data(self, paths_list):
+        print("Loading all validation data to ram...")
+        start_time = time.time()
+
+        for path in tqdm(paths_list):
+            image_pair_data = self.get_selection_datapoint_image_pair(path)
+            self.validation_image_pair_data_arr.append(image_pair_data)
+
+        time_elapsed=time.time() - start_time
+        print("Time elapsed: {0}s".format(format(time_elapsed, ".2f")))
+
 
     def shuffle_training_data(self):
         print("Shuffling training data...")
@@ -445,15 +459,24 @@ class ABRankingDatasetLoader:
         target_probabilities = []
 
         # get ab data
-        while self.validation_dataset_paths_queue.qsize() > 0:
-            dataset_path = self.validation_dataset_paths_queue.get()
-            image_pair = self.get_selection_datapoint_image_pair(dataset_path)
+        if self.load_to_ram:
+            for i in range(len(self.validation_image_pair_data_arr)):
+                validation_image_pair_data = self.validation_image_pair_data_arr[i]
+                image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
+                    validation_image_pair_data)
+                image_x_feature_vectors.append(image_x_feature_vector)
+                image_y_feature_vectors.append(image_y_feature_vector)
+                target_probabilities.append(target_probability)
+        else:
+            while self.validation_dataset_paths_queue.qsize() > 0:
+                dataset_path = self.validation_dataset_paths_queue.get()
+                image_pair = self.get_selection_datapoint_image_pair(dataset_path)
 
-            image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
-                image_pair)
-            image_x_feature_vectors.append(image_x_feature_vector)
-            image_y_feature_vectors.append(image_y_feature_vector)
-            target_probabilities.append(target_probability)
+                image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
+                    image_pair)
+                image_x_feature_vectors.append(image_x_feature_vector)
+                image_y_feature_vectors.append(image_y_feature_vector)
+                target_probabilities.append(target_probability)
 
         image_x_feature_vectors = np.array(image_x_feature_vectors, dtype=np.float32)
         image_y_feature_vectors = np.array(image_y_feature_vectors, dtype=np.float32)
@@ -553,15 +576,24 @@ class ABRankingDatasetLoader:
         target_probabilities = []
 
         # get ab data
-        while self.validation_dataset_paths_queue.qsize() > 0:
-            dataset_path = self.validation_dataset_paths_queue.get()
-            image_pair = self.get_selection_datapoint_image_pair(dataset_path)
+        if self.load_to_ram:
+            for i in range(len(self.validation_image_pair_data_arr)):
+                validation_image_pair_data = self.validation_image_pair_data_arr[i]
+                image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
+                    validation_image_pair_data)
+                image_x_feature_vectors.append(image_x_feature_vector)
+                image_y_feature_vectors.append(image_y_feature_vector)
+                target_probabilities.append(target_probability)
+        else:
+            while self.validation_dataset_paths_queue.qsize() > 0:
+                dataset_path = self.validation_dataset_paths_queue.get()
+                image_pair = self.get_selection_datapoint_image_pair(dataset_path)
 
-            image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
-                image_pair)
-            image_x_feature_vectors.append(image_x_feature_vector)
-            image_y_feature_vectors.append(image_y_feature_vector)
-            target_probabilities.append(target_probability)
+                image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
+                    image_pair)
+                image_x_feature_vectors.append(image_x_feature_vector)
+                image_y_feature_vectors.append(image_y_feature_vector)
+                target_probabilities.append(target_probability)
 
         image_x_feature_vectors = np.array(image_x_feature_vectors, dtype=np.float32)
         image_y_feature_vectors = np.array(image_y_feature_vectors, dtype=np.float32)
