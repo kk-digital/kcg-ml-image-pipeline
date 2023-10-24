@@ -1,14 +1,8 @@
 import os
 import sys
-import json
 import argparse
-import numpy as np
-import torch.nn as nn
 import math
-import torch
 import torch.optim as optim
-import sklearn.metrics
-from torchinfo import summary
 from tqdm import tqdm
 from ray import tune
 from ray.air import session
@@ -17,13 +11,9 @@ from ray.tune.search.optuna import OptunaSearch
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from utility.regression_utils import torchinfo_summary
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel, forward_bradley_terry
-from training_worker.ab_ranking.model.reports.ab_ranking_linear_train_report import get_train_report
 from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import *
 from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDatasetLoader
-from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
-from utility.minio import cmd
 from training_worker.ab_ranking.model import constants
 from training_worker.ab_ranking.script.hyperparameter_utils import get_data_dicts
 
@@ -182,7 +172,7 @@ def train_hyperparameter_search(config,
                                  num_random_layers=num_random_layers)
 
     # do training
-    train_elm_v1_hyperparameter(model=ab_model,
+    train_elm_v1_hyperparameter(model=ab_model.model,
                                 dataset_loader=dataset_loader,
                                 training_batch_size=1,
                                 epochs=epochs,
