@@ -4,6 +4,7 @@ import pymongo
 from dotenv import dotenv_values
 from orchestration.api.api_dataset import router as dataset_router
 from orchestration.api.api_image import router as image_router
+from orchestration.api.api_job_stats import router as job_stats_router
 from orchestration.api.api_job import router as job_router
 from orchestration.api.api_ranking import router as ranking_router
 from orchestration.api.api_training import router as training_router
@@ -26,6 +27,7 @@ app.add_middleware(
 app.include_router(dataset_router)
 app.include_router(image_router)
 app.include_router(job_router)
+app.include_router(job_stats_router)
 app.include_router(ranking_router)
 app.include_router(training_router)
 app.include_router(model_router)
