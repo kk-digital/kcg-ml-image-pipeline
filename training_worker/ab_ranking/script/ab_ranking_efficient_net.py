@@ -29,8 +29,8 @@ def train_ranking(dataset_name: str,
                   weight_decay=0.01,
                   load_data_to_ram=False,
                   debug_asserts=False,
-                  pooling_strategy=constants.AVERAGE_POOLING,
-                  normalize_vectors=False):
+                  normalize_vectors=False,
+                  pooling_strategy=constants.AVERAGE_POOLING):
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
@@ -232,8 +232,8 @@ def test_run(minio_ip_addr,minio_access_key,minio_secret_key,batch_size,epochs,l
                   weight_decay=0.01,
                   load_data_to_ram=True,
                   debug_asserts=True,
-                  pooling_strategy=constants.MAX_POOLING,
-                  normalize_vectors=True)
+                  normalize_vectors=True,
+                  pooling_strategy=constants.MAX_POOLING)
 
 
 if __name__ == '__main__':

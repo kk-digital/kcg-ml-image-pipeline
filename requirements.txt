@@ -24,3 +24,4 @@ diffusers
 termcolor
 msgpack
 matplotlib==3.7.1
+ray[data,train,tune,serve]"
