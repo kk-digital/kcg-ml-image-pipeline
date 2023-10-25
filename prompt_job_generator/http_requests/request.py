@@ -60,7 +60,7 @@ def http_get_jobs_count_last_hour(dataset_name: str):
 
         if response.status_code == 200:
             job_json = response.json()
-            return job_json
+            return int(job_json)
 
     except Exception as e:
         print('request exception ', e)

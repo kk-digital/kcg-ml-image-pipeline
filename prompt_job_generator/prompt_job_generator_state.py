@@ -192,7 +192,7 @@ class PromptJobGeneratorState:
         with self.dataset_prompt_generation_data_lock:
             if dataset in self.dataset_prompt_generation_data_dictionary:
                 if 'hourly_limit' in self.dataset_prompt_generation_data_dictionary[dataset]:
-                    hourly_limit = self.dataset_prompt_generation_data_dictionary[dataset]['hourly_limit']
+                    hourly_limit = int(self.dataset_prompt_generation_data_dictionary[dataset]['hourly_limit'])
                     if hourly_limit <= 0:
                         return DEFAULT_HOURLY_LIMIT
                     else:
