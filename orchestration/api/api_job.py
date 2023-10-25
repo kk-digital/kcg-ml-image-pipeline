@@ -109,6 +109,11 @@ def get_jobs_count_last_n_hour(request: Request, dataset, hours: int):
 
     for job in jobs:
         print(job['task_creation_time'])
+
+    jobs = list(request.app.pending_jobs_collection.find({}))
+
+    for job in jobs:
+        print(job['task_creation_time'])
     # Take into account pending & in progress & completed jobs
     pending_count = request.app.pending_jobs_collection.count_documents(pending_query)
     in_progress_count = request.app.in_progress_jobs_collection.count_documents(in_progress_query)
