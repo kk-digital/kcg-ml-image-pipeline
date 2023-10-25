@@ -171,6 +171,8 @@ def update_dataset_job_queue_size(prompt_job_generator_state, list_datasets):
         # Equals: Time Speed (Jobs/Second) times 60*5 (300); 5 minutes
         job_queue_target = int(60 * 5 * job_per_second)
 
+        maximum_jobs_to_add = 5
+
         print('dataset ', dataset, ' : ', 'maximum_jobs_to_add ', maximum_jobs_to_add)
         # make sure the queue target size is allways smaller than the maximum queue size
         if job_queue_target > maximum_jobs_to_add:
