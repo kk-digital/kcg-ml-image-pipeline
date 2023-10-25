@@ -1,7 +1,7 @@
 import requests
 
-SERVER_ADRESS = 'http://192.168.3.1:8111'
-#SERVER_ADRESS = 'http://127.0.0.1:8000'
+#SERVER_ADRESS = 'http://192.168.3.1:8111'
+SERVER_ADRESS = 'http://127.0.0.1:8000'
 
 
 # Get request to get an available job
