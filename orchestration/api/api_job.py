@@ -97,6 +97,7 @@ def get_jobs_count_last_n_hour(request: Request, dataset, hours: int):
     # Calculate the timestamp for one hour ago
     current_time = datetime.now()
     time_ago = current_time - timedelta(hours=hours)
+    time_ago = time_ago.strftime('%Y-%m-%d %H:%M:%S')
 
     # Query the collection to count the documents created in the last hour
     pending_query = {"task_input_dict.dataset": dataset, "task_creation_time": {"$gte": time_ago}}
