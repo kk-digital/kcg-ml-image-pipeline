@@ -62,14 +62,14 @@ def add_job(request: Request, task: Task):
 
 
 @router.get("/queue/image-generation/get-jobs-count-last-hour")
-def get_jobs_count_last_hour(request: Request):
+def get_jobs_count_last_hour(request: Request, dataset):
 
     # Calculate the timestamp for one hour ago
     current_time = datetime.now()
     one_hour_ago = current_time - timedelta(hours=1)
 
     # Query the collection to count the documents created in the last hour
-    query = {"task_creation_time": {"$gte": one_hour_ago, "$lt": current_time}}
+    query = {"dataset_name": dataset, "task_creation_time": {"$gte": one_hour_ago, "$lt": current_time}}
 
     count = 0
 
@@ -82,14 +82,14 @@ def get_jobs_count_last_hour(request: Request):
 
 
 @router.get("/queue/image-generation/get-jobs-count-last-n-hour")
-def get_jobs_count_last_hour(request: Request, hours: int):
+def get_jobs_count_last_hour(request: Request, dataset, hours: int):
 
     # Calculate the timestamp for one hour ago
     current_time = datetime.now()
     one_hour_ago = current_time - timedelta(hours=hours)
 
     # Query the collection to count the documents created in the last hour
-    query = {"task_creation_time": {"$gte": one_hour_ago, "$lt": current_time}}
+    query = {"dataset_name": dataset, "task_creation_time": {"$gte": one_hour_ago, "$lt": current_time}}
 
     count = 0
 
