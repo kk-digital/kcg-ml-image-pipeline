@@ -65,7 +65,7 @@ def http_get_jobs_count_last_hour(dataset_name: str):
     except Exception as e:
         print('request exception ', e)
 
-    return None
+    return 0
 
 
 def http_get_dataset_list():
