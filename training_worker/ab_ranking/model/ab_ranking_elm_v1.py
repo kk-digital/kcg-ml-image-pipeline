@@ -10,6 +10,7 @@ import math
 import threading
 from io import BytesIO
 from tqdm import tqdm
+from random import sample
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
@@ -45,10 +46,19 @@ class ABRankingELMBaseModel(nn.Module):
 
     # TODO: add bias for the layers too
     def random_layers_init(self, elm_sparsity=0.0):
-        for i in range(self.num_random_layers):
+        for _ in range(self.num_random_layers):
             random_layer = nn.ReLU()
             # give random weights
-            random_layer.weight = nn.Parameter(torch.randn(self.inputs_shape), requires_grad=False)
+            rand_weights = torch.randn(self.inputs_shape)
+
+            if elm_sparsity != 0.0:
+                # set some to zero
+                num_of_indices = round(self.inputs_shape * elm_sparsity)
+                indexes_to_zero = sample(range(0, self.inputs_shape - 1), num_of_indices)
+                for index in indexes_to_zero:
+                    rand_weights[index] = 0.0
+
+            random_layer.weight = nn.Parameter(rand_weights, requires_grad=False)
 
             # freeze weights
             random_layer.requires_grad_(False)

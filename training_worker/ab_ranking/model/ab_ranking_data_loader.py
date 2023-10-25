@@ -347,16 +347,16 @@ class ABRankingDatasetLoader:
         time_elapsed=time.time() - start_time
         print("Time elapsed: {0}s".format(format(time_elapsed, ".2f")))
 
-    def shuffle_training_paths(self):
+    def shuffle_training_data(self):
         print("Shuffling training data...")
         # shuffle
-        shuffled_training_paths = []
-        index_shuf = list(range(len(self.training_dataset_paths_arr)))
+        shuffled_training = []
+        index_shuf = list(range(len(self.training_image_pair_data_arr)))
         shuffle(index_shuf)
         for i in index_shuf:
-            shuffled_training_paths.append(self.training_dataset_paths_arr[i])
+            shuffled_training.append(self.training_image_pair_data_arr[i])
 
-        self.training_dataset_paths_arr = shuffled_training_paths
+        self.training_image_pair_data_arr = shuffled_training
 
     def get_training_data_and_save_to_buffer(self, dataset_path):
         # get data
@@ -888,3 +888,14 @@ class ABRankingDatasetLoader:
 
         print("Dataset loaded...")
         print("Time elapsed: {0}s".format(format(time.time() - start_time, ".2f")))
+
+    def shuffle_training_paths_hyperparam(self):
+        print("Shuffling training data...")
+        # shuffle
+        shuffled_training_paths = []
+        index_shuf = list(range(len(self.training_dataset_paths_arr)))
+        shuffle(index_shuf)
+        for i in index_shuf:
+            shuffled_training_paths.append(self.training_dataset_paths_arr[i])
+
+        self.training_dataset_paths_arr = shuffled_training_paths
