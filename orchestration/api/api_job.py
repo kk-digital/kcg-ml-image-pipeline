@@ -61,7 +61,6 @@ def add_job(request: Request, task: Task):
     return {"uuid": task.uuid, "creation_time": task.task_creation_time}
 
 
-
 @router.get("/queue/image-generation/get-jobs-count-last-hour")
 def get_jobs_count_last_hour(request: Request):
 

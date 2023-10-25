@@ -104,7 +104,7 @@ def get_rate(request: Request, dataset: str):
     # remove the auto generated field
     item.pop('_id', None)
 
-    return item["dataset_hourly_limit"]
+    return item["hourly_limit"]
 
 
 @router.put("/dataset/set-hourly-limit")
