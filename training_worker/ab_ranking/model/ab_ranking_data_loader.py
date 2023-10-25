@@ -9,7 +9,7 @@ from queue import Queue
 from threading import Semaphore
 import msgpack
 import threading
-from random import shuffle, choice
+from random import shuffle, choice, sample
 from tqdm import tqdm
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -143,8 +143,16 @@ class ABRankingDatasetLoader:
 
         # calculate num validations
         num_validations = round((len(dataset_paths) * (1.0 - self.train_percent)))
-        validation_ab_data_list = dataset_paths[:num_validations]
-        training_ab_data_list = dataset_paths[num_validations:]
+
+        # get random index for validations
+        validation_ab_data_list = []
+        training_ab_data_list = []
+        validation_indices = sample(range(0, len(dataset_paths)-1), num_validations)
+        for i in range(len(dataset_paths)):
+            if i in validation_indices:
+                validation_ab_data_list.append(dataset_paths[i])
+            else:
+                training_ab_data_list.append(dataset_paths[i])
 
         # training
         # duplicate each one
@@ -797,8 +805,15 @@ class ABRankingDatasetLoader:
 
         # calculate num validations
         num_validations = round((len(dataset_paths) * (1.0 - self.train_percent)))
-        validation_ab_data_list = dataset_paths[:num_validations]
-        training_ab_data_list = dataset_paths[num_validations:]
+        # get random index for validations
+        validation_ab_data_list = []
+        training_ab_data_list = []
+        validation_indices = sample(range(0, len(dataset_paths) - 1), num_validations)
+        for i in range(len(dataset_paths)):
+            if i in validation_indices:
+                validation_ab_data_list.append(dataset_paths[i])
+            else:
+                training_ab_data_list.append(dataset_paths[i])
 
         # training
         # duplicate each one
