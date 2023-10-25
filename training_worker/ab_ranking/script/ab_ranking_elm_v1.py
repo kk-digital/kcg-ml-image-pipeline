@@ -35,7 +35,8 @@ def train_ranking(dataset_name: str,
                   add_loss_penalty=False,
                   target_option=constants.TARGET_1_AND_0,
                   duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL,
-                  randomize_data_per_epoch=True):
+                  randomize_data_per_epoch=True,
+                  elm_sparsity=0.0):
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
@@ -63,7 +64,9 @@ def train_ranking(dataset_name: str,
     training_total_size = dataset_loader.get_len_training_ab_data()
     validation_total_size = dataset_loader.get_len_validation_ab_data()
 
-    ab_model = ABRankingELMModel(inputs_shape=input_shape, num_random_layers=num_random_layers)
+    ab_model = ABRankingELMModel(inputs_shape=input_shape,
+                                 num_random_layers=num_random_layers,
+                                 elm_sparsity=elm_sparsity)
     training_predicted_score_images_x, \
         training_predicted_score_images_y, \
         training_predicted_probabilities, \
@@ -240,7 +243,8 @@ def test_run():
                   add_loss_penalty=True,
                   target_option=constants.TARGET_1_AND_0,
                   duplicate_flip_option=constants.DUPLICATE_AND_FLIP_RANDOM,
-                  randomize_data_per_epoch=True)
+                  randomize_data_per_epoch=True,
+                  elm_sparsity=0.0)
 
 
 if __name__ == '__main__':

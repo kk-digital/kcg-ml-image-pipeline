@@ -134,7 +134,7 @@ def train_elm_v1_hyperparameter(model,
             epoch_training_loss = epoch_validation_loss
 
         if randomize_data_per_epoch:
-            dataset_loader.shuffle_training_paths()
+            dataset_loader.shuffle_training_paths_hyperparam()
 
         # reset current index
         dataset_loader.current_training_data_index = 0
@@ -160,6 +160,7 @@ def train_hyperparameter_search(config,
     normalize_vectors = config["normalize_vectors"]
     target_option = config["target_option"]
     duplicate_flip_option = config["duplicate_flip_option"]
+    elm_sparsity = config["elm_sparsity"]
 
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name="",
@@ -173,7 +174,8 @@ def train_hyperparameter_search(config,
 
     # initialize model
     ab_model = ABRankingELMModel(inputs_shape=input_shape,
-                                 num_random_layers=num_random_layers)
+                                 num_random_layers=num_random_layers,
+                                 elm_sparsity=elm_sparsity)
 
     # do training
     train_elm_v1_hyperparameter(model=ab_model.model,
@@ -222,7 +224,12 @@ def do_search(minio_access_key, minio_secret_key, dataset_name):
         "normalize_vectors": tune.grid_search([True, False]),
         "target_option": tune.grid_search([constants.TARGET_1_AND_0, constants.TARGET_1_ONLY, constants.TARGET_0_ONLY]),
         "duplicate_flip_option": tune.grid_search([constants.DUPLICATE_AND_FLIP_ALL, constants.DUPLICATE_AND_FLIP_RANDOM]),
-    }
+        "elm_sparsity": tune.grid_search([0.00,
+                                          0.80,
+                                          0.60,
+                                          0.40,
+                                          0.20])
+        }
 
     trainable_with_cpu_gpu = tune.with_resources(train_hyperparameter_search, {"cpu": 2})
     tuner = tune.Tuner(tune.with_parameters(trainable_with_cpu_gpu,
