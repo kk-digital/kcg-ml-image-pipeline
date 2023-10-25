@@ -35,6 +35,7 @@ def add_new_tag_definition(request: Request, tag_data: TagDefinition):
         new_values = {
             "$set": {
                 "tag_category": tag_data.tag_category,
+                "tag_description": tag_data.tag_description,
                 "creation_time": date_now.strftime('%Y-%m-%d %H:%M:%S'),
                 "user_who_created": tag_data.user_who_created
             }
