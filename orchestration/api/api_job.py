@@ -69,7 +69,7 @@ def get_jobs_count_last_hour(request: Request, dataset):
     one_hour_ago = current_time - timedelta(hours=1)
 
     # Query the collection to count the documents created in the last hour
-    query = {"task_input_dict.dataset_name": dataset}
+    query = {"task_input_dict.dataset": dataset}
 
     print(query)
     count = 0
