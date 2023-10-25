@@ -101,19 +101,21 @@ def get_jobs_count_last_n_hour(request: Request, dataset, hours: int):
     # Query the collection to count the documents created in the last hour
     pending_query = {"task_input_dict.dataset": dataset, "task_creation_time": {"$gte": time_ago}}
     in_progress_query = {"task_input_dict.dataset": dataset, "task_creation_time": {"$gte": time_ago}}
-    completed_query = {"task_input_dict.dataset": dataset, "task_creation_time": {"$gte": time_ago}}
+    completed_query = {"task_input_dict.dataset": dataset, "task_completion_time": {"$gte": time_ago}}
 
     count = 0
 
     jobs = list(request.app.completed_jobs_collection.find({}))
 
     for job in jobs:
-        print(job['task_creation_time'])
+        print(job['task_completion_time'])
 
+    print('---------------')
     jobs = list(request.app.pending_jobs_collection.find({}))
 
     for job in jobs:
         print(job['task_creation_time'])
+
     # Take into account pending & in progress & completed jobs
     pending_count = request.app.pending_jobs_collection.count_documents(pending_query)
     in_progress_count = request.app.in_progress_jobs_collection.count_documents(in_progress_query)
