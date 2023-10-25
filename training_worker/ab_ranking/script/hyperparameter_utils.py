@@ -1,6 +1,6 @@
 import sys
 import json
-import msgpack
+from tqdm import tqdm
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -24,7 +24,8 @@ def get_data_dicts(minio_access_key, minio_secret_key, dataset_name):
         raise Exception("No selection datapoints json found.")
 
     # load json object from minio
-    for dataset_path in dataset_paths:
+    print("Loading objects from minio...")
+    for dataset_path in tqdm(dataset_paths):
         data = get_object(minio_client, dataset_path)
         decoded_data = data.decode().replace("'", '"')
         item = json.loads(decoded_data)
@@ -53,12 +54,10 @@ def get_data_dicts(minio_access_key, minio_secret_key, dataset_name):
         embeddings_path_img_2 = embeddings_path_img_2.replace("datasets/", "")
 
         embeddings_img_1_data = get_object(minio_client, embeddings_path_img_1)
-        embeddings_img_1_data = msgpack.unpackb(embeddings_img_1_data)
         # add to dict
         embeddings_dict[embeddings_path_img_1] = embeddings_img_1_data
 
         embeddings_img_2_data = get_object(minio_client, embeddings_path_img_2)
-        embeddings_img_2_data = msgpack.unpackb(embeddings_img_2_data)
         # add to dict
         embeddings_dict[embeddings_path_img_2] = embeddings_img_2_data
 

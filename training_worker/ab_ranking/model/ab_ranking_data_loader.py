@@ -77,11 +77,12 @@ class ABRankingDatasetLoader:
                  duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL):
         self.dataset_name = dataset_name
 
-        self.minio_access_key = minio_access_key
-        self.minio_secret_key = minio_secret_key
-        self.minio_client = cmd.get_minio_client(minio_access_key=self.minio_access_key,
-                                                 minio_secret_key=self.minio_secret_key,
-                                                 minio_addr=minio_ip_addr)
+        if minio_access_key is not None:
+            self.minio_access_key = minio_access_key
+            self.minio_secret_key = minio_secret_key
+            self.minio_client = cmd.get_minio_client(minio_access_key=self.minio_access_key,
+                                                     minio_secret_key=self.minio_secret_key,
+                                                     minio_addr=minio_ip_addr)
 
         # config
         self.pooling_strategy = pooling_strategy
@@ -94,6 +95,10 @@ class ABRankingDatasetLoader:
         self.training_dataset_paths_queue = Queue()
         self.validation_dataset_paths_queue = Queue()
         self.total_num_data = 0
+
+        # for hyperparam
+        self.training_dataset_paths_arr = []
+        self.validation_dataset_paths_arr = []
 
         # load all data to ram
         self.load_to_ram = load_to_ram
@@ -334,17 +339,16 @@ class ABRankingDatasetLoader:
         time_elapsed=time.time() - start_time
         print("Time elapsed: {0}s".format(format(time_elapsed, ".2f")))
 
-
-    def shuffle_training_data(self):
+    def shuffle_training_paths(self):
         print("Shuffling training data...")
         # shuffle
-        shuffled_training_data = []
-        index_shuf = list(range(len(self.training_image_pair_data_arr)))
+        shuffled_training_paths = []
+        index_shuf = list(range(len(self.training_dataset_paths_arr)))
         shuffle(index_shuf)
         for i in index_shuf:
-            shuffled_training_data.append(self.training_image_pair_data_arr[i])
+            shuffled_training_paths.append(self.training_dataset_paths_arr[i])
 
-        self.training_image_pair_data_arr = shuffled_training_data
+        self.training_dataset_paths_arr = shuffled_training_paths
 
     def get_training_data_and_save_to_buffer(self, dataset_path):
         # get data
@@ -626,6 +630,105 @@ class ABRankingDatasetLoader:
         return image_x_feature_vectors, image_y_feature_vectors, target_probabilities
 
     # ------------------------------- For Hyperparamter Search -------------------------------
+    # ---------------------------------------- elm -------------------------------------------
+    def get_len_training_ab_data_hyperparam(self):
+        return len(self.training_dataset_paths_arr)
+
+    def get_next_training_feature_vectors_and_target_hyperparam_elm(self, num_data, selection_datapoints_dict, embeddings_dict, device=None):
+        image_x_feature_vectors = []
+        image_y_feature_vectors = []
+        target_probabilities = []
+
+        # get ab data
+        for _ in range(num_data):
+            dataset_path = self.training_dataset_paths_arr[self.current_training_data_index]
+            image_pair = self.get_selection_datapoint_image_pair_hyperparameter(dataset_path, selection_datapoints_dict,
+                                                                                embeddings_dict)
+
+            image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
+                image_pair)
+            image_x_feature_vectors.append(image_x_feature_vector)
+            image_y_feature_vectors.append(image_y_feature_vector)
+            target_probabilities.append(target_probability)
+            self.current_training_data_index += 1
+
+        image_x_feature_vectors = np.array(image_x_feature_vectors, dtype=np.float32)
+        image_y_feature_vectors = np.array(image_y_feature_vectors, dtype=np.float32)
+
+        target_probabilities = np.array(target_probabilities)
+
+        image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.float)
+        image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.float)
+
+        target_probabilities = torch.tensor(target_probabilities).to(torch.float)
+
+        # do average pooling
+        if self.pooling_strategy == constants.AVERAGE_POOLING:
+            # do average pooling
+            image_x_feature_vectors = torch.mean(image_x_feature_vectors, dim=2)
+            image_y_feature_vectors = torch.mean(image_y_feature_vectors, dim=2)
+        elif self.pooling_strategy == constants.MAX_POOLING:
+            # do max pooling
+            image_x_feature_vectors = torch.max(image_x_feature_vectors, dim=2).values
+            image_y_feature_vectors = torch.max(image_y_feature_vectors, dim=2).values
+
+        # then concatenate
+        image_x_feature_vectors = image_x_feature_vectors.reshape(len(image_x_feature_vectors), -1)
+        image_y_feature_vectors = image_y_feature_vectors.reshape(len(image_y_feature_vectors), -1)
+
+        if device is not None:
+            image_x_feature_vectors = image_x_feature_vectors.to(device)
+            image_y_feature_vectors = image_y_feature_vectors.to(device)
+            target_probabilities = target_probabilities.to(device)
+
+        return image_x_feature_vectors, image_y_feature_vectors, target_probabilities
+
+    def get_validation_feature_vectors_and_target_hyperparam_elm(self, selection_datapoints_dict, embeddings_dict, device=None):
+        image_x_feature_vectors = []
+        image_y_feature_vectors = []
+        target_probabilities = []
+
+        # get ab data
+        for i in range(len(self.validation_dataset_paths_arr)):
+            dataset_path = self.validation_dataset_paths_arr[i]
+            image_pair = self.get_selection_datapoint_image_pair_hyperparameter(dataset_path, selection_datapoints_dict, embeddings_dict)
+
+            image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
+                image_pair)
+            image_x_feature_vectors.append(image_x_feature_vector)
+            image_y_feature_vectors.append(image_y_feature_vector)
+            target_probabilities.append(target_probability)
+
+        image_x_feature_vectors = np.array(image_x_feature_vectors, dtype=np.float32)
+        image_y_feature_vectors = np.array(image_y_feature_vectors, dtype=np.float32)
+        target_probabilities = np.array(target_probabilities)
+
+        image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.float)
+        image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.float)
+        target_probabilities = torch.tensor(target_probabilities).to(torch.float)
+
+        if self.pooling_strategy == constants.AVERAGE_POOLING:
+            # do average pooling
+            image_x_feature_vectors = torch.mean(image_x_feature_vectors, dim=2)
+            image_y_feature_vectors = torch.mean(image_y_feature_vectors, dim=2)
+        elif self.pooling_strategy == constants.MAX_POOLING:
+            # do max pooling
+            image_x_feature_vectors = torch.max(image_x_feature_vectors, dim=2).values
+            image_y_feature_vectors = torch.max(image_y_feature_vectors, dim=2).values
+        print("feature shape after pooling=", image_x_feature_vectors.shape)
+
+        # then concatenate
+        image_x_feature_vectors = image_x_feature_vectors.reshape(len(image_x_feature_vectors), -1)
+        image_y_feature_vectors = image_y_feature_vectors.reshape(len(image_y_feature_vectors), -1)
+        print("feature shape after reshape=", image_x_feature_vectors.shape)
+
+        if device is not None:
+            image_x_feature_vectors = image_x_feature_vectors.to(device)
+            image_y_feature_vectors = image_y_feature_vectors.to(device)
+            target_probabilities = target_probabilities.to(device)
+
+        return image_x_feature_vectors, image_y_feature_vectors, target_probabilities
+
     def get_selection_datapoint_image_pair_hyperparameter(self, dataset, selection_datapoints_dict, embeddings_dict):
         dataset_path = dataset[0]
         data_target = dataset[1]
@@ -645,12 +748,16 @@ class ABRankingDatasetLoader:
         embeddings_path_img_2 = embeddings_path_img_2.replace("datasets/", "")
 
         embeddings_img_1_data = embeddings_dict[embeddings_path_img_1]
+        embeddings_img_1_data = msgpack.unpackb(embeddings_img_1_data)
+
         embeddings_img_1_embeddings_vector = []
         embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["positive_embedding"]["__ndarray__"])
         embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["negative_embedding"]["__ndarray__"])
         embeddings_img_1_embeddings_vector = np.array(embeddings_img_1_embeddings_vector)
 
         embeddings_img_2_data = embeddings_dict[embeddings_path_img_2]
+        embeddings_img_2_data = msgpack.unpackb(embeddings_img_2_data)
+
         embeddings_img_2_embeddings_vector = []
         embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["positive_embedding"]["__ndarray__"])
         embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["negative_embedding"]["__ndarray__"])
@@ -681,30 +788,7 @@ class ABRankingDatasetLoader:
 
         return image_pair
 
-    def load_all_training_data_hyperparameter(self, paths_list, selection_datapoints_dict, embeddings_dict):
-        print("Loading all training data to ram...")
-        start_time = time.time()
-
-        for path in tqdm(paths_list):
-            image_pair_data = self.get_selection_datapoint_image_pair_hyperparameter(path, selection_datapoints_dict, embeddings_dict)
-            self.training_image_pair_data_arr.append(image_pair_data)
-
-        time_elapsed=time.time() - start_time
-        print("Time elapsed: {0}s".format(format(time_elapsed, ".2f")))
-        self.datapoints_per_sec = len(paths_list) / time_elapsed
-
-    def load_all_validation_data_hyperparameter(self, paths_list, selection_datapoints_dict, embeddings_dict):
-        print("Loading all validation data to ram...")
-        start_time = time.time()
-
-        for path in tqdm(paths_list):
-            image_pair_data = self.get_selection_datapoint_image_pair_hyperparameter(path, selection_datapoints_dict, embeddings_dict)
-            self.validation_image_pair_data_arr.append(image_pair_data)
-
-        time_elapsed=time.time() - start_time
-        print("Time elapsed: {0}s".format(format(time_elapsed, ".2f")))
-
-    def load_dataset_hyperparameter(self, dataset_paths, selection_datapoints_dict, embeddings_dict):
+    def load_dataset_hyperparameter(self, dataset_paths):
         start_time = time.time()
 
         print("# of dataset paths=", len(dataset_paths))
@@ -784,9 +868,8 @@ class ABRankingDatasetLoader:
 
         self.total_num_data = len(shuffled_training_list) + len(shuffled_validation_list)
 
-        if self.load_to_ram:
-            self.load_all_training_data_hyperparameter(shuffled_training_list, selection_datapoints_dict, embeddings_dict)
-            self.load_all_validation_data_hyperparameter(shuffled_validation_list, selection_datapoints_dict, embeddings_dict)
+        self.training_dataset_paths_arr = shuffled_training_list
+        self.validation_dataset_paths_arr = shuffled_validation_list
 
         print("Dataset loaded...")
         print("Time elapsed: {0}s".format(format(time.time() - start_time, ".2f")))

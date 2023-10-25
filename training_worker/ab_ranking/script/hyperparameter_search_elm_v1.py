@@ -25,13 +25,16 @@ def train_elm_v1_hyperparameter(model,
                                 learning_rate=0.001,
                                 weight_decay=0.01,
                                 add_loss_penalty=False,
-                                randomize_data_per_epoch=True):
+                                randomize_data_per_epoch=True,
+                                selection_datapoints_dict=None,
+                                embeddings_dict=None):
     optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
     # get validation data
     validation_features_x, \
         validation_features_y, \
-        validation_targets = dataset_loader.get_validation_feature_vectors_and_target_linear()
+        validation_targets = dataset_loader.get_validation_feature_vectors_and_target_hyperparam_elm(selection_datapoints_dict=selection_datapoints_dict,
+                                                                                                     embeddings_dict=embeddings_dict)
 
     # get total number of training features
     num_features = dataset_loader.get_len_training_ab_data()
@@ -57,8 +60,9 @@ def train_elm_v1_hyperparameter(model,
 
                 batch_features_x_orig, \
                     batch_features_y_orig, \
-                    batch_targets_orig = dataset_loader.get_next_training_feature_vectors_and_target_linear(
-                    num_data_to_get)
+                    batch_targets_orig = dataset_loader.get_next_training_feature_vectors_and_target_hyperparam_elm(num_data_to_get,
+                                                                                                                    selection_datapoints_dict=selection_datapoints_dict,
+                                                                                                                    embeddings_dict=embeddings_dict)
 
                 batch_features_x = batch_features_x_orig.clone().requires_grad_(True)
                 batch_features_y = batch_features_y_orig.clone().requires_grad_(True)
@@ -86,12 +90,6 @@ def train_elm_v1_hyperparameter(model,
                 optimizer.step()
 
                 training_loss_arr.append(loss.detach().cpu())
-
-            if randomize_data_per_epoch:
-                dataset_loader.shuffle_training_data()
-
-            # refill training ab data
-            dataset_loader.fill_training_ab_data()
 
         # Calculate Validation Loss
         with torch.no_grad():
@@ -135,7 +133,13 @@ def train_elm_v1_hyperparameter(model,
         if epoch_training_loss is None:
             epoch_training_loss = epoch_validation_loss
 
-        session.report({"training-loss": epoch_training_loss, "validation-loss": epoch_validation_loss})
+        if randomize_data_per_epoch:
+            dataset_loader.shuffle_training_paths()
+
+        # reset current index
+        dataset_loader.current_training_data_index = 0
+
+        session.report({"training-loss": epoch_training_loss.item(), "validation-loss": epoch_validation_loss.item()})
 
     print("Training Finished.")
 
@@ -150,6 +154,8 @@ def train_hyperparameter_search(config,
     num_random_layers = config["num_random_layers"]
     learning_rate = config["learning_rate"]
     weight_decay = config["weight_decay"]
+    add_loss_penalty = config["add_loss_penalty"]
+    randomize_data_per_epoch= config["randomize_data_per_epoch"]
     pooling_strategy = config["pooling_strategy"]
     normalize_vectors = config["normalize_vectors"]
     target_option = config["target_option"]
@@ -163,9 +169,7 @@ def train_hyperparameter_search(config,
                                             target_option=target_option,
                                             duplicate_flip_option=duplicate_flip_option)
 
-    dataset_loader.load_dataset_hyperparameter(dataset_paths=dataset_paths,
-                                               selection_datapoints_dict=selection_datapoints_dict,
-                                               embeddings_dict=embeddings_dict)
+    dataset_loader.load_dataset_hyperparameter(dataset_paths=dataset_paths)
 
     # initialize model
     ab_model = ABRankingELMModel(inputs_shape=input_shape,
@@ -177,7 +181,11 @@ def train_hyperparameter_search(config,
                                 training_batch_size=1,
                                 epochs=epochs,
                                 learning_rate=learning_rate,
-                                weight_decay=weight_decay)
+                                weight_decay=weight_decay,
+                                add_loss_penalty=add_loss_penalty,
+                                randomize_data_per_epoch=randomize_data_per_epoch,
+                                selection_datapoints_dict=selection_datapoints_dict,
+                                embeddings_dict=embeddings_dict)
 
 
 def do_search(minio_access_key, minio_secret_key, dataset_name):
@@ -187,42 +195,44 @@ def do_search(minio_access_key, minio_secret_key, dataset_name):
                                                                                dataset_name=dataset_name)
 
     search_space = {
-        "epochs": tune.grid_search([5,
-                                    6,
-                                    7,
-                                    8]),
+        "epochs": tune.choice([4,
+                               6,
+                               8]),
         "num_random_layers": tune.grid_search([0,
                                                1,
                                                2,
                                                3]),
-        "learning_rate": tune.grid_search([1.0,
-                                           0.5,
-                                           0.1,
-                                           0.05,
-                                           0.01,
-                                           0.005,
-                                           0.001,
-                                           0.0001,
-                                           0.0005]),
-        "weight_decay": tune.grid_search([ 0.0,
-                                           0.1,
-                                           0.01,
-                                           0.001,
-                                           0.0001]),
+        "learning_rate": tune.choice([1.0,
+                                      0.5,
+                                      0.1,
+                                      0.05,
+                                      0.01,
+                                      0.005,
+                                      0.001,
+                                      0.0001,
+                                      0.0005]),
+        "weight_decay": tune.choice([ 0.0,
+                                      0.1,
+                                      0.01,
+                                      0.001,
+                                      0.0001]),
+        "add_loss_penalty": tune.grid_search([True, False]),
+        "randomize_data_per_epoch": tune.grid_search([True, False]),
         "pooling_strategy": tune.grid_search([constants.AVERAGE_POOLING, constants.MAX_POOLING]),
         "normalize_vectors": tune.grid_search([True, False]),
         "target_option": tune.grid_search([constants.TARGET_1_AND_0, constants.TARGET_1_ONLY, constants.TARGET_0_ONLY]),
         "duplicate_flip_option": tune.grid_search([constants.DUPLICATE_AND_FLIP_ALL, constants.DUPLICATE_AND_FLIP_RANDOM]),
     }
 
-    trainable_with_cpu_gpu = tune.with_resources(train_hyperparameter_search, {"cpu": 1})
+    trainable_with_cpu_gpu = tune.with_resources(train_hyperparameter_search, {"cpu": 2})
     tuner = tune.Tuner(tune.with_parameters(trainable_with_cpu_gpu,
                                             dataset_paths=dataset_paths,
                                             selection_datapoints_dict=selection_datapoints_dict,
                                             embeddings_dict=embeddings_dict),
                        tune_config=tune.TuneConfig(
                            metric="training-loss",
-                           mode="min"
+                           mode="min",
+                           num_samples=5,
                        ),
                        param_space=search_space)
 
