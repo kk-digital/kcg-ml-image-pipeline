@@ -29,9 +29,13 @@ def train_ranking(dataset_name: str,
                   weight_decay=0.01,
                   load_data_to_ram=False,
                   debug_asserts=False,
-                  pooling_strategy=constants.AVERAGE_POOLING,
                   normalize_vectors=False,
-                  num_random_layers=2):
+                  pooling_strategy=constants.AVERAGE_POOLING,
+                  num_random_layers=2,
+                  add_loss_penalty=False,
+                  target_option=constants.TARGET_1_AND_0,
+                  duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL,
+                  randomize_data_per_epoch=True):
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
@@ -51,7 +55,9 @@ def train_ranking(dataset_name: str,
                                             train_percent=train_percent,
                                             load_to_ram=load_data_to_ram,
                                             pooling_strategy=pooling_strategy,
-                                            normalize_vectors=normalize_vectors)
+                                            normalize_vectors=normalize_vectors,
+                                            target_option=target_option,
+                                            duplicate_flip_option=duplicate_flip_option)
     dataset_loader.load_dataset()
 
     training_total_size = dataset_loader.get_len_training_ab_data()
@@ -72,6 +78,8 @@ def train_ranking(dataset_name: str,
                                                    epochs=epochs,
                                                    learning_rate=learning_rate,
                                                    weight_decay=weight_decay,
+                                                   add_loss_penalty=add_loss_penalty,
+                                                   randomize_data_per_epoch=randomize_data_per_epoch,
                                                    debug_asserts=debug_asserts)
 
     # Upload model to minio
@@ -218,7 +226,7 @@ def test_run():
                   minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
                   dataset_name="environmental",
-                  epochs=200,
+                  epochs=100,
                   learning_rate=0.1,
                   buffer_size=20000,
                   train_percent=0.9,
@@ -226,9 +234,13 @@ def test_run():
                   weight_decay=0.01,
                   load_data_to_ram=True,
                   debug_asserts=True,
-                  pooling_strategy=constants.AVERAGE_POOLING,
                   normalize_vectors=True,
-                  num_random_layers=2)
+                  pooling_strategy=constants.AVERAGE_POOLING,
+                  num_random_layers=2,
+                  add_loss_penalty=True,
+                  target_option=constants.TARGET_1_AND_0,
+                  duplicate_flip_option=constants.DUPLICATE_AND_FLIP_RANDOM,
+                  randomize_data_per_epoch=True)
 
 
 if __name__ == '__main__':
