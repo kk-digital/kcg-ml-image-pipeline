@@ -2,7 +2,7 @@ from fastapi import Request, APIRouter, HTTPException
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from orchestration.api.mongo_schemas import Task
 from orchestration.api.api_dataset import get_sequential_id
 import pymongo
@@ -61,6 +61,25 @@ def add_job(request: Request, task: Task):
     return {"uuid": task.uuid, "creation_time": task.task_creation_time}
 
 
+
+@router.get("/queue/image-generation/get-jobs-count-last-hour")
+def get_jobs_count_last_hour(request: Request):
+
+    # Calculate the timestamp for one hour ago
+    current_time = datetime.now()
+    one_hour_ago = current_time - timedelta(hours=1)
+
+    # Query the collection to count the documents created in the last hour
+    query = {"task_creation_time": {"$gte": one_hour_ago, "$lt": current_time}}
+
+    count = 0
+
+    # Take into account pending & in progress & completed jobs
+    count += request.app.pending_jobs_collection.count_documents(query)
+    count += request.app.in_progress_jobs_collection.count_documents(query)
+    count += request.app.completed_jobs_collection.count_documents(query)
+
+    return count
 
 
 # -------------- Get jobs count ----------------------
@@ -238,6 +257,8 @@ def cleanup_completed_and_orphaned_jobs(request: Request):
             request.app.completed_jobs_collection.delete_one({"uuid": job['uuid']})
 
     return True
+
+
 
 # --------------- Job generation rate ---------------------
 
