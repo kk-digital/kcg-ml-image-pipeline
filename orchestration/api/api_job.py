@@ -81,6 +81,26 @@ def get_jobs_count_last_hour(request: Request):
     return count
 
 
+@router.get("/queue/image-generation/get-jobs-count-last-n-hour")
+def get_jobs_count_last_hour(request: Request, hours: int):
+
+    # Calculate the timestamp for one hour ago
+    current_time = datetime.now()
+    one_hour_ago = current_time - timedelta(hours=hours)
+
+    # Query the collection to count the documents created in the last hour
+    query = {"task_creation_time": {"$gte": one_hour_ago, "$lt": current_time}}
+
+    count = 0
+
+    # Take into account pending & in progress & completed jobs
+    count += request.app.pending_jobs_collection.count_documents(query)
+    count += request.app.in_progress_jobs_collection.count_documents(query)
+    count += request.app.completed_jobs_collection.count_documents(query)
+
+    return count
+
+
 # -------------- Get jobs count ----------------------
 @router.get("/queue/image-generation/pending-count")
 def get_pending_job_count(request: Request):
