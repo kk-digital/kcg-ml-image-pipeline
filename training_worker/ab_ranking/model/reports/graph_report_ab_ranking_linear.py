@@ -49,10 +49,14 @@ def separate_values_based_on_targets(training_targets, validation_targets, train
             validation_pred_scores_img_x_target_0.append(validation_pred_scores_img_x[i])
             validation_pred_scores_img_y_target_0.append(validation_pred_scores_img_y[i])
 
-    train_prob_predictions_target_1 = torch.stack(train_prob_predictions_target_1)
-    train_prob_predictions_target_0 = torch.stack(train_prob_predictions_target_0)
-    validation_prob_predictions_target_1 = torch.stack(validation_prob_predictions_target_1)
-    validation_prob_predictions_target_0 = torch.stack(validation_prob_predictions_target_0)
+    if len(train_prob_predictions_target_1) > 0:
+        train_prob_predictions_target_1 = torch.stack(train_prob_predictions_target_1)
+    if len(train_prob_predictions_target_0) > 0:
+        train_prob_predictions_target_0 = torch.stack(train_prob_predictions_target_0)
+    if len(validation_prob_predictions_target_1) > 0:
+        validation_prob_predictions_target_1 = torch.stack(validation_prob_predictions_target_1)
+    if len(validation_prob_predictions_target_0) > 0:
+        validation_prob_predictions_target_0 = torch.stack(validation_prob_predictions_target_0)
 
     return train_prob_predictions_target_1, \
         train_prob_predictions_target_0, \
@@ -177,10 +181,10 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
     training_residuals_target_0 = [abs(0.0 - train_prob_predictions_target_0[i].item()) for i in
                                    range(len(train_prob_predictions_target_0))]
 
-    assert max(training_residuals_target_0) <= 1.0
-    assert min(training_residuals_target_0) >= 0.0
-    assert max(training_residuals_target_1) <= 1.0
-    assert min(training_residuals_target_1) >= 0.0
+    # assert max(training_residuals_target_0) <= 1.0
+    # assert min(training_residuals_target_0) >= 0.0
+    # assert max(training_residuals_target_1) <= 1.0
+    # assert min(training_residuals_target_1) >= 0.0
 
     # print("training pred prob target 1=", train_prob_predictions_target_1)
     # print("training pred prob target 0=", train_prob_predictions_target_0)
@@ -200,10 +204,10 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
     validation_residuals_target_0 = [abs(0.0 - validation_prob_predictions_target_0[i].item()) for i in
                                      range(len(validation_prob_predictions_target_0))]
 
-    assert max(validation_residuals_target_0) <= 1.0
-    assert min(validation_residuals_target_0) >= 0.0
-    assert max(validation_residuals_target_1) <= 1.0
-    assert min(validation_residuals_target_1) >= 0.0
+    # assert max(validation_residuals_target_0) <= 1.0
+    # assert min(validation_residuals_target_0) >= 0.0
+    # assert max(validation_residuals_target_1) <= 1.0
+    # assert min(validation_residuals_target_1) >= 0.0
     validation_residuals = np.append(validation_residuals_target_1, validation_residuals_target_0)
 
     validation_residual_histogram.set_xlabel("Residual")

@@ -3,8 +3,9 @@ from orchestration.api.mongo_schemas import SequentialID
 from utility.minio import cmd
 import json
 from datetime import datetime
+import io
 from .api_utils import PrettyJSONResponse
-
+from .mongo_schemas import FlaggedDataUpdate
 router = APIRouter()
 
 
@@ -275,4 +276,34 @@ def read_relevancy_file(request: Request, dataset: str, filename: str = Query(..
     
     # Return the content of the JSON file
     return json.loads(file_content)
+
+
+@router.put("/datasets/rank/update_datapoint")
+def update_ranking_file(request: Request, dataset: str, filename: str, update_data: FlaggedDataUpdate):
+    # Construct the object name based on the dataset
+    object_name = f"{dataset}/data/ranking/aggregate/{filename}"
+    
+    # Fetch the content of the specified JSON file
+    data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
+    
+    if data is None:
+        raise HTTPException(status_code=404, detail=f"File {filename} not found.")
+
+    file_content = ""
+    for chunk in data.stream(32*1024):
+        file_content += chunk.decode('utf-8')
+    
+    # Load the existing content and update the flagged field, flagged_time, and flagged_by_user
+    content_dict = json.loads(file_content)
+    content_dict["flagged"] = update_data.flagged
+    content_dict["flagged_by_user"] = update_data.flagged_by_user
+    content_dict["flagged_time"] = update_data.flagged_time if update_data.flagged_time else datetime.now().isoformat()
+    
+    # Save the modified file back
+    updated_content = json.dumps(content_dict, indent=2)
+    updated_data = io.BytesIO(updated_content.encode('utf-8'))
+    request.app.minio_client.put_object("datasets", object_name, updated_data, len(updated_content))
+
+    return {"message": f"File {filename} has been updated."}
+
 
