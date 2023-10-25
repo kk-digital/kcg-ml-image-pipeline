@@ -91,6 +91,46 @@ def set_rate(request: Request, dataset, rate=0):
 
     return True
 
+
+@router.get("/dataset/get-hourly-limit")
+def get_rate(request: Request, dataset: str):
+    # find
+    query = {"dataset_name": dataset}
+    item = request.app.dataset_config_collection.find_one(query)
+    if item is None:
+        raise HTTPException(status_code=404)
+
+    # remove the auto generated field
+    item.pop('_id', None)
+
+    return item["dataset_hourly_limit"]
+
+
+@router.put("/dataset/set-hourly-limit")
+def set_rate(request: Request, dataset, hourly_limit=0):
+    date_now = datetime.now()
+    # check if exist
+    query = {"dataset_name": dataset}
+    item = request.app.dataset_config_collection.find_one(query)
+    if item is None:
+        # add one
+        dataset_config = {
+            "dataset_name": dataset,
+            "last_update": date_now,
+            "dataset_rate": 0,
+            "hourly_limit": hourly_limit,
+            "relevance_model": "",
+            "ranking_model": "",
+        }
+        request.app.dataset_config_collection.insert_one(dataset_config)
+    else:
+        # update
+        new_values = {"$set": {"last_update": date_now, "hourly_limit": hourly_limit}}
+        request.app.dataset_config_collection.update_one(query, new_values)
+
+    return True
+
+
 @router.get("/dataset/get-dataset-config", response_class=PrettyJSONResponse)
 def get_dataset_config(request: Request, dataset: str = Query(...)):
     # Find the item for the specific dataset
