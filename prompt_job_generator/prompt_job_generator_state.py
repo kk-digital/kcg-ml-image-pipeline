@@ -14,7 +14,8 @@ from training_worker.ab_ranking.model.ab_ranking_efficient_net import ABRankingE
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from worker.prompt_generation.prompt_generator import (initialize_prompt_list_from_csv)
 from prompt_generation_prompt_queue import PromptGenerationPromptQueue
-from prompt_job_generator_constants import PROMPT_QUEUE_SIZE, DEFAULT_PROMPT_GENERATION_POLICY, DEFAULT_TOP_K_VALUE, DEFAULT_DATASET_RATE
+from prompt_job_generator_constants import (PROMPT_QUEUE_SIZE, DEFAULT_PROMPT_GENERATION_POLICY,
+                                            DEFAULT_TOP_K_VALUE, DEFAULT_DATASET_RATE, DEFAULT_HOURLY_LIMIT)
 from utility.path import  separate_bucket_and_file_path
 
 class PromptJobGeneratorState:
@@ -186,6 +187,17 @@ class PromptJobGeneratorState:
                 if 'dataset_rate' in self.dataset_prompt_generation_data_dictionary[dataset]:
                     return self.dataset_prompt_generation_data_dictionary[dataset]['dataset_rate']
             return DEFAULT_DATASET_RATE
+
+    def get_dataset_hourly_limit(self, dataset):
+        with self.dataset_prompt_generation_data_lock:
+            if dataset in self.dataset_prompt_generation_data_dictionary:
+                if 'hourly_limit' in self.dataset_prompt_generation_data_dictionary[dataset]:
+                    hourly_limit = self.dataset_prompt_generation_data_dictionary[dataset]['hourly_limit']
+                    if hourly_limit <= 0:
+                        return DEFAULT_HOURLY_LIMIT
+                    else:
+                        return hourly_limit
+            return DEFAULT_HOURLY_LIMIT
 
     def get_dataset_relevance_model(self, dataset):
         with self.dataset_prompt_generation_data_lock:

@@ -52,7 +52,7 @@ def http_get_in_progress_jobs_count(dataset_name: str):
     return None
 
 
-def http_jobs_count_last_hour(dataset_name: str):
+def http_get_jobs_count_last_hour(dataset_name: str):
     url = SERVER_ADRESS + "/queue/image-generation/get-jobs-count-last-hour?dataset=" + dataset_name
 
     try:
