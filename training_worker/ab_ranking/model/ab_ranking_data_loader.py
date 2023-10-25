@@ -82,7 +82,7 @@ class ABRankingDatasetLoader:
             self.minio_secret_key = minio_secret_key
             self.minio_client = cmd.get_minio_client(minio_access_key=self.minio_access_key,
                                                      minio_secret_key=self.minio_secret_key,
-                                                     minio_addr=minio_ip_addr)
+                                                     minio_ip_addr=minio_ip_addr)
 
         # config
         self.pooling_strategy = pooling_strategy
