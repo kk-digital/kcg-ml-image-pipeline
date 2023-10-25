@@ -174,6 +174,7 @@ def update_dataset_job_queue_size(prompt_job_generator_state, list_datasets):
         print('dataset , ', dataset + ' , maximum_jobs_to_add ', maximum_jobs_to_add)
         print('dataset , ', dataset + ' , job_queue_target ', job_queue_target)
         print('dataset , ', dataset + ' , jobs_hourly_limit ', jobs_hourly_limit)
+        print('dataset , ', dataset + ' , job_queue_size ', job_queue_size)
         # make sure the queue target size is allways smaller than the maximum queue size
         if job_queue_target > maximum_jobs_to_add:
             job_queue_target = maximum_jobs_to_add
