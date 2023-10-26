@@ -260,14 +260,18 @@ class PromptJobGeneratorState:
 
         model_type = model_info['model_architecture']
 
+        model = None
+
         if model_type == 'image-pair-ranking-efficient-net':
-            return self.get_efficient_net_model(dataset)
+            model = self.get_efficient_net_model(dataset)
         elif model_type == 'ab_ranking_efficient_net':
-            return self.get_efficient_net_model(dataset)
+            model = self.get_efficient_net_model(dataset)
         elif model_type == 'ab_ranking_linear':
-            return self.get_linear_model(dataset)
+            model = self.get_linear_model(dataset)
         elif model_type == 'ab_ranking_elm_v1':
-            return self.get_elm_v1_model(dataset)
+            model = self.get_elm_v1_model(dataset)
+
+        return model
 
     def set_total_rate(self, total_rate):
         self.total_rate = total_rate

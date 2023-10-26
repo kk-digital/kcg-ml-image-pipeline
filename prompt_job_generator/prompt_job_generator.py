@@ -213,7 +213,7 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
         elif model_type == 'ab_ranking_elm_v1':
             prompt_job_generator_state.load_elm_v1_model(bucket_name, 'datasets', model_path)
 
-        print(f'Loaded model {dataset_model_name} for dataset {dataset}')
+        print(f'Loaded {model_type} model {dataset_model_name} for dataset {dataset}')
 
 def update_dataset_prompt_queue_background_thread(prompt_job_generator_state):
 
