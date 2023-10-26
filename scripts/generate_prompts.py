@@ -43,55 +43,13 @@ def main():
 
     begin_time = datetime.now()
 
-    prompt_multiplier = 1
-
-    total_prompt_count = prompt_count * prompt_multiplier
-
-    total_prompt_count = int(total_prompt_count)
 
     phrases, phrases_token_size, positive_count_list, negative_count_list = initialize_prompt_list_from_csv(
         csv_dataset_path, 0)
 
-    prompts = generate_prompts_proportional_selection(phrases,
-                                                      phrases_token_size,
-                                                      positive_count_list,
-                                                      negative_count_list,
-                                                      total_prompt_count,
-                                                      '')
+    batch_size = 1000
 
-    if csv_base_prompts != '' and csv_base_prompts is not None:
-        base_prompt_population = load_base_prompts(csv_base_prompts)
-    else:
-        base_prompt_population = None
-
-    prompt_list = []
-    for index in range(0, total_prompt_count):
-
-        prompt = prompts[index]
-        # N Base Prompt Phrases
-        # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
-        # Chance for 0 base prompt phrases should be 30%
-        # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
-        choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-
-        if base_prompt_population is not None:
-            base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
-        else:
-            base_prompt_list = []
-
-        base_prompts = ''
-
-        for base_prompt in base_prompt_list:
-            base_prompts = base_prompts + base_prompt + ', '
-
-        positive_text_prompt = base_prompts + prompt.positive_prompt_str
-
-        prompt_list.append(positive_text_prompt)
-
-    end_time = datetime.now()
-    elapsed_time = end_time - begin_time
-
-    print(f"Execution time: {elapsed_time}")
+    batch_count = int(prompt_count / batch_size)
 
     # Specify the CSV file name
     txt_file = "prompt_list.txt"
@@ -99,8 +57,51 @@ def main():
     # Open the CSV file in write mode
     # Open the file in write mode and write each string on a new line
     with open(txt_file, 'w') as file:
-        for item in prompt_list:
-            file.write(item + "\n")
+        for i in range(0, batch_count):
+
+            prompts = generate_prompts_proportional_selection(phrases,
+                                                              phrases_token_size,
+                                                              positive_count_list,
+                                                              negative_count_list,
+                                                              batch_size,
+                                                              '')
+
+            if csv_base_prompts != '' and csv_base_prompts is not None:
+                base_prompt_population = load_base_prompts(csv_base_prompts)
+            else:
+                base_prompt_population = None
+
+            prompt_list = []
+            for index in range(0, prompt_count):
+
+                prompt = prompts[index]
+                # N Base Prompt Phrases
+                # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
+                # Chance for 0 base prompt phrases should be 30%
+                # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
+                choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+
+                if base_prompt_population is not None:
+                    base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
+                else:
+                    base_prompt_list = []
+
+                base_prompts = ''
+
+                for base_prompt in base_prompt_list:
+                    base_prompts = base_prompts + base_prompt + ', '
+
+                positive_text_prompt = base_prompts + prompt.positive_prompt_str
+
+                prompt_list.append(positive_text_prompt)
+
+            end_time = datetime.now()
+            elapsed_time = end_time - begin_time
+
+            print(f"Execution time: {elapsed_time}")
+
+            for item in prompt_list:
+                file.write(item + "\n")
 
     cmd.upload_from_file(minio_client, 'datasets', 'prompts.txt', txt_file)
 
