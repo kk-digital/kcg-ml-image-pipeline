@@ -63,7 +63,7 @@ class ABRankingELMModel:
             device = 'cuda'
         else:
             device = 'cpu'
-        self._device = torch.device(device)
+        self._device = torch.device('cpu')
 
         self.model = ABRankingELMBaseModel(inputs_shape, num_random_layers).to(self._device)
         self.model_type = 'ab-ranking-elm-v1'
@@ -361,6 +361,19 @@ class ABRankingELMModel:
 
         # make it [1, 2, 77, 768]
         inputs = inputs.unsqueeze(0)
+
+        # do average pooling
+        inputs = torch.mean(inputs, dim=2)
+
+        # then concatenate
+        inputs = inputs.reshape(len(inputs), -1)
+
+        with torch.no_grad():
+            outputs = self.model.forward(inputs).squeeze()
+
+            return outputs
+    
+    def predict_positive_or_negative_only(self, inputs):
 
         # do average pooling
         inputs = torch.mean(inputs, dim=2)

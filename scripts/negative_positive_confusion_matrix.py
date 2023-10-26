@@ -4,6 +4,7 @@ import os
 import sys
 import argparse
 from matplotlib import pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 import msgpack
 import numpy as np
 import torch
@@ -16,22 +17,35 @@ from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from utility.minio import cmd
  
 
+#
+
 class EmbeddingConfusionMatrix:
     def __init__(self,
                  minio_addr=None,
                  minio_access_key=None,
                  minio_secret_key=None,
-                 input="input"):
+                 input="input",
+                 bins=10,
+                 annot=False):
 
+        #connect to minIO server
         self.minio_access_key = minio_access_key
         self.minio_secret_key = minio_secret_key
         self.minio_client = cmd.get_minio_client(minio_access_key=self.minio_access_key,
                                                  minio_secret_key=self.minio_secret_key,
                                                  minio_ip_addr=minio_addr)
-        self.embedding_score_model=None
-        self.embedding_score_model_positive= None
-        self.embedding_score_model_negative= None
+        #load embedding models
+        self.load_all_models()
+        #input path
         self.input=input
+        #number of bins
+        self.bins=bins
+        #annotation for confusion matrix
+        self.annot=annot
+        # get predicted scores
+        self.scores=self.get_scores()
+        # calculate confusion matrix
+        self.confusion_matrix=get_confusion_matrix(self.scores, self.bins)
 
     def load_model(self, model_path, input_size):
     
@@ -39,10 +53,11 @@ class EmbeddingConfusionMatrix:
 
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', model_path)
         most_recent_model = None
+
+        
  
         for model_file in model_files:
             file_extension = os.path.splitext(model_file)[1]
-
             if file_extension == ".pth":
                 most_recent_model = model_file
 
@@ -52,6 +67,8 @@ class EmbeddingConfusionMatrix:
             print("No .pth files found in the list.")
             return
         
+        print(most_recent_model)
+
         # Create a BytesIO object and write the downloaded content into it
         byte_buffer = io.BytesIO()
         for data in model_file_data.stream(amt=8192):
@@ -66,7 +83,7 @@ class EmbeddingConfusionMatrix:
     def load_all_models(self):
         input_path="environmental/models/ranking/"
 
-        self.embedding_score_model= self.load_model(input_path+ "ab_ranking_elm_v1", 768*2)
+        self.embedding_score_model= self.load_model(input_path+ "ab_ranking_elm_v1/", 768*2)
         self.embedding_score_model_negative= self.load_model(input_path + "ab_ranking_elm_v1_positive_only", 768)
         self.embedding_score_model_positive= self.load_model(input_path + "ab_ranking_elm_v1_negative_only", 768)
     
@@ -95,12 +112,13 @@ class EmbeddingConfusionMatrix:
             normal_scores.append(self.embedding_score_model.predict(positive_embedding_array, negative_embedding_array))
         
         # Normalize the positive and negative scores
-        normalized_positive_scores = normalize_scores(positive_scores)
-        normalized_negative_scores = normalize_scores(negative_scores)
+        normalized_positive_scores = normalize_scores(positive_scores, self.bins)
+        normalized_negative_scores = normalize_scores(negative_scores, self.bins)
+        normalized_scores=percentile_normalization(normal_scores)
 
         # Merge the vectors into a list of dictionaries
         scores=[]
-        for pos, neg, score in zip(normalized_positive_scores, normalized_negative_scores, normal_scores):
+        for pos, neg, score in zip(normalized_positive_scores, normalized_negative_scores, normalized_scores):
             scores.append({'positive': pos, 'negative': neg, 'score': score})
         
         return scores
@@ -108,20 +126,21 @@ class EmbeddingConfusionMatrix:
     
     def show_confusion_matrix(self):
         print('constructing confusion matrix.......')
-        # get predicted scores
-        scores=self.get_scores()
-        # create a confusion matrix of average scores
-        cm=get_confusion_matrix(scores)
+        
+        # Generate a custom colormap representing brightness
+        colors = [(1, 1, 1), (1, 0, 0)]  # White to Red
+        custom_cmap = LinearSegmentedColormap.from_list('custom_colormap', colors, N=256)
 
+        
         # Create a heatmap of the confusion matrix
         plt.figure(figsize=(15, 12))
-        sb.heatmap(cm, annot=True ,cbar=True)
-        positions = np.linspace(0.5, 10.5, 11) 
-        labels = [str(i / 10.0) for i in range(11)]
+        sb.heatmap(self.confusion_matrix,cbar=True, annot=self.annot, cmap=custom_cmap)
+        positions = np.linspace(0.5, self.bins-0.5, self.bins) 
+        labels = [str(i+1) for i in range(self.bins)]
         # Set the class labels as ticks on both axes
-        plt.xticks(positions, labels)
+        plt.xticks(positions,labels)
         plt.yticks(positions, labels)
-        plt.title("Confusion Matrix")
+        plt.title("mean quality score vs negative/positive score")
         plt.xlabel('Negative')
         plt.ylabel('Positive')
 
@@ -130,35 +149,72 @@ class EmbeddingConfusionMatrix:
 
         print('done')
     
+    def bin_histogram(self, negative_bin, positive_bin):
+        distribution=[]
+        for s in self.scores:
+            if s['positive']== positive_bin and s['negative']==negative_bin:
+                distribution.append(s['score'])
+
+        # Create a histogram
+        plt.figure(figsize=(10, 5))
+        plt.hist(distribution, bins=self.bins, alpha=0.7, color='b', label='Data')
+
+        plt.xlabel('Value')
+        plt.ylabel('Frequency')
+        plt.title(f'Percentile Distribution Histogram for bin ({negative_bin},{positive_bin})')
+        plt.legend(loc='upper right')
+        plt.grid(True)
+
+        plt.show()
     
-def get_confusion_matrix(scores):
-    labels = [i / 10 for i in range(11)]
-    cm=np.zeros((11, 11))
-    for i, negative_value in enumerate(labels):
-            for j, positive_val in enumerate(labels):
-                cm[i][j]=average_score(negative_value ,positive_val, scores)
+    
+def get_confusion_matrix(scores, bins):
+    values = [i+1 for i in range(bins)]
+    cm=np.zeros((bins, bins))
+    for i, negative_value in enumerate(values):
+            for j, positive_val in enumerate(values):
+                cm[j][i]=average_embedding_score(negative_value ,positive_val, scores)
     return cm
 
-def average_score(negative_value, positive_value, scores):
-    avg=0
+# def average_score(negative_value, positive_value, scores):
+#     sum=0
+#     for s in scores:
+#         if s['positive']== positive_value and s['negative']==negative_value:
+#             sum+=1
+    
+#     return sum/len(scores)
+
+def average_embedding_score(negative_value, positive_value, scores):
+    sum=0
     for s in scores:
         if s['positive']== positive_value and s['negative']==negative_value:
-            avg+=s['score']
+            sum+=s['score']
     
-    return int(avg/len(scores))
+    return sum/len(scores)
 
 # Normalize the vectors
-def normalize_scores(scores):
-    min_score = min(scores)
-    max_score = max(scores)
-    normalized_scores = [(score - min_score) / (max_score - min_score) for score in scores]
-    rounded_scores = [round(float(score), 1) for score in normalized_scores]
-    return rounded_scores  
+def normalize_scores(scores, bins):
+    vector_size=len(scores)
+    sorted_vector=np.argsort(scores)
+    normalized_scores = [int((order * bins) / vector_size)+ 1 for order in sorted_vector]
+    return normalized_scores
+
+# percentile normalization
+def percentile_normalization(scores):
+    vector_size=len(scores)
+    sorted_vector=np.argsort(scores)
+    normalized_scores = [order / vector_size for order in sorted_vector]
+
+    return normalized_scores
 
 def parse_args():
     parser = argparse.ArgumentParser()
 
     #parameters
+    parser.add_argument("--annot", type=bool, default=False,
+                        help="if matrix cells are annotated or not")
+    parser.add_argument("--bins", type=int, default=10,
+                        help="Number of bins in matrix")
     parser.add_argument("--input", type=str, default="input",
                         help="The path to dataset directory")
     parser.add_argument("--minio-addr", type=str, default=None,
@@ -176,11 +232,14 @@ def main():
     confusion_matrix = EmbeddingConfusionMatrix(minio_addr=args.minio_addr,
                                                minio_access_key=args.minio_access_key,
                                                minio_secret_key=args.minio_secret_key,
-                                               input= args.input)
-    
-    confusion_matrix.load_all_models()
+                                               input= args.input,
+                                               bins=args.bins,
+                                               annot=args.annot)
 
     confusion_matrix.show_confusion_matrix()
+
+    # show histogram for a specific bin (x,y)
+    #confusion_matrix.bin_histogram(5,10)
 
 
 
