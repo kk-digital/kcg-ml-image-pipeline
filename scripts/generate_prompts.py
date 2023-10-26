@@ -94,17 +94,15 @@ def main():
     print(f"Execution time: {elapsed_time}")
 
     # Specify the CSV file name
-    csv_file = "prompt_list.csv"
+    txt_file = "prompt_list.txt"
 
     # Open the CSV file in write mode
-    with open(csv_file, mode='w', newline='') as file:
-        writer = csv.writer(file)
-
-        # Write each string as a separate line in the CSV file
+    # Open the file in write mode and write each string on a new line
+    with open(txt_file, 'w') as file:
         for item in prompt_list:
-            writer.writerow([item])
+            file.write(item + "\n")
 
-    cmd.upload_from_file(minio_client, 'datasets', 'prompts.csv', csv_file)
+    cmd.upload_from_file(minio_client, 'datasets', 'prompts.csv', txt_file)
 
 if __name__ == '__main__':
     main()
