@@ -2,12 +2,13 @@ from fastapi import Request, HTTPException, APIRouter, Response, Query
 from datetime import datetime
 from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
+from .api_utils import PrettyJSONResponse
 
 
 router = APIRouter()
 
 
-@router.get("/image/get_random_image")
+@router.get("/image/get_random_image", response_class=PrettyJSONResponse)
 def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the size parameter
   
     # Use $sample to get one random document
@@ -27,10 +28,26 @@ def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the
     documents[0].pop('_id', None)
 
     # Return the image in the response
-    return {"image": documents[0]}  
+    return {"image": documents[0]}
+
+@router.get("/image/get_image_details")
+def get_image_details(request: Request, image_path: str = Query(...)):
+    # Query the database to retrieve the image details by its ID
+    document = request.app.completed_jobs_collection.find_one(
+        {"task_output_file_dict.output_file_path": image_path}
+    )
+
+    if document is None:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    # Remove the auto-generated _id field from the document
+    document.pop('_id', None)
+
+    # Return the image details
+    return {"image_details": document}  
     
 
-@router.get("/image/get_random_image_list")
+@router.get("/image/get_random_image_list", response_class=PrettyJSONResponse)
 def get_random_image_list(request: Request, dataset: str = Query(...), size: int = Query(1)):  
     # Use Query to get the dataset and size from query parameters
 
@@ -62,7 +79,7 @@ def get_random_image_list(request: Request, dataset: str = Query(...), size: int
     return {"images": distinct_documents}
 
 
-@router.get("/image/get_random_image_by_date_range")
+@router.get("/image/get_random_image_by_date_range", response_class=PrettyJSONResponse)
 def get_random_image_date_range(
     request: Request,
     dataset: str = None,
@@ -115,7 +132,7 @@ def get_image_data_by_filepath(request: Request, file_path: str = None):
 
     return response
 
-@router.get("/image/list-metadata")
+@router.get("/image/list-metadata", response_class=PrettyJSONResponse)
 def get_images_metadata(
     request: Request,
     dataset: str = None,
