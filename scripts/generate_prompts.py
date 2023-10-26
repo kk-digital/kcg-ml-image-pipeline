@@ -86,6 +86,9 @@ def main():
 
         positive_text_prompt = base_prompts + prompt.positive_prompt_str
 
+        # Remove the first and last character
+        positive_text_prompt = positive_text_prompt[1:-1]
+
         prompt_list.append(positive_text_prompt)
 
     end_time = datetime.now()
@@ -104,7 +107,7 @@ def main():
         for item in prompt_list:
             writer.writerow([item])
 
-    cmd.upload_from_file(minio_client, 'datasets', 'prompts/prompts.csv', csv_file)
+    cmd.upload_from_file(minio_client, 'prompts', 'prompts.csv', csv_file)
 
 if __name__ == '__main__':
     main()
