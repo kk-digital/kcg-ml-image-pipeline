@@ -172,15 +172,16 @@ def update_dataset_job_queue_size(prompt_job_generator_state, list_datasets):
         job_queue_target = int(60 * 5 * job_per_second)
 
         print('dataset , ', dataset + ' , maximum_jobs_to_add ', maximum_jobs_to_add)
-        print('dataset , ', dataset + ' , job_queue_target ', job_queue_target)
         print('dataset , ', dataset + ' , jobs_hourly_limit ', jobs_hourly_limit)
-        print('dataset , ', dataset + ' , job_queue_size ', job_queue_size)
         # make sure the queue target size is allways smaller than the maximum queue size
         if job_queue_target > maximum_jobs_to_add:
             job_queue_target = maximum_jobs_to_add
 
         prompt_job_generator_state.set_dataset_job_queue_size(dataset, job_queue_size)
         prompt_job_generator_state.set_dataset_job_queue_target(dataset, job_queue_target)
+
+        print('dataset , ', dataset + ' , job_queue_size ', job_queue_size)
+        print('dataset , ', dataset + ' , job_queue_target ', job_queue_target)
 
 
 def load_dataset_models(prompt_job_generator_state, dataset_list):
