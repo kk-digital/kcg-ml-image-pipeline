@@ -259,7 +259,7 @@ def parse_arguments():
     parser.add_argument('--buffer-size', type=int,default=20000)
     parser.add_argument('--train-percent', type=float,default=0.9)
     parser.add_argument('--training-batch-size', type=int,default=1)
-    parser.add_argument('--weight-decay', type=float,default=0.1)
+    parser.add_argument('--weight-decay', type=float,default=0.01)
     parser.add_argument('--load-data-to-ram', type=bool,default=True)
     parser.add_argument('--debug-asserts', type=bool,default=False)
     parser.add_argument('--normalize-vectors', type=bool,default=True)
