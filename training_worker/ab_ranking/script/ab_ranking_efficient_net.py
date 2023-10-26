@@ -166,7 +166,8 @@ def train_ranking(dataset_name: str,
     graph_name = "{}.png".format(date_now)
     graph_output_path = os.path.join(output_path, graph_name)
 
-    graph_buffer = get_graph_report(training_predicted_probabilities,
+    graph_buffer = get_graph_report(ab_model,
+                                    training_predicted_probabilities,
                                     training_target_probabilities,
                                     validation_predicted_probabilities,
                                     validation_target_probabilities,

@@ -1,6 +1,7 @@
 # Pooling Strategy
 AVERAGE_POOLING = 0
 MAX_POOLING = 1
+MAX_ABS_POOLING = 2
 
 # Target Options
 TARGET_1_AND_0 = 0
