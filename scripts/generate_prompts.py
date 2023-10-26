@@ -72,7 +72,7 @@ def main():
                 base_prompt_population = None
 
             prompt_list = []
-            for index in range(0, prompt_count):
+            for index in range(0, batch_size):
 
                 prompt = prompts[index]
                 # N Base Prompt Phrases
