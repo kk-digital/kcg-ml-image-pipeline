@@ -239,9 +239,8 @@ def main():
     confusion_matrix.show_confusion_matrix()
 
     # show histogram for a specific bin (x,y)
-    confusion_matrix.bin_histogram(negative_bin=10, positive_bin=10)
-    # confusion_matrix.bin_histogram(negative_bin=0, positive_bin=10)
-    # confusion_matrix.bin_histogram(negative_bin=10, positive_bin=0)
+    #confusion_matrix.bin_histogram(negative_bin=10, positive_bin=10)
+
 
 
 
