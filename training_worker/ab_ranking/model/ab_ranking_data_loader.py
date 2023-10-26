@@ -68,6 +68,7 @@ class ABRankingDatasetLoader:
                  minio_ip_addr=None,
                  minio_access_key=None,
                  minio_secret_key=None,
+                 input_type="embedding",
                  buffer_size=20000,
                  train_percent=0.9,
                  load_to_ram=False,
@@ -76,6 +77,7 @@ class ABRankingDatasetLoader:
                  target_option=constants.TARGET_1_AND_0,
                  duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL):
         self.dataset_name = dataset_name
+        self.input_type = input_type
 
         if minio_access_key is not None:
             self.minio_access_key = minio_access_key
@@ -283,14 +285,22 @@ class ABRankingDatasetLoader:
         embeddings_img_1_data = get_object(self.minio_client, embeddings_path_img_1)
         embeddings_img_1_data = msgpack.unpackb(embeddings_img_1_data)
         embeddings_img_1_embeddings_vector = []
-        embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["positive_embedding"]["__ndarray__"])
-        embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["negative_embedding"]["__ndarray__"])
+
+        if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_POSITIVE]:
+            embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["positive_embedding"]["__ndarray__"])
+        if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_NEGATIVE]:
+            embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["negative_embedding"]["__ndarray__"])
+
         embeddings_img_1_embeddings_vector = np.array(embeddings_img_1_embeddings_vector)
         embeddings_img_2_data = get_object(self.minio_client, embeddings_path_img_2)
         embeddings_img_2_data = msgpack.unpackb(embeddings_img_2_data)
         embeddings_img_2_embeddings_vector = []
-        embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["positive_embedding"]["__ndarray__"])
-        embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["negative_embedding"]["__ndarray__"])
+
+        if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_POSITIVE]:
+            embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["positive_embedding"]["__ndarray__"])
+        if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_NEGATIVE]:
+            embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["negative_embedding"]["__ndarray__"])
+
         embeddings_img_2_embeddings_vector = np.array(embeddings_img_2_embeddings_vector)
 
         # if image 1 is the selected
@@ -759,16 +769,22 @@ class ABRankingDatasetLoader:
         embeddings_img_1_data = msgpack.unpackb(embeddings_img_1_data)
 
         embeddings_img_1_embeddings_vector = []
-        embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["positive_embedding"]["__ndarray__"])
-        embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["negative_embedding"]["__ndarray__"])
+        if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_POSITIVE]:
+            embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["positive_embedding"]["__ndarray__"])
+        if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_NEGATIVE]:
+            embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["negative_embedding"]["__ndarray__"])
+
         embeddings_img_1_embeddings_vector = np.array(embeddings_img_1_embeddings_vector)
 
         embeddings_img_2_data = embeddings_dict[embeddings_path_img_2]
         embeddings_img_2_data = msgpack.unpackb(embeddings_img_2_data)
 
         embeddings_img_2_embeddings_vector = []
-        embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["positive_embedding"]["__ndarray__"])
-        embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["negative_embedding"]["__ndarray__"])
+        if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_POSITIVE]:
+            embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["positive_embedding"]["__ndarray__"])
+        if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_NEGATIVE]:
+            embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["negative_embedding"]["__ndarray__"])
+
         embeddings_img_2_embeddings_vector = np.array(embeddings_img_2_embeddings_vector)
 
         # if image 1 is the selected
