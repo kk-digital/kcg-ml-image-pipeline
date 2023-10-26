@@ -88,6 +88,8 @@ class PromptGenerationPromptQueue:
 
         if scoring_model is None:
             print('prompt scoring model is not found for dataset ', dataset)
+        else:
+            print('prompt scoring model is available for dataset ', dataset)
 
         print(f'generating {total_prompt_count} prompts for dataset {dataset}')
         prompts = generate_prompts_proportional_selection(prompt_job_generator_state.phrases,

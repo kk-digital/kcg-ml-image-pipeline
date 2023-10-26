@@ -68,7 +68,6 @@ class ABRankingELMBaseModel(nn.Module):
 
 class ABRankingELMModel:
     def __init__(self, inputs_shape, num_random_layers=2, elm_sparsity=0.0):
-        print("inputs_shape=", inputs_shape)
         if torch.cuda.is_available():
             device = 'cuda'
         else:
