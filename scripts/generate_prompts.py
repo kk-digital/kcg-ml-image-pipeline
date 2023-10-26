@@ -61,6 +61,7 @@ def main():
     # Open the file in write mode and write each string on a new line
     with open(txt_file, 'w') as file:
         for i in range(0, batch_count):
+            print('batch ', (i + 1), ' out of ', batch_count)
             begin_time = datetime.now()
             prompts = generate_prompts_proportional_selection(phrases,
                                                               phrases_token_size,
