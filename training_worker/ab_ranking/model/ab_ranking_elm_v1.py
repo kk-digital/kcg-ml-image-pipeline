@@ -63,7 +63,6 @@ class ABRankingELMModel:
             device = 'cuda'
         else:
             device = 'cpu'
-        self._device = torch.device('cpu')
 
         self.model = ABRankingELMBaseModel(inputs_shape, num_random_layers).to(self._device)
         self.model_type = 'ab-ranking-elm-v1'
