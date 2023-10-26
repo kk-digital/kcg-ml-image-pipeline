@@ -407,6 +407,7 @@ def main():
                 if dataset_todo_jobs[dataset] >= 1.0:
                     # spawn job
                     dataset_todo_jobs[dataset] -= 1.0
+                    prompt_job_generator_state.append_dataset_job_queue_size(dataset, 1)
                     dataset_number_jobs_to_add[dataset] = number_of_jobs_to_add - 1
 
                     print(f'number of jobs to spawn for dataset {dataset} is {number_of_jobs_to_add}')

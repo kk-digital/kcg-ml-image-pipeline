@@ -276,6 +276,10 @@ class PromptJobGeneratorState:
         with self.dataset_job_queue_size_lock:
             self.dataset_job_queue_size[dataset] = job_queue_size
 
+    def append_dataset_job_queue_size(self, dataset, value):
+        with self.dataset_job_queue_size_lock:
+            self.dataset_job_queue_size[dataset] += value
+
     def set_dataset_job_queue_target(self, dataset, job_queue_target):
         with self.dataset_job_queue_size_lock:
             self.dataset_job_queue_target[dataset] = job_queue_target
