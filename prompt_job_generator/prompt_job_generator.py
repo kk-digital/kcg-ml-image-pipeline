@@ -178,12 +178,6 @@ def update_dataset_job_queue_size(prompt_job_generator_state, list_datasets):
         prompt_job_generator_state.set_dataset_job_queue_size(dataset, job_queue_size)
         prompt_job_generator_state.set_dataset_job_queue_target(dataset, job_queue_target)
 
-        if dataset == 'icons':
-            print('dataset , ', dataset + ' , maximum_jobs_to_add ', maximum_jobs_to_add)
-            print('dataset , ', dataset + ' , jobs_hourly_limit ', jobs_hourly_limit)
-            print('dataset , ', dataset + ' , job_queue_size ', job_queue_size)
-            print('dataset , ', dataset + ' , job_queue_target ', job_queue_target)
-
 
 def load_dataset_models(prompt_job_generator_state, dataset_list):
 
