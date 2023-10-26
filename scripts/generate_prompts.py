@@ -102,7 +102,7 @@ def main():
         for item in prompt_list:
             file.write(item + "\n")
 
-    cmd.upload_from_file(minio_client, 'datasets', 'prompts.csv', txt_file)
+    cmd.upload_from_file(minio_client, 'datasets', 'prompts.txt', txt_file)
 
 if __name__ == '__main__':
     main()
