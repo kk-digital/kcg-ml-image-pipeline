@@ -374,7 +374,6 @@ def main():
             added_atleast_one_job = False
 
             for dataset in list_datasets:
-                print('dataset ' , dataset)
                 # get dataset rate
                 # dataset rates should update in background using
                 # orchestration api
