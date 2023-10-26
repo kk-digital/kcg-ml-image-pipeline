@@ -84,8 +84,8 @@ class EmbeddingConfusionMatrix:
         input_path="environmental/models/ranking/"
 
         self.embedding_score_model= self.load_model(input_path+ "ab_ranking_elm_v1/", 768*2)
-        self.embedding_score_model_negative= self.load_model(input_path + "ab_ranking_elm_v1_positive_only", 768)
-        self.embedding_score_model_positive= self.load_model(input_path + "ab_ranking_elm_v1_negative_only", 768)
+        self.embedding_score_model_negative= self.load_model(input_path + "ab_ranking_elm_v1_negative_only", 768)
+        self.embedding_score_model_positive= self.load_model(input_path + "ab_ranking_elm_v1_positive_only", 768)
     
     def get_scores(self):
         msgpack_files = glob.glob(os.path.join(self.input, "**/*_embedding.msgpack"), recursive=True)
@@ -239,7 +239,9 @@ def main():
     confusion_matrix.show_confusion_matrix()
 
     # show histogram for a specific bin (x,y)
-    #confusion_matrix.bin_histogram(5,10)
+    confusion_matrix.bin_histogram(negative_bin=10, positive_bin=10)
+    # confusion_matrix.bin_histogram(negative_bin=0, positive_bin=10)
+    # confusion_matrix.bin_histogram(negative_bin=10, positive_bin=0)
 
 
 
