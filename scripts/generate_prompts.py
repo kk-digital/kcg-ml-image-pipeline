@@ -51,6 +51,11 @@ def main():
 
     batch_count = int(prompt_count / batch_size)
 
+    if csv_base_prompts != '' and csv_base_prompts is not None:
+        base_prompt_population = load_base_prompts(csv_base_prompts)
+    else:
+        base_prompt_population = None
+
     # Specify the CSV file name
     txt_file = "prompt_list.txt"
 
@@ -65,11 +70,6 @@ def main():
                                                               negative_count_list,
                                                               batch_size,
                                                               '')
-
-            if csv_base_prompts != '' and csv_base_prompts is not None:
-                base_prompt_population = load_base_prompts(csv_base_prompts)
-            else:
-                base_prompt_population = None
 
             prompt_list = []
             for index in range(0, batch_size):
