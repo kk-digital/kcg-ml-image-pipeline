@@ -127,7 +127,7 @@ class PromptGenerationPromptQueue:
             prompts = prompt_list
 
         elif generation_policy == 'combined-top-k':
-            number_of_positive_prompts_to_generate = math.sqrt(total_prompt_count)
+            number_of_positive_prompts_to_generate = int(math.sqrt(total_prompt_count) + 1.0)
 
             prompts = generate_prompts_proportional_selection(prompt_job_generator_state.phrases,
                                                               prompt_job_generator_state.phrases_token_size,
@@ -161,6 +161,7 @@ class PromptGenerationPromptQueue:
             # Create a list of all possible combinations
             prompts = [ScoredPrompt(0, positive, negative) for positive in positive_prompts for negative in
                                 negative_prompts]
+            prompts = prompts[:total_prompt_count]
 
         scored_prompts = []
         for prompt in prompts:
