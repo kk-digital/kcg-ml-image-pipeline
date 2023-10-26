@@ -35,10 +35,6 @@ class EfficientNetModel(nn.Module):
 
 class ABRankingEfficientNetModel:
     def __init__(self, efficient_net_version="b0", in_channels=1, num_classes=1, inputs_shape=(1, 1, 768*2)):
-        print("efficient_net_version =", efficient_net_version)
-        print("in_channels =", in_channels)
-        print("num_classes =", num_classes)
-
         if torch.cuda.is_available():
             device = 'cuda'
         else:
