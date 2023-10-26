@@ -41,8 +41,6 @@ def main():
 
     print(f'generating {prompt_count} prompts ')
 
-    begin_time = datetime.now()
-
 
     phrases, phrases_token_size, positive_count_list, negative_count_list = initialize_prompt_list_from_csv(
         csv_dataset_path, 0)
@@ -63,7 +61,7 @@ def main():
     # Open the file in write mode and write each string on a new line
     with open(txt_file, 'w') as file:
         for i in range(0, batch_count):
-
+            begin_time = datetime.now()
             prompts = generate_prompts_proportional_selection(phrases,
                                                               phrases_token_size,
                                                               positive_count_list,
