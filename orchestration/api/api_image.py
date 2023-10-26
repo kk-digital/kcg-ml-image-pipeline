@@ -3,6 +3,8 @@ from datetime import datetime
 from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
 from .api_utils import PrettyJSONResponse
+import msgpack
+
 
 
 router = APIRouter()
@@ -173,4 +175,67 @@ def get_images_metadata(
         images_metadata.append(image_meta_data)
 
     return images_metadata
+
+
+
+
+@router.get("/embedding/get_embedding_by_dataset")
+def get_embeddings_by_dataset(request: Request, dataset: str):
+    
+    # Query for the specified task type and dataset
+    query = {
+        "task_output_file_dict.output_file_path": {"$regex": f"datasets/{dataset}/", "$options": "i"},
+        "task_type": {"$in": ["inpainting_generation_task", "image_generation_task"]}
+    }
+
+    jobs = list(request.app.completed_jobs_collection.find(query).sort('task_completion_time', -1))
+    print(f"Found {len(jobs)} jobs for dataset {dataset}")  # Logging the number of found jobs
+    
+    embeddings = []
+    count = 0
+
+    for job in jobs:
+        object_name = job.get("task_output_file_dict", {}).get("output_file_path", "").replace(".jpg", "_embedding.msgpack")
+        
+        if not object_name:
+            print(f"No embedding name found for job {job['_id']}")  # Logging the job ID for which no embedding name is found
+            continue
+
+        bucket_name, file_path_in_bucket = object_name.split('/', 1)
+        
+        try:
+            # Retrieve the actual embedding data from Minio
+            embedding_data_bytes = cmd.get_file_from_minio(request.app.minio_client, bucket_name, file_path_in_bucket)
+            
+            # Unpack the embedding data
+            embedding_data = msgpack.unpackb(embedding_data_bytes, raw=False)
+            
+            # Add the embedding data to the list
+            embeddings.append(embedding_data)
+            
+            # Increase the count
+            count += 1
+            
+            # If we've fetched 5 embeddings, break out of the loop
+            if count >= 5:
+                break
+                
+        except Exception as e:
+            print(f"Error fetching embedding {object_name}. Reason: {str(e)}")
+            continue
+
+    # Print the first 5 embeddings
+    for emb in embeddings:
+        print(emb)
+
+    # Print the total count of the embeddings
+    print(f"Total embeddings: {count}")
+
+    return {"message": "Completed fetching embeddings"}
+
+
+
+
+
+
 
