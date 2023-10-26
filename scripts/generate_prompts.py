@@ -102,7 +102,7 @@ def main():
 
         # Write each string as a separate line in the CSV file
         for item in prompt_list:
-            writer.writerow(item)
+            writer.writerow([item])
 
     cmd.upload_from_file(minio_client, 'datasets', 'prompts.csv', csv_file)
 
