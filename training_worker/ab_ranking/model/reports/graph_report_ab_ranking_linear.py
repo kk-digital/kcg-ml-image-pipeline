@@ -72,13 +72,41 @@ def separate_values_based_on_targets(training_targets, validation_targets, train
         validation_pred_scores_img_y_target_0
 
 
-def get_graph_report(train_prob_predictions, training_targets, validation_prob_predictions, validation_targets,
-                      training_pred_scores_img_x, training_pred_scores_img_y, validation_pred_scores_img_x,
-                      validation_pred_scores_img_y, training_total_size, validation_total_size,
-                      training_losses, validation_losses, epochs, learning_rate,training_batch_size,
-                     weight_decay, date, network_type, input_type, input_shape, output_type, train_sum_correct,
-                                    validation_sum_correct, loss_func, dataset_name, pooling_strategy: int,
-                                                   normalize_vectors):
+def get_graph_report(model_class,
+                     train_prob_predictions,
+                     training_targets,
+                     validation_prob_predictions,
+                     validation_targets,
+                      training_pred_scores_img_x,
+                     training_pred_scores_img_y,
+                     validation_pred_scores_img_x,
+                      validation_pred_scores_img_y,
+                     training_total_size,
+                     validation_total_size,
+                     training_losses,
+                     validation_losses,
+                     epochs,
+                     learning_rate,
+                     training_batch_size,
+                     weight_decay,
+                     date,
+                     network_type,
+                     input_type,
+                     input_shape,
+                     output_type,
+                     train_sum_correct,
+                     validation_sum_correct,
+                     loss_func,
+                     dataset_name,
+                     pooling_strategy: int,
+                     normalize_vectors,
+                     num_random_layers=0,
+                     add_loss_penalty=False,
+                     target_option=0,
+                     duplicate_flip_option=0,
+                     randomize_data_per_epoch=False,
+                     elm_sparsity=0.0,
+                     ):
     train_prob_predictions_target_1, \
         train_prob_predictions_target_0, \
         validation_prob_predictions_target_1, \
@@ -286,9 +314,21 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
     pooling_strategy_str = "average pooling"
     if pooling_strategy == 1:
         pooling_strategy_str = "max pooling"
+    elif pooling_strategy == 2:
+        pooling_strategy_str = "max abs pooling"
+
+    target_option_str = "target 1 and 0"
+    if target_option == 1:
+        target_option_str = "target 1 only"
+    elif target_option == 2:
+        target_option_str = "target 0 only"
+
+    duplicate_flip_option_str = "duplicate and flip all"
+    if duplicate_flip_option == 1:
+        duplicate_flip_option_str = "duplicate and flip random"
 
     # add additional info on top left side
-    plt.figtext(0, 0.65, "Date = {}\n"
+    plt.figtext(0, 0.55, "Date = {}\n"
                          "Dataset = {}\n"
                          "Network type = {}\n"
                          "Input type = {}\n"
@@ -298,7 +338,9 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
                          "Training size = {}\n"
                          "Validation size = {}\n"
                          "Train Correct Predictions \n= {}({:02.02f}%)\n"
-                         "Validation Correct \nPredictions = {}({:02.02f}%)\n\n"
+                         "Validation Correct \nPredictions = {}({:02.02f}%)\n"
+                         "Training loss = {:03.04}\n"
+                         "Validation loss = {:03.04}\n\n"
                          ""
                          "Learning rate = {}\n"
                          "Epochs = {}\n"
@@ -307,7 +349,13 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
                          "Loss func = {}\n\n"
                          ""
                          "Pooling strategy = {}\n"
-                         "Normalize vectors= {}\n".format(date,
+                         "Normalize vectors = {}\n"
+                         "num_random_layers = {}\n"
+                         "add_loss_penalty = {}\n"
+                         "target_option = {}\n"
+                         "duplicate_flip_option = {}\n"
+                         "randomize_data_per_epoch = {}\n"
+                         "elm_sparsity = {}\n".format(date,
                                                    dataset_name,
                                                    network_type,
                                                    input_type,
@@ -319,18 +367,26 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
                                                    (train_sum_correct / training_total_size) * 100,
                                                    validation_sum_correct,
                                                    (validation_sum_correct / validation_total_size) * 100,
-                                                   learning_rate,
+                                                    model_class.training_loss,
+                                                    model_class.validation_loss,
+                                                    learning_rate,
                                                    epochs,
                                                    training_batch_size,
                                                    weight_decay,
                                                    loss_func,
                                                    pooling_strategy_str,
-                                                   normalize_vectors)
+                                                   normalize_vectors,
+                                                    num_random_layers,
+                                                    add_loss_penalty,
+                                                    target_option_str,
+                                                    duplicate_flip_option_str,
+                                                    randomize_data_per_epoch,
+                                                    elm_sparsity)
                 )
 
     # Save figure
     # graph_path = os.path.join(model_output_path, graph_name)
-    plt.subplots_adjust(hspace=0.5)
+    plt.subplots_adjust(left=0.15, hspace=0.5)
     # plt.savefig(graph_path)
     # plt.show()
     buf = BytesIO()
