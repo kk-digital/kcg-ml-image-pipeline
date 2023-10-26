@@ -184,7 +184,8 @@ def train_ranking(dataset_name: str,
     graph_name = "{}.png".format(date_now)
     graph_output_path = os.path.join(output_path, graph_name)
 
-    graph_buffer = get_graph_report(training_predicted_probabilities,
+    graph_buffer = get_graph_report(ab_model,
+                                    training_predicted_probabilities,
                                     training_target_probabilities,
                                     validation_predicted_probabilities,
                                     validation_target_probabilities,
@@ -210,7 +211,13 @@ def train_ranking(dataset_name: str,
                                     ab_model.loss_func_name,
                                     dataset_name,
                                     pooling_strategy,
-                                    normalize_vectors)
+                                    normalize_vectors,
+                                    num_random_layers,
+                                    add_loss_penalty,
+                                    target_option,
+                                    duplicate_flip_option,
+                                    randomize_data_per_epoch,
+                                    elm_sparsity)
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name, graph_output_path, graph_buffer)
 
@@ -283,7 +290,7 @@ def parse_arguments():
     parser.add_argument('--add-loss-penalty', type=bool,default=True)
     parser.add_argument('--target-option', type=int,default=0)
     parser.add_argument('--duplicate-flip-option', type=int,default=0)
-    parser.add_argument('--randomize-data-per_epoch', type=bool,default=True)
+    parser.add_argument('--randomize-data-per-epoch', type=bool,default=True)
     parser.add_argument('--elm-sparsity', type=float,default=0.0)
 
     return parser.parse_args()
