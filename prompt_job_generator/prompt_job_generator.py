@@ -208,6 +208,8 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
             prompt_job_generator_state.load_efficient_net_model(bucket_name, 'datasets', model_path)
         elif model_type == 'ab_ranking_linear':
             prompt_job_generator_state.load_linear_model(bucket_name, 'datasets', model_path)
+        elif model_type == 'ab_ranking_elm_v1':
+            prompt_job_generator_state.load_elm_v1_model(bucket_name, 'datasets', model_path)
 
         print(f'Loaded model {dataset_model_name} for dataset {dataset}')
 

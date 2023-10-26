@@ -164,6 +164,7 @@ class PromptJobGeneratorState:
 
         return None
 
+
     def load_prompt_list_from_csv(self, csv_dataset_path, csv_phrase_limit):
         phrases, phrases_token_size, positive_count_list, negative_count_list = initialize_prompt_list_from_csv(csv_dataset_path, csv_phrase_limit)
 
