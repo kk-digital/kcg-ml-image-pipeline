@@ -8,7 +8,6 @@ from matplotlib.colors import LinearSegmentedColormap
 import msgpack
 import numpy as np
 import torch
-from sklearn.metrics import confusion_matrix
 import seaborn as sb
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -54,8 +53,6 @@ class EmbeddingConfusionMatrix:
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', model_path)
         most_recent_model = None
 
-        
- 
         for model_file in model_files:
             file_extension = os.path.splitext(model_file)[1]
             if file_extension == ".pth":
@@ -150,10 +147,7 @@ class EmbeddingConfusionMatrix:
         print('done')
     
     def bin_histogram(self, negative_bin, positive_bin):
-        distribution=[]
-        for s in self.scores:
-            if s['positive']== positive_bin and s['negative']==negative_bin:
-                distribution.append(s['score'])
+        distribution=get_distribution(positive_val=positive_bin, negative_val=negative_bin)
 
         # Create a histogram
         plt.figure(figsize=(10, 5))
@@ -166,7 +160,34 @@ class EmbeddingConfusionMatrix:
         plt.grid(True)
 
         plt.show()
+
+    def draw_histograms(self):
+        print('constructing histograms for each bin.......')
+        # Create a figure with multiple subplots
+        fig, axs = plt.subplots(self.bins, self.bins, figsize=(15, 15))
+
+        # Adjust the space between subplots
+        fig.subplots_adjust(hspace=0.7, wspace=0.7)
+
+        # Plot the histograms in each subplot
+        for pos_val in range(self.bins):    
+            for neg_val in range(self.bins):
+                distribution=get_distribution(self.scores, positive_val=pos_val+1, negative_val=neg_val+1)
+                ax = axs[self.bins-pos_val-1][neg_val]
+                # Create subplots
+                ax.hist(distribution, bins=self.bins, color='blue', alpha=0.7)
+                ax.set_title(f'(negative={neg_val+1}, positive={pos_val+1})', fontsize=8)
+
+        plt.show()
+
+def get_distribution(scores, positive_val, negative_val):
+    distribution=[]
+    for s in scores:
+            if s['positive']== positive_val and s['negative']==negative_val:
+                distribution.append(s['score'])
     
+    return distribution
+
     
 def get_confusion_matrix(scores, bins):
     values = [i+1 for i in range(bins)]
@@ -176,14 +197,7 @@ def get_confusion_matrix(scores, bins):
                 cm[j][i]=average_embedding_score(negative_value ,positive_val, scores)
     return cm
 
-# def average_score(negative_value, positive_value, scores):
-#     sum=0
-#     for s in scores:
-#         if s['positive']== positive_value and s['negative']==negative_value:
-#             sum+=1
-    
-#     return sum/len(scores)
-
+# average embedding score for each bin
 def average_embedding_score(negative_value, positive_value, scores):
     sum=0
     for s in scores:
@@ -238,8 +252,8 @@ def main():
 
     confusion_matrix.show_confusion_matrix()
 
-    # show histogram for a specific bin (x,y)
-    #confusion_matrix.bin_histogram(negative_bin=10, positive_bin=10)
+    # draw histograms of score distribution for each bin
+    confusion_matrix.draw_histograms()
 
 
 
