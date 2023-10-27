@@ -1,5 +1,6 @@
 import sys
 import queue
+import math
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -91,34 +92,82 @@ class PromptGenerationPromptQueue:
         else:
             print('prompt scoring model is available for dataset ', dataset)
 
-        print(f'generating {total_prompt_count} prompts for dataset {dataset}')
-        prompts = generate_prompts_proportional_selection(prompt_job_generator_state.phrases,
-                                                          prompt_job_generator_state.phrases_token_size,
-                                                          prompt_job_generator_state.positive_count_list,
-                                                          prompt_job_generator_state.negative_count_list,
-                                                          total_prompt_count,
-                                                          '')
 
         base_prompt_population = load_base_prompts(base_prompts_csv_path)
+
+        print(f'generating {total_prompt_count} prompts for dataset {dataset}')
+        prompts = []
+
+        if generation_policy == 'top-k':
+            prompts = generate_prompts_proportional_selection(prompt_job_generator_state.phrases,
+                                                              prompt_job_generator_state.phrases_token_size,
+                                                              prompt_job_generator_state.positive_count_list,
+                                                              prompt_job_generator_state.negative_count_list,
+                                                              total_prompt_count,
+                                                              '')
+            prompt_list = []
+            for prompt in prompts:
+                # N Base Prompt Phrases
+                # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
+                # Chance for 0 base prompt phrases should be 30%
+                # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
+                choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+
+                base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
+
+                base_prompts = ''
+
+                for base_prompt in base_prompt_list:
+                    base_prompts = base_prompts + base_prompt + ', '
+
+                positive_text_prompt = base_prompts + prompt.positive_prompt_str
+                negative_text_prompt = prompt.negative_prompt_str
+                prompt_list.append(ScoredPrompt(0, positive_text_prompt, negative_text_prompt))
+
+            prompts = prompt_list
+
+        elif generation_policy == 'combined-top-k':
+            number_of_positive_prompts_to_generate = int(math.sqrt(total_prompt_count) + 1.0)
+
+            prompts = generate_prompts_proportional_selection(prompt_job_generator_state.phrases,
+                                                              prompt_job_generator_state.phrases_token_size,
+                                                              prompt_job_generator_state.positive_count_list,
+                                                              prompt_job_generator_state.negative_count_list,
+                                                              number_of_positive_prompts_to_generate,
+                                                              '')
+            positive_prompts = []
+            negative_prompts = []
+
+            for prompt in prompts:
+                # N Base Prompt Phrases
+                # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
+                # Chance for 0 base prompt phrases should be 30%
+                # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
+                choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+
+                base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
+
+                base_prompts = ''
+
+                for base_prompt in base_prompt_list:
+                    base_prompts = base_prompts + base_prompt + ', '
+
+                positive_text_prompt = base_prompts + prompt.positive_prompt_str
+                negative_text_prompt = prompt.negative_prompt_str
+
+                positive_prompts.append(positive_text_prompt)
+                negative_prompts.append(negative_text_prompt)
+
+            # Create a list of all possible combinations
+            prompts = [ScoredPrompt(0, positive, negative) for positive in positive_prompts for negative in
+                                negative_prompts]
+            prompts = prompts[:total_prompt_count]
 
         scored_prompts = []
         for prompt in prompts:
 
-            # N Base Prompt Phrases
-            # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
-            # Chance for 0 base prompt phrases should be 30%
-            # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
-            choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-
-            base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
-
-            base_prompts = ''
-
-            for base_prompt in base_prompt_list:
-                base_prompts = base_prompts + base_prompt + ', '
-
-            positive_text_prompt = base_prompts + prompt.positive_prompt_str
-            negative_text_prompt = prompt.negative_prompt_str
+            positive_text_prompt = prompt.positive_prompt
+            negative_text_prompt = prompt.negative_prompt
 
             prompt_score = 0
             if scoring_model is not None and clip_text_embedder is not None:
