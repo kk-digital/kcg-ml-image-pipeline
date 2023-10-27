@@ -22,22 +22,22 @@ def train_ranking(dataset_name: str,
                   minio_access_key=None,
                   minio_secret_key=None,
                   input_type="embedding",
-                  epochs=10000,
-                  learning_rate=0.001,
+                  epochs=8,
+                  learning_rate=0.05,
                   buffer_size=20000,
                   train_percent=0.9,
                   training_batch_size=1,
-                  weight_decay=0.01,
-                  load_data_to_ram=False,
+                  weight_decay=0.00,
+                  load_data_to_ram=True,
                   debug_asserts=False,
-                  normalize_vectors=False,
+                  normalize_vectors=True,
                   pooling_strategy=constants.AVERAGE_POOLING,
-                  num_random_layers=2,
-                  add_loss_penalty=False,
+                  num_random_layers=1,
+                  add_loss_penalty=True,
                   target_option=constants.TARGET_1_AND_0,
                   duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL,
                   randomize_data_per_epoch=True,
-                  elm_sparsity=0.0):
+                  elm_sparsity=0.5):
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
@@ -97,6 +97,15 @@ def train_ranking(dataset_name: str,
                                                    add_loss_penalty=add_loss_penalty,
                                                    randomize_data_per_epoch=randomize_data_per_epoch,
                                                    debug_asserts=debug_asserts)
+
+    training_shuffled_indices_origin = []
+    for index in dataset_loader.training_data_paths_indices_shuffled:
+        training_shuffled_indices_origin.append(dataset_loader.training_data_paths_indices[index])
+
+
+    validation_shuffled_indices_origin = []
+    for index in dataset_loader.validation_data_paths_indices_shuffled:
+        validation_shuffled_indices_origin.append(dataset_loader.validation_data_paths_indices[index])
 
     # Upload model to minio
     model_name = "{}.pth".format(date_now)
@@ -217,7 +226,9 @@ def train_ranking(dataset_name: str,
                                     target_option,
                                     duplicate_flip_option,
                                     randomize_data_per_epoch,
-                                    elm_sparsity)
+                                    elm_sparsity,
+                                    training_shuffled_indices_origin,
+                                    validation_shuffled_indices_origin)
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name, graph_output_path, graph_buffer)
 
@@ -245,7 +256,7 @@ def run_ab_ranking_elm_v1_task(training_task, minio_access_key, minio_secret_key
 
 
 def test_run():
-    train_ranking(minio_ip_addr=None,  # will use defualt if none is given
+    train_ranking(minio_ip_addr=None,  # will use default if none is given
                   minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
                   dataset_name="environmental",
@@ -267,56 +278,6 @@ def test_run():
                   randomize_data_per_epoch=True,
                   elm_sparsity=0.0)
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(
-        description="Train ab ranking elm v1 model")
 
-    parser.add_argument('--minio-access-key', type=str, help='Minio access key')
-    parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
-    parser.add_argument('--dataset-name', type=str, help='The dataset name to use for training',
-                              default='environmental')
-    parser.add_argument('--input-type', type=str,default="embedding")
-    parser.add_argument('--epochs', type=int,default=10)
-    parser.add_argument('--learning-rate', type=float,default=0.1)
-    parser.add_argument('--buffer-size', type=int,default=20000)
-    parser.add_argument('--train-percent', type=float,default=0.9)
-    parser.add_argument('--training-batch-size', type=int,default=1)
-    parser.add_argument('--weight-decay', type=float,default=0.01)
-    parser.add_argument('--load-data-to-ram', type=bool,default=True)
-    parser.add_argument('--debug-asserts', type=bool,default=False)
-    parser.add_argument('--normalize-vectors', type=bool,default=True)
-    parser.add_argument('--pooling-strategy', type=int,default=0)
-    parser.add_argument('--num-random-layers', type=int,default=2)
-    parser.add_argument('--add-loss-penalty', type=bool,default=True)
-    parser.add_argument('--target-option', type=int,default=0)
-    parser.add_argument('--duplicate-flip-option', type=int,default=0)
-    parser.add_argument('--randomize-data-per-epoch', type=bool,default=True)
-    parser.add_argument('--elm-sparsity', type=float,default=0.0)
-
-    return parser.parse_args()
-
-if __name__ == '__main__':
-    # test_run()
-
-    args = parse_arguments()
-    train_ranking(minio_ip_addr=None,  # will use defualt if none is given
-                  minio_access_key=args.minio_access_key,
-                  minio_secret_key=args.minio_secret_key,
-                  dataset_name=args.dataset_name,
-                  input_type=args.input_type,
-                  epochs=args.epochs,
-                  learning_rate=args.learning_rate,
-                  buffer_size=args.buffer_size,
-                  train_percent=args.train_percent,
-                  training_batch_size=args.training_batch_size,
-                  weight_decay=args.weight_decay,
-                  load_data_to_ram=args.load_data_to_ram,
-                  debug_asserts=args.debug_asserts,
-                  normalize_vectors=args.normalize_vectors,
-                  pooling_strategy=args.pooling_strategy,
-                  num_random_layers=args.num_random_layers,
-                  add_loss_penalty=args.add_loss_penalty,
-                  target_option=args.target_option,
-                  duplicate_flip_option=args.duplicate_flip_option,
-                  randomize_data_per_epoch=args.randomize_data_per_epoch,
-                  elm_sparsity=args.elm_sparsity)
+# if __name__ == '__main__':
+#     test_run()
