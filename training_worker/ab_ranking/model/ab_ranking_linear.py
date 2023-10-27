@@ -38,7 +38,6 @@ class ABRankingLinearModel(nn.Module):
 
 class ABRankingModel:
     def __init__(self, inputs_shape):
-        print("inputs_shape=", inputs_shape)
         if torch.cuda.is_available():
             device = 'cuda'
         else:
