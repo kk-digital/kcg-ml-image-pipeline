@@ -53,7 +53,7 @@ def train_ranking(dataset_name: str,
     if input_type in [constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE]:
         input_shape = 768
 
-    output_path = "{}/models/ranking/ab_ranking_elm_v1".format(dataset_name)
+    output_path = "{}/models/ranking/ab_ranking_elm_v1_test".format(dataset_name)
     if input_type == constants.EMBEDDING_POSITIVE:
         output_path += "_positive_only"
     elif input_type == constants.EMBEDDING_NEGATIVE:
@@ -97,6 +97,15 @@ def train_ranking(dataset_name: str,
                                                    add_loss_penalty=add_loss_penalty,
                                                    randomize_data_per_epoch=randomize_data_per_epoch,
                                                    debug_asserts=debug_asserts)
+
+    training_shuffled_indices_origin = []
+    for index in dataset_loader.training_data_paths_indices_shuffled:
+        training_shuffled_indices_origin.append(dataset_loader.training_data_paths_indices[index])
+
+
+    validation_shuffled_indices_origin = []
+    for index in dataset_loader.validation_data_paths_indices_shuffled:
+        validation_shuffled_indices_origin.append(dataset_loader.validation_data_paths_indices[index])
 
     # Upload model to minio
     model_name = "{}.pth".format(date_now)
@@ -217,7 +226,9 @@ def train_ranking(dataset_name: str,
                                     target_option,
                                     duplicate_flip_option,
                                     randomize_data_per_epoch,
-                                    elm_sparsity)
+                                    elm_sparsity,
+                                    training_shuffled_indices_origin,
+                                    validation_shuffled_indices_origin)
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name, graph_output_path, graph_buffer)
 

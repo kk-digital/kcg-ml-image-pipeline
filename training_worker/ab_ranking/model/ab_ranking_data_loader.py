@@ -112,6 +112,12 @@ class ABRankingDatasetLoader:
         self.validation_image_pair_data_arr = []
         self.datapoints_per_sec = 0
 
+        # for chronological data scores graph
+        self.training_data_paths_indices = []
+        self.validation_data_paths_indices = []
+        self.training_data_paths_indices_shuffled = []
+        self.validation_data_paths_indices_shuffled = []
+
         # these will contain features and targets with limit buffer size
         self.training_image_pair_data_buffer = Queue()
         self.validation_image_pair_data_buffer = Queue()
@@ -146,26 +152,39 @@ class ABRankingDatasetLoader:
         if len(dataset_paths) == 0:
             raise Exception("No selection datapoints json found.")
 
+        # test
+        # dataset_paths = dataset_paths[:5]
+
+        # save dataset paths
+        self.chronological_dataset_paths = dataset_paths
+
         # calculate num validations
         num_validations = round((len(dataset_paths) * (1.0 - self.train_percent)))
 
         # get random index for validations
+        training_data_paths_indices = []
+        validation_data_paths_indices = []
         validation_ab_data_list = []
         training_ab_data_list = []
         validation_indices = sample(range(0, len(dataset_paths)-1), num_validations)
         for i in range(len(dataset_paths)):
             if i in validation_indices:
                 validation_ab_data_list.append(dataset_paths[i])
+                validation_data_paths_indices.append(i)
             else:
                 training_ab_data_list.append(dataset_paths[i])
+                training_data_paths_indices.append(i)
+
 
         # training
         # duplicate each one
         # for target 1.0 and 0.0
         duplicated_training_list = []
+        count = 0
         for path in training_ab_data_list:
             if (self.target_option == constants.TARGET_1_AND_0) or (self.target_option == constants.TARGET_1_ONLY):
                 duplicated_training_list.append((path, 1.0))
+                self.training_data_paths_indices.append(training_data_paths_indices[count])
 
             if (self.target_option == constants.TARGET_1_AND_0) or (self.target_option == constants.TARGET_0_ONLY):
                 if (self.target_option == constants.TARGET_1_AND_0) and (self.duplicate_flip_option == constants.DUPLICATE_AND_FLIP_RANDOM):
@@ -176,15 +195,19 @@ class ABRankingDatasetLoader:
                         continue
 
                 duplicated_training_list.append((path, 0.0))
+                self.training_data_paths_indices.append(training_data_paths_indices[count])
+
+            count += 1
 
             # for test
-            # if len(duplicated_training_list) >= 2:
+            # if len(duplicated_training_list) >= 4:
             #     break
 
         # shuffle
         shuffled_training_list = []
         index_shuf = list(range(len(duplicated_training_list)))
         shuffle(index_shuf)
+        self.training_data_paths_indices_shuffled = index_shuf
         for i in index_shuf:
             shuffled_training_list.append(duplicated_training_list[i])
 
@@ -194,9 +217,11 @@ class ABRankingDatasetLoader:
         # duplicate each one
         # for target 1.0 and 0.0
         duplicated_validation_list = []
+        count = 0
         for path in validation_ab_data_list:
             if (self.target_option == constants.TARGET_1_AND_0) or (self.target_option == constants.TARGET_1_ONLY):
                 duplicated_validation_list.append((path, 1.0))
+                self.validation_data_paths_indices.append(validation_data_paths_indices[count])
 
             if (self.target_option == constants.TARGET_1_AND_0) or (self.target_option == constants.TARGET_0_ONLY):
                 if (self.target_option == constants.TARGET_1_AND_0) and (self.duplicate_flip_option == constants.DUPLICATE_AND_FLIP_RANDOM):
@@ -205,16 +230,21 @@ class ABRankingDatasetLoader:
                     if rand_int == 1:
                         # then dont duplicate
                         continue
+
                 duplicated_validation_list.append((path, 0.0))
+                self.validation_data_paths_indices.append(validation_data_paths_indices[count])
+
+            count += 1
 
             # for test
-            # if len(duplicated_validation_list) >= 2:
+            # if len(duplicated_validation_list) >= 4:
             #     break
 
         # shuffle
         shuffled_validation_list = []
         index_shuf = list(range(len(duplicated_validation_list)))
         shuffle(index_shuf)
+        self.validation_data_paths_indices_shuffled = index_shuf
         for i in index_shuf:
             shuffled_validation_list.append(duplicated_validation_list[i])
 
@@ -363,12 +393,15 @@ class ABRankingDatasetLoader:
     def shuffle_training_data(self):
         print("Shuffling training data...")
         # shuffle
+        new_shuffled_indices = []
         shuffled_training = []
         index_shuf = list(range(len(self.training_image_pair_data_arr)))
         shuffle(index_shuf)
         for i in index_shuf:
             shuffled_training.append(self.training_image_pair_data_arr[i])
+            new_shuffled_indices.append(self.training_data_paths_indices_shuffled[i])
 
+        self.training_data_paths_indices_shuffled = new_shuffled_indices
         self.training_image_pair_data_arr = shuffled_training
 
     def get_training_data_and_save_to_buffer(self, dataset_path):

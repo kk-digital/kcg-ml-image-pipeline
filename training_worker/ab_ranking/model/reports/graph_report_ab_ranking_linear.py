@@ -106,7 +106,8 @@ def get_graph_report(model_class,
                      duplicate_flip_option=0,
                      randomize_data_per_epoch=False,
                      elm_sparsity=0.0,
-                     ):
+                     training_shuffled_indices_origin=None,
+                     validation_shuffled_indices_origin=None):
     train_prob_predictions_target_1, \
         train_prob_predictions_target_0, \
         validation_prob_predictions_target_1, \
@@ -134,17 +135,20 @@ def get_graph_report(model_class,
     validation_x_axis_values_target_0 = [i for i in range(len(validation_prob_predictions_target_0))]
 
     # Initialize all graphs/subplots
-    plt.figure(figsize=(22, 15))
-    predicted_prob = plt.subplot2grid((6, 2), (0, 0), rowspan=1, colspan=1)
-    loss_per_epoch = plt.subplot2grid((6, 2), (0, 1), rowspan=1, colspan=1)
-    train_scores_histogram = plt.subplot2grid((6, 2), (1, 0), rowspan=1, colspan=1)
-    validation_scores_histogram = plt.subplot2grid((6, 2), (1, 1), rowspan=1, colspan=1)
-    train_residual_histogram = plt.subplot2grid((6, 2), (2, 0), rowspan=1, colspan=1)
-    validation_residual_histogram = plt.subplot2grid((6, 2), (2, 1), rowspan=1, colspan=1)
-    train_target_1_predicted_scores = plt.subplot2grid((6, 2), (3, 0), rowspan=1, colspan=1)
-    validation_target_1_predicted_scores = plt.subplot2grid((6, 2), (3, 1), rowspan=1, colspan=1)
-    train_target_0_predicted_scores = plt.subplot2grid((6, 2), (4, 0), rowspan=1, colspan=1)
-    validation_target_0_predicted_scores = plt.subplot2grid((6, 2), (4, 1), rowspan=1, colspan=1)
+    plt.figure(figsize=(22, 20))
+    figure_shape = (7, 2)
+    predicted_prob = plt.subplot2grid(figure_shape, (0, 0), rowspan=1, colspan=1)
+    loss_per_epoch = plt.subplot2grid(figure_shape, (0, 1), rowspan=1, colspan=1)
+    train_scores_histogram = plt.subplot2grid(figure_shape, (1, 0), rowspan=1, colspan=1)
+    validation_scores_histogram = plt.subplot2grid(figure_shape, (1, 1), rowspan=1, colspan=1)
+    train_residual_histogram = plt.subplot2grid(figure_shape, (2, 0), rowspan=1, colspan=1)
+    validation_residual_histogram = plt.subplot2grid(figure_shape, (2, 1), rowspan=1, colspan=1)
+    train_target_1_predicted_scores = plt.subplot2grid(figure_shape, (3, 0), rowspan=1, colspan=1)
+    validation_target_1_predicted_scores = plt.subplot2grid(figure_shape, (3, 1), rowspan=1, colspan=1)
+    train_target_0_predicted_scores = plt.subplot2grid(figure_shape, (4, 0), rowspan=1, colspan=1)
+    validation_target_0_predicted_scores = plt.subplot2grid(figure_shape, (4, 1), rowspan=1, colspan=1)
+    chronological_pred_scores_target_1_plot = plt.subplot2grid(figure_shape, (5, 0), rowspan=1, colspan=2)
+    chronological_pred_scores_target_0_plot = plt.subplot2grid(figure_shape, (6, 0), rowspan=1, colspan=2)
     # ----------------------------------------------------------------------------------------------------------------#
     # predicted_prob
     predicted_prob.scatter(train_x_axis_values_target_1, train_prob_predictions_target_1,
@@ -311,6 +315,76 @@ def get_graph_report(model_class,
     validation_target_0_predicted_scores.set_title("Validation Predicted Score for target 0.0")
     validation_target_0_predicted_scores.legend()
     # ----------------------------------------------------------------------------------------------------------------#
+    # chronological scores graph
+    chronological_pred_scores_img_x_target_1 = [None] * int((len(training_pred_scores_img_x) + len(validation_pred_scores_img_x))/2)
+    chronological_pred_scores_img_x_target_0 = [None] * int((len(training_pred_scores_img_x) + len(validation_pred_scores_img_x))/2)
+
+    count = 0
+    for score in training_pred_scores_img_x:
+        if training_targets[count] == [0.0]:
+            chronological_pred_scores_img_x_target_0[training_shuffled_indices_origin[count]] = score.item()
+        else:
+            chronological_pred_scores_img_x_target_1[training_shuffled_indices_origin[count]] = score.item()
+        count += 1
+    count = 0
+
+    for score in validation_pred_scores_img_x:
+        if validation_targets[count] == [0.0]:
+            chronological_pred_scores_img_x_target_0[validation_shuffled_indices_origin[count]] = score.item()
+        else:
+            chronological_pred_scores_img_x_target_1[validation_shuffled_indices_origin[count]] = score.item()
+        count += 1
+
+    chronological_pred_scores_img_y_target_1 = [None] * int((len(training_pred_scores_img_y) + len(validation_pred_scores_img_y))/2)
+    chronological_pred_scores_img_y_target_0 = [None] * int((len(training_pred_scores_img_y) + len(validation_pred_scores_img_y))/2)
+    count = 0
+    for score in training_pred_scores_img_y:
+        if training_targets[count] == [0.0]:
+            chronological_pred_scores_img_y_target_0[training_shuffled_indices_origin[count]] = score.item()
+        else:
+            chronological_pred_scores_img_y_target_1[training_shuffled_indices_origin[count]] = score.item()
+        count += 1
+    count = 0
+
+    for score in validation_pred_scores_img_y:
+        if validation_targets[count] == [0.0]:
+            chronological_pred_scores_img_y_target_0[validation_shuffled_indices_origin[count]] = score.item()
+        else:
+            chronological_pred_scores_img_y_target_1[validation_shuffled_indices_origin[count]] = score.item()
+        count += 1
+
+    chronological_pred_scores_target_1_plot.scatter([i for i in range(len(chronological_pred_scores_img_x_target_1))], chronological_pred_scores_img_x_target_1,
+                                            label="Chronological predicted image x scores with target 1.0 ({0})".format(
+                                                len(chronological_pred_scores_img_x_target_1)),
+                                            c="#281ad9", s=5)
+    chronological_pred_scores_target_1_plot.scatter([i for i in range(len(chronological_pred_scores_img_y_target_1))], chronological_pred_scores_img_y_target_1,
+                                            label="Chronological predicted image y scores with target 1.0 ({0})".format(
+                                                len(chronological_pred_scores_img_y_target_1)),
+                                            c="#14e33a", s=5)
+
+    chronological_pred_scores_target_1_plot.set_xlabel("Sample")
+    chronological_pred_scores_target_1_plot.set_ylabel("Predicted Score")
+    chronological_pred_scores_target_1_plot.set_title("Chronological Train Dataset Predicted Score for target 1.0")
+    chronological_pred_scores_target_1_plot.legend()
+
+    chronological_pred_scores_target_0_plot.scatter([i for i in range(len(chronological_pred_scores_img_x_target_0))],
+                                                    chronological_pred_scores_img_x_target_0,
+                                                    label="Chronological predicted image y scores with target 0.0 ({0})".format(
+                                                        len(chronological_pred_scores_img_x_target_0)),
+                                                    c="#281ad9", s=5)
+    chronological_pred_scores_target_0_plot.scatter([i for i in range(len(chronological_pred_scores_img_y_target_0))],
+                                                    chronological_pred_scores_img_y_target_0,
+                                                    label="Chronological predicted image x scores with target 0.0 ({0})".format(
+                                                        len(chronological_pred_scores_img_y_target_0)),
+                                                    c="#14e33a", s=5)
+
+    chronological_pred_scores_target_0_plot.set_xlabel("Sample")
+    chronological_pred_scores_target_0_plot.set_ylabel("Predicted Score")
+    chronological_pred_scores_target_0_plot.set_title("Chronological Train Dataset Predicted Score for target 0.0")
+    chronological_pred_scores_target_0_plot.legend()
+
+    # ----------------------------------------------------------------------------------------------------------------#
+
     pooling_strategy_str = "average pooling"
     if pooling_strategy == 1:
         pooling_strategy_str = "max pooling"
