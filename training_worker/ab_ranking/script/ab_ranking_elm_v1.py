@@ -53,7 +53,7 @@ def train_ranking(dataset_name: str,
     if input_type in [constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE]:
         input_shape = 768
 
-    output_path = "{}/models/ranking/ab_ranking_elm_v1_test".format(dataset_name)
+    output_path = "{}/models/ranking/ab_ranking_elm_v1".format(dataset_name)
     if input_type == constants.EMBEDDING_POSITIVE:
         output_path += "_positive_only"
     elif input_type == constants.EMBEDDING_NEGATIVE:

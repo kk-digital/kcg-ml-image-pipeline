@@ -410,11 +410,7 @@ def get_graph_report(model_class,
                          "Output type= {}\n\n"
                          ""
                          "Training size = {}\n"
-                         "Validation size = {}\n"
-                         "Train Correct Predictions \n= {}({:02.02f}%)\n"
-                         "Validation Correct \nPredictions = {}({:02.02f}%)\n"
-                         "Training loss = {:03.04}\n"
-                         "Validation loss = {:03.04}\n\n"
+                         "Validation size = {}\n\n"
                          ""
                          "Learning rate = {}\n"
                          "Epochs = {}\n"
@@ -429,33 +425,40 @@ def get_graph_report(model_class,
                          "target_option = {}\n"
                          "duplicate_flip_option = {}\n"
                          "randomize_data_per_epoch = {}\n"
-                         "elm_sparsity = {}\n".format(date,
-                                                   dataset_name,
-                                                   network_type,
-                                                   input_type,
-                                                   input_shape,
-                                                   output_type,
-                                                   training_total_size,
-                                                   validation_total_size,
-                                                   train_sum_correct,
-                                                   (train_sum_correct / training_total_size) * 100,
-                                                   validation_sum_correct,
-                                                   (validation_sum_correct / validation_total_size) * 100,
-                                                    model_class.training_loss,
-                                                    model_class.validation_loss,
-                                                    learning_rate,
-                                                   epochs,
-                                                   training_batch_size,
-                                                   weight_decay,
-                                                   loss_func,
-                                                   pooling_strategy_str,
-                                                   normalize_vectors,
-                                                    num_random_layers,
-                                                    add_loss_penalty,
-                                                    target_option_str,
-                                                    duplicate_flip_option_str,
-                                                    randomize_data_per_epoch,
-                                                    elm_sparsity)
+                         "elm_sparsity = {}\n\n"
+                         ""
+                         "Training loss = {:03.04}\n"
+                         "Validation loss = {:03.04}\n"
+                         "Train Correct Predictions \n"
+                         "= {}({:02.02f}%)\n"
+                         "Validation Correct \n"
+                         "Predictions = {}({:02.02f}%)\n\n".format(date,
+                                                                   dataset_name,
+                                                                   network_type,
+                                                                   input_type,
+                                                                   input_shape,
+                                                                   output_type,
+                                                                   training_total_size,
+                                                                   validation_total_size,
+                                                                   learning_rate,
+                                                                   epochs,
+                                                                   training_batch_size,
+                                                                   weight_decay,
+                                                                   loss_func,
+                                                                   pooling_strategy_str,
+                                                                   normalize_vectors,
+                                                                   num_random_layers,
+                                                                   add_loss_penalty,
+                                                                   target_option_str,
+                                                                   duplicate_flip_option_str,
+                                                                   randomize_data_per_epoch,
+                                                                   elm_sparsity,
+                                                                   model_class.training_loss,
+                                                                   model_class.validation_loss,
+                                                                   train_sum_correct,
+                                                                   (train_sum_correct / training_total_size) * 100,
+                                                                   validation_sum_correct,
+                                                                   (validation_sum_correct / validation_total_size) * 100)
                 )
 
     # Save figure
