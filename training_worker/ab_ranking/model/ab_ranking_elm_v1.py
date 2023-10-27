@@ -67,7 +67,7 @@ class ABRankingELMBaseModel(nn.Module):
 
 
 class ABRankingELMModel:
-    def __init__(self, inputs_shape, num_random_layers=2, elm_sparsity=0.0):
+    def __init__(self, inputs_shape, num_random_layers=1, elm_sparsity=0.5):
         print("inputs_shape=", inputs_shape)
         if torch.cuda.is_available():
             device = 'cuda'
@@ -127,10 +127,10 @@ class ABRankingELMModel:
     def train(self,
               dataset_loader: ABRankingDatasetLoader,
               training_batch_size=1,
-              epochs=100,
-              learning_rate=0.001,
-              weight_decay=0.01,
-              add_loss_penalty=False,
+              epochs=8,
+              learning_rate=0.05,
+              weight_decay=0.00,
+              add_loss_penalty=True,
               randomize_data_per_epoch=True,
               debug_asserts=True):
         training_loss_per_epoch = []

@@ -22,22 +22,22 @@ def train_ranking(dataset_name: str,
                   minio_access_key=None,
                   minio_secret_key=None,
                   input_type="embedding",
-                  epochs=10000,
-                  learning_rate=0.001,
+                  epochs=8,
+                  learning_rate=0.05,
                   buffer_size=20000,
                   train_percent=0.9,
                   training_batch_size=1,
-                  weight_decay=0.01,
-                  load_data_to_ram=False,
+                  weight_decay=0.00,
+                  load_data_to_ram=True,
                   debug_asserts=False,
-                  normalize_vectors=False,
+                  normalize_vectors=True,
                   pooling_strategy=constants.AVERAGE_POOLING,
-                  num_random_layers=2,
-                  add_loss_penalty=False,
+                  num_random_layers=1,
+                  add_loss_penalty=True,
                   target_option=constants.TARGET_1_AND_0,
                   duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL,
                   randomize_data_per_epoch=True,
-                  elm_sparsity=0.0):
+                  elm_sparsity=0.5):
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
@@ -276,22 +276,22 @@ def parse_arguments():
     parser.add_argument('--dataset-name', type=str, help='The dataset name to use for training',
                               default='environmental')
     parser.add_argument('--input-type', type=str,default="embedding")
-    parser.add_argument('--epochs', type=int,default=10)
-    parser.add_argument('--learning-rate', type=float,default=0.1)
+    parser.add_argument('--epochs', type=int,default=8)
+    parser.add_argument('--learning-rate', type=float,default=0.05)
     parser.add_argument('--buffer-size', type=int,default=20000)
     parser.add_argument('--train-percent', type=float,default=0.9)
     parser.add_argument('--training-batch-size', type=int,default=1)
-    parser.add_argument('--weight-decay', type=float,default=0.01)
+    parser.add_argument('--weight-decay', type=float,default=0.00)
     parser.add_argument('--load-data-to-ram', type=bool,default=True)
     parser.add_argument('--debug-asserts', type=bool,default=False)
     parser.add_argument('--normalize-vectors', type=bool,default=True)
     parser.add_argument('--pooling-strategy', type=int,default=0)
-    parser.add_argument('--num-random-layers', type=int,default=2)
+    parser.add_argument('--num-random-layers', type=int,default=1)
     parser.add_argument('--add-loss-penalty', type=bool,default=True)
     parser.add_argument('--target-option', type=int,default=0)
     parser.add_argument('--duplicate-flip-option', type=int,default=0)
     parser.add_argument('--randomize-data-per-epoch', type=bool,default=True)
-    parser.add_argument('--elm-sparsity', type=float,default=0.0)
+    parser.add_argument('--elm-sparsity', type=float,default=0.5)
 
     return parser.parse_args()
 
