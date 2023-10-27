@@ -10,8 +10,8 @@ sys.path.insert(0, base_directory)
 
 from prompt_job_generator_state import PromptJobGeneratorState
 from prompt_job_generator_functions import generate_icon_generation_jobs, generate_character_generation_jobs, generate_mechs_image_generation_jobs, generate_propaganda_posters_image_generation_jobs, generate_environmental_image_generation_jobs
-from prompt_job_generator.http_requests.request import (http_get_all_dataset_rate, http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list,
-                                                        http_get_dataset_job_per_second, http_get_all_dataset_generation_policy, http_get_dataset_top_k_value,
+from prompt_job_generator.http_requests.request import (http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list,
+                                                        http_get_dataset_job_per_second, http_get_jobs_count_last_hour,
                                                         http_get_all_dataset_config, http_get_dataset_model_list)
 from prompt_job_generator_constants import JOB_PER_SECOND_SAMPLE_SIZE, DEFAULT_TOP_K_VALUE, DEFAULT_DATASET_RATE
 
@@ -141,6 +141,7 @@ def update_dataset_job_queue_size(prompt_job_generator_state, list_datasets):
         in_progress_job_count = http_get_in_progress_jobs_count(dataset)
         pending_job_count = http_get_pending_jobs_count(dataset)
         job_per_second = http_get_dataset_job_per_second(dataset, JOB_PER_SECOND_SAMPLE_SIZE)
+        jobs_count_last_hour = http_get_jobs_count_last_hour(dataset)
 
         if job_per_second is None:
             job_per_second = 0.2
@@ -155,10 +156,28 @@ def update_dataset_job_queue_size(prompt_job_generator_state, list_datasets):
         if in_progress_job_count is None or pending_job_count is None:
             continue
 
+        # get the hourly job limit
+        jobs_hourly_limit = prompt_job_generator_state.get_dataset_hourly_limit(dataset)
+
+        # the number of jobs we are allowed to add
+        maximum_jobs_to_add = jobs_hourly_limit - jobs_count_last_hour
+
+        # make sure the maximum jobs to add is positive
+        if maximum_jobs_to_add < 0:
+            maximum_jobs_to_add = 0
+
         job_queue_size = in_progress_job_count + pending_job_count
         # Target number of Jobs in Queue
         # Equals: Time Speed (Jobs/Second) times 60*5 (300); 5 minutes
         job_queue_target = int(60 * 5 * job_per_second)
+
+        print('dataset , ', dataset + ' , maximum_jobs_to_add ', maximum_jobs_to_add)
+        print('dataset , ', dataset + ' , job_queue_target ', job_queue_target)
+        print('dataset , ', dataset + ' , jobs_hourly_limit ', jobs_hourly_limit)
+        print('dataset , ', dataset + ' , job_queue_size ', job_queue_size)
+        # make sure the queue target size is allways smaller than the maximum queue size
+        if job_queue_target > maximum_jobs_to_add:
+            job_queue_target = maximum_jobs_to_add
 
         prompt_job_generator_state.set_dataset_job_queue_size(dataset, job_queue_size)
         prompt_job_generator_state.set_dataset_job_queue_target(dataset, job_queue_target)
@@ -189,6 +208,8 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
             prompt_job_generator_state.load_efficient_net_model(bucket_name, 'datasets', model_path)
         elif model_type == 'ab_ranking_linear':
             prompt_job_generator_state.load_linear_model(bucket_name, 'datasets', model_path)
+        elif model_type == 'ab_ranking_elm_v1':
+            prompt_job_generator_state.load_elm_v1_model(bucket_name, 'datasets', model_path)
 
         print(f'Loaded model {dataset_model_name} for dataset {dataset}')
 

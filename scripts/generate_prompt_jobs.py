@@ -1,6 +1,8 @@
 import argparse
+import random
 import sys
 import io
+import os
 from datetime import datetime
 
 import torch.cuda
@@ -163,6 +165,50 @@ def generate_character_generation_jobs(scored_prompt):
     )
 
 
+def generate_icons_generation_jobs(scored_prompt):
+
+    dataset_name = "icons"
+    init_img_path = "./test/test_inpainting/white_512x512.jpg"
+    mask_path = "./test/test_inpainting/icon_mask.png"
+
+    if scored_prompt is None:
+        return
+
+    positive_prompt = scored_prompt.positive_prompt
+    negative_prompt = scored_prompt.negative_prompt
+
+    generate_inpainting_job(
+        positive_prompt=positive_prompt,
+        negative_prompt=negative_prompt,
+        dataset_name=dataset_name,
+        init_img_path=init_img_path,
+        mask_path=mask_path,
+
+    )
+
+
+def generate_mech_generation_jobs(scored_prompt, mech_mask):
+
+    dataset_name = "mech"
+    init_img_path = "./test/test_inpainting/white_512x512.jpg"
+    mask_path = mech_mask
+
+    if scored_prompt is None:
+        return
+
+    positive_prompt = scored_prompt.positive_prompt
+    negative_prompt = scored_prompt.negative_prompt
+
+    generate_inpainting_job(
+        positive_prompt=positive_prompt,
+        negative_prompt=negative_prompt,
+        dataset_name=dataset_name,
+        init_img_path=init_img_path,
+        mask_path=mask_path,
+
+    )
+
+
 def generate_waifu_generation_jobs(scored_prompt):
 
     dataset_name = "waifu"
@@ -214,6 +260,18 @@ def generate_environmental_image_generation_jobs(scored_prompt):
         negative_prompt=negative_prompt,
         dataset_name=dataset_name,
     )
+
+
+def find_png_files(folder_path):
+    jpg_files = []
+    for root, dirs, files in os.walk(folder_path):
+        for file in files:
+            if file.lower().endswith('.png'):
+                jpg_file_path = os.path.join(root, file)
+                jpg_files.append(jpg_file_path)
+
+    return jpg_files
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="generate prompts")
@@ -268,6 +326,8 @@ def main():
         scoring_model = None
 
     print(f'generating {prompt_count} prompts for dataset {dataset}')
+
+    mech_mask_list = find_png_files('./input/mask/mech')
 
     begin_time = datetime.now()
 
@@ -377,6 +437,11 @@ def main():
             generate_waifu_generation_jobs(prompt)
         elif dataset == 'propaganda-poster':
             generate_propaganda_poster_generation_jobs(prompt)
+        elif dataset == 'mech':
+            random_mask = random.choice(mech_mask_list)
+            generate_mech_generation_jobs(prompt, random_mask)
+        elif dataset == 'icons':
+            generate_icons_generation_jobs(prompt)
 
     end_time = datetime.now()
     elapsed_time = end_time - begin_time

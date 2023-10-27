@@ -2,7 +2,7 @@ from fastapi import Request, APIRouter, HTTPException
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from orchestration.api.mongo_schemas import Task
 from orchestration.api.api_dataset import get_sequential_id
 import pymongo
@@ -61,6 +61,60 @@ def add_job(request: Request, task: Task):
     return {"uuid": task.uuid, "creation_time": task.task_creation_time}
 
 
+@router.get("/queue/image-generation/get-jobs-count-last-hour")
+def get_jobs_count_last_hour(request: Request, dataset):
+
+    # Calculate the timestamp for one hour ago
+    current_time = datetime.now()
+    time_ago = current_time - timedelta(hours=1)
+
+    # Query the collection to count the documents created in the last hour
+    pending_query = {"task_input_dict.dataset": dataset, "task_creation_time": {"$gte": time_ago}}
+    in_progress_query = {"task_input_dict.dataset": dataset, "task_creation_time": {"$gte": time_ago}}
+    completed_query = {"task_input_dict.dataset": dataset, "task_completion_time": {"$gte": time_ago.strftime('%Y-%m-%d %H:%M:%S')}}
+
+    count = 0
+
+    # Take into account pending & in progress & completed jobs
+    pending_count = request.app.pending_jobs_collection.count_documents(pending_query)
+    in_progress_count = request.app.in_progress_jobs_collection.count_documents(in_progress_query)
+    completed_count = request.app.completed_jobs_collection.count_documents(completed_query)
+
+    print("pending, ", pending_count)
+    print("in_progress_count, ", in_progress_count)
+    print("completed_count, ", completed_count)
+
+    count += pending_count
+    count += in_progress_count
+    count += completed_count
+
+    return count
+
+
+@router.get("/queue/image-generation/get-jobs-count-last-n-hour")
+def get_jobs_count_last_n_hour(request: Request, dataset, hours: int):
+
+    # Calculate the timestamp for one hour ago
+    current_time = datetime.now()
+    time_ago = current_time - timedelta(hours=hours)
+
+    # Query the collection to count the documents created in the last hour
+    pending_query = {"task_input_dict.dataset": dataset, "task_creation_time": {"$gte": time_ago}}
+    in_progress_query = {"task_input_dict.dataset": dataset, "task_creation_time": {"$gte": time_ago}}
+    completed_query = {"task_input_dict.dataset": dataset, "task_completion_time": {"$gte": time_ago.strftime('%Y-%m-%d %H:%M:%S')}}
+
+    count = 0
+
+    # Take into account pending & in progress & completed jobs
+    pending_count = request.app.pending_jobs_collection.count_documents(pending_query)
+    in_progress_count = request.app.in_progress_jobs_collection.count_documents(in_progress_query)
+    completed_count = request.app.completed_jobs_collection.count_documents(completed_query)
+
+    count += pending_count
+    count += in_progress_count
+    count += completed_count
+
+    return count
 
 
 # -------------- Get jobs count ----------------------
@@ -238,6 +292,8 @@ def cleanup_completed_and_orphaned_jobs(request: Request):
             request.app.completed_jobs_collection.delete_one({"uuid": job['uuid']})
 
     return True
+
+
 
 # --------------- Job generation rate ---------------------
 
