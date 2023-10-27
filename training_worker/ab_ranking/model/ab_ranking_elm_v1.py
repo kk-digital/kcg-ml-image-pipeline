@@ -366,6 +366,19 @@ class ABRankingELMModel:
             outputs = self.model.forward(inputs).squeeze()
 
             return outputs
+    
+    def predict_positive_or_negative_only(self, inputs):
+
+        # do average pooling
+        inputs = torch.mean(inputs, dim=2)
+
+        # then concatenate
+        inputs = inputs.reshape(len(inputs), -1)
+
+        with torch.no_grad():
+            outputs = self.model.forward(inputs).squeeze()
+
+            return outputs
 
 
 def forward_bradley_terry(predicted_score_images_x, predicted_score_images_y, use_sigmoid=True):
