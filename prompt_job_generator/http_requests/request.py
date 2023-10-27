@@ -52,6 +52,22 @@ def http_get_in_progress_jobs_count(dataset_name: str):
     return None
 
 
+def http_get_jobs_count_last_hour(dataset_name: str):
+    url = SERVER_ADRESS + "/queue/image-generation/get-jobs-count-last-hour?dataset=" + dataset_name
+
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            job_json = response.json()
+            return int(job_json)
+
+    except Exception as e:
+        print('request exception ', e)
+
+    return 0
+
+
 def http_get_dataset_list():
     url = SERVER_ADRESS + "/dataset/list"
 

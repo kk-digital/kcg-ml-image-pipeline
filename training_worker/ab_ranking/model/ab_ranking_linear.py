@@ -38,7 +38,6 @@ class ABRankingLinearModel(nn.Module):
 
 class ABRankingModel:
     def __init__(self, inputs_shape):
-        print("inputs_shape=", inputs_shape)
         if torch.cuda.is_available():
             device = 'cuda'
         else:
@@ -98,7 +97,7 @@ class ABRankingModel:
               dataset_loader: ABRankingDatasetLoader,
               training_batch_size=1,
               epochs=100,
-              learning_rate=0.001,
+              learning_rate=0.05,
               weight_decay=0.01,
               debug_asserts=True):
         training_loss_per_epoch = []

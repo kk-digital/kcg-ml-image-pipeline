@@ -2,12 +2,13 @@ from fastapi import Request, HTTPException, APIRouter, Response, Query
 from datetime import datetime
 from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
+from .api_utils import PrettyJSONResponse
 
 
 router = APIRouter()
 
 
-@router.get("/image/get_random_image")
+@router.get("/image/get_random_image", response_class=PrettyJSONResponse)
 def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the size parameter
   
     # Use $sample to get one random document
@@ -46,7 +47,7 @@ def get_image_details(request: Request, image_path: str = Query(...)):
     return {"image_details": document}  
     
 
-@router.get("/image/get_random_image_list")
+@router.get("/image/get_random_image_list", response_class=PrettyJSONResponse)
 def get_random_image_list(request: Request, dataset: str = Query(...), size: int = Query(1)):  
     # Use Query to get the dataset and size from query parameters
 
@@ -78,7 +79,7 @@ def get_random_image_list(request: Request, dataset: str = Query(...), size: int
     return {"images": distinct_documents}
 
 
-@router.get("/image/get_random_image_by_date_range")
+@router.get("/image/get_random_image_by_date_range", response_class=PrettyJSONResponse)
 def get_random_image_date_range(
     request: Request,
     dataset: str = None,
@@ -131,7 +132,7 @@ def get_image_data_by_filepath(request: Request, file_path: str = None):
 
     return response
 
-@router.get("/image/list-metadata")
+@router.get("/image/list-metadata", response_class=PrettyJSONResponse)
 def get_images_metadata(
     request: Request,
     dataset: str = None,

@@ -192,7 +192,7 @@ class TagDefinition(BaseModel):
 
 class ImageTag(BaseModel):
     tag_id: Optional[int] = None
-    image_id: int
+    file_path: str
     image_hash: str
     user_who_created: str = Field(..., description="User who created the tag")
     creation_time: Union[str, None] = None 
@@ -200,11 +200,22 @@ class ImageTag(BaseModel):
     def to_dict(self):
         return {
             "tag_id": self.tag_id,
-            "image_id": self.image_id,
+            "file_path": self.file_path,
             "image_hash": self.image_hash,
             "user_who_created": self.user_who_created,
             "creation_time": self.creation_time
         }
         
+class FlaggedDataUpdate(BaseModel):
+    flagged: bool = Field(..., description="Indicates whether the data is flagged or not")
+    flagged_by_user: str = Field(..., description="User who is flagging the data")
+    flagged_time: Optional[str] = None
+
+    def to_dict(self):
+        return {
+            "flagged": self.flagged,
+            "flagged_by_user": self.flagged_by_user,
+            "flagged_time": self.flagged_time
+        }
 
 

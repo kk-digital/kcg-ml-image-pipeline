@@ -22,15 +22,16 @@ def train_ranking(dataset_name: str,
                   minio_access_key=None,
                   minio_secret_key=None,
                   epochs=10000,
-                  learning_rate=0.001,
+                  learning_rate=0.05,
                   buffer_size=20000,
                   train_percent=0.9,
                   training_batch_size=1,
                   weight_decay=0.01,
                   load_data_to_ram=False,
                   debug_asserts=False,
-                  pooling_strategy=constants.AVERAGE_POOLING,
-                  normalize_vectors=False):
+                  normalize_vectors=False,
+                  pooling_strategy=constants.AVERAGE_POOLING):
+    date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
@@ -73,7 +74,6 @@ def train_ranking(dataset_name: str,
                                                    debug_asserts=debug_asserts)
 
     # Upload model to minio
-    date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     model_name = "{}.pth".format(date_now)
     model_output_path = os.path.join(output_path, model_name)
     ab_model.save(dataset_loader.minio_client, bucket_name, model_output_path)
@@ -159,7 +159,8 @@ def train_ranking(dataset_name: str,
     graph_name = "{}.png".format(date_now)
     graph_output_path = os.path.join(output_path, graph_name)
 
-    graph_buffer = get_graph_report(training_predicted_probabilities,
+    graph_buffer = get_graph_report(ab_model,
+                                    training_predicted_probabilities,
                                     training_target_probabilities,
                                     validation_predicted_probabilities,
                                     validation_target_probabilities,
@@ -217,7 +218,7 @@ def test_run():
                   minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
                   dataset_name="environmental",
-                  epochs=200,
+                  epochs=10,
                   learning_rate=0.1,
                   buffer_size=20000,
                   train_percent=0.9,
@@ -225,8 +226,8 @@ def test_run():
                   weight_decay=0.01,
                   load_data_to_ram=True,
                   debug_asserts=True,
-                  pooling_strategy=constants.AVERAGE_POOLING,
-                  normalize_vectors=False)
+                  normalize_vectors=True,
+                  pooling_strategy=constants.AVERAGE_POOLING)
 
 
 if __name__ == '__main__':

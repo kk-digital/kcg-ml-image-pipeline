@@ -29,10 +29,9 @@ class ClipModel:
         self.clip_model = clip_model
 
         if self.verbose: print("Loading CLIP " + clip_model)
-
-        self.model = CLIPModel.from_pretrained(clip_model)
-        self.preprocess = CLIPImageProcessor.from_pretrained(clip_model)
-
+        # TODO: remove hard code of paths
+        self.model = CLIPModel.from_pretrained("./input/model/clip/vit-large-patch14/vit-large-patch14.safetensors", config="./input/model/clip/vit-large-patch14/config.json")
+        self.preprocess = CLIPImageProcessor.from_pretrained("./input/model/clip/img_enc_processor")
         if self.verbose: print("CLIP loaded succesfully.")
 
     def unload_clip(self):
