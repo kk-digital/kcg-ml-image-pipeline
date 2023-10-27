@@ -76,7 +76,7 @@ class ABRankingDatasetLoader:
                  train_percent=0.9,
                  load_to_ram=False,
                  pooling_strategy=constants.AVERAGE_POOLING,
-                 normalize_vectors=False,
+                 normalize_vectors=True,
                  target_option=constants.TARGET_1_AND_0,
                  duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL):
         self.dataset_name = dataset_name
