@@ -256,7 +256,7 @@ def run_ab_ranking_elm_v1_task(training_task, minio_access_key, minio_secret_key
 
 
 def test_run():
-    train_ranking(minio_ip_addr=None,  # will use defualt if none is given
+    train_ranking(minio_ip_addr=None,  # will use default if none is given
                   minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
                   dataset_name="environmental",
@@ -278,56 +278,6 @@ def test_run():
                   randomize_data_per_epoch=True,
                   elm_sparsity=0.0)
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(
-        description="Train ab ranking elm v1 model")
 
-    parser.add_argument('--minio-access-key', type=str, help='Minio access key')
-    parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
-    parser.add_argument('--dataset-name', type=str, help='The dataset name to use for training',
-                              default='environmental')
-    parser.add_argument('--input-type', type=str,default="embedding")
-    parser.add_argument('--epochs', type=int,default=8)
-    parser.add_argument('--learning-rate', type=float,default=0.05)
-    parser.add_argument('--buffer-size', type=int,default=20000)
-    parser.add_argument('--train-percent', type=float,default=0.9)
-    parser.add_argument('--training-batch-size', type=int,default=1)
-    parser.add_argument('--weight-decay', type=float,default=0.00)
-    parser.add_argument('--load-data-to-ram', type=bool,default=True)
-    parser.add_argument('--debug-asserts', type=bool,default=False)
-    parser.add_argument('--normalize-vectors', type=bool,default=True)
-    parser.add_argument('--pooling-strategy', type=int,default=0)
-    parser.add_argument('--num-random-layers', type=int,default=1)
-    parser.add_argument('--add-loss-penalty', type=bool,default=True)
-    parser.add_argument('--target-option', type=int,default=0)
-    parser.add_argument('--duplicate-flip-option', type=int,default=0)
-    parser.add_argument('--randomize-data-per-epoch', type=bool,default=True)
-    parser.add_argument('--elm-sparsity', type=float,default=0.5)
-
-    return parser.parse_args()
-
-if __name__ == '__main__':
-    # test_run()
-
-    args = parse_arguments()
-    train_ranking(minio_ip_addr=None,  # will use defualt if none is given
-                  minio_access_key=args.minio_access_key,
-                  minio_secret_key=args.minio_secret_key,
-                  dataset_name=args.dataset_name,
-                  input_type=args.input_type,
-                  epochs=args.epochs,
-                  learning_rate=args.learning_rate,
-                  buffer_size=args.buffer_size,
-                  train_percent=args.train_percent,
-                  training_batch_size=args.training_batch_size,
-                  weight_decay=args.weight_decay,
-                  load_data_to_ram=args.load_data_to_ram,
-                  debug_asserts=args.debug_asserts,
-                  normalize_vectors=args.normalize_vectors,
-                  pooling_strategy=args.pooling_strategy,
-                  num_random_layers=args.num_random_layers,
-                  add_loss_penalty=args.add_loss_penalty,
-                  target_option=args.target_option,
-                  duplicate_flip_option=args.duplicate_flip_option,
-                  randomize_data_per_epoch=args.randomize_data_per_epoch,
-                  elm_sparsity=args.elm_sparsity)
+# if __name__ == '__main__':
+#     test_run()
