@@ -20,6 +20,7 @@ from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
 from training_worker.ab_ranking.model.ab_ranking_efficient_net import ABRankingEfficientNetModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
+from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from worker.prompt_generation.prompt_generator import (generate_inpainting_job,
                                                        generate_image_generation_jobs)
 
@@ -142,6 +143,27 @@ def load_linear_model(minio_client, dataset_bucket, model_path):
     linear_model.load(byte_buffer)
 
     return linear_model
+
+
+def load_elm_v1_model(minio_client, dataset_bucket, model_path):
+
+    elm_model = ABRankingELMModel(768 * 2)
+
+    model_file_data = cmd.get_file_from_minio(minio_client, dataset_bucket, model_path)
+
+    if model_file_data is None:
+        return
+
+    # Create a BytesIO object and write the downloaded content into it
+    byte_buffer = io.BytesIO()
+    for data in model_file_data.stream(amt=8192):
+        byte_buffer.write(data)
+    # Reset the buffer's position to the beginning
+    byte_buffer.seek(0)
+
+    elm_model.load(byte_buffer)
+
+    return elm_model
 
 def generate_character_generation_jobs(scored_prompt):
 
@@ -293,6 +315,7 @@ def parse_args():
 
 
     parser.add_argument("--batch_size", type=int, default=64)
+    parser.add_argument("--model_type", type=str, default='linear')
 
     return parser.parse_args()
 
@@ -310,6 +333,7 @@ def main():
     minio_access_key = args.minio_access_key
     model_path = args.model_path
     batch_size = args.batch_size
+    model_type = args.model_type
 
     clip_text_embedder = CLIPTextEmbedder(device=device)
     config = ModelPathConfig()
@@ -321,7 +345,10 @@ def main():
     minio_client = cmd.get_minio_client(minio_access_key, minio_secret_key)
 
     if minio_client is not None:
-        scoring_model = load_linear_model(minio_client, 'datasets', model_path)
+        if model_type == 'linear':
+            scoring_model = load_linear_model(minio_client, 'datasets', model_path)
+        elif model_type == 'elm_v1':
+            scoring_model = load_elm_v1_model(minio_client, 'datasets', model_path)
     else:
         scoring_model = None
 
