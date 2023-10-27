@@ -364,7 +364,7 @@ def get_graph_report(model_class,
 
     chronological_pred_scores_target_1_plot.set_xlabel("Sample")
     chronological_pred_scores_target_1_plot.set_ylabel("Predicted Score")
-    chronological_pred_scores_target_1_plot.set_title("Chronological Train Dataset Predicted Score for target 1.0")
+    chronological_pred_scores_target_1_plot.set_title("Chronological Dataset Predicted Score for target 1.0")
     chronological_pred_scores_target_1_plot.legend()
 
     chronological_pred_scores_target_0_plot.scatter([i for i in range(len(chronological_pred_scores_img_x_target_0))],
@@ -380,7 +380,7 @@ def get_graph_report(model_class,
 
     chronological_pred_scores_target_0_plot.set_xlabel("Sample")
     chronological_pred_scores_target_0_plot.set_ylabel("Predicted Score")
-    chronological_pred_scores_target_0_plot.set_title("Chronological Train Dataset Predicted Score for target 0.0")
+    chronological_pred_scores_target_0_plot.set_title("Chronological Dataset Predicted Score for target 0.0")
     chronological_pred_scores_target_0_plot.legend()
 
     # ----------------------------------------------------------------------------------------------------------------#
