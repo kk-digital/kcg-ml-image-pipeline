@@ -3,6 +3,7 @@ FROM docker.io/nvidia/cuda:11.3.1-cudnn8-runtime-ubuntu20.04
 # Copy repo
 WORKDIR /training_worker
 COPY ./training_worker /training_worker/training_worker
+COPY ./scripts/ab_ranking_elm_v1.py /training_worker/scripts/ab_ranking_elm_v1.py
 COPY ./utility /training_worker/utility
 COPY ./requirements.txt /training_worker/requirements.txt
 COPY ./requirements_scheduled_workers.txt /training_worker/requirements_scheduled_workers.txt
