@@ -39,6 +39,7 @@ def train_ranking(dataset_name: str,
                   randomize_data_per_epoch=True,
                   elm_sparsity=0.5):
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
+    date_now_with_filename = date_now
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
@@ -54,10 +55,14 @@ def train_ranking(dataset_name: str,
         input_shape = 768
 
     output_path = "{}/models/ranking/ab_ranking_elm_v1".format(dataset_name)
+
     if input_type == constants.EMBEDDING_POSITIVE:
         output_path += "_positive_only"
+        date_now_with_filename += "_positive_only"
+
     elif input_type == constants.EMBEDDING_NEGATIVE:
         output_path += "_negative_only"
+        date_now_with_filename += "_negative_only"
 
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name=dataset_name,
@@ -108,7 +113,8 @@ def train_ranking(dataset_name: str,
         validation_shuffled_indices_origin.append(dataset_loader.validation_data_paths_indices[index])
 
     # Upload model to minio
-    model_name = "{}.pth".format(date_now)
+    model_name = "{}.pth".format(date_now_with_filename)
+
     model_output_path = os.path.join(output_path, model_name)
     ab_model.save(dataset_loader.minio_client, bucket_name, model_output_path)
 
@@ -181,7 +187,7 @@ def train_ranking(dataset_name: str,
                                   dataset_loader.datapoints_per_sec)
 
     # Upload model to minio
-    report_name = "{}.txt".format(date_now)
+    report_name = "{}.txt".format(date_now_with_filename)
     report_output_path = os.path.join(output_path, report_name)
 
     report_buffer = BytesIO(report_str.encode(encoding='UTF-8'))
@@ -190,7 +196,7 @@ def train_ranking(dataset_name: str,
     cmd.upload_data(dataset_loader.minio_client, bucket_name, report_output_path, report_buffer)
 
     # show and save graph
-    graph_name = "{}.png".format(date_now)
+    graph_name = "{}.png".format(date_now_with_filename)
     graph_output_path = os.path.join(output_path, graph_name)
 
     graph_buffer = get_graph_report(ab_model,
@@ -233,7 +239,7 @@ def train_ranking(dataset_name: str,
     cmd.upload_data(dataset_loader.minio_client, bucket_name, graph_output_path, graph_buffer)
 
     # get model card and upload
-    model_card_name = "{}.json".format(date_now)
+    model_card_name = "{}.json".format(date_now_with_filename)
     model_card_name_output_path = os.path.join(output_path, model_card_name)
     model_card_buf = get_model_card_buf(ab_model, training_total_size, validation_total_size, graph_output_path)
     cmd.upload_data(dataset_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
