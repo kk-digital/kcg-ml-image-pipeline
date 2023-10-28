@@ -374,6 +374,7 @@ def main():
             print(list_datasets)
             for dataset in list_datasets:
                 print(dataset)
+                continue
                 # get dataset rate
                 # dataset rates should update in background using
                 # orchestration api
