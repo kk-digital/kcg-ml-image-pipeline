@@ -33,7 +33,9 @@ def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the
 @router.get("/image/get_image_details")
 def get_image_details(request: Request, image_path: str = Query(...)):
     # Query the database to retrieve the image details by its ID
-    document = request.app.completed_jobs_collection.find_one({"file_path": image_path})
+    document = request.app.completed_jobs_collection.find_one(
+        {"task_output_file_dict.output_file_path": image_path}
+    )
 
     if document is None:
         raise HTTPException(status_code=404, detail="Image not found")

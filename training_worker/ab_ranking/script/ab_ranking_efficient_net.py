@@ -22,7 +22,7 @@ def train_ranking(dataset_name: str,
                   minio_access_key=None,
                   minio_secret_key=None,
                   epochs=10000,
-                  learning_rate=0.001,
+                  learning_rate=0.05,
                   buffer_size=20000,
                   train_percent=0.9,
                   training_batch_size=1,
@@ -166,7 +166,8 @@ def train_ranking(dataset_name: str,
     graph_name = "{}.png".format(date_now)
     graph_output_path = os.path.join(output_path, graph_name)
 
-    graph_buffer = get_graph_report(training_predicted_probabilities,
+    graph_buffer = get_graph_report(ab_model,
+                                    training_predicted_probabilities,
                                     training_target_probabilities,
                                     validation_predicted_probabilities,
                                     validation_target_probabilities,

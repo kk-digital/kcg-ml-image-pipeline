@@ -136,10 +136,14 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_cre
 
     if not image:
         raise HTTPException(status_code=404, detail="No image found with the given hash")
-    
+
+    # Extract the file_path from the image
+    file_path = image.get("task_output_file_dict", {}).get("output_file_path", "")
+
     # Create association between image and tag in the image_tags_collection
     image_tag_data = {
         "tag_id": tag_id,
+        "file_path": file_path,  
         "image_hash": file_hash,
         "user_who_created": user_who_created,
         "creation_time": date_now
@@ -182,10 +186,11 @@ def get_tag_list_for_image(request: Request, file_hash: str):
 def get_tagged_images(request: Request, tag_id: int):
     # Fetch image details for this tag
     image_tags_cursor = request.app.image_tags_collection.find({"tag_id": tag_id})
-    
+
     image_info_list = [
         ImageTag(
             tag_id=int(tag_data["tag_id"]),
+            file_path=tag_data["file_path"],  # Extracting the file path here
             image_hash=str(tag_data["image_hash"]),
             user_who_created=tag_data["user_who_created"],
             creation_time=tag_data.get("creation_time", None)
@@ -193,7 +198,7 @@ def get_tagged_images(request: Request, tag_id: int):
         for tag_data in image_tags_cursor 
         if tag_data.get("image_hash") and tag_data.get("user_who_created")
     ]
-    
+
     # If no image details found, raise an exception
     if not image_info_list:
         raise HTTPException(status_code=404, detail="No images found for the given tag!")

@@ -93,7 +93,7 @@ class ABRankingEfficientNetModel:
               dataset_loader: ABRankingDatasetLoader,
               training_batch_size=4,
               epochs=100,
-              learning_rate=0.001,
+              learning_rate=0.05,
               weight_decay=0.01,
               debug_asserts=False):
         training_loss_per_epoch = []
