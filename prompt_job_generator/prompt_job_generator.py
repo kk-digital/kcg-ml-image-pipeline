@@ -384,6 +384,9 @@ def main():
                 dataset_rate = prompt_job_generator_state.get_dataset_rate(dataset)
                 total_rate = prompt_job_generator_state.total_rate
 
+                if dataset == 'waifu':
+                    print('dataset rate for waifu ', dataset_rate)
+
                 # if dataset_rate does not exist skip this dataset
                 if dataset_rate is None:
                     continue
@@ -403,6 +406,9 @@ def main():
                     continue
 
                 number_of_jobs_to_add = dataset_number_jobs_to_add[dataset]
+
+                if dataset == 'waifu':
+                    print('dataset number_of_jobs_to_add for waifu ', number_of_jobs_to_add)
 
                 if number_of_jobs_to_add >= 1 and dataset_rate > 0:
                     dataset_todo_jobs[dataset] += (dataset_rate / total_rate)
