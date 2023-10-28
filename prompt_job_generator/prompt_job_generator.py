@@ -377,6 +377,7 @@ def main():
         while added_atleast_one_job:
             added_atleast_one_job = False
 
+            print(list_datasets)
             for dataset in list_datasets:
                 # get dataset rate
                 # dataset rates should update in background using
