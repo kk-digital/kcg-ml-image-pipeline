@@ -295,8 +295,6 @@ def main():
                                                                     'input/dataset-config/mech/base-prompts-dsp.csv')
     prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('character',
                                                                     'input/dataset-config/character/base-prompts-waifu.csv')
-    prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('waifu',
-                                                                    'input/dataset-config/character/base-prompts-waifu.csv')
     prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('environmental',
                                                                     'input/dataset-config/environmental/base-prompts-environmental.csv')
 
@@ -371,16 +369,12 @@ def main():
         while added_atleast_one_job:
             added_atleast_one_job = False
 
-            print(list_datasets)
             for dataset in list_datasets:
                 # get dataset rate
                 # dataset rates should update in background using
                 # orchestration api
                 dataset_rate = prompt_job_generator_state.get_dataset_rate(dataset)
                 total_rate = prompt_job_generator_state.total_rate
-
-                if dataset == 'waifu':
-                    print('dataset rate for waifu ', dataset_rate)
 
                 # if dataset_rate does not exist skip this dataset
                 if dataset_rate is None:
@@ -401,9 +395,6 @@ def main():
                     continue
 
                 number_of_jobs_to_add = dataset_number_jobs_to_add[dataset]
-
-                if dataset == 'waifu':
-                    print('dataset number_of_jobs_to_add for waifu ', number_of_jobs_to_add)
 
                 if number_of_jobs_to_add >= 1 and dataset_rate > 0:
                     dataset_todo_jobs[dataset] += (dataset_rate / total_rate)
