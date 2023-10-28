@@ -373,8 +373,6 @@ def main():
 
             print(list_datasets)
             for dataset in list_datasets:
-                print(dataset)
-                continue
                 # get dataset rate
                 # dataset rates should update in background using
                 # orchestration api
@@ -390,7 +388,7 @@ def main():
 
                 if not prompt_job_generator_state.prompt_queue.database_prompt_available(dataset):
                     # print('no prompt is available for dataset ', dataset)
-                    break
+                    continue
 
                 # get dataset callback
                 # used to spawn the job
