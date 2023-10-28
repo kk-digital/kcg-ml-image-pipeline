@@ -113,7 +113,10 @@ class PromptGenerationPromptQueue:
                 # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
                 choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
 
-                base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
+                if len(base_prompt_population) == 0:
+                    base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
+                else:
+                    base_prompt_list = []
 
                 base_prompts = ''
 

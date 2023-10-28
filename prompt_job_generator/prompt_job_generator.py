@@ -9,7 +9,8 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from prompt_job_generator_state import PromptJobGeneratorState
-from prompt_job_generator_functions import generate_icon_generation_jobs, generate_character_generation_jobs, generate_mechs_image_generation_jobs, generate_propaganda_posters_image_generation_jobs, generate_environmental_image_generation_jobs
+from prompt_job_generator_functions import (generate_icon_generation_jobs, generate_character_generation_jobs, generate_mechs_image_generation_jobs,
+generate_propaganda_posters_image_generation_jobs, generate_environmental_image_generation_jobs, generate_waifu_image_generation_jobs)
 from prompt_job_generator.http_requests.request import (http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list,
                                                         http_get_dataset_job_per_second, http_get_jobs_count_last_hour,
                                                         http_get_all_dataset_config, http_get_dataset_model_list)
@@ -283,6 +284,7 @@ def main():
     prompt_job_generator_state.register_callback("mech", generate_mechs_image_generation_jobs)
     prompt_job_generator_state.register_callback("character", generate_character_generation_jobs)
     prompt_job_generator_state.register_callback("environmental", generate_environmental_image_generation_jobs)
+    prompt_job_generator_state.register_callback("waifu", generate_waifu_image_generation_jobs)
 
     # setting the base prompt csv for each dataset
     prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('icons',
