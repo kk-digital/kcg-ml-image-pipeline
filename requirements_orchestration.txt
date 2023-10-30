@@ -6,3 +6,5 @@ python-dotenv
 Pillow==9.0.0
 minio
 Requests==2.30.0
+passlib
+python-jose
