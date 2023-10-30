@@ -8,3 +8,4 @@ minio
 Requests==2.30.0
 passlib
 python-jose
+python-multipart
