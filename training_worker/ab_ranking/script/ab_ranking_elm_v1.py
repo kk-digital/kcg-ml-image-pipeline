@@ -106,12 +106,12 @@ def train_ranking(dataset_name: str,
     # data for chronological score graph
     training_shuffled_indices_origin = []
     for index in dataset_loader.training_data_paths_indices_shuffled:
-        training_shuffled_indices_origin.append(dataset_loader.training_data_paths_indices[index])
+        training_shuffled_indices_origin.append(index)
 
 
     validation_shuffled_indices_origin = []
     for index in dataset_loader.validation_data_paths_indices_shuffled:
-        validation_shuffled_indices_origin.append(dataset_loader.validation_data_paths_indices[index])
+        validation_shuffled_indices_origin.append(index)
 
     # Upload model to minio
     model_name = "{}.pth".format(date_now_with_filename)
@@ -235,7 +235,8 @@ def train_ranking(dataset_name: str,
                                     randomize_data_per_epoch,
                                     elm_sparsity,
                                     training_shuffled_indices_origin,
-                                    validation_shuffled_indices_origin)
+                                    validation_shuffled_indices_origin,
+                                    dataset_loader.total_selection_datapoints)
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name, graph_output_path, graph_buffer)
 
