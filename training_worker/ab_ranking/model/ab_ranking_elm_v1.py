@@ -158,9 +158,6 @@ class ABRankingELMModel:
 
             # Only train after 0th epoch
             if epoch != 0:
-                # fill data buffer
-                dataset_loader.spawn_filling_workers()
-
                 for i in range(training_num_batches):
                     num_data_to_get = training_batch_size
                     # last batch
@@ -218,8 +215,7 @@ class ABRankingELMModel:
                 if randomize_data_per_epoch:
                     dataset_loader.shuffle_training_data()
 
-                # refill training ab data
-                dataset_loader.fill_training_ab_data()
+                dataset_loader.current_training_data_index = 0
 
             # Calculate Validation Loss
             with torch.no_grad():
@@ -274,9 +270,6 @@ class ABRankingELMModel:
 
         # Calculate model performance
         with torch.no_grad():
-            # fill data buffer
-            dataset_loader.spawn_filling_workers()
-
             training_predicted_score_images_x = []
             training_predicted_score_images_y = []
             training_predicted_probabilities = []
