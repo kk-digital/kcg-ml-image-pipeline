@@ -4,12 +4,12 @@ import argparse
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from training_worker.ab_ranking.script.ab_ranking_elm_v1 import train_ranking
+from training_worker.ab_ranking.script.ab_ranking_linear import train_ranking
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description="Train ab ranking elm v1 model")
+        description="Train ab ranking linear model")
 
     parser.add_argument('--minio-access-key', type=str, help='Minio access key')
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
@@ -26,12 +26,10 @@ def parse_arguments():
     parser.add_argument('--debug-asserts', type=bool,default=False)
     parser.add_argument('--normalize-vectors', type=bool,default=True)
     parser.add_argument('--pooling-strategy', type=int,default=0)
-    parser.add_argument('--num-random-layers', type=int,default=1)
     parser.add_argument('--add-loss-penalty', type=bool,default=True)
     parser.add_argument('--target-option', type=int,default=0)
     parser.add_argument('--duplicate-flip-option', type=int,default=0)
     parser.add_argument('--randomize-data-per-epoch', type=bool,default=True)
-    parser.add_argument('--elm-sparsity', type=float,default=0.5)
 
     return parser.parse_args()
 
@@ -53,9 +51,7 @@ if __name__ == '__main__':
                   debug_asserts=args.debug_asserts,
                   normalize_vectors=args.normalize_vectors,
                   pooling_strategy=args.pooling_strategy,
-                  num_random_layers=args.num_random_layers,
                   add_loss_penalty=args.add_loss_penalty,
                   target_option=args.target_option,
                   duplicate_flip_option=args.duplicate_flip_option,
-                  randomize_data_per_epoch=args.randomize_data_per_epoch,
-                  elm_sparsity=args.elm_sparsity)
+                  randomize_data_per_epoch=args.randomize_data_per_epoch)

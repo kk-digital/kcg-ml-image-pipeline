@@ -103,6 +103,7 @@ def train_ranking(dataset_name: str,
                                                    randomize_data_per_epoch=randomize_data_per_epoch,
                                                    debug_asserts=debug_asserts)
 
+    # data for chronological score graph
     training_shuffled_indices_origin = []
     for index in dataset_loader.training_data_paths_indices_shuffled:
         training_shuffled_indices_origin.append(dataset_loader.training_data_paths_indices[index])
