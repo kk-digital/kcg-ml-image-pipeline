@@ -95,10 +95,11 @@ class EmbeddingScorer:
         # Normalize the positive and negative scores
         normalized_positive_scores = normalize_scores(positive_scores)
         normalized_negative_scores = normalize_scores(negative_scores)
+        normalized_score = normalize_scores(normal_scores)
 
         # Merge the vectors into a list of dictionaries
         scores = []
-        for pos, neg, score in zip(normalized_positive_scores, normalized_negative_scores, normal_scores):
+        for pos, neg, score in zip(normalized_positive_scores, normalized_negative_scores, normalized_score):
             scores.append({'positive': pos, 'negative': neg, 'score': score})
 
         # Save scores to CSV

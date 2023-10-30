@@ -182,7 +182,7 @@ def get_tag_list_for_image(request: Request, file_hash: str):
     return tags_list
 
 
-@router.get("/tags/get_images_by_tag", response_model=List[ImageTag])
+@router.get("/tags/get_images_by_tag", response_model=List[ImageTag], response_class=PrettyJSONResponse)
 def get_tagged_images(request: Request, tag_id: int):
     # Fetch image details for this tag
     image_tags_cursor = request.app.image_tags_collection.find({"tag_id": tag_id})
@@ -190,13 +190,13 @@ def get_tagged_images(request: Request, tag_id: int):
     image_info_list = [
         ImageTag(
             tag_id=int(tag_data["tag_id"]),
-            file_path=tag_data["file_path"],  # Extracting the file path here
+            file_path=tag_data["file_path"], 
             image_hash=str(tag_data["image_hash"]),
             user_who_created=tag_data["user_who_created"],
             creation_time=tag_data.get("creation_time", None)
         ) 
         for tag_data in image_tags_cursor 
-        if tag_data.get("image_hash") and tag_data.get("user_who_created")
+        if tag_data.get("image_hash") and tag_data.get("user_who_created") and tag_data.get("file_path")
     ]
 
     # If no image details found, raise an exception
@@ -215,13 +215,15 @@ def get_all_tagged_images(request: Request):
     image_info_list = [
         ImageTag(
             tag_id=int(tag_data["tag_id"]),
+            file_path=tag_data["file_path"],  
             image_hash=str(tag_data["image_hash"]),
             user_who_created=tag_data["user_who_created"],
             creation_time=tag_data.get("creation_time", None)
         ) 
         for tag_data in image_tags_cursor 
-        if tag_data.get("image_hash") and tag_data.get("user_who_created")
+        if tag_data.get("image_hash") and tag_data.get("user_who_created") and tag_data.get("file_path")
     ]
+
 
     # If no tagged image details found, raise an exception
     if not image_info_list:
