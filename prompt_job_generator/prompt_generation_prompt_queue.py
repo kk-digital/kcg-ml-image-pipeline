@@ -93,6 +93,7 @@ class PromptGenerationPromptQueue:
             #print('prompt scoring model is available for dataset ', dataset)
 
 
+        print('dataset : ', dataset, ' base prompt csv ', base_prompts_csv_path)
         base_prompt_population = load_base_prompts(base_prompts_csv_path)
 
         #print(f'generating {total_prompt_count} prompts for dataset {dataset}')
@@ -113,7 +114,7 @@ class PromptGenerationPromptQueue:
                 # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
                 choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
 
-                if len(base_prompt_population) == 0:
+                if len(base_prompt_population) != 0:
                     base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
                 else:
                     base_prompt_list = []
