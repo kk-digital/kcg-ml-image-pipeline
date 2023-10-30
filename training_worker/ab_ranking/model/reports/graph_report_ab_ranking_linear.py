@@ -107,7 +107,8 @@ def get_graph_report(model_class,
                      randomize_data_per_epoch=False,
                      elm_sparsity=0.0,
                      training_shuffled_indices_origin=None,
-                     validation_shuffled_indices_origin=None):
+                     validation_shuffled_indices_origin=None,
+                     total_selection_datapoints=0):
     train_prob_predictions_target_1, \
         train_prob_predictions_target_0, \
         validation_prob_predictions_target_1, \
@@ -409,6 +410,8 @@ def get_graph_report(model_class,
                          "Input shape = {}\n"
                          "Output type= {}\n\n"
                          ""
+                         "Total Selection \n"
+                         "Datapoints = {}\n"
                          "Training size = {}\n"
                          "Validation size = {}\n\n"
                          ""
@@ -438,6 +441,7 @@ def get_graph_report(model_class,
                                                                    input_type,
                                                                    input_shape,
                                                                    output_type,
+                                                                   total_selection_datapoints,
                                                                    training_total_size,
                                                                    validation_total_size,
                                                                    learning_rate,
