@@ -70,21 +70,29 @@ def get_jobs_count_last_hour(request: Request, dataset):
 
     # Query the collection to count the documents created in the last hour
     pending_query = {"task_input_dict.dataset": dataset, "task_creation_time": {"$gte": time_ago}}
-    in_progress_query = {"task_input_dict.dataset": dataset, "task_start_time": {"$gte": time_ago}}
-    completed_query = {"task_input_dict.dataset": dataset, "task_completion_time": {"$gte": time_ago}}
+    in_progress_query = {"task_input_dict.dataset": dataset, "task_creation_time": {"$gte": time_ago}}
+    completed_query = {"task_input_dict.dataset": dataset, "task_completion_time": {"$gte": time_ago.strftime('%Y-%m-%d %H:%M:%S')}}
 
     count = 0
 
     # Take into account pending & in progress & completed jobs
-    count += request.app.pending_jobs_collection.count_documents(pending_query)
-    count += request.app.in_progress_jobs_collection.count_documents(in_progress_query)
-    count += request.app.completed_jobs_collection.count_documents(completed_query)
+    pending_count = request.app.pending_jobs_collection.count_documents(pending_query)
+    in_progress_count = request.app.in_progress_jobs_collection.count_documents(in_progress_query)
+    completed_count = request.app.completed_jobs_collection.count_documents(completed_query)
+
+    print("pending, ", pending_count)
+    print("in_progress_count, ", in_progress_count)
+    print("completed_count, ", completed_count)
+
+    count += pending_count
+    count += in_progress_count
+    count += completed_count
 
     return count
 
 
 @router.get("/queue/image-generation/get-jobs-count-last-n-hour")
-def get_jobs_count_last_hour(request: Request, dataset, hours: int):
+def get_jobs_count_last_n_hour(request: Request, dataset, hours: int):
 
     # Calculate the timestamp for one hour ago
     current_time = datetime.now()
@@ -92,15 +100,19 @@ def get_jobs_count_last_hour(request: Request, dataset, hours: int):
 
     # Query the collection to count the documents created in the last hour
     pending_query = {"task_input_dict.dataset": dataset, "task_creation_time": {"$gte": time_ago}}
-    in_progress_query = {"task_input_dict.dataset": dataset, "task_start_time": {"$gte": time_ago}}
-    completed_query = {"task_input_dict.dataset": dataset, "task_completion_time": {"$gte": time_ago}}
+    in_progress_query = {"task_input_dict.dataset": dataset, "task_creation_time": {"$gte": time_ago}}
+    completed_query = {"task_input_dict.dataset": dataset, "task_completion_time": {"$gte": time_ago.strftime('%Y-%m-%d %H:%M:%S')}}
 
     count = 0
 
     # Take into account pending & in progress & completed jobs
-    count += request.app.pending_jobs_collection.count_documents(pending_query)
-    count += request.app.in_progress_jobs_collection.count_documents(in_progress_query)
-    count += request.app.completed_jobs_collection.count_documents(completed_query)
+    pending_count = request.app.pending_jobs_collection.count_documents(pending_query)
+    in_progress_count = request.app.in_progress_jobs_collection.count_documents(in_progress_query)
+    completed_count = request.app.completed_jobs_collection.count_documents(completed_query)
+
+    count += pending_count
+    count += in_progress_count
+    count += completed_count
 
     return count
 

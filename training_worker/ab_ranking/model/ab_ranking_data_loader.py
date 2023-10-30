@@ -39,6 +39,9 @@ def get_object(client, file_path):
     return data
 
 
+def index_select(tensor, dim, index):
+    return tensor.gather(dim, index.unsqueeze(dim)).squeeze(dim)
+
 class ABData:
     def __init__(self, task, username, hash_image_1, hash_image_2, selected_image_index, selected_image_hash,
                  image_archive, image_1_path, image_2_path, datetime):
@@ -68,14 +71,16 @@ class ABRankingDatasetLoader:
                  minio_ip_addr=None,
                  minio_access_key=None,
                  minio_secret_key=None,
+                 input_type="embedding",
                  buffer_size=20000,
                  train_percent=0.9,
                  load_to_ram=False,
                  pooling_strategy=constants.AVERAGE_POOLING,
-                 normalize_vectors=False,
+                 normalize_vectors=True,
                  target_option=constants.TARGET_1_AND_0,
                  duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL):
         self.dataset_name = dataset_name
+        self.input_type = input_type
 
         if minio_access_key is not None:
             self.minio_access_key = minio_access_key
@@ -106,6 +111,12 @@ class ABRankingDatasetLoader:
         self.training_image_pair_data_arr = []
         self.validation_image_pair_data_arr = []
         self.datapoints_per_sec = 0
+
+        # for chronological data scores graph
+        self.training_data_paths_indices = []
+        self.validation_data_paths_indices = []
+        self.training_data_paths_indices_shuffled = []
+        self.validation_data_paths_indices_shuffled = []
 
         # these will contain features and targets with limit buffer size
         self.training_image_pair_data_buffer = Queue()
@@ -141,26 +152,39 @@ class ABRankingDatasetLoader:
         if len(dataset_paths) == 0:
             raise Exception("No selection datapoints json found.")
 
+        # test
+        # dataset_paths = dataset_paths[:5]
+
+        # save dataset paths
+        self.chronological_dataset_paths = dataset_paths
+
         # calculate num validations
         num_validations = round((len(dataset_paths) * (1.0 - self.train_percent)))
 
         # get random index for validations
+        training_data_paths_indices = []
+        validation_data_paths_indices = []
         validation_ab_data_list = []
         training_ab_data_list = []
         validation_indices = sample(range(0, len(dataset_paths)-1), num_validations)
         for i in range(len(dataset_paths)):
             if i in validation_indices:
                 validation_ab_data_list.append(dataset_paths[i])
+                validation_data_paths_indices.append(i)
             else:
                 training_ab_data_list.append(dataset_paths[i])
+                training_data_paths_indices.append(i)
+
 
         # training
         # duplicate each one
         # for target 1.0 and 0.0
         duplicated_training_list = []
+        count = 0
         for path in training_ab_data_list:
             if (self.target_option == constants.TARGET_1_AND_0) or (self.target_option == constants.TARGET_1_ONLY):
                 duplicated_training_list.append((path, 1.0))
+                self.training_data_paths_indices.append(training_data_paths_indices[count])
 
             if (self.target_option == constants.TARGET_1_AND_0) or (self.target_option == constants.TARGET_0_ONLY):
                 if (self.target_option == constants.TARGET_1_AND_0) and (self.duplicate_flip_option == constants.DUPLICATE_AND_FLIP_RANDOM):
@@ -171,15 +195,19 @@ class ABRankingDatasetLoader:
                         continue
 
                 duplicated_training_list.append((path, 0.0))
+                self.training_data_paths_indices.append(training_data_paths_indices[count])
+
+            count += 1
 
             # for test
-            # if len(duplicated_training_list) >= 2:
+            # if len(duplicated_training_list) >= 4:
             #     break
 
         # shuffle
         shuffled_training_list = []
         index_shuf = list(range(len(duplicated_training_list)))
         shuffle(index_shuf)
+        self.training_data_paths_indices_shuffled = index_shuf
         for i in index_shuf:
             shuffled_training_list.append(duplicated_training_list[i])
 
@@ -189,9 +217,11 @@ class ABRankingDatasetLoader:
         # duplicate each one
         # for target 1.0 and 0.0
         duplicated_validation_list = []
+        count = 0
         for path in validation_ab_data_list:
             if (self.target_option == constants.TARGET_1_AND_0) or (self.target_option == constants.TARGET_1_ONLY):
                 duplicated_validation_list.append((path, 1.0))
+                self.validation_data_paths_indices.append(validation_data_paths_indices[count])
 
             if (self.target_option == constants.TARGET_1_AND_0) or (self.target_option == constants.TARGET_0_ONLY):
                 if (self.target_option == constants.TARGET_1_AND_0) and (self.duplicate_flip_option == constants.DUPLICATE_AND_FLIP_RANDOM):
@@ -200,16 +230,21 @@ class ABRankingDatasetLoader:
                     if rand_int == 1:
                         # then dont duplicate
                         continue
+
                 duplicated_validation_list.append((path, 0.0))
+                self.validation_data_paths_indices.append(validation_data_paths_indices[count])
+
+            count += 1
 
             # for test
-            # if len(duplicated_validation_list) >= 2:
+            # if len(duplicated_validation_list) >= 4:
             #     break
 
         # shuffle
         shuffled_validation_list = []
         index_shuf = list(range(len(duplicated_validation_list)))
         shuffle(index_shuf)
+        self.validation_data_paths_indices_shuffled = index_shuf
         for i in index_shuf:
             shuffled_validation_list.append(duplicated_validation_list[i])
 
@@ -283,14 +318,22 @@ class ABRankingDatasetLoader:
         embeddings_img_1_data = get_object(self.minio_client, embeddings_path_img_1)
         embeddings_img_1_data = msgpack.unpackb(embeddings_img_1_data)
         embeddings_img_1_embeddings_vector = []
-        embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["positive_embedding"]["__ndarray__"])
-        embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["negative_embedding"]["__ndarray__"])
+
+        if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_POSITIVE]:
+            embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["positive_embedding"]["__ndarray__"])
+        if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_NEGATIVE]:
+            embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["negative_embedding"]["__ndarray__"])
+
         embeddings_img_1_embeddings_vector = np.array(embeddings_img_1_embeddings_vector)
         embeddings_img_2_data = get_object(self.minio_client, embeddings_path_img_2)
         embeddings_img_2_data = msgpack.unpackb(embeddings_img_2_data)
         embeddings_img_2_embeddings_vector = []
-        embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["positive_embedding"]["__ndarray__"])
-        embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["negative_embedding"]["__ndarray__"])
+
+        if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_POSITIVE]:
+            embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["positive_embedding"]["__ndarray__"])
+        if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_NEGATIVE]:
+            embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["negative_embedding"]["__ndarray__"])
+
         embeddings_img_2_embeddings_vector = np.array(embeddings_img_2_embeddings_vector)
 
         # if image 1 is the selected
@@ -350,12 +393,15 @@ class ABRankingDatasetLoader:
     def shuffle_training_data(self):
         print("Shuffling training data...")
         # shuffle
+        new_shuffled_indices = []
         shuffled_training = []
         index_shuf = list(range(len(self.training_image_pair_data_arr)))
         shuffle(index_shuf)
         for i in index_shuf:
             shuffled_training.append(self.training_image_pair_data_arr[i])
+            new_shuffled_indices.append(self.training_data_paths_indices_shuffled[i])
 
+        self.training_data_paths_indices_shuffled = new_shuffled_indices
         self.training_image_pair_data_arr = shuffled_training
 
     def get_training_data_and_save_to_buffer(self, dataset_path):
@@ -448,6 +494,22 @@ class ABRankingDatasetLoader:
             # do max pooling
             image_x_feature_vectors = torch.max(image_x_feature_vectors, dim=2).values
             image_y_feature_vectors = torch.max(image_y_feature_vectors, dim=2).values
+        elif self.pooling_strategy == constants.MAX_ABS_POOLING:
+            # max abs pooling
+            # get abs first
+            image_x_feature_vector_abs = torch.abs(image_x_feature_vectors)
+            image_x_feature_vector_max_indices = torch.max(image_x_feature_vector_abs,
+                                                           dim=2).indices
+            image_x_feature_vectors = index_select(image_x_feature_vectors,
+                                                         dim=2,
+                                                         index=image_x_feature_vector_max_indices)
+
+            image_y_feature_vector_abs = torch.abs(image_y_feature_vectors)
+            image_y_feature_vector_max_indices = torch.max(image_y_feature_vector_abs,
+                                                           dim=2).indices
+            image_y_feature_vectors = index_select(image_y_feature_vectors,
+                                                         dim=2,
+                                                         index=image_y_feature_vector_max_indices)
 
         # then concatenate
         image_x_feature_vectors = image_x_feature_vectors.reshape(len(image_x_feature_vectors), -1)
@@ -512,6 +574,22 @@ class ABRankingDatasetLoader:
             # do max pooling
             image_x_feature_vectors = torch.max(image_x_feature_vectors, dim=2).values
             image_y_feature_vectors = torch.max(image_y_feature_vectors, dim=2).values
+        elif self.pooling_strategy == constants.MAX_ABS_POOLING:
+            # max abs pooling
+            # get abs first
+            image_x_feature_vector_abs = torch.abs(image_x_feature_vectors)
+            image_x_feature_vector_max_indices = torch.max(image_x_feature_vector_abs,
+                                                           dim=2).indices
+            image_x_feature_vectors = index_select(image_x_feature_vectors,
+                                                         dim=2,
+                                                         index=image_x_feature_vector_max_indices)
+
+            image_y_feature_vector_abs = torch.abs(image_y_feature_vectors)
+            image_y_feature_vector_max_indices = torch.max(image_y_feature_vector_abs,
+                                                           dim=2).indices
+            image_y_feature_vectors = index_select(image_y_feature_vectors,
+                                                         dim=2,
+                                                         index=image_y_feature_vector_max_indices)
 
         # then concatenate
         image_x_feature_vectors = image_x_feature_vectors.reshape(len(image_x_feature_vectors), -1)
@@ -570,6 +648,22 @@ class ABRankingDatasetLoader:
             # do max pooling
             image_x_feature_vectors = torch.max(image_x_feature_vectors, dim=2).values
             image_y_feature_vectors = torch.max(image_y_feature_vectors, dim=2).values
+        elif self.pooling_strategy == constants.MAX_ABS_POOLING:
+            # max abs pooling
+            # get abs first
+            image_x_feature_vector_abs = torch.abs(image_x_feature_vectors)
+            image_x_feature_vector_max_indices = torch.max(image_x_feature_vector_abs,
+                                                           dim=2).indices
+            image_x_feature_vectors = index_select(image_x_feature_vectors,
+                                                         dim=2,
+                                                         index=image_x_feature_vector_max_indices)
+
+            image_y_feature_vector_abs = torch.abs(image_y_feature_vectors)
+            image_y_feature_vector_max_indices = torch.max(image_y_feature_vector_abs,
+                                                           dim=2).indices
+            image_y_feature_vectors = index_select(image_y_feature_vectors,
+                                                         dim=2,
+                                                         index=image_y_feature_vector_max_indices)
 
         # then concatenate
         image_x_feature_vectors = image_x_feature_vectors.reshape(len(image_x_feature_vectors), -1)
@@ -623,6 +717,22 @@ class ABRankingDatasetLoader:
             # do max pooling
             image_x_feature_vectors = torch.max(image_x_feature_vectors, dim=2).values
             image_y_feature_vectors = torch.max(image_y_feature_vectors, dim=2).values
+        elif self.pooling_strategy == constants.MAX_ABS_POOLING:
+            # max abs pooling
+            # get abs first
+            image_x_feature_vector_abs = torch.abs(image_x_feature_vectors)
+            image_x_feature_vector_max_indices = torch.max(image_x_feature_vector_abs,
+                                                           dim=2).indices
+            image_x_feature_vectors = index_select(image_x_feature_vectors,
+                                                         dim=2,
+                                                         index=image_x_feature_vector_max_indices)
+
+            image_y_feature_vector_abs = torch.abs(image_y_feature_vectors)
+            image_y_feature_vector_max_indices = torch.max(image_y_feature_vector_abs,
+                                                           dim=2).indices
+            image_y_feature_vectors = index_select(image_y_feature_vectors,
+                                                         dim=2,
+                                                         index=image_y_feature_vector_max_indices)
         print("feature shape after pooling=", image_x_feature_vectors.shape)
 
         # then concatenate
@@ -679,6 +789,22 @@ class ABRankingDatasetLoader:
             # do max pooling
             image_x_feature_vectors = torch.max(image_x_feature_vectors, dim=2).values
             image_y_feature_vectors = torch.max(image_y_feature_vectors, dim=2).values
+        elif self.pooling_strategy == constants.MAX_ABS_POOLING:
+            # max abs pooling
+            # get abs first
+            image_x_feature_vector_abs = torch.abs(image_x_feature_vectors)
+            image_x_feature_vector_max_indices = torch.max(image_x_feature_vector_abs,
+                                                           dim=2).indices
+            image_x_feature_vectors = index_select(image_x_feature_vectors,
+                                                         dim=2,
+                                                         index=image_x_feature_vector_max_indices)
+
+            image_y_feature_vector_abs = torch.abs(image_y_feature_vectors)
+            image_y_feature_vector_max_indices = torch.max(image_y_feature_vector_abs,
+                                                           dim=2).indices
+            image_y_feature_vectors = index_select(image_y_feature_vectors,
+                                                         dim=2,
+                                                         index=image_y_feature_vector_max_indices)
 
         # then concatenate
         image_x_feature_vectors = image_x_feature_vectors.reshape(len(image_x_feature_vectors), -1)
@@ -723,6 +849,23 @@ class ABRankingDatasetLoader:
             # do max pooling
             image_x_feature_vectors = torch.max(image_x_feature_vectors, dim=2).values
             image_y_feature_vectors = torch.max(image_y_feature_vectors, dim=2).values
+        elif self.pooling_strategy == constants.MAX_ABS_POOLING:
+            # max abs pooling
+            # get abs first
+            image_x_feature_vector_abs = torch.abs(image_x_feature_vectors)
+            image_x_feature_vector_max_indices = torch.max(image_x_feature_vector_abs,
+                                                           dim=2).indices
+            image_x_feature_vectors = index_select(image_x_feature_vectors,
+                                                         dim=2,
+                                                         index=image_x_feature_vector_max_indices)
+
+            image_y_feature_vector_abs = torch.abs(image_y_feature_vectors)
+            image_y_feature_vector_max_indices = torch.max(image_y_feature_vector_abs,
+                                                           dim=2).indices
+            image_y_feature_vectors = index_select(image_y_feature_vectors,
+                                                         dim=2,
+                                                         index=image_y_feature_vector_max_indices)
+
         print("feature shape after pooling=", image_x_feature_vectors.shape)
 
         # then concatenate
@@ -759,16 +902,22 @@ class ABRankingDatasetLoader:
         embeddings_img_1_data = msgpack.unpackb(embeddings_img_1_data)
 
         embeddings_img_1_embeddings_vector = []
-        embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["positive_embedding"]["__ndarray__"])
-        embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["negative_embedding"]["__ndarray__"])
+        if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_POSITIVE]:
+            embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["positive_embedding"]["__ndarray__"])
+        if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_NEGATIVE]:
+            embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["negative_embedding"]["__ndarray__"])
+
         embeddings_img_1_embeddings_vector = np.array(embeddings_img_1_embeddings_vector)
 
         embeddings_img_2_data = embeddings_dict[embeddings_path_img_2]
         embeddings_img_2_data = msgpack.unpackb(embeddings_img_2_data)
 
         embeddings_img_2_embeddings_vector = []
-        embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["positive_embedding"]["__ndarray__"])
-        embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["negative_embedding"]["__ndarray__"])
+        if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_POSITIVE]:
+            embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["positive_embedding"]["__ndarray__"])
+        if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_NEGATIVE]:
+            embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["negative_embedding"]["__ndarray__"])
+
         embeddings_img_2_embeddings_vector = np.array(embeddings_img_2_embeddings_vector)
 
         # if image 1 is the selected

@@ -12,6 +12,7 @@ from stable_diffusion import CLIPTextEmbedder
 from utility.minio import cmd
 from training_worker.ab_ranking.model.ab_ranking_efficient_net import ABRankingEfficientNetModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
+from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from worker.prompt_generation.prompt_generator import (initialize_prompt_list_from_csv)
 from prompt_generation_prompt_queue import PromptGenerationPromptQueue
 from prompt_job_generator_constants import (PROMPT_QUEUE_SIZE, DEFAULT_PROMPT_GENERATION_POLICY,
@@ -40,6 +41,7 @@ class PromptJobGeneratorState:
         # output : prompt_score
         self.prompt_efficient_net_model_dictionary = {}
         self.prompt_linear_model_dictionary = {}
+        self.prompt_elm_v1_model_dictionary = {}
         self.dataset_model_list = {}
         self.dataset_model_lock = threading.Lock()
 
@@ -118,6 +120,29 @@ class PromptJobGeneratorState:
         with self.dataset_model_lock:
             self.prompt_linear_model_dictionary[dataset] = linear_model
 
+
+    def load_elm_v1_model(self, dataset, dataset_bucket, model_path):
+
+        elm_model = ABRankingELMModel(768*2)
+
+        model_file_data = cmd.get_file_from_minio(self.minio_client, dataset_bucket, model_path)
+
+        if model_file_data is None:
+            return
+
+        # Create a BytesIO object and write the downloaded content into it
+        byte_buffer = io.BytesIO()
+        for data in model_file_data.stream(amt=8192):
+            byte_buffer.write(data)
+        # Reset the buffer's position to the beginning
+        byte_buffer.seek(0)
+
+        elm_model.load(byte_buffer)
+
+        with self.dataset_model_lock:
+            self.prompt_elm_v1_model_dictionary[dataset] = elm_model
+
+
     def get_linear_model(self, dataset):
         # try to get the linear model
         # if the linear model is not found
@@ -127,6 +152,18 @@ class PromptJobGeneratorState:
                 return self.prompt_linear_model_dictionary[dataset]
 
         return None
+
+
+    def get_elm_v1_model(self, dataset):
+        # try to get the linear model
+        # if the linear model is not found
+        # for the dataset return None
+        with self.dataset_model_lock:
+            if dataset in self.prompt_elm_v1_model_dictionary:
+                return self.prompt_elm_v1_model_dictionary[dataset]
+
+        return None
+
 
     def load_prompt_list_from_csv(self, csv_dataset_path, csv_phrase_limit):
         phrases, phrases_token_size, positive_count_list, negative_count_list = initialize_prompt_list_from_csv(csv_dataset_path, csv_phrase_limit)
@@ -223,12 +260,18 @@ class PromptJobGeneratorState:
 
         model_type = model_info['model_architecture']
 
+        model = None
+
         if model_type == 'image-pair-ranking-efficient-net':
-            return self.get_efficient_net_model(dataset)
+            model = self.get_efficient_net_model(dataset)
         elif model_type == 'ab_ranking_efficient_net':
-            return self.get_efficient_net_model(dataset)
+            model = self.get_efficient_net_model(dataset)
         elif model_type == 'ab_ranking_linear':
-            return self.get_linear_model(dataset)
+            model = self.get_linear_model(dataset)
+        elif model_type == 'ab_ranking_elm_v1':
+            model = self.get_elm_v1_model(dataset)
+
+        return model
 
     def set_total_rate(self, total_rate):
         self.total_rate = total_rate
@@ -236,6 +279,10 @@ class PromptJobGeneratorState:
     def set_dataset_job_queue_size(self, dataset, job_queue_size):
         with self.dataset_job_queue_size_lock:
             self.dataset_job_queue_size[dataset] = job_queue_size
+
+    def append_dataset_job_queue_size(self, dataset, value):
+        with self.dataset_job_queue_size_lock:
+            self.dataset_job_queue_size[dataset] += value
 
     def set_dataset_job_queue_target(self, dataset, job_queue_target):
         with self.dataset_job_queue_size_lock:
