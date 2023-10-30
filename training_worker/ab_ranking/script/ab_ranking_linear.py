@@ -38,30 +38,20 @@ def train_ranking(dataset_name: str,
                   randomize_data_per_epoch=True,
                   ):
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
-    date_now_with_filename = date_now
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
     network_type = "linear"
     output_type = "score"
+    output_path = "{}/models/ranking".format(dataset_name)
 
     # check input type
     if input_type not in constants.ALLOWED_INPUT_TYPES:
         raise Exception("input type is not supported: {}".format(input_type))
 
     input_shape = 2 * 768
-    if input_type in [constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE]:
+    if input_type in [constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE, constants.CLIP]:
         input_shape = 768
-
-    output_path = "{}/models/ranking/ab_ranking_linear".format(dataset_name)
-
-    if input_type == constants.EMBEDDING_POSITIVE:
-        output_path += "_positive_only"
-        date_now_with_filename += "_positive_only"
-
-    elif input_type == constants.EMBEDDING_NEGATIVE:
-        output_path += "_negative_only"
-        date_now_with_filename += "_negative_only"
 
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name=dataset_name,
@@ -77,6 +67,18 @@ def train_ranking(dataset_name: str,
                                             target_option=target_option,
                                             duplicate_flip_option=duplicate_flip_option)
     dataset_loader.load_dataset()
+
+    # get final filename
+    sequence = 0
+    # if exist, increment sequence
+    while True:
+        filename = "{}-{:02}-{}-{}-{}".format(date_now, sequence, output_type, network_type, input_type)
+        exists = cmd.is_object_exists(dataset_loader.minio_client, bucket_name,
+                                      os.path.join(output_path, filename + ".pth"))
+        if not exists:
+            break
+
+        sequence += 1
 
     training_total_size = dataset_loader.get_len_training_ab_data()
     validation_total_size = dataset_loader.get_len_validation_ab_data()
@@ -110,7 +112,7 @@ def train_ranking(dataset_name: str,
         validation_shuffled_indices_origin.append(index)
 
     # Upload model to minio
-    model_name = "{}.pth".format(date_now_with_filename)
+    model_name = "{}.pth".format(filename)
     model_output_path = os.path.join(output_path, model_name)
     ab_model.save(dataset_loader.minio_client, bucket_name, model_output_path)
 
@@ -183,7 +185,7 @@ def train_ranking(dataset_name: str,
                                   dataset_loader.datapoints_per_sec)
 
     # Upload model to minio
-    report_name = "{}.txt".format(date_now_with_filename)
+    report_name = "{}.txt".format(filename)
     report_output_path = os.path.join(output_path,  report_name)
 
     report_buffer = BytesIO(report_str.encode(encoding='UTF-8'))
@@ -192,7 +194,7 @@ def train_ranking(dataset_name: str,
     cmd.upload_data(dataset_loader.minio_client, bucket_name, report_output_path, report_buffer)
 
     # show and save graph
-    graph_name = "{}.png".format(date_now_with_filename)
+    graph_name = "{}.png".format(filename)
     graph_output_path = os.path.join(output_path, graph_name)
 
     graph_buffer = get_graph_report(ab_model,
@@ -237,9 +239,14 @@ def train_ranking(dataset_name: str,
     cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
 
     # get model card and upload
-    model_card_name = "{}.json".format(date_now_with_filename)
+    model_card_name = "{}.json".format(filename)
     model_card_name_output_path = os.path.join(output_path, model_card_name)
-    model_card_buf = get_model_card_buf(ab_model, training_total_size, validation_total_size, graph_output_path)
+    model_card_buf = get_model_card_buf(ab_model,
+                                        training_total_size,
+                                        validation_total_size,
+                                        graph_output_path,
+                                        input_type,
+                                        output_type)
     cmd.upload_data(dataset_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
 
     return model_output_path, report_output_path, graph_output_path

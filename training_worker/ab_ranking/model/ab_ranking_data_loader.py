@@ -222,48 +222,56 @@ class ABRankingDatasetLoader:
         file_path_img_1 = ab_data.image_1_path
         file_path_img_2 = ab_data.image_2_path
 
-        # embeddings are in file_path_embedding.msgpack
-        embeddings_path_img_1 = file_path_img_1.replace(".jpg", "_embedding.msgpack")
-        embeddings_path_img_1 = embeddings_path_img_1.replace("datasets/", "")
+        input_type_extension = "_embedding.msgpack"
+        if self.input_type == constants.CLIP:
+            input_type_extension = "_clip.msgpack"
 
-        embeddings_path_img_2 = file_path_img_2.replace(".jpg", "_embedding.msgpack")
-        embeddings_path_img_2 = embeddings_path_img_2.replace("datasets/", "")
+        # get .msgpack data
+        features_path_img_1 = file_path_img_1.replace(".jpg", input_type_extension)
+        features_path_img_1 = features_path_img_1.replace("datasets/", "")
 
-        embeddings_img_1_data = get_object(self.minio_client, embeddings_path_img_1)
-        embeddings_img_1_data = msgpack.unpackb(embeddings_img_1_data)
-        embeddings_img_1_embeddings_vector = []
+        features_path_img_2 = file_path_img_2.replace(".jpg", input_type_extension)
+        features_path_img_2 = features_path_img_2.replace("datasets/", "")
 
-        if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_POSITIVE]:
-            embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["positive_embedding"]["__ndarray__"])
-        if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_NEGATIVE]:
-            embeddings_img_1_embeddings_vector.extend(embeddings_img_1_data["negative_embedding"]["__ndarray__"])
-
-        embeddings_img_1_embeddings_vector = np.array(embeddings_img_1_embeddings_vector)
-        embeddings_img_2_data = get_object(self.minio_client, embeddings_path_img_2)
-        embeddings_img_2_data = msgpack.unpackb(embeddings_img_2_data)
-        embeddings_img_2_embeddings_vector = []
+        features_img_1_data = get_object(self.minio_client, features_path_img_1)
+        features_img_1_data = msgpack.unpackb(features_img_1_data)
+        features_vector_img_1 = []
 
         if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_POSITIVE]:
-            embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["positive_embedding"]["__ndarray__"])
+            features_vector_img_1.extend(features_img_1_data["positive_embedding"]["__ndarray__"])
         if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_NEGATIVE]:
-            embeddings_img_2_embeddings_vector.extend(embeddings_img_2_data["negative_embedding"]["__ndarray__"])
+            features_vector_img_1.extend(features_img_1_data["negative_embedding"]["__ndarray__"])
+        if self.input_type == constants.CLIP:
+            features_vector_img_1.extend(features_img_1_data["clip-feature-vector"])
 
-        embeddings_img_2_embeddings_vector = np.array(embeddings_img_2_embeddings_vector)
+        features_vector_img_1 = np.array(features_vector_img_1)
+        features_img_2_data = get_object(self.minio_client, features_path_img_2)
+        features_img_2_data = msgpack.unpackb(features_img_2_data)
+        features_vector_img_2 = []
+
+        if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_POSITIVE]:
+            features_vector_img_2.extend(features_img_2_data["positive_embedding"]["__ndarray__"])
+        if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_NEGATIVE]:
+            features_vector_img_2.extend(features_img_2_data["negative_embedding"]["__ndarray__"])
+        if self.input_type == constants.CLIP:
+            features_vector_img_2.extend(features_img_2_data["clip-feature-vector"])
+
+        features_vector_img_2 = np.array(features_vector_img_2)
 
         # if image 1 is the selected
         if selected_image_index == 0:
-            selected_embeddings_vector = embeddings_img_1_embeddings_vector
-            other_embeddings_vector = embeddings_img_2_embeddings_vector
+            selected_features_vector = features_vector_img_1
+            other_features_vector = features_vector_img_2
             self.image_selected_index_0_count += 1
         # image 2 is selected
         else:
-            selected_embeddings_vector = embeddings_img_2_embeddings_vector
-            other_embeddings_vector = embeddings_img_1_embeddings_vector
+            selected_features_vector = features_vector_img_2
+            other_features_vector = features_vector_img_1
             self.image_selected_index_1_count += 1
 
         if (self.target_option == constants.TARGET_1_AND_0) or (
                 self.target_option == constants.TARGET_1_ONLY):
-            image_pair = (selected_embeddings_vector, other_embeddings_vector, [1.0])
+            image_pair = (selected_features_vector, other_features_vector, [1.0])
             image_pairs.append(image_pair)
 
         if (self.target_option == constants.TARGET_1_AND_0) or (self.target_option == constants.TARGET_0_ONLY):
@@ -277,14 +285,8 @@ class ABRankingDatasetLoader:
                     use_target_0 = False
 
             if use_target_0:
-                image_pair = (other_embeddings_vector, selected_embeddings_vector, [0.0])
+                image_pair = (other_features_vector, selected_features_vector, [0.0])
                 image_pairs.append(image_pair)
-
-        # for test
-        # if data_target == 1.0:
-        #     image_pair = (self.rand_a, self.rand_b, [data_target])
-        # else:
-        #     image_pair = (self.rand_b, self.rand_a, [data_target])
 
         return image_pairs, index
 
@@ -549,31 +551,33 @@ class ABRankingDatasetLoader:
 
         target_probabilities = torch.tensor(target_probabilities).to(torch.float)
 
-        # do average pooling
-        if self.pooling_strategy == constants.AVERAGE_POOLING:
-            # do average pooling
-            image_x_feature_vectors = torch.mean(image_x_feature_vectors, dim=2)
-            image_y_feature_vectors = torch.mean(image_y_feature_vectors, dim=2)
-        elif self.pooling_strategy == constants.MAX_POOLING:
-            # do max pooling
-            image_x_feature_vectors = torch.max(image_x_feature_vectors, dim=2).values
-            image_y_feature_vectors = torch.max(image_y_feature_vectors, dim=2).values
-        elif self.pooling_strategy == constants.MAX_ABS_POOLING:
-            # max abs pooling
-            # get abs first
-            image_x_feature_vector_abs = torch.abs(image_x_feature_vectors)
-            image_x_feature_vector_max_indices = torch.max(image_x_feature_vector_abs,
-                                                           dim=2).indices
-            image_x_feature_vectors = index_select(image_x_feature_vectors,
-                                                   dim=2,
-                                                   index=image_x_feature_vector_max_indices)
+        if self.input_type != constants.CLIP:
 
-            image_y_feature_vector_abs = torch.abs(image_y_feature_vectors)
-            image_y_feature_vector_max_indices = torch.max(image_y_feature_vector_abs,
-                                                           dim=2).indices
-            image_y_feature_vectors = index_select(image_y_feature_vectors,
-                                                   dim=2,
-                                                   index=image_y_feature_vector_max_indices)
+            # do average pooling
+            if self.pooling_strategy == constants.AVERAGE_POOLING:
+                # do average pooling
+                image_x_feature_vectors = torch.mean(image_x_feature_vectors, dim=2)
+                image_y_feature_vectors = torch.mean(image_y_feature_vectors, dim=2)
+            elif self.pooling_strategy == constants.MAX_POOLING:
+                # do max pooling
+                image_x_feature_vectors = torch.max(image_x_feature_vectors, dim=2).values
+                image_y_feature_vectors = torch.max(image_y_feature_vectors, dim=2).values
+            elif self.pooling_strategy == constants.MAX_ABS_POOLING:
+                # max abs pooling
+                # get abs first
+                image_x_feature_vector_abs = torch.abs(image_x_feature_vectors)
+                image_x_feature_vector_max_indices = torch.max(image_x_feature_vector_abs,
+                                                               dim=2).indices
+                image_x_feature_vectors = index_select(image_x_feature_vectors,
+                                                       dim=2,
+                                                       index=image_x_feature_vector_max_indices)
+
+                image_y_feature_vector_abs = torch.abs(image_y_feature_vectors)
+                image_y_feature_vector_max_indices = torch.max(image_y_feature_vector_abs,
+                                                               dim=2).indices
+                image_y_feature_vectors = index_select(image_y_feature_vectors,
+                                                       dim=2,
+                                                       index=image_y_feature_vector_max_indices)
 
         # then concatenate
         image_x_feature_vectors = image_x_feature_vectors.reshape(len(image_x_feature_vectors), -1)
@@ -619,31 +623,32 @@ class ABRankingDatasetLoader:
         image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.float)
         target_probabilities = torch.tensor(target_probabilities).to(torch.float)
 
-        if self.pooling_strategy == constants.AVERAGE_POOLING:
-            # do average pooling
-            image_x_feature_vectors = torch.mean(image_x_feature_vectors, dim=2)
-            image_y_feature_vectors = torch.mean(image_y_feature_vectors, dim=2)
-        elif self.pooling_strategy == constants.MAX_POOLING:
-            # do max pooling
-            image_x_feature_vectors = torch.max(image_x_feature_vectors, dim=2).values
-            image_y_feature_vectors = torch.max(image_y_feature_vectors, dim=2).values
-        elif self.pooling_strategy == constants.MAX_ABS_POOLING:
-            # max abs pooling
-            # get abs first
-            image_x_feature_vector_abs = torch.abs(image_x_feature_vectors)
-            image_x_feature_vector_max_indices = torch.max(image_x_feature_vector_abs,
-                                                           dim=2).indices
-            image_x_feature_vectors = index_select(image_x_feature_vectors,
-                                                   dim=2,
-                                                   index=image_x_feature_vector_max_indices)
+        if self.input_type != constants.CLIP:
+            if self.pooling_strategy == constants.AVERAGE_POOLING:
+                # do average pooling
+                image_x_feature_vectors = torch.mean(image_x_feature_vectors, dim=2)
+                image_y_feature_vectors = torch.mean(image_y_feature_vectors, dim=2)
+            elif self.pooling_strategy == constants.MAX_POOLING:
+                # do max pooling
+                image_x_feature_vectors = torch.max(image_x_feature_vectors, dim=2).values
+                image_y_feature_vectors = torch.max(image_y_feature_vectors, dim=2).values
+            elif self.pooling_strategy == constants.MAX_ABS_POOLING:
+                # max abs pooling
+                # get abs first
+                image_x_feature_vector_abs = torch.abs(image_x_feature_vectors)
+                image_x_feature_vector_max_indices = torch.max(image_x_feature_vector_abs,
+                                                               dim=2).indices
+                image_x_feature_vectors = index_select(image_x_feature_vectors,
+                                                       dim=2,
+                                                       index=image_x_feature_vector_max_indices)
 
-            image_y_feature_vector_abs = torch.abs(image_y_feature_vectors)
-            image_y_feature_vector_max_indices = torch.max(image_y_feature_vector_abs,
-                                                           dim=2).indices
-            image_y_feature_vectors = index_select(image_y_feature_vectors,
-                                                   dim=2,
-                                                   index=image_y_feature_vector_max_indices)
-        print("feature shape after pooling=", image_x_feature_vectors.shape)
+                image_y_feature_vector_abs = torch.abs(image_y_feature_vectors)
+                image_y_feature_vector_max_indices = torch.max(image_y_feature_vector_abs,
+                                                               dim=2).indices
+                image_y_feature_vectors = index_select(image_y_feature_vectors,
+                                                       dim=2,
+                                                       index=image_y_feature_vector_max_indices)
+            print("feature shape after pooling=", image_x_feature_vectors.shape)
 
         # then concatenate
         image_x_feature_vectors = image_x_feature_vectors.reshape(len(image_x_feature_vectors), -1)
