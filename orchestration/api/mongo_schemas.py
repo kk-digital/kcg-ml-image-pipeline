@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, constr
 from typing import Union, Optional
 
 
@@ -219,3 +219,18 @@ class FlaggedDataUpdate(BaseModel):
         }
 
 
+class User(BaseModel):
+    username: str = Field(...)
+    password: str = Field(...)
+    role: constr(pattern='^(admin|user)$') = Field(...)
+
+    def to_dict(self):
+        return {
+            "username": self.username,
+            "password": self.password,
+            "role": self.role
+        }
+    
+class TokenPayload(BaseModel):
+    sub: str = None
+    exp: int = None

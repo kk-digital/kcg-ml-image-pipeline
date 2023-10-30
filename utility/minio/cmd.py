@@ -144,14 +144,17 @@ def remove_an_object(client, bucket_name, object_name):
 
 
 def is_object_exists(client, bucket_name, object_name):
-    result = client.stat_object(bucket_name, object_name)
-    print(
-        "last-modified: {0}, size: {1}".format(
-            result.last_modified, result.size,
-        ),
-    )
+    try:
+        result = client.stat_object(bucket_name, object_name)
+        print(
+            "last-modified: {0}, size: {1}".format(
+                result.last_modified, result.size,
+            ),
+        )
 
-    if result.object_name != "":
-        return True
+        if result.object_name != "":
+            return True
+    except Exception as e:
+        return False
 
     return False
