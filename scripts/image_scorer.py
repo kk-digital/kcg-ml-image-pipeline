@@ -28,6 +28,7 @@ class EmbeddingScorer:
         self.embedding_score_model = None
         self.embedding_score_model_positive = None
         self.embedding_score_model_negative = None
+        self.dataset=dataset_name
         self.input = os.path.join("datasets", dataset_name)  # Construct the path dynamically using the provided dataset name
 
 
@@ -61,7 +62,7 @@ class EmbeddingScorer:
         return embedding_model
 
     def load_all_models(self):
-        input_path = os.path.join(self.input, "models/ranking/")
+        input_path =self.dataset + "/models/ranking/"
 
         self.embedding_score_model = self.load_model(os.path.join(input_path, "ab_ranking_elm_v1"), 768*2)
         self.embedding_score_model_negative = self.load_model(os.path.join(input_path, "ab_ranking_elm_v1_positive_only"), 768)
