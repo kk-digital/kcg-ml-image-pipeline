@@ -11,6 +11,7 @@ from orchestration.api.api_training import router as training_router
 from orchestration.api.api_model import router as model_router
 from orchestration.api.api_tag import router as tag_router
 from orchestration.api.api_dataset_settings import router as dataset_settings_router
+from orchestration.api.api_users import router as user_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -33,6 +34,7 @@ app.include_router(training_router)
 app.include_router(model_router)
 app.include_router(tag_router)
 app.include_router(dataset_settings_router)
+app.include_router(user_router)
 
 
 def get_minio_client(minio_access_key, minio_secret_key):
@@ -50,6 +52,7 @@ def startup_db_client():
     # add creation of mongodb here for now
     app.mongodb_client = pymongo.MongoClient(config["DB_URL"])
     app.mongodb_db = app.mongodb_client["orchestration-job-db"]
+    app.users_collection = app.mongodb_db["users"]
     app.pending_jobs_collection = app.mongodb_db["pending-jobs"]
     app.in_progress_jobs_collection = app.mongodb_db["in-progress-jobs"]
     app.completed_jobs_collection = app.mongodb_db["completed-jobs"]
