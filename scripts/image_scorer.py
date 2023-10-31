@@ -68,20 +68,30 @@ class EmbeddingScorer:
         self.embedding_score_model_negative = self.load_model(os.path.join(input_path, "ab_ranking_elm_v1_positive_only"), 768)
         self.embedding_score_model_positive = self.load_model(os.path.join(input_path, "ab_ranking_elm_v1_negative_only"), 768)
 
+    def load_dataset(self, bucket_name, dataset_path):
+        files = cmd.get_list_of_objects_with_prefix(self.minio_client, bucket_name, dataset_path)
+        data = []
+        for file in files:
+            file_data = cmd.get_file_from_minio(self.minio_client, bucket_name, file)
+            byte_buffer = io.BytesIO()
+            for d in file_data.stream(amt=8192):
+                byte_buffer.write(d)
+            byte_buffer.seek(0)
+            data.append(byte_buffer.read())
+        return data
+
 
     def get_scores(self):
-        msgpack_files = glob.glob(os.path.join(self.input, "**/*_embedding.msgpack"), recursive=True)
+        bucket_name = "datasets"
+        dataset_path = os.path.join(self.input, "**/*_embedding.msgpack")
+        msgpack_files = self.load_dataset(bucket_name, dataset_path)
 
         positive_scores = []
         negative_scores = []
         normal_scores = []
 
         print('making predictions..........')
-        for msgpack_path in msgpack_files:
-            with open(msgpack_path, 'rb') as file:
-                data_bytes = file.read()
-
-            # Load the data from the bytes using msgpack
+        for data_bytes in msgpack_files:
             data = msgpack.unpackb(data_bytes, raw=False)
             positive_embedding= list(data['positive_embedding'].values())
             positive_embedding_array = torch.tensor(np.array(positive_embedding)).float()
