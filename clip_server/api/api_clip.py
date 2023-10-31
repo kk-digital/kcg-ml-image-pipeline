@@ -32,6 +32,18 @@ def clip_vector_from_image_path(request: Request,
 
     return clip_vector
 
+
+@router.get("/cosine-similarity")
+def clip_vector_from_image_path(request: Request,
+             image_path : str,
+             phrase : str):
+    clip_server = request.app.clip_server
+
+    similarity = clip_server.compute_cosine_match_value(phrase, image_path, 'datasets')
+
+    return similarity
+
+
 @router.post("/add-phrase")
 def add_job(request: Request, phrase : str):
     clip_server = request.app.clip_server

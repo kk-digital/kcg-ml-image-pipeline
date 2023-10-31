@@ -1,5 +1,6 @@
 import sys
 import msgpack
+import torch
 from io import BytesIO
 
 base_directory = "./"
@@ -20,12 +21,13 @@ class ClipVector:
         self.clip_vector = clip_vector
 
 class ClipServer:
-    def __init__(self, minio_client):
+    def __init__(self, device, minio_client):
         self.minio_client = minio_client
         self.id_counter = 0
         self.phrase_dictionary = {}
         self.clip_vector_dictionary = {}
         self.clip_model = ClipModel()
+        self.device = device
 
     def load_clip_model(self):
         self.clip_model.load_clip()
@@ -53,7 +55,7 @@ class ClipServer:
         if phrase in self.clip_vector_dictionary:
             return self.clip_vector_dictionary[phrase]
 
-        return []
+        return None
 
     def get_phrase_list(self, offset, limit):
         result = []
@@ -82,7 +84,7 @@ class ClipServer:
 
         if clip_vector_data_msgpack is None:
             print(f'image not found {image_path}')
-            return []
+            return None
 
         # read file_data_into memory
         clip_vector_data_msgpack_memory = clip_vector_data_msgpack.read()
@@ -90,7 +92,55 @@ class ClipServer:
         # uncompress the msgpack data
         clip_vector = msgpack.unpackb(clip_vector_data_msgpack_memory)
 
-        return clip_vector
+        return clip_vector["clip-feature-vector"]
+
+    def compute_cosine_match_value(self, phrase, image_path, bucket_name):
+        phrase_cip_vector_struct = self.get_clip_vector(phrase)
+        phrase_clip_vector_numpy = phrase_cip_vector_struct.clip_vector
+
+        # the score is zero if we cant find the phrase clip vector
+        if phrase_clip_vector_numpy is None:
+            return 0
+
+        image_clip_vector_numpy = self.get_image_clip_from_minio(image_path, bucket_name)
+
+        # the score is zero if we cant find the image clip vector
+        if image_clip_vector_numpy is None:
+            return 0
+
+        # convert numpy array to tensors
+        phrase_clip_vector = torch.tensor(phrase_clip_vector_numpy, dtype=torch.float32, device=self.device)
+        image_clip_vector = torch.tensor(image_clip_vector_numpy, dtype=torch.float32, device=self.device)
+
+        # removing the extra dimension
+        # from shape (1, 768) => (768)
+        phrase_clip_vector = phrase_clip_vector.squeeze(0)
+        image_clip_vector = image_clip_vector.squeeze(0)
+
+        # Normalizing the tensor
+        normalized_phrase_clip_vector = torch.nn.functional.normalize(phrase_clip_vector.unsqueeze(0), p=2, dim=1)
+        normalized_image_clip_vector = torch.nn.functional.normalize(image_clip_vector.unsqueeze(0), p=2, dim=1)
+
+        # removing the extra dimension
+        # from shape (1, 768) => (768)
+        normalized_phrase_clip_vector = normalized_phrase_clip_vector.squeeze(0)
+        normalized_image_clip_vector = normalized_image_clip_vector.squeeze(0)
+
+        print(phrase_clip_vector)
+        print(normalized_phrase_clip_vector)
+
+        print(phrase_clip_vector.shape)
+        print(normalized_phrase_clip_vector.shape)
+        # cosine similarity
+        similarity = torch.dot(normalized_phrase_clip_vector, normalized_image_clip_vector)
+
+        # cleanup
+        del phrase_clip_vector
+        del image_clip_vector
+        del normalized_phrase_clip_vector
+        del normalized_image_clip_vector
+
+        return similarity.item()
 
     def compute_clip_vector(self, text):
         clip_vector_gpu = self.clip_model.get_text_features(text)

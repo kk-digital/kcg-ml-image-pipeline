@@ -34,15 +34,18 @@ def get_minio_client(minio_address, minio_access_key, minio_secret_key):
 
 @app.on_event("startup")
 def startup_db_client():
+    app.device = 'cuda'
+
     # get minio client
     app.minio_client = get_minio_client(minio_address=config["MINIO_ADDRESS"],
                                         minio_access_key=config["MINIO_ACCESS_KEY"],
                                         minio_secret_key=config["MINIO_SECRET_KEY"])
-    app.clip_server = ClipServer(app.minio_client)
+    app.clip_server = ClipServer(app.device, app.minio_client)
     app.clip_server.load_clip_model()
 
 
 if __name__ == "__main__":
+
     # get number of cores
     cores = multiprocessing.cpu_count()
 
