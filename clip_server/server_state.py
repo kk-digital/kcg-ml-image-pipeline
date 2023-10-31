@@ -7,16 +7,20 @@ from utility.clip.clip import ClipModel
 
 
 class Phrase:
-    def __init__(self, id, phrase, clip_vector):
+    def __init__(self, id, phrase):
         self.id = id
         self.phrase = phrase
-        self.clip_vector = clip_vector
 
+class ClipVector:
+    def __init__(self, phrase, clip_vector):
+        self.phrase = phrase
+        self.clip_vector = clip_vector
 
 class ClipServer:
     def __init__(self):
         self.id_counter = 0
         self.phrase_dictionary = {}
+        self.clip_vector_dictionary = {}
         self.clip_model = ClipModel()
 
     def load_clip_model(self):
@@ -33,8 +37,11 @@ class ClipServer:
         new_id = self.generate_id()
         clip_vector = self.compute_clip_vector(phrase)
 
-        new_phrase = Phrase(new_id, phrase, clip_vector)
+        new_phrase = Phrase(new_id, phrase)
+        new_clip_vector = ClipVector(phrase, clip_vector)
+
         self.phrase_dictionary[new_id] = new_phrase
+        self.clip_vector_dictionary[phrase] = new_clip_vector
 
         return new_phrase
 
@@ -56,7 +63,8 @@ class ClipServer:
 
         del clip_vector_gpu
 
-        return clip_vector_cpu
+        clip_vector = clip_vector_cpu.tolist()
+        return clip_vector
 
 
 

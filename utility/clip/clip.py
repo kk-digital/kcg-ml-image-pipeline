@@ -39,7 +39,7 @@ class ClipModel:
 
     def load_tokenizer(self):
         print('Loading Clip Tokenizer')
-        self.tokenizer = AutoTokenizer.from_pretrained("./input/model/clip/vit-large-patch14/vit-large-patch14.safetensors", config="./input/model/clip/vit-large-patch14/config.json")
+        self.tokenizer = AutoTokenizer.from_pretrained("./input/model/clip/txt_emb_tokenizer/")
         print('Tokenizer loaded successfully')
 
     def unload_clip(self):
