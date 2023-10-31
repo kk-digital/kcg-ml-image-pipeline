@@ -13,6 +13,11 @@ sys.path.insert(0, base_directory)
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from utility.minio import cmd
 
+
+MINIO_ADDRESS = "123.176.98.90:9000"
+access_key = "GXvqLWtthELCaROPITOG"
+secret_key = "DmlKgey5u0DnMHP30Vg7rkLT0NNbNIGaM8IwPckD"
+
 class EmbeddingScorer:
     def __init__(self,
                  minio_addr=None,
@@ -125,9 +130,9 @@ def normalize_scores(scores):  # fixed indentation
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Embedding Scorer")
-    parser.add_argument('--minio-addr', required=True, help='Minio server address')
-    parser.add_argument('--minio-access-key', required=True, help='Minio access key')
-    parser.add_argument('--minio-secret-key', required=True, help='Minio secret key')
+    parser.add_argument('--minio-addr', required=True, help='Minio server address', default=MINIO_ADDRESS)
+    parser.add_argument('--minio-access-key', required=True, help='Minio access key', default=access_key)
+    parser.add_argument('--minio-secret-key', required=True, help='Minio secret key', default=secret_key)
     parser.add_argument('--dataset-name', required=True, help='Name of the dataset for embeddings')
     args = parser.parse_args()
     return args
