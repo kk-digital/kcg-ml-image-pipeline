@@ -164,10 +164,10 @@ class EmbeddingConfusionMatrix:
     def draw_histograms(self):
         print('constructing histograms for each bin.......')
         # Create a figure with multiple subplots
-        fig, axs = plt.subplots(self.bins, self.bins, figsize=(15, 15))
+        fig, axs = plt.subplots(self.bins, self.bins, figsize=(20, 20))
 
         # Adjust the space between subplots
-        fig.subplots_adjust(hspace=0.7, wspace=0.7)
+        fig.subplots_adjust(hspace=0.5, wspace=0.5)
 
         # Plot the histograms in each subplot
         for pos_val in range(self.bins):    
@@ -175,8 +175,23 @@ class EmbeddingConfusionMatrix:
                 distribution=get_distribution(self.scores, positive_val=pos_val+1, negative_val=neg_val+1)
                 ax = axs[self.bins-pos_val-1][neg_val]
                 # Create subplots
-                ax.hist(distribution, bins=self.bins, color='blue', alpha=0.7)
-                ax.set_title(f'(negative={neg_val+1}, positive={pos_val+1})', fontsize=8)
+                n, bins, patches=ax.hist(distribution, bins=self.bins, color='blue', alpha=0.7)
+                # Normalize the histogram by dividing counts in each bin by the normalization factor
+                n_normalized = n / len(distribution)
+                ax.clear()
+                ax.bar(bins[:-1], n_normalized, width=(bins[1]-bins[0]),  align="edge", color='blue', alpha=0.7)
+                #set title
+                ax.set_title(f'(negative={neg_val+1}, positive={pos_val+1})', fontsize=7)
+                # adjust label fontsize
+                ax.tick_params(axis='both', labelsize=6) 
+                # Set the y-axis limits to [0, 1.0]
+                ax.set_ylim(0, 1.0)
+                # Calculate the median of the distribution
+                med = np.median(distribution)
+                # Add a vertical line at the median position
+                ax.axvline(x=med, color='red', linestyle='dashed', linewidth=1)
+                # set aspect ratio to equal
+                ax.set_aspect('equal')
 
         plt.show()
 
@@ -250,7 +265,8 @@ def main():
                                                bins=args.bins,
                                                annot=args.annot)
 
-    confusion_matrix.show_confusion_matrix()
+    # show confusion matrix 
+    #confusion_matrix.show_confusion_matrix()
 
     # draw histograms of score distribution for each bin
     confusion_matrix.draw_histograms()
