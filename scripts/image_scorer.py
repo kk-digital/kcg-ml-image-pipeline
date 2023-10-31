@@ -13,7 +13,7 @@ sys.path.insert(0, base_directory)
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from utility.minio import cmd
 import logging
-import Optional
+from typing import Optional
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
