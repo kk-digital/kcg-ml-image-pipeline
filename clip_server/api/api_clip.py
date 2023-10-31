@@ -12,3 +12,11 @@ def get_rate(request: Request,
     phrase_list = clip_server.get_phrase_list(offset, limit)
 
     return phrase_list
+
+@router.post("/add-phrase")
+def add_job(request: Request, phrase : str):
+    clip_server = request.app.clip_server
+
+    clip_server.add_phrase(phrase)
+
+    return True

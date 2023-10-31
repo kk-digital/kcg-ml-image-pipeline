@@ -15,8 +15,20 @@ class ClipServer:
         self.id_counter = 0
         self.phrase_dictionary = {}
 
+    def generate_id(self):
+        new_id = self.id_counter
+        self.id_counter = self.id_counter + 1
+
+        return new_id
+
     def add_phrase(self, phrase):
-        # dostuff
+        new_id = self.generate_id()
+        clip_vector = compute_clip_vector(phrase)
+
+        new_phrase = Phrase(new_id, phrase, clip_vector)
+        self.phrase_dictionary[new_id] = new_phrase
+
+        return new_phrase
 
 
     def get_phrase_list(self, offset, limit):

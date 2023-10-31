@@ -7,7 +7,7 @@ from clip_server.clip_server import ClipServer
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
-app = FastAPI(title="Orchestration API")
+app = FastAPI(title="Clip Server API")
 
 app.add_middleware(
     CORSMiddleware,
