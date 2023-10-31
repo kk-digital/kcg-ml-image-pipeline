@@ -19,7 +19,7 @@ class EmbeddingScorer:
                  minio_access_key=None,
                  minio_secret_key=None,
                  dataset_name="default_dataset"):
-
+        
         self.minio_access_key = minio_access_key
         self.minio_secret_key = minio_secret_key
         self.minio_client = cmd.get_minio_client(minio_access_key=self.minio_access_key,
@@ -34,16 +34,13 @@ class EmbeddingScorer:
 
     def load_model(self, model_path, input_size):
         embedding_model = ABRankingELMModel(input_size)
-
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', model_path)
         most_recent_model = None
  
         for model_file in model_files:
             file_extension = os.path.splitext(model_file)[1]
-
             if file_extension == ".pth":
                 most_recent_model = model_file
-
         if most_recent_model:
             model_file_data =cmd.get_file_from_minio(self.minio_client, 'datasets', most_recent_model)
         else:
@@ -56,47 +53,29 @@ class EmbeddingScorer:
             byte_buffer.write(data)
         # Reset the buffer's position to the beginning
         byte_buffer.seek(0)
-
         embedding_model.load(byte_buffer)
-
         return embedding_model
 
     def load_all_models(self):
-        input_path =self.input + "/models/ranking/"
+        input_path =self.dataset + "/models/ranking/"
 
         self.embedding_score_model = self.load_model(os.path.join(input_path, "ab_ranking_elm_v1"), 768*2)
         self.embedding_score_model_negative = self.load_model(os.path.join(input_path, "ab_ranking_elm_v1_positive_only"), 768)
         self.embedding_score_model_positive = self.load_model(os.path.join(input_path, "ab_ranking_elm_v1_negative_only"), 768)
-
-    def load_dataset(self, bucket_name, dataset_path):
-        files = cmd.get_list_of_objects_with_prefix(self.minio_client, bucket_name, dataset_path)
-        data = []
-        for file in files:
-            file_data = cmd.get_file_from_minio(self.minio_client, bucket_name, file)
-            byte_buffer = io.BytesIO()
-            for d in file_data.stream(amt=8192):
-                byte_buffer.write(d)
-            byte_buffer.seek(0)
-            data.append(byte_buffer.read())
-        return data
-
-
     def get_scores(self):
-        bucket_name = "datasets"
-        dataset_path = os.path.join(self.input, "**/*_embedding.msgpack")
-        msgpack_files = self.load_dataset(bucket_name, dataset_path)
-        print('dataset loaded')
-
+        msgpack_files = glob.glob(os.path.join(self.input, "**/*_embedding.msgpack"), recursive=True)
         positive_scores = []
         negative_scores = []
         normal_scores = []
-
         print('making predictions..........')
-        for data_bytes in msgpack_files:
+        for msgpack_path in msgpack_files:
+            with open(msgpack_path, 'rb') as file:
+                data_bytes = file.read()
+            # Load the data from the bytes using msgpack
             data = msgpack.unpackb(data_bytes, raw=False)
+
             positive_embedding= list(data['positive_embedding'].values())
             positive_embedding_array = torch.tensor(np.array(positive_embedding)).float()
-
             negative_embedding= list(data['negative_embedding'].values())
             negative_embedding_array =torch.tensor(np.array(negative_embedding)).float()
 
@@ -107,13 +86,11 @@ class EmbeddingScorer:
         # Normalize the positive and negative scores
         normalized_positive_scores = normalize_scores(positive_scores)
         normalized_negative_scores = normalize_scores(negative_scores)
-        normalized_score = normalize_scores(normal_scores)
-
+        normilozed_normal_score = normalize_scores(normal_scores)
         # Merge the vectors into a list of dictionaries
         scores = []
-        for pos, neg, score in zip(normalized_positive_scores, normalized_negative_scores, normalized_score):
+        for pos, neg, score in zip(normalized_positive_scores, normalized_negative_scores, normilozed_normal_score):
             scores.append({'positive': pos, 'negative': neg, 'score': score})
-
         # Save scores to CSV
         with open('scores.csv', 'w') as file:
             writer = csv.writer(file)
@@ -124,23 +101,18 @@ class EmbeddingScorer:
         
         return scores
     
-
     def generate_graphs(self):
         
         plt.figure(figsize=(12, 6))
-
         plt.subplot(1, 3, 1)
         plt.hist(self.positive_scores, bins=30, color='green')
         plt.title("Positive Scores")
-
         plt.subplot(1, 3, 2)
         plt.hist(self.negative_scores, bins=30, color='red')
         plt.title("Negative Scores")
-
         plt.subplot(1, 3, 3)
         plt.hist(self.normal_scores, bins=30, color='blue')
         plt.title("Normal Scores")
-
         plt.tight_layout()
         plt.savefig("score_distributions.png")
         plt.show()
@@ -151,7 +123,6 @@ def normalize_scores(scores):  # fixed indentation
     max_val = max(scores)
     return [(x - min_val) / (max_val - min_val) for x in scores]
 
-
 def parse_args():
     parser = argparse.ArgumentParser(description="Embedding Scorer")
     parser.add_argument('--minio-addr', required=True, help='Minio server address')
@@ -161,10 +132,8 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-
 def main():
     args = parse_args()
-
     scorer = EmbeddingScorer(minio_addr=args.minio_addr,
                              minio_access_key=args.minio_access_key,
                              minio_secret_key=args.minio_secret_key,
@@ -173,6 +142,3 @@ def main():
     scorer.load_all_models()
     scorer.get_scores()
     scorer.generate_graphs()
-
-
-
