@@ -3,6 +3,7 @@ router = APIRouter()
 
 
 
+
 @router.get("/list-phrase")
 def get_rate(request: Request,
              limit: int = 20,
@@ -12,6 +13,15 @@ def get_rate(request: Request,
     phrase_list = clip_server.get_phrase_list(offset, limit)
 
     return phrase_list
+
+@router.get("/clip-vector")
+def get_clip_vector(request: Request,
+             phrase : str):
+    clip_server = request.app.clip_server
+
+    clip_vector = clip_server.get_clip_vector(phrase)
+
+    return clip_vector
 
 @router.post("/add-phrase")
 def add_job(request: Request, phrase : str):

@@ -45,6 +45,12 @@ class ClipServer:
 
         return new_phrase
 
+    def get_clip_vector(self, phrase):
+        if phrase in self.clip_vector_dictionary:
+            return self.clip_vector_dictionary[phrase]
+
+        return []
+
     def get_phrase_list(self, offset, limit):
         result = []
         count = 0
