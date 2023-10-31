@@ -62,7 +62,7 @@ class EmbeddingScorer:
         return embedding_model
 
     def load_all_models(self):
-        input_path =self.dataset + "/models/ranking/"
+        input_path =self.input + "/models/ranking/"
 
         self.embedding_score_model = self.load_model(os.path.join(input_path, "ab_ranking_elm_v1"), 768*2)
         self.embedding_score_model_negative = self.load_model(os.path.join(input_path, "ab_ranking_elm_v1_positive_only"), 768)
@@ -85,6 +85,7 @@ class EmbeddingScorer:
         bucket_name = "datasets"
         dataset_path = os.path.join(self.input, "**/*_embedding.msgpack")
         msgpack_files = self.load_dataset(bucket_name, dataset_path)
+        print('dataset loaded')
 
         positive_scores = []
         negative_scores = []
