@@ -126,9 +126,12 @@ python ./prompt_generation/scripts/prompt_generator.py --num-prompts 10000 --pos
 ### AB Ranking Linear Model
 To train ab ranking linear model:
 1. Install dependencies by running `pip install -r requirements.txt`
-2. Go to [ab_ranking_linear test run entrypoint](https://github.com/kk-digital/kcg-ml-image-pipeline/blob/main/training_worker/ab_ranking/script/ab_ranking_linear.py#L175)
-2. Input the minio server's address, your minio secret, and your minio access key.
-3. Run using `python python ./training_worker/ab_ranking/script/ab_ranking_linear.py`
+2. Run using `python ./scripts/ab_ranking_linear.py --minio-access-key access --minio-secret-key secret --dataset-name propaganda-poster --input-type embedding`
+
+### AB Ranking ELM Model
+To train ab ranking linear model:
+1. Install dependencies by running `pip install -r requirements.txt`
+2. Run using `python ./scripts/ab_ranking_elm_v1.py --minio-access-key access --minio-secret-key secret --dataset-name propaganda-poster --input-type embedding`
 
 ### AB Ranking Efficient Net Model
 To train ab ranking linear model:
@@ -136,3 +139,10 @@ To train ab ranking linear model:
 2. Go to [ab_ranking_efficient_net test run entrypoint](https://github.com/kk-digital/kcg-ml-image-pipeline/blob/main/training_worker/ab_ranking/script/ab_ranking_efficient_net.py#L184)
 2. Input the minio server's address, your minio secret, and your minio access key.
 3. Run using `python python ./training_worker/ab_ranking/script/ab_ranking_efficient_net.py`
+
+## Tools
+### Check Dataset Clip
+This checks clip data for selection datapoints in the dataset and creates a clip calculation task if clip data doesn't exist.
+```
+python ./scripts/check_dataset_clip.py --minio-access-key nkjYl5jO4QnpxQU0k0M1 --minio-secret-key MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1 --dataset-name all
+```
