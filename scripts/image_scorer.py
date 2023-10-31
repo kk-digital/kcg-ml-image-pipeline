@@ -24,7 +24,6 @@ class EmbeddingScorer:
                  minio_access_key=None,
                  minio_secret_key=None,
                  dataset_name="default_dataset"):
-        
         self.minio_access_key = minio_access_key
         self.minio_secret_key = minio_secret_key
         self.minio_client = cmd.get_minio_client(minio_access_key=self.minio_access_key,
@@ -33,50 +32,48 @@ class EmbeddingScorer:
         self.embedding_score_model = None
         self.embedding_score_model_positive = None
         self.embedding_score_model_negative = None
-        self.dataset=dataset_name
-        self.input = os.path.join("datasets", dataset_name)  # Construct the path dynamically using the provided dataset name
+        self.dataset = dataset_name
+        self.input = os.path.join("datasets", dataset_name)
 
-
-    def load_model(self, model_path, input_size):
+    def load_model(self, model_filename, input_size):
+        model_path = os.path.join(self.dataset, "models", "ranking", model_filename)
         embedding_model = ABRankingELMModel(input_size)
-        model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', model_path)
-        most_recent_model = None
- 
-        for model_file in model_files:
-            file_extension = os.path.splitext(model_file)[1]
-            if file_extension == ".pth":
-                most_recent_model = model_file
-        if most_recent_model:
-            model_file_data =cmd.get_file_from_minio(self.minio_client, 'datasets', most_recent_model)
-        else:
-            print("No .pth files found in the list.")
+
+        model_file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', model_path)
+        if not model_file_data:
+            print("No .pth file found at path: ", model_path)
             return
-        
-        # Create a BytesIO object and write the downloaded content into it
+
         byte_buffer = io.BytesIO()
         for data in model_file_data.stream(amt=8192):
             byte_buffer.write(data)
-        # Reset the buffer's position to the beginning
         byte_buffer.seek(0)
         embedding_model.load(byte_buffer)
         return embedding_model
 
-    def load_all_models(self):
-        input_path =self.dataset + "/models/ranking/"
 
-        self.embedding_score_model = self.load_model(os.path.join(input_path, "ab_ranking_elm_v1"), 768*2)
-        self.embedding_score_model_negative = self.load_model(os.path.join(input_path, "ab_ranking_elm_v1_positive_only"), 768)
-        self.embedding_score_model_positive = self.load_model(os.path.join(input_path, "ab_ranking_elm_v1_negative_only"), 768)
+    def load_all_models(self, model_filename, positive_model_filename, negative_model_filename):
+        self.embedding_score_model = self.load_model(model_filename, 768 * 2)
+        self.embedding_score_model_positive = self.load_model(positive_model_filename, 768)
+        self.embedding_score_model_negative = self.load_model(negative_model_filename, 768)
+
     def get_scores(self):
-        msgpack_files = glob.glob(os.path.join(self.input, "**/*_embedding.msgpack"), recursive=True)
+        msgpack_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', os.path.join(self.dataset, "_embedding.msgpack"))
         positive_scores = []
         negative_scores = []
         normal_scores = []
         print('making predictions..........')
-        for msgpack_path in msgpack_files:
-            with open(msgpack_path, 'rb') as file:
-                data_bytes = file.read()
-            # Load the data from the bytes using msgpack
+        for msgpack_object in msgpack_objects:
+            msgpack_data = cmd.get_file_from_minio(self.minio_client, self.input, msgpack_object)
+            if not msgpack_data:
+                print(f"No msgpack file found at path: {msgpack_object}")
+                continue
+
+            byte_buffer = io.BytesIO()
+            for data in msgpack_data.stream(amt=8192):
+                byte_buffer.write(data)
+            byte_buffer.seek(0)
+            data_bytes = byte_buffer.read()
             data = msgpack.unpackb(data_bytes, raw=False)
 
             positive_embedding= list(data['positive_embedding'].values())
@@ -100,11 +97,12 @@ class EmbeddingScorer:
         with open('scores.csv', 'w') as file:
             writer = csv.writer(file)
             writer.writerow(["Image Path", "Image Hash", "Positive Score", "Negative Score", "Combined Score"])
-            for msgpack_path, score in zip(msgpack_files, scores):
+            for msgpack_path, score in zip(msgpack_objects, scores):
                 writer.writerow([msgpack_path, os.path.basename(msgpack_path), score['positive'], score['negative'], score['score']])
         print('Scores saved to scores.csv')
         
         return scores
+
     
     def generate_graphs(self):
         
@@ -130,10 +128,13 @@ def normalize_scores(scores):  # fixed indentation
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Embedding Scorer")
-    parser.add_argument('--minio-addr', required=True, help='Minio server address', default=MINIO_ADDRESS)
-    parser.add_argument('--minio-access-key', required=True, help='Minio access key', default=access_key)
-    parser.add_argument('--minio-secret-key', required=True, help='Minio secret key', default=secret_key)
+    parser.add_argument('--minio-addr', required=False, help='Minio server address', default=MINIO_ADDRESS)
+    parser.add_argument('--minio-access-key', required=False, help='Minio access key', default=access_key)
+    parser.add_argument('--minio-secret-key', required=False, help='Minio secret key', default=secret_key)
     parser.add_argument('--dataset-name', required=True, help='Name of the dataset for embeddings')
+    parser.add_argument('--model-filename', required=True, help='Filename of the main model (e.g., "XXX.pth")')
+    parser.add_argument('--positive-model-filename', required=True, help='Filename of the positive model')
+    parser.add_argument('--negative-model-filename', required=True, help='Filename of the negative model')
     args = parser.parse_args()
     return args
 
@@ -144,6 +145,9 @@ def main():
                              minio_secret_key=args.minio_secret_key,
                              dataset_name=args.dataset_name)
     
-    scorer.load_all_models()
+    scorer.load_all_models(args.model_filename, args.positive_model_filename, args.negative_model_filename)
     scorer.get_scores()
     scorer.generate_graphs()
+
+if __name__ == "__main__":
+    main()
