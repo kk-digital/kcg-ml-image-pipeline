@@ -38,7 +38,7 @@ def startup_db_client():
     app.minio_client = get_minio_client(minio_address=config["MINIO_ADDRESS"],
                                         minio_access_key=config["MINIO_ACCESS_KEY"],
                                         minio_secret_key=config["MINIO_SECRET_KEY"])
-    app.clip_server = ClipServer()
+    app.clip_server = ClipServer(app.minio_client)
     app.clip_server.load_clip_model()
 
 
