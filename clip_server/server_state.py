@@ -26,7 +26,7 @@ class ClipServer:
         self.id_counter = 0
         self.phrase_dictionary = {}
         self.clip_vector_dictionary = {}
-        self.clip_model = ClipModel()
+        self.clip_model = ClipModel(device=device)
         self.device = device
 
     def load_clip_model(self):
@@ -95,12 +95,13 @@ class ClipServer:
         return clip_vector["clip-feature-vector"]
 
     def compute_cosine_match_value(self, phrase, image_path, bucket_name):
-        phrase_cip_vector_struct = self.get_clip_vector(phrase)
-        phrase_clip_vector_numpy = phrase_cip_vector_struct.clip_vector
 
+        phrase_cip_vector_struct = self.get_clip_vector(phrase)
         # the score is zero if we cant find the phrase clip vector
-        if phrase_clip_vector_numpy is None:
+        if phrase_cip_vector_struct is None:
             return 0
+
+        phrase_clip_vector_numpy = phrase_cip_vector_struct.clip_vector
 
         image_clip_vector_numpy = self.get_image_clip_from_minio(image_path, bucket_name)
 
@@ -126,11 +127,6 @@ class ClipServer:
         normalized_phrase_clip_vector = normalized_phrase_clip_vector.squeeze(0)
         normalized_image_clip_vector = normalized_image_clip_vector.squeeze(0)
 
-        print(phrase_clip_vector)
-        print(normalized_phrase_clip_vector)
-
-        print(phrase_clip_vector.shape)
-        print(normalized_phrase_clip_vector.shape)
         # cosine similarity
         similarity = torch.dot(normalized_phrase_clip_vector, normalized_image_clip_vector)
 

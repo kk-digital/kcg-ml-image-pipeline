@@ -51,6 +51,8 @@ class ClipModel:
         if self.verbose: print("CLIP unloaded.")
 
     def get_image_features(self, image):
+        if self.device == "cpu":
+            print("CUDA is not available. Running on CPU.")
         inputs = self.preprocess(images=image, return_tensors="pt")
 
         with torch.no_grad():
@@ -78,8 +80,11 @@ class ClipModel:
         return image_features.to(self.device)
 
     def get_text_features(self, text):
+        if self.device == "cpu":
+            print("CUDA is not available. Running on CPU.")
 
         inputs = self.tokenizer(text, padding=True, return_tensors="pt")
+        inputs.to(device=self.device)
 
         text_features = self.model.get_text_features(**inputs)
 
