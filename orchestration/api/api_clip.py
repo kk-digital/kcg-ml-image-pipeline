@@ -57,8 +57,8 @@ def add_phrase(request: Request,
 @router.get("/clip/random-image-similarity-threshold", description="Gets a random image from a dataset with a cosine similarity threshold")
 def random_image_similarity_threshold(request: Request,
                                     dataset : str,
-                                    similarity_threshold : float,
-                                    max_tries=50):
+                                    similarity_threshold : float=0,
+                                    max_tries : int=50):
 
     # maximum number of tries
     # repeat n times until we find an image
