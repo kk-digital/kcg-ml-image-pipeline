@@ -89,10 +89,16 @@ class ClipServer:
         # read file_data_into memory
         clip_vector_data_msgpack_memory = clip_vector_data_msgpack.read()
 
-        # uncompress the msgpack data
-        clip_vector = msgpack.unpackb(clip_vector_data_msgpack_memory)
+        try:
+            # uncompress the msgpack data
+            clip_vector = msgpack.unpackb(clip_vector_data_msgpack_memory)
 
-        return clip_vector["clip-feature-vector"]
+            return clip_vector["clip-feature-vector"]
+        except Exception as e:
+            print('Exception details : ', e)
+
+        return None
+
 
     def compute_cosine_match_value(self, phrase, image_path, bucket_name):
         print('computing cosine match value for ', phrase, ' and ', image_path)
@@ -109,7 +115,7 @@ class ClipServer:
 
         # the score is zero if we cant find the image clip vector
         if image_clip_vector_numpy is None:
-            print(f'image {image_path} not found')
+            print(f'image clip {image_path} not found')
             return 0
 
         # convert numpy array to tensors
