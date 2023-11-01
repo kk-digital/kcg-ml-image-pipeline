@@ -168,6 +168,7 @@ def random_image_list_similarity_threshold(request: Request,
 
         similarity_score = http_clip_server_get_cosine_similarity(image_path, phrase)
 
+        print(similarity_score)
         if similarity_score is None:
             continue
 
