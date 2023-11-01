@@ -41,7 +41,7 @@ def http_clip_server_clip_vector_from_phrase(phrase: str):
 
 def http_clip_server_get_cosine_similarity(image_path: str,
                                            phrase: str):
-    url = f'{CLIP_SERVER_ADRESS}/cosine-similarity?image_path={image_path}&phrase="{phrase}'
+    url = f'{CLIP_SERVER_ADRESS}/cosine-similarity?image_path={image_path}&phrase={phrase}'
 
     try:
         response = requests.get(url)
