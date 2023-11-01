@@ -97,9 +97,10 @@ class EmbeddingScorer:
                 normal_scores.append(self.embedding_score_model.predict(positive_embedding_array, negative_embedding_array))
         
         # Normalize the positive and negative scores
-        self.normalized_positive_scores = normalize_scores(positive_scores)
-        self.normalized_negative_scores = normalize_scores(negative_scores)
-        self.normalized_score = normalize_scores(normal_scores)
+        self.normalized_positive_scores = normalize_scores([score.cpu() for score in positive_scores])
+        self.normalized_negative_scores = normalize_scores([score.cpu() for score in negative_scores])
+        self.normalized_score = normalize_scores([score.cpu() for score in normal_scores])
+
 
         # Merge the vectors into a list of dictionaries
         scores = []
