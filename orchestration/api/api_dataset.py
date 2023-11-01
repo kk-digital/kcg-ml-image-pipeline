@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 import io
 from .api_utils import PrettyJSONResponse
-from .mongo_schemas import FlaggedDataUpdate
+from .mongo_schemas import FlaggedDataUpdate, RankingModel
 router = APIRouter()
 
 
@@ -143,29 +143,7 @@ def get_dataset_config(request: Request, dataset: str = Query(...)):
     # remove the auto generated field
     item.pop('_id', None)
 
-    # construct the file path for the model card
-    model_card_file_path = f"{dataset}/models/ranking/ab_ranking_efficient_net/{item['ranking_model']}.json"
-    
-    # Check if the file exists in the MinIO bucket
-    bucket_name = "datasets"
-    if not cmd.is_object_exists(request.app.minio_client, bucket_name, model_card_file_path):
-        raise HTTPException(status_code=404, detail="Model card file not found")
-    
-    # fetch the model card data
-    data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, model_card_file_path)
-    
-    # If the file is a .json file, decode it and return the content, otherwise, return the raw content
-    if model_card_file_path.endswith('.json'):
-        model_card_data = json.loads(data.read().decode('utf-8'))
-    else:
-        model_card_data = data.read()
-
-    # merge the dataset config and model card data
-    combined_data = {**item, "ranking_model": model_card_data}
-
-    return combined_data
-
-
+    return item
 
 
 @router.get("/dataset/get-all-dataset-config", response_class=PrettyJSONResponse)
@@ -186,7 +164,7 @@ def get_all_dataset_config(request: Request):
 
 
 @router.put("/dataset/set-relevance-model")
-def set_relevance_model(request: Request, dataset: str, relevance_model: str):
+def set_relevance_model(request: Request, dataset: str, relevance_model: RankingModel):
     date_now = datetime.now()
     # check if dataset exists
     query = {"dataset_name": dataset}
@@ -199,7 +177,7 @@ def set_relevance_model(request: Request, dataset: str, relevance_model: str):
     new_values = {
         "$set": {
             "last_update": date_now,
-            "relevance_model": relevance_model
+            "relevance_model": relevance_model.to_dict()
         }
     }
     request.app.dataset_config_collection.update_one(query, new_values)
@@ -208,7 +186,7 @@ def set_relevance_model(request: Request, dataset: str, relevance_model: str):
 
 
 @router.put("/dataset/set-ranking-model")
-def set_ranking_model(request: Request, dataset: str, ranking_model: str):
+def set_ranking_model(request: Request, dataset: str, ranking_model: RankingModel):
     date_now = datetime.now()
     # check if dataset exists
     query = {"dataset_name": dataset}
@@ -221,7 +199,7 @@ def set_ranking_model(request: Request, dataset: str, ranking_model: str):
     new_values = {
         "$set": {
             "last_update": date_now,
-            "ranking_model": ranking_model
+            "ranking_model": ranking_model.to_dict()
         }
     }
     request.app.dataset_config_collection.update_one(query, new_values)
