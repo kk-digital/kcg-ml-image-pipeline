@@ -130,6 +130,12 @@ def random_image_list_similarity_threshold(request: Request,
     tried_ids = set()
     nb_tries = 0
     while nb_tries < size:
+        print(size)
+
+        sample_size = request.app.completed_jobs_collection.count_documents(
+            {"task_input_dict.dataset": dataset})
+
+        print(size)
         sample_size = request.app.completed_jobs_collection.count_documents(
             {"task_input_dict.dataset": dataset, "_id": {"$nin": list(tried_ids)}})
 
