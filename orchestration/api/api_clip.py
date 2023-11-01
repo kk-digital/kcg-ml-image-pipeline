@@ -137,8 +137,6 @@ def random_image_list_similarity_threshold(request: Request,
                           size: int = 20):
     # Use Query to get the dataset and size from query parameters
 
-    print('random_image_list_similarity_threshold')
-
     distinct_jobs = []
     tried_ids = set()
 
@@ -161,12 +159,9 @@ def random_image_list_similarity_threshold(request: Request,
         # Ensure only distinct images are retained
         seen = set()
         distinct_jobs = [doc for doc in distinct_jobs if doc["_id"] not in seen and not seen.add(doc["_id"])]
-        print(nb_tries)
         nb_tries = nb_tries + 1
 
     result_jobs = []
-
-    print(distinct_jobs)
 
     for job in distinct_jobs:
         job.pop('_id', None)  # remove the auto generated field
@@ -181,7 +176,6 @@ def random_image_list_similarity_threshold(request: Request,
 
         similarity_score = http_clip_server_get_cosine_similarity(image_path, phrase)
 
-        print(similarity_score)
         if similarity_score is None:
             continue
 
