@@ -117,10 +117,16 @@ class EmbeddingScorer:
     
     def generate_graphs(self):
 
-        # Convert lists to numpy arrays
-        positive_scores_np = np.array(self.normalized_positive_scores)
-        negative_scores_np = np.array(self.normalized_negative_scores)
-        normal_scores_np = np.array(self.normilozed_normal_scores)
+        # Helper function to convert possible tensors in a list to numpy
+        def to_numpy(data):
+            if isinstance(data, torch.Tensor):
+                return data.cpu().numpy()
+            return np.array(data)
+
+        # Convert lists to numpy arrays using the helper function
+        positive_scores_np = to_numpy(self.normalized_positive_scores)
+        negative_scores_np = to_numpy(self.normalized_negative_scores)
+        normal_scores_np = to_numpy(self.normalized_score)
 
         plt.figure(figsize=(12, 6))
         plt.subplot(1, 3, 1)
@@ -134,6 +140,7 @@ class EmbeddingScorer:
         plt.title("Normal Scores")
         plt.tight_layout()
         plt.savefig("score_distributions.png")
+
 
 
 def normalize_scores(scores):  # fixed indentation
