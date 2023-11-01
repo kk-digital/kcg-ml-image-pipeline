@@ -160,6 +160,8 @@ class PromptGenerationPromptQueue:
             for pr in prompts:
                 print(pr.score)
                 print(pr.positive_prompt)
+                print('------------')
+                print(pr.negative_prompt)
 
         scored_prompts = []
         for prompt in prompts:
