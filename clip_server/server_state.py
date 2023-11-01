@@ -95,10 +95,12 @@ class ClipServer:
         return clip_vector["clip-feature-vector"]
 
     def compute_cosine_match_value(self, phrase, image_path, bucket_name):
+        print('computing cosine match value for ', phrase, ' and ', image_path)
 
         phrase_cip_vector_struct = self.get_clip_vector(phrase)
         # the score is zero if we cant find the phrase clip vector
         if phrase_cip_vector_struct is None:
+            print(f'phrase {phrase} not found ')
             return 0
 
         phrase_clip_vector_numpy = phrase_cip_vector_struct.clip_vector
@@ -107,6 +109,7 @@ class ClipServer:
 
         # the score is zero if we cant find the image clip vector
         if image_clip_vector_numpy is None:
+            print(f'image {image_path} not found')
             return 0
 
         # convert numpy array to tensors
