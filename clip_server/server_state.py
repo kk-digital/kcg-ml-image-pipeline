@@ -26,6 +26,7 @@ class ClipServer:
         self.id_counter = 0
         self.phrase_dictionary = {}
         self.clip_vector_dictionary = {}
+        self.image_clip_vector_cache = {}
         self.clip_model = ClipModel(device=device)
         self.device = device
 
@@ -69,7 +70,14 @@ class ClipServer:
             count += 1
         return result
 
+
     def get_image_clip_from_minio(self, image_path, bucket_name):
+
+        # if its in the cache return from cache
+        if image_path in self.image_clip_vector_cache:
+            clip_vector = self.image_clip_vector_cache[image_path]
+            return clip_vector
+
         # Removes the last 4 characters from the path
         # image.jpg => image
         base_path = image_path.rstrip(image_path[-4:])
@@ -98,8 +106,10 @@ class ClipServer:
         try:
             # uncompress the msgpack data
             clip_vector = msgpack.unpackb(clip_vector_data_msgpack_memory)
-
-            return clip_vector["clip-feature-vector"]
+            clip_vector = clip_vector["clip-feature-vector"]
+            # add to chache
+            self.image_clip_vector_cache[image_path] = clip_vector
+            return clip_vector
         except Exception as e:
             print('Exception details : ', e)
 
