@@ -1,5 +1,6 @@
 from fastapi import Request, APIRouter, HTTPException
 import requests
+from .api_utils import PrettyJSONResponse
 
 CLIP_SERVER_ADRESS = 'http://127.0.0.1:8002'
 
@@ -58,21 +59,27 @@ def http_clip_server_get_cosine_similarity(image_path: str,
 # ----------------------------------------------------------------------------
 
 
-@router.put("/clip/add-phrase", description="Adds a phrase to the clip server")
+@router.put("/clip/add-phrase",
+            response_class=PrettyJSONResponse,
+            description="Adds a phrase to the clip server")
 def add_phrase(request: Request,
                phrase : str):
 
     return http_clip_server_add_phrase(phrase)
 
 
-@router.get("/clip/clip-vector", description="Gets a clip vector of a specific phrase")
+@router.get("/clip/clip-vector",
+            response_class=PrettyJSONResponse,
+            description="Gets a clip vector of a specific phrase")
 def add_phrase(request: Request,
                phrase : str):
 
     return http_clip_server_clip_vector_from_phrase(phrase)
 
 
-@router.get("/clip/random-image-similarity-threshold", description="Gets a random image from a dataset with a cosine similarity threshold")
+@router.get("/clip/random-image-similarity-threshold",
+            response_class=PrettyJSONResponse,
+            description="Gets a random image from a dataset with a cosine similarity threshold")
 def random_image_similarity_threshold(request: Request,
                                     dataset : str,
                                     phrase : str,
@@ -116,7 +123,9 @@ def random_image_similarity_threshold(request: Request,
     return None
 
 
-@router.get("/clip/random-image-list-similarity-threshold", description="Gets a random image from a dataset with a cosine similarity threshold")
+@router.get("/clip/random-image-list-similarity-threshold",
+            response_class=PrettyJSONResponse,
+            description="Gets a random image from a dataset with a cosine similarity threshold")
 def random_image_list_similarity_threshold(request: Request,
                           dataset: str,
                           phrase: str,
