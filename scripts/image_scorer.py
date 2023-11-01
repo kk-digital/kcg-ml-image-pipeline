@@ -40,7 +40,7 @@ class EmbeddingScorer:
 
     def load_model(self, model_filename, input_size):
         model_path = os.path.join(self.dataset, "models", "ranking", model_filename)
-        embedding_model = ABRankingELMModel(input_size).to(device)
+        embedding_model = ABRankingELMModel(input_size)
 
         model_file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', model_path)
         if not model_file_data:
