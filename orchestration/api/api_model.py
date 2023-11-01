@@ -2,6 +2,7 @@ from fastapi import Request, APIRouter, Query, HTTPException, Response
 from utility.minio import cmd
 import json
 from orchestration.api.mongo_schemas import RankingModel
+from .api_utils import PrettyJSONResponse
 
 router = APIRouter()
 
@@ -108,7 +109,7 @@ def get_ranking_models(request: Request, dataset: str = Query(...)):
 
 
 
-@router.get("/models/get-model-card")
+@router.get("/models/get-model-card", response_class=PrettyJSONResponse)
 def get_model_card(request: Request, file_path: str = Query(...)):
     bucket_name = "datasets"
     
