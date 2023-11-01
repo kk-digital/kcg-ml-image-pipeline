@@ -26,7 +26,7 @@ def parse_args():
     parser.add_argument("--device", type=str, default='cuda')
     parser.add_argument("--minio_access_key", type=str, default='v048BpXpWrsVIHUfdAix')
     parser.add_argument("--minio_secret_key", type=str, default='4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu')
-    parser.add_argument("--csv_dataset_path", type=str, default='input/civitai_phrases_database_v6.csv')
+    parser.add_argument("--csv_dataset_path", type=str, default='input/midjourney_data_phrase_count_v1.csv')
 
     return parser.parse_args()
 
