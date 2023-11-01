@@ -118,7 +118,11 @@ def random_image_similarity_threshold(request: Request,
             continue
 
         if similarity_score >= similarity_threshold:
-            return this_job
+            result = {
+                'image' : this_job,
+                'similarity_score' : similarity_score
+            }
+            return result
 
     return None
 
@@ -182,7 +186,13 @@ def random_image_list_similarity_threshold(request: Request,
             continue
 
         if similarity_score >= similarity_threshold:
-            result_jobs.append(this_job)
+
+            result = {
+                'image': this_job,
+                'similarity_score': similarity_score
+            }
+            result_jobs.append(result)
 
     # Return the jobs as a list in the response
+
     return result_jobs
