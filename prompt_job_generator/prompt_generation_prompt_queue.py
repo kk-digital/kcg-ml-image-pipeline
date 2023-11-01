@@ -155,13 +155,9 @@ class PromptGenerationPromptQueue:
             prompts = [ScoredPrompt(0, positive, negative) for positive in positive_prompts for negative in
                                 negative_prompts]
 
+            # remove excess prompts, will only remove a tiny bit of prompts
+            # so no one cares
             prompts = prompts[:total_prompt_count]
-
-            for pr in prompts:
-                print(pr.score)
-                print('positive prompt : ' + pr.positive_prompt)
-                print('------------')
-                print('negative prompt : ' + pr.negative_prompt)
 
         scored_prompts = []
         for prompt in prompts:
