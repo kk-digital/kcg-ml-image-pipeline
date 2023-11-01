@@ -124,10 +124,13 @@ def random_image_list_similarity_threshold(request: Request,
                           size: int = 20):
     # Use Query to get the dataset and size from query parameters
 
+    print('random_image_list_similarity_threshold')
+
     distinct_jobs = []
     tried_ids = set()
 
-    while len(distinct_jobs) < size:
+    nb_tries = 0
+    while nb_tries < size:
         # Use $sample to get 'size' random documents
         jobs = request.app.completed_jobs_collection.aggregate([
             {"$match": {"task_input_dict.dataset": dataset, "_id": {"$nin": list(tried_ids)}}},
@@ -145,6 +148,8 @@ def random_image_list_similarity_threshold(request: Request,
         # Ensure only distinct images are retained
         seen = set()
         distinct_jobs = [doc for doc in distinct_jobs if doc["_id"] not in seen and not seen.add(doc["_id"])]
+
+        nb_tries = nb_tries + 1
 
     result_jobs = []
 
