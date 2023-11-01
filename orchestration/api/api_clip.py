@@ -128,25 +128,14 @@ def random_image_list_similarity_threshold(request: Request,
 
     distinct_jobs = []
     tried_ids = set()
+
     nb_tries = 0
     while nb_tries < size:
-        print(size)
-
-        sample_size = request.app.completed_jobs_collection.count_documents(
-            {"task_input_dict.dataset": dataset})
-
-        print(size)
-        sample_size = request.app.completed_jobs_collection.count_documents(
-            {"task_input_dict.dataset": dataset, "_id": {"$nin": list(tried_ids)}})
-
-        sample_size = min(sample_size, size)
-
-        print(sample_size)
         # Use $sample to get 'size' random documents
         jobs = request.app.completed_jobs_collection.aggregate([
             {"$match": {"task_input_dict.dataset": dataset, "_id": {"$nin": list(tried_ids)}}},
             # Exclude already tried ids
-            {"$sample": {"size": sample_size}}  # Only fetch the remaining needed size
+            {"$sample": {"size": size - len(distinct_jobs)}}  # Only fetch the remaining needed size
         ])
 
         # Convert cursor type to list
