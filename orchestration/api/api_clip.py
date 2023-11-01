@@ -106,8 +106,6 @@ def random_image_similarity_threshold(request: Request,
         image_path = image_path.replace("datasets/", "")
 
         similarity_score = http_clip_server_get_cosine_similarity(image_path, phrase)
-        print(image_path)
-        print(similarity_score)
 
         if similarity_score is None:
             continue
@@ -117,3 +115,57 @@ def random_image_similarity_threshold(request: Request,
 
     return None
 
+
+@router.get("/clip/random-image-list-similarity-threshold", description="Gets a random image from a dataset with a cosine similarity threshold")
+def get_random_image_list(request: Request,
+                          dataset: str,
+                          phrase: str,
+                          similarity_threshold: float = 0,
+                          size: int = 20):
+    # Use Query to get the dataset and size from query parameters
+
+    distinct_jobs = []
+    tried_ids = set()
+
+    while len(distinct_jobs) < size:
+        # Use $sample to get 'size' random documents
+        jobs = request.app.completed_jobs_collection.aggregate([
+            {"$match": {"task_input_dict.dataset": dataset, "_id": {"$nin": list(tried_ids)}}},
+            # Exclude already tried ids
+            {"$sample": {"size": size - len(distinct_jobs)}}  # Only fetch the remaining needed size
+        ])
+
+        # Convert cursor type to list
+        jobs = list(jobs)
+        distinct_jobs.extend(jobs)
+
+        # Store the tried image ids
+        tried_ids.update([job["_id"] for job in jobs])
+
+        # Ensure only distinct images are retained
+        seen = set()
+        distinct_jobs = [doc for doc in distinct_jobs if doc["_id"] not in seen and not seen.add(doc["_id"])]
+
+    result_jobs = []
+
+    for job in distinct_jobs:
+        job.pop('_id', None)  # remove the auto generated field
+
+        this_job = job
+
+        output_file_dictionary = this_job["task_output_file_dict"]
+        image_path = output_file_dictionary['output_file_path']
+
+        # remove the datasets/ prefix
+        image_path = image_path.replace("datasets/", "")
+
+        similarity_score = http_clip_server_get_cosine_similarity(image_path, phrase)
+
+        if similarity_score is None:
+            continue
+
+        if similarity_score >= similarity_threshold:
+            result_jobs.append(this_job)
+
+    # Return the jobs as a list in the response
+    return result_jobs

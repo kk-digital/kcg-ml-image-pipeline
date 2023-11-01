@@ -109,6 +109,7 @@ class ClipServer:
             clip_vector = clip_vector["clip-feature-vector"]
             # add to chache
             self.image_clip_vector_cache[image_path] = clip_vector
+
             return clip_vector
         except Exception as e:
             print('Exception details : ', e)
