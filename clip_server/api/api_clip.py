@@ -44,7 +44,7 @@ def clip_vector_from_image_path(request: Request,
     return similarity
 
 
-@router.post("/add-phrase")
+@router.put("/add-phrase")
 def add_job(request: Request, phrase : str):
     clip_server = request.app.clip_server
 
