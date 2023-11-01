@@ -20,12 +20,10 @@ def http_clip_server_add_phrase(phrase: str):
 
     return None
 
-@router.post("/clip/add-phrase", description="Adds a phrase to the clip server")
+@router.put("/clip/add-phrase", description="Adds a phrase to the clip server")
 def add_phrase(request: Request,
                phrase : str):
 
     return http_clip_server_add_phrase(phrase)
-
-
 
     return True
