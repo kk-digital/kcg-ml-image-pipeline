@@ -6,7 +6,7 @@ from utility.utils_logger import logger
 
 # TODO: remove hardcode in the future
 #  use config file
-MINIO_ADDRESS = "192.168.3.5:9000"
+MINIO_ADDRESS = "123.176.98.90:9000"
 
 
 def get_minio_client(minio_access_key, minio_secret_key, minio_ip_addr=None):
@@ -18,7 +18,7 @@ def get_minio_client(minio_access_key, minio_secret_key, minio_ip_addr=None):
     minio_client = None
     while minio_client is None:
         # check minio server
-        if is_minio_server_accesssible():
+        if is_minio_server_accessible(MINIO_ADDRESS):
             minio_client = connect_to_minio_client(MINIO_ADDRESS, minio_access_key, minio_secret_key)
             return minio_client
 
@@ -35,10 +35,13 @@ def connect_to_minio_client(minio_ip_addr=None, access_key=None, secret_key=None
     return client
 
 
-def is_minio_server_accesssible():
+def is_minio_server_accessible(address=None):
+    if address is None:
+        address = MINIO_ADDRESS
+
     print("Checking if minio server is accessible...")
     try:
-        r = requests.head("http://" + MINIO_ADDRESS + "/minio/health/live", timeout=5)
+        r = requests.head("http://" + address + "/minio/health/live", timeout=5)
     except:
         print("Minio server is not accessible...")
         return False

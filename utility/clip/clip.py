@@ -1,7 +1,9 @@
 import torch
 import gc
 import time
-from transformers import CLIPModel, CLIPImageProcessor
+from typing import Optional
+
+from transformers import CLIPModel, CLIPImageProcessor, AutoTokenizer
 
 
 class ClipModel:
@@ -21,6 +23,7 @@ class ClipModel:
 
         self.model = None
         self.preprocess = None
+        self.tokenizer = None
 
     def load_clip(self, clip_model="openai/clip-vit-large-patch14"):
         if clip_model == "ViT-L/14":
@@ -31,8 +34,14 @@ class ClipModel:
         if self.verbose: print("Loading CLIP " + clip_model)
         # TODO: remove hard code of paths
         self.model = CLIPModel.from_pretrained("./input/model/clip/vit-large-patch14/vit-large-patch14.safetensors", config="./input/model/clip/vit-large-patch14/config.json")
+        self.model = self.model.to(self.device)
         self.preprocess = CLIPImageProcessor.from_pretrained("./input/model/clip/img_enc_processor")
         if self.verbose: print("CLIP loaded succesfully.")
+
+    def load_tokenizer(self):
+        print('Loading Clip Tokenizer')
+        self.tokenizer = AutoTokenizer.from_pretrained("./input/model/clip/txt_emb_tokenizer/")
+        print('Tokenizer loaded successfully')
 
     def unload_clip(self):
         self.model = None
@@ -42,6 +51,8 @@ class ClipModel:
         if self.verbose: print("CLIP unloaded.")
 
     def get_image_features(self, image):
+        if self.device == "cpu":
+            print("CUDA is not available. Running on CPU.")
         inputs = self.preprocess(images=image, return_tensors="pt")
 
         with torch.no_grad():
@@ -67,6 +78,17 @@ class ClipModel:
         # returns image features and the penultimate layer
         # return image_features.to(self.device), pooled_output.to(self.device)
         return image_features.to(self.device)
+
+    def get_text_features(self, text):
+        if self.device == "cpu":
+            print("CUDA is not available. Running on CPU.")
+
+        inputs = self.tokenizer(text, padding=True, return_tensors="pt")
+        inputs.to(device=self.device)
+
+        text_features = self.model.get_text_features(**inputs)
+
+        return text_features
 
     def compute_feature_vectors(self, opened_images, batch_size):
         start_time = time.time()
