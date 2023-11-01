@@ -117,7 +117,7 @@ def random_image_similarity_threshold(request: Request,
 
 
 @router.get("/clip/random-image-list-similarity-threshold", description="Gets a random image from a dataset with a cosine similarity threshold")
-def get_random_image_list(request: Request,
+def random_image_list_similarity_threshold(request: Request,
                           dataset: str,
                           phrase: str,
                           similarity_threshold: float = 0,
