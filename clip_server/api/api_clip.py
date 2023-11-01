@@ -44,6 +44,15 @@ def clip_vector_from_image_path(request: Request,
     return similarity
 
 
+@router.get("/image-clip")
+def clip_vector_from_image_path(request: Request,
+             image_path : str):
+    clip_server = request.app.clip_server
+
+    image_clip_vector_numpy = clip_server.get_image_clip_from_minio(image_path, 'datasets')
+
+    return image_clip_vector_numpy
+
 @router.put("/add-phrase")
 def add_job(request: Request, phrase : str):
     clip_server = request.app.clip_server
