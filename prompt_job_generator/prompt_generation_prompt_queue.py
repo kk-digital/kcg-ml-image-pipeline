@@ -82,20 +82,10 @@ class PromptGenerationPromptQueue:
 
         total_prompt_count = int(total_prompt_count)
 
-        if base_prompts_csv_path is None:
-            print('base prompt file is not found for dataset ', dataset)
-
         scoring_model = prompt_job_generator_state.get_dataset_scoring_model(dataset)
-
-        if scoring_model is None:
-            print('prompt scoring model is not found for dataset ', dataset)
-        else:
-            print('prompt scoring model is available for dataset ', dataset)
-
 
         base_prompt_population = load_base_prompts(base_prompts_csv_path)
 
-        print(f'generating {total_prompt_count} prompts for dataset {dataset}')
         prompts = []
 
         if generation_policy == 'top-k':
@@ -113,7 +103,10 @@ class PromptGenerationPromptQueue:
                 # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
                 choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
 
-                base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
+                if len(base_prompt_population) != 0:
+                    base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
+                else:
+                    base_prompt_list = []
 
                 base_prompts = ''
 
