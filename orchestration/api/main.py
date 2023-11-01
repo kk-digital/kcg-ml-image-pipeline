@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import pymongo
+from bson.objectid import ObjectId
 from dotenv import dotenv_values
 from orchestration.api.api_dataset import router as dataset_router
 from orchestration.api.api_image import router as image_router
@@ -11,6 +12,9 @@ from orchestration.api.api_training import router as training_router
 from orchestration.api.api_model import router as model_router
 from orchestration.api.api_tag import router as tag_router
 from orchestration.api.api_dataset_settings import router as dataset_settings_router
+from orchestration.api.api_users import router as user_router
+from orchestration.api.api_score import router as score_router
+from orchestration.api.api_residual import router as residual_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -33,6 +37,9 @@ app.include_router(training_router)
 app.include_router(model_router)
 app.include_router(tag_router)
 app.include_router(dataset_settings_router)
+app.include_router(user_router)
+app.include_router(score_router)
+app.include_router(residual_router)
 
 
 def get_minio_client(minio_access_key, minio_secret_key):
@@ -40,9 +47,19 @@ def get_minio_client(minio_access_key, minio_secret_key):
     minio_client = None
     while minio_client is None:
         # check minio server
-        if cmd.is_minio_server_accesssible():
+        if cmd.is_minio_server_accessible():
             minio_client = cmd.connect_to_minio_client(access_key=minio_access_key, secret_key=minio_secret_key)
             return minio_client
+
+
+def add_models_counter():
+    # add counter for models
+    try:
+        app.counters_collection.insert_one({"_id": "models", "seq": 0})
+    except Exception as e:
+        print("models counter already exists.")
+
+    return True
 
 
 @app.on_event("startup")
@@ -50,6 +67,7 @@ def startup_db_client():
     # add creation of mongodb here for now
     app.mongodb_client = pymongo.MongoClient(config["DB_URL"])
     app.mongodb_db = app.mongodb_client["orchestration-job-db"]
+    app.users_collection = app.mongodb_db["users"]
     app.pending_jobs_collection = app.mongodb_db["pending-jobs"]
     app.in_progress_jobs_collection = app.mongodb_db["in-progress-jobs"]
     app.completed_jobs_collection = app.mongodb_db["completed-jobs"]
@@ -70,6 +88,19 @@ def startup_db_client():
     # tags
     app.tag_definitions_collection = app.mongodb_db["tag_definitions"]
     app.image_tags_collection = app.mongodb_db["image_tags"]
+
+    # models
+    app.models_collection = app.mongodb_db["models"]
+
+    # counters
+    app.counters_collection = app.mongodb_db["counters"]
+    add_models_counter()
+
+    # scores
+    app.image_scores_collection = app.mongodb_db["image-scores"]
+
+    # residuals
+    app.image_residuals_collection = app.mongodb_db["image-residuals"]
 
     print("Connected to the MongoDB database!")
 

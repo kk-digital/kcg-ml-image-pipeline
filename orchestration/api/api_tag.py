@@ -230,4 +230,3 @@ def get_all_tagged_images(request: Request):
         raise HTTPException(status_code=404, detail="No tagged images found!")
 
     return image_info_list
-

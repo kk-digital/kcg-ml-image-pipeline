@@ -4,6 +4,7 @@ import sys
 from datetime import datetime
 from pytz import timezone
 import argparse
+
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
@@ -15,6 +16,7 @@ from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDat
 from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
 from utility.minio import cmd
 from training_worker.ab_ranking.model import constants
+from training_worker.ab_ranking.model.reports import upload_score_residual
 
 
 def train_ranking(dataset_name: str,
@@ -22,42 +24,37 @@ def train_ranking(dataset_name: str,
                   minio_access_key=None,
                   minio_secret_key=None,
                   input_type="embedding",
-                  epochs=10000,
-                  learning_rate=0.001,
+                  epochs=8,
+                  learning_rate=0.05,
                   buffer_size=20000,
                   train_percent=0.9,
                   training_batch_size=1,
-                  weight_decay=0.01,
-                  load_data_to_ram=False,
+                  weight_decay=0.00,
+                  load_data_to_ram=True,
                   debug_asserts=False,
-                  normalize_vectors=False,
+                  normalize_vectors=True,
                   pooling_strategy=constants.AVERAGE_POOLING,
-                  num_random_layers=2,
-                  add_loss_penalty=False,
+                  num_random_layers=1,
+                  add_loss_penalty=True,
                   target_option=constants.TARGET_1_AND_0,
                   duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL,
                   randomize_data_per_epoch=True,
-                  elm_sparsity=0.0):
+                  elm_sparsity=0.5):
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
     network_type = "elm-v1"
     output_type = "score"
+    output_path = "{}/models/ranking".format(dataset_name)
 
     # check input type
     if input_type not in constants.ALLOWED_INPUT_TYPES:
         raise Exception("input type is not supported: {}".format(input_type))
 
     input_shape = 2 * 768
-    if input_type in [constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE]:
+    if input_type in [constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE, constants.CLIP]:
         input_shape = 768
-
-    output_path = "{}/models/ranking/ab_ranking_elm_v1".format(dataset_name)
-    if input_type == constants.EMBEDDING_POSITIVE:
-        output_path += "_positive_only"
-    elif input_type == constants.EMBEDDING_NEGATIVE:
-        output_path += "_negative_only"
 
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name=dataset_name,
@@ -73,6 +70,18 @@ def train_ranking(dataset_name: str,
                                             target_option=target_option,
                                             duplicate_flip_option=duplicate_flip_option)
     dataset_loader.load_dataset()
+
+    # get final filename
+    sequence = 0
+    # if exist, increment sequence
+    while True:
+        filename = "{}-{:02}-{}-{}-{}".format(date_now, sequence, output_type, network_type, input_type)
+        exists = cmd.is_object_exists(dataset_loader.minio_client, bucket_name,
+                                      os.path.join(output_path, filename + ".pth"))
+        if not exists:
+            break
+
+        sequence += 1
 
     training_total_size = dataset_loader.get_len_training_ab_data()
     validation_total_size = dataset_loader.get_len_validation_ab_data()
@@ -98,8 +107,18 @@ def train_ranking(dataset_name: str,
                                                    randomize_data_per_epoch=randomize_data_per_epoch,
                                                    debug_asserts=debug_asserts)
 
+    # data for chronological score graph
+    training_shuffled_indices_origin = []
+    for index in dataset_loader.training_data_paths_indices_shuffled:
+        training_shuffled_indices_origin.append(index)
+
+    validation_shuffled_indices_origin = []
+    for index in dataset_loader.validation_data_paths_indices_shuffled:
+        validation_shuffled_indices_origin.append(index)
+
     # Upload model to minio
-    model_name = "{}.pth".format(date_now)
+    model_name = "{}.pth".format(filename)
+
     model_output_path = os.path.join(output_path, model_name)
     ab_model.save(dataset_loader.minio_client, bucket_name, model_output_path)
 
@@ -172,7 +191,7 @@ def train_ranking(dataset_name: str,
                                   dataset_loader.datapoints_per_sec)
 
     # Upload model to minio
-    report_name = "{}.txt".format(date_now)
+    report_name = "{}.txt".format(filename)
     report_output_path = os.path.join(output_path, report_name)
 
     report_buffer = BytesIO(report_str.encode(encoding='UTF-8'))
@@ -181,7 +200,7 @@ def train_ranking(dataset_name: str,
     cmd.upload_data(dataset_loader.minio_client, bucket_name, report_output_path, report_buffer)
 
     # show and save graph
-    graph_name = "{}.png".format(date_now)
+    graph_name = "{}.png".format(filename)
     graph_output_path = os.path.join(output_path, graph_name)
 
     graph_buffer = get_graph_report(ab_model,
@@ -217,15 +236,37 @@ def train_ranking(dataset_name: str,
                                     target_option,
                                     duplicate_flip_option,
                                     randomize_data_per_epoch,
-                                    elm_sparsity)
+                                    elm_sparsity,
+                                    training_shuffled_indices_origin,
+                                    validation_shuffled_indices_origin,
+                                    dataset_loader.total_selection_datapoints)
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name, graph_output_path, graph_buffer)
 
     # get model card and upload
-    model_card_name = "{}.json".format(date_now)
+    model_card_name = "{}.json".format(filename)
     model_card_name_output_path = os.path.join(output_path, model_card_name)
-    model_card_buf = get_model_card_buf(ab_model, training_total_size, validation_total_size, graph_output_path)
+    model_card_buf, model_card = get_model_card_buf(ab_model,
+                                        training_total_size,
+                                        validation_total_size,
+                                        graph_output_path,
+                                        input_type,
+                                        output_type)
     cmd.upload_data(dataset_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
+
+    # add model card
+    model_id = upload_score_residual.add_model_card(model_card)
+
+    # upload score and residual
+    upload_score_residual.upload_score_residual(model_id,
+                                                training_predicted_probabilities,
+                                                training_target_probabilities,
+                                                validation_predicted_probabilities,
+                                                validation_target_probabilities,
+                                                training_predicted_score_images_x,
+                                                validation_predicted_score_images_x,
+                                                dataset_loader.training_image_hashes,
+                                                dataset_loader.validation_image_hashes)
 
     return model_output_path, report_output_path, graph_output_path
 
@@ -245,7 +286,7 @@ def run_ab_ranking_elm_v1_task(training_task, minio_access_key, minio_secret_key
 
 
 def test_run():
-    train_ranking(minio_ip_addr=None,  # will use defualt if none is given
+    train_ranking(minio_ip_addr=None,  # will use default if none is given
                   minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
                   dataset_name="environmental",
@@ -267,56 +308,5 @@ def test_run():
                   randomize_data_per_epoch=True,
                   elm_sparsity=0.0)
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(
-        description="Train ab ranking elm v1 model")
-
-    parser.add_argument('--minio-access-key', type=str, help='Minio access key')
-    parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
-    parser.add_argument('--dataset-name', type=str, help='The dataset name to use for training',
-                              default='environmental')
-    parser.add_argument('--input-type', type=str,default="embedding")
-    parser.add_argument('--epochs', type=int,default=10)
-    parser.add_argument('--learning-rate', type=float,default=0.1)
-    parser.add_argument('--buffer-size', type=int,default=20000)
-    parser.add_argument('--train-percent', type=float,default=0.9)
-    parser.add_argument('--training-batch-size', type=int,default=1)
-    parser.add_argument('--weight-decay', type=float,default=0.01)
-    parser.add_argument('--load-data-to-ram', type=bool,default=True)
-    parser.add_argument('--debug-asserts', type=bool,default=False)
-    parser.add_argument('--normalize-vectors', type=bool,default=True)
-    parser.add_argument('--pooling-strategy', type=int,default=0)
-    parser.add_argument('--num-random-layers', type=int,default=2)
-    parser.add_argument('--add-loss-penalty', type=bool,default=True)
-    parser.add_argument('--target-option', type=int,default=0)
-    parser.add_argument('--duplicate-flip-option', type=int,default=0)
-    parser.add_argument('--randomize-data-per-epoch', type=bool,default=True)
-    parser.add_argument('--elm-sparsity', type=float,default=0.0)
-
-    return parser.parse_args()
-
-if __name__ == '__main__':
-    # test_run()
-
-    args = parse_arguments()
-    train_ranking(minio_ip_addr=None,  # will use defualt if none is given
-                  minio_access_key=args.minio_access_key,
-                  minio_secret_key=args.minio_secret_key,
-                  dataset_name=args.dataset_name,
-                  input_type=args.input_type,
-                  epochs=args.epochs,
-                  learning_rate=args.learning_rate,
-                  buffer_size=args.buffer_size,
-                  train_percent=args.train_percent,
-                  training_batch_size=args.training_batch_size,
-                  weight_decay=args.weight_decay,
-                  load_data_to_ram=args.load_data_to_ram,
-                  debug_asserts=args.debug_asserts,
-                  normalize_vectors=args.normalize_vectors,
-                  pooling_strategy=args.pooling_strategy,
-                  num_random_layers=args.num_random_layers,
-                  add_loss_penalty=args.add_loss_penalty,
-                  target_option=args.target_option,
-                  duplicate_flip_option=args.duplicate_flip_option,
-                  randomize_data_per_epoch=args.randomize_data_per_epoch,
-                  elm_sparsity=args.elm_sparsity)
+# if __name__ == '__main__':
+#     test_run()

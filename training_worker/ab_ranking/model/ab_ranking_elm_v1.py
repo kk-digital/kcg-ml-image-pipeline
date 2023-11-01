@@ -67,7 +67,7 @@ class ABRankingELMBaseModel(nn.Module):
 
 
 class ABRankingELMModel:
-    def __init__(self, inputs_shape, num_random_layers=2, elm_sparsity=0.0):
+    def __init__(self, inputs_shape, num_random_layers=1, elm_sparsity=0.5):
         print("inputs_shape=", inputs_shape)
         if torch.cuda.is_available():
             device = 'cuda'
@@ -127,10 +127,10 @@ class ABRankingELMModel:
     def train(self,
               dataset_loader: ABRankingDatasetLoader,
               training_batch_size=1,
-              epochs=100,
-              learning_rate=0.001,
-              weight_decay=0.01,
-              add_loss_penalty=False,
+              epochs=8,
+              learning_rate=0.05,
+              weight_decay=0.00,
+              add_loss_penalty=True,
               randomize_data_per_epoch=True,
               debug_asserts=True):
         training_loss_per_epoch = []
@@ -158,9 +158,6 @@ class ABRankingELMModel:
 
             # Only train after 0th epoch
             if epoch != 0:
-                # fill data buffer
-                dataset_loader.spawn_filling_workers()
-
                 for i in range(training_num_batches):
                     num_data_to_get = training_batch_size
                     # last batch
@@ -218,8 +215,7 @@ class ABRankingELMModel:
                 if randomize_data_per_epoch:
                     dataset_loader.shuffle_training_data()
 
-                # refill training ab data
-                dataset_loader.fill_training_ab_data()
+                dataset_loader.current_training_data_index = 0
 
             # Calculate Validation Loss
             with torch.no_grad():
@@ -274,9 +270,6 @@ class ABRankingELMModel:
 
         # Calculate model performance
         with torch.no_grad():
-            # fill data buffer
-            dataset_loader.spawn_filling_workers()
-
             training_predicted_score_images_x = []
             training_predicted_score_images_y = []
             training_predicted_probabilities = []
@@ -355,6 +348,19 @@ class ABRankingELMModel:
 
         # make it [1, 2, 77, 768]
         inputs = inputs.unsqueeze(0)
+
+        # do average pooling
+        inputs = torch.mean(inputs, dim=2)
+
+        # then concatenate
+        inputs = inputs.reshape(len(inputs), -1)
+
+        with torch.no_grad():
+            outputs = self.model.forward(inputs).squeeze()
+
+            return outputs
+    
+    def predict_positive_or_negative_only(self, inputs):
 
         # do average pooling
         inputs = torch.mean(inputs, dim=2)

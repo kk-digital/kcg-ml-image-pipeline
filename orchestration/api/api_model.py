@@ -1,10 +1,27 @@
 from fastapi import Request, APIRouter, Query, HTTPException, Response
 from utility.minio import cmd
 import json
-from .api_utils import PrettyJSONResponse
-
+from orchestration.api.mongo_schemas import RankingModel
 
 router = APIRouter()
+
+
+def get_next_model_id_sequence(request: Request):
+    # get models counter
+    counter = request.app.counters_collection.find_one({"_id": "models"})
+    print("counter=",counter)
+    counter_seq = counter["seq"]
+    counter_seq += 1
+
+    try:
+        ret = request.app.counters_collection.update_one(
+            {"_id": "models"},
+            {"$set": {"seq": counter_seq}})
+    except Exception as e:
+        raise Exception("Updating of model counter failed: {}".format(e))
+
+    return counter_seq
+
 
 @router.get("/models/rank-relevancy/list-models")
 def get_relevancy_models(request: Request, dataset: str = Query(...)):
@@ -144,3 +161,28 @@ def get_report(request: Request, file_path: str = Query(...)):
     
     return Response(content=content, media_type=content_type)
 
+
+@router.post("/models/add", description="Add a model to model collection")
+def add_model(request: Request, model: RankingModel):
+    # check if exist
+    query = {"model_file_hash": model.model_file_hash}
+    item = request.app.models_collection.find_one(query)
+    if item is None:
+        # add one
+        model.model_id = get_next_model_id_sequence(request)
+        request.app.models_collection.insert_one(model.to_dict())
+
+        return model.model_id
+
+    return item["model_id"]
+
+
+@router.get("/models/get-id", description="Get model id")
+def get_model_id(request: Request, model_hash: str):
+    # check if exist
+    query = {"model_file_hash": model_hash}
+    item = request.app.models_collection.find_one(query)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    return item["model_id"]

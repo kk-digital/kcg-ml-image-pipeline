@@ -9,7 +9,8 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from prompt_job_generator_state import PromptJobGeneratorState
-from prompt_job_generator_functions import generate_icon_generation_jobs, generate_character_generation_jobs, generate_mechs_image_generation_jobs, generate_propaganda_posters_image_generation_jobs, generate_environmental_image_generation_jobs
+from prompt_job_generator_functions import (generate_icon_generation_jobs, generate_character_generation_jobs, generate_mechs_image_generation_jobs,
+generate_propaganda_posters_image_generation_jobs, generate_environmental_image_generation_jobs, generate_waifu_image_generation_jobs)
 from prompt_job_generator.http_requests.request import (http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list,
                                                         http_get_dataset_job_per_second, http_get_jobs_count_last_hour,
                                                         http_get_all_dataset_config, http_get_dataset_model_list)
@@ -171,10 +172,6 @@ def update_dataset_job_queue_size(prompt_job_generator_state, list_datasets):
         # Equals: Time Speed (Jobs/Second) times 60*5 (300); 5 minutes
         job_queue_target = int(60 * 5 * job_per_second)
 
-        print('dataset , ', dataset + ' , maximum_jobs_to_add ', maximum_jobs_to_add)
-        print('dataset , ', dataset + ' , job_queue_target ', job_queue_target)
-        print('dataset , ', dataset + ' , jobs_hourly_limit ', jobs_hourly_limit)
-        print('dataset , ', dataset + ' , job_queue_size ', job_queue_size)
         # make sure the queue target size is allways smaller than the maximum queue size
         if job_queue_target > maximum_jobs_to_add:
             job_queue_target = maximum_jobs_to_add
@@ -211,7 +208,7 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
         elif model_type == 'ab_ranking_elm_v1':
             prompt_job_generator_state.load_elm_v1_model(bucket_name, 'datasets', model_path)
 
-        print(f'Loaded model {dataset_model_name} for dataset {dataset}')
+        print(f'Loaded {model_type} model {dataset_model_name} for dataset {dataset}')
 
 def update_dataset_prompt_queue_background_thread(prompt_job_generator_state):
 
@@ -287,6 +284,7 @@ def main():
     prompt_job_generator_state.register_callback("mech", generate_mechs_image_generation_jobs)
     prompt_job_generator_state.register_callback("character", generate_character_generation_jobs)
     prompt_job_generator_state.register_callback("environmental", generate_environmental_image_generation_jobs)
+    prompt_job_generator_state.register_callback("waifu", generate_waifu_image_generation_jobs)
 
     # setting the base prompt csv for each dataset
     prompt_job_generator_state.prompt_queue.set_dataset_base_prompt('icons',
@@ -337,15 +335,15 @@ def main():
 
             # if dataset_rate is not found just move on
             if dataset_rate == None:
-                print("dataset rate not found for dataset ", dataset)
+                # print("dataset rate not found for dataset ", dataset)
                 continue
 
             if dataset_job_queue_size is None:
-                print("dataset job queue size is not found for dataset : ", dataset)
+                # print("dataset job queue size is not found for dataset : ", dataset)
                 continue
 
             if dataset_job_queue_target is None:
-                print("dataset job queue target is not found for dataset : ", dataset)
+                # print("dataset job queue target is not found for dataset : ", dataset)
                 continue
 
             number_of_jobs_to_add = 0
@@ -372,7 +370,6 @@ def main():
             added_atleast_one_job = False
 
             for dataset in list_datasets:
-                print('dataset ' , dataset)
                 # get dataset rate
                 # dataset rates should update in background using
                 # orchestration api
@@ -384,8 +381,8 @@ def main():
                     continue
 
                 if not prompt_job_generator_state.prompt_queue.database_prompt_available(dataset):
-                    print('no prompt is available for dataset ', dataset)
-                    break
+                    # print('no prompt is available for dataset ', dataset)
+                    continue
 
                 # get dataset callback
                 # used to spawn the job
@@ -394,14 +391,10 @@ def main():
                 dataset_callback = prompt_job_generator_state.get_callback(dataset)
 
                 if dataset_callback == None:
-                    # print("dataset callback not found for dataset ", dataset)
+                    print("dataset callback not found for dataset ", dataset)
                     continue
 
                 number_of_jobs_to_add = dataset_number_jobs_to_add[dataset]
-
-                if dataset == 'mech':
-                    print("------- ", number_of_jobs_to_add)
-                    print("------- ", dataset_rate)
 
                 if number_of_jobs_to_add >= 1 and dataset_rate > 0:
                     dataset_todo_jobs[dataset] += (dataset_rate / total_rate)
@@ -410,6 +403,7 @@ def main():
                 if dataset_todo_jobs[dataset] >= 1.0:
                     # spawn job
                     dataset_todo_jobs[dataset] -= 1.0
+                    prompt_job_generator_state.append_dataset_job_queue_size(dataset, 1)
                     dataset_number_jobs_to_add[dataset] = number_of_jobs_to_add - 1
 
                     print(f'number of jobs to spawn for dataset {dataset} is {number_of_jobs_to_add}')
@@ -418,7 +412,6 @@ def main():
 
         # sleep for n number of seconds
         time_to_sleep_in_seconds = 2
-        print('sleep for ', time_to_sleep_in_seconds, ' seconds')
         time.sleep(time_to_sleep_in_seconds)
 
 if __name__ == '__main__':

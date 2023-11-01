@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, constr
 from typing import Union, Optional
 
 
@@ -219,3 +219,75 @@ class FlaggedDataUpdate(BaseModel):
         }
 
 
+class User(BaseModel):
+    username: str = Field(...)
+    password: str = Field(...)
+    role: constr(pattern='^(admin|user)$') = Field(...)
+
+    def to_dict(self):
+        return {
+            "username": self.username,
+            "password": self.password,
+            "role": self.role
+        }
+    
+class TokenPayload(BaseModel):
+    sub: str = None
+    exp: int = None
+
+
+class RankingModel(BaseModel):
+    model_id: int = None
+    model_creation_date: str
+    model_type: str
+    model_path: str
+    model_file_hash: str = None
+    input_type: str = None
+    output_type: str = None
+    number_of_training_points: str = None
+    number_of_validation_points: str = None
+    training_loss: str = None
+    validation_loss: str = None
+    graph_report: str = None
+
+    def to_dict(self):
+        return {
+            "model_id": self.model_id,
+            "model_creation_date": self.model_creation_date,
+            "model_type": self.model_type,
+            "model_path": self.model_path,
+            "model_file_hash": self.model_file_hash,
+            "input_type": self.input_type,
+            "output_type": self.output_type,
+            "number_of_training_points": self.number_of_training_points,
+            "number_of_validation_points": self.number_of_validation_points,
+            "training_loss": self.training_loss,
+            "validation_loss": self.validation_loss,
+            "graph_report": self.graph_report,
+        }
+
+
+class RankingScore(BaseModel):
+    model_id: int
+    image_hash: str
+    score: float
+
+    def to_dict(self):
+        return {
+            "model_id": self.model_id,
+            "image_hash": self.image_hash,
+            "score": self.score,
+        }
+
+
+class RankingResidual(BaseModel):
+    model_id: int
+    image_hash: str
+    residual: float
+
+    def to_dict(self):
+        return {
+            "model_id": self.model_id,
+            "image_hash": self.image_hash,
+            "residual": self.residual,
+        }

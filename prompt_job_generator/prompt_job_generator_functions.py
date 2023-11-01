@@ -111,6 +111,27 @@ def generate_environmental_image_generation_jobs(prompt_job_generator_state):
         dataset_name=dataset_name,
     )
 
+def generate_waifu_image_generation_jobs(prompt_job_generator_state):
+
+    dataset_name = 'waifu'
+
+    print(f"Adding '{dataset_name}' generation job")
+
+    prompt_queue = prompt_job_generator_state.prompt_queue
+    scored_prompt = prompt_queue.get_dataset_prompt(dataset_name)
+
+    if scored_prompt is None:
+        return
+
+    positive_prompt = scored_prompt.positive_prompt
+    negative_prompt = scored_prompt.negative_prompt
+
+    generate_image_generation_jobs(
+        positive_prompt=positive_prompt,
+        negative_prompt=negative_prompt,
+        dataset_name=dataset_name,
+    )
+
 
 def generate_mechs_image_generation_jobs(prompt_job_generator_state):
     dataset_name = "mech"
