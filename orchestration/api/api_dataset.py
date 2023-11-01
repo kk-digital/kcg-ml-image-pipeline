@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 import io
 from .api_utils import PrettyJSONResponse
-from .mongo_schemas import FlaggedDataUpdate
+from .mongo_schemas import FlaggedDataUpdate, RankingModel
 router = APIRouter()
 
 
@@ -164,7 +164,7 @@ def get_all_dataset_config(request: Request):
 
 
 @router.put("/dataset/set-relevance-model")
-def set_relevance_model(request: Request, dataset: str, relevance_model: str):
+def set_relevance_model(request: Request, dataset: str, relevance_model: RankingModel):
     date_now = datetime.now()
     # check if dataset exists
     query = {"dataset_name": dataset}
@@ -177,7 +177,7 @@ def set_relevance_model(request: Request, dataset: str, relevance_model: str):
     new_values = {
         "$set": {
             "last_update": date_now,
-            "relevance_model": relevance_model
+            "relevance_model": relevance_model.to_dict()
         }
     }
     request.app.dataset_config_collection.update_one(query, new_values)
@@ -186,7 +186,7 @@ def set_relevance_model(request: Request, dataset: str, relevance_model: str):
 
 
 @router.put("/dataset/set-ranking-model")
-def set_ranking_model(request: Request, dataset: str, ranking_model: str):
+def set_ranking_model(request: Request, dataset: str, ranking_model: RankingModel):
     date_now = datetime.now()
     # check if dataset exists
     query = {"dataset_name": dataset}
@@ -199,7 +199,7 @@ def set_ranking_model(request: Request, dataset: str, ranking_model: str):
     new_values = {
         "$set": {
             "last_update": date_now,
-            "ranking_model": ranking_model
+            "ranking_model": ranking_model.to_dict()
         }
     }
     request.app.dataset_config_collection.update_one(query, new_values)
