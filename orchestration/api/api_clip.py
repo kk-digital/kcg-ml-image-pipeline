@@ -6,7 +6,7 @@ CLIP_SERVER_ADRESS = 'http://127.0.0.1:8002'
 router = APIRouter()
 
 def http_clip_server_add_phrase(phrase: str):
-    url = CLIP_SERVER_ADRESS + "/add-phrase/phrase=" + phrase
+    url = CLIP_SERVER_ADRESS + "/add-phrase?phrase=" + phrase
 
     try:
         response = requests.get(url)
