@@ -148,7 +148,7 @@ def random_image_list_similarity_threshold(request: Request,
         # Ensure only distinct images are retained
         seen = set()
         distinct_jobs = [doc for doc in distinct_jobs if doc["_id"] not in seen and not seen.add(doc["_id"])]
-
+        print(nb_tries)
         nb_tries = nb_tries + 1
 
     result_jobs = []
