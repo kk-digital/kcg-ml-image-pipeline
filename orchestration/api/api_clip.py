@@ -153,6 +153,8 @@ def random_image_list_similarity_threshold(request: Request,
 
     result_jobs = []
 
+    print(distinct_jobs)
+
     for job in distinct_jobs:
         job.pop('_id', None)  # remove the auto generated field
 
