@@ -9,7 +9,7 @@ def http_clip_server_add_phrase(phrase: str):
     url = CLIP_SERVER_ADRESS + "/add-phrase?phrase=" + phrase
 
     try:
-        response = requests.get(url)
+        response = requests.put(url)
 
         if response.status_code == 200:
             job_json = response.json()
