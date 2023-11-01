@@ -27,11 +27,59 @@ def get_datasets(minio_client):
     return datasets
 
 
+def get_ab_data(minio_client, path, index):
+    # load json object from minio
+    data = get_object(minio_client, path)
+    decoded_data = data.decode().replace("'", '"')
+    item = json.loads(decoded_data)
+
+    flagged = False
+    if "flagged" in item:
+        flagged = item["flagged"]
+
+    ab_data = ABData(task=item["task"],
+                     username=item["username"],
+                     hash_image_1=item["image_1_metadata"]["file_hash"],
+                     hash_image_2=item["image_2_metadata"]["file_hash"],
+                     selected_image_index=item["selected_image_index"],
+                     selected_image_hash=item["selected_image_hash"],
+                     image_archive="",
+                     image_1_path=item["image_1_metadata"]["file_path"],
+                     image_2_path=item["image_2_metadata"]["file_path"],
+                     datetime=item["datetime"],
+                     flagged=flagged)
+
+    return ab_data, flagged, index
+
+
 def get_aggregated_selection_datapoints(minio_client, dataset_name):
     prefix = os.path.join(dataset_name, "data/ranking/aggregate")
-    datasets = cmd.get_list_of_objects_with_prefix(minio_client, DATASETS_BUCKET, prefix=prefix)
+    dataset_paths = cmd.get_list_of_objects_with_prefix(minio_client, DATASETS_BUCKET, prefix=prefix)
 
-    return datasets
+    print("Get selection datapoints contents and filter out flagged datapoints...")
+    ab_data_list = [None] * len(dataset_paths)
+    flagged_count = 0
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = []
+        count = 0
+        for path in dataset_paths:
+            futures.append(executor.submit(get_ab_data, minio_client=minio_client, path=path, index=count))
+            count += 1
+
+        for future in tqdm(as_completed(futures), total=len(dataset_paths)):
+            ab_data, flagged, index = future.result()
+            if not flagged:
+                ab_data_list[index] = ab_data
+            else:
+                flagged_count += 1
+
+    unflagged_ab_data = []
+    for data in tqdm(ab_data_list):
+        if data is not None:
+            unflagged_ab_data.append(data)
+
+    print("Total flagged selection datapoints = {}".format(flagged_count))
+    return unflagged_ab_data
 
 
 def get_object(client, file_path):
@@ -47,7 +95,7 @@ def index_select(tensor, dim, index):
 
 class ABData:
     def __init__(self, task, username, hash_image_1, hash_image_2, selected_image_index, selected_image_hash,
-                 image_archive, image_1_path, image_2_path, datetime):
+                 image_archive, image_1_path, image_2_path, datetime, flagged=False):
         self.task = task
         self.username = username
         self.hash_image_1 = hash_image_1
@@ -58,6 +106,7 @@ class ABData:
         self.image_1_path = image_1_path
         self.image_2_path = image_2_path
         self.datetime = datetime
+        self.flagged = flagged
 
 
 def split_ab_data_vectors(image_pair_data):
@@ -145,35 +194,32 @@ class ABRankingDatasetLoader:
             raise Exception("Dataset is not in minio server")
 
         # if exist then get paths for aggregated selection datapoints
-        dataset_paths = get_aggregated_selection_datapoints(self.minio_client, self.dataset_name)
-        len_dataset_paths = len(dataset_paths)
-        print("# of dataset paths retrieved=", len_dataset_paths)
-        if len(dataset_paths) == 0:
+        dataset = get_aggregated_selection_datapoints(self.minio_client, self.dataset_name)
+        len_dataset = len(dataset)
+        print("# of dataset retrieved=", len_dataset)
+        if len(dataset) == 0:
             raise Exception("No selection datapoints json found.")
 
-        self.total_selection_datapoints = len_dataset_paths
+        self.total_selection_datapoints = len_dataset
 
         # test
-        # dataset_paths = dataset_paths[:5]
-
-        # save dataset paths
-        self.chronological_dataset_paths = dataset_paths
+        # dataset = dataset[:5]
 
         # calculate num validations
-        num_validations = round((len(dataset_paths) * (1.0 - self.train_percent)))
+        num_validations = round((len_dataset * (1.0 - self.train_percent)))
 
         # get random index for validations
         training_data_paths_indices = []
         validation_data_paths_indices = []
         validation_ab_data_list = []
         training_ab_data_list = []
-        validation_indices = sample(range(0, len(dataset_paths) - 1), num_validations)
-        for i in range(len(dataset_paths)):
+        validation_indices = sample(range(0, len_dataset - 1), num_validations)
+        for i in range(len_dataset):
             if i in validation_indices:
-                validation_ab_data_list.append(dataset_paths[i])
+                validation_ab_data_list.append(dataset[i])
                 validation_data_paths_indices.append(i)
             else:
-                training_ab_data_list.append(dataset_paths[i])
+                training_ab_data_list.append(dataset[i])
                 training_data_paths_indices.append(i)
 
         self.training_ab_data_paths_list = training_ab_data_list
@@ -205,22 +251,7 @@ class ABRankingDatasetLoader:
 
     def get_selection_datapoint_image_pair(self, dataset, index=0):
         image_pairs = []
-        dataset_path = dataset
-
-        # load json object from minio
-        data = get_object(self.minio_client, dataset_path)
-        decoded_data = data.decode().replace("'", '"')
-        item = json.loads(decoded_data)
-        ab_data = ABData(task=item["task"],
-                         username=item["username"],
-                         hash_image_1=item["image_1_metadata"]["file_hash"],
-                         hash_image_2=item["image_2_metadata"]["file_hash"],
-                         selected_image_index=item["selected_image_index"],
-                         selected_image_hash=item["selected_image_hash"],
-                         image_archive="",
-                         image_1_path=item["image_1_metadata"]["file_path"],
-                         image_2_path=item["image_2_metadata"]["file_path"],
-                         datetime=item["datetime"])
+        ab_data = dataset
 
         selected_image_index = ab_data.selected_image_index
         file_path_img_1 = ab_data.image_1_path
