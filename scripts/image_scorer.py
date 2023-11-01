@@ -96,17 +96,18 @@ class EmbeddingScorer:
             normal_scores.append(self.embedding_score_model.predict(positive_embedding_array, negative_embedding_array))
         
         # Normalize the positive and negative scores
-        normalized_positive_scores = normalize_scores(positive_scores)
-        normalized_negative_scores = normalize_scores(negative_scores)
-        normilozed_normal_score = normalize_scores(normal_scores)
+        self.normalized_positive_scores = normalize_scores(positive_scores)
+        self.normalized_negative_scores = normalize_scores(negative_scores)
+        self.normilozed_normal_score = normalize_scores(normal_scores)
+
         # Merge the vectors into a list of dictionaries
         scores = []
-        for pos, neg, score in zip(normalized_positive_scores, normalized_negative_scores, normilozed_normal_score):
+        for pos, neg, score in zip(self.normalized_positive_scores, self.normalized_negative_scores, self.normilozed_normal_score):
             scores.append({'positive': pos, 'negative': neg, 'score': score})
         # Save scores to CSV
         with open('scores.csv', 'w') as file:
             writer = csv.writer(file)
-            writer.writerow(["Image Path", "Image Hash", "Positive Score", "Negative Score", "Combined Score"])
+            writer.writerow(["Image Path", "Image Hash", "Positive Embedding Score", "Negative Embedding Score", "Embedding Score"])
             for msgpack_path, score in zip(msgpack_objects, scores):
                 writer.writerow([msgpack_path, os.path.basename(msgpack_path), score['positive'], score['negative'], score['score']])
         print('Scores saved to scores.csv')
@@ -120,17 +121,16 @@ class EmbeddingScorer:
         
         plt.figure(figsize=(12, 6))
         plt.subplot(1, 3, 1)
-        plt.hist(self.positive_scores, bins=30, color='green')
+        plt.hist(self.normalized_positive_scores, bins=30, color='green')
         plt.title("Positive Scores")
         plt.subplot(1, 3, 2)
-        plt.hist(self.negative_scores, bins=30, color='red')
+        plt.hist(self.normalized_negative_scores, bins=30, color='red')
         plt.title("Negative Scores")
         plt.subplot(1, 3, 3)
-        plt.hist(self.normal_scores, bins=30, color='blue')
+        plt.hist(self.normilozed_normal_scores, bins=30, color='blue')
         plt.title("Normal Scores")
         plt.tight_layout()
         plt.savefig("score_distributions.png")
-        plt.show()
 
 def normalize_scores(scores):  # fixed indentation
     # Assuming min-max normalization
