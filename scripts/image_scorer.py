@@ -71,7 +71,8 @@ class EmbeddingScorer:
         normal_scores = []
         print('making predictions..........')
         for msgpack_object in msgpack_objects:
-            msgpack_data = cmd.get_file_from_minio(self.minio_client, self.input, msgpack_object)
+            # Updated bucket name to 'datasets'
+            msgpack_data = cmd.get_file_from_minio(self.minio_client, 'datasets', msgpack_object)
             if not msgpack_data:
                 print(f"No msgpack file found at path: {msgpack_object}")
                 continue
@@ -109,6 +110,7 @@ class EmbeddingScorer:
         print('Scores saved to scores.csv')
         
         return scores
+
 
 
     
