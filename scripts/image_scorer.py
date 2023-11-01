@@ -91,9 +91,10 @@ class EmbeddingScorer:
             negative_embedding = list(data['negative_embedding'].values())
             negative_embedding_array = torch.tensor(np.array(negative_embedding)).float().to(device)
 
-            positive_scores.append(self.embedding_score_model_positive.predict_positive_or_negative_only(positive_embedding_array))
-            negative_scores.append(self.embedding_score_model_negative.predict_positive_or_negative_only(negative_embedding_array))
-            normal_scores.append(self.embedding_score_model.predict(positive_embedding_array, negative_embedding_array))
+            with torch.no_grad():
+                positive_scores.append(self.embedding_score_model_positive.predict_positive_or_negative_only(positive_embedding_array))
+                negative_scores.append(self.embedding_score_model_negative.predict_positive_or_negative_only(negative_embedding_array))
+                normal_scores.append(self.embedding_score_model.predict(positive_embedding_array, negative_embedding_array))
         
         # Normalize the positive and negative scores
         self.normalized_positive_scores = normalize_scores(positive_scores)
