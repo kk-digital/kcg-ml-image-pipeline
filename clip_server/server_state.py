@@ -7,7 +7,7 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from utility.clip.clip import ClipModel
-from utility.minio.cmd import get_file_from_minio
+from utility.minio.cmd import get_file_from_minio, is_object_exists
 
 
 class Phrase:
@@ -78,8 +78,14 @@ class ClipServer:
         # example image => image_clip.msgpack
         image_clip_vector_path = f'{base_path}_clip.msgpack'
 
-        print(image_clip_vector_path)
+        print(f'image clip vector path : {image_clip_vector_path}')
         # get the clip.msgpack from minio
+        file_exists = is_object_exists(self.minio_client, bucket_name, image_clip_vector_path)
+
+        if not file_exists:
+            print(f'{image_clip_vector_path} does not exist')
+            return None
+
         clip_vector_data_msgpack = get_file_from_minio(self.minio_client, bucket_name, image_clip_vector_path)
 
         if clip_vector_data_msgpack is None:
