@@ -19,6 +19,8 @@ MINIO_ADDRESS = "192.168.3.5:9000"
 access_key = "3lUCPCfLMgQoxrYaxgoz"
 secret_key = "MXszqU6KFV6X95Lo5jhMeuu5Xm85R79YImgI3Xmp"
 
+device = device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 class EmbeddingScorer:
     def __init__(self,
                  minio_addr=None,
@@ -85,9 +87,9 @@ class EmbeddingScorer:
             data = msgpack.unpackb(data_bytes, raw=False)
 
             positive_embedding = list(data['positive_embedding'].values())
-            positive_embedding_array = torch.tensor(np.array(positive_embedding)).float()
+            positive_embedding_array = torch.tensor(np.array(positive_embedding)).float().to(device)
             negative_embedding = list(data['negative_embedding'].values())
-            negative_embedding_array = torch.tensor(np.array(negative_embedding)).float()
+            negative_embedding_array = torch.tensor(np.array(negative_embedding)).float().to(device)
 
             positive_scores.append(self.embedding_score_model_positive.predict_positive_or_negative_only(positive_embedding_array))
             negative_scores.append(self.embedding_score_model_negative.predict_positive_or_negative_only(negative_embedding_array))
