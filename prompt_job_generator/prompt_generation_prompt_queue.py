@@ -157,7 +157,9 @@ class PromptGenerationPromptQueue:
 
             prompts = prompts[:total_prompt_count]
 
-            print(prompts)
+            for pr in prompts:
+                print(pr.score)
+                print(pr.positive_prompt)
 
         scored_prompts = []
         for prompt in prompts:
