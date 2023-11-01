@@ -59,7 +59,13 @@ class EmbeddingScorer:
         self.embedding_score_model_negative = self.load_model(negative_model_filename, 768)
 
     def get_scores(self):
-        msgpack_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', os.path.join(self.dataset, "_embedding.msgpack"))
+        # Corrected the prefix to recursively search inside all subdirectories
+        prefix = os.path.join(self.dataset, '')
+        all_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', prefix)
+        
+        # Filter the objects to get only those that end with '_embedding.msgpack'
+        msgpack_objects = [obj for obj in all_objects if obj.endswith('_embedding.msgpack')]
+        
         positive_scores = []
         negative_scores = []
         normal_scores = []
@@ -77,10 +83,10 @@ class EmbeddingScorer:
             data_bytes = byte_buffer.read()
             data = msgpack.unpackb(data_bytes, raw=False)
 
-            positive_embedding= list(data['positive_embedding'].values())
+            positive_embedding = list(data['positive_embedding'].values())
             positive_embedding_array = torch.tensor(np.array(positive_embedding)).float()
-            negative_embedding= list(data['negative_embedding'].values())
-            negative_embedding_array =torch.tensor(np.array(negative_embedding)).float()
+            negative_embedding = list(data['negative_embedding'].values())
+            negative_embedding_array = torch.tensor(np.array(negative_embedding)).float()
 
             positive_scores.append(self.embedding_score_model_positive.predict_positive_or_negative_only(positive_embedding_array))
             negative_scores.append(self.embedding_score_model_negative.predict_positive_or_negative_only(negative_embedding_array))
@@ -103,6 +109,7 @@ class EmbeddingScorer:
         print('Scores saved to scores.csv')
         
         return scores
+
 
     
     def generate_graphs(self):
