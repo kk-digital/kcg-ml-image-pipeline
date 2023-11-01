@@ -123,6 +123,10 @@ class ABRankingDatasetLoader:
         self.training_data_paths_indices_shuffled = []
         self.validation_data_paths_indices_shuffled = []
 
+        # for adding scores and residuals
+        self.training_image_hashes = []
+        self.validation_image_hashes = []
+
         # image data selected index count
         self.image_selected_index_0_count = 0
         self.image_selected_index_1_count = 0
@@ -263,10 +267,16 @@ class ABRankingDatasetLoader:
             selected_features_vector = features_vector_img_1
             other_features_vector = features_vector_img_2
             self.image_selected_index_0_count += 1
+
+            selected_img_hash = ab_data.hash_image_1
+            other_img_hash = ab_data.hash_image_2
         # image 2 is selected
         else:
             selected_features_vector = features_vector_img_2
             other_features_vector = features_vector_img_1
+
+            selected_img_hash = ab_data.hash_image_2
+            other_img_hash = ab_data.hash_image_1
             self.image_selected_index_1_count += 1
 
         if (self.target_option == constants.TARGET_1_AND_0) or (
@@ -288,12 +298,14 @@ class ABRankingDatasetLoader:
                 image_pair = (other_features_vector, selected_features_vector, [0.0])
                 image_pairs.append(image_pair)
 
-        return image_pairs, index
+        return image_pairs, index, selected_img_hash, other_img_hash
 
     def load_all_training_data(self, paths_list):
         print("Loading all training data to ram...")
         start_time = time.time()
         new_training_data_paths_indices = []
+        training_image_hashes = []
+
         with ThreadPoolExecutor(max_workers=5) as executor:
             futures = []
 
@@ -303,26 +315,34 @@ class ABRankingDatasetLoader:
                 count += 1
 
             for future in tqdm(as_completed(futures), total=len(paths_list)):
-                image_pairs, index = future.result()
+                image_pairs, index, selected_img_hash, other_img_hash = future.result()
                 for pair in image_pairs:
                     self.training_image_pair_data_arr.append(pair)
                     new_training_data_paths_indices.append(self.training_data_paths_indices[index])
+
+                    if pair[2] == [1.0]:
+                        training_image_hashes.append(selected_img_hash)
+                    else:
+                        training_image_hashes.append(other_img_hash)
 
         self.training_data_paths_indices = new_training_data_paths_indices
 
         # shuffle
         shuffled_training_data = []
         shuffled_training_data_indices = []
+        shuffled_training_image_hashes = []
         len_training_data_paths = len(self.training_data_paths_indices)
         index_shuf = list(range(len_training_data_paths))
         shuffle(index_shuf)
         for i in index_shuf:
             shuffled_training_data.append(self.training_image_pair_data_arr[i])
             shuffled_training_data_indices.append(self.training_data_paths_indices[i])
+            shuffled_training_image_hashes.append(training_image_hashes[i])
 
         self.training_data_paths_indices_shuffled = shuffled_training_data_indices
         self.training_image_pair_data_arr = shuffled_training_data
         self.training_data_total = len_training_data_paths
+        self.training_image_hashes = shuffled_training_image_hashes
 
         time_elapsed = time.time() - start_time
         print("Time elapsed: {0}s".format(format(time_elapsed, ".2f")))
@@ -333,6 +353,8 @@ class ABRankingDatasetLoader:
         start_time = time.time()
 
         new_validation_data_paths_indices = []
+        validation_image_hashes = []
+
         with ThreadPoolExecutor(max_workers=5) as executor:
             futures = []
 
@@ -342,26 +364,34 @@ class ABRankingDatasetLoader:
                 count += 1
 
             for future in tqdm(as_completed(futures), total=len(paths_list)):
-                image_pairs, index = future.result()
+                image_pairs, index, selected_img_hash, other_img_hash = future.result()
                 for pair in image_pairs:
                     self.validation_image_pair_data_arr.append(pair)
                     new_validation_data_paths_indices.append(self.validation_data_paths_indices[index])
+
+                    if pair[2] == [1.0]:
+                        validation_image_hashes.append(selected_img_hash)
+                    else:
+                        validation_image_hashes.append(other_img_hash)
 
         self.validation_data_paths_indices = new_validation_data_paths_indices
 
         # shuffle
         shuffled_validation_data = []
         shuffled_validation_data_indices = []
+        shuffle_validation_image_hashes = []
         len_validation_data_paths = len(self.validation_data_paths_indices)
         index_shuf = list(range(len_validation_data_paths))
         shuffle(index_shuf)
         for i in index_shuf:
             shuffled_validation_data.append(self.validation_image_pair_data_arr[i])
             shuffled_validation_data_indices.append(self.validation_data_paths_indices[i])
+            shuffle_validation_image_hashes.append(validation_image_hashes[i])
 
         self.validation_data_paths_indices_shuffled = shuffled_validation_data_indices
         self.validation_image_pair_data_arr = shuffled_validation_data
         self.validation_data_total = len_validation_data_paths
+        self.validation_image_hashes = shuffle_validation_image_hashes
 
         time_elapsed = time.time() - start_time
         print("Time elapsed: {0}s".format(format(time_elapsed, ".2f")))
@@ -371,14 +401,17 @@ class ABRankingDatasetLoader:
         # shuffle
         new_shuffled_indices = []
         shuffled_training = []
+        shuffled_training_image_hashes = []
         index_shuf = list(range(len(self.training_image_pair_data_arr)))
         shuffle(index_shuf)
         for i in index_shuf:
             shuffled_training.append(self.training_image_pair_data_arr[i])
             new_shuffled_indices.append(self.training_data_paths_indices_shuffled[i])
+            shuffled_training_image_hashes.append(self.training_image_hashes[i])
 
         self.training_data_paths_indices_shuffled = new_shuffled_indices
         self.training_image_pair_data_arr = shuffled_training
+        self.training_image_hashes = shuffled_training_image_hashes
 
     # ------------------------------- For AB Ranking Efficient Net -------------------------------
     def get_next_training_feature_vectors_and_target_efficient_net(self, num_data, device=None):
@@ -455,24 +488,14 @@ class ABRankingDatasetLoader:
         target_probabilities = []
 
         # get ab data
-        if self.load_to_ram:
-            for i in range(len(self.validation_image_pair_data_arr)):
-                validation_image_pair_data = self.validation_image_pair_data_arr[i]
-                image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
-                    validation_image_pair_data)
-                image_x_feature_vectors.append(image_x_feature_vector)
-                image_y_feature_vectors.append(image_y_feature_vector)
-                target_probabilities.append(target_probability)
-        else:
-            while self.validation_dataset_paths_queue.qsize() > 0:
-                dataset_path = self.validation_dataset_paths_queue.get()
-                image_pair, _ = self.get_selection_datapoint_image_pair(dataset_path)
+        for i in range(len(self.validation_image_pair_data_arr)):
+            validation_image_pair_data = self.validation_image_pair_data_arr[i]
+            image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
+                validation_image_pair_data)
+            image_x_feature_vectors.append(image_x_feature_vector)
+            image_y_feature_vectors.append(image_y_feature_vector)
+            target_probabilities.append(target_probability)
 
-                image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
-                    image_pair)
-                image_x_feature_vectors.append(image_x_feature_vector)
-                image_y_feature_vectors.append(image_y_feature_vector)
-                target_probabilities.append(target_probability)
 
         image_x_feature_vectors = np.array(image_x_feature_vectors, dtype=np.float32)
         image_y_feature_vectors = np.array(image_y_feature_vectors, dtype=np.float32)
@@ -596,24 +619,14 @@ class ABRankingDatasetLoader:
         target_probabilities = []
 
         # get ab data
-        if self.load_to_ram:
-            for i in range(len(self.validation_image_pair_data_arr)):
-                validation_image_pair_data = self.validation_image_pair_data_arr[i]
-                image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
-                    validation_image_pair_data)
-                image_x_feature_vectors.append(image_x_feature_vector)
-                image_y_feature_vectors.append(image_y_feature_vector)
-                target_probabilities.append(target_probability)
-        else:
-            while self.validation_dataset_paths_queue.qsize() > 0:
-                dataset_path = self.validation_dataset_paths_queue.get()
-                image_pair, _ = self.get_selection_datapoint_image_pair(dataset_path)
+        for i in range(len(self.validation_image_pair_data_arr)):
+            validation_image_pair_data = self.validation_image_pair_data_arr[i]
+            image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
+                validation_image_pair_data)
+            image_x_feature_vectors.append(image_x_feature_vector)
+            image_y_feature_vectors.append(image_y_feature_vector)
+            target_probabilities.append(target_probability)
 
-                image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
-                    image_pair)
-                image_x_feature_vectors.append(image_x_feature_vector)
-                image_y_feature_vectors.append(image_y_feature_vector)
-                target_probabilities.append(target_probability)
 
         image_x_feature_vectors = np.array(image_x_feature_vectors, dtype=np.float32)
         image_y_feature_vectors = np.array(image_y_feature_vectors, dtype=np.float32)

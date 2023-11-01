@@ -16,6 +16,7 @@ from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDat
 from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
 from utility.minio import cmd
 from training_worker.ab_ranking.model import constants
+from training_worker.ab_ranking.model.reports import upload_score_residual
 
 
 def train_ranking(dataset_name: str,
@@ -245,13 +246,27 @@ def train_ranking(dataset_name: str,
     # get model card and upload
     model_card_name = "{}.json".format(filename)
     model_card_name_output_path = os.path.join(output_path, model_card_name)
-    model_card_buf = get_model_card_buf(ab_model,
+    model_card_buf, model_card = get_model_card_buf(ab_model,
                                         training_total_size,
                                         validation_total_size,
                                         graph_output_path,
                                         input_type,
                                         output_type)
     cmd.upload_data(dataset_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
+
+    # add model card
+    model_id = upload_score_residual.add_model_card(model_card)
+
+    # upload score and residual
+    upload_score_residual.upload_score_residual(model_id,
+                                                training_predicted_probabilities,
+                                                training_target_probabilities,
+                                                validation_predicted_probabilities,
+                                                validation_target_probabilities,
+                                                training_predicted_score_images_x,
+                                                validation_predicted_score_images_x,
+                                                dataset_loader.training_image_hashes,
+                                                dataset_loader.validation_image_hashes)
 
     return model_output_path, report_output_path, graph_output_path
 
