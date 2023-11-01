@@ -98,11 +98,11 @@ class EmbeddingScorer:
         # Normalize the positive and negative scores
         self.normalized_positive_scores = normalize_scores(positive_scores)
         self.normalized_negative_scores = normalize_scores(negative_scores)
-        self.normilozed_normal_score = normalize_scores(normal_scores)
+        self.normalized_score = normalize_scores(normal_scores)
 
         # Merge the vectors into a list of dictionaries
         scores = []
-        for pos, neg, score in zip(self.normalized_positive_scores, self.normalized_negative_scores, self.normilozed_normal_score):
+        for pos, neg, score in zip(self.normalized_positive_scores, self.normalized_negative_scores, self.normalized_score):
             scores.append({'positive': pos, 'negative': neg, 'score': score})
         # Save scores to CSV
         with open('scores.csv', 'w') as file:
@@ -114,20 +114,23 @@ class EmbeddingScorer:
         
         return scores
 
-
-
     
     def generate_graphs(self):
+
+        # Convert tensors to numpy arrays
+        positive_scores_np = self.normalized_positive_scores.cpu().numpy()
+        negative_scores_np = self.normalized_negative_scores.cpu().numpy()
+        normal_scores_np = self.normalized_score.cpu().numpy()
         
         plt.figure(figsize=(12, 6))
         plt.subplot(1, 3, 1)
-        plt.hist(self.normalized_positive_scores, bins=30, color='green')
+        plt.hist(positive_scores_np, bins=30, color='green')
         plt.title("Positive Scores")
         plt.subplot(1, 3, 2)
-        plt.hist(self.normalized_negative_scores, bins=30, color='red')
+        plt.hist(negative_scores_np, bins=30, color='red')
         plt.title("Negative Scores")
         plt.subplot(1, 3, 3)
-        plt.hist(self.normilozed_normal_scores, bins=30, color='blue')
+        plt.hist(normal_scores_np, bins=30, color='blue')
         plt.title("Normal Scores")
         plt.tight_layout()
         plt.savefig("score_distributions.png")
