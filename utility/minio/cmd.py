@@ -46,6 +46,17 @@ def is_minio_server_accesssible():
     return r.status_code == 200
 
 
+def is_minio_server_accesssible(address):
+    print("Checking if minio server is accessible...")
+    try:
+        r = requests.head("http://" + address + "/minio/health/live", timeout=5)
+    except:
+        print("Minio server is not accessible...")
+        return False
+
+    return r.status_code == 200
+
+
 def download_from_minio(client, bucket_name, object_name, output_path):
     if not os.path.isfile(output_path):
         client.fget_object(bucket_name, object_name, output_path, progress=Progress())
