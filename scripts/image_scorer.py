@@ -12,23 +12,19 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from utility.minio import cmd
-import logging
-from typing import Optional
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
-MINIO_ADDRESS = "123.176.98.90:9000"
+
+MINIO_ADDRESS = "192.168.3.5:9000"
 access_key = "3lUCPCfLMgQoxrYaxgoz"
 secret_key = "MXszqU6KFV6X95Lo5jhMeuu5Xm85R79YImgI3Xmp"
 
 class EmbeddingScorer:
     def __init__(self,
-                 minio_addr: Optional[str] = None,
-                 minio_access_key: Optional[str] = None,
-                 minio_secret_key: Optional[str] = None,
-                 dataset_name: str = "default_dataset"):
+                 minio_addr=None,
+                 minio_access_key=None,
+                 minio_secret_key=None,
+                 dataset_name="default_dataset"):
         self.minio_access_key = minio_access_key
         self.minio_secret_key = minio_secret_key
         self.minio_client = cmd.get_minio_client(minio_access_key=self.minio_access_key,
@@ -40,14 +36,14 @@ class EmbeddingScorer:
         self.dataset = dataset_name
         self.input = os.path.join("datasets", dataset_name)
 
-    def load_model(self, model_filename: str, input_size: int) -> Optional[ABRankingELMModel]:
+    def load_model(self, model_filename, input_size):
         model_path = os.path.join(self.dataset, "models", "ranking", model_filename)
         embedding_model = ABRankingELMModel(input_size)
 
         model_file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', model_path)
         if not model_file_data:
-            logger.error(f"No .pth file found at path: {model_path}")
-            return None
+            print("No .pth file found at path: ", model_path)
+            return
 
         byte_buffer = io.BytesIO()
         for data in model_file_data.stream(amt=8192):
@@ -56,7 +52,8 @@ class EmbeddingScorer:
         embedding_model.load(byte_buffer)
         return embedding_model
 
-    def load_all_models(self, model_filename: str, positive_model_filename: str, negative_model_filename: str) -> None:
+
+    def load_all_models(self, model_filename, positive_model_filename, negative_model_filename):
         self.embedding_score_model = self.load_model(model_filename, 768 * 2)
         self.embedding_score_model_positive = self.load_model(positive_model_filename, 768)
         self.embedding_score_model_negative = self.load_model(negative_model_filename, 768)
