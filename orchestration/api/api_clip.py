@@ -1,10 +1,12 @@
 from fastapi import Request, APIRouter, HTTPException
-from orchestration.api.mongo_schemas import RankingResidual
+import requests
+
+CLIP_SERVER_ADRESS = 'http://127.0.0.1:8002'
 
 router = APIRouter()
 
-def http_clip_server_add_phrase(dataset_name: str):
-    url = CLIP_SERVER_ADRESS + "/add-phrase/count-in-progress?dataset=" + dataset_name
+def http_clip_server_add_phrase(phrase: str):
+    url = CLIP_SERVER_ADRESS + "/add-phrase/phrase=" + phrase
 
     try:
         response = requests.get(url)
@@ -21,6 +23,8 @@ def http_clip_server_add_phrase(dataset_name: str):
 @router.post("/clip/add-phrase", description="Adds a phrase to the clip server")
 def add_phrase(request: Request,
                phrase : str):
+
+    return http_clip_server_add_phrase(phrase)
 
 
 
