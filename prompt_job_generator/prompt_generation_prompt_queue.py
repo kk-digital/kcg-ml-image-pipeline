@@ -154,7 +154,10 @@ class PromptGenerationPromptQueue:
             # Create a list of all possible combinations
             prompts = [ScoredPrompt(0, positive, negative) for positive in positive_prompts for negative in
                                 negative_prompts]
+
             prompts = prompts[:total_prompt_count]
+
+            print(prompts)
 
         scored_prompts = []
         for prompt in prompts:
