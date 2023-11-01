@@ -117,11 +117,11 @@ class EmbeddingScorer:
     
     def generate_graphs(self):
 
-        # Convert tensors to numpy arrays
-        positive_scores_np = self.normalized_positive_scores.cpu().numpy()
-        negative_scores_np = self.normalized_negative_scores.cpu().numpy()
-        normal_scores_np = self.normalized_score.cpu().numpy()
-        
+        # Convert lists to numpy arrays
+        positive_scores_np = np.array(self.normalized_positive_scores)
+        negative_scores_np = np.array(self.normalized_negative_scores)
+        normal_scores_np = np.array(self.normilozed_normal_scores)
+
         plt.figure(figsize=(12, 6))
         plt.subplot(1, 3, 1)
         plt.hist(positive_scores_np, bins=30, color='green')
@@ -134,6 +134,7 @@ class EmbeddingScorer:
         plt.title("Normal Scores")
         plt.tight_layout()
         plt.savefig("score_distributions.png")
+
 
 def normalize_scores(scores):  # fixed indentation
     # Assuming min-max normalization
