@@ -23,8 +23,6 @@ def http_clip_server_add_phrase(phrase: str):
     return None
 
 
-
-
 def http_clip_server_clip_vector_from_phrase(phrase: str):
     url = CLIP_SERVER_ADRESS + "/clip-vector?phrase=" + phrase
 
@@ -39,6 +37,26 @@ def http_clip_server_clip_vector_from_phrase(phrase: str):
         print('request exception ', e)
 
     return None
+
+
+def http_clip_server_get_cosine_similarity(image_path: str,
+                                           phrase: str):
+    url = f'{CLIP_SERVER_ADRESS}/cosine-similarity?image_path={image_path}&phrase="{phrase}'
+
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            result_json = response.json()
+            return result_json
+
+    except Exception as e:
+        print('request exception ', e)
+
+    return None
+
+# ----------------------------------------------------------------------------
+
 
 @router.put("/clip/add-phrase", description="Adds a phrase to the clip server")
 def add_phrase(request: Request,
@@ -57,6 +75,7 @@ def add_phrase(request: Request,
 @router.get("/clip/random-image-similarity-threshold", description="Gets a random image from a dataset with a cosine similarity threshold")
 def random_image_similarity_threshold(request: Request,
                                     dataset : str,
+                                    phrase : str,
                                     similarity_threshold : float=0,
                                     max_tries : int=50):
 
@@ -81,9 +100,20 @@ def random_image_similarity_threshold(request: Request,
         this_job = jobs[0]
 
         output_file_dictionary = this_job["task_output_file_dict"]
-        print(this_job)
-        print(output_file_dictionary)
+        image_path = output_file_dictionary['output_file_path']
 
-        # Return the image in the response
-        return []
+        # remove the datasets/ prefix
+        image_path = image_path.replace("datasets/", "")
+
+        similarity_score = http_clip_server_get_cosine_similarity(image_path, phrase)
+        print(image_path)
+        print(similarity_score)
+
+        if similarity_score is None:
+            continue
+
+        if similarity_score >= similarity_threshold:
+            return this_job
+
+    return None
 
