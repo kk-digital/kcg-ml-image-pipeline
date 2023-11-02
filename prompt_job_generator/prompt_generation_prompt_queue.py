@@ -70,9 +70,10 @@ class PromptGenerationPromptQueue:
         clip_text_embedder = prompt_job_generator_state.clip_text_embedder
         base_prompts_csv_path = self.get_dataset_base_prompt(dataset)
 
+        top_k = prompt_job_generator_state.get_dataset_top_k(dataset)
+
         # number of total prompts to generate before choosing n prompts
         if generation_policy == 'top-k':
-            top_k = prompt_job_generator_state.get_dataset_top_k(dataset)
             # if the generation policy is top-k we generate
             # more prompts so that the top-k are allways equal to prompt_count
             # example:  if top-k is 0.1 and we need 1 prompt, we generate 10 and choose best one
@@ -115,7 +116,12 @@ class PromptGenerationPromptQueue:
 
                 positive_text_prompt = base_prompts + prompt.positive_prompt_str
                 negative_text_prompt = prompt.negative_prompt_str
-                prompt_list.append(ScoredPrompt(0, positive_text_prompt, negative_text_prompt))
+                prompt_list.append(ScoredPrompt(0,
+                                                positive_text_prompt,
+                                                negative_text_prompt,
+                                                'N/A',
+                                                'N/A',
+                                                0))
 
             prompts = prompt_list
 
@@ -152,7 +158,7 @@ class PromptGenerationPromptQueue:
                 negative_prompts.append(negative_text_prompt)
 
             # Create a list of all possible combinations
-            prompts = [ScoredPrompt(0, positive, negative) for positive in positive_prompts for negative in
+            prompts = [ScoredPrompt(0, positive, negative, 'N/A', 'N/A', 0) for positive in positive_prompts for negative in
                                 negative_prompts]
 
             # remove excess prompts, will only remove a tiny bit of prompts
@@ -174,7 +180,12 @@ class PromptGenerationPromptQueue:
                 prompt_score = scoring_model.predict(positive_prompt_embeddings,
                                                                negative_prompt_embeddings).item()
 
-            scored_prompt = ScoredPrompt(prompt_score, positive_text_prompt, negative_text_prompt)
+            scored_prompt = ScoredPrompt(prompt_score,
+                                         positive_text_prompt,
+                                         negative_text_prompt,
+                                         scoring_model.model_type,
+                                         generation_policy,
+                                         top_k)
             scored_prompts.append(scored_prompt)
 
         # Sort the list based on the maximize_int1 function
@@ -185,8 +196,16 @@ class PromptGenerationPromptQueue:
         return chosen_scored_prompts
 
 class ScoredPrompt:
-    def __init__(self, score, positive_prompt, negative_prompt):
+    def __init__(self, score,
+                 positive_prompt,
+                 negative_prompt,
+                 scoring_model,
+                 generation_policy,
+                 top_k):
         self.score = score
+        self.scoring_model = scoring_model
+        self.generation_policy = generation_policy
+        self.top_k = top_k
         self.positive_prompt = positive_prompt
         self.negative_prompt = negative_prompt
 
