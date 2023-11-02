@@ -39,6 +39,7 @@ class PromptBatch:
 
 
 
+
 def generate_prompts(clip_text_embedder, scoring_model,
                      base_prompt_population, current_index,
                      prompt_count, prompts, prompt_multiplier, batch_size):

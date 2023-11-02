@@ -43,7 +43,7 @@ class ABRankingDatasetDownloader:
         self.minio_secret_key = minio_secret_key
         self.minio_client = cmd.get_minio_client(minio_access_key=self.minio_access_key,
                                                  minio_secret_key=self.minio_secret_key,
-                                                 minio_addr=minio_addr)
+                                                 minio_ip_addr=minio_addr)
 
     def get_dataset_paths(self):
         print("Loading dataset references...")
