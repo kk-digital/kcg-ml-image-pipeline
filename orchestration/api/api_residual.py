@@ -6,6 +6,13 @@ router = APIRouter()
 
 @router.post("/residual/set-image-rank-residual", description="Set image rank residual")
 def set_image_rank_residual(request: Request, ranking_residual: RankingResidual):
+    # check if exists
+    query = {"image_hash": ranking_residual.image_hash,
+             "model_id": ranking_residual.model_id}
+    count = request.app.image_residuals_collection.count_documents(query)
+    if count > 0:
+        raise HTTPException(status_code=409, detail="Residual for specific model_id and image_hash already exists.")
+
     request.app.image_residuals_collection.insert_one(ranking_residual.to_dict())
 
     return True
