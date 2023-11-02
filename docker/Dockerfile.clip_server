@@ -14,5 +14,4 @@ RUN pip config set global.trusted-host 192.168.3.1
 RUN pip install -r /kcg-ml-image-pipeline/requirements.txt
 RUN pip install -r /kcg-ml-image-pipeline/requirements_clip_server.txt
 
-EXPOSE 8002
-CMD ["uvicorn", "clip_server.main:app", "--host", "0.0.0.0", "--port", "8002"]
+ENTRYPOINT ["/kcg-ml-image-pipeline/clip_server/run_clip_server.sh"]
