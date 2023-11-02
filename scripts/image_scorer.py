@@ -38,6 +38,14 @@ class EmbeddingScorer:
         self.dataset = dataset_name
         self.input = os.path.join("datasets", dataset_name)
 
+    def determine_model_type(self, model_filename):
+        if "embedding" in model_filename:
+            return "embedding"
+        elif "clip" in model_filename:
+            return "clip"
+        else:
+            raise ValueError("Unknown model type in the filename.")
+
     def load_model(self, model_filename, input_size):
         model_path = os.path.join(self.dataset, "models", "ranking", model_filename)
         embedding_model = ABRankingELMModel(input_size)
@@ -55,18 +63,31 @@ class EmbeddingScorer:
         return embedding_model
 
 
-    def load_all_models(self, model_filename, positive_model_filename, negative_model_filename):
-        self.embedding_score_model = self.load_model(model_filename, 768 * 2)
-        self.embedding_score_model_positive = self.load_model(positive_model_filename, 768)
-        self.embedding_score_model_negative = self.load_model(negative_model_filename, 768)
+    def load_all_models(self, model_filename, positive_model_filename=None, negative_model_filename=None):
+        self.model_type = self.determine_model_type(model_filename)
+        
+        # Set the model filenames as class attributes
+        self.model_filename = model_filename
+        self.positive_model_filename = positive_model_filename
+        self.negative_model_filename = negative_model_filename
+
+        if self.model_type == "embedding":
+            self.embedding_score_model = self.load_model(model_filename, 768 * 2)
+            self.embedding_score_model_positive = self.load_model(positive_model_filename, 768)
+            self.embedding_score_model_negative = self.load_model(negative_model_filename, 768)
+        elif self.model_type == "clip":
+            self.clip_score_model = self.load_model(model_filename, 768 * 2)
+
 
     def get_scores(self):
-        # Corrected the prefix to recursively search inside all subdirectories
         prefix = os.path.join(self.dataset, '')
         all_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', prefix)
+
+        # Depending on the model type, choose the appropriate msgpack files
+        file_suffix = "_embedding.msgpack" if self.model_type == "embedding" else "_clip.msgpack"
         
-        # Filter the objects to get only those that end with '_embedding.msgpack'
-        msgpack_objects = [obj for obj in all_objects if obj.endswith('_embedding.msgpack')]
+        # Filter the objects to get only those that end with the chosen suffix
+        msgpack_objects = [obj for obj in all_objects if obj.endswith(file_suffix)]
         
         positive_scores = []
         negative_scores = []
@@ -86,7 +107,7 @@ class EmbeddingScorer:
             data_bytes = byte_buffer.read()
             data = msgpack.unpackb(data_bytes, raw=False)
 
-            positive_embedding = list(data['positive_embedding'].values())
+            positive_embedding = list(data['positive_em bedding'].values())
             positive_embedding_array = torch.tensor(np.array(positive_embedding)).float().to(device)
             negative_embedding = list(data['negative_embedding'].values())
             negative_embedding_array = torch.tensor(np.array(negative_embedding)).float().to(device)
@@ -159,8 +180,8 @@ def parse_args():
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key', default=secret_key)
     parser.add_argument('--dataset-name', required=True, help='Name of the dataset for embeddings')
     parser.add_argument('--model-filename', required=True, help='Filename of the main model (e.g., "XXX.pth")')
-    parser.add_argument('--positive-model-filename', required=True, help='Filename of the positive model')
-    parser.add_argument('--negative-model-filename', required=True, help='Filename of the negative model')
+    parser.add_argument('--positive-model-filename', required=False, help='Filename of the positive model')
+    parser.add_argument('--negative-model-filename', required=False, help='Filename of the negative model')
     args = parser.parse_args()
     return args
 
