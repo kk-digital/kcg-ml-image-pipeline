@@ -133,15 +133,16 @@ class EmbeddingScorer:
         plt.figure(figsize=(12, 6))
         plt.subplot(1, 3, 1)
         plt.hist(positive_scores_np, bins=30, color='green')
-        plt.title("Positive Scores")
+        plt.title(f"({self.positive_model_filename.split('/')[-1]})") 
         plt.subplot(1, 3, 2)
         plt.hist(negative_scores_np, bins=30, color='red')
-        plt.title("Negative Scores")
+        plt.title(f"({self.negative_model_filename.split('/')[-1]})") 
         plt.subplot(1, 3, 3)
         plt.hist(normal_scores_np, bins=30, color='blue')
-        plt.title("Normal Scores")
+        plt.title(f"({self.model_filename.split('/')[-1]})") 
         plt.tight_layout()
         plt.savefig("score_distributions.png")
+
 
 
 
