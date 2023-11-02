@@ -4,6 +4,11 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 from io import BytesIO
 import torch
+import sys
+
+base_directory = os.getcwd()
+sys.path.insert(0, base_directory)
+
 
 def separate_values_based_on_targets(training_targets, validation_targets, train_prob_predictions,
                                      validation_prob_predictions, training_pred_scores_img_x,
@@ -45,10 +50,14 @@ def separate_values_based_on_targets(training_targets, validation_targets, train
             validation_pred_scores_img_x_target_0.append(validation_pred_scores_img_x[i])
             validation_pred_scores_img_y_target_0.append(validation_pred_scores_img_y[i])
 
-    train_prob_predictions_target_1 = torch.stack(train_prob_predictions_target_1)
-    train_prob_predictions_target_0 = torch.stack(train_prob_predictions_target_0)
-    validation_prob_predictions_target_1 = torch.stack(validation_prob_predictions_target_1)
-    validation_prob_predictions_target_0 = torch.stack(validation_prob_predictions_target_0)
+    if len(train_prob_predictions_target_1) > 0:
+        train_prob_predictions_target_1 = torch.stack(train_prob_predictions_target_1)
+    if len(train_prob_predictions_target_0) > 0:
+        train_prob_predictions_target_0 = torch.stack(train_prob_predictions_target_0)
+    if len(validation_prob_predictions_target_1) > 0:
+        validation_prob_predictions_target_1 = torch.stack(validation_prob_predictions_target_1)
+    if len(validation_prob_predictions_target_0) > 0:
+        validation_prob_predictions_target_0 = torch.stack(validation_prob_predictions_target_0)
 
     return train_prob_predictions_target_1, \
         train_prob_predictions_target_0, \
@@ -64,10 +73,43 @@ def separate_values_based_on_targets(training_targets, validation_targets, train
         validation_pred_scores_img_y_target_0
 
 
-def get_graph_report(train_prob_predictions, training_targets, validation_prob_predictions, validation_targets,
-                      training_pred_scores_img_x, training_pred_scores_img_y, validation_pred_scores_img_x,
-                      validation_pred_scores_img_y, training_total_size, validation_total_size, input_type,
-                      training_losses, validation_losses, epochs, learning_rate,training_batch_size, weight_decay):
+def get_graph_report(model_class,
+                     train_prob_predictions,
+                     training_targets,
+                     validation_prob_predictions,
+                     validation_targets,
+                     training_pred_scores_img_x,
+                     training_pred_scores_img_y,
+                     validation_pred_scores_img_x,
+                     validation_pred_scores_img_y,
+                     training_total_size,
+                     validation_total_size,
+                     training_losses,
+                     validation_losses,
+                     epochs,
+                     learning_rate,
+                     training_batch_size,
+                     weight_decay,
+                     date,
+                     network_type,
+                     input_type,
+                     input_shape,
+                     output_type,
+                     train_sum_correct,
+                     validation_sum_correct,
+                     loss_func,
+                     dataset_name,
+                     pooling_strategy: int,
+                     normalize_vectors,
+                     num_random_layers=0,
+                     add_loss_penalty=False,
+                     target_option=0,
+                     duplicate_flip_option=0,
+                     randomize_data_per_epoch=False,
+                     elm_sparsity=0.0,
+                     training_shuffled_indices_origin=None,
+                     validation_shuffled_indices_origin=None,
+                     total_selection_datapoints=0):
     train_prob_predictions_target_1, \
         train_prob_predictions_target_0, \
         validation_prob_predictions_target_1, \
@@ -95,17 +137,20 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
     validation_x_axis_values_target_0 = [i for i in range(len(validation_prob_predictions_target_0))]
 
     # Initialize all graphs/subplots
-    plt.figure(figsize=(22, 15))
-    predicted_prob = plt.subplot2grid((6, 2), (0, 0), rowspan=1, colspan=1)
-    loss_per_epoch = plt.subplot2grid((6, 2), (0, 1), rowspan=1, colspan=1)
-    train_scores_histogram = plt.subplot2grid((6, 2), (1, 0), rowspan=1, colspan=1)
-    validation_scores_histogram = plt.subplot2grid((6, 2), (1, 1), rowspan=1, colspan=1)
-    train_residual_histogram = plt.subplot2grid((6, 2), (2, 0), rowspan=1, colspan=1)
-    validation_residual_histogram = plt.subplot2grid((6, 2), (2, 1), rowspan=1, colspan=1)
-    train_target_1_predicted_scores = plt.subplot2grid((6, 2), (3, 0), rowspan=1, colspan=1)
-    validation_target_1_predicted_scores = plt.subplot2grid((6, 2), (3, 1), rowspan=1, colspan=1)
-    train_target_0_predicted_scores = plt.subplot2grid((6, 2), (4, 0), rowspan=1, colspan=1)
-    validation_target_0_predicted_scores = plt.subplot2grid((6, 2), (4, 1), rowspan=1, colspan=1)
+    plt.figure(figsize=(22, 20))
+    figure_shape = (7, 2)
+    predicted_prob = plt.subplot2grid(figure_shape, (0, 0), rowspan=1, colspan=1)
+    loss_per_epoch = plt.subplot2grid(figure_shape, (0, 1), rowspan=1, colspan=1)
+    train_scores_histogram = plt.subplot2grid(figure_shape, (1, 0), rowspan=1, colspan=1)
+    validation_scores_histogram = plt.subplot2grid(figure_shape, (1, 1), rowspan=1, colspan=1)
+    train_residual_histogram = plt.subplot2grid(figure_shape, (2, 0), rowspan=1, colspan=1)
+    validation_residual_histogram = plt.subplot2grid(figure_shape, (2, 1), rowspan=1, colspan=1)
+    train_target_1_predicted_scores = plt.subplot2grid(figure_shape, (3, 0), rowspan=1, colspan=1)
+    validation_target_1_predicted_scores = plt.subplot2grid(figure_shape, (3, 1), rowspan=1, colspan=1)
+    train_target_0_predicted_scores = plt.subplot2grid(figure_shape, (4, 0), rowspan=1, colspan=1)
+    validation_target_0_predicted_scores = plt.subplot2grid(figure_shape, (4, 1), rowspan=1, colspan=1)
+    chronological_pred_scores_target_1_plot = plt.subplot2grid(figure_shape, (5, 0), rowspan=1, colspan=2)
+    chronological_pred_scores_target_0_plot = plt.subplot2grid(figure_shape, (6, 0), rowspan=1, colspan=2)
     # ----------------------------------------------------------------------------------------------------------------#
     # predicted_prob
     predicted_prob.scatter(train_x_axis_values_target_1, train_prob_predictions_target_1,
@@ -125,7 +170,7 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
 
     predicted_prob.set_xlabel("Sample")
     predicted_prob.set_ylabel("Predicted Probability")
-    predicted_prob.set_title("Sample vs Predicted Probability".format(input_type))
+    predicted_prob.set_title("Sample vs Predicted Probability")
     predicted_prob.legend()
 
     predicted_prob.autoscale(enable=True, axis='y')
@@ -137,19 +182,21 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
     loss_per_epoch.plot(epochs_x_axis, validation_losses,
                         label="Validation Loss", c="#14e33a", zorder=0)
 
+    loss_per_epoch.set_ylim(bottom=0, top=1.0)
     loss_per_epoch.set_xlabel("Epoch")
     loss_per_epoch.set_ylabel("Loss")
-    loss_per_epoch.set_title("Loss Per Epoch".format(input_type))
+    loss_per_epoch.set_title("Loss Per Epoch")
     loss_per_epoch.legend()
-    loss_per_epoch.autoscale(enable=True, axis='y')
+    # loss_per_epoch.autoscale(enable=True, axis='y')
     # ----------------------------------------------------------------------------------------------------------------#
     # Training Score Histogram
 
     training_scores_predictions = np.append(training_pred_scores_img_x, training_pred_scores_img_y)
     train_scores_histogram.set_xlabel("Predicted Score")
     train_scores_histogram.set_ylabel("Frequency")
-    train_scores_histogram.set_title("Train Scores Histogram".format(input_type))
-    train_scores_histogram.hist(training_scores_predictions)
+    train_scores_histogram.set_title("Train Scores Histogram")
+    train_scores_histogram.hist(training_scores_predictions,
+                                weights=np.ones(len(training_scores_predictions)) / len(training_scores_predictions))
     train_scores_histogram.yaxis.set_major_formatter(PercentFormatter(1))
 
     # Validation Score Histogram
@@ -157,8 +204,10 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
 
     validation_scores_histogram.set_xlabel("Predicted Score")
     validation_scores_histogram.set_ylabel("Frequency")
-    validation_scores_histogram.set_title("Validation Scores Histogram".format(input_type))
-    validation_scores_histogram.hist(validation_scores_predictions)
+    validation_scores_histogram.set_title("Validation Scores Histogram")
+    validation_scores_histogram.hist(validation_scores_predictions,
+                                     weights=np.ones(len(validation_scores_predictions)) / len(
+                                         validation_scores_predictions))
     validation_scores_histogram.yaxis.set_major_formatter(PercentFormatter(1))
     # ----------------------------------------------------------------------------------------------------------------#
 
@@ -168,12 +217,23 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
                                    range(len(train_prob_predictions_target_1))]
     training_residuals_target_0 = [abs(0.0 - train_prob_predictions_target_0[i].item()) for i in
                                    range(len(train_prob_predictions_target_0))]
+
+    # assert max(training_residuals_target_0) <= 1.0
+    # assert min(training_residuals_target_0) >= 0.0
+    # assert max(training_residuals_target_1) <= 1.0
+    # assert min(training_residuals_target_1) >= 0.0
+
+    # print("training pred prob target 1=", train_prob_predictions_target_1)
+    # print("training pred prob target 0=", train_prob_predictions_target_0)
+    # print("training residuals 1=", training_residuals_target_1)
+    # print("training residuals 0=", training_residuals_target_0)
     training_residuals = np.append(training_residuals_target_1, training_residuals_target_0)
 
     train_residual_histogram.set_xlabel("Residual")
     train_residual_histogram.set_ylabel("Frequency")
-    train_residual_histogram.set_title("Train Residual Histogram".format(input_type))
-    train_residual_histogram.hist(training_residuals)
+    train_residual_histogram.set_title("Train Residual Histogram")
+    train_residual_histogram.hist(training_residuals, range=(0.0, 1.0),
+                                  weights=np.ones(len(training_residuals)) / len(training_residuals))
     train_residual_histogram.yaxis.set_major_formatter(PercentFormatter(1))
 
     # Calculate validation residuals
@@ -181,12 +241,18 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
                                      range(len(validation_prob_predictions_target_1))]
     validation_residuals_target_0 = [abs(0.0 - validation_prob_predictions_target_0[i].item()) for i in
                                      range(len(validation_prob_predictions_target_0))]
+
+    # assert max(validation_residuals_target_0) <= 1.0
+    # assert min(validation_residuals_target_0) >= 0.0
+    # assert max(validation_residuals_target_1) <= 1.0
+    # assert min(validation_residuals_target_1) >= 0.0
     validation_residuals = np.append(validation_residuals_target_1, validation_residuals_target_0)
 
     validation_residual_histogram.set_xlabel("Residual")
     validation_residual_histogram.set_ylabel("Frequency")
-    validation_residual_histogram.set_title("Validation Residual Histogram".format(input_type))
-    validation_residual_histogram.hist(validation_residuals)
+    validation_residual_histogram.set_title("Validation Residual Histogram")
+    validation_residual_histogram.hist(validation_residuals, range=(0.0, 1.0),
+                                       weights=np.ones(len(validation_residuals)) / len(validation_residuals))
     validation_residual_histogram.yaxis.set_major_formatter(PercentFormatter(1))
     # ----------------------------------------------------------------------------------------------------------------#
 
@@ -202,7 +268,7 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
 
     train_target_1_predicted_scores.set_xlabel("Sample")
     train_target_1_predicted_scores.set_ylabel("Predicted Score")
-    train_target_1_predicted_scores.set_title("Train Predicted Score for target 1.0".format(input_type))
+    train_target_1_predicted_scores.set_title("Train Predicted Score for target 1.0")
     train_target_1_predicted_scores.legend()
 
     # validation_target_1_predicted_scores
@@ -219,9 +285,8 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
 
     validation_target_1_predicted_scores.set_xlabel("Sample")
     validation_target_1_predicted_scores.set_ylabel("Predicted Score")
-    validation_target_1_predicted_scores.set_title("Validation Predicted Score for target 1.0".format(input_type))
+    validation_target_1_predicted_scores.set_title("Validation Predicted Score for target 1.0")
     validation_target_1_predicted_scores.legend()
-
 
     # ----------------------------------------------------------------------------------------------------------------#
     # train_target_0_predicted_scores
@@ -236,7 +301,7 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
 
     train_target_0_predicted_scores.set_xlabel("Sample")
     train_target_0_predicted_scores.set_ylabel("Predicted Score")
-    train_target_0_predicted_scores.set_title("Train Predicted Score for target 0.0".format(input_type))
+    train_target_0_predicted_scores.set_title("Train Predicted Score for target 0.0")
     train_target_0_predicted_scores.legend()
 
     # validation_target_0_predicted_scores
@@ -253,26 +318,168 @@ def get_graph_report(train_prob_predictions, training_targets, validation_prob_p
 
     validation_target_0_predicted_scores.set_xlabel("Sample")
     validation_target_0_predicted_scores.set_ylabel("Predicted Score")
-    validation_target_0_predicted_scores.set_title("Validation Predicted Score for target 0.0".format(input_type))
+    validation_target_0_predicted_scores.set_title("Validation Predicted Score for target 0.0")
     validation_target_0_predicted_scores.legend()
     # ----------------------------------------------------------------------------------------------------------------#
+    # chronological scores graph
+    chronological_pred_scores_img_x_target_1 = [None] * int(
+        (len(training_pred_scores_img_x) + len(validation_pred_scores_img_x)) / 2)
+    chronological_pred_scores_img_x_target_0 = [None] * int(
+        (len(training_pred_scores_img_x) + len(validation_pred_scores_img_x)) / 2)
+
+    count = 0
+    for score in training_pred_scores_img_x:
+        if training_targets[count] == [0.0]:
+            chronological_pred_scores_img_x_target_0[training_shuffled_indices_origin[count]] = score.item()
+        else:
+            chronological_pred_scores_img_x_target_1[training_shuffled_indices_origin[count]] = score.item()
+        count += 1
+    count = 0
+
+    for score in validation_pred_scores_img_x:
+        if validation_targets[count] == [0.0]:
+            chronological_pred_scores_img_x_target_0[validation_shuffled_indices_origin[count]] = score.item()
+        else:
+            chronological_pred_scores_img_x_target_1[validation_shuffled_indices_origin[count]] = score.item()
+        count += 1
+
+    chronological_pred_scores_img_y_target_1 = [None] * int(
+        (len(training_pred_scores_img_y) + len(validation_pred_scores_img_y)) / 2)
+    chronological_pred_scores_img_y_target_0 = [None] * int(
+        (len(training_pred_scores_img_y) + len(validation_pred_scores_img_y)) / 2)
+    count = 0
+    for score in training_pred_scores_img_y:
+        if training_targets[count] == [0.0]:
+            chronological_pred_scores_img_y_target_0[training_shuffled_indices_origin[count]] = score.item()
+        else:
+            chronological_pred_scores_img_y_target_1[training_shuffled_indices_origin[count]] = score.item()
+        count += 1
+    count = 0
+
+    for score in validation_pred_scores_img_y:
+        if validation_targets[count] == [0.0]:
+            chronological_pred_scores_img_y_target_0[validation_shuffled_indices_origin[count]] = score.item()
+        else:
+            chronological_pred_scores_img_y_target_1[validation_shuffled_indices_origin[count]] = score.item()
+        count += 1
+
+    chronological_pred_scores_target_1_plot.scatter([i for i in range(len(chronological_pred_scores_img_x_target_1))],
+                                                    chronological_pred_scores_img_x_target_1,
+                                                    label="Chronological predicted image x scores with target 1.0 ({0})".format(
+                                                        len(chronological_pred_scores_img_x_target_1)),
+                                                    c="#281ad9", s=5)
+    chronological_pred_scores_target_1_plot.scatter([i for i in range(len(chronological_pred_scores_img_y_target_1))],
+                                                    chronological_pred_scores_img_y_target_1,
+                                                    label="Chronological predicted image y scores with target 1.0 ({0})".format(
+                                                        len(chronological_pred_scores_img_y_target_1)),
+                                                    c="#14e33a", s=5)
+
+    chronological_pred_scores_target_1_plot.set_xlabel("Sample")
+    chronological_pred_scores_target_1_plot.set_ylabel("Predicted Score")
+    chronological_pred_scores_target_1_plot.set_title("Chronological Dataset Predicted Score for target 1.0")
+    chronological_pred_scores_target_1_plot.legend()
+
+    chronological_pred_scores_target_0_plot.scatter([i for i in range(len(chronological_pred_scores_img_x_target_0))],
+                                                    chronological_pred_scores_img_x_target_0,
+                                                    label="Chronological predicted image y scores with target 0.0 ({0})".format(
+                                                        len(chronological_pred_scores_img_x_target_0)),
+                                                    c="#281ad9", s=5)
+    chronological_pred_scores_target_0_plot.scatter([i for i in range(len(chronological_pred_scores_img_y_target_0))],
+                                                    chronological_pred_scores_img_y_target_0,
+                                                    label="Chronological predicted image x scores with target 0.0 ({0})".format(
+                                                        len(chronological_pred_scores_img_y_target_0)),
+                                                    c="#14e33a", s=5)
+
+    chronological_pred_scores_target_0_plot.set_xlabel("Sample")
+    chronological_pred_scores_target_0_plot.set_ylabel("Predicted Score")
+    chronological_pred_scores_target_0_plot.set_title("Chronological Dataset Predicted Score for target 0.0")
+    chronological_pred_scores_target_0_plot.legend()
+
+    # ----------------------------------------------------------------------------------------------------------------#
+
+    pooling_strategy_str = "average pooling"
+    if pooling_strategy == 1:
+        pooling_strategy_str = "max pooling"
+    elif pooling_strategy == 2:
+        pooling_strategy_str = "max abs pooling"
+
+    target_option_str = "target 1 and 0"
+    if target_option == 1:
+        target_option_str = "target 1 only"
+    elif target_option == 2:
+        target_option_str = "target 0 only"
+
+    duplicate_flip_option_str = "duplicate and flip all"
+    if duplicate_flip_option == 1:
+        duplicate_flip_option_str = "duplicate and flip random"
 
     # add additional info on top left side
-    plt.figtext(0, 0.85, "Training size = {}\n"
-                         "Validation size = {}\n"
+    plt.figtext(0, 0.55, "Date = {}\n"
+                         "Dataset = {}\n"
+                         "Network type = {}\n"
+                         "Input type = {}\n"
+                         "Input shape = {}\n"
+                         "Output type= {}\n\n"
+                         ""
+                         "Total Selection \n"
+                         "Datapoints = {}\n"
+                         "Training size = {}\n"
+                         "Validation size = {}\n\n"
+                         ""
                          "Learning rate = {}\n"
                          "Epochs = {}\n"
                          "Training batch size = {}\n"
-                         "Weight decay = {}".format(training_total_size,
-                                                    validation_total_size,
-                                                    learning_rate,
-                                                    epochs,
-                                                    training_batch_size,
-                                                    weight_decay))
+                         "Weight decay = {}\n"
+                         "Loss func = {}\n\n"
+                         ""
+                         "Pooling strategy = {}\n"
+                         "Normalize vectors = {}\n"
+                         "num_random_layers = {}\n"
+                         "add_loss_penalty = {}\n"
+                         "target_option = {}\n"
+                         "duplicate_flip_option = {}\n"
+                         "randomize_data_per_epoch = {}\n"
+                         "elm_sparsity = {}\n\n"
+                         ""
+                         "Training loss = {:03.04}\n"
+                         "Validation loss = {:03.04}\n"
+                         "Train Correct Predictions \n"
+                         "= {}({:02.02f}%)\n"
+                         "Validation Correct \n"
+                         "Predictions = {}({:02.02f}%)\n\n".format(date,
+                                                                   dataset_name,
+                                                                   network_type,
+                                                                   input_type,
+                                                                   input_shape,
+                                                                   output_type,
+                                                                   total_selection_datapoints,
+                                                                   training_total_size,
+                                                                   validation_total_size,
+                                                                   learning_rate,
+                                                                   epochs,
+                                                                   training_batch_size,
+                                                                   weight_decay,
+                                                                   loss_func,
+                                                                   pooling_strategy_str,
+                                                                   normalize_vectors,
+                                                                   num_random_layers,
+                                                                   add_loss_penalty,
+                                                                   target_option_str,
+                                                                   duplicate_flip_option_str,
+                                                                   randomize_data_per_epoch,
+                                                                   elm_sparsity,
+                                                                   model_class.training_loss,
+                                                                   model_class.validation_loss,
+                                                                   train_sum_correct,
+                                                                   (train_sum_correct / training_total_size) * 100,
+                                                                   validation_sum_correct,
+                                                                   (
+                                                                               validation_sum_correct / validation_total_size) * 100)
+                )
 
     # Save figure
     # graph_path = os.path.join(model_output_path, graph_name)
-    plt.subplots_adjust(hspace=0.5)
+    plt.subplots_adjust(left=0.15, hspace=0.5)
     # plt.savefig(graph_path)
     # plt.show()
     buf = BytesIO()

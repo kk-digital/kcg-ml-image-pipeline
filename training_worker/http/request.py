@@ -74,3 +74,65 @@ def http_update_job_failed(job):
 
     if response.status_code != 200:
         print(f"request failed with status code: {response.status_code}")
+
+
+def http_add_model(model_card):
+    url = SERVER_ADRESS + "/models/add"
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+
+    try:
+        response = requests.post(url, data=model_card, headers=headers)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}")
+        print("model_id=", response.content)
+        return response.content
+    except Exception as e:
+        print('request exception ', e)
+
+    return None
+
+
+def http_get_model_id(model_hash):
+    url = SERVER_ADRESS + "/models/get-id?model_hash={}".format(model_hash)
+    try:
+        response = requests.get(url)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}")
+
+        return int(response.content)
+    except Exception as e:
+        print('request exception ', e)
+
+    return None
+
+
+def http_add_score(score_data):
+    url = SERVER_ADRESS + "/score/set-image-rank-score"
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+
+    try:
+        response = requests.post(url, json=score_data, headers=headers)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}: {str(response.content)}")
+    except Exception as e:
+        print('request exception ', e)
+
+    return None
+
+
+def http_add_residual(residual_data):
+    url = SERVER_ADRESS + "/residual/set-image-rank-residual"
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+
+    try:
+        response = requests.post(url, json=residual_data, headers=headers)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}")
+    except Exception as e:
+        print('request exception ', e)
+
+    return None

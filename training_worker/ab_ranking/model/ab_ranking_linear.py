@@ -20,26 +20,24 @@ from utility.minio import cmd
 class ABRankingLinearModel(nn.Module):
     def __init__(self, inputs_shape):
         super(ABRankingLinearModel, self).__init__()
+        self.inputs_shape = inputs_shape
         self.linear = nn.Linear(inputs_shape, 1)
-        self.identity = nn.Identity()
-        self.sigmoid = nn.Sigmoid()
         self.mse_loss = nn.MSELoss()
         self.l1_loss = nn.L1Loss()
         self.tanh = nn.Tanh()
-        self.relu_fn = nn.ReLU()
 
-    def forward(self, x):
-        x = self.linear(x)
-        x = self.identity(x)
-        # x = ((self.tanh(x) + 1.0)/2) * 100
-        # x = self.sigmoid(x)
+    # for score
+    def forward(self, input):
+        assert input.shape == (1, self.inputs_shape)
 
-        return x
+        output = self.linear(input)
+
+        assert output.shape == (1,1)
+        return output
 
 
 class ABRankingModel:
     def __init__(self, inputs_shape):
-        print("inputs_shape=", inputs_shape)
         if torch.cuda.is_available():
             device = 'cuda'
         else:
@@ -97,11 +95,13 @@ class ABRankingModel:
 
     def train(self,
               dataset_loader: ABRankingDatasetLoader,
-              training_batch_size=4,
-              epochs=100,
-              learning_rate=0.001,
-              weight_decay=0.01,
-              debug_asserts=False):
+              training_batch_size=1,
+              epochs=10,
+              learning_rate=0.05,
+              weight_decay=0.00,
+              add_loss_penalty=True,
+              randomize_data_per_epoch=True,
+              debug_asserts=True):
         training_loss_per_epoch = []
         validation_loss_per_epoch = []
 
@@ -127,9 +127,6 @@ class ABRankingModel:
 
             # Only train after 0th epoch
             if epoch != 0:
-                # fill data buffer
-                dataset_loader.spawn_filling_workers()
-
                 for i in range(training_num_batches):
                     num_data_to_get = training_batch_size
                     # last batch
@@ -141,21 +138,35 @@ class ABRankingModel:
                         batch_targets_orig = dataset_loader.get_next_training_feature_vectors_and_target_linear(
                         num_data_to_get, self._device)
 
+                    if debug_asserts:
+                        assert batch_features_x_orig.shape == (training_batch_size, self.model.inputs_shape)
+                        assert batch_features_y_orig.shape == (training_batch_size, self.model.inputs_shape)
+                        assert batch_targets_orig.shape == (training_batch_size, 1)
+
                     batch_features_x = batch_features_x_orig.clone().requires_grad_(True).to(self._device)
+                    batch_features_y = batch_features_y_orig.clone().requires_grad_(True).to(self._device)
                     batch_targets = batch_targets_orig.clone().requires_grad_(True).to(self._device)
+
+                    with torch.no_grad():
+                        predicted_score_images_y = self.model.forward(batch_features_y)
 
                     optimizer.zero_grad()
                     predicted_score_images_x = self.model.forward(batch_features_x)
 
+                    predicted_score_images_y_copy = predicted_score_images_y.clone().requires_grad_(True).to(self._device)
+                    batch_pred_probabilities = forward_bradley_terry(predicted_score_images_x,
+                                                                          predicted_score_images_y_copy)
+
                     if debug_asserts:
-                        assert predicted_score_images_x.shape == batch_targets.shape
+                        assert batch_pred_probabilities.shape == batch_targets.shape
 
-                    # add loss penalty
-                    neg_score = torch.multiply(predicted_score_images_x, -1.0)
-                    negative_score_loss_penalty = self.model.relu_fn(neg_score)
+                    loss = self.model.l1_loss(batch_pred_probabilities, batch_targets)
 
-                    loss = self.model.l1_loss(predicted_score_images_x, batch_targets)
-                    loss = torch.add(loss, negative_score_loss_penalty)
+                    if add_loss_penalty:
+                        # add loss penalty
+                        neg_score = torch.multiply(predicted_score_images_x, -1.0)
+                        negative_score_loss_penalty = torch.relu(neg_score)
+                        loss = torch.add(loss, negative_score_loss_penalty)
 
                     loss.backward()
                     optimizer.step()
@@ -169,28 +180,41 @@ class ABRankingModel:
                             raise SystemExit
                         # print("param={}, grad={}".format(name, param.grad))
 
-                # refill training ab data
-                dataset_loader.fill_training_ab_data()
+                if randomize_data_per_epoch:
+                    dataset_loader.shuffle_training_data()
+
+                dataset_loader.current_training_data_index = 0
 
             # Calculate Validation Loss
             with torch.no_grad():
                 for i in range(len(validation_features_x)):
                     validation_feature_x = validation_features_x[i]
                     validation_feature_x = validation_feature_x.unsqueeze(0)
+                    validation_feature_y = validation_features_y[i]
+                    validation_feature_y = validation_feature_y.unsqueeze(0)
 
                     validation_target = validation_targets[i]
                     validation_target = validation_target.unsqueeze(0)
+
                     predicted_score_image_x = self.model.forward(validation_feature_x)
+                    with torch.no_grad():
+                        predicted_score_image_y = self.model.forward(validation_feature_y)
+
+                    validation_pred_probabilities = forward_bradley_terry(predicted_score_image_x,
+                                                                          predicted_score_image_y)
 
                     if debug_asserts:
-                        assert predicted_score_image_x.shape == validation_target.shape
+                        assert validation_pred_probabilities.shape == validation_target.shape
 
-                    # add loss penalty
-                    neg_score = torch.multiply(predicted_score_image_x, -1.0)
-                    negative_score_loss_penalty = self.model.relu_fn(neg_score)
+                    validation_loss = self.model.l1_loss(validation_pred_probabilities, validation_target)
 
-                    validation_loss = self.model.l1_loss(predicted_score_image_x, validation_target)
-                    validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
+                    if add_loss_penalty:
+                        # add loss penalty
+                        neg_score = torch.multiply(predicted_score_image_x, -1.0)
+                        negative_score_loss_penalty = torch.relu(neg_score)
+                        validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
+
+                    # validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
                     validation_loss_arr.append(validation_loss.detach().cpu())
 
             # calculate epoch loss
@@ -215,9 +239,6 @@ class ABRankingModel:
 
         # Calculate model performance
         with torch.no_grad():
-            # fill data buffer
-            dataset_loader.spawn_filling_workers()
-
             training_predicted_score_images_x = []
             training_predicted_score_images_y = []
             training_predicted_probabilities = []
@@ -236,11 +257,12 @@ class ABRankingModel:
 
                 batch_predicted_score_images_x = self.model.forward(batch_features_x)
                 batch_predicted_score_images_y = self.model.forward(batch_features_y)
-                batch_pred_probabilities = self.forward_bradley_terry(batch_predicted_score_images_x,
+
+                batch_pred_probabilities = forward_bradley_terry(batch_predicted_score_images_x,
                                                                       batch_predicted_score_images_y)
                 if debug_asserts:
                     # assert pred(x,y) = 1- pred(y,x)
-                    batch_pred_probabilities_inverse = self.forward_bradley_terry(batch_predicted_score_images_y,
+                    batch_pred_probabilities_inverse = forward_bradley_terry(batch_predicted_score_images_y,
                                                                                   batch_predicted_score_images_x)
                     tensor_ones = torch.tensor([1.0] * len(batch_pred_probabilities_inverse)).to(self._device)
                     assert torch.allclose(batch_pred_probabilities, torch.subtract(tensor_ones, batch_pred_probabilities_inverse), atol=1e-05)
@@ -262,11 +284,11 @@ class ABRankingModel:
 
                 predicted_score_image_x = self.model.forward(validation_feature_x)
                 predicted_score_image_y = self.model.forward(validation_feature_y)
-                pred_probability = self.forward_bradley_terry(predicted_score_image_x, predicted_score_image_y)
+                pred_probability = forward_bradley_terry(predicted_score_image_x, predicted_score_image_y)
 
                 if debug_asserts:
                     # assert pred(x,y) = 1- pred(y,x)
-                    pred_probability_inverse = self.forward_bradley_terry(predicted_score_image_y, predicted_score_image_x)
+                    pred_probability_inverse = forward_bradley_terry(predicted_score_image_y, predicted_score_image_x)
                     tensor_ones = torch.tensor([1.0] * len(pred_probability_inverse)).to(self._device)
                     assert torch.allclose(pred_probability, torch.subtract(tensor_ones, pred_probability_inverse), atol=1e-05)
 
@@ -284,25 +306,6 @@ class ABRankingModel:
             validation_targets, \
             training_loss_per_epoch, \
             validation_loss_per_epoch
-
-    def forward_bradley_terry(self, predicted_score_images_x, predicted_score_images_y):
-        epsilon = 0.000001
-
-        # if score is negative N, make it 0
-        # predicted_score_images_x = torch.max(predicted_score_images_x, torch.tensor([0.], device=self._device))
-        # predicted_score_images_y = torch.max(predicted_score_images_y, torch.tensor([0.], device=self._device))
-
-        # Calculate probability using Bradley Terry Formula: P(x>y) = score(x) / ( Score(x) + score(y))
-        # sum_predicted_score = torch.add(predicted_score_images_x, predicted_score_images_y)
-        # sum_predicted_score = torch.add(sum_predicted_score, epsilon)
-        # pred_probabilities = torch.div(predicted_score_images_x, sum_predicted_score)
-
-        # prob = sigmoid( (x-y) / 100 )
-        diff_predicted_score = torch.sub(predicted_score_images_x, predicted_score_images_y)
-        res_predicted_score = torch.div(diff_predicted_score, 1.0)
-        pred_probabilities = torch.sigmoid(res_predicted_score)
-
-        return pred_probabilities
 
     def predict(self, positive_input, negative_input):
         # get rid of the 1 dimension at start
@@ -326,4 +329,48 @@ class ABRankingModel:
 
             return outputs
 
+    def predict_positive_or_negative_only(self, inputs):
+        # do average pooling
+        inputs = torch.mean(inputs, dim=2)
 
+        # then concatenate
+        inputs = inputs.reshape(len(inputs), -1)
+
+        with torch.no_grad():
+            outputs = self.model.forward(inputs).squeeze()
+
+            return outputs
+
+    def predict_clip(self, inputs):
+        # concatenate
+        inputs = inputs.reshape(len(inputs), -1)
+
+        with torch.no_grad():
+            outputs = self.model.forward(inputs).squeeze()
+
+            return outputs
+
+
+def forward_bradley_terry(predicted_score_images_x, predicted_score_images_y, use_sigmoid=True):
+    if use_sigmoid:
+        # scale the score
+        # scaled_score_image_x = torch.multiply(1000.0, predicted_score_images_x)
+        # scaled_score_image_y = torch.multiply(1000.0, predicted_score_images_y)
+
+        # prob = sigmoid( (x-y) / 100 )
+        diff_predicted_score = torch.sub(predicted_score_images_x, predicted_score_images_y)
+        res_predicted_score = torch.div(diff_predicted_score, 50.0)
+        pred_probabilities = torch.sigmoid(res_predicted_score)
+    else:
+        epsilon = 0.000001
+
+        # if score is negative N, make it 0
+        # predicted_score_images_x = torch.max(predicted_score_images_x, torch.tensor([0.], device=self._device))
+        # predicted_score_images_y = torch.max(predicted_score_images_y, torch.tensor([0.], device=self._device))
+
+        # Calculate probability using Bradley Terry Formula: P(x>y) = score(x) / ( Score(x) + score(y))
+        sum_predicted_score = torch.add(predicted_score_images_x, predicted_score_images_y)
+        sum_predicted_score = torch.add(sum_predicted_score, epsilon)
+        pred_probabilities = torch.div(predicted_score_images_x, sum_predicted_score)
+
+    return pred_probabilities

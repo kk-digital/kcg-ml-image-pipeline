@@ -1,0 +1,17 @@
+FROM docker.io/nvidia/cuda:11.3.1-cudnn8-runtime-ubuntu20.04
+
+# Copy repo
+COPY ./ /kcg-ml-image-pipeline
+WORKDIR /kcg-ml-image-pipeline
+
+# install prerequisites
+RUN echo 'Acquire::http::Proxy "http://192.168.3.1:3142/";' > /etc/apt/apt.conf.d/squid-deb-proxy.conf
+RUN apt-get update && apt-get install -y python3 python3-pip && apt-get install -y python-is-python3
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libasound-dev portaudio19-dev libportaudio2 libportaudiocpp0 libsndfile1 wget libgl1-mesa-glx
+
+RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+RUN pip config set global.trusted-host 192.168.3.1
+RUN pip install -r /kcg-ml-image-pipeline/requirements.txt
+RUN pip install -r /kcg-ml-image-pipeline/requirements_clip_server.txt
+
+ENTRYPOINT ["/kcg-ml-image-pipeline/clip_server/run_clip_server.sh"]

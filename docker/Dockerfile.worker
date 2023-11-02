@@ -4,16 +4,13 @@ FROM docker.io/nvidia/cuda:11.3.1-cudnn8-runtime-ubuntu20.04
 COPY ./ /kcg-ml-image-pipeline
 WORKDIR /kcg-ml-image-pipeline
 
-# create clip model dir and copy model
-RUN mkdir -p /.cache/huggingface
-COPY ./hub /.cache/huggingface/hub
-RUN chmod -R 777 /.cache
-
 # install prerequisites
+RUN echo 'Acquire::http::Proxy "http://192.168.3.1:3142/";' > /etc/apt/apt.conf.d/squid-deb-proxy.conf
 RUN apt-get update && apt-get install -y python3 python3-pip && apt-get install -y python-is-python3
-RUN apt-get install -y unzip
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libasound-dev portaudio19-dev libportaudio2 libportaudiocpp0 libsndfile1 wget libgl1-mesa-glx
 
+RUN pip config set global.index-url http://192.168.3.1:5010/root/pypi/
+RUN pip config set global.trusted-host 192.168.3.1
 RUN pip install -r /kcg-ml-image-pipeline/requirements.txt
 
 ENTRYPOINT ["/kcg-ml-image-pipeline/worker/run_worker.sh"]

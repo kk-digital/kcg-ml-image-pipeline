@@ -2,12 +2,13 @@ from fastapi import Request, HTTPException, APIRouter, Response, Query
 from datetime import datetime
 from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
+from .api_utils import PrettyJSONResponse
 
 
 router = APIRouter()
 
 
-@router.get("/image/get_random_image")
+@router.get("/image/get_random_image", response_class=PrettyJSONResponse)
 def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the size parameter
   
     # Use $sample to get one random document
@@ -27,10 +28,26 @@ def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the
     documents[0].pop('_id', None)
 
     # Return the image in the response
-    return {"image": documents[0]}  
+    return {"image": documents[0]}
+
+@router.get("/image/get_image_details")
+def get_image_details(request: Request, image_path: str = Query(...)):
+    # Query the database to retrieve the image details by its ID
+    document = request.app.completed_jobs_collection.find_one(
+        {"task_output_file_dict.output_file_path": image_path}
+    )
+
+    if document is None:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    # Remove the auto-generated _id field from the document
+    document.pop('_id', None)
+
+    # Return the image details
+    return {"image_details": document}  
     
 
-@router.get("/image/get_random_image_list")
+@router.get("/image/get_random_image_list", response_class=PrettyJSONResponse)
 def get_random_image_list(request: Request, dataset: str = Query(...), size: int = Query(1)):  
     # Use Query to get the dataset and size from query parameters
 
@@ -62,8 +79,14 @@ def get_random_image_list(request: Request, dataset: str = Query(...), size: int
     return {"images": distinct_documents}
 
 
-@router.get("/image/random_date_range")
-def get_random_image_date_range(request: Request, dataset : str = None, start_date: str = None, end_date: str = None):
+@router.get("/image/get_random_image_by_date_range", response_class=PrettyJSONResponse)
+def get_random_image_date_range(
+    request: Request,
+    dataset: str = None,
+    start_date: str = None,
+    end_date: str = None,
+    size: int = None
+):
 
     query = {
         'task_input_dict.dataset': dataset
@@ -77,23 +100,23 @@ def get_random_image_date_range(request: Request, dataset : str = None, start_da
     elif end_date:
         query['task_creation_time'] = {'$lte': end_date}
 
-    documents = request.app.completed_jobs_collection.aggregate([
-        {"$match": query},
-        {"$sample": {"size": 1}}
-    ])
+    # Create the aggregation pipeline
+    aggregation_pipeline = [{"$match": query}]
 
-    # convert curser type to list
+    # Add the $sample stage if the size is provided
+    if size:
+        aggregation_pipeline.append({"$sample": {"size": size}})
+
+    documents = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
+
+    # Convert the cursor to a list
     documents = list(documents)
-    if len(documents) == 0:
-        return []
 
-    # get only the first index
-    document = documents[0]
+    # Remove the auto-generated field for each document
+    for document in documents:
+        document.pop('_id', None)
 
-    # remove the auto generated field
-    document.pop('_id', None)
-
-    return document
+    return documents
 
 @router.get("/image/data-by-filepath")
 def get_image_data_by_filepath(request: Request, file_path: str = None):
@@ -109,7 +132,7 @@ def get_image_data_by_filepath(request: Request, file_path: str = None):
 
     return response
 
-@router.get("/image/list-metadata")
+@router.get("/image/list-metadata", response_class=PrettyJSONResponse)
 def get_images_metadata(
     request: Request,
     dataset: str = None,
@@ -152,4 +175,3 @@ def get_images_metadata(
         images_metadata.append(image_meta_data)
 
     return images_metadata
-

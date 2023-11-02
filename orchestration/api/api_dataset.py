@@ -1,7 +1,11 @@
 from fastapi import Request, HTTPException, APIRouter, Response, Query
 from orchestration.api.mongo_schemas import SequentialID
 from utility.minio import cmd
+import json
 from datetime import datetime
+import io
+from .api_utils import PrettyJSONResponse
+from .mongo_schemas import FlaggedDataUpdate, RankingModel
 router = APIRouter()
 
 
@@ -88,7 +92,47 @@ def set_rate(request: Request, dataset, rate=0):
 
     return True
 
-@router.get("/dataset/get-dataset-config")
+
+@router.get("/dataset/get-hourly-limit")
+def get_rate(request: Request, dataset: str):
+    # find
+    query = {"dataset_name": dataset}
+    item = request.app.dataset_config_collection.find_one(query)
+    if item is None:
+        raise HTTPException(status_code=404)
+
+    # remove the auto generated field
+    item.pop('_id', None)
+
+    return item["hourly_limit"]
+
+
+@router.put("/dataset/set-hourly-limit")
+def set_rate(request: Request, dataset, hourly_limit=0):
+    date_now = datetime.now()
+    # check if exist
+    query = {"dataset_name": dataset}
+    item = request.app.dataset_config_collection.find_one(query)
+    if item is None:
+        # add one
+        dataset_config = {
+            "dataset_name": dataset,
+            "last_update": date_now,
+            "dataset_rate": 0,
+            "hourly_limit": hourly_limit,
+            "relevance_model": "",
+            "ranking_model": "",
+        }
+        request.app.dataset_config_collection.insert_one(dataset_config)
+    else:
+        # update
+        new_values = {"$set": {"last_update": date_now, "hourly_limit": hourly_limit}}
+        request.app.dataset_config_collection.update_one(query, new_values)
+
+    return True
+
+
+@router.get("/dataset/get-dataset-config", response_class=PrettyJSONResponse)
 def get_dataset_config(request: Request, dataset: str = Query(...)):
     # Find the item for the specific dataset
     item = request.app.dataset_config_collection.find_one({"dataset_name": dataset})
@@ -102,7 +146,7 @@ def get_dataset_config(request: Request, dataset: str = Query(...)):
     return item
 
 
-@router.get("/dataset/get-all-dataset-config")
+@router.get("/dataset/get-all-dataset-config", response_class=PrettyJSONResponse)
 def get_all_dataset_config(request: Request):
     dataset_configs = []
     
@@ -120,7 +164,7 @@ def get_all_dataset_config(request: Request):
 
 
 @router.put("/dataset/set-relevance-model")
-def set_relevance_model(request: Request, dataset: str, relevance_model: str):
+def set_relevance_model(request: Request, dataset: str, relevance_model: RankingModel):
     date_now = datetime.now()
     # check if dataset exists
     query = {"dataset_name": dataset}
@@ -133,7 +177,7 @@ def set_relevance_model(request: Request, dataset: str, relevance_model: str):
     new_values = {
         "$set": {
             "last_update": date_now,
-            "relevance_model": relevance_model
+            "relevance_model": relevance_model.to_dict()
         }
     }
     request.app.dataset_config_collection.update_one(query, new_values)
@@ -142,7 +186,7 @@ def set_relevance_model(request: Request, dataset: str, relevance_model: str):
 
 
 @router.put("/dataset/set-ranking-model")
-def set_ranking_model(request: Request, dataset: str, ranking_model: str):
+def set_ranking_model(request: Request, dataset: str, ranking_model: RankingModel):
     date_now = datetime.now()
     # check if dataset exists
     query = {"dataset_name": dataset}
@@ -155,101 +199,111 @@ def set_ranking_model(request: Request, dataset: str, ranking_model: str):
     new_values = {
         "$set": {
             "last_update": date_now,
-            "ranking_model": ranking_model
+            "ranking_model": ranking_model.to_dict()
         }
     }
     request.app.dataset_config_collection.update_one(query, new_values)
 
     return True
 
-
-# -------------------- Dataset generation policy -------------------------
-
-@router.get("/dataset/get-all-dataset-generation-policy")
-def get_all_dataset_generation_policy(request: Request):
-    dataset_generation_policies = []
-    # find
-    items = request.app.dataset_config_collection.find({})
-    if items is None:
-        raise HTTPException(status_code=204)
-
-    for item in items:
-        # remove the auto generated field
-        item.pop('_id', None)
-        dataset_generation_policies.append(item)
-
-    return dataset_generation_policies
-
-
-@router.get("/dataset/get-generation-policy")
-def get_generation_policy(request: Request, dataset: str):
-    # find
-    query = {"dataset_name": dataset}
-    item = request.app.dataset_config_collection.find_one(query)
-    if item is None or "generation_policy" not in item:
-        raise HTTPException(status_code=204)
-
-    return item["generation_policy"]
-
-
-@router.put("/dataset/set-generation-policy")
-def set_generation_policy(request: Request, dataset, generation_policy='top-k'):
-    date_now = datetime.now()
+@router.get("/datasets/rank/list", response_class=PrettyJSONResponse)
+def list_ranking_files(request: Request, dataset: str):
+    # Construct the path prefix for ranking
+    path_prefix = f"{dataset}/data/ranking/aggregate"
     
-    # Check if exist
-    query = {"dataset_name": dataset}
-    item = request.app.dataset_config_collection.find_one(query)
+    # Fetch the list of objects with the given prefix
+    objects = cmd.get_list_of_objects_with_prefix(request.app.minio_client, "datasets", path_prefix)
     
-    if item is None:
-        # Add a new entry
-        dataset_config = {
-            "dataset_name": dataset,
-            "last_update": date_now,
-            "generation_policy": generation_policy,
-            "relevance_model": "",
-            "ranking_model": "",
-        }
-        request.app.dataset_config_collection.insert_one(dataset_config)
-    else:
-        # Update the existing entry
-        new_values = {"$set": {"last_update": date_now, "generation_policy": generation_policy}}
-        request.app.dataset_config_collection.update_one(query, new_values)
-
-    return True
-
-
-@router.get("/dataset/get-top-k")
-def get_top_k(request: Request, dataset: str):
-    # find
-    query = {"dataset_name": dataset}
-    item = request.app.dataset_config_collection.find_one(query)
-    if item is None or "top_k" not in item:
-        raise HTTPException(status_code=204)
-
-    return item["top_k"]
-
-
-@router.put("/dataset/set-top-k")
-def set_top_k(request: Request, dataset, top_k=0.1):
-    date_now = datetime.now()
+    # Filter out non-JSON files
+    json_files = [obj for obj in objects if obj.endswith('.json')]
     
-    # Check if exist
-    query = {"dataset_name": dataset}
-    item = request.app.dataset_config_collection.find_one(query)
+    if not json_files:
+        raise HTTPException(status_code=404, detail=f"No JSON files found in {path_prefix}.")
     
-    if item is None:
-        # Add a new entry
-        dataset_config = {
-            "dataset_name": dataset,
-            "last_update": date_now,
-            "top_k": top_k,
-            "relevance_model": "",
-            "ranking_model": "",
-        }
-        request.app.dataset_config_collection.insert_one(dataset_config)
-    else:
-        # Update the existing entry
-        new_values = {"$set": {"last_update": date_now, "top_k": top_k}}
-        request.app.dataset_config_collection.update_one(query, new_values)
+    return json_files
 
-    return True
+
+@router.get("/datasets/relevancy/list", response_class=PrettyJSONResponse)
+def list_relevancy_files(request: Request, dataset: str):
+    # Construct the path prefix for relevancy
+    path_prefix = f"{dataset}/data/relevancy/aggregate"
+    
+    # Fetch the list of objects with the given prefix
+    objects = cmd.get_list_of_objects_with_prefix(request.app.minio_client, "datasets", path_prefix)
+    
+    # Filter out non-JSON files
+    json_files = [obj for obj in objects if obj.endswith('.json')]
+    
+    if not json_files:
+        raise HTTPException(status_code=404, detail=f"No JSON files found in {path_prefix}.")
+    
+    return json_files
+
+
+@router.get("/datasets/rank/read", response_class=PrettyJSONResponse)
+def read_ranking_file(request: Request, dataset: str, filename: str = Query(..., description="Filename of the JSON to read")):
+    # Construct the object name for ranking
+    object_name = f"{dataset}/data/ranking/aggregate/{filename}"
+    
+    # Fetch the content of the specified JSON file
+    data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
+    
+    if data is None:
+        raise HTTPException(status_code=404, detail=f"File {filename} not found.")
+
+    file_content = ""
+    for chunk in data.stream(32*1024):
+        file_content += chunk.decode('utf-8')
+    
+    # Return the content of the JSON file
+    return json.loads(file_content)
+
+
+@router.get("/datasets/relevancy/read", response_class=PrettyJSONResponse)
+def read_relevancy_file(request: Request, dataset: str, filename: str = Query(..., description="Filename of the JSON to read")):
+    # Construct the object name for relevancy
+    object_name = f"{dataset}/data/relevancy/aggregate/{filename}"
+    
+    # Fetch the content of the specified JSON file
+    data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
+    
+    if data is None:
+        raise HTTPException(status_code=404, detail=f"File {filename} not found.")
+
+    file_content = ""
+    for chunk in data.stream(32*1024):
+        file_content += chunk.decode('utf-8')
+    
+    # Return the content of the JSON file
+    return json.loads(file_content)
+
+
+@router.put("/datasets/rank/update_datapoint")
+def update_ranking_file(request: Request, dataset: str, filename: str, update_data: FlaggedDataUpdate):
+    # Construct the object name based on the dataset
+    object_name = f"{dataset}/data/ranking/aggregate/{filename}"
+    
+    # Fetch the content of the specified JSON file
+    data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
+    
+    if data is None:
+        raise HTTPException(status_code=404, detail=f"File {filename} not found.")
+
+    file_content = ""
+    for chunk in data.stream(32*1024):
+        file_content += chunk.decode('utf-8')
+    
+    # Load the existing content and update the flagged field, flagged_time, and flagged_by_user
+    content_dict = json.loads(file_content)
+    content_dict["flagged"] = update_data.flagged
+    content_dict["flagged_by_user"] = update_data.flagged_by_user
+    content_dict["flagged_time"] = update_data.flagged_time if update_data.flagged_time else datetime.now().isoformat()
+    
+    # Save the modified file back
+    updated_content = json.dumps(content_dict, indent=2)
+    updated_data = io.BytesIO(updated_content.encode('utf-8'))
+    request.app.minio_client.put_object("datasets", object_name, updated_data, len(updated_content))
+
+    return {"message": f"File {filename} has been updated."}
+
+

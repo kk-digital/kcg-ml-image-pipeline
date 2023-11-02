@@ -9,21 +9,25 @@ from utility.utils_logger import logger
 MINIO_ADDRESS = "192.168.3.5:9000"
 
 
-def get_minio_client(minio_access_key, minio_secret_key, minio_addr=None):
+def get_minio_client(minio_access_key, minio_secret_key, minio_ip_addr=None):
+    global MINIO_ADDRESS
+
+    if minio_ip_addr is not None:
+        MINIO_ADDRESS = minio_ip_addr
     # check first if minio client is available
     minio_client = None
     while minio_client is None:
         # check minio server
-        if is_minio_server_accesssible():
-            minio_client = connect_to_minio_client(minio_addr, minio_access_key, minio_secret_key)
+        if is_minio_server_accessible(MINIO_ADDRESS):
+            minio_client = connect_to_minio_client(MINIO_ADDRESS, minio_access_key, minio_secret_key)
             return minio_client
 
 
-def connect_to_minio_client(minio_addr=None, access_key=None, secret_key=None,):
+def connect_to_minio_client(minio_ip_addr=None, access_key=None, secret_key=None,):
     global MINIO_ADDRESS
 
-    if minio_addr is not None:
-        MINIO_ADDRESS = minio_addr
+    if minio_ip_addr is not None:
+        MINIO_ADDRESS = minio_ip_addr
 
     print("Connecting to minio client...")
     client = Minio(MINIO_ADDRESS, access_key, secret_key, secure=False)
@@ -31,10 +35,13 @@ def connect_to_minio_client(minio_addr=None, access_key=None, secret_key=None,):
     return client
 
 
-def is_minio_server_accesssible():
+def is_minio_server_accessible(address=None):
+    if address is None:
+        address = MINIO_ADDRESS
+
     print("Checking if minio server is accessible...")
     try:
-        r = requests.head("http://" + MINIO_ADDRESS + "/minio/health/live", timeout=5)
+        r = requests.head("http://" + address + "/minio/health/live", timeout=5)
     except:
         print("Minio server is not accessible...")
         return False
@@ -140,14 +147,17 @@ def remove_an_object(client, bucket_name, object_name):
 
 
 def is_object_exists(client, bucket_name, object_name):
-    result = client.stat_object(bucket_name, object_name)
-    print(
-        "last-modified: {0}, size: {1}".format(
-            result.last_modified, result.size,
-        ),
-    )
+    try:
+        result = client.stat_object(bucket_name, object_name)
+        # print(
+        #     "last-modified: {0}, size: {1}".format(
+        #         result.last_modified, result.size,
+        #     ),
+        # )
 
-    if result.object_name != "":
-        return True
+        if result.object_name != "":
+            return True
+    except Exception as e:
+        return False
 
     return False

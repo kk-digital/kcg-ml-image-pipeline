@@ -1,5 +1,6 @@
 import sys
 import queue
+import math
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -69,9 +70,10 @@ class PromptGenerationPromptQueue:
         clip_text_embedder = prompt_job_generator_state.clip_text_embedder
         base_prompts_csv_path = self.get_dataset_base_prompt(dataset)
 
+        top_k = prompt_job_generator_state.get_dataset_top_k(dataset)
+
         # number of total prompts to generate before choosing n prompts
         if generation_policy == 'top-k':
-            top_k = prompt_job_generator_state.get_dataset_top_k(dataset)
             # if the generation policy is top-k we generate
             # more prompts so that the top-k are allways equal to prompt_count
             # example:  if top-k is 0.1 and we need 1 prompt, we generate 10 and choose best one
@@ -81,53 +83,112 @@ class PromptGenerationPromptQueue:
 
         total_prompt_count = int(total_prompt_count)
 
-        if base_prompts_csv_path is None:
-            print('base prompt file is not found for dataset ', dataset)
-
         scoring_model = prompt_job_generator_state.get_dataset_scoring_model(dataset)
-
-        if scoring_model is None:
-            print('prompt scoring model is not found for dataset ', dataset)
-
-        print(f'generating {total_prompt_count} prompts for dataset {dataset}')
-        prompts = generate_prompts_proportional_selection(prompt_job_generator_state.phrases,
-                                                          prompt_job_generator_state.phrases_token_size,
-                                                          prompt_job_generator_state.positive_count_list,
-                                                          prompt_job_generator_state.negative_count_list,
-                                                          total_prompt_count,
-                                                          '')
+        print('scoring_model ', scoring_model, ' for dataset ', dataset)
 
         base_prompt_population = load_base_prompts(base_prompts_csv_path)
+
+        prompts = []
+
+        if generation_policy == 'top-k':
+            prompts = generate_prompts_proportional_selection(prompt_job_generator_state.phrases,
+                                                              prompt_job_generator_state.phrases_token_size,
+                                                              prompt_job_generator_state.positive_count_list,
+                                                              prompt_job_generator_state.negative_count_list,
+                                                              total_prompt_count,
+                                                              '')
+            prompt_list = []
+            for prompt in prompts:
+                # N Base Prompt Phrases
+                # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
+                # Chance for 0 base prompt phrases should be 30%
+                # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
+                choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+
+                if len(base_prompt_population) != 0:
+                    base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
+                else:
+                    base_prompt_list = []
+
+                base_prompts = ''
+
+                for base_prompt in base_prompt_list:
+                    base_prompts = base_prompts + base_prompt + ', '
+
+                positive_text_prompt = base_prompts + prompt.positive_prompt_str
+                negative_text_prompt = prompt.negative_prompt_str
+                prompt_list.append(ScoredPrompt(0,
+                                                positive_text_prompt,
+                                                negative_text_prompt,
+                                                'N/A',
+                                                'N/A',
+                                                0))
+
+            prompts = prompt_list
+
+        elif generation_policy == 'combined-top-k':
+            number_of_positive_prompts_to_generate = int(math.sqrt(total_prompt_count) + 1.0)
+
+            prompts = generate_prompts_proportional_selection(prompt_job_generator_state.phrases,
+                                                              prompt_job_generator_state.phrases_token_size,
+                                                              prompt_job_generator_state.positive_count_list,
+                                                              prompt_job_generator_state.negative_count_list,
+                                                              number_of_positive_prompts_to_generate,
+                                                              '')
+            positive_prompts = []
+            negative_prompts = []
+
+            for prompt in prompts:
+                # N Base Prompt Phrases
+                # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
+                # Chance for 0 base prompt phrases should be 30%
+                # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
+                choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+
+                base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
+
+                base_prompts = ''
+
+                for base_prompt in base_prompt_list:
+                    base_prompts = base_prompts + base_prompt + ', '
+
+                positive_text_prompt = base_prompts + prompt.positive_prompt_str
+                negative_text_prompt = prompt.negative_prompt_str
+
+                positive_prompts.append(positive_text_prompt)
+                negative_prompts.append(negative_text_prompt)
+
+            # Create a list of all possible combinations
+            prompts = [ScoredPrompt(0, positive, negative, 'N/A', 'N/A', 0) for positive in positive_prompts for negative in
+                                negative_prompts]
+
+            # remove excess prompts, will only remove a tiny bit of prompts
+            # so no one cares
+            prompts = prompts[:total_prompt_count]
 
         scored_prompts = []
         for prompt in prompts:
 
-            # N Base Prompt Phrases
-            # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
-            # Chance for 0 base prompt phrases should be 30%
-            # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
-            choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-
-            base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
-
-            base_prompts = ''
-
-            for base_prompt in base_prompt_list:
-                base_prompts = base_prompts + base_prompt + ', '
-
-            positive_text_prompt = base_prompts + prompt.positive_prompt_str
-            negative_text_prompt = prompt.negative_prompt_str
+            positive_text_prompt = prompt.positive_prompt
+            negative_text_prompt = prompt.negative_prompt
 
             prompt_score = 0
+            model_type = 'N/A'
             if scoring_model is not None and clip_text_embedder is not None:
                 # get prompt embeddings
                 positive_prompt_embeddings = clip_text_embedder(positive_text_prompt)
                 negative_prompt_embeddings = clip_text_embedder(negative_text_prompt)
 
+                model_type = scoring_model.model_type
                 prompt_score = scoring_model.predict(positive_prompt_embeddings,
                                                                negative_prompt_embeddings).item()
 
-            scored_prompt = ScoredPrompt(prompt_score, positive_text_prompt, negative_text_prompt)
+            scored_prompt = ScoredPrompt(prompt_score,
+                                         positive_text_prompt,
+                                         negative_text_prompt,
+                                         model_type,
+                                         generation_policy,
+                                         top_k)
             scored_prompts.append(scored_prompt)
 
         # Sort the list based on the maximize_int1 function
@@ -138,8 +199,16 @@ class PromptGenerationPromptQueue:
         return chosen_scored_prompts
 
 class ScoredPrompt:
-    def __init__(self, score, positive_prompt, negative_prompt):
+    def __init__(self, score,
+                 positive_prompt,
+                 negative_prompt,
+                 scoring_model,
+                 generation_policy,
+                 top_k):
         self.score = score
+        self.scoring_model = scoring_model
+        self.generation_policy = generation_policy
+        self.top_k = top_k
         self.positive_prompt = positive_prompt
         self.negative_prompt = negative_prompt
 

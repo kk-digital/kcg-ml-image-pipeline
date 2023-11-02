@@ -1,3 +1,5 @@
+# NOTE: don't add more imports here
+# this is also used by training workers
 import requests
 
 SERVER_ADRESS = 'http://192.168.3.1:8111'
@@ -12,12 +14,13 @@ def http_get_job(worker_type: str = None):
 
     try:
         response = requests.get(url)
+
+        if response.status_code == 200:
+            job_json = response.json()
+            return job_json
+
     except Exception as e:
         print('request exception ', e)
-
-    if response.status_code == 200:
-        job_json = response.json()
-        return job_json
 
     return None
 
@@ -75,3 +78,19 @@ def http_update_job_failed(job):
 
     if response.status_code != 200:
         print(f"request failed with status code: {response.status_code}")
+
+
+# Get list of all dataset names
+def http_get_dataset_names():
+    url = SERVER_ADRESS + "/dataset/list"
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json
+
+    except Exception as e:
+        print('request exception ', e)
+
+    return None
