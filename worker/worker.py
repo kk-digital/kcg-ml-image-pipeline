@@ -224,6 +224,11 @@ def upload_image_data_and_update_job_status(worker_state, job, generation_task, 
     sampler_steps = generation_task.task_input_dict["sampler_steps"]
     dataset = generation_task.task_input_dict["dataset"]
 
+    prompt_scoring_model = generation_task.task_input_dict["prompt_scoring_model"]
+    prompt_score = generation_task.task_input_dict["prompt_score"]
+    prompt_generation_policy = generation_task.task_input_dict["prompt_generation_policy"]
+    top_k = generation_task.task_input_dict["top_k"]
+
     embedded_prompts = clip_text_embedder(positive_prompts)
     negative_embedded_prompts = clip_text_embedder(negative_prompts)
 
@@ -239,7 +244,8 @@ def upload_image_data_and_update_job_status(worker_state, job, generation_task, 
     save_image_data_to_minio(minio_client, generation_task.uuid, job_completion_time, dataset,
                              output_file_path.replace('.jpg', '_data.msgpack'), output_file_hash,
                              positive_prompts, negative_prompts,
-                             cfg_strength, seed, image_width, image_height, sampler, sampler_steps)
+                             cfg_strength, seed, image_width, image_height, sampler, sampler_steps,
+                             prompt_scoring_model, prompt_score, prompt_generation_policy, top_k)
     # save image embedding data
     save_image_embedding_to_minio(minio_client, generation_task.uuid, job_completion_time, dataset,
                                   output_file_path.replace('.jpg', '_embedding.msgpack'), output_file_hash,
