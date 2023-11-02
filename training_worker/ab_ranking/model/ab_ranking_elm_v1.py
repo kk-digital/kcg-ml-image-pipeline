@@ -373,6 +373,15 @@ class ABRankingELMModel:
 
             return outputs
 
+    def predict_clip(self, inputs):
+        # concatenate
+        inputs = inputs.reshape(len(inputs), -1)
+
+        with torch.no_grad():
+            outputs = self.model.forward(inputs).squeeze()
+
+            return outputs
+
 
 def forward_bradley_terry(predicted_score_images_x, predicted_score_images_y, use_sigmoid=True):
     if use_sigmoid:

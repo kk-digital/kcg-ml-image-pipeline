@@ -6,21 +6,23 @@ router = APIRouter()
 
 @router.post("/score/set-image-rank-score", description="Set image rank score")
 def set_image_rank_score(request: Request, ranking_score: RankingScore):
+    # check if exists
+    query = {"image_hash": ranking_score.image_hash,
+             "model_id": ranking_score.model_id}
+    count = request.app.image_scores_collection.count_documents(query)
+    if count > 0:
+        raise HTTPException(status_code=409, detail="Score for specific model_id and image_hash already exists.")
+
     request.app.image_scores_collection.insert_one(ranking_score.to_dict())
 
     return True
 
 
 @router.get("/score/get-image-rank-score-by-hash", description="Get image rank score by hash")
-def get_image_rank_score_by_hash(request: Request, image_hash: str, model_id=-1):
+def get_image_rank_score_by_hash(request: Request, image_hash: str, model_id: int):
     # check if exist
-    # TODO: temporary only, remove defualt value for model id
-    # when frontend uses model_id param
-    if model_id == -1:
-        query = {"image_hash": image_hash}
-    else:
-        query = {"image_hash": image_hash,
-                 "model_id": model_id}
+    query = {"image_hash": image_hash,
+             "model_id": model_id}
 
     item = request.app.image_scores_collection.find_one(query)
     if item is None:

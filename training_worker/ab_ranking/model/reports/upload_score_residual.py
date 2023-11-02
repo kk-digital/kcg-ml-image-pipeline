@@ -1,10 +1,6 @@
 import os
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.ticker import PercentFormatter
-from io import BytesIO
-import torch
 import sys
+from tqdm import tqdm
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
@@ -28,8 +24,9 @@ def upload_score_residual(model_id: int,
                           validation_image_hashes):
     print("Uploading scores and residuals...")
 
+    print("From training datapoints...")
     # training
-    for i in range(len(training_targets)):
+    for i in tqdm(range(len(training_targets))):
         if training_targets[i] == [1.0]:
             img_hash = training_image_hashes[i]
             img_score = training_pred_scores_img_x[i].item()
@@ -51,9 +48,9 @@ def upload_score_residual(model_id: int,
             }
             request.http_add_residual(residual_data)
 
-
+    print("From validation datapoints...")
     # validation
-    for i in range(len(validation_targets)):
+    for i in tqdm(range(len(validation_targets))):
         if validation_targets[i] == [1.0]:
             img_hash = validation_image_hashes[i]
             img_score = validation_pred_scores_img_x[i].item()
