@@ -12,15 +12,11 @@ def set_image_rank_residual(request: Request, ranking_residual: RankingResidual)
 
 
 @router.get("/residual/get-image-rank-residual-by-hash", description="Get image rank residual by hash")
-def get_image_rank_residual_by_hash(request: Request, image_hash: str, model_id=-1):
+def get_image_rank_residual_by_hash(request: Request, image_hash: str, model_id: int):
     # check if exist
-    # TODO: temporary only, remove defualt value for model id
-    # when frontend uses model_id param
-    if model_id == -1:
-        query = {"image_hash": image_hash}
-    else:
-        query = {"image_hash": image_hash,
-                 "model_id": model_id}
+    query = {"$match":
+                 {"image_hash": image_hash,
+                  "model_id": model_id}}
 
     item = request.app.image_residuals_collection.find_one(query)
     if item is None:
