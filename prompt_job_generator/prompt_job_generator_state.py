@@ -108,6 +108,7 @@ class PromptJobGeneratorState:
         model_file_data = cmd.get_file_from_minio(self.minio_client, dataset_bucket, model_path)
 
         if model_file_data is None:
+            print(f'count not find model file data at {model_path}')
             return
 
         # Create a BytesIO object and write the downloaded content into it
@@ -130,6 +131,7 @@ class PromptJobGeneratorState:
         model_file_data = cmd.get_file_from_minio(self.minio_client, dataset_bucket, model_path)
 
         if model_file_data is None:
+            print(f'count not find model file data at {model_path}')
             return
 
         # Create a BytesIO object and write the downloaded content into it
