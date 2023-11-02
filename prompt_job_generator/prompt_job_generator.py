@@ -209,6 +209,8 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
             prompt_job_generator_state.load_elm_v1_model(bucket_name, 'datasets', model_path)
 
         print(f'Loaded {model_type} model {dataset_model_name} for dataset {dataset}')
+        scoring_model = prompt_job_generator_state.get_dataset_scoring_model(dataset)
+        print('scoring_model loaded ', scoring_model, ' for dataset ', dataset)
 
 def update_dataset_prompt_queue_background_thread(prompt_job_generator_state):
 
