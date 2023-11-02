@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import pymongo
 from dotenv import dotenv_values
 from clip_server.api.api_clip import router as clip_router
-from server_state import ClipServer
+from clip_server.server_state import ClipServer
 from utility.minio import cmd
 import multiprocessing
 import uvicorn
