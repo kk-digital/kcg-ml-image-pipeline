@@ -39,8 +39,9 @@ def generate_image_from_text(minio_client, txt2img, clip_text_embedder, job_uuid
     save_image_data_to_minio(minio_client, job_uuid, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), dataset,
                              output_file_path.replace('.jpg', '_data.msgpack'), output_file_hash,
                              positive_prompts, negative_prompts,
-                                              cfg_strength, seed, image_width, image_height, sampler, sampler_steps,
+                             cfg_strength, seed, image_width, image_height, sampler, sampler_steps,
                              prompt_scoring_model, prompt_score, prompt_generation_policy, top_k)
+
     # save image embedding data
     save_image_embedding_to_minio(minio_client, job_uuid, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), dataset,
                              output_file_path.replace('.jpg', '_embedding.msgpack'), output_file_hash,
