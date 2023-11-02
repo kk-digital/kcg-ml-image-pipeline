@@ -172,18 +172,20 @@ class PromptGenerationPromptQueue:
             negative_text_prompt = prompt.negative_prompt
 
             prompt_score = 0
+            model_type = 'N/A'
             if scoring_model is not None and clip_text_embedder is not None:
                 # get prompt embeddings
                 positive_prompt_embeddings = clip_text_embedder(positive_text_prompt)
                 negative_prompt_embeddings = clip_text_embedder(negative_text_prompt)
 
+                model_type = scoring_model.model_type
                 prompt_score = scoring_model.predict(positive_prompt_embeddings,
                                                                negative_prompt_embeddings).item()
 
             scored_prompt = ScoredPrompt(prompt_score,
                                          positive_text_prompt,
                                          negative_text_prompt,
-                                         scoring_model.model_type,
+                                         model_type,
                                          generation_policy,
                                          top_k)
             scored_prompts.append(scored_prompt)
