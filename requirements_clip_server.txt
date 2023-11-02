@@ -1,0 +1,11 @@
+fastapi==0.101.1
+pydantic
+uvicorn
+pymongo==4.5.0
+python-dotenv
+Pillow==9.0.0
+minio
+Requests==2.30.0
+passlib
+python-jose
+python-multipart
