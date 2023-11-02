@@ -5,6 +5,7 @@ from matplotlib.ticker import PercentFormatter
 from io import BytesIO
 import torch
 import sys
+
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
@@ -77,10 +78,10 @@ def get_graph_report(model_class,
                      training_targets,
                      validation_prob_predictions,
                      validation_targets,
-                      training_pred_scores_img_x,
+                     training_pred_scores_img_x,
                      training_pred_scores_img_y,
                      validation_pred_scores_img_x,
-                      validation_pred_scores_img_y,
+                     validation_pred_scores_img_y,
                      training_total_size,
                      validation_total_size,
                      training_losses,
@@ -107,7 +108,8 @@ def get_graph_report(model_class,
                      randomize_data_per_epoch=False,
                      elm_sparsity=0.0,
                      training_shuffled_indices_origin=None,
-                     validation_shuffled_indices_origin=None):
+                     validation_shuffled_indices_origin=None,
+                     total_selection_datapoints=0):
     train_prob_predictions_target_1, \
         train_prob_predictions_target_0, \
         validation_prob_predictions_target_1, \
@@ -193,7 +195,8 @@ def get_graph_report(model_class,
     train_scores_histogram.set_xlabel("Predicted Score")
     train_scores_histogram.set_ylabel("Frequency")
     train_scores_histogram.set_title("Train Scores Histogram")
-    train_scores_histogram.hist(training_scores_predictions)
+    train_scores_histogram.hist(training_scores_predictions,
+                                weights=np.ones(len(training_scores_predictions)) / len(training_scores_predictions))
     train_scores_histogram.yaxis.set_major_formatter(PercentFormatter(1))
 
     # Validation Score Histogram
@@ -202,7 +205,9 @@ def get_graph_report(model_class,
     validation_scores_histogram.set_xlabel("Predicted Score")
     validation_scores_histogram.set_ylabel("Frequency")
     validation_scores_histogram.set_title("Validation Scores Histogram")
-    validation_scores_histogram.hist(validation_scores_predictions)
+    validation_scores_histogram.hist(validation_scores_predictions,
+                                     weights=np.ones(len(validation_scores_predictions)) / len(
+                                         validation_scores_predictions))
     validation_scores_histogram.yaxis.set_major_formatter(PercentFormatter(1))
     # ----------------------------------------------------------------------------------------------------------------#
 
@@ -227,7 +232,8 @@ def get_graph_report(model_class,
     train_residual_histogram.set_xlabel("Residual")
     train_residual_histogram.set_ylabel("Frequency")
     train_residual_histogram.set_title("Train Residual Histogram")
-    train_residual_histogram.hist(training_residuals, range=(0.0,1.0))
+    train_residual_histogram.hist(training_residuals, range=(0.0, 1.0),
+                                  weights=np.ones(len(training_residuals)) / len(training_residuals))
     train_residual_histogram.yaxis.set_major_formatter(PercentFormatter(1))
 
     # Calculate validation residuals
@@ -245,7 +251,8 @@ def get_graph_report(model_class,
     validation_residual_histogram.set_xlabel("Residual")
     validation_residual_histogram.set_ylabel("Frequency")
     validation_residual_histogram.set_title("Validation Residual Histogram")
-    validation_residual_histogram.hist(validation_residuals, range=(0.0,1.0))
+    validation_residual_histogram.hist(validation_residuals, range=(0.0, 1.0),
+                                       weights=np.ones(len(validation_residuals)) / len(validation_residuals))
     validation_residual_histogram.yaxis.set_major_formatter(PercentFormatter(1))
     # ----------------------------------------------------------------------------------------------------------------#
 
@@ -281,7 +288,6 @@ def get_graph_report(model_class,
     validation_target_1_predicted_scores.set_title("Validation Predicted Score for target 1.0")
     validation_target_1_predicted_scores.legend()
 
-
     # ----------------------------------------------------------------------------------------------------------------#
     # train_target_0_predicted_scores
     train_target_0_predicted_scores.scatter(train_x_axis_values_target_0, training_pred_scores_img_x_target_0,
@@ -316,8 +322,10 @@ def get_graph_report(model_class,
     validation_target_0_predicted_scores.legend()
     # ----------------------------------------------------------------------------------------------------------------#
     # chronological scores graph
-    chronological_pred_scores_img_x_target_1 = [None] * int((len(training_pred_scores_img_x) + len(validation_pred_scores_img_x))/2)
-    chronological_pred_scores_img_x_target_0 = [None] * int((len(training_pred_scores_img_x) + len(validation_pred_scores_img_x))/2)
+    chronological_pred_scores_img_x_target_1 = [None] * int(
+        (len(training_pred_scores_img_x) + len(validation_pred_scores_img_x)) / 2)
+    chronological_pred_scores_img_x_target_0 = [None] * int(
+        (len(training_pred_scores_img_x) + len(validation_pred_scores_img_x)) / 2)
 
     count = 0
     for score in training_pred_scores_img_x:
@@ -335,8 +343,10 @@ def get_graph_report(model_class,
             chronological_pred_scores_img_x_target_1[validation_shuffled_indices_origin[count]] = score.item()
         count += 1
 
-    chronological_pred_scores_img_y_target_1 = [None] * int((len(training_pred_scores_img_y) + len(validation_pred_scores_img_y))/2)
-    chronological_pred_scores_img_y_target_0 = [None] * int((len(training_pred_scores_img_y) + len(validation_pred_scores_img_y))/2)
+    chronological_pred_scores_img_y_target_1 = [None] * int(
+        (len(training_pred_scores_img_y) + len(validation_pred_scores_img_y)) / 2)
+    chronological_pred_scores_img_y_target_0 = [None] * int(
+        (len(training_pred_scores_img_y) + len(validation_pred_scores_img_y)) / 2)
     count = 0
     for score in training_pred_scores_img_y:
         if training_targets[count] == [0.0]:
@@ -353,14 +363,16 @@ def get_graph_report(model_class,
             chronological_pred_scores_img_y_target_1[validation_shuffled_indices_origin[count]] = score.item()
         count += 1
 
-    chronological_pred_scores_target_1_plot.scatter([i for i in range(len(chronological_pred_scores_img_x_target_1))], chronological_pred_scores_img_x_target_1,
-                                            label="Chronological predicted image x scores with target 1.0 ({0})".format(
-                                                len(chronological_pred_scores_img_x_target_1)),
-                                            c="#281ad9", s=5)
-    chronological_pred_scores_target_1_plot.scatter([i for i in range(len(chronological_pred_scores_img_y_target_1))], chronological_pred_scores_img_y_target_1,
-                                            label="Chronological predicted image y scores with target 1.0 ({0})".format(
-                                                len(chronological_pred_scores_img_y_target_1)),
-                                            c="#14e33a", s=5)
+    chronological_pred_scores_target_1_plot.scatter([i for i in range(len(chronological_pred_scores_img_x_target_1))],
+                                                    chronological_pred_scores_img_x_target_1,
+                                                    label="Chronological predicted image x scores with target 1.0 ({0})".format(
+                                                        len(chronological_pred_scores_img_x_target_1)),
+                                                    c="#281ad9", s=5)
+    chronological_pred_scores_target_1_plot.scatter([i for i in range(len(chronological_pred_scores_img_y_target_1))],
+                                                    chronological_pred_scores_img_y_target_1,
+                                                    label="Chronological predicted image y scores with target 1.0 ({0})".format(
+                                                        len(chronological_pred_scores_img_y_target_1)),
+                                                    c="#14e33a", s=5)
 
     chronological_pred_scores_target_1_plot.set_xlabel("Sample")
     chronological_pred_scores_target_1_plot.set_ylabel("Predicted Score")
@@ -409,6 +421,8 @@ def get_graph_report(model_class,
                          "Input shape = {}\n"
                          "Output type= {}\n\n"
                          ""
+                         "Total Selection \n"
+                         "Datapoints = {}\n"
                          "Training size = {}\n"
                          "Validation size = {}\n\n"
                          ""
@@ -438,6 +452,7 @@ def get_graph_report(model_class,
                                                                    input_type,
                                                                    input_shape,
                                                                    output_type,
+                                                                   total_selection_datapoints,
                                                                    training_total_size,
                                                                    validation_total_size,
                                                                    learning_rate,
@@ -458,7 +473,8 @@ def get_graph_report(model_class,
                                                                    train_sum_correct,
                                                                    (train_sum_correct / training_total_size) * 100,
                                                                    validation_sum_correct,
-                                                                   (validation_sum_correct / validation_total_size) * 100)
+                                                                   (
+                                                                               validation_sum_correct / validation_total_size) * 100)
                 )
 
     # Save figure

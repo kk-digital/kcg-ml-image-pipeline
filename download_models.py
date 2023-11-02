@@ -8,7 +8,7 @@ from tqdm import tqdm
 from configs.model_config import ModelPathConfig
 from utility.utils_logger import logger
 from utility.labml.monit import section
-from utility.minio.cmd import is_minio_server_accesssible, connect_to_minio_client, download_from_minio
+from utility.minio.cmd import is_minio_server_accessible, connect_to_minio_client, download_from_minio
 
 config = ModelPathConfig()
 
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     logger.info("Downloading models. This may take a while.")
 
     # check if minio server is available
-    is_minio_accessible = is_minio_server_accesssible()
+    is_minio_accessible = is_minio_server_accessible()
     if is_minio_accessible:
         minio_client = connect_to_minio_client()
 

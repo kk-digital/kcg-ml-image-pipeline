@@ -180,4 +180,3 @@ def get_images_metadata(
         images_metadata.append(image_meta_data)
 
     return images_metadata
-
