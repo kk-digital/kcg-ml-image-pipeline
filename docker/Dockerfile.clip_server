@@ -13,4 +13,4 @@ RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 RUN pip config set global.trusted-host 192.168.3.1
 RUN pip install -r /kcg-ml-image-pipeline/requirements.txt
 
-ENTRYPOINT ["/kcg-ml-image-pipeline/worker/run_worker.sh"]
+ENTRYPOINT ["/kcg-ml-image-pipeline/clip_server/run_clip_server.sh"]
