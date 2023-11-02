@@ -14,9 +14,8 @@ def set_image_rank_score(request: Request, ranking_score: RankingScore):
 @router.get("/score/get-image-rank-score-by-hash", description="Get image rank score by hash")
 def get_image_rank_score_by_hash(request: Request, image_hash: str, model_id: int):
     # check if exist
-    query = {"$match":
-                 {"image_hash": image_hash,
-                  "model_id": model_id}}
+    query = {"image_hash": image_hash,
+             "model_id": model_id}
 
     item = request.app.image_scores_collection.find_one(query)
     if item is None:
