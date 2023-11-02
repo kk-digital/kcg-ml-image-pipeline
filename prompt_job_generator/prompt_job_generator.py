@@ -193,6 +193,7 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
         if model_info is None:
             continue
 
+        print(model_info)
         model_type = model_info['model_type']
 
         model_path = model_info['model_path']
