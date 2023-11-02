@@ -266,7 +266,7 @@ class PromptJobGeneratorState:
         if model_info is None:
             return
 
-        model_type = model_info['model_architecture']
+        model_type = model_info['model_type']
 
         model = None
 
@@ -276,7 +276,11 @@ class PromptJobGeneratorState:
             model = self.get_efficient_net_model(dataset)
         elif model_type == 'ab_ranking_linear':
             model = self.get_linear_model(dataset)
+        elif model_type == 'image-pair-ranking-linear':
+            model = self.get_linear_model(dataset)
         elif model_type == 'ab_ranking_elm_v1':
+            model = self.get_elm_v1_model(dataset)
+        elif model_type == 'image-pair-ranking-elm-v1':
             model = self.get_elm_v1_model(dataset)
 
         return model
