@@ -6,21 +6,23 @@ router = APIRouter()
 
 @router.post("/residual/set-image-rank-residual", description="Set image rank residual")
 def set_image_rank_residual(request: Request, ranking_residual: RankingResidual):
+    # check if exists
+    query = {"image_hash": ranking_residual.image_hash,
+             "model_id": ranking_residual.model_id}
+    count = request.app.image_residuals_collection.count_documents(query)
+    if count > 0:
+        raise HTTPException(status_code=409, detail="Residual for specific model_id and image_hash already exists.")
+
     request.app.image_residuals_collection.insert_one(ranking_residual.to_dict())
 
     return True
 
 
 @router.get("/residual/get-image-rank-residual-by-hash", description="Get image rank residual by hash")
-def get_image_rank_residual_by_hash(request: Request, image_hash: str, model_id=-1):
+def get_image_rank_residual_by_hash(request: Request, image_hash: str, model_id: int):
     # check if exist
-    # TODO: temporary only, remove defualt value for model id
-    # when frontend uses model_id param
-    if model_id == -1:
-        query = {"image_hash": image_hash}
-    else:
-        query = {"image_hash": image_hash,
-                 "model_id": model_id}
+    query = {"image_hash": image_hash,
+             "model_id": model_id}
 
     item = request.app.image_residuals_collection.find_one(query)
     if item is None:
