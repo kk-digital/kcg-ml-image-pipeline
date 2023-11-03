@@ -148,10 +148,10 @@ def get_image_data(images: torch.Tensor, img_format: str = 'jpeg'):
         img_byte_arr.seek(0)
 
         # get hash
-        image_data = img.tobytes()
-        output_file_hash = (hashlib.sha256(image_data)).hexdigest()
+        output_file_hash = (hashlib.sha256(img_byte_arr)).hexdigest()
 
     return output_file_hash, img_byte_arr
+
 
 def save_image_grid(
         tensor: Union[torch.Tensor, List[torch.Tensor]],
