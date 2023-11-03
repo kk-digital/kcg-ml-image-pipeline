@@ -7,6 +7,8 @@ BASE_URL = "http://123.176.98.90:8764"
 # Fetching all tagged images
 response = requests.get(f"{BASE_URL}/tags/get_all_tagged_images")
 
+print(f"Response Content: {response.text}")  # Print the raw response
+
 if response.status_code == 200 and response.text.strip() != '':
     try:
         tagged_images = response.json()
