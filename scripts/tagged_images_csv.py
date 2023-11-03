@@ -9,6 +9,17 @@ response = requests.get(f"{BASE_URL}/tags/get_all_tagged_images")
 response.raise_for_status()
 tagged_images = response.json()
 
+# Check if the request was successful
+if response.status_code == 200:
+    try:
+        tagged_images = response.json()
+    except requests.RequestsJSONDecodeError:
+        print("Error decoding JSON from API response.")
+        exit(1)
+else:
+    print(f"Error: {response.status_code}. Message: {response.text}")
+    exit(1)
+
 # Prepare CSV data
 csv_data = []
 
