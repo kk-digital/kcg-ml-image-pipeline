@@ -34,7 +34,7 @@ class ClipModel:
         if self.verbose: print("Loading CLIP " + clip_model)
         # TODO: remove hard code of paths
         self.model = CLIPModel.from_pretrained("./input/model/clip/vit-large-patch14/vit-large-patch14.safetensors", config="./input/model/clip/vit-large-patch14/config.json")
-        #self.model = self.model.to(self.device)
+        self.model = self.model.to(self.device)
         self.preprocess = CLIPImageProcessor.from_pretrained("./input/model/clip/img_enc_processor")
         if self.verbose: print("CLIP loaded succesfully.")
 
@@ -54,6 +54,7 @@ class ClipModel:
         if self.device == "cpu":
             print("CUDA is not available. Running on CPU.")
         inputs = self.preprocess(images=image, return_tensors="pt")
+        inputs = inputs.to(device=self.device)
 
         with torch.no_grad():
             if self._clip_skip:
