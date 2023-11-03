@@ -70,6 +70,8 @@ class PromptJobGeneratorState:
 
     def load_efficient_net_model(self, dataset, dataset_bucket, model_path):
 
+        print(dataset)
+        print(model_path)
         efficient_net_model = ABRankingEfficientNetModel(in_channels=2)
 
         model_file_data = cmd.get_file_from_minio(self.minio_client, dataset_bucket, model_path)
@@ -106,6 +108,7 @@ class PromptJobGeneratorState:
         model_file_data = cmd.get_file_from_minio(self.minio_client, dataset_bucket, model_path)
 
         if model_file_data is None:
+            print(f'count not find model file data at {model_path}')
             return
 
         # Create a BytesIO object and write the downloaded content into it
@@ -120,6 +123,8 @@ class PromptJobGeneratorState:
         with self.dataset_model_lock:
             self.prompt_linear_model_dictionary[dataset] = linear_model
 
+        print('Linear model loaded successfully')
+
 
     def load_elm_v1_model(self, dataset, dataset_bucket, model_path):
 
@@ -128,6 +133,7 @@ class PromptJobGeneratorState:
         model_file_data = cmd.get_file_from_minio(self.minio_client, dataset_bucket, model_path)
 
         if model_file_data is None:
+            print(f'count not find model file data at {model_path}')
             return
 
         # Create a BytesIO object and write the downloaded content into it
@@ -141,6 +147,8 @@ class PromptJobGeneratorState:
 
         with self.dataset_model_lock:
             self.prompt_elm_v1_model_dictionary[dataset] = elm_model
+
+        print('Elm model loaded successfully')
 
 
     def get_linear_model(self, dataset):
@@ -258,7 +266,7 @@ class PromptJobGeneratorState:
         if model_info is None:
             return
 
-        model_type = model_info['model_architecture']
+        model_type = model_info['model_type']
 
         model = None
 
@@ -268,7 +276,11 @@ class PromptJobGeneratorState:
             model = self.get_efficient_net_model(dataset)
         elif model_type == 'ab_ranking_linear':
             model = self.get_linear_model(dataset)
+        elif model_type == 'image-pair-ranking-linear':
+            model = self.get_linear_model(dataset)
         elif model_type == 'ab_ranking_elm_v1':
+            model = self.get_elm_v1_model(dataset)
+        elif model_type == 'image-pair-ranking-elm-v1':
             model = self.get_elm_v1_model(dataset)
 
         return model

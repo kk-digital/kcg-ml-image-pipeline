@@ -580,7 +580,13 @@ def run_generate_inpainting_generation_task(generation_task: GenerationTask):
 
 
 
-def generate_image_generation_jobs(positive_prompt, negative_prompt, dataset_name):
+def generate_image_generation_jobs(positive_prompt,
+                                   negative_prompt,
+                                   prompt_scoring_model,
+                                   prompt_score,
+                                   prompt_generation_policy,
+                                   top_k,
+                                   dataset_name):
 
     # get sequential ids
     sequential_ids = request.http_get_sequential_id(dataset_name, 1)
@@ -603,7 +609,11 @@ def generate_image_generation_jobs(positive_prompt, negative_prompt, dataset_nam
         "image_width": 512,
         "image_height": 512,
         "sampler": "ddim",
-        "sampler_steps": 20
+        "sampler_steps": 20,
+        "prompt_scoring_model": prompt_scoring_model,
+        "prompt_score": prompt_score,
+        "prompt_generation_policy": prompt_generation_policy,
+        "top_k": top_k,
     }
 
     generation_task = GenerationTask(uuid=task_uuid,
@@ -624,6 +634,10 @@ def generate_image_generation_jobs(positive_prompt, negative_prompt, dataset_nam
 # use the dataset csv & the base prompt csv to generate inpainting jobs
 def generate_inpainting_job(positive_prompt,
                             negative_prompt,
+                            prompt_scoring_model,
+                            prompt_score,
+                            prompt_generation_policy,
+                            top_k,
                             dataset_name,
                             init_img_path="./test/test_inpainting/white_512x512.jpg",
                             mask_path="./test/test_inpainting/icon_mask.png"):
@@ -656,7 +670,11 @@ def generate_inpainting_job(positive_prompt,
         "denoising_strength": 0.75,
         "image_cfg_scale": 1.5,
         "inpaint_full_res_padding": 32,
-        "inpainting_mask_invert": 0
+        "inpainting_mask_invert": 0,
+        "prompt_scoring_model": prompt_scoring_model,
+        "prompt_score": prompt_score,
+        "prompt_generation_policy": prompt_generation_policy,
+        "top_k": top_k,
     }
 
 

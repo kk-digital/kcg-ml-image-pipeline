@@ -26,7 +26,7 @@ def parse_args():
     parser.add_argument("--device", type=str, default='cuda')
     parser.add_argument("--minio_access_key", type=str, default='v048BpXpWrsVIHUfdAix')
     parser.add_argument("--minio_secret_key", type=str, default='4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu')
-    parser.add_argument("--csv_dataset_path", type=str, default='input/civitai_phrases_database_v6.csv')
+    parser.add_argument("--csv_dataset_path", type=str, default='input/midjourney_data_phrase_count_v1.csv')
 
     return parser.parse_args()
 
@@ -193,7 +193,7 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
         if model_info is None:
             continue
 
-        model_type = model_info['model_architecture']
+        model_type = model_info['model_type']
 
         model_path = model_info['model_path']
 
@@ -205,10 +205,16 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
             prompt_job_generator_state.load_efficient_net_model(bucket_name, 'datasets', model_path)
         elif model_type == 'ab_ranking_linear':
             prompt_job_generator_state.load_linear_model(bucket_name, 'datasets', model_path)
+        elif model_type == 'image-pair-ranking-linear':
+            prompt_job_generator_state.load_linear_model(bucket_name, 'datasets', model_path)
         elif model_type == 'ab_ranking_elm_v1':
+            prompt_job_generator_state.load_elm_v1_model(bucket_name, 'datasets', model_path)
+        elif model_type == 'image-pair-ranking-elm-v1':
             prompt_job_generator_state.load_elm_v1_model(bucket_name, 'datasets', model_path)
 
         print(f'Loaded {model_type} model {dataset_model_name} for dataset {dataset}')
+        scoring_model = prompt_job_generator_state.get_dataset_scoring_model(dataset)
+        print('scoring_model loaded ', scoring_model, ' for dataset ', dataset)
 
 def update_dataset_prompt_queue_background_thread(prompt_job_generator_state):
 
