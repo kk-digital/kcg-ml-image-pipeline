@@ -1,6 +1,7 @@
 import os
 import sys
 import io
+import csv
 import argparse
 import numpy as np
 import torch
@@ -96,7 +97,6 @@ class ImageScorer:
         type_paths = [obj for obj in all_objects if obj.endswith(file_suffix)]
 
         print("Total paths found=", len(type_paths))
-
         return type_paths
 
     def get_feature_pair(self, path, index):
@@ -104,38 +104,33 @@ class ImageScorer:
         msgpack_data = cmd.get_file_from_minio(self.minio_client, 'datasets', path)
         if not msgpack_data:
             print(f"No msgpack file found at path: {path}")
-            return None, None, None, index
+            return None, None, None, None, index
 
         data = msgpack.unpackb(msgpack_data.data)
 
+        image_hash = None
+        image_path = None
+        first_feature = None
+        second_feature = None
+
         if self.model_input_type == "embedding":
             positive_embedding = list(data['positive_embedding'].values())
-            positive_embedding_array = torch.tensor(np.array(positive_embedding)).float()
+            first_feature = torch.tensor(np.array(positive_embedding)).float()
 
             negative_embedding = list(data['negative_embedding'].values())
-            negative_embedding_array = torch.tensor(np.array(negative_embedding)).float()
-
-            image_hash = data['file_hash']
-
-            return image_hash, positive_embedding_array, negative_embedding_array, index
+            second_feature = torch.tensor(np.array(negative_embedding)).float()
 
         elif self.model_input_type == "embedding-positive":
             positive_embedding = list(data['positive_embedding'].values())
-            positive_embedding_array = torch.tensor(np.array(positive_embedding)).float()
-            image_hash = data['file_hash']
-
-            return image_hash, positive_embedding_array, None, index
+            first_feature = torch.tensor(np.array(positive_embedding)).float()
 
         elif self.model_input_type == "embedding-negative":
             negative_embedding = list(data['negative_embedding'].values())
-            negative_embedding_array = torch.tensor(np.array(negative_embedding)).float()
-            image_hash = data['file_hash']
-
-            return image_hash, negative_embedding_array, None, index
+            first_feature = torch.tensor(np.array(negative_embedding)).float()
 
         elif self.model_input_type == "clip":
             clip_feature = data['clip-feature-vector']
-            clip_feature_vector = torch.tensor(np.array(clip_feature)).float()
+            first_feature = torch.tensor(np.array(clip_feature)).float()
 
             # clip image hash isn't in clip.msgpack so get it from _data.msgpack
             data_msgpack = cmd.get_file_from_minio(self.minio_client, 'datasets',
@@ -145,17 +140,20 @@ class ImageScorer:
                 return None
 
             data = msgpack.unpackb(data_msgpack.data)
-            image_hash = data['file_hash']
 
-            return image_hash, clip_feature_vector, None, index
+        image_hash = data['file_hash']
+        if self.model_input_type == "clip":
+            image_path = data['file_path'].replace("_data.msgpack", ".jpg")
+        else:
+            image_path = data['file_path'].replace("_embedding.msgpack", ".jpg")
 
-        return None, None, None, index
+        return image_hash, image_path, first_feature, second_feature, index
 
     def get_all_feature_pairs(self, msgpack_paths):
         print('Getting dataset features...')
 
         features_data = [None] * len(msgpack_paths)
-
+        image_paths = [None] * len(msgpack_paths)
         with ThreadPoolExecutor(max_workers=5) as executor:
             futures = []
             count = 0
@@ -164,15 +162,16 @@ class ImageScorer:
                 count += 1
 
             for future in tqdm(as_completed(futures), total=len(msgpack_paths)):
-                image_hash, first_feature, second_feature, index = future.result()
+                image_hash, image_path, first_feature, second_feature, index = future.result()
                 features_data[index] = (image_hash, first_feature, second_feature)
+                image_paths[index] = image_path
 
-        return features_data
+        return features_data, image_paths
 
     def get_scores(self, msgpack_paths):
         hash_score_pairs = []
 
-        features_data = self.get_all_feature_pairs(msgpack_paths)
+        features_data, image_paths = self.get_all_feature_pairs(msgpack_paths)
         print('Predicting dataset scores...')
         with torch.no_grad():
             for data in tqdm(features_data):
@@ -199,16 +198,35 @@ class ImageScorer:
 
                 hash_score_pairs.append((image_hash, score.item()))
 
-        # # Merge the vectors into a list of dictionaries
-        # # Save scores to CSV
-        # with open('scores.csv', 'w') as file:
-        #     writer = csv.writer(file)
-        #     writer.writerow(["Model Filename", "Model Hash", "Image Path", "Image Hash", "Score"])
-        #     for msgpack_path, score in zip(msgpack_objects, scores):
-        #         writer.writerow([msgpack_path, os.path.basename(msgpack_path), score['positive'], score['negative'], score['score']])
-        # print('Scores saved to scores.csv')
+        return hash_score_pairs, image_paths
 
-        return hash_score_pairs
+    def get_percentiles(self, hash_score_pairs):
+        hash_percentile_dict = {}
+        sorted_hash_score_pairs = hash_score_pairs.copy()
+        sorted_hash_score_pairs.sort(key=lambda a: a[1])
+
+        len_hash_scores = len(sorted_hash_score_pairs)
+        for i in range(len(sorted_hash_score_pairs)):
+            percentile = i / len_hash_scores
+            hash_percentile_dict[sorted_hash_score_pairs[i][0]] = percentile
+
+        return hash_percentile_dict
+
+    def upload_csv(self, hash_score_pairs, hash_percentile_dict, image_paths):
+        print("Saving data to csv...")
+        csv_buffer = io.StringIO()
+        writer = csv.writer(csv_buffer)
+        writer.writerow((["Score", "Percentile", "Image Hash", "Image Path"]))
+
+        count = 0
+        for image_hash, score in hash_score_pairs:
+            writer.writerow([score, hash_percentile_dict[image_hash], image_hash, image_paths[count]])
+            count += 1
+
+        bytes_buffer = io.BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
+        # upload the csv
+        csv_path = os.path.join(self.dataset, "output/scores-csv", self.model_name.replace(".pth", ".csv"))
+        cmd.upload_data(self.minio_client, 'datasets', csv_path, bytes_buffer)
 
     def upload_scores(self, hash_score_pairs):
         print("Uploading scores to mongodb...")
@@ -227,21 +245,41 @@ class ImageScorer:
             for _ in tqdm(as_completed(futures), total=len(hash_score_pairs)):
                 continue
 
-    def generate_graphs(self, hash_score_pairs):
+    def upload_percentile(self, hash_percentile_dict):
+        print("Uploading percentiles to mongodb...")
+        with ThreadPoolExecutor(max_workers=50) as executor:
+            futures = []
+            for image_hash, percentile in hash_percentile_dict.items():
+                # upload percentile
+                percentile_data = {
+                    "model_id": self.model_id,
+                    "image_hash": image_hash,
+                    "percentile": percentile,
+                }
+
+                futures.append(executor.submit(request.http_add_percentile, percentile_data=percentile_data))
+
+            for _ in tqdm(as_completed(futures), total=len(hash_percentile_dict)):
+                continue
+
+    def generate_graphs(self, hash_score_pairs, hash_percentile_dict):
         # Initialize all graphs/subplots
         plt.figure(figsize=(22, 20))
         figure_shape = (1, 1)
         score_graph = plt.subplot2grid(figure_shape, (0, 0), rowspan=1, colspan=1)
 
-        scores = [i[1] for i in hash_score_pairs]
+        chronological_percentiles = []
+        for pair in hash_score_pairs:
+            chronological_percentiles.append(hash_percentile_dict[pair[0]])
+
         x_axis_values = [i for i in range(len(hash_score_pairs))]
-        score_graph.scatter(x_axis_values, scores,
-                            label="Image Scores over time",
+        score_graph.scatter(x_axis_values, chronological_percentiles,
+                            label="Image Percentiles over time",
                             c="#281ad9", s=15)
 
         score_graph.set_xlabel("Time")
-        score_graph.set_ylabel("Score")
-        score_graph.set_title("Score vs Time")
+        score_graph.set_ylabel("Percentile")
+        score_graph.set_title("Percentile vs Time")
         score_graph.legend()
         score_graph.autoscale(enable=True, axis='y')
 
@@ -254,8 +292,7 @@ class ImageScorer:
         buf.seek(0)
 
         # upload the graph report
-        graph_output = os.path.join(self.dataset, "models", "ranking",
-                                    self.model_name.replace(".pth", "-dataset-graph.png"))
+        graph_output = os.path.join(self.dataset, "output/percentiles-graph", self.model_name.replace(".pth", ".png"))
         cmd.upload_data(self.minio_client, 'datasets', graph_output, buf)
 
 
@@ -281,12 +318,18 @@ def main():
 
     scorer.load_model()
     paths = scorer.get_paths()
-    hash_score_pairs = scorer.get_scores(paths)
-    scorer.generate_graphs(hash_score_pairs)
+    hash_score_pairs, image_paths = scorer.get_scores(paths)
+    hash_percentile_dict = scorer.get_percentiles(hash_score_pairs)
+    scorer.upload_csv(hash_score_pairs=hash_score_pairs,
+                      hash_percentile_dict=hash_percentile_dict,
+                      image_paths=image_paths)
+    scorer.generate_graphs(hash_score_pairs, hash_percentile_dict)
     scorer.upload_scores(hash_score_pairs)
+    scorer.upload_percentile(hash_percentile_dict)
 
     time_elapsed = time.time() - start_time
     print("Total Time elapsed: {0}s".format(format(time_elapsed, ".2f")))
+
 
 if __name__ == "__main__":
     main()
