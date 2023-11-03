@@ -62,7 +62,7 @@ def get_relevancy_models(request: Request, dataset: str = Query(...)):
             # Append the rearranged content of the JSON file to the models_list
             models_list.append(arranged_content)
 
-    models_list = sorted(models_list, key=lambda x: x["model_creation_date"], reverse=True)
+    models_list.sort(key=lambda x: tuple(map(int, x["model_name"].split("-")[:4])), reverse=True)
 
     return models_list
 
@@ -107,7 +107,7 @@ def get_ranking_models(request: Request, dataset: str = Query(...)):
             # Append the rearranged content of the JSON file to the models_list
             models_list.append(arranged_content)
             
-    models_list = sorted(models_list, key=lambda x: x["model_creation_date"], reverse=True)
+    models_list.sort(key=lambda x: tuple(map(int, x["model_name"].split("-")[:4])), reverse=True)
 
     return models_list
 
