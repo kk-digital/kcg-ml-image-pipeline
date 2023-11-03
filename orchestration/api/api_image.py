@@ -119,8 +119,23 @@ def get_random_image_date_range(
     return documents
 
 
+@router.get("/image/data-by-filepath")
+def get_image_data_by_filepath(request: Request, file_path: str = None):
+
+    bucket_name, file_path = separate_bucket_and_file_path(file_path)
+
+    image_data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, file_path)
+
+    # Load data into memory
+    content = image_data.read()
+
+    response = Response(content=content, media_type="image/jpeg")
+
+    return response
+
+
 @router.get("/images/{file_path:path}")
-def get_image_data_by_filepath(request: Request, file_path: str):
+def get_image_data_by_filepath_2(request: Request, file_path: str):
     bucket_name, file_path = separate_bucket_and_file_path(file_path)
     file_path = file_path.replace("\\", "/")
     image_data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, file_path)
