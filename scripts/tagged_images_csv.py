@@ -3,8 +3,11 @@ import csv
 
 # Base URL for the API calls
 BASE_URL = "http://123.176.98.90:8764"
-headers = {"Accept": "application/json"}
-
+headers = {
+    "Accept": "application/json",
+    "User-Agent": "curl/7.68.0",  # Mimic curl's user-agent
+    "Content-Type": "application/json"
+}
 
 # Fetching all tagged images
 response = requests.get(f"{BASE_URL}/tags/get_all_tagged_images", headers=headers)
@@ -14,7 +17,7 @@ print("Response from /tags/get_all_tagged_images:")
 print(response.text)
 
 # Check if the response is successful
-response.raise_for_status() 
+response.raise_for_status()
 
 tagged_images = response.json()
 

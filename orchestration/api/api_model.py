@@ -46,8 +46,8 @@ def get_relevancy_models(request: Request, dataset: str = Query(...)):
             data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, obj)
             model_content = json.loads(data.read().decode('utf-8'))
             
-            # Extract model name from the JSON file name (like '2023-10-09.json')
-            model_name = obj.split('/')[-1].split('.')[0]
+            # Extract the full model name from the model_path
+            model_name = model_content['model_path'].split('/')[-1].split('.')[0]
             
             # Extract model architecture from the object path (like 'ab_ranking_linear' or 'ab_ranking_efficient_net')
             model_architecture = obj.split('/')[-2]
@@ -62,14 +62,14 @@ def get_relevancy_models(request: Request, dataset: str = Query(...)):
             # Append the rearranged content of the JSON file to the models_list
             models_list.append(arranged_content)
 
-    models_list = sorted(models_list, key=lambda x: x["model_creation_date"], reverse=True)
-
+    # Custom sorting
+    models_list.sort(key=lambda x: not x["model_name"].endswith('.pth'))
+    
+    models_list.sort(key=lambda x: x["model_name"].split('_')[0] if x["model_name"].endswith('.pth') else x["model_name"], reverse=True)
+    
     return models_list
 
-
-
-
-@router.get("/models/rank-embedding/list-models",response_class=PrettyJSONResponse )
+@router.get("/models/rank-embedding/list-models", response_class=PrettyJSONResponse)
 def get_ranking_models(request: Request, dataset: str = Query(...)):
     # Bucket name
     bucket_name = "datasets"
@@ -91,9 +91,9 @@ def get_ranking_models(request: Request, dataset: str = Query(...)):
             data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, obj)
             model_content = json.loads(data.read().decode('utf-8'))
             
-            # Extract model name from the JSON file name (like '2023-10-09.json')
-            model_name = obj.split('/')[-1].split('.')[0]
-            
+            # Extract the full model name from the model_path
+            model_name = model_content['model_path'].split('/')[-1].split('.')[0]
+
             # Extract model architecture from the object path (like 'ab_ranking_linear' or 'ab_ranking_efficient_net')
             model_architecture = obj.split('/')[-2]
             
@@ -106,10 +106,15 @@ def get_ranking_models(request: Request, dataset: str = Query(...)):
             
             # Append the rearranged content of the JSON file to the models_list
             models_list.append(arranged_content)
-            
-    models_list = sorted(models_list, key=lambda x: x["model_creation_date"], reverse=True)
+
+    # Custom sorting
+    models_list.sort(key=lambda x: not x["model_name"].endswith('.pth'))
+    
+    # Further refine the sorting based on the model name
+    models_list.sort(key=lambda x: x["model_name"].split('_')[0] if x["model_name"].endswith('.pth') else x["model_name"], reverse=True)
 
     return models_list
+
 
 
 
