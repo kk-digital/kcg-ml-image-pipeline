@@ -26,8 +26,16 @@ from worker.prompt_generation.prompt_generator import (generate_inpainting_job,
 
 
 class ScoredPrompt:
-    def __init__(self, score, positive_prompt, negative_prompt):
+    def __init__(self, score,
+                 positive_prompt,
+                 negative_prompt,
+                 scoring_model,
+                 generation_policy,
+                 top_k):
         self.score = score
+        self.scoring_model = scoring_model
+        self.generation_policy = generation_policy
+        self.top_k = top_k
         self.positive_prompt = positive_prompt
         self.negative_prompt = negative_prompt
 
@@ -36,89 +44,6 @@ class PromptBatch:
     def __init__(self, positive_prompt_list, negative_prompt_list):
         self.positive_prompt_list = positive_prompt_list
         self.negative_prompt_list = negative_prompt_list
-
-
-
-
-def generate_prompts(clip_text_embedder, scoring_model,
-                     base_prompt_population, current_index,
-                     prompt_count, prompts, prompt_multiplier, batch_size):
-
-    current_index_in_batch = 0
-    positive_prompt_batch = []
-    negative_prompt_batch = []
-    batch_list = []
-
-    for index in range(0, prompt_multiplier):
-
-        prompt = prompts[current_index + index]
-        # N Base Prompt Phrases
-        # Hard coded probability of choose 0,1,2,3,4,5, etc base prompt phrases
-        # Chance for 0 base prompt phrases should be 30%
-        # choose_probability = [0.3, 0.3, 0.2, 0.2, 0.2]
-        choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-
-        if base_prompt_population is not None:
-            base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
-        else:
-            base_prompt_list = []
-
-        base_prompts = ''
-
-        for base_prompt in base_prompt_list:
-            base_prompts = base_prompts + base_prompt + ', '
-
-        positive_text_prompt = base_prompts + prompt.positive_prompt_str
-        negative_text_prompt = prompt.negative_prompt_str
-
-        positive_prompt_batch.append(positive_text_prompt)
-        negative_prompt_batch.append(negative_text_prompt)
-
-        current_index_in_batch = current_index_in_batch + 1
-
-        if (current_index_in_batch % batch_size == 0 or
-                current_index_in_batch == prompt_multiplier):
-
-            this_batch = PromptBatch(positive_prompt_batch, negative_prompt_batch)
-            batch_list.append(this_batch)
-            positive_prompt_batch = []
-            negative_prompt_batch = []
-
-
-    print('Scoring Generated Prompts ')
-    scored_prompts = []
-    batch_index = 0
-    for batch in batch_list:
-        batch_index = batch_index + 1
-        print(f'batch {batch_index} out of {len(batch_list)}')
-        positive_prompt_embeddings_list = clip_text_embedder(batch.positive_prompt_list)
-        negative_prompt_embeddings_list = clip_text_embedder(batch.negative_prompt_list)
-
-        for index in range(len(batch.positive_prompt_list)):
-            positive_prompt = batch.positive_prompt_list[index]
-            negative_prompt = batch.negative_prompt_list[index]
-            positive_prompt_embeddings = positive_prompt_embeddings_list[index]
-            negative_prompt_embeddings = negative_prompt_embeddings_list[index]
-
-            prompt_score = 0
-            if scoring_model is not None and clip_text_embedder is not None:
-                prompt_score = scoring_model.predict(positive_prompt_embeddings,
-                                                     negative_prompt_embeddings).item()
-
-            scored_prompt = ScoredPrompt(prompt_score, positive_prompt,
-                                         negative_prompt)
-            scored_prompts.append(scored_prompt)
-
-        del positive_prompt_embeddings_list
-        del negative_prompt_embeddings_list
-        torch.cuda.empty_cache()
-
-    # Sort the list based on the maximize_int1 function
-    sorted_scored_prompts = sorted(scored_prompts, key=maximize_score)
-
-    chosen_scored_prompts = sorted_scored_prompts[:prompt_count]
-
-    return chosen_scored_prompts
 
 
 def maximize_score(scored_prompt):
@@ -177,10 +102,18 @@ def generate_character_generation_jobs(scored_prompt):
 
     positive_prompt = scored_prompt.positive_prompt
     negative_prompt = scored_prompt.negative_prompt
+    prompt_scoring_model = scored_prompt.scoring_model
+    prompt_score = scored_prompt.score
+    prompt_generation_policy = scored_prompt.generation_policy
+    top_k = scored_prompt.top_k
 
     generate_inpainting_job(
         positive_prompt=positive_prompt,
         negative_prompt=negative_prompt,
+        prompt_scoring_model=prompt_scoring_model,
+        prompt_score=prompt_score,
+        prompt_generation_policy=prompt_generation_policy,
+        top_k=top_k,
         dataset_name=dataset_name,
         init_img_path=init_img_path,
         mask_path=mask_path,
@@ -199,10 +132,18 @@ def generate_icons_generation_jobs(scored_prompt):
 
     positive_prompt = scored_prompt.positive_prompt
     negative_prompt = scored_prompt.negative_prompt
+    prompt_scoring_model = scored_prompt.scoring_model
+    prompt_score = scored_prompt.score
+    prompt_generation_policy = scored_prompt.generation_policy
+    top_k = scored_prompt.top_k
 
     generate_inpainting_job(
         positive_prompt=positive_prompt,
         negative_prompt=negative_prompt,
+        prompt_scoring_model=prompt_scoring_model,
+        prompt_score=prompt_score,
+        prompt_generation_policy=prompt_generation_policy,
+        top_k=top_k,
         dataset_name=dataset_name,
         init_img_path=init_img_path,
         mask_path=mask_path,
@@ -221,10 +162,18 @@ def generate_mech_generation_jobs(scored_prompt, mech_mask):
 
     positive_prompt = scored_prompt.positive_prompt
     negative_prompt = scored_prompt.negative_prompt
+    prompt_scoring_model = scored_prompt.scoring_model
+    prompt_score = scored_prompt.score
+    prompt_generation_policy = scored_prompt.generation_policy
+    top_k = scored_prompt.top_k
 
     generate_inpainting_job(
         positive_prompt=positive_prompt,
         negative_prompt=negative_prompt,
+        prompt_scoring_model=prompt_scoring_model,
+        prompt_score=prompt_score,
+        prompt_generation_policy=prompt_generation_policy,
+        top_k=top_k,
         dataset_name=dataset_name,
         init_img_path=init_img_path,
         mask_path=mask_path,
@@ -241,10 +190,18 @@ def generate_waifu_generation_jobs(scored_prompt):
 
     positive_prompt = scored_prompt.positive_prompt
     negative_prompt = scored_prompt.negative_prompt
+    prompt_scoring_model = scored_prompt.scoring_model
+    prompt_score = scored_prompt.score
+    prompt_generation_policy = scored_prompt.generation_policy
+    top_k = scored_prompt.top_k
 
     generate_image_generation_jobs(
         positive_prompt=positive_prompt,
         negative_prompt=negative_prompt,
+        prompt_scoring_model=prompt_scoring_model,
+        prompt_score=prompt_score,
+        prompt_generation_policy=prompt_generation_policy,
+        top_k=top_k,
         dataset_name=dataset_name,
     )
 
@@ -258,12 +215,20 @@ def generate_propaganda_poster_generation_jobs(scored_prompt):
 
     positive_prompt = scored_prompt.positive_prompt
     negative_prompt = scored_prompt.negative_prompt
+    prompt_scoring_model = scored_prompt.scoring_model
+    prompt_score = scored_prompt.score
+    prompt_generation_policy = scored_prompt.generation_policy
+    top_k = scored_prompt.top_k
 
     print(f'spawning {dataset_name} job')
 
     generate_image_generation_jobs(
         positive_prompt=positive_prompt,
         negative_prompt=negative_prompt,
+        prompt_scoring_model=prompt_scoring_model,
+        prompt_score=prompt_score,
+        prompt_generation_policy=prompt_generation_policy,
+        top_k=top_k,
         dataset_name=dataset_name,
     )
 
@@ -277,10 +242,18 @@ def generate_environmental_image_generation_jobs(scored_prompt):
 
     positive_prompt = scored_prompt.positive_prompt
     negative_prompt = scored_prompt.negative_prompt
+    prompt_scoring_model = scored_prompt.scoring_model
+    prompt_score = scored_prompt.score
+    prompt_generation_policy = scored_prompt.generation_policy
+    top_k = scored_prompt.top_k
 
     generate_image_generation_jobs(
         positive_prompt=positive_prompt,
         negative_prompt=negative_prompt,
+        prompt_scoring_model=prompt_scoring_model,
+        prompt_score=prompt_score,
+        prompt_generation_policy=prompt_generation_policy,
+        top_k=top_k,
         dataset_name=dataset_name,
     )
 
@@ -344,6 +317,8 @@ def main():
     )
 
     minio_client = cmd.get_minio_client(minio_access_key, minio_secret_key)
+
+    scoring_model = None
 
     if minio_client is not None:
         if model_type == 'linear':
@@ -439,8 +414,12 @@ def main():
                 prompt_score = scoring_model.predict(positive_prompt_embeddings,
                                                      negative_prompt_embeddings).item()
 
-            scored_prompt = ScoredPrompt(prompt_score, positive_prompt,
-                                         negative_prompt)
+            scored_prompt = ScoredPrompt(prompt_score,
+                                         positive_prompt,
+                                         negative_prompt,
+                                         scoring_model.model_type,
+                                         'top-k',
+                                         top_k)
             scored_prompts.append(scored_prompt)
 
         del positive_prompt_embeddings_list
