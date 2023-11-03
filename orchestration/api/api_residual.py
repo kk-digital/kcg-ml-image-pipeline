@@ -50,3 +50,13 @@ def get_image_rank_residuals_by_model_id(request: Request, model_id: int):
         residual_data.append(item)
 
     return residual_data
+
+
+@router.delete("/residual/delete-image-rank-residuals-by-model-id", description="Delete all image rank residuals by model id.")
+def delete_image_rank_residuals_by_model_id(request: Request, model_id: int):
+    # check if exist
+    query = {"model_id": model_id}
+    res = request.app.image_residuals_collection.delete_many(query)
+    print(res.deleted_count, " documents deleted.")
+
+    return None
