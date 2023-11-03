@@ -7,7 +7,6 @@ BASE_URL = "http://123.176.98.90:8764"
 # Fetching all tagged images
 response = requests.get(f"{BASE_URL}/tags/get_all_tagged_images")
 
-print(f"Response Content: {response.text}")  # Print the raw response
 
 if "application/json" in response.headers.get("Content-Type"):
     try:
