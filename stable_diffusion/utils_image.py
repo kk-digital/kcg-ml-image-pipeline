@@ -150,7 +150,7 @@ def get_image_data(images: torch.Tensor, img_format: str = 'jpeg'):
         img_byte_arr.seek(0)
 
         # get hash
-        output_file_hash = (hashlib.sha256(img_byte_arr)).hexdigest()
+        output_file_hash = (hashlib.sha256(img_byte_arr.getbuffer())).hexdigest()
 
     return output_file_hash, img_byte_arr
 
