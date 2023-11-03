@@ -9,15 +9,16 @@ response = requests.get(f"{BASE_URL}/tags/get_all_tagged_images")
 
 print(f"Response Content: {response.text}")  # Print the raw response
 
-if response.status_code == 200 and response.text.strip() != '':
+if "application/json" in response.headers.get("Content-Type"):
     try:
         tagged_images = response.json()
     except Exception as e:
         print(f"Error decoding JSON from API response: {e}")
         exit(1)
 else:
-    print(f"Error: {response.status_code}. Message: {response.text}")
+    print("Error: The API response is not JSON. Check the endpoint or the API configuration.")
     exit(1)
+
 
 # Prepare CSV data
 csv_data = []
