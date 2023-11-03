@@ -139,9 +139,10 @@ def get_images_metadata(
     limit: int = 20,
     offset: int = 0,
     start_date: str = None,
-    end_date: str = None
+    end_date: str = None,
+    order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first")
 ):
-    
+
     print(f"start_date: {start_date}") 
 
     # Construct the initial query
@@ -161,8 +162,10 @@ def get_images_metadata(
     elif end_date:
         query['task_creation_time'] = {'$lte': end_date}
 
-    print(f"query: {query}") 
-    jobs = request.app.completed_jobs_collection.find(query).sort('task_creation_time', -1).skip(offset).limit(limit)
+    # Decide the sort order based on the 'order' parameter
+    sort_order = -1 if order == "desc" else 1
+
+    jobs = request.app.completed_jobs_collection.find(query).sort('task_creation_time', sort_order).skip(offset).limit(limit)
 
     images_metadata = []
     for job in jobs:
@@ -175,3 +178,4 @@ def get_images_metadata(
         images_metadata.append(image_meta_data)
 
     return images_metadata
+
