@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import pymongo
 from bson.objectid import ObjectId
 from dotenv import dotenv_values
+from orchestration.api.api_clip import router as clip_router
 from orchestration.api.api_dataset import router as dataset_router
 from orchestration.api.api_image import router as image_router
 from orchestration.api.api_job_stats import router as job_stats_router
@@ -28,6 +29,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(clip_router)
 app.include_router(dataset_router)
 app.include_router(image_router)
 app.include_router(job_router)
