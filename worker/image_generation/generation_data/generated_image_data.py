@@ -17,7 +17,8 @@ class GeneratedImageData:
     sampler_steps: int
 
     def __init__(self, job_uuid, creation_time, dataset, file_path, file_hash, positive_prompt, negative_prompt,
-                 cfg_strength, seed, image_width, image_height, sampler, sampler_steps):
+                 cfg_strength, seed, image_width, image_height, sampler, sampler_steps,
+                 prompt_scoring_model, prompt_score, prompt_generation_policy, top_k):
         self.job_uuid = job_uuid
         self.creation_time = creation_time
         self.dataset = dataset
@@ -31,6 +32,10 @@ class GeneratedImageData:
         self.image_height = image_height
         self.sampler = sampler
         self.sampler_steps = sampler_steps
+        self.prompt_scoring_model = prompt_scoring_model
+        self.prompt_score = prompt_score
+        self.prompt_generation_policy = prompt_generation_policy
+        self.top_k = top_k
 
     def serialize(self):
         # Convert object to a dictionary
@@ -47,7 +52,11 @@ class GeneratedImageData:
             "image_width": self.image_width,
             "image_height": self.image_height,
             "sampler": self.sampler,
-            "sampler_steps": self.sampler_steps
+            "sampler_steps": self.sampler_steps,
+            "prompt_scoring_model": self.prompt_scoring_model,
+            "prompt_score": self.prompt_score,
+            "prompt_generation_policy": self.prompt_generation_policy,
+            "top_k": self.top_k,
         }
 
     @classmethod
@@ -65,7 +74,11 @@ class GeneratedImageData:
                    data["image_width"],
                    data["image_height"],
                    data["sampler"],
-                   data["sampler_steps"])
+                   data["sampler_steps"],
+                   data["prompt_scoring_model"],
+                   data["prompt_score"],
+                   data["prompt_generation_policy"],
+                   data["top_k"])
 
     def get_msgpack_string(self):
         serialized = self.serialize()
