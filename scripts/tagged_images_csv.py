@@ -3,26 +3,13 @@ import csv
 
 # Base URL for the API calls
 BASE_URL = "http://123.176.98.90:8764"
-
-headers = {
-    'User-Agent': 'curl/7.64.1',
-    'Accept': '*/*',
-}
+headers = {"Accept": "application/json"}
 
 # Fetching all tagged images
 response = requests.get(f"{BASE_URL}/tags/get_all_tagged_images", headers=headers)
+response.raise_for_status()  # This will raise an error if the response is an HTTP error
 
-if "application/json" in response.headers.get("Content-Type"):
-    try:
-        tagged_images = response.json()
-    except Exception as e:
-        print(f"Error decoding JSON from API response: {e}")
-        exit(1)
-else:
-    print(f"API response headers: {response.headers}")
-    print(f"API response content: {response.text}")
-    print("Error: The API response is not JSON. Check the endpoint or the API configuration.")
-    exit(1)
+tagged_images = response.json()
 
 # Prepare CSV data
 csv_data = []
@@ -36,7 +23,8 @@ for image in tagged_images:
     
     # Fetch the tag string using tag_id
     tag_response = requests.get(f"{BASE_URL}/tags/list_tag_definition", headers=headers)
-    tag_response.raise_for_status()
+    tag_response.raise_for_status()  # This will raise an error if the response is an HTTP error
+
     tags = tag_response.json()
     
     tag_string = next((tag['tag_string'] for tag in tags if tag['tag_id'] == tag_id), None)
