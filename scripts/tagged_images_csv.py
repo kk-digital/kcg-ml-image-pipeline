@@ -6,11 +6,8 @@ BASE_URL = "http://123.176.98.90:8764"
 
 # Fetching all tagged images
 response = requests.get(f"{BASE_URL}/tags/get_all_tagged_images")
-response.raise_for_status()
-tagged_images = response.json()
 
-# Check if the request was successful
-if response.status_code == 200:
+if response.status_code == 200 and response.text.strip() != '':
     try:
         tagged_images = response.json()
     except requests.RequestsJSONDecodeError:
@@ -19,6 +16,10 @@ if response.status_code == 200:
 else:
     print(f"Error: {response.status_code}. Message: {response.text}")
     exit(1)
+    
+response.raise_for_status()
+tagged_images = response.json()
+
 
 # Prepare CSV data
 csv_data = []
