@@ -46,8 +46,8 @@ def get_relevancy_models(request: Request, dataset: str = Query(...)):
             data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, obj)
             model_content = json.loads(data.read().decode('utf-8'))
             
-            # Extract model name from the JSON file name (like '2023-10-09.json')
-            model_name = obj.split('/')[-1].split('.')[0]
+            model_name_parts = model_content['model_path'].split('/')[-1].split('-')[:4]
+            model_name = '-'.join(model_name_parts)
             
             # Extract model architecture from the object path (like 'ab_ranking_linear' or 'ab_ranking_efficient_net')
             model_architecture = obj.split('/')[-2]
@@ -62,13 +62,11 @@ def get_relevancy_models(request: Request, dataset: str = Query(...)):
             # Append the rearranged content of the JSON file to the models_list
             models_list.append(arranged_content)
 
-    # Custom sorting
     models_list.sort(key=lambda x: not x["model_name"].endswith('.pth'))
     
     models_list.sort(key=lambda x: x["model_name"].split('_')[0] if x["model_name"].endswith('.pth') else x["model_name"], reverse=True)
 
     return models_list
-
 
 
 @router.get("/models/rank-embedding/list-models", response_class=PrettyJSONResponse)
@@ -95,7 +93,6 @@ def get_ranking_models(request: Request, dataset: str = Query(...)):
             
             model_name_parts = model_content['model_path'].split('/')[-1].split('-')[:4]
             model_name = '-'.join(model_name_parts)
-            print(model_name)
 
             # Extract model architecture from the object path (like 'ab_ranking_linear' or 'ab_ranking_efficient_net')
             model_architecture = obj.split('/')[-2]
@@ -110,7 +107,6 @@ def get_ranking_models(request: Request, dataset: str = Query(...)):
             # Append the rearranged content of the JSON file to the models_list
             models_list.append(arranged_content)
 
-    # Custom sorting
     models_list.sort(key=lambda x: not x["model_name"].endswith('.pth'))
     
     models_list.sort(key=lambda x: x["model_name"].split('_')[0] if x["model_name"].endswith('.pth') else x["model_name"], reverse=True)
