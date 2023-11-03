@@ -24,7 +24,7 @@ def get_next_model_id_sequence(request: Request):
     return counter_seq
 
 
-@router.get("/models/rank-relevancy/list-models")
+@router.get("/models/rank-relevancy/list-models", response_class=PrettyJSONResponse)
 def get_relevancy_models(request: Request, dataset: str = Query(...)):
     # Bucket name
     bucket_name = "datasets"
@@ -62,12 +62,14 @@ def get_relevancy_models(request: Request, dataset: str = Query(...)):
             # Append the rearranged content of the JSON file to the models_list
             models_list.append(arranged_content)
 
+    models_list = sorted(models_list, key=lambda x: x["model_creation_date"], reverse=True)
+
     return models_list
 
 
 
 
-@router.get("/models/rank-embedding/list-models")
+@router.get("/models/rank-embedding/list-models",response_class=PrettyJSONResponse )
 def get_ranking_models(request: Request, dataset: str = Query(...)):
     # Bucket name
     bucket_name = "datasets"
@@ -104,6 +106,8 @@ def get_ranking_models(request: Request, dataset: str = Query(...)):
             
             # Append the rearranged content of the JSON file to the models_list
             models_list.append(arranged_content)
+            
+    models_list = sorted(models_list, key=lambda x: x["model_creation_date"], reverse=True)
 
     return models_list
 
