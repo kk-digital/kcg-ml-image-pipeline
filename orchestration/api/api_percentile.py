@@ -50,3 +50,13 @@ def get_image_rank_percentiles_by_model_id(request: Request, model_id: int):
         percentile_data.append(item)
 
     return percentile_data
+
+
+@router.delete("/percentile/delete-image-rank-percentiles-by-model-id", description="Delete all image rank percentiles by model id.")
+def delete_image_rank_percentiles_by_model_id(request: Request, model_id: int):
+    # check if exist
+    query = {"model_id": model_id}
+    res = request.app.image_percentiles_collection.delete_many(query)
+    print(res.deleted_count, " documents deleted.")
+
+    return None
