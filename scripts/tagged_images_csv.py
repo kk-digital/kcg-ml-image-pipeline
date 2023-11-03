@@ -5,9 +5,16 @@ import csv
 BASE_URL = "http://123.176.98.90:8764"
 headers = {"Accept": "application/json"}
 
+
 # Fetching all tagged images
 response = requests.get(f"{BASE_URL}/tags/get_all_tagged_images", headers=headers)
-response.raise_for_status()  # This will raise an error if the response is an HTTP error
+
+# Debug: Print the raw response content
+print("Response from /tags/get_all_tagged_images:")
+print(response.text)
+
+# Check if the response is successful
+response.raise_for_status() 
 
 tagged_images = response.json()
 
