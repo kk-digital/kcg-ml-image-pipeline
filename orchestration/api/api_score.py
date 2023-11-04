@@ -50,3 +50,13 @@ def get_image_rank_scores_by_model_id(request: Request, model_id: int):
         score_data.append(item)
 
     return score_data
+
+
+@router.delete("/score/delete-image-rank-scores-by-model-id", description="Delete all image rank scores by model id.")
+def delete_image_rank_scores_by_model_id(request: Request, model_id: int):
+    # check if exist
+    query = {"model_id": model_id}
+    res = request.app.image_scores_collection.delete_many(query)
+    print(res.deleted_count, " documents deleted.")
+
+    return None

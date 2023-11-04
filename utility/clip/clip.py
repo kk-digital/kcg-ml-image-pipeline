@@ -54,6 +54,7 @@ class ClipModel:
         if self.device == "cpu":
             print("CUDA is not available. Running on CPU.")
         inputs = self.preprocess(images=image, return_tensors="pt")
+        inputs = inputs.to(device=self.device)
 
         with torch.no_grad():
             if self._clip_skip:
