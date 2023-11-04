@@ -199,7 +199,72 @@ def get_images_metadata(
 
     return images_metadata
 
-# rank images by score
+
+def sorted_list_metadata(
+    request: Request,
+    dataset: str = None,
+    limit: int = 20,
+    offset: int = 0,
+    start_date: str = None,
+    end_date: str = None,
+    sort_order: str = 'asc',
+    model_id: int = None,
+    sort_field: str = 'score'  # Default field for sorting is 'score'
+):
+    # Construct the initial query
+    query = {
+        '$or': [
+            {'task_type': 'image_generation_task'},
+            {'task_type': 'inpainting_generation_task'}
+        ],
+        'task_input_dict.dataset': dataset
+    }
+
+    # Update the query based on provided start_date and end_date
+    if start_date and end_date:
+        query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
+    elif start_date:
+        query['task_creation_time'] = {'$gte': start_date}
+    elif end_date:
+        query['task_creation_time'] = {'$lte': end_date}
+
+    # Retrieve image metadata
+    jobs = request.app.completed_jobs_collection.find(query)
+
+    # Sorting order
+    reverse = sort_order == 'desc'
+
+    def key_function(x):
+        query = {"image_hash": x['task_output_file_dict']['output_file_hash'],
+                "model_id": model_id}
+
+        if sort_field=="score":
+            item = request.app.image_scores_collection.find_one(query)
+        elif sort_field=="residual":
+            item = request.app.image_residuals_collection.find_one(query)
+        elif sort_field=="percentile":
+            item = request.app.image_percentiles_collection.find_one(query)
+
+        return item[sort_field]  # Use the specified field for sorting
+
+    jobs = sorted(jobs, key=key_function, reverse=reverse)
+
+    # Extract metadata
+    images_metadata = []
+    for job in jobs[offset:offset + limit]:
+        image_meta_data = {
+            'dataset': job['task_input_dict']['dataset'],
+            'task_type': job['task_type'],
+            'image_path': job['task_output_file_dict']['output_file_path'],
+            'image_hash': job['task_output_file_dict']['output_file_hash']
+        }
+        images_metadata.append(image_meta_data)
+
+    return images_metadata
+
+# Example usage in separate endpoints:
+
+# Rank images by score
 @router.get("/image/list-metadata-by-score", response_class=PrettyJSONResponse)
 def list_metadata_by_score(
     request: Request,
@@ -209,58 +274,11 @@ def list_metadata_by_score(
     start_date: str = None,
     end_date: str = None,
     sort_order: str = 'asc',
-    model_id: str = None
+    model_id: int = None
 ):
-    # Construct the initial query
-    query = {
-        '$or': [
-            {'task_type': 'image_generation_task'},
-            {'task_type': 'inpainting_generation_task'}
-        ],
-        'task_input_dict.dataset': dataset
-    }
+    return sorted_list_metadata(request, dataset, limit, offset, start_date, end_date, sort_order, model_id, 'score')
 
-    # Update the query based on provided start_date and end_date
-    if start_date and end_date:
-        query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
-    elif start_date:
-        query['task_creation_time'] = {'$gte': start_date}
-    elif end_date:
-        query['task_creation_time'] = {'$lte': end_date}
-
-    # Retrieve image metadata
-    jobs = request.app.completed_jobs_collection.find(query)
-
-    # Sorting by score
-    if sort_order == 'asc':
-        reverse = False
-    else:
-        reverse = True
-
-    def key_function(x):
-        query = {"image_hash": x['task_output_file_dict']['output_file_hash'],
-                "model_id": model_id}
-
-        item = request.app.image_scores_collection.find_one(query)
-
-        return item['score']
-
-    jobs = sorted(jobs, key=key_function, reverse=reverse)
-
-    # Extract metadata
-    images_metadata = []
-    for job in jobs[offset:offset + limit]:
-        image_meta_data = {
-            'dataset': job['task_input_dict']['dataset'],
-            'task_type': job['task_type'],
-            'image_path': job['task_output_file_dict']['output_file_path'],
-            'image_hash': job['task_output_file_dict']['output_file_hash']
-        }
-        images_metadata.append(image_meta_data)
-
-    return images_metadata
-
-# rank images by residual
+# Rank images by residual
 @router.get("/image/list-metadata-by-residual", response_class=PrettyJSONResponse)
 def list_metadata_by_residual(
     request: Request,
@@ -270,58 +288,11 @@ def list_metadata_by_residual(
     start_date: str = None,
     end_date: str = None,
     sort_order: str = 'asc',
-    model_id: str = None
+    model_id: int = None
 ):
-    # Construct the initial query
-    query = {
-        '$or': [
-            {'task_type': 'image_generation_task'},
-            {'task_type': 'inpainting_generation_task'}
-        ],
-        'task_input_dict.dataset': dataset
-    }
+    return sorted_list_metadata(request, dataset, limit, offset, start_date, end_date, sort_order, model_id, 'residual')
 
-    # Update the query based on provided start_date and end_date
-    if start_date and end_date:
-        query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
-    elif start_date:
-        query['task_creation_time'] = {'$gte': start_date}
-    elif end_date:
-        query['task_creation_time'] = {'$lte': end_date}
-
-    # Retrieve image metadata
-    jobs = request.app.completed_jobs_collection.find(query)
-
-    # Sorting by score
-    if sort_order == 'asc':
-        reverse = False
-    else:
-        reverse = True
-
-    def key_function(x):
-        query = {"image_hash": x['task_output_file_dict']['output_file_hash'],
-                "model_id": model_id}
-
-        item = request.app.image_residuals_collection.find_one(query)
-
-        return item['score']
-
-    jobs = sorted(jobs, key=key_function, reverse=reverse)
-
-    # Extract metadata
-    images_metadata = []
-    for job in jobs[offset:offset + limit]:
-        image_meta_data = {
-            'dataset': job['task_input_dict']['dataset'],
-            'task_type': job['task_type'],
-            'image_path': job['task_output_file_dict']['output_file_path'],
-            'image_hash': job['task_output_file_dict']['output_file_hash']
-        }
-        images_metadata.append(image_meta_data)
-
-    return images_metadata
-
-# rank images by percentile
+# Rank images by percentile
 @router.get("/image/list-metadata-by-percentile", response_class=PrettyJSONResponse)
 def list_metadata_by_percentile(
     request: Request,
@@ -331,56 +302,10 @@ def list_metadata_by_percentile(
     start_date: str = None,
     end_date: str = None,
     sort_order: str = 'asc',
-    model_id: str = None
+    model_id: int = None
 ):
-    # Construct the initial query
-    query = {
-        '$or': [
-            {'task_type': 'image_generation_task'},
-            {'task_type': 'inpainting_generation_task'}
-        ],
-        'task_input_dict.dataset': dataset
-    }
+    return sorted_list_metadata(request, dataset, limit, offset, start_date, end_date, sort_order, model_id, 'percentile')
 
-    # Update the query based on provided start_date and end_date
-    if start_date and end_date:
-        query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
-    elif start_date:
-        query['task_creation_time'] = {'$gte': start_date}
-    elif end_date:
-        query['task_creation_time'] = {'$lte': end_date}
-
-    # Retrieve image metadata
-    jobs = request.app.completed_jobs_collection.find(query)
-
-    # Sorting by score
-    if sort_order == 'asc':
-        reverse = False
-    else:
-        reverse = True
-
-    def key_function(x):
-        query = {"image_hash": x['task_output_file_dict']['output_file_hash'],
-                "model_id": model_id}
-
-        item = request.app.image_residuals_collection.find_one(query)
-
-        return item['score']
-
-    jobs = sorted(jobs, key=key_function, reverse=reverse)
-
-    # Extract metadata
-    images_metadata = []
-    for job in jobs[offset:offset + limit]:
-        image_meta_data = {
-            'dataset': job['task_input_dict']['dataset'],
-            'task_type': job['task_type'],
-            'image_path': job['task_output_file_dict']['output_file_path'],
-            'image_hash': job['task_output_file_dict']['output_file_hash']
-        }
-        images_metadata.append(image_meta_data)
-
-    return images_metadata
 
 
 
