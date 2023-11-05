@@ -66,7 +66,7 @@ def get_relevancy_models(request: Request, dataset: str = Query(...)):
     models_list.sort(key=lambda x: not x["model_name"].endswith('.pth'))
     
     models_list.sort(key=lambda x: x["model_name"].split('_')[0] if x["model_name"].endswith('.pth') else x["model_name"], reverse=True)
-    
+
     return models_list
 
 @router.get("/models/rank-embedding/list-models", response_class=PrettyJSONResponse)
