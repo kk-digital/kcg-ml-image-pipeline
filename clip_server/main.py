@@ -2,8 +2,8 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import pymongo
 from dotenv import dotenv_values
-from clip_server.api.api_clip import router as clip_router
-from clip_server.server_state import ClipServer
+from api.api_clip import router as clip_router
+from server_state import ClipServer
 from utility.minio import cmd
 import multiprocessing
 import uvicorn
@@ -50,5 +50,5 @@ if __name__ == "__main__":
     cores = multiprocessing.cpu_count()
 
     # Run the API
-    uvicorn.run("clip_server.main:app", host="127.0.0.1", port=8002, workers=cores, reload=True)
+    uvicorn.run("clip_server.main:app", host="0.0.0.0", port=8002, workers=cores, reload=True)
 
