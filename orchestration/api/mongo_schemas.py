@@ -304,3 +304,15 @@ class RankingPercentile(BaseModel):
             "image_hash": self.image_hash,
             "percentile": self.percentile,
         }
+
+class RankingResidualPercentile(BaseModel):
+    model_id: int
+    image_hash: str
+    residual_percentile: float
+
+    def to_dict(self):
+        return {
+            "model_id": self.model_id,
+            "image_hash": self.image_hash,
+            "residual_percentile": self.residual_percentile,
+        }
