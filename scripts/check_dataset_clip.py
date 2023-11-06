@@ -42,7 +42,7 @@ def run_concurrent_check(minio_client, dataset_name):
             if ".jpg" in object_path:
                 futures.append(executor.submit(check_clip_and_create, minio_client=minio_client, object_path=object_path))
 
-        for _ in tqdm(as_completed(futures), total=len(objects)):
+        for _ in tqdm(as_completed(futures), total=len(futures)):
             continue
 
 
