@@ -83,8 +83,8 @@ if __name__ == "__main__":
         clip_url = r'https://huggingface.co/openai/clip-vit-large-patch14/resolve/refs%2Fpr%2F19/model.safetensors'
 
         if is_minio_accessible:
-            bucket_name = "clip-vit-large-patch14"
-            object_name = "model.safetensors"
+            bucket_name = "models"
+            object_name = "clip-vit-large-patch14/model.safetensors"
             download_from_minio(minio_client, bucket_name, object_name, clip_path)
         else:
             download_file(clip_url, clip_path, "CLIP model")
@@ -95,8 +95,8 @@ if __name__ == "__main__":
         sd_path = config.get_model('sd/v1-5-pruned-emaonly', check_existence=False)
         sd_url = r'https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors'
         if is_minio_accessible:
-            bucket_name = "stable-diffusion-models"
-            object_name = "v1-5-pruned-emaonly.safetensors"
+            bucket_name = "models"
+            object_name = "stable-diffusion-models/v1-5-pruned-emaonly.safetensors"
             download_from_minio(minio_client, bucket_name, object_name, sd_path)
         else:
             download_file(sd_url, sd_path, "Stable Diffusion checkpoint")
