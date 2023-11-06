@@ -16,6 +16,8 @@ from orchestration.api.api_dataset_settings import router as dataset_settings_ro
 from orchestration.api.api_users import router as user_router
 from orchestration.api.api_score import router as score_router
 from orchestration.api.api_residual import router as residual_router
+from orchestration.api.api_percentile import router as percentile_router
+from orchestration.api.api_residual_percentile import router as residual_percentile_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -42,6 +44,8 @@ app.include_router(dataset_settings_router)
 app.include_router(user_router)
 app.include_router(score_router)
 app.include_router(residual_router)
+app.include_router(percentile_router)
+app.include_router(residual_percentile_router)
 
 
 def get_minio_client(minio_access_key, minio_secret_key):
@@ -103,6 +107,12 @@ def startup_db_client():
 
     # residuals
     app.image_residuals_collection = app.mongodb_db["image-residuals"]
+
+    # percentiles
+    app.image_percentiles_collection = app.mongodb_db["image-percentiles"]
+
+    # residual percentiles
+    app.image_residual_percentiles_collection = app.mongodb_db["image-residual-percentiles"]
 
     print("Connected to the MongoDB database!")
 

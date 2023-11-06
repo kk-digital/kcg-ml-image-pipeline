@@ -1,4 +1,4 @@
-from fastapi import Request, HTTPException, APIRouter, Response, Query
+from fastapi import Request, HTTPException, APIRouter, Response, Query, status
 from datetime import datetime
 from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
@@ -118,6 +118,7 @@ def get_random_image_date_range(
 
     return documents
 
+"""
 @router.get("/image/data-by-filepath")
 def get_image_data_by_filepath(request: Request, file_path: str = None):
 
@@ -131,6 +132,25 @@ def get_image_data_by_filepath(request: Request, file_path: str = None):
     response = Response(content=content, media_type="image/jpeg")
 
     return response
+"""
+
+@router.get("/images/{file_path:path}")
+def get_image_data_by_filepath_2(request: Request, file_path: str):
+    bucket_name, file_path = separate_bucket_and_file_path(file_path)
+    file_path = file_path.replace("\\", "/")
+    image_data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, file_path)
+
+    # Load data into memory
+    if image_data is not None:
+        content = image_data.read()
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Image with this path doesn't exist") 
+
+    response = Response(content=content, media_type="image/jpeg")
+
+    return response
 
 @router.get("/image/list-metadata", response_class=PrettyJSONResponse)
 def get_images_metadata(
@@ -139,9 +159,10 @@ def get_images_metadata(
     limit: int = 20,
     offset: int = 0,
     start_date: str = None,
-    end_date: str = None
+    end_date: str = None,
+    order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first")
 ):
-    
+
     print(f"start_date: {start_date}") 
 
     # Construct the initial query
@@ -161,8 +182,10 @@ def get_images_metadata(
     elif end_date:
         query['task_creation_time'] = {'$lte': end_date}
 
-    print(f"query: {query}") 
-    jobs = request.app.completed_jobs_collection.find(query).sort('task_creation_time', -1).skip(offset).limit(limit)
+    # Decide the sort order based on the 'order' parameter
+    sort_order = -1 if order == "desc" else 1
+
+    jobs = request.app.completed_jobs_collection.find(query).sort('task_creation_time', sort_order).skip(offset).limit(limit)
 
     images_metadata = []
     for job in jobs:
@@ -175,3 +198,4 @@ def get_images_metadata(
         images_metadata.append(image_meta_data)
 
     return images_metadata
+
