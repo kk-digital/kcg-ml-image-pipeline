@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from fastapi import Request, APIRouter, Query
 from utility.minio import cmd
+from dateutil.parser import parse
 
 router = APIRouter()
 
@@ -57,10 +58,10 @@ def get_job_stats_by_job_type(request: Request, dataset: str = Query(...)):
     }
 
 @router.get("/job_stats/get_generated_images_per_day")
-def get_number_generated_images_per_day(request: Request, start_date: str = None, end_date: str = None):
+def get_number_generated_images_per_day(request: Request, start_date: str = Query(...), end_date: str = Query(...)):
     # Convert the date strings to datetime objects
-    start_date = datetime.strptime(start_date, "%Y-%m-%d")
-    end_date = datetime.strptime(end_date, "%Y-%m-%d")
+    start_date = parse(start_date)
+    end_date = parse(end_date)
 
     # Initialize the result dictionary
     num_by_dataset_and_day = {}
@@ -68,15 +69,16 @@ def get_number_generated_images_per_day(request: Request, start_date: str = None
     # Iterate through each day within the date range
     current_date = start_date
     while current_date <= end_date:
+        print(current_date + timedelta(days=1))
         # Construct the query for the current day
         query = {
             '$or': [
                 {'task_type': 'image_generation_task'},
                 {'task_type': 'inpainting_generation_task'}
             ],
-            'task_creation_time': {
-                '$gte': current_date,
-                '$lt': current_date + timedelta(days=1)
+            'task_completion_time': {
+                '$gte': current_date.strftime("%Y-%m-%d %H:%M:%S"),
+                '$lte': (current_date + timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
             }
         }
         
@@ -95,10 +97,9 @@ def get_number_generated_images_per_day(request: Request, start_date: str = None
 
     return num_by_dataset_and_day
 
-import os
 
 @router.get("/job_stats/get_selection_datapoints_per_day")
-def get_number_selection_datapoints_per_day(request: Request, start_date: str = None, end_date: str = None):
+def get_number_selection_datapoints_per_day(request: Request, start_date: str = Query(...), end_date: str = Query(...)):
     # Convert the date strings to datetime objects
     start_date = datetime.strptime(start_date, "%Y-%m-%d")
     end_date = datetime.strptime(end_date, "%Y-%m-%d")
@@ -115,13 +116,13 @@ def get_number_selection_datapoints_per_day(request: Request, start_date: str = 
         datasets = cmd.get_list_of_objects(request.app.minio_client, "datasets")
         for dataset in datasets:
             # Construct the MinIO path for selection datapoints
-            datapoints_path = f"{dataset}/data/ranking/aggregate"
+            datapoints_path = f"{dataset}/data/ranking/aggregate/{query_date}"
 
             # List objects in the datapoints path
-            objects = request.app.minio_client.list_objects("datasets", datapoints_path)
+            objects = request.app.minio_client.list_objects("datasets", prefix=datapoints_path)
             
             # Filter objects that match the current date
-            num_datapoints = len([obj for obj in objects if query_date in obj.object_name])
+            num_datapoints = len([obj.object_name for obj in objects])
 
             # Store the result for the current day and dataset
             num_by_dataset[dataset] = num_datapoints
@@ -133,5 +134,4 @@ def get_number_selection_datapoints_per_day(request: Request, start_date: str = 
         current_date += timedelta(days=1)
 
     return num_by_dataset_and_day
-
 

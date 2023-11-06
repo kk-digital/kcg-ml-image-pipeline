@@ -200,16 +200,21 @@ def get_images_metadata(
     return images_metadata
 
 
+@router.get("/image/sorted-list-metadata", response_class=PrettyJSONResponse)
 def sorted_list_metadata(
     request: Request,
-    dataset: str = None,
+    dataset: str = Query(...),
     limit: int = 20,
     offset: int = 0,
     start_date: str = None,
     end_date: str = None,
     sort_order: str = 'asc',
-    model_id: int = None,
-    sort_field: str = 'score'  # Default field for sorting is 'score'
+    sort_field: str = Query('score', description="field to sort the images by, the options are 'score', 'residual' and 'percentile'.") ,
+    model_id: int=Query(...) ,
+    min_score: float = None,
+    max_score: float = None,
+    min_percentile: float = None,
+    max_percentile: float = None
 ):
     # Construct the initial query
     query = {
@@ -233,21 +238,40 @@ def sorted_list_metadata(
 
     # Sorting order
     reverse = sort_order == 'desc'
-
-    def key_function(x):
+ 
+    # functions for getting residuals, scores and percentiles
+    def score(x):
         query = {"image_hash": x['task_output_file_dict']['output_file_hash'],
                 "model_id": model_id}
 
-        if sort_field=="score":
-            item = request.app.image_scores_collection.find_one(query)
-        elif sort_field=="residual":
-            item = request.app.image_residuals_collection.find_one(query)
-        elif sort_field=="percentile":
-            item = request.app.image_percentiles_collection.find_one(query)
+        item = request.app.image_scores_collection.find_one(query)
 
-        return item[sort_field]  # Use the specified field for sorting
+        if item is None:
+            return 0
+        else:
+            return item['score']
+    
+    def percentile(x):
+        query = {"image_hash": x['task_output_file_dict']['output_file_hash'],
+                "model_id": model_id}
 
-    jobs = sorted(jobs, key=key_function, reverse=reverse)
+        item = request.app.image_percentiles_collection.find_one(query)
+
+        if item is None:
+            return 0
+        else:
+            return item['percentile']
+    
+    def residual(x):
+        query = {"image_hash": x['task_output_file_dict']['output_file_hash'],
+                "model_id": model_id}
+        
+        item = request.app.image_residuals_collection.find_one(query)
+
+        if item is None:
+            return 0
+        else:
+            return item['residual']
 
     # Extract metadata
     images_metadata = []
@@ -256,55 +280,34 @@ def sorted_list_metadata(
             'dataset': job['task_input_dict']['dataset'],
             'task_type': job['task_type'],
             'image_path': job['task_output_file_dict']['output_file_path'],
-            'image_hash': job['task_output_file_dict']['output_file_hash']
+            'image_hash': job['task_output_file_dict']['output_file_hash'],
+            'score': score(job),
+            'percentile': percentile(job),
+            'residual': residual(job)
         }
         images_metadata.append(image_meta_data)
 
+    # Sort images by the specified field
+    if sort_field is not None:
+        images_metadata = sorted(images_metadata, key=lambda x: x[sort_field], reverse=reverse)
+    
+    # Filter images by min_score and max_score if provided
+    if min_score is not None or max_score is not None:
+        images_metadata = [
+            img for img in images_metadata
+            if (min_score is None or (img['score'] >= min_score)) and
+            (max_score is None or (img['score'] <= max_score))
+        ]
+
+    # Filter images by min_percentile and max_percentile if provided
+    if min_percentile is not None or max_percentile is not None:
+        images_metadata = [
+            img for img in images_metadata
+            if (min_percentile is None or (img['percentile'] >= min_percentile)) and
+            (max_percentile is None or (img['percentile'] <= max_percentile))
+        ]
+
     return images_metadata
-
-# Example usage in separate endpoints:
-
-# Rank images by score
-@router.get("/image/list-metadata-by-score", response_class=PrettyJSONResponse)
-def list_metadata_by_score(
-    request: Request,
-    dataset: str = None,
-    limit: int = 20,
-    offset: int = 0,
-    start_date: str = None,
-    end_date: str = None,
-    sort_order: str = 'asc',
-    model_id: int = None
-):
-    return sorted_list_metadata(request, dataset, limit, offset, start_date, end_date, sort_order, model_id, 'score')
-
-# Rank images by residual
-@router.get("/image/list-metadata-by-residual", response_class=PrettyJSONResponse)
-def list_metadata_by_residual(
-    request: Request,
-    dataset: str = None,
-    limit: int = 20,
-    offset: int = 0,
-    start_date: str = None,
-    end_date: str = None,
-    sort_order: str = 'asc',
-    model_id: int = None
-):
-    return sorted_list_metadata(request, dataset, limit, offset, start_date, end_date, sort_order, model_id, 'residual')
-
-# Rank images by percentile
-@router.get("/image/list-metadata-by-percentile", response_class=PrettyJSONResponse)
-def list_metadata_by_percentile(
-    request: Request,
-    dataset: str = None,
-    limit: int = 20,
-    offset: int = 0,
-    start_date: str = None,
-    end_date: str = None,
-    sort_order: str = 'asc',
-    model_id: int = None
-):
-    return sorted_list_metadata(request, dataset, limit, offset, start_date, end_date, sort_order, model_id, 'percentile')
 
 
 
