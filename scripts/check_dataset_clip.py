@@ -2,6 +2,7 @@ import os
 import sys
 import argparse
 from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor, as_completed
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
@@ -9,14 +10,7 @@ from worker.http import request
 from utility.minio import cmd
 
 
-def check_clip_and_create(minio_client, dataset_name):
-    # get all paths
-    objects = cmd.get_list_of_objects_with_prefix(minio_client, "datasets", dataset_name)
-    print("len objects=", len(objects))
-
-    for object_path in tqdm(objects):
-        # filter only that ends with .jpg
-        if ".jpg" in object_path:
+def check_clip_and_create(minio_client, object_path):
             img_path = object_path.replace(".jpg", "_clip.msgpack")
             img_path = img_path.replace("datasets/", "")
 
@@ -34,6 +28,22 @@ def check_clip_and_create(minio_client, dataset_name):
                                         }
 
                 request.http_add_job(clip_calculation_job)
+
+
+def run_concurrent_check(minio_client, dataset_name):
+    # get all paths
+    objects = cmd.get_list_of_objects_with_prefix(minio_client, "datasets", dataset_name)
+    print("len objects=", len(objects))
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = []
+        for object_path in objects:
+            # filter only that ends with .jpg
+            if ".jpg" in object_path:
+                futures.append(executor.submit(check_clip_and_create, minio_client=minio_client, object_path=object_path))
+
+        for _ in tqdm(as_completed(futures), total=len(objects)):
+            continue
 
 
 def parse_arguments():
@@ -57,7 +67,7 @@ if __name__ == '__main__':
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_ip_addr)
     if dataset_name != "all":
-        check_clip_and_create(minio_client, dataset_name)
+        run_concurrent_check(minio_client, dataset_name)
     else:
         # if all, train models for all existing datasets
         # get dataset name list
@@ -66,7 +76,7 @@ if __name__ == '__main__':
         for dataset in dataset_names:
             try:
                 print("Checking clip data for {}...".format(dataset))
-                check_clip_and_create(minio_client, dataset)
+                run_concurrent_check(minio_client, dataset)
             except Exception as e:
                 print("Error checking clip data for {}: {}".format(dataset, e))
 
