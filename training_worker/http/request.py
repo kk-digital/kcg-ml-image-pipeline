@@ -151,3 +151,19 @@ def http_add_percentile(percentile_data):
         print('request exception ', e)
 
     return None
+
+
+# Get list of all dataset names
+def http_get_dataset_names():
+    url = SERVER_ADRESS + "/dataset/list"
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json
+
+    except Exception as e:
+        print('request exception ', e)
+
+    return None
