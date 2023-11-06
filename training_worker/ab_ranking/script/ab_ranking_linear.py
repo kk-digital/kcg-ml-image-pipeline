@@ -262,7 +262,9 @@ def train_ranking(dataset_name: str,
                                                 training_predicted_score_images_x,
                                                 validation_predicted_score_images_x,
                                                 dataset_loader.training_image_hashes,
-                                                dataset_loader.validation_image_hashes)
+                                                dataset_loader.validation_image_hashes,
+                                                training_shuffled_indices_origin,
+                                                validation_shuffled_indices_origin)
 
     return model_output_path, report_output_path, graph_output_path
 
