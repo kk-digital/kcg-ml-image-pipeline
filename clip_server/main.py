@@ -50,5 +50,5 @@ if __name__ == "__main__":
     cores = multiprocessing.cpu_count()
 
     # Run the API
-    uvicorn.run("clip_server.main:app", host="127.0.0.1", port=8002, workers=cores, reload=True)
+    uvicorn.run("clip_server.main:app", host="0.0.0.0", port=8002, workers=cores, reload=True)
 
