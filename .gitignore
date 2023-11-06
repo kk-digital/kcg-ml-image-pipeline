@@ -176,3 +176,6 @@ cython_debug/
 # Ignore cache
 /stable_diffusion/cache
 /io/input/model/clip/text_embedder/clip-vit-large-patch14/
+
+# Ignore DS_store
+.DS_Store

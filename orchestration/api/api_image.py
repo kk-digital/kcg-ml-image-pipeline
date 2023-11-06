@@ -118,7 +118,7 @@ def get_random_image_date_range(
 
     return documents
 
-
+"""
 @router.get("/image/data-by-filepath")
 def get_image_data_by_filepath(request: Request, file_path: str = None):
 
@@ -132,7 +132,7 @@ def get_image_data_by_filepath(request: Request, file_path: str = None):
     response = Response(content=content, media_type="image/jpeg")
 
     return response
-
+"""
 
 @router.get("/images/{file_path:path}")
 def get_image_data_by_filepath_2(request: Request, file_path: str):
