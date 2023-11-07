@@ -3,6 +3,7 @@ from utility.minio import cmd
 import json
 from orchestration.api.mongo_schemas import RankingModel
 from .api_utils import PrettyJSONResponse
+from datetime import datetime
 
 router = APIRouter()
 
@@ -114,6 +115,75 @@ def get_ranking_models(request: Request, dataset: str = Query(...)):
     models_list.sort(key=lambda x: x["model_name"].split('_')[0] if x["model_name"].endswith('.pth') else x["model_name"], reverse=True)
 
     return models_list
+
+@router.get("/models/rank-embedding/latest-model")
+def get_latest_ranking_model(request: Request,
+                             dataset: str = Query(...),
+                             input_type: str = 'embedding',
+                             output_type: str = 'score'):
+    # Bucket name
+    bucket_name = "datasets"
+
+    # Base path where ranking models for the dataset are stored in MinIO
+    base_path = f"{dataset}/models/ranking"
+
+    # Fetch list of model objects from MinIO for the base path, recursively
+    model_objects = []
+    objects = request.app.minio_client.list_objects(bucket_name, prefix=base_path, recursive=True)
+    for obj in objects:
+        model_objects.append(obj.object_name)
+
+    # Parse models list from model_objects
+    models_list = []
+    for obj in model_objects:
+        # Filter out only the .json files for processing
+        if obj.endswith('.json'):
+            data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, obj)
+            model_content = json.loads(data.read().decode('utf-8'))
+
+            # Extract model name from the JSON file name (like '2023-10-09.json')
+            model_name = obj.split('/')[-1].split('.')[0]
+
+            # Extract model architecture from the object path (like 'ab_ranking_linear' or 'ab_ranking_efficient_net')
+            model_architecture = obj.split('/')[-2]
+
+            # Construct a new dictionary with model_name and model_architecture at the top
+            arranged_content = {
+                'model_name': model_name,
+                'model_architecture': model_architecture,
+                **model_content
+            }
+
+            # Append the rearranged content of the JSON file to the models_list
+            models_list.append(arranged_content)
+
+
+    result_model = None
+    for model in models_list:
+
+        model_input_type = model['input_type']
+        model_output_type = model['output_type']
+
+        # filter the by input_type & output_type
+        if input_type != model_input_type or output_type != model_output_type:
+            # quick exit
+            continue
+
+        if result_model is None:
+            result_model = model
+            continue
+
+        # Here we know that the model is not 'None'
+        model_date_string = model['model_creation_date']
+        result_model_date_string = result_model['model_creation_date']
+        # Convert strings to datetime objects
+        model_date = datetime.strptime(model_date_string, "%Y-%m-%d")
+        result_model_date = datetime.strptime(result_model_date_string, "%Y-%m-%d")
+
+        if model_date > result_model_date:
+            result_model = model
+
+    return result_model
 
 
 @router.get("/models/get-model-card", response_class=PrettyJSONResponse)
