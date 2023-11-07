@@ -48,8 +48,8 @@ def train_xgboost(dataset_name: str,
                   randomize_data_per_epoch=True,
                   ):
     # raise exception if input is not clip
-    if input_type != "clip":
-        raise Exception("Only clip is supported for now.")
+    if input_type not in ["clip", "embedding"]:
+        raise Exception("Only 'clip' and 'embedding' is supported for now.")
 
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
@@ -340,6 +340,7 @@ if __name__ == '__main__':
                   minio_ip_addr=None,  # will use defualt if none is given
                   minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
+                  input_type="embedding",
                   )
 
     time_elapsed = time.time() - start_time
