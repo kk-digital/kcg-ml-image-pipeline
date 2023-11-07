@@ -141,7 +141,7 @@ def train_xgboost(dataset_name: str,
     params = {"objective": "reg:squarederror", "device": "cuda:0"}
     evals = [(dtrain_reg, "train"), (dtest_reg, "validation")]
     n = 500
-    model = xgb.train(params=params,
+    xgboost_model = xgb.train(params=params,
                       dtrain=dtrain_reg,
                       num_boost_round=n,
                       evals=evals,
@@ -150,8 +150,8 @@ def train_xgboost(dataset_name: str,
                       )
 
     # make a prediction
-    training_pred_results = model.predict(dtrain_reg)
-    validation_pred_results = model.predict(dtest_reg)
+    training_pred_results = xgboost_model.predict(dtrain_reg)
+    validation_pred_results = xgboost_model.predict(dtest_reg)
 
     # summarize prediction
     # print('Predicted: ', validation_pred_results)
@@ -178,9 +178,14 @@ def train_xgboost(dataset_name: str,
         validation_shuffled_indices_origin.append(index)
 
     # Upload model to minio
-    # model_name = "{}.pth".format(filename)
-    # model_output_path = os.path.join(output_path, model_name)
-    # ab_model.save(dataset_loader.minio_client, bucket_name, model_output_path)
+    model_name = "{}.pth".format(filename)
+    model_output_path = os.path.join(output_path, model_name)
+    xgboost_model_buf = xgboost_model.save_raw(raw_format='json')
+    buffer = BytesIO(xgboost_model_buf)
+    buffer.seek(0)
+
+    cmd.upload_data(dataset_loader.minio_client, "datasets", model_output_path, buffer)
+
     #
     # # Generate report
     # nn_summary = torchinfo_summary(ab_model.model)
