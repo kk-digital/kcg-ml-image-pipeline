@@ -2,7 +2,7 @@ from fastapi import Request, APIRouter, HTTPException
 import requests
 from .api_utils import PrettyJSONResponse
 
-CLIP_SERVER_ADRESS = 'http://127.0.0.1:8002'
+CLIP_SERVER_ADRESS = 'http://192.168.83.135:8002'
 
 router = APIRouter()
 
