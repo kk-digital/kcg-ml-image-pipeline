@@ -36,14 +36,10 @@ def determine_model_input_type_size(model_filename):
 
 class ImageScorer:
     def __init__(self,
-                 minio_addr=None,
-                 minio_access_key=None,
-                 minio_secret_key=None,
+                 minio_client,
                  dataset_name="characters",
                  model_name=""):
-        self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
-                                                 minio_secret_key=minio_secret_key,
-                                                 minio_ip_addr=minio_addr)
+        self.minio_client = minio_client
         self.model = None
         self.dataset = dataset_name
         self.model_name = model_name
@@ -307,14 +303,12 @@ def parse_args():
     return args
 
 
-def main():
-    args = parse_args()
-    scorer = ImageScorer(minio_addr=args.minio_addr,
-                         minio_access_key=args.minio_access_key,
-                         minio_secret_key=args.minio_secret_key,
-                         dataset_name=args.dataset_name,
-                         model_name=args.model_filename)
+def run_image_scorer(minio_client, dataset_name, model_filename):
     start_time = time.time()
+
+    scorer = ImageScorer(minio_client=minio_client,
+                         dataset_name=dataset_name,
+                         model_name=model_filename)
 
     scorer.load_model()
     paths = scorer.get_paths()
@@ -328,7 +322,28 @@ def main():
     scorer.upload_percentile(hash_percentile_dict)
 
     time_elapsed = time.time() - start_time
-    print("Total Time elapsed: {0}s".format(format(time_elapsed, ".2f")))
+    print("Dataset: {}: Total Time elapsed: {}s".format(dataset_name, format(time_elapsed, ".2f")))
+
+
+def main():
+    args = parse_args()
+
+    dataset_name = args.dataset_name
+    minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key,
+                                        minio_secret_key=args.minio_secret_key,
+                                        minio_ip_addr=args.minio_ip_addr)
+    if dataset_name != "all":
+        run_image_scorer(minio_client, args.dataset_name, args.model_filename)
+    else:
+        # if all, train models for all existing datasets
+        # get dataset name list
+        dataset_names = request.http_get_dataset_names()
+        print("dataset names=", dataset_names)
+        for dataset in dataset_names:
+            try:
+                run_image_scorer(minio_client, args.dataset_name, args.model_filename)
+            except Exception as e:
+                print("Error running image scorer for {}: {}".format(dataset, e))
 
 
 if __name__ == "__main__":

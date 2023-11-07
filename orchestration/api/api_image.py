@@ -199,3 +199,116 @@ def get_images_metadata(
 
     return images_metadata
 
+
+@router.get("/image/sorted-list-metadata", response_class=PrettyJSONResponse)
+def sorted_list_metadata(
+    request: Request,
+    dataset: str = Query(...),
+    limit: int = 20,
+    offset: int = 0,
+    start_date: str = None,
+    end_date: str = None,
+    sort_order: str = 'asc',
+    sort_field: str = Query('score', description="field to sort the images by, the options are 'score', 'residual' and 'percentile'.") ,
+    model_id: int=Query(...) ,
+    min_score: float = None,
+    max_score: float = None,
+    min_percentile: float = None,
+    max_percentile: float = None
+):
+    # Construct the initial query
+    query = {
+        '$or': [
+            {'task_type': 'image_generation_task'},
+            {'task_type': 'inpainting_generation_task'}
+        ],
+        'task_input_dict.dataset': dataset
+    }
+
+    # Update the query based on provided start_date and end_date
+    if start_date and end_date:
+        query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
+    elif start_date:
+        query['task_creation_time'] = {'$gte': start_date}
+    elif end_date:
+        query['task_creation_time'] = {'$lte': end_date}
+
+    # Retrieve image metadata
+    jobs = request.app.completed_jobs_collection.find(query)
+
+    # Sorting order
+    reverse = sort_order == 'desc'
+ 
+    # functions for getting residuals, scores and percentiles
+    def score(x):
+        query = {"image_hash": x['task_output_file_dict']['output_file_hash'],
+                "model_id": model_id}
+
+        item = request.app.image_scores_collection.find_one(query)
+
+        if item is None:
+            return 0
+        else:
+            return item['score']
+    
+    def percentile(x):
+        query = {"image_hash": x['task_output_file_dict']['output_file_hash'],
+                "model_id": model_id}
+
+        item = request.app.image_percentiles_collection.find_one(query)
+
+        if item is None:
+            return 0
+        else:
+            return item['percentile']
+    
+    def residual(x):
+        query = {"image_hash": x['task_output_file_dict']['output_file_hash'],
+                "model_id": model_id}
+        
+        item = request.app.image_residuals_collection.find_one(query)
+
+        if item is None:
+            return 0
+        else:
+            return item['residual']
+
+    # Extract metadata
+    images_metadata = []
+    for job in jobs[offset:offset + limit]:
+        image_meta_data = {
+            'dataset': job['task_input_dict']['dataset'],
+            'task_type': job['task_type'],
+            'image_path': job['task_output_file_dict']['output_file_path'],
+            'image_hash': job['task_output_file_dict']['output_file_hash'],
+            'score': score(job),
+            'percentile': percentile(job),
+            'residual': residual(job)
+        }
+        images_metadata.append(image_meta_data)
+
+    # Sort images by the specified field
+    if sort_field is not None:
+        images_metadata = sorted(images_metadata, key=lambda x: x[sort_field], reverse=reverse)
+    
+    # Filter images by min_score and max_score if provided
+    if min_score is not None or max_score is not None:
+        images_metadata = [
+            img for img in images_metadata
+            if (min_score is None or (img['score'] >= min_score)) and
+            (max_score is None or (img['score'] <= max_score))
+        ]
+
+    # Filter images by min_percentile and max_percentile if provided
+    if min_percentile is not None or max_percentile is not None:
+        images_metadata = [
+            img for img in images_metadata
+            if (min_percentile is None or (img['percentile'] >= min_percentile)) and
+            (max_percentile is None or (img['percentile'] <= max_percentile))
+        ]
+
+    return images_metadata
+
+
+
+
