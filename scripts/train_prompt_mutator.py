@@ -1,6 +1,7 @@
 import argparse
 import csv
 import io
+import os
 import sys
 import numpy as np
 import pandas as pd
@@ -14,7 +15,6 @@ sys.path.insert(0, base_directory)
 
 from training_worker.prompt_mutator.prompt_mutator_model import PromptMutator
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
-from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel as ABRankingLinearModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from utility.minio import cmd
 
@@ -143,6 +143,17 @@ def load_dataset(minio_client, device):
         writer.writerow(['Prompt', 'Substitute Phrase', 'Substituted Phrase', 'Substitution Position', 'Delta Score'])
         # Write the data
         writer.writerows(csv_data)
+    
+    # Read the contents of the CSV file
+    with open(csv_file, 'rb') as file:
+        csv_content = file.read()
+
+    # Upload the CSV file to Minio
+    buffer = io.BytesIO(csv_content)
+    buffer.seek(0)
+
+    model_path = os.path.join('environmental', 'output/prompt_mutator/dataset.csv')
+    cmd.upload_data(minio_client, 'datasets', model_path, buffer)
 
     return np.array(input_features), np.array(output_scores)
 
@@ -164,9 +175,9 @@ def main():
     
     input, output = load_dataset(minio_client, device)
 
-    mutator= PromptMutator()
+    mutator= PromptMutator(minio_client=minio_client)
     mutator.train(input, output)
-    mutator.save_model("output/prompt_mutator.pth")
+    mutator.save_model("output/prompt_mutator/prompt_mutator.pth")
 
 if __name__ == "__main__":
     main()

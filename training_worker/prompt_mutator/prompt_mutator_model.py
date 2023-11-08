@@ -1,23 +1,31 @@
 from datetime import datetime
+from io import BytesIO
+import os
+import sys
 from matplotlib import pyplot as plt
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
+
+base_directory = "./"
+sys.path.insert(0, base_directory)
+
+from utility.minio import cmd
 
 class PromptMutator:
-    def __init__(self, model=None):
+    def __init__(self, minio_client, model=None):
         self.model = model
+        self.minio_client= minio_client
 
     def train(self, 
               X_train, 
               y_train, 
-              max_depth=6, 
+              max_depth=10, 
               min_child_weight=1, 
               gamma=0, 
               subsample=1, 
               colsample_bytree=1, 
-              eta=0.3,
-              early_stopping=50):
+              eta=0.1,
+              early_stopping=100):
         
         X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42)
 
@@ -90,8 +98,13 @@ class PromptMutator:
         plt.subplots_adjust(hspace=0.7, left=0.5)
 
         # Save the figure to a file
-        plt.savefig('output/xgboost_model.png')
-        plt.show()
+        buf = BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+
+        # upload the graph report
+        graph_output = os.path.join('environmental', "output/prompt_mutator/xgboost_model.png")
+        cmd.upload_data(self.minio_client, 'datasets', graph_output, buf)
 
     def predict(self, X):
         dtest = xgb.DMatrix(X)
@@ -102,4 +115,11 @@ class PromptMutator:
 
     def save_model(self, model_path):
         self.model.save_model(model_path)
+        model_bytes =self.model.save_raw()
+        buffer = BytesIO(model_bytes)
+        buffer.seek(0)
+        # upload the model
+        model_path = os.path.join('environmental', model_path)
+        cmd.upload_data(self.minio_client, 'datasets', model_path, buffer)
+
 
