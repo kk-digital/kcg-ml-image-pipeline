@@ -52,7 +52,7 @@ def load_model(input_size, minio_client, device):
     byte_buffer.seek(0)
 
     embedding_model.load(byte_buffer)
-    embedding_model=embedding_model.model.to(device)
+    embedding_model=embedding_model.to(device)
 
     return embedding_model
 
