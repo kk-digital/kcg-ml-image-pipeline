@@ -63,9 +63,6 @@ def load_dataset(minio_client):
     # Load the dataset of phrases
     phrases_df = pd.read_csv('input/environment_phrase_scores.csv')  # Change this to your phrases dataset
     prompts_df = pd.read_csv('input/environment_data.csv')
-
-    # Take the first 1 prompt for testing
-    prompts_df = prompts_df.head(3) 
     
     elm_model= load_model(768,minio_client)
 
