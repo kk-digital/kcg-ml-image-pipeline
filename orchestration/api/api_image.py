@@ -1,5 +1,7 @@
 from fastapi import Request, HTTPException, APIRouter, Response, Query, status
 from datetime import datetime
+
+import pymongo
 from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
 from .api_utils import PrettyJSONResponse
@@ -200,6 +202,40 @@ def get_images_metadata(
     return images_metadata
 
 
+# functions for getting residuals, scores and percentiles
+def score(request, model_id, job):
+    query = {"image_hash": job['task_output_file_dict']['output_file_hash'],
+            "model_id": model_id}
+
+    item = request.app.image_scores_collection.find_one(query)
+
+    if item is None:
+        return 0
+    else:
+        return item['score']
+
+def percentile(request, model_id, job):
+    query = {"image_hash": job['task_output_file_dict']['output_file_hash'],
+            "model_id": model_id}
+
+    item = request.app.image_percentiles_collection.find_one(query)
+
+    if item is None:
+        return 0
+    else:
+        return item['percentile']
+
+def residual(request, model_id, job):
+    query = {"image_hash": job['task_output_file_dict']['output_file_hash'],
+            "model_id": model_id}
+    
+    item = request.app.image_residuals_collection.find_one(query)
+
+    if item is None:
+        return 0
+    else:
+        return item['residual']
+
 @router.get("/image/sorted-list-metadata", response_class=PrettyJSONResponse)
 def sorted_list_metadata(
     request: Request,
@@ -234,62 +270,32 @@ def sorted_list_metadata(
         query['task_creation_time'] = {'$lte': end_date}
 
     # Retrieve image metadata
-    jobs = request.app.completed_jobs_collection.find(query)
+    jobs =list(request.app.completed_jobs_collection.find(query))
 
     # Sorting order
     reverse = sort_order == 'desc'
- 
-    # functions for getting residuals, scores and percentiles
-    def score(x):
-        query = {"image_hash": x['task_output_file_dict']['output_file_hash'],
-                "model_id": model_id}
-
-        item = request.app.image_scores_collection.find_one(query)
-
-        if item is None:
-            return 0
-        else:
-            return item['score']
-    
-    def percentile(x):
-        query = {"image_hash": x['task_output_file_dict']['output_file_hash'],
-                "model_id": model_id}
-
-        item = request.app.image_percentiles_collection.find_one(query)
-
-        if item is None:
-            return 0
-        else:
-            return item['percentile']
-    
-    def residual(x):
-        query = {"image_hash": x['task_output_file_dict']['output_file_hash'],
-                "model_id": model_id}
         
-        item = request.app.image_residuals_collection.find_one(query)
+    for job in jobs:
+        job['score'] = score(request, model_id, job)
+        job['percentile'] = percentile(request, model_id, job)
+        job['residual'] = residual(request, model_id, job)
 
-        if item is None:
-            return 0
-        else:
-            return item['residual']
+    jobs = sorted(jobs, key=lambda x: x[sort_field], reverse=reverse)
 
     # Extract metadata
     images_metadata = []
-    for job in jobs[offset:offset + limit]:
+    jobs=jobs[offset:offset + limit]
+    for job in jobs:
         image_meta_data = {
             'dataset': job['task_input_dict']['dataset'],
             'task_type': job['task_type'],
             'image_path': job['task_output_file_dict']['output_file_path'],
             'image_hash': job['task_output_file_dict']['output_file_hash'],
-            'score': score(job),
-            'percentile': percentile(job),
-            'residual': residual(job)
+            'score': job['score'],
+            'percentile': job['percentile'],
+            'residual': job['residual']
         }
         images_metadata.append(image_meta_data)
-
-    # Sort images by the specified field
-    if sort_field is not None:
-        images_metadata = sorted(images_metadata, key=lambda x: x[sort_field], reverse=reverse)
     
     # Filter images by min_score and max_score if provided
     if min_score is not None or max_score is not None:
