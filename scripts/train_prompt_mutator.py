@@ -26,7 +26,7 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def load_model(input_size, minio_client):
+def load_model(input_size, minio_client, device):
     input_path="environmental/models/ranking/"
 
     embedding_model = ABRankingELMModel(input_size)
@@ -52,10 +52,11 @@ def load_model(input_size, minio_client):
     byte_buffer.seek(0)
 
     embedding_model.load(byte_buffer)
+    embedding_model=embedding_model.model.to(device)
 
     return embedding_model
 
-def load_dataset(minio_client):
+def load_dataset(minio_client, device):
     # Load the CLIP model
     clip=CLIPTextEmbedder()
     clip.load_submodels()
@@ -64,7 +65,7 @@ def load_dataset(minio_client):
     phrases_df = pd.read_csv('input/environment_phrase_scores.csv')  # Change this to your phrases dataset
     prompts_df = pd.read_csv('input/environment_data.csv')
     
-    elm_model= load_model(768,minio_client)
+    elm_model= load_model(768,minio_client, device)
 
     # Create empty lists to store the generated data
     input_features = []
@@ -83,6 +84,7 @@ def load_dataset(minio_client):
         # get prompt embedding 
         prompt_embedding= list(msgpack_data['positive_embedding'].values())
         prompt_embedding = torch.tensor(np.array(prompt_embedding)).float()
+        prompt_embedding=prompt_embedding.to(device)
 
         # Randomly select a phrase from the dataset and get an embedding
         substitute_phrase = random.choice(phrases_df['phrase'].tolist())
@@ -103,6 +105,7 @@ def load_dataset(minio_client):
         with torch.no_grad():
             modified_embedding= clip(modified_prompt)
             modified_embedding= modified_embedding.unsqueeze(0)
+            modified_embedding=modified_embedding.to(device)
 
         # Calculate the delta score
         with torch.no_grad():
@@ -144,13 +147,20 @@ def load_dataset(minio_client):
 def main():
     args = parse_args()
 
+    # get device
+    if torch.cuda.is_available():
+            device = 'cuda'
+    else:
+        device = 'cpu'
+    device = torch.device(device)
+
     # get minio client
     minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key,
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     
     
-    input, output = load_dataset(minio_client)
+    input, output = load_dataset(minio_client, device)
 
     mutator= PromptMutator()
     mutator.train(input, output)
