@@ -73,6 +73,8 @@ def load_dataset(minio_client, device):
     csv_data = []
 
     for index, prompt in prompts_df.iterrows():
+        print(f"prompt {index}")
+
         # get prompt embedding
         data = minio_client.get_object('datasets', prompt['file_path'])
         # Read the content of the msgpack file
