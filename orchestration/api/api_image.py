@@ -1,5 +1,5 @@
 from fastapi import Request, HTTPException, APIRouter, Response, Query, status
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pymongo
 from utility.minio import cmd
@@ -410,8 +410,43 @@ def image_list_sorted_by_model(
 
     return result
 
+@router.get("/image/get_random_image_with_time", response_class=PrettyJSONResponse)
+def get_random_image_with_time(
+    request: Request,
+    dataset: str = Query(...),
+    time_interval: int = Query(..., description="Time interval in minutes or hours"),
+    time_unit: str = Query("minutes", description="Time unit, either 'minutes' or 'hours"),
+):
+    # Calculate the time threshold based on the current time and the specified interval
+    current_time = datetime.utcnow()
+    if time_unit == "minutes":
+        threshold_time = current_time - timedelta(minutes=time_interval)
+    elif time_unit == "hours":
+        threshold_time = current_time - timedelta(hours=time_interval)
+    else:
+        raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
 
+    # Use $match to filter documents based on dataset and creation time
+    documents = request.app.completed_jobs_collection.aggregate([
+        {"$match": {
+            "task_input_dict.dataset": dataset,
+            "task_creation_time": {"$gte": threshold_time.strftime("%Y-%m-%d")}
+        }},
+        {"$sample": {"size": 1}}
+    ])
 
+    # Convert cursor type to list
+    documents = list(documents)
+
+    # Ensure the list isn't empty (this is just a safety check)
+    if not documents:
+        raise HTTPException(status_code=404, detail=f"No image found for the given dataset within the last {time_interval} {time_unit}")
+
+    # Remove the auto-generated _id field from the document
+    documents[0].pop('_id', None)
+
+    # Return the image in the response
+    return {"image": documents[0]}
 
 
 
