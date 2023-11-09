@@ -122,9 +122,13 @@ def load_dataset(minio_client, device):
         sub_phrase_embedding=torch.mean(sub_phrase_embedding, dim=2)
         sub_phrase_embedding = sub_phrase_embedding.reshape(len(sub_phrase_embedding), -1).squeeze(0)
 
+        # Convert the position to a tensor
+        position_tensor = torch.tensor(position_to_substitute).float()
+
         # Append to the input and output lists
-        input_features.append(torch.cat([prompt_embedding, sub_phrase_embedding], dim=0).detach().cpu().numpy())
+        input_features.append(torch.cat([prompt_embedding, sub_phrase_embedding, position_tensor], dim=0).detach().cpu().numpy())
         output_scores.append(delta_score.item())
+
 
         # Append to the CSV data list
         csv_data.append([
