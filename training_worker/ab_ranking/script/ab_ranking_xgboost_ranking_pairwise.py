@@ -27,6 +27,33 @@ from sklearn.model_selection import train_test_split
 import xgboost as xgb
 from sklearn.metrics import mean_squared_error
 
+def np_sigmoid(x):
+    return 1.0 / (1.0 + np.exp(-x))
+
+def forward_bradley_terry(predicted_score_images_x, predicted_score_images_y, use_sigmoid=True):
+    if use_sigmoid:
+        # scale the score
+        # scaled_score_image_x = torch.multiply(1000.0, predicted_score_images_x)
+        # scaled_score_image_y = torch.multiply(1000.0, predicted_score_images_y)
+
+        # prob = sigmoid( (x-y) / 100 )
+        diff_predicted_score = np.subtract(predicted_score_images_x, predicted_score_images_y)
+        res_predicted_score = np.divide(diff_predicted_score, 50.0)
+        pred_probabilities = np_sigmoid(res_predicted_score)
+    else:
+        epsilon = 0.000001
+
+        # if score is negative N, make it 0
+        # predicted_score_images_x = torch.max(predicted_score_images_x, torch.tensor([0.], device=self._device))
+        # predicted_score_images_y = torch.max(predicted_score_images_y, torch.tensor([0.], device=self._device))
+
+        # Calculate probability using Bradley Terry Formula: P(x>y) = score(x) / ( Score(x) + score(y))
+        sum_predicted_score = np.add(predicted_score_images_x, predicted_score_images_y)
+        sum_predicted_score = np.add(sum_predicted_score, epsilon)
+        pred_probabilities = np.divide(predicted_score_images_x, sum_predicted_score)
+
+    return pred_probabilities
+
 def train_xgboost(dataset_name: str,
                   minio_ip_addr=None,
                   minio_access_key=None,
@@ -55,7 +82,7 @@ def train_xgboost(dataset_name: str,
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
-    network_type = "xgboost"
+    network_type = "xgboost-rank-pairwise"
     output_type = "score"
     output_path = "{}/models/ranking".format(dataset_name)
 
@@ -106,13 +133,8 @@ def train_xgboost(dataset_name: str,
     training_features_y = training_features_y.numpy()
     training_targets = training_targets.numpy()
 
-    training_data = []
-    for i in range(len(training_features_x)):
-        concatenated = np.concatenate((training_features_x[i], training_features_y[i]))
-        training_data.append(concatenated)
+    training_data = training_features_x
 
-
-    training_data = np.asarray(training_data)
     print("training data shape=", training_data.shape)
     print("training target shape=", training_targets.shape)
 
@@ -123,13 +145,9 @@ def train_xgboost(dataset_name: str,
     validation_features_x = validation_features_x.numpy()
     validation_features_y = validation_features_y.numpy()
     validation_targets = validation_targets.numpy()
-    validation_data = []
-    for i in range(len(validation_features_x)):
-            concatenated = np.concatenate((validation_features_x[i], validation_features_y[i]))
-            validation_data.append(concatenated)
 
+    validation_data = validation_features_x
 
-    validation_data = np.asarray(validation_data)
     print("validation data shape=", validation_data.shape)
     print("validation target shape=", validation_targets.shape)
 
@@ -137,30 +155,66 @@ def train_xgboost(dataset_name: str,
     dtrain_reg = xgb.DMatrix(training_data, training_targets)
     dtest_reg = xgb.DMatrix(validation_data, validation_targets)
 
-    # Define hyperparameters
-    params = {"objective": "reg:squarederror", "device": "cuda:0"}
+    train_len= int(len(training_targets)/2)
+    validate_len = int(len(validation_targets)/2)
+
+    # group
+    train_group = np.array([2 for _ in range(train_len)])
+    validation_group = np.array([2 for _ in range(validate_len)])
+
+    dtrain_reg.set_group(train_group)
+    dtest_reg.set_group(validation_group)
+
+    params = {'objective': 'rank:pairwise', 'eta': 0.1, 'gamma': 1.0,
+              'min_child_weight': 0.1, 'max_depth': 6}
+
     evals = [(dtrain_reg, "train"), (dtest_reg, "validation")]
     n = 500
-    xgboost_model = xgb.train(params=params,
-                      dtrain=dtrain_reg,
-                      num_boost_round=n,
-                      evals=evals,
-                      verbose_eval=10,  # Every ten rounds
-                      early_stopping_rounds=50,  # Activate early stopping
-                      )
+    xgboost_model = xgb.train(params,
+                              dtrain_reg,
+                              num_boost_round=n,
+                              evals=evals,
+                              verbose_eval=10,  # Every ten rounds
+                              early_stopping_rounds=50,  # Activate early stopping
+                              )
 
-    # make a prediction
-    training_pred_results = xgboost_model.predict(dtrain_reg)
-    validation_pred_results = xgboost_model.predict(dtest_reg)
+    # get training predicted probability
+    dtrain_x = xgb.DMatrix(training_features_x)
+    dtrain_y = xgb.DMatrix(training_features_y)
+    train_x_pred_scores = xgboost_model.predict(dtrain_x)
+    train_y_pred_scores = xgboost_model.predict(dtrain_y)
+
+    # add const
+    train_x_pred_scores = train_x_pred_scores + 10
+    train_y_pred_scores = train_y_pred_scores + 10
+
+    train_pred_prob = []
+    for i in range(len(train_x_pred_scores)):
+        prob = forward_bradley_terry(train_x_pred_scores[i], train_y_pred_scores[i])
+        train_pred_prob.append(prob)
+
+    # get validation predicted probability
+    dvalidation_x = xgb.DMatrix(validation_features_x)
+    dvalidation_y = xgb.DMatrix(validation_features_y)
+    validation_x_pred_scores = xgboost_model.predict(dvalidation_x)
+    validation_y_pred_scores = xgboost_model.predict(dvalidation_y)
+
+    # add const
+    validation_x_pred_scores = validation_x_pred_scores + 10
+    validation_y_pred_scores = validation_y_pred_scores + 10
+    validation_pred_prob = []
+    for i in range(len(validation_x_pred_scores)):
+        prob = forward_bradley_terry(validation_x_pred_scores[i], validation_y_pred_scores[i])
+        validation_pred_prob.append(prob)
 
     ab_model = ABRankingModel(inputs_shape=input_shape)
-    training_predicted_score_images_x = training_pred_results
-    training_predicted_score_images_y = training_pred_results
-    training_predicted_probabilities = training_pred_results
+    training_predicted_score_images_x = train_x_pred_scores
+    training_predicted_score_images_y = train_y_pred_scores
+    training_predicted_probabilities = train_pred_prob
     training_target_probabilities = training_targets
-    validation_predicted_score_images_x = validation_pred_results
-    validation_predicted_score_images_y = validation_pred_results
-    validation_predicted_probabilities = validation_pred_results
+    validation_predicted_score_images_x = validation_x_pred_scores
+    validation_predicted_score_images_y = validation_y_pred_scores
+    validation_predicted_probabilities = validation_pred_prob
     validation_target_probabilities = validation_targets
     training_loss_per_epoch = [0] * epochs
     validation_loss_per_epoch = [0] * epochs
@@ -184,7 +238,22 @@ def train_xgboost(dataset_name: str,
     cmd.upload_data(dataset_loader.minio_client, "datasets", model_output_path, buffer)
 
     train_sum_correct = 0
+    for i in range(len(training_target_probabilities)):
+        if training_target_probabilities[i] == [1.0]:
+            if training_predicted_score_images_x[i] > training_predicted_score_images_y[i]:
+                train_sum_correct += 1
+        else:
+            if training_predicted_score_images_x[i] < training_predicted_score_images_y[i]:
+                train_sum_correct += 1
+
     validation_sum_correct = 0
+    for i in range(len(validation_target_probabilities)):
+        if validation_target_probabilities[i] == [1.0]:
+            if validation_predicted_score_images_x[i] > validation_predicted_score_images_y[i]:
+                validation_sum_correct += 1
+        else:
+            if validation_predicted_score_images_x[i] < validation_predicted_score_images_y[i]:
+                validation_sum_correct += 1
 
     # show and save graph
     graph_name = "{}.png".format(filename)
