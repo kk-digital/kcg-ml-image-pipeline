@@ -255,40 +255,6 @@ def get_images_metadata(
     return images_metadata
 
 
-# functions for getting residuals, scores and percentiles
-def score(request, model_id, job):
-    query = {"image_hash": job['task_output_file_dict']['output_file_hash'],
-            "model_id": model_id}
-
-    item = request.app.image_scores_collection.find_one(query)
-
-    if item is None:
-        return 0
-    else:
-        return item['score']
-
-def percentile(request, model_id, job):
-    query = {"image_hash": job['task_output_file_dict']['output_file_hash'],
-            "model_id": model_id}
-
-    item = request.app.image_percentiles_collection.find_one(query)
-
-    if item is None:
-        return 0
-    else:
-        return item['percentile']
-
-def residual(request, model_id, job):
-    query = {"image_hash": job['task_output_file_dict']['output_file_hash'],
-            "model_id": model_id}
-    
-    item = request.app.image_residuals_collection.find_one(query)
-
-    if item is None:
-        return 0
-    else:
-        return item['residual']
-
 # TODO: deprecate
 @router.get("/image/image-list-sorted-by-model", response_class=PrettyJSONResponse)
 def image_list_sorted_by_model(
@@ -306,68 +272,143 @@ def image_list_sorted_by_model(
     min_percentile: float = None,
     max_percentile: float = None
 ):
-    # Construct the initial query
-    query = {
-        '$or': [
-            {'task_type': 'image_generation_task'},
-            {'task_type': 'inpainting_generation_task'}
-        ],
-        'task_input_dict.dataset': dataset
-    }
-
-    # Update the query based on provided start_date and end_date
-    if start_date and end_date:
-        query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
-    elif start_date:
-        query['task_creation_time'] = {'$gte': start_date}
-    elif end_date:
-        query['task_creation_time'] = {'$lte': end_date}
-
-    # Retrieve image metadata
-    jobs =list(request.app.completed_jobs_collection.find(query))
-
-    # Sorting order
-    reverse = sort_order == 'desc'
-        
-    for job in jobs:
-        job['score'] = score(request, model_id, job)
-        job['percentile'] = percentile(request, model_id, job)
-        job['residual'] = residual(request, model_id, job)
-
-    jobs = sorted(jobs, key=lambda x: x[sort_field], reverse=reverse)
-
-    # Extract metadata
-    images_metadata = []
-    jobs=jobs[offset:offset + limit]
-    for job in jobs:
-        image_meta_data = {
-            'dataset': job['task_input_dict']['dataset'],
-            'task_type': job['task_type'],
-            'image_path': job['task_output_file_dict']['output_file_path'],
-            'image_hash': job['task_output_file_dict']['output_file_hash'],
-            'score': job['score'],
-            'percentile': job['percentile'],
-            'residual': job['residual']
-        }
-        images_metadata.append(image_meta_data)
     
-    # Filter images by min_score and max_score if provided
-    if min_score is not None or max_score is not None:
-        images_metadata = [
-            img for img in images_metadata
-            if (min_score is None or (img['score'] >= min_score)) and
-            (max_score is None or (img['score'] <= max_score))
-        ]
+    # Decide the sort order based on the 'order' parameter
+    sort_order = -1 if sort_order == "desc" else 1
+        
+    pipeline = [
+    {
+        '$match': {
+            '$or': [
+                {'task_type': 'image_generation_task'},
+                {'task_type': 'inpainting_generation_task'}
+            ],
+            'task_input_dict.dataset': dataset,
+            'task_creation_time': {
+                '$gte': start_date if start_date is not None else datetime.min.strftime("%Y-%m-%d"),
+                '$lte': end_date if end_date is not None else datetime.max.strftime("%Y-%m-%d")
+            }
+        }
+    },
+    {
+        '$lookup': {
+            'from': 'image-scores',
+            'let': {'hash': '$task_output_file_dict.output_file_hash', 'model': model_id},
+            'pipeline': [
+                {
+                    '$match': {
+                        '$expr': {
+                            '$and': [
+                                {'$eq': ['$image_hash', '$$hash']},
+                                {'$eq': ['$model_id', '$$model']}
+                            ]
+                        }
+                    }
+                }
+            ],
+            'as': 'score_data'
+        }
+    },
+    {
+        '$lookup': {
+            'from': 'image-percentiles',
+            'let': {'hash': '$task_output_file_dict.output_file_hash', 'model': model_id},
+            'pipeline': [
+                {
+                    '$match': {
+                        '$expr': {
+                            '$and': [
+                                {'$eq': ['$image_hash', '$$hash']},
+                                {'$eq': ['$model_id', '$$model']}
+                            ]
+                        }
+                    }
+                }
+            ],
+            'as': 'percentile_data'
+        }
+    },
+    {
+        '$lookup': {
+            'from': 'image-residuals',
+            'let': {'hash': '$task_output_file_dict.output_file_hash', 'model': model_id},
+            'pipeline': [
+                {
+                    '$match': {
+                        '$expr': {
+                            '$and': [
+                                {'$eq': ['$image_hash', '$$hash']},
+                                {'$eq': ['$model_id', '$$model']}
+                            ]
+                        }
+                    }
+                }
+            ],
+            'as': 'residual_data'
+        }
+    },
+    { 
+        "$unwind": {
+            'path': "$score_data",
+            'preserveNullAndEmptyArrays': True
+        }
+    },
+    { 
+        "$unwind": {
+            'path': "$percentile_data",
+            'preserveNullAndEmptyArrays': True
+        }
+    },
+    { 
+        "$unwind": {
+            'path': "$residual_data",
+            'preserveNullAndEmptyArrays': True
+        }
+    },
+    {
+        '$project': {
+            '_id':0,
+            'dataset': '$task_input_dict.dataset',
+            'task_type': '$task_type',
+            'image_path': '$task_output_file_dict.output_file_path',
+            'image_hash': '$task_output_file_dict.output_file_hash',
+            'score': {
+                '$ifNull': ['$score_data.score', 0]  # Set default value 0 if score is None
+            },
+            'percentile': {
+                '$ifNull': ['$percentile_data.percentile', 0]  # Set default value 0 if percentile is None
+            },
+            'residual': {
+                '$ifNull': ['$residual_data.residual', 0]  # Set default value 0 if residual is None
+            }
+        }
+    },
+    {
+        '$match': {
+            'score': {
+                '$gte': min_score if min_score is not None else -float('inf'),  # Filter by min_score
+                '$lte': max_score if max_score is not None else float('inf')  # Filter by max_score
+            },
+            'percentile': {
+                '$gte': min_percentile if min_percentile is not None else -float('inf'),  # Filter by min_percentile
+                '$lte': max_percentile if max_percentile is not None else float('inf')  # Filter by max_percentile
+            }
+        }
+    },
+    {
+        '$sort': {sort_field: sort_order}  # Add your desired sorting logic here
+    },
+    {
+        '$skip': offset
+    },
+    {
+        '$limit': limit
+    }
+    ]
 
-    # Filter images by min_percentile and max_percentile if provided
-    if min_percentile is not None or max_percentile is not None:
-        images_metadata = [
-            img for img in images_metadata
-            if (min_percentile is None or (img['percentile'] >= min_percentile)) and
-            (max_percentile is None or (img['percentile'] <= max_percentile))
-        ]
+    result = list(request.app.completed_jobs_collection.aggregate(pipeline))
 
-    return images_metadata
+    return result
 
 
 
@@ -616,40 +657,6 @@ def get_images_metadata(
 
     return images_metadata
 
-
-# functions for getting residuals, scores and percentiles
-def score(request, model_id, job):
-    query = {"image_hash": job['task_output_file_dict']['output_file_hash'],
-            "model_id": model_id}
-
-    item = request.app.image_scores_collection.find_one(query)
-
-    if item is None:
-        return 0
-    else:
-        return item['score']
-
-def percentile(request, model_id, job):
-    query = {"image_hash": job['task_output_file_dict']['output_file_hash'],
-            "model_id": model_id}
-
-    item = request.app.image_percentiles_collection.find_one(query)
-
-    if item is None:
-        return 0
-    else:
-        return item['percentile']
-
-def residual(request, model_id, job):
-    query = {"image_hash": job['task_output_file_dict']['output_file_hash'],
-            "model_id": model_id}
-    
-    item = request.app.image_residuals_collection.find_one(query)
-
-    if item is None:
-        return 0
-    else:
-        return item['residual']
 
 @router.get("/static/image/image-list-sorted-by-model", response_class=PrettyJSONResponse)
 def image_list_sorted_by_model(
