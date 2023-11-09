@@ -75,6 +75,7 @@ def update_database_model_list(prompt_job_generator_state, list_datasets):
 
         for item in dataset_model_list:
             model_name = item['model_name']
+            print(item)
             dataset_model_dictionary[model_name] = item
 
         prompt_job_generator_state.set_dataset_model_list(dataset, dataset_model_dictionary)
