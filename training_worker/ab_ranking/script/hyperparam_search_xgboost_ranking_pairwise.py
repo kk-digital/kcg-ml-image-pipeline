@@ -1,125 +1,77 @@
+import sklearn.datasets
+import sklearn.metrics
 import os
-import torch
+from ray.tune.schedulers import ASHAScheduler
+from sklearn.model_selection import train_test_split
+import xgboost as xgb
 import sys
+from ray import train, tune
+from ray.tune.integration.xgboost import TuneReportCheckpointCallback
+from ray.tune.search.hyperopt import HyperOptSearch
+import numpy as np
 from datetime import datetime
 from pytz import timezone
-import numpy as np
-from xgboost import XGBRegressor
-import time
-
+from io import BytesIO
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from utility.regression_utils import torchinfo_summary
-from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
-from training_worker.ab_ranking.model.reports.ab_ranking_linear_train_report import get_train_report
-from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import *
 from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDatasetLoader
+from training_worker.ab_ranking.script.ab_ranking_xgboost_ranking_pairwise import forward_bradley_terry
+from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
 from utility.minio import cmd
 from training_worker.ab_ranking.model import constants
 from training_worker.ab_ranking.model.reports import upload_score_residual
+from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import get_graph_report
 
-import numpy as np
-import matplotlib.pyplot as plt
-import warnings
-from sklearn.model_selection import train_test_split
-import xgboost as xgb
-from sklearn.metrics import mean_squared_error
+def train_ranking(config: dict, training_data, training_targets, validation_data, validation_targets):
+    # Create regression matrices
+    dtrain_reg = xgb.DMatrix(training_data, training_targets)
+    dtest_reg = xgb.DMatrix(validation_data, validation_targets)
 
-def np_sigmoid(x):
-    return 1.0 / (1.0 + np.exp(-x))
+    train_len = int(len(training_targets) / 2)
+    validate_len = int(len(validation_targets) / 2)
 
-def forward_bradley_terry(predicted_score_images_x, predicted_score_images_y, use_sigmoid=True):
-    if use_sigmoid:
-        # scale the score
-        # scaled_score_image_x = torch.multiply(1000.0, predicted_score_images_x)
-        # scaled_score_image_y = torch.multiply(1000.0, predicted_score_images_y)
+    # group
+    train_group = np.array([2 for _ in range(train_len)])
+    validation_group = np.array([2 for _ in range(validate_len)])
 
-        # prob = sigmoid( (x-y) / 100 )
-        diff_predicted_score = np.subtract(predicted_score_images_x, predicted_score_images_y)
-        res_predicted_score = np.divide(diff_predicted_score, 50.0)
-        pred_probabilities = np_sigmoid(res_predicted_score)
-    else:
-        epsilon = 0.000001
+    dtrain_reg.set_group(train_group)
+    dtest_reg.set_group(validation_group)
 
-        # if score is negative N, make it 0
-        # predicted_score_images_x = torch.max(predicted_score_images_x, torch.tensor([0.], device=self._device))
-        # predicted_score_images_y = torch.max(predicted_score_images_y, torch.tensor([0.], device=self._device))
+    evals = [(dtest_reg, "validation")]
+    xgb.train(config,
+              dtrain_reg,
+              evals=evals,
+              verbose_eval=False,
+              callbacks=[TuneReportCheckpointCallback(filename="model.xgb")],
+              )
 
-        # Calculate probability using Bradley Terry Formula: P(x>y) = score(x) / ( Score(x) + score(y))
-        sum_predicted_score = np.add(predicted_score_images_x, predicted_score_images_y)
-        sum_predicted_score = np.add(sum_predicted_score, epsilon)
-        pred_probabilities = np.divide(predicted_score_images_x, sum_predicted_score)
 
-    return pred_probabilities
+def get_best_model_checkpoint(results):
+    best_bst = xgb.Booster()
+    best_result = results.get_best_result()
 
-def train_xgboost(dataset_name: str,
-                  minio_ip_addr=None,
-                  minio_access_key=None,
-                  minio_secret_key=None,
-                  input_type="clip",
-                  epochs=10000,
-                  learning_rate=0.05,
-                  buffer_size=20000,
-                  train_percent=0.9,
-                  training_batch_size=1,
-                  weight_decay=0.00,
-                  load_data_to_ram=False,
-                  debug_asserts=False,
-                  normalize_vectors=True,
-                  pooling_strategy=constants.AVERAGE_POOLING,
-                  add_loss_penalty=True,
-                  target_option=constants.TARGET_1_AND_0,
-                  duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL,
-                  randomize_data_per_epoch=True,
-                  ):
-    # raise exception if input is not clip
-    if input_type not in ["clip", "embedding"]:
-        raise Exception("Only 'clip' and 'embedding' is supported for now.")
+    with best_result.checkpoint.as_directory() as best_checkpoint_dir:
+        best_bst.load_model(os.path.join(best_checkpoint_dir, "model.xgb"))
+    accuracy = 1.0 - best_result.metrics["validation-error"]
+    print(f"Best model parameters: {best_result.config}")
+    print(f"Best model total accuracy: {accuracy:.4f}")
+    return best_bst
 
-    date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
-    print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
-    bucket_name = "datasets"
-    training_dataset_path = os.path.join(bucket_name, dataset_name)
-    network_type = "xgboost-rank-pairwise"
-    output_type = "score"
-    output_path = "{}/models/ranking".format(dataset_name)
 
-    # check input type
-    if input_type not in constants.ALLOWED_INPUT_TYPES:
-        raise Exception("input type is not supported: {}".format(input_type))
-
-    input_shape = 2 * 768
-    if input_type in [constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE, constants.CLIP]:
-        input_shape = 768
-
+def get_dataset(dataset_name,
+                minio_ip_addr,  # will use default if none is given
+                minio_access_key,
+                minio_secret_key,
+                input_type):
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name=dataset_name,
                                             minio_ip_addr=minio_ip_addr,
                                             minio_access_key=minio_access_key,
                                             minio_secret_key=minio_secret_key,
-                                            input_type=input_type,
-                                            buffer_size=buffer_size,
-                                            train_percent=train_percent,
-                                            load_to_ram=load_data_to_ram,
-                                            pooling_strategy=pooling_strategy,
-                                            normalize_vectors=normalize_vectors,
-                                            target_option=target_option,
-                                            duplicate_flip_option=duplicate_flip_option)
+                                            input_type=input_type)
     dataset_loader.load_dataset()
-
-    # get final filename
-    sequence = 0
-    # if exist, increment sequence
-    while True:
-        filename = "{}-{:02}-{}-{}-{}".format(date_now, sequence, output_type, network_type, input_type)
-        exists = cmd.is_object_exists(dataset_loader.minio_client, bucket_name,
-                                      os.path.join(output_path, filename + ".pth"))
-        if not exists:
-            break
-
-        sequence += 1
 
     training_total_size = dataset_loader.get_len_training_ab_data()
     validation_total_size = dataset_loader.get_len_validation_ab_data()
@@ -133,9 +85,7 @@ def train_xgboost(dataset_name: str,
     training_features_y = training_features_y.numpy()
     training_targets = training_targets.numpy()
 
-    training_data = training_features_x
-
-    print("training data shape=", training_data.shape)
+    print("training data shape=", training_features_x.shape)
     print("training target shape=", training_targets.shape)
 
     # get validation data
@@ -146,37 +96,115 @@ def train_xgboost(dataset_name: str,
     validation_features_y = validation_features_y.numpy()
     validation_targets = validation_targets.numpy()
 
-    validation_data = validation_features_x
-
-    print("validation data shape=", validation_data.shape)
+    print("validation data shape=", validation_features_x.shape)
     print("validation target shape=", validation_targets.shape)
 
-    # Create regression matrices
-    dtrain_reg = xgb.DMatrix(training_data, training_targets)
-    dtest_reg = xgb.DMatrix(validation_data, validation_targets)
+    return training_features_x, training_targets, validation_features_x, validation_targets, training_features_y, validation_features_y, dataset_loader
 
-    train_len= int(len(training_targets)/2)
-    validate_len = int(len(validation_targets)/2)
 
-    # group
-    train_group = np.array([2 for _ in range(train_len)])
-    validation_group = np.array([2 for _ in range(validate_len)])
+def tune_xgboost(training_data,
+                 training_targets,
+                 validation_data,
+                 validation_targets):
+    search_space = {
+        # You can mix constants with search space objects.
+        "objective": "rank:pairwise",
+        "eval_metric": "error",
+        "max_depth": tune.randint(1, 9),
+        "min_child_weight": tune.choice([1, 2, 3]),
+        "subsample": tune.uniform(0.5, 1.0),
+        "eta": tune.loguniform(1e-4, 1e-1),
+    }
+    # This will enable aggressive early stopping of bad trials.
+    scheduler = ASHAScheduler(
+        max_t=50, grace_period=1, reduction_factor=2  # 10 training iterations
+    )
 
-    dtrain_reg.set_group(train_group)
-    dtest_reg.set_group(validation_group)
+    hyper_opt = HyperOptSearch()
+    trainable_with_cpu = tune.with_resources(train_ranking, {"cpu": 2})
+    tuner = tune.Tuner(
+        tune.with_parameters(trainable_with_cpu,
+                             training_data=training_data,
+                             training_targets=training_targets,
+                             validation_data=validation_data,
+                             validation_targets=validation_targets),
+        tune_config=tune.TuneConfig(
+            metric="validation-error",
+            mode="min",
+            search_alg=hyper_opt,
+            scheduler=scheduler,
+            num_samples=1000,
+        ),
+        param_space=search_space,
+    )
+    results = tuner.fit()
 
-    params = {'objective': 'rank:pairwise', 'eta': 0.1, 'gamma': 1.0,
-              'min_child_weight': 0.1, 'max_depth': 6}
+    return results
 
-    evals = [(dtrain_reg, "train"), (dtest_reg, "validation")]
-    n = 500
-    xgboost_model = xgb.train(params,
-                              dtrain_reg,
-                              num_boost_round=n,
-                              evals=evals,
-                              verbose_eval=10,  # Every ten rounds
-                              early_stopping_rounds=50,  # Activate early stopping
-                              )
+
+def do_hyperparameter_search(dataset_name="environmental",
+                             minio_ip_addr=None,  # will use defualt if none is given
+                             minio_access_key="",
+                             minio_secret_key="",
+                             input_type="embedding"):
+    # load dataset
+    (training_features_x,
+     training_targets,
+     validation_features_x,
+     validation_targets,
+     training_features_y,
+     validation_features_y,
+     dataset_loader) = get_dataset(dataset_name=dataset_name,
+                                   input_type=input_type,
+                                   minio_ip_addr=minio_ip_addr,
+                                   minio_access_key=minio_access_key,
+                                   minio_secret_key=minio_secret_key)
+
+    training_total_size = dataset_loader.get_len_training_ab_data()
+    validation_total_size = dataset_loader.get_len_validation_ab_data()
+
+    date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
+    print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
+    bucket_name = "datasets"
+    training_dataset_path = os.path.join(bucket_name, dataset_name)
+    network_type = "xgboost-rank-pairwise"
+    output_type = "score"
+    output_path = "{}/models/ranking".format(dataset_name)
+
+    # placeholders for the graph report
+    epochs = 1000
+    learning_rate = 0.05
+    training_batch_size = 1
+    weight_decay = 0.00
+    normalize_vectors = True
+    pooling_strategy = constants.AVERAGE_POOLING
+    add_loss_penalty = True
+    target_option = constants.TARGET_1_AND_0
+    duplicate_flip_option = constants.DUPLICATE_AND_FLIP_ALL
+    randomize_data_per_epoch = True
+    input_shape = 768
+
+    # get final filename
+    sequence = 0
+    # if exist, increment sequence
+    while True:
+        filename = "{}-{:02}-{}-{}-{}".format(date_now, sequence, output_type, network_type, input_type)
+        exists = cmd.is_object_exists(dataset_loader.minio_client, bucket_name,
+                                      os.path.join(output_path, filename + ".pth"))
+        if not exists:
+            break
+
+        sequence += 1
+
+    # do hyper parameter search
+    results = tune_xgboost(training_features_x,
+                           training_targets,
+                           validation_features_x,
+                           validation_targets)
+
+    # Load the best model checkpoint.
+    best_bst = get_best_model_checkpoint(results)
+    xgboost_model = best_bst
 
     # get training predicted probability
     dtrain_x = xgb.DMatrix(training_features_x)
@@ -207,7 +235,7 @@ def train_xgboost(dataset_name: str,
         prob = forward_bradley_terry(validation_x_pred_scores[i], validation_y_pred_scores[i])
         validation_pred_prob.append(prob)
 
-    ab_model = ABRankingModel(inputs_shape=input_shape)
+    ab_model = ABRankingModel(inputs_shape=768)
     training_predicted_score_images_x = train_x_pred_scores
     training_predicted_score_images_y = train_y_pred_scores
     training_predicted_probabilities = train_pred_prob
@@ -255,6 +283,8 @@ def train_xgboost(dataset_name: str,
             if validation_predicted_score_images_x[i] < validation_predicted_score_images_y[i]:
                 validation_sum_correct += 1
 
+    selected_index_0_count, selected_index_1_count, total_images_count = dataset_loader.get_image_selected_index_data()
+
     # show and save graph
     graph_name = "{}.png".format(filename)
     graph_output_path = os.path.join(output_path, graph_name)
@@ -300,16 +330,16 @@ def train_xgboost(dataset_name: str,
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name, graph_output_path, graph_buffer)
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     start_time = time.time()
 
-    train_xgboost(dataset_name="environmental",
-                  minio_ip_addr=None,  # will use default if none is given
-                  minio_access_key="nkjYl5jO4QnpxQU0k0M1",
-                  minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
-                  input_type="embedding",
-                  )
+    do_hyperparameter_search(dataset_name="environmental",
+                             minio_ip_addr=None,  # will use default if none is given
+                             minio_access_key="nkjYl5jO4QnpxQU0k0M1",
+                             minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
+                             input_type="embedding",
+                             )
 
     time_elapsed = time.time() - start_time
     print("Time elapsed: {0}s".format(format(time_elapsed, ".2f")))
+

@@ -153,9 +153,6 @@ def train_xgboost(dataset_name: str,
     training_pred_results = xgboost_model.predict(dtrain_reg)
     validation_pred_results = xgboost_model.predict(dtest_reg)
 
-    # summarize prediction
-    # print('Predicted: ', validation_pred_results)
-
     ab_model = ABRankingModel(inputs_shape=input_shape)
     training_predicted_score_images_x = training_pred_results
     training_predicted_score_images_y = training_pred_results
@@ -186,83 +183,8 @@ def train_xgboost(dataset_name: str,
 
     cmd.upload_data(dataset_loader.minio_client, "datasets", model_output_path, buffer)
 
-    #
-    # # Generate report
-    # nn_summary = torchinfo_summary(ab_model.model)
-
-    # get number of correct predictions
-    # training_target_probabilities = torch.stack(training_target_probabilities)
-    # training_predicted_probabilities = torch.stack(training_predicted_probabilities)
-    # training_predicted_score_images_x = torch.stack(training_predicted_score_images_x)
-    # training_predicted_score_images_y = torch.stack(training_predicted_score_images_y)
-    # training_loss_per_epoch = torch.stack(training_loss_per_epoch)
-    # validation_loss_per_epoch = torch.stack(validation_loss_per_epoch)
-    #
-    # validation_predicted_score_images_x = torch.stack(validation_predicted_score_images_x)
-    # validation_predicted_score_images_y = torch.stack(validation_predicted_score_images_y)
-    # validation_predicted_probabilities = torch.stack(validation_predicted_probabilities)
-    #
-    # training_target_probabilities = training_target_probabilities.detach().cpu().numpy()
-    # validation_target_probabilities = validation_target_probabilities.detach().cpu().numpy()
-    # training_predicted_score_images_x = training_predicted_score_images_x.detach().cpu().numpy()
-    # training_predicted_score_images_y = training_predicted_score_images_y.detach().cpu().numpy()
-    # validation_predicted_score_images_x = validation_predicted_score_images_x.detach().cpu().numpy()
-    # validation_predicted_score_images_y = validation_predicted_score_images_y.detach().cpu().numpy()
-    #
-    # training_predicted_probabilities = training_predicted_probabilities.detach().cpu()
-    # validation_predicted_probabilities = validation_predicted_probabilities.detach().cpu()
-    #
-    # training_loss_per_epoch = training_loss_per_epoch.detach().cpu()
-    # validation_loss_per_epoch = validation_loss_per_epoch.detach().cpu()
-
     train_sum_correct = 0
-    # for i in range(len(training_target_probabilities)):
-    #     if training_target_probabilities[i] == [1.0]:
-    #         if training_predicted_score_images_x[i] > training_predicted_score_images_y[i]:
-    #             train_sum_correct += 1
-    #     else:
-    #         if training_predicted_score_images_x[i] < training_predicted_score_images_y[i]:
-    #             train_sum_correct += 1
-
     validation_sum_correct = 0
-    # for i in range(len(validation_target_probabilities)):
-    #     if validation_target_probabilities[i] == [1.0]:
-    #         if validation_predicted_score_images_x[i] > validation_predicted_score_images_y[i]:
-    #             validation_sum_correct += 1
-    #     else:
-    #         if validation_predicted_score_images_x[i] < validation_predicted_score_images_y[i]:
-    #             validation_sum_correct += 1
-
-    selected_index_0_count, selected_index_1_count, total_images_count = dataset_loader.get_image_selected_index_data()
-    # # save report
-    # report_str = get_train_report(ab_model,
-    #                               training_dataset_path,
-    #                               train_percent,
-    #                               training_total_size,
-    #                               validation_total_size,
-    #                               train_sum_correct,
-    #                               validation_sum_correct,
-    #                               nn_summary,
-    #                               training_predicted_score_images_x,
-    #                               training_predicted_score_images_y,
-    #                               validation_predicted_score_images_x,
-    #                               validation_predicted_score_images_y,
-    #                               training_batch_size,
-    #                               learning_rate,
-    #                               weight_decay,
-    #                               selected_index_0_count,
-    #                               selected_index_1_count,
-    #                               total_images_count,
-    #                               dataset_loader.datapoints_per_sec)
-    #
-    # # Upload model to minio
-    # report_name = "{}.txt".format(filename)
-    # report_output_path = os.path.join(output_path, report_name)
-    #
-    # report_buffer = BytesIO(report_str.encode(encoding='UTF-8'))
-    #
-    # # upload the txt report
-    # cmd.upload_data(dataset_loader.minio_client, bucket_name, report_output_path, report_buffer)
 
     # show and save graph
     graph_name = "{}.png".format(filename)
@@ -309,40 +231,12 @@ def train_xgboost(dataset_name: str,
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name, graph_output_path, graph_buffer)
 
-    # # get model card and upload
-    # model_card_name = "{}.json".format(filename)
-    # model_card_name_output_path = os.path.join(output_path, model_card_name)
-    # model_card_buf, model_card = get_model_card_buf(ab_model,
-    #                                                 training_total_size,
-    #                                                 validation_total_size,
-    #                                                 graph_output_path,
-    #                                                 input_type,
-    #                                                 output_type)
-    # cmd.upload_data(dataset_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
-
-    # # add model card
-    # model_id = upload_score_residual.add_model_card(model_card)
-    #
-    # # upload score and residual
-    # upload_score_residual.upload_score_residual(model_id,
-    #                                             training_predicted_probabilities,
-    #                                             training_target_probabilities,
-    #                                             validation_predicted_probabilities,
-    #                                             validation_target_probabilities,
-    #                                             training_predicted_score_images_x,
-    #                                             validation_predicted_score_images_x,
-    #                                             dataset_loader.training_image_hashes,
-    #                                             dataset_loader.validation_image_hashes,
-    #                                             training_shuffled_indices_origin,
-    #                                             validation_shuffled_indices_origin)
-
-
 
 if __name__ == '__main__':
     start_time = time.time()
 
     train_xgboost(dataset_name="environmental",
-                  minio_ip_addr=None,  # will use defualt if none is given
+                  minio_ip_addr=None,  # will use default if none is given
                   minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
                   input_type="embedding",
