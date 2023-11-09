@@ -170,46 +170,44 @@ def get_all_dataset_config(request: Request):
 
 
 @router.put("/dataset/set-relevance-model")
-def set_relevance_model(request: Request, dataset: str, relevance_model: RankingModel):
+def set_relevance_model(request: Request, dataset: str, relevance_model: str):
     date_now = datetime.now()
     # check if dataset exists
     query = {"dataset_name": dataset}
     item = request.app.dataset_config_collection.find_one(query)
-
+    
     if item is None:
         raise HTTPException(status_code=404, detail="Dataset not found")
-
+    
     # update the relevance model
     new_values = {
         "$set": {
             "last_update": date_now,
-            "relevance_model": relevance_model.to_dict()
+            "relevance_model": relevance_model
         }
     }
     request.app.dataset_config_collection.update_one(query, new_values)
-
     return True
 
 
 @router.put("/dataset/set-ranking-model")
-def set_ranking_model(request: Request, dataset: str, ranking_model: RankingModel):
+def set_ranking_model(request: Request, dataset: str, ranking_model: str):
     date_now = datetime.now()
     # check if dataset exists
     query = {"dataset_name": dataset}
     item = request.app.dataset_config_collection.find_one(query)
-
+    
     if item is None:
         raise HTTPException(status_code=404, detail="Dataset not found")
-
+    
     # update the ranking model
     new_values = {
         "$set": {
             "last_update": date_now,
-            "ranking_model": ranking_model.to_dict()
+            "ranking_model": ranking_model
         }
     }
     request.app.dataset_config_collection.update_one(query, new_values)
-
     return True
 
 
