@@ -154,7 +154,7 @@ def get_image_data_by_filepath_2(request: Request, file_path: str):
 
     return response
 
-@router.get("/image/list-metadata", response_class=PrettyJSONResponse)
+@router.get("/image/list-image-metadata-by-dataset", response_class=PrettyJSONResponse)
 def get_images_metadata(
     request: Request,
     dataset: str = None,
@@ -236,8 +236,8 @@ def residual(request, model_id, job):
     else:
         return item['residual']
 
-@router.get("/image/sorted-list-metadata", response_class=PrettyJSONResponse)
-def sorted_list_metadata(
+@router.get("/image/image-list-sorted-by-model", response_class=PrettyJSONResponse)
+def image_list_sorted_by_model(
     request: Request,
     dataset: str = Query(...),
     limit: int = 20,
