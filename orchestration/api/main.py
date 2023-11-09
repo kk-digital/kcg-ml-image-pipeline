@@ -114,6 +114,9 @@ def startup_db_client():
     # residual percentiles
     app.image_residual_percentiles_collection = app.mongodb_db["image-residual-percentiles"]
 
+    # image rank use count - the count the image is used in selection datapoint
+    app.image_rank_use_count_collection = app.mongodb_db["image-rank-use-count"]
+
     print("Connected to the MongoDB database!")
 
     # get minio client
