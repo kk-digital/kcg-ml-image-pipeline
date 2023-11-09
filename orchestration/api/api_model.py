@@ -186,7 +186,7 @@ def get_latest_ranking_model(request: Request,
     return result_model
 
 
-@router.get("/models/get-model-card", response_class=PrettyJSONResponse)
+@router.get("/static/models/get-model-card", response_class=PrettyJSONResponse)
 def get_model_card(request: Request, file_path: str = Query(...)):
     bucket_name = "datasets"
     
@@ -221,7 +221,7 @@ def get_graph(request: Request, file_path: str = Query(...)):
     return Response(content=content, media_type=content_type)
 
 
-@router.get("/models/get-report")
+@router.get("/static/models/get-report")
 def get_report(request: Request, file_path: str = Query(...)):
     bucket_name = "datasets"
     
