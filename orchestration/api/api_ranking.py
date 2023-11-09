@@ -12,9 +12,10 @@ router = APIRouter()
 @router.get("/ranking/list-selection-policies")
 def list_policies(request: Request):
     # hard code policies for now
-    policies = ["random-unifrom",
+    policies = ["random-uniform",
                 "top k variance",
-                "error sampling"]
+                "error sampling",
+                "previously ranked"]
 
     return policies
 
