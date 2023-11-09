@@ -154,35 +154,6 @@ def get_image_data(images: torch.Tensor, img_format: str = 'jpeg'):
 
     return output_file_hash, img_byte_arr
 
-# commented the new hash function for now
-
-# def get_image_data(images: torch.Tensor, img_format: str = 'jpeg'):
-#     # Map images to `[0, 1]` space and clip
-#     images = torch.clamp((images + 1.0) / 2.0, min=0.0, max=1.0)
-#     # Transpose to `[batch_size, height, width, channels]` and convert to numpy
-#     images = images.cpu()
-#     images = images.permute(0, 2, 3, 1)
-#     images = images.detach().float().numpy()
-
-#     img_hashes = []
-#     img_byte_arrs = []
-
-#     # Save images and calculate hashes
-#     for img in images:
-#         img = Image.fromarray((255. * img).astype(np.uint8))
-#         # Convert to bytes array
-#         img_byte_arr = io.BytesIO()
-#         img.save(img_byte_arr, format=img_format)
-#         img_byte_arr.seek(0)
-
-#         # Calculate hash
-#         output_file_hash = (hashlib.sha256(img_byte_arr.getbuffer())).hexdigest()
-
-#         img_hashes.append(output_file_hash)
-#         img_byte_arrs.append(img_byte_arr)
-
-#     return img_hashes, img_byte_arrs
-
 
 def save_image_grid(
         tensor: Union[torch.Tensor, List[torch.Tensor]],
