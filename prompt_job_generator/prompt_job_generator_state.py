@@ -203,7 +203,6 @@ class PromptJobGeneratorState:
     def get_dataset_model_info(self, dataset, model_name):
         model_dictionary = self.get_dataset_model_list(dataset)
 
-
         if model_name in model_dictionary:
             return model_dictionary[model_name]
 

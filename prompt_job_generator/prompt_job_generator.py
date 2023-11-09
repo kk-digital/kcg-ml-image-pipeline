@@ -75,7 +75,6 @@ def update_database_model_list(prompt_job_generator_state, list_datasets):
 
         for item in dataset_model_list:
             model_name = item['model_name']
-            print(item)
             dataset_model_dictionary[model_name] = item
 
         prompt_job_generator_state.set_dataset_model_list(dataset, dataset_model_dictionary)
@@ -187,9 +186,7 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
         return
 
     for dataset in dataset_list:
-        dataset_model_name = prompt_job_generator_state.get_dataset_ranking_model(dataset)
-
-        model_info = prompt_job_generator_state.get_dataset_model_info(dataset, dataset_model_name)
+        model_info = prompt_job_generator_state.get_dataset_ranking_model(dataset)
 
         if model_info is None:
             continue
@@ -213,7 +210,7 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
         elif model_type == 'image-pair-ranking-elm-v1':
             prompt_job_generator_state.load_elm_v1_model(bucket_name, 'datasets', model_path)
 
-        print(f'Loaded {model_type} model {dataset_model_name} for dataset {dataset}')
+        print(f'Loaded {model_type}  for dataset {dataset}')
         scoring_model = prompt_job_generator_state.get_dataset_scoring_model(dataset)
         print('scoring_model loaded ', scoring_model, ' for dataset ', dataset)
 
