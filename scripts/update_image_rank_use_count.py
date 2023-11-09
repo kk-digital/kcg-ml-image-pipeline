@@ -21,7 +21,7 @@ def get_image_hashes(minio_client, object_path):
     decoded_data = data.decode().replace("'", '"')
     item = json.loads(decoded_data)
 
-    return item[["image_1_metadata"]["file_hash"], item["image_2_metadata"]["file_hash"]]
+    return [item["image_1_metadata"]["file_hash"], item["image_2_metadata"]["file_hash"]]
 
 
 def set_image_rank_count(image_hash, count):
@@ -44,6 +44,7 @@ def run_concurrent_check(minio_client, dataset_name):
     objects = cmd.get_list_of_objects_with_prefix(minio_client, "datasets", selection_datapoints_path)
     print("len objects=", len(objects))
 
+    print("Getting image hashes from datapoints...")
     with ThreadPoolExecutor(max_workers=10) as executor:
         futures = []
         for object_path in objects:
@@ -60,6 +61,10 @@ def run_concurrent_check(minio_client, dataset_name):
                     count = image_hash_count_dict[image_hash]
                     count += 1
                     image_hash_count_dict[image_hash] = count
+
+    print("Setting image hash counts...")
+    for image_hash, count in tqdm(image_hash_count_dict.items()):
+        set_image_rank_count(image_hash, count)
 
 
 def parse_arguments():
