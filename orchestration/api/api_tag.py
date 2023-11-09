@@ -153,19 +153,21 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_cre
     return image_tag_data
 
 
-
 @router.delete("/tags/remove_tag_from_image")
-def remove_image_tag(request: Request, file_hash: str):
-    query = {
-        "image_hash": file_hash
-    }
+def remove_image_tag(
+    request: Request,
+    image_hash: str,  
+    tag_id: int,  
+):
+    # The query now checks for the specific tag_id within the array of tags
+    query = {"image_hash": image_hash, "tag_id": tag_id}
+    result = request.app.image_tags_collection.delete_one(query)
     
-    result = request.app.image_tags_collection.delete_many(query)  
-    
+    # If no document was found and deleted, raise an HTTPException
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Tags for the given image hash not found!")
+        raise HTTPException(status_code=404, detail="Tag or image hash not found!")
     
-    return {"status": "success", "message": f"Tags removed successfully."}
+    return {"status": "success"}
 
 
 @router.get("/tags/get_tag_list_for_image", response_model=List[TagDefinition])
