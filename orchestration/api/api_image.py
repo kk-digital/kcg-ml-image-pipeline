@@ -5,10 +5,12 @@ import pymongo
 from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
 from .api_utils import PrettyJSONResponse
-
+from .api_ranking import get_image_rank_use_count
 
 router = APIRouter()
 
+
+# TODO: deprecate
 
 @router.get("/image/get_random_image", response_class=PrettyJSONResponse)
 def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the size parameter
@@ -32,6 +34,7 @@ def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the
     # Return the image in the response
     return {"image": documents[0]}
 
+# TODO: deprecate
 @router.get("/image/get_image_details")
 def get_image_details(request: Request, image_path: str = Query(...)):
     # Query the database to retrieve the image details by its ID
@@ -48,7 +51,7 @@ def get_image_details(request: Request, image_path: str = Query(...)):
     # Return the image details
     return {"image_details": document}  
     
-
+# TODO: deprecate
 @router.get("/image/get_random_image_list", response_class=PrettyJSONResponse)
 def get_random_image_list(request: Request, dataset: str = Query(...), size: int = Query(1)):  
     # Use Query to get the dataset and size from query parameters
@@ -80,7 +83,55 @@ def get_random_image_list(request: Request, dataset: str = Query(...), size: int
     # Return the images as a list in the response
     return {"images": distinct_documents}
 
+# TODO: deprecate
+@router.get("/image/get_random_previously_ranked_image_list", response_class=PrettyJSONResponse)
+def get_random_previously_ranked_image_list(request: Request, dataset: str = Query(...), size: int = Query(1)):
+    # Use Query to get the dataset and size from query parameters
 
+    distinct_documents = []
+    tried_ids = set()
+
+    while len(distinct_documents) < size:
+        # Use $sample to get 'size' random documents
+        documents = request.app.completed_jobs_collection.aggregate([
+            {"$match": {"task_input_dict.dataset": dataset, "_id": {"$nin": list(tried_ids)}}},
+            # Exclude already tried ids
+            {"$sample": {"size": size - len(distinct_documents)}}  # Only fetch the remaining needed size
+        ])
+
+        # Convert cursor type to list
+        documents = list(documents)
+
+        # Store the tried image ids
+        tried_ids.update([doc["_id"] for doc in documents])
+
+        # use only documents that has rank use count greater than 0
+        prev_ranked_docs = []
+        for doc in documents:
+            print("checking ...")
+            try:
+                count = get_image_rank_use_count(request, doc["task_output_file_dict"]["output_file_hash"])
+            except:
+                count = 0
+            print("checking count=", count)
+
+            if count > 0:
+                print("appending...")
+                prev_ranked_docs.append(doc)
+
+        distinct_documents.extend(prev_ranked_docs)
+
+        # Ensure only distinct images are retained
+        seen = set()
+        distinct_documents = [doc for doc in distinct_documents if doc["_id"] not in seen and not seen.add(doc["_id"])]
+
+    for doc in distinct_documents:
+        doc.pop('_id', None)  # remove the auto generated field
+
+    # Return the images as a list in the response
+    return {"images": distinct_documents}
+
+# TODO: deprecate
 @router.get("/image/get_random_image_by_date_range", response_class=PrettyJSONResponse)
 def get_random_image_date_range(
     request: Request,
@@ -136,6 +187,7 @@ def get_image_data_by_filepath(request: Request, file_path: str = None):
     return response
 """
 
+# TODO: deprecate
 @router.get("/images/{file_path:path}")
 def get_image_data_by_filepath_2(request: Request, file_path: str):
     bucket_name, file_path = separate_bucket_and_file_path(file_path)
