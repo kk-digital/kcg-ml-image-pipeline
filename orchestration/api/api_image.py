@@ -10,7 +10,7 @@ from .api_utils import PrettyJSONResponse
 router = APIRouter()
 
 
-@router.get("/image/get_random_image", response_class=PrettyJSONResponse)
+@router.get("/static/image/get_random_image", response_class=PrettyJSONResponse)
 def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the size parameter
   
     # Use $sample to get one random document
@@ -32,7 +32,7 @@ def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the
     # Return the image in the response
     return {"image": documents[0]}
 
-@router.get("/image/get_image_details")
+@router.get("/static/image/get_image_details")
 def get_image_details(request: Request, image_path: str = Query(...)):
     # Query the database to retrieve the image details by its ID
     document = request.app.completed_jobs_collection.find_one(
@@ -49,7 +49,7 @@ def get_image_details(request: Request, image_path: str = Query(...)):
     return {"image_details": document}  
     
 
-@router.get("/image/get_random_image_list", response_class=PrettyJSONResponse)
+@router.get("/static/image/get_random_image_list", response_class=PrettyJSONResponse)
 def get_random_image_list(request: Request, dataset: str = Query(...), size: int = Query(1)):  
     # Use Query to get the dataset and size from query parameters
 
@@ -81,7 +81,7 @@ def get_random_image_list(request: Request, dataset: str = Query(...), size: int
     return {"images": distinct_documents}
 
 
-@router.get("/image/get_random_image_by_date_range", response_class=PrettyJSONResponse)
+@router.get("/static/image/get_random_image_by_date_range", response_class=PrettyJSONResponse)
 def get_random_image_date_range(
     request: Request,
     dataset: str = None,
@@ -136,7 +136,7 @@ def get_image_data_by_filepath(request: Request, file_path: str = None):
     return response
 """
 
-@router.get("/images/{file_path:path}")
+@router.get("/static/images/{file_path:path}")
 def get_image_data_by_filepath_2(request: Request, file_path: str):
     bucket_name, file_path = separate_bucket_and_file_path(file_path)
     file_path = file_path.replace("\\", "/")
@@ -154,7 +154,7 @@ def get_image_data_by_filepath_2(request: Request, file_path: str):
 
     return response
 
-@router.get("/image/list-image-metadata-by-dataset", response_class=PrettyJSONResponse)
+@router.get("/static/image/list-image-metadata-by-dataset", response_class=PrettyJSONResponse)
 def get_images_metadata(
     request: Request,
     dataset: str = None,
@@ -236,7 +236,7 @@ def residual(request, model_id, job):
     else:
         return item['residual']
 
-@router.get("/image/image-list-sorted-by-model", response_class=PrettyJSONResponse)
+@router.get("/static/image/image-list-sorted-by-model", response_class=PrettyJSONResponse)
 def image_list_sorted_by_model(
     request: Request,
     dataset: str = Query(...),
