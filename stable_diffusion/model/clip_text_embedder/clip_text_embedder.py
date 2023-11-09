@@ -130,10 +130,25 @@ class CLIPTextEmbedder(nn.Module):
                                         return_overflowing_tokens=False, padding="max_length", return_tensors="pt")
         # Get token ids
         tokens = batch_encoding["input_ids"].to(self.device)
-        self.transformer = self.transformer.to(self.device)
+
         # Get CLIP embeddings
         return self.transformer(input_ids=tokens).last_hidden_state
 
+    def forward_return_all(self, prompts: List[str]):
+        """
+        :param prompts: are the list of prompts to embed
+        """
+        # Tokenize the prompts
+        batch_encoding = self.tokenizer(prompts, truncation=True, max_length=self.max_length, return_length=True,
+                                        return_overflowing_tokens=False, padding="max_length", return_tensors="pt")
+        # Get token ids
+        tokens = batch_encoding["input_ids"].to(self.device)
+
+        # Get CLIP embeddings
+        clip_output = self.transformer(input_ids=tokens)
+        
+        return clip_output.last_hidden_state, clip_output.pooler_output, batch_encoding['attention_mask']
+        
 # %%
 
 # if __name__ == "__main__":
