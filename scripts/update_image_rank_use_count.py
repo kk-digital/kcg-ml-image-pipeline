@@ -97,8 +97,8 @@ if __name__ == '__main__':
         print("dataset names=", dataset_names)
         for dataset in dataset_names:
             try:
-                print("Checking clip data for {}...".format(dataset))
+                print("Checking image rank use count for {}...".format(dataset))
                 run_concurrent_check(minio_client, dataset)
             except Exception as e:
-                print("Error checking clip data for {}: {}".format(dataset, e))
+                print("Error checking image rank use count for {}: {}".format(dataset, e))
 
