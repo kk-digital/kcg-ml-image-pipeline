@@ -1,4 +1,4 @@
-from fastapi import Request, APIRouter, Query
+from fastapi import Request, APIRouter, Query, HTTPException
 from datetime import datetime
 from utility.minio import cmd
 import os
@@ -41,7 +41,75 @@ def add_selection_datapoint(
     # upload
     cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
 
+    image_1_hash = selection.image_1_metadata.file_hash
+    image_2_hash = selection.image_2_metadata.file_hash
+
+    # update rank count
+    # get models counter
+    for img_hash in [image_1_hash, image_2_hash]:
+        update_image_rank_use_count(request, img_hash)
+
     return True
+
+
+@router.post("/rank/update-image-rank-use-count", description="Update image rank use count")
+def update_image_rank_use_count(request: Request, image_hash):
+    counter = request.app.image_rank_use_count_collection.find_one({"image_hash": image_hash})
+
+    if counter is None:
+        # add
+        count = 1
+        rank_use_count_data = {"image_hash": image_hash,
+                               "count": count,
+                               }
+
+        request.app.image_rank_use_count_collection.insert_one(rank_use_count_data)
+    else:
+        count = counter["count"]
+        count += 1
+
+        try:
+            request.app.image_rank_use_count_collection.update_one(
+                {"image_hash": image_hash},
+                {"$set": {"count": count}})
+        except Exception as e:
+            raise Exception("Updating of model counter failed: {}".format(e))
+
+    return True
+
+
+@router.post("/rank/set-image-rank-use-count", description="Set image rank use count")
+def set_image_rank_use_count(request: Request, image_hash, count: int):
+    counter = request.app.image_rank_use_count_collection.find_one({"image_hash": image_hash})
+
+    if counter is None:
+        # add
+        rank_use_count_data = {"image_hash": image_hash,
+                               "count": count,
+                               }
+
+        request.app.image_rank_use_count_collection.insert_one(rank_use_count_data)
+    else:
+        try:
+            request.app.image_rank_use_count_collection.update_one(
+                {"image_hash": image_hash},
+                {"$set": {"count": count}})
+        except Exception as e:
+            raise Exception("Updating of model counter failed: {}".format(e))
+
+    return True
+
+
+@router.get("/rank/get-image-rank-use-count", description="Get image rank use count")
+def get_image_rank_use_count(request: Request, image_hash: str):
+    # check if exist
+    query = {"image_hash": image_hash}
+
+    item = request.app.image_rank_use_count_collection.find_one(query)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Image rank use count data not found")
+
+    return item["count"]
 
 
 @router.post("/ranking/submit-relevance-data")
