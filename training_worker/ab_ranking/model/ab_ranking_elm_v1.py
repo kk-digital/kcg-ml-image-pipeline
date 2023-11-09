@@ -116,7 +116,7 @@ class ABRankingELMModel:
 
     def load(self, model_buffer):
         # Loading state dictionary
-        model = torch.load(model_buffer)
+        model = torch.load(model_buffer, map_location=torch.device('cpu'))
         # Restoring model metadata
         self.model_type = model['model-type']
         self.file_path = model['file-path']
