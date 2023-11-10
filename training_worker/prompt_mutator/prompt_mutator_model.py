@@ -70,7 +70,7 @@ class PromptMutator:
 
         accuracy=0
         for val, pred_val in zip(y_val,val_preds):
-            if((val<0 and pred_val<0) or (val<0 and pred_val<0) or (val==0 and pred_val==0)):
+            if((val<0 and pred_val<0) or (val>0 and pred_val>0) or (val==0 and pred_val==0)):
                 accuracy+=1
         
         print(f'accuracy:{accuracy/len(y_val)}')
