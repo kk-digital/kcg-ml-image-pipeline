@@ -20,12 +20,12 @@ class PromptMutator:
     def train(self, 
               X_train, 
               y_train, 
-              max_depth=10, 
-              min_child_weight=1, 
-              gamma=0, 
+              max_depth=5, 
+              min_child_weight=5, 
+              gamma=0.1, 
               subsample=1, 
               colsample_bytree=1, 
-              eta=0.1,
+              eta=0.05,
               early_stopping=100):
         
         X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42)
