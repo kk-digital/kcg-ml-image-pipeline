@@ -81,7 +81,6 @@ def update_database_model_list(prompt_job_generator_state, list_datasets):
         prompt_job_generator_state.set_dataset_model_list(dataset, dataset_model_dictionary)
 
 
-
 def update_dataset_latest_ranking_model(prompt_job_generator_state, list_datasets):
     # if dataset list is null return
     if list_datasets is None:
@@ -217,6 +216,8 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
 
         if model_info is None:
             continue
+
+        print(model_info)
 
         model_type = model_info['model_type']
 
