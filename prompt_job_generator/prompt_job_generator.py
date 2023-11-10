@@ -13,7 +13,8 @@ from prompt_job_generator_functions import (generate_icon_generation_jobs, gener
 generate_propaganda_posters_image_generation_jobs, generate_environmental_image_generation_jobs, generate_waifu_image_generation_jobs)
 from prompt_job_generator.http_requests.request import (http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list,
                                                         http_get_dataset_job_per_second, http_get_jobs_count_last_hour,
-                                                        http_get_all_dataset_config, http_get_dataset_model_list)
+                                                        http_get_all_dataset_config, http_get_dataset_model_list, http_get_dataset_latest_ranking_model,
+                                                        http_set_dataset_ranking_model, http_get_model_id)
 from prompt_job_generator_constants import JOB_PER_SECOND_SAMPLE_SIZE, DEFAULT_TOP_K_VALUE, DEFAULT_DATASET_RATE
 
 from utility.path import separate_bucket_and_file_path
@@ -78,6 +79,32 @@ def update_database_model_list(prompt_job_generator_state, list_datasets):
             dataset_model_dictionary[model_name] = item
 
         prompt_job_generator_state.set_dataset_model_list(dataset, dataset_model_dictionary)
+
+
+
+def update_dataset_latest_ranking_model(prompt_job_generator_state, list_datasets):
+    # if dataset list is null return
+    if list_datasets is None:
+        return
+
+    # loop through all datasets and
+    # for each dataset update the
+    # latest ranking model
+    for dataset in list_datasets:
+        latest_ranking_model = http_get_dataset_latest_ranking_model(dataset)
+
+        if latest_ranking_model is None:
+            continue
+
+        model_file_hash = latest_ranking_model['model_file_hash']
+        model_id = http_get_model_id(model_file_hash)
+
+        if model_id is None:
+            continue
+
+        model_id = int(model_id)
+        latest_ranking_model['model_id'] = model_id
+        http_set_dataset_ranking_model(dataset, latest_ranking_model)
 
 
 def update_dataset_config_data(prompt_job_generator_state, list_datasets):
@@ -233,6 +260,12 @@ def update_dataset_values_background_thread(prompt_job_generator_state):
         list_datasets = http_get_dataset_list()
 
         update_database_model_list(prompt_job_generator_state, list_datasets)
+
+        # not sure if we want to keep this one
+        # this will force the prompt generator to use
+        # the latest ranking model
+        update_dataset_latest_ranking_model(prompt_job_generator_state, list_datasets)
+
         update_dataset_config_data(prompt_job_generator_state, list_datasets)
         update_dataset_job_queue_size(prompt_job_generator_state, list_datasets)
 
