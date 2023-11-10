@@ -152,7 +152,7 @@ def load_dataset(minio_client, device):
     with open(csv_file, 'rb') as file:
         csv_content = file.read()
 
-    # Upload the CSV file to Minio
+    #Upload the CSV file to Minio
     buffer = io.BytesIO(csv_content)
     buffer.seek(0)
 
@@ -181,7 +181,7 @@ def main():
 
     mutator= PromptMutator(minio_client=minio_client)
     mutator.train(input, output)
-    mutator.save_model("output/prompt_mutator/prompt_mutator.pth")
+    mutator.save_model("output/prompt_mutator/prompt_mutator.ubj")
 
 if __name__ == "__main__":
     main()

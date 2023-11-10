@@ -2,6 +2,7 @@ from datetime import datetime
 from io import BytesIO
 import os
 import sys
+import time
 from matplotlib import pyplot as plt
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
@@ -43,27 +44,38 @@ class PromptMutator:
         }
 
         evals_result = {}
-        self.model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval, "validation")], 
+        self.model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval,'eval'), (dtrain,'train')], 
                                early_stopping_rounds=early_stopping, evals_result=evals_result)
 
  
-        # Extract RMSE values and residuals
-        residuals=[]
-        rmse = evals_result['validation']['rmse']
-        evals = [(dval, "validation")]
+        #Extract RMSE values and residuals
+        val_rmse = evals_result['eval']['rmse']
+        train_rmse = evals_result['train']['rmse']
 
-        for i in range(len(evals)):
-            preds = self.model.predict(evals[i][0])
-            residuals.append(y_val - preds)
+
+        start = time.time()
+        # Get predictions for validation set
+        val_preds = self.model.predict(dval)
+
+        # Get predictions for training set
+        train_preds = self.model.predict(dtrain)
+        end = time.time()
+        print(f'Time taken for inference of {len(X_train) + len(X_val)} data points is: {end - start:.2f} seconds')
+
+        # Now you can calculate residuals using the predicted values
+        val_residuals = y_val - val_preds
+        train_residuals = y_train - train_preds
         
-        self.save_graph_report(rmse, residuals, len(X_train), len(X_val))
-        
+        self.save_graph_report(train_rmse, val_rmse, val_residuals, train_residuals, val_preds, y_val, len(X_train), len(X_val))
     
-    def save_graph_report(self, rmse_per_round, residuals, training_size, validation_size):
-        fig, axs = plt.subplots(2, 1, figsize=(12, 10))
+    def save_graph_report(self, train_rmse_per_round, val_rmse_per_round, 
+                          val_residuals, train_residuals, 
+                          predicted_values, actual_values,
+                          training_size, validation_size):
+        fig, axs = plt.subplots(3, 2, figsize=(12, 10))
         
         #info text about the model
-        plt.figtext(0.1, 0.55, "Date = {}\n"
+        plt.figtext(0.02, 0.7, "Date = {}\n"
                             "Dataset = {}\n"
                             "Model type = {}\n"
                             "Input type = {}\n"
@@ -74,28 +86,55 @@ class PromptMutator:
                             "Validation size = {}\n".format(datetime.now().strftime("%Y-%m-%d"),
                                                             'environmental',
                                                             'XGBoost',
-                                                            'clip_embedding',
+                                                            'clip_text_embedding',
                                                             '1537',
                                                             'delta_score',
                                                             training_size,
                                                             validation_size,
                                                             ))
 
-        # Plot Validation Loss vs. Epochs
-        axs[0].plot(range(1, len(rmse_per_round) + 1), rmse_per_round, label='RMSE')
-        axs[0].set_title('RMSE per Round')
-        axs[0].set_ylabel('Round')
-        axs[0].set_xlabel('RMSE')
-        axs[0].legend(['RMSE'])
+        # Plot Training Rmse vs. Rounds
+        axs[0][0].plot(range(1, len(train_rmse_per_round) + 1), train_rmse_per_round, label='RMSE')
+        axs[0][0].set_title('RMSE per Round for training')
+        axs[0][0].set_ylabel('RMSE')
+        axs[0][0].set_xlabel('Rounds')
+        axs[0][0].legend(['RMSE'])
+        
+        # Plot Validation Rmse vs. Rounds
+        axs[0][1].plot(range(1, len(val_rmse_per_round) + 1), val_rmse_per_round, label='RMSE')
+        axs[0][1].set_title('RMSE per Round for validation')
+        axs[0][1].set_ylabel('RMSE')
+        axs[0][1].set_xlabel('Rounds')
+        axs[0][1].legend(['RMSE'])
 
-        # plot histogram of residuals
-        axs[1].hist(residuals, bins=30, color='blue', alpha=0.7)
-        axs[1].set_xlabel('Residuals')
-        axs[1].set_ylabel('Frequency')
-        axs[1].set_title('Validation Residual Histogram')
+        # plot histogram of training residuals
+        axs[1][0].hist(train_residuals, bins=30, color='blue', alpha=0.7)
+        axs[1][0].set_xlabel('Residuals')
+        axs[1][0].set_ylabel('Frequency')
+        axs[1][0].set_title('Training Residual Histogram')
+
+        # plot histogram of validation residuals
+        axs[1][1].hist(val_residuals, bins=30, color='blue', alpha=0.7)
+        axs[1][1].set_xlabel('Residuals')
+        axs[1][1].set_ylabel('Frequency')
+        axs[1][1].set_title('Validation Residual Histogram')
+        
+        # plot histogram of predicted values
+        axs[2][0].hist(predicted_values, bins=30, color='blue', alpha=0.7)
+        axs[2][0].set_xlabel('Predicted Values')
+        axs[2][0].set_ylabel('Frequency')
+        axs[2][0].set_title('Validation Predicted Values Histogram')
+        
+        # plot histogram of true values
+        axs[2][1].hist(actual_values, bins=30, color='blue', alpha=0.7)
+        axs[2][1].set_xlabel('Actual values')
+        axs[2][1].set_ylabel('Frequency')
+        axs[2][1].set_title('Validation True Values Histogram')
 
         # Adjust spacing between subplots
-        plt.subplots_adjust(hspace=0.7, left=0.5)
+        plt.subplots_adjust(hspace=0.7, wspace=0.3, left=0.3)
+
+        plt.savefig('output/xgboost_model.png')
 
         # Save the figure to a file
         buf = BytesIO()
