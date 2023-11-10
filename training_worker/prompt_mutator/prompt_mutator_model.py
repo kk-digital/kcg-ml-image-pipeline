@@ -20,9 +20,10 @@ class PromptMutator:
     def train(self, 
               X_train, 
               y_train, 
-              max_depth=6, 
-              min_child_weight=1, 
-              gamma=0.01, 
+              max_depth=10, 
+              min_child_weight=1,
+              alpha=0.8, 
+              gamma=0.0, 
               subsample=1, 
               colsample_bytree=1, 
               eta=0.1,
@@ -34,7 +35,8 @@ class PromptMutator:
         dval = xgb.DMatrix(X_val, label=y_val)
 
         params = {
-            'objective': 'reg:squarederror',
+            'objective': 'reg:linear',
+            'alpha':alpha,
             'max_depth': max_depth,
             'min_child_weight': min_child_weight,
             'gamma': gamma,
@@ -65,6 +67,13 @@ class PromptMutator:
         # Now you can calculate residuals using the predicted values
         val_residuals = y_val - val_preds
         train_residuals = y_train - train_preds
+
+        accuracy=0
+        for val, pred_val in zip(y_val,val_preds):
+            if((val<0 and pred_val<0) or (val<0 and pred_val<0) or (val==0 and pred_val==0)):
+                accuracy+=1
+        
+        print(f'accuracy:{accuracy/len(y_val)}')
         
         self.save_graph_report(train_rmse, val_rmse, val_residuals, train_residuals, val_preds, y_val, len(X_train), len(X_val))
     
