@@ -21,11 +21,11 @@ class PromptMutator:
               X_train, 
               y_train, 
               max_depth=5, 
-              min_child_weight=5, 
-              gamma=0.1, 
+              min_child_weight=1, 
+              gamma=0, 
               subsample=1, 
               colsample_bytree=1, 
-              eta=0.05,
+              eta=0.1,
               early_stopping=100):
         
         X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42)
