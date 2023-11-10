@@ -347,6 +347,10 @@ def main():
     list_datasets = http_get_dataset_list()
 
     update_database_model_list(prompt_job_generator_state, list_datasets)
+    # not sure if we want to keep this one
+    # this will force the prompt generator to use
+    # the latest ranking model
+    update_dataset_latest_ranking_model(prompt_job_generator_state, list_datasets)
     update_dataset_config_data(prompt_job_generator_state, list_datasets)
     update_dataset_job_queue_size(prompt_job_generator_state, list_datasets)
 
