@@ -217,6 +217,9 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
         if model_info is None:
             continue
 
+        if not isinstance(model_info, dict):
+            continue
+
         print('------------')
         print(model_info)
         print('------------')
