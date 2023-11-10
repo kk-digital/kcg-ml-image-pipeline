@@ -264,6 +264,9 @@ class PromptJobGeneratorState:
         if model_info is None:
             return
 
+        if not isinstance(model_info, dict):
+            return
+
         model_type = model_info['model_type']
 
         model = None
