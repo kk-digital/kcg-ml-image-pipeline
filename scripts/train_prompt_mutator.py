@@ -23,6 +23,11 @@ def parse_args():
     parser.add_argument('--minio-addr', required=False, help='Minio server address', default="123.176.98.90:9000")
     parser.add_argument('--minio-access-key', required=False, help='Minio access key')
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
+
+    parser.add_argument('--alpha', required=False, default=0.8, help='regularisation term')
+    parser.add_argument('--learning-rate', required=False, default=0.1, help='learning rate for model')
+    parser.add_argument('--max-depth', required=False, default=10, help='max depth of decision trees')
+    parser.add_argument('--min-child_weight', required=False, default=1, help='controls minimum weight of features')
     args = parser.parse_args()
     return args
 
@@ -180,7 +185,12 @@ def main():
     input, output = load_dataset(minio_client, device)
 
     mutator= PromptMutator(minio_client=minio_client)
-    mutator.train(input, output)
+    mutator.train(input, output, 
+                  alpha=args.alpha, 
+                  eta=args.learning_rate,
+                  max_depth=args.max_depth,
+                  min_child_weight=args.min_child_weight
+                  )
     mutator.save_model("output/prompt_mutator/prompt_mutator.ubj")
 
 if __name__ == "__main__":
