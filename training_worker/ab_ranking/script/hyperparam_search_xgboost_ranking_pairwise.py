@@ -374,5 +374,4 @@ if __name__ == "__main__":
 
     time_elapsed = time.time() - start_time
     print("Time elapsed: {0}s".format(format(time_elapsed, ".2f")))
-    # while not eval_results_queue.empty():
-    #     print(eval_results_queue.get())
+
