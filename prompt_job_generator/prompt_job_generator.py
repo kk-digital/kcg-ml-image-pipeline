@@ -217,7 +217,9 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
         if model_info is None:
             continue
 
+        print('------------')
         print(model_info)
+        print('------------')
 
         model_type = model_info['model_type']
 
