@@ -191,7 +191,7 @@ def main():
                   max_depth=args.max_depth,
                   min_child_weight=args.min_child_weight
                   )
-    mutator.save_model("output/prompt_mutator/prompt_mutator.ubj")
+    mutator.save_model("output/prompt_mutator/prompt_mutator.json")
 
 if __name__ == "__main__":
     main()

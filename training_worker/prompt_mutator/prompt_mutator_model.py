@@ -47,7 +47,7 @@ class PromptMutator:
 
         evals_result = {}
         self.model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval,'eval'), (dtrain,'train')], 
-                               early_stopping_rounds=early_stopping, evals_result=evals_result, feval='rmse')
+                               early_stopping_rounds=early_stopping, evals_result=evals_result)
 
  
         #Extract RMSE values and residuals
@@ -163,11 +163,13 @@ class PromptMutator:
 
     def save_model(self, model_path):
         self.model.save_model(model_path)
-        model_bytes =self.model.save_raw()
-        buffer = BytesIO(model_bytes)
-        buffer.seek(0)
-        # upload the model
-        model_path = os.path.join('environmental', model_path)
-        cmd.upload_data(self.minio_client, 'datasets', model_path, buffer)
+        
+        # Read the contents of the saved model file
+        with open(model_path, "rb") as model_file:
+            model_bytes = model_file.read()
+
+        # Upload the model to MinIO
+        model_path_minio = os.path.join('environmental', model_path)
+        cmd.upload_data(self.minio_client, 'datasets', model_path_minio, BytesIO(model_bytes))
 
 
