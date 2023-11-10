@@ -153,19 +153,21 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_cre
     return image_tag_data
 
 
-
 @router.delete("/tags/remove_tag_from_image")
-def remove_image_tag(request: Request, file_hash: str):
-    query = {
-        "image_hash": file_hash
-    }
+def remove_image_tag(
+    request: Request,
+    image_hash: str,  
+    tag_id: int,  
+):
+    # The query now checks for the specific tag_id within the array of tags
+    query = {"image_hash": image_hash, "tag_id": tag_id}
+    result = request.app.image_tags_collection.delete_one(query)
     
-    result = request.app.image_tags_collection.delete_many(query)  
-    
+    # If no document was found and deleted, raise an HTTPException
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Tags for the given image hash not found!")
+        raise HTTPException(status_code=404, detail="Tag or image hash not found!")
     
-    return {"status": "success", "message": f"Tags removed successfully."}
+    return {"status": "success"}
 
 
 @router.get("/tags/get_tag_list_for_image", response_model=List[TagDefinition])
@@ -183,26 +185,43 @@ def get_tag_list_for_image(request: Request, file_hash: str):
 
 
 @router.get("/tags/get_images_by_tag", response_model=List[ImageTag], response_class=PrettyJSONResponse)
-def get_tagged_images(request: Request, tag_id: int):
-    # Fetch image details for this tag
-    image_tags_cursor = request.app.image_tags_collection.find({"tag_id": tag_id})
+def get_tagged_images(
+    request: Request, 
+    tag_id: int,
+    start_date: str = None,
+    end_date: str = None,
+    order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first")
+):
+    # Build the query
+    query = {"tag_id": tag_id}
+    if start_date and end_date:
+        query["creation_time"] = {"$gte": start_date, "$lte": end_date}
+    elif start_date:
+        query["creation_time"] = {"$gte": start_date}
+    elif end_date:
+        query["creation_time"] = {"$lte": end_date}
 
-    image_info_list = [
-        ImageTag(
-            tag_id=int(tag_data["tag_id"]),
-            file_path=tag_data["file_path"], 
-            image_hash=str(tag_data["image_hash"]),
-            user_who_created=tag_data["user_who_created"],
-            creation_time=tag_data.get("creation_time", None)
-        ) 
-        for tag_data in image_tags_cursor 
-        if tag_data.get("image_hash") and tag_data.get("user_who_created") and tag_data.get("file_path")
-    ]
+    # Decide the sort order based on the 'order' parameter
+    sort_order = -1 if order == "desc" else 1
 
-    # If no image details found, raise an exception
+    # Execute the query
+    image_tags_cursor = request.app.image_tags_collection.find(query).sort("creation_time", sort_order)
+
+    # Process the results
+    image_info_list = []
+    for tag_data in image_tags_cursor:
+        if "image_hash" in tag_data and "user_who_created" in tag_data and "file_path" in tag_data:
+            image_info_list.append(ImageTag(
+                tag_id=int(tag_data["tag_id"]),
+                file_path=tag_data["file_path"], 
+                image_hash=str(tag_data["image_hash"]),
+                user_who_created=tag_data["user_who_created"],
+                creation_time=tag_data.get("creation_time", None)
+            ))
+
     if not image_info_list:
-        raise HTTPException(status_code=404, detail="No images found for the given tag!")
-    
+        raise HTTPException(status_code=404, detail="No images found for the given tag or date range!")
+
     return image_info_list
 
 
