@@ -195,8 +195,6 @@ def main():
     print("Best Score: ", best_score)
 
     mutator.train(input, output, 
-                  gamma=best_params['gamma'], 
-                  eta=best_params['eta'],
                   max_depth=best_params['max_depth'],
                   min_child_weight=best_params['min_child_weight']
                 )
