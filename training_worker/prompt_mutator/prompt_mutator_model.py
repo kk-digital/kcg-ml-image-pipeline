@@ -5,7 +5,7 @@ import sys
 import time
 from matplotlib import pyplot as plt
 import xgboost as xgb
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GridSearchCV, KFold, train_test_split
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -22,8 +22,9 @@ class PromptMutator:
               y_train, 
               max_depth=10, 
               min_child_weight=1,
-              alpha=0.8, 
+              alpha=0.0,
               gamma=0.0, 
+              lambda_value=0.0, 
               subsample=1, 
               colsample_bytree=1, 
               eta=0.1,
@@ -35,8 +36,9 @@ class PromptMutator:
         dval = xgb.DMatrix(X_val, label=y_val)
 
         params = {
-            'objective': 'reg:linear',
+            'objective': 'reg:squarederror',
             'alpha':alpha,
+            'lambda': lambda_value,
             'max_depth': max_depth,
             'min_child_weight': min_child_weight,
             'gamma': gamma,
@@ -74,6 +76,7 @@ class PromptMutator:
                 accuracy+=1
         
         print(f'accuracy:{accuracy/len(y_val)}')
+        print(f'params:{params}')
         
         self.save_graph_report(train_rmse, val_rmse, val_residuals, train_residuals, val_preds, y_val, len(X_train), len(X_val))
     
@@ -153,6 +156,26 @@ class PromptMutator:
         # upload the graph report
         graph_output = os.path.join('environmental', "output/prompt_mutator/xgboost_model.png")
         cmd.upload_data(self.minio_client, 'datasets', graph_output, buf)
+    
+    def grid_search(self, X_train, y_train, param_grid, cv=5, scoring='neg_mean_squared_error'):
+        kfold = KFold(n_splits=cv, shuffle=True, random_state=42)
+        xgb_model = xgb.XGBRegressor()
+
+        grid_search = GridSearchCV(
+            xgb_model,
+            param_grid,
+            scoring=scoring,
+            cv=kfold,
+            n_jobs=-1,
+            verbose=1,
+        )
+
+        grid_result = grid_search.fit(X_train, y_train)
+
+        best_params = grid_result.best_params_
+        best_score = grid_result.best_score_
+
+        return best_params, best_score
 
     def predict(self, X):
         dtest = xgb.DMatrix(X)
@@ -161,15 +184,15 @@ class PromptMutator:
     def load_model(self, model_path):
         self.model.load_model(model_path)
 
-    def save_model(self, model_path):
-        self.model.save_model(model_path)
+    def save_model(self, local_path ,minio_path):
+
+        self.model.save_model(local_path)
         
         # Read the contents of the saved model file
-        with open(model_path, "rb") as model_file:
+        with open(local_path, "rb") as model_file:
             model_bytes = model_file.read()
 
         # Upload the model to MinIO
-        model_path_minio = os.path.join('environmental', model_path)
-        cmd.upload_data(self.minio_client, 'datasets', model_path_minio, BytesIO(model_bytes))
+        cmd.upload_data(self.minio_client, 'datasets', minio_path, BytesIO(model_bytes))
 
 

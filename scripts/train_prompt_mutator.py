@@ -181,17 +181,29 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     
-    
     input, output = load_dataset(minio_client, device)
 
     mutator= PromptMutator(minio_client=minio_client)
+    
+    params = {
+    'max_depth': [3, 6, 10],
+    'min_child_weight': [1, 5, 10],
+    'gamma': [0.0, 0.1, 0.5, 0.8],
+    'eta': [0.01, 0.1]
+    }
+
+    best_params, best_score= mutator.grid_search(X_train=input, y_train=output, param_grid=params)
+    print("Best Parameters: ", best_params)
+    print("Best Score: ", best_score)
+
     mutator.train(input, output, 
-                  alpha=args.alpha, 
-                  eta=args.learning_rate,
-                  max_depth=args.max_depth,
-                  min_child_weight=args.min_child_weight
-                  )
-    mutator.save_model("output/prompt_mutator/prompt_mutator.json")
+                  gamma=best_params['gamma'], 
+                  eta=best_params['eta'],
+                  max_depth=best_params['max_depth'],
+                  min_child_weight=best_params['min_child_weight']
+                )
+    mutator.save_model(local_path="output/prompt_mutator.json" , 
+                       minio_path="environmental/output/prompt_mutator/prompt_mutator.json")
 
 if __name__ == "__main__":
     main()
