@@ -187,9 +187,7 @@ def main():
     
     params = {
     'max_depth': [3, 6, 10],
-    'min_child_weight': [1, 5, 10],
-    'gamma': [0.0, 0.1, 0.5, 0.8],
-    'eta': [0.01, 0.1]
+    'min_child_weight': [1, 5, 10]
     }
 
     best_params, best_score= mutator.grid_search(X_train=input, y_train=output, param_grid=params)
