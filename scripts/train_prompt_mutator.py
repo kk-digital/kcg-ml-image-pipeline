@@ -186,9 +186,9 @@ def main():
     mutator= PromptMutator(minio_client=minio_client)
     
     params = {
-    'max_depth': [5,10],
-    'min_child_weight': [1,5],
-    'gamma': [0.0, 0.1, 0.5, 0.8]
+    'max_depth': [5],
+    'min_child_weight': [1,3,5],
+    'gamma': [0.0, 0.01, 0.05]
     }
 
     best_params, best_score= mutator.grid_search(X_train=input, y_train=output, param_grid=params)
