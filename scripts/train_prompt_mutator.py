@@ -119,7 +119,7 @@ def load_dataset(minio_client, device):
             prompt_score=elm_model.predict_positive_or_negative_only(prompt_embedding)
             modified_pormpt_score= elm_model.predict_positive_or_negative_only(modified_embedding)
 
-        delta_score= modified_pormpt_score/prompt_score
+        delta_score= modified_pormpt_score - prompt_score
         
         prompt_embedding=torch.mean(prompt_embedding, dim=2)
         prompt_embedding = prompt_embedding.reshape(len(prompt_embedding), -1).squeeze(0)
@@ -186,10 +186,10 @@ def main():
     mutator= PromptMutator(minio_client=minio_client)
     
     params = {
-    'max_depth': [10],
+    'max_depth': [5, 7, 10],
     'min_child_weight': [1],
     'gamma': [0.0, 0.01, 0.05, 0.1],
-    'eta': [0.05, 0.1],
+    'eta': [0.05],
     }
 
     best_params, best_score= mutator.grid_search(X_train=input, y_train=output, param_grid=params)
