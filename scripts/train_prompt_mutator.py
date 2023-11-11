@@ -119,7 +119,7 @@ def load_dataset(minio_client, device):
             prompt_score=elm_model.predict_positive_or_negative_only(prompt_embedding)
             modified_pormpt_score= elm_model.predict_positive_or_negative_only(modified_embedding)
 
-        delta_score= prompt_score - modified_pormpt_score
+        delta_score= modified_pormpt_score/prompt_score
         
         prompt_embedding=torch.mean(prompt_embedding, dim=2)
         prompt_embedding = prompt_embedding.reshape(len(prompt_embedding), -1).squeeze(0)
