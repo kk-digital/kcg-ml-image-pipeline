@@ -186,9 +186,10 @@ def main():
     mutator= PromptMutator(minio_client=minio_client)
     
     params = {
-    'max_depth': [5],
-    'min_child_weight': [1,3,5],
-    'gamma': [0.0, 0.01, 0.05]
+    'max_depth': [10],
+    'min_child_weight': [1],
+    'gamma': [0.0, 0.01, 0.05, 0.1],
+    'eta': [0.05, 0.1],
     }
 
     best_params, best_score= mutator.grid_search(X_train=input, y_train=output, param_grid=params)
@@ -198,7 +199,8 @@ def main():
     mutator.train(input, output,
                   gamma=best_params['gamma'], 
                   max_depth=best_params['max_depth'],
-                  min_child_weight=best_params['min_child_weight']
+                  min_child_weight=best_params['min_child_weight'],
+                  eta= best_params['eta']
                 )
     mutator.save_model(local_path="output/prompt_mutator.json" , 
                        minio_path="environmental/output/prompt_mutator/prompt_mutator.json")

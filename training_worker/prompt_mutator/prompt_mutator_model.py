@@ -48,7 +48,7 @@ class PromptMutator:
         }
 
         evals_result = {}
-        self.model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval,'eval'), (dtrain,'train')], 
+        self.model = xgb.train(params, dtrain, num_boost_round=2000, evals=[(dval,'eval'), (dtrain,'train')], 
                                early_stopping_rounds=early_stopping, evals_result=evals_result)
 
  
