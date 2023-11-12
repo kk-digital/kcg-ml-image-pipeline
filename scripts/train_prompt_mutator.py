@@ -119,6 +119,7 @@ def load_dataset(minio_client, device, output_type="delta_score"):
         with torch.no_grad():
             prompt_score=elm_model.predict_positive_or_negative_only(prompt_embedding)
             modified_pormpt_score= elm_model.predict_positive_or_negative_only(modified_embedding)
+        
 
         if(output_type=="delta_score"):
             delta_score= modified_pormpt_score - prompt_score
@@ -148,7 +149,7 @@ def load_dataset(minio_client, device, output_type="delta_score"):
             substitute_phrase,        # Substitute phrase string
             substituted_phrase,  # Substituted phrase string
             position_to_substitute,   # Substitution position
-            delta_score.item()        # Delta score
+            delta_score.item() if(output_type=="delta_score") else category        # Delta score
         ])
     
     # Save data to a CSV file
