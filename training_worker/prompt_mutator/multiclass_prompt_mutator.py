@@ -47,9 +47,8 @@ class MulticlassPromptMutator:
         }
 
         if(num_class>2):
-            params['objective']='multi:softprob'
+            params['objective']='multi:softmax'
             params['num_class']= num_class
-            params['eval_metric']='mlogloss'
         else:
             params['objective']='binary:logistic'
             params['eval_metric']='logloss'
