@@ -21,16 +21,20 @@ class MulticlassPromptMutator:
     def train(self, input, output, 
               max_depth=7, 
               min_child_weight=1, 
-              gamma=0.0, 
+              gamma=0.01, 
               subsample=1, 
               colsample_bytree=1, 
-              eta=0.05):
+              eta=0.05,
+              early_stopping=100):
         
         # Label encode the target variable
         label_encoder = LabelEncoder()
         output = label_encoder.fit_transform(output)
 
         X_train, X_val, y_train, y_val = train_test_split(input, output, test_size=0.2, shuffle=True)
+
+        dtrain = xgb.DMatrix(X_train, label=y_train)
+        dval = xgb.DMatrix(X_val, label=y_val)
 
         params = {
             'objective': 'multi:softmax',  # Use softmax for multi-class classification
@@ -43,24 +47,20 @@ class MulticlassPromptMutator:
             'eta': eta,
             'eval_metric': 'mlogloss'  # Use multi-logloss as the evaluation metric
         }
-
-        dtrain = xgb.DMatrix(X_train, label=y_train)
         
         # Train the XGBoost model
-        model = xgb.train(params, dtrain, num_boost_round=2000)
-
-        # Assuming you have a separate test set X_test, y_test
-        dval = xgb.DMatrix(X_val)
+        model = xgb.train(params, dtrain, num_boost_round=2000, evals=[(dval,'eval'), (dtrain,'train')], 
+                               early_stopping_rounds=early_stopping)
 
         # Make predictions on the test set
         y_pred = model.predict(dval)
 
-        # Convert the predicted labels back to original class labels
-        y_pred_original = LabelEncoder.inverse_transform(y_pred.astype(int))
+        y_pred=label_encoder.inverse_transform(y_pred.astype(int))
+        y_val=label_encoder.inverse_transform(y_val)
 
         # Calculate accuracy
-        accuracy = sum(y_pred_original == y_val) / len(y_val)
-        print(accuracy)
+        accuracy = sum(y_pred == y_val) / len(y_val)
+        print(f"accuracy:{accuracy}")
 
         self.model = model
         
