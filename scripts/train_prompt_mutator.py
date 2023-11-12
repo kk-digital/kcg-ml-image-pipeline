@@ -208,7 +208,7 @@ def main():
     input, output = load_dataset(minio_client, device, output_type="binary_class")
 
     mutator= MulticlassPromptMutator(minio_client=minio_client)
-    mutator.train(input, output, num_classes=2)
+    mutator.train(input, output, num_class=2)
     mutator.save_model(local_path="output/binary_prompt_mutator.json" , 
                        minio_path="environmental/output/prompt_mutator/binary_prompt_mutator.json")
 
