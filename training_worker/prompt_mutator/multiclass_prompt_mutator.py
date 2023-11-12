@@ -38,19 +38,24 @@ class MulticlassPromptMutator:
         dval = xgb.DMatrix(X_val, label=y_val)
 
         params = {
-            'objective': 'multi:softmax',  # Use softmax for multi-class classification
-            'num_class': num_class,  # Number of classes
             'max_depth': max_depth,
             'min_child_weight': min_child_weight,
             'gamma': gamma,
             'subsample': subsample,
             'colsample_bytree': colsample_bytree,
             'eta': eta,
-            'eval_metric': 'mlogloss'  # Use multi-logloss as the evaluation metric
         }
+
+        if(num_class>2):
+            params['objective']='multi:softprob'
+            params['num_class']= num_class
+            params['eval_metric']='mlogloss'
+        else:
+            params['objective']='binary:logistic'
+            params['eval_metric']='logloss'
         
         # Train the XGBoost model
-        model = xgb.train(params, dtrain, num_boost_round=2000, evals=[(dval,'eval'), (dtrain,'train')], 
+        model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval,'eval'), (dtrain,'train')], 
                                early_stopping_rounds=early_stopping)
 
         # Make predictions on the test set
