@@ -69,7 +69,7 @@ def load_dataset(minio_client, device, output_type="delta_score"):
 
     # Load the dataset of phrases
     phrases_df = pd.read_csv('input/environment_phrase_scores.csv')  # Change this to your phrases dataset
-    prompts_df = pd.read_csv('input/environment_data.csv').head(5)
+    prompts_df = pd.read_csv('input/environment_data.csv')
     
     elm_model= load_model(768,minio_client, device)
 
