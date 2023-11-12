@@ -25,7 +25,8 @@ class MulticlassPromptMutator:
               subsample=1, 
               colsample_bytree=1, 
               eta=0.05,
-              early_stopping=100):
+              early_stopping=50,
+              num_class=4):
         
         # Label encode the target variable
         label_encoder = LabelEncoder()
@@ -38,7 +39,7 @@ class MulticlassPromptMutator:
 
         params = {
             'objective': 'multi:softmax',  # Use softmax for multi-class classification
-            'num_class': 4,  # Number of classes
+            'num_class': num_class,  # Number of classes
             'max_depth': max_depth,
             'min_child_weight': min_child_weight,
             'gamma': gamma,

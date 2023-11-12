@@ -120,11 +120,13 @@ def load_dataset(minio_client, device, output_type="delta_score"):
             prompt_score=elm_model.predict_positive_or_negative_only(prompt_embedding)
             modified_pormpt_score= elm_model.predict_positive_or_negative_only(modified_embedding)
         
-
+        delta_score=modified_pormpt_score - prompt_score
         if(output_type=="delta_score"):
-            delta_score= modified_pormpt_score - prompt_score
+            output= delta_score.item()
         elif(output_type=="multi_class"):
-            category=get_category(modified_pormpt_score, prompt_score)
+            output=get_category(delta_score.item())
+        elif(output_type=="binary_class"):
+            output="increase" if(delta_score.item()>0) else "decrease"  
         
         prompt_embedding=torch.mean(prompt_embedding, dim=2)
         prompt_embedding = prompt_embedding.reshape(len(prompt_embedding), -1).squeeze(0)
@@ -137,10 +139,7 @@ def load_dataset(minio_client, device, output_type="delta_score"):
 
         # Append to the input and output lists
         input_features.append(torch.cat([prompt_embedding, sub_phrase_embedding, position_tensor], dim=0).detach().cpu().numpy())
-        if(output_type=="delta_score"):
-            output_scores.append(delta_score.item())
-        elif(output_type=="multi_class"):
-            output_scores.append(category)
+        output_scores.append(output)
 
 
         # Append to the CSV data list
@@ -149,7 +148,7 @@ def load_dataset(minio_client, device, output_type="delta_score"):
             substitute_phrase,        # Substitute phrase string
             substituted_phrase,  # Substituted phrase string
             position_to_substitute,   # Substitution position
-            delta_score.item() if(output_type=="delta_score") else category        # Delta score
+            output
         ])
     
     # Save data to a CSV file
@@ -173,14 +172,16 @@ def load_dataset(minio_client, device, output_type="delta_score"):
         path='output/prompt_mutator/dataset.csv'
     elif(output_type=="multi_class"):
         path='output/prompt_mutator/multi_class_dataset.csv'
+    elif(output_type=="binary_class"):
+        path='output/prompt_mutator/binary_class_dataset.csv'
 
     model_path = os.path.join('environmental', path)
     cmd.upload_data(minio_client, 'datasets', model_path, buffer)
 
     return np.array(input_features), np.array(output_scores)
 
-def get_category(modified_score, old_score):
-    change= modified_score/old_score
+
+def get_category(change):
 
     if(change>0.9 and change<1.1):
         category="low increase" if change>=0 else "low decrease"
@@ -204,10 +205,10 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     
-    input, output = load_dataset(minio_client, device, output_type="multi_class")
+    input, output = load_dataset(minio_client, device, output_type="binary_class")
 
     mutator= MulticlassPromptMutator(minio_client=minio_client)
-    mutator.train(input, output)
+    mutator.train(input, output, num_classes=2)
     mutator.save_model(local_path="output/multiclass_prompt_mutator.json" , 
                        minio_path="environmental/output/prompt_mutator/multiclass_prompt_mutator.json")
 
