@@ -182,12 +182,10 @@ def load_dataset(minio_client, device, output_type="delta_score"):
 def get_category(modified_score, old_score):
     change= modified_score/old_score
 
-    if(change>0.99 and change<1.01):
-        category="no change"
-    elif(change>0.9 and change<1.1):
-        category="low increase" if change>0 else "low decrease"
+    if(change>0.9 and change<1.1):
+        category="low increase" if change>=0 else "low decrease"
     else:
-        category="high increase" if change>0 else "high decrease"
+        category="high increase" if change>=0 else "high decrease"
     
     return category
 

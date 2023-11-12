@@ -38,7 +38,7 @@ class MulticlassPromptMutator:
 
         params = {
             'objective': 'multi:softmax',  # Use softmax for multi-class classification
-            'num_class': 5,  # Number of classes
+            'num_class': 4,  # Number of classes
             'max_depth': max_depth,
             'min_child_weight': min_child_weight,
             'gamma': gamma,
@@ -60,7 +60,7 @@ class MulticlassPromptMutator:
 
         # Calculate accuracy
         accuracy = sum(y_pred == y_val) / len(y_val)
-        print(f"accuracy:{accuracy/len(y_val)}")
+        print(f"accuracy:{accuracy}")
 
         self.model = model
         
