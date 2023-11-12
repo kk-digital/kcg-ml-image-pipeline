@@ -60,7 +60,7 @@ class MulticlassPromptMutator:
 
         # Calculate accuracy
         accuracy = sum(y_pred == y_val) / len(y_val)
-        print(f"accuracy:{accuracy}")
+        print(f"accuracy:{accuracy/len(y_val)}")
 
         self.model = model
         
