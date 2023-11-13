@@ -133,6 +133,11 @@ def save_images_to_minio(minio_client, images: torch.Tensor, dest_path: str, img
     return output_file_hash
 
 
+def get_image_hash(img_byte_arr):
+    # Calculate the hash for the given image byte array
+    return (hashlib.sha256(img_byte_arr)).hexdigest()
+    
+
 def get_image_data(images: torch.Tensor, img_format: str = 'jpeg'):
     # Map images to `[0, 1]` space and clip
     images = torch.clamp((images + 1.0) / 2.0, min=0.0, max=1.0)
