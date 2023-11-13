@@ -268,8 +268,7 @@ def get_model_id(request: Request, model_hash: str):
 
 
 
-#new Endpoints with /static/ prefix
-
+# New Endpoints with /static/ prefix
 
 
 @router.get("/static/models/get-report")
@@ -307,3 +306,22 @@ def get_model_card(request: Request, file_path: str = Query(...)):
         return json.loads(data.read().decode('utf-8'))
     else:
         return data.read()
+
+
+@router.get("/static/models/get-graph")
+def get_graph(request: Request, file_path: str = Query(...)):
+    bucket_name = "datasets"
+    
+    # Check if the file exists
+    if not cmd.is_object_exists(request.app.minio_client, bucket_name, file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    image_data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, file_path)
+    
+    # Load data into memory
+    content = image_data.read()
+
+    # Determine content type based on file extension
+    content_type = "image/png" if file_path.endswith('.png') else "application/octet-stream"
+    
+    return Response(content=content, media_type=content_type)
