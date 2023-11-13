@@ -73,7 +73,8 @@ def separate_values_based_on_targets(training_targets, validation_targets, train
         validation_pred_scores_img_y_target_0
 
 
-def get_graph_report(model_class,
+def get_graph_report(training_loss,
+                     validation_loss,
                      train_prob_predictions,
                      training_targets,
                      validation_prob_predictions,
@@ -86,27 +87,27 @@ def get_graph_report(model_class,
                      validation_total_size,
                      training_losses,
                      validation_losses,
-                     epochs,
-                     learning_rate,
-                     training_batch_size,
-                     weight_decay,
-                     date,
-                     network_type,
-                     input_type,
-                     input_shape,
-                     output_type,
-                     train_sum_correct,
-                     validation_sum_correct,
-                     loss_func,
-                     dataset_name,
-                     pooling_strategy: int,
-                     normalize_vectors,
-                     num_random_layers=0,
-                     add_loss_penalty=False,
-                     target_option=0,
-                     duplicate_flip_option=0,
-                     randomize_data_per_epoch=False,
-                     elm_sparsity=0.0,
+                     epochs=-1,
+                     learning_rate=-1,
+                     training_batch_size=-1,
+                     weight_decay=-1,
+                     date=-1,
+                     network_type=-1,
+                     input_type=-1,
+                     input_shape=-1,
+                     output_type=-1,
+                     train_sum_correct=-1,
+                     validation_sum_correct=-1,
+                     loss_func=-1,
+                     dataset_name=-1,
+                     pooling_strategy=-1,
+                     normalize_vectors=-1,
+                     num_random_layers=-1,
+                     add_loss_penalty=-1,
+                     target_option=-1,
+                     duplicate_flip_option=-1,
+                     randomize_data_per_epoch=-1,
+                     elm_sparsity=-1,
                      training_shuffled_indices_origin=None,
                      validation_shuffled_indices_origin=None,
                      total_selection_datapoints=0):
@@ -396,22 +397,54 @@ def get_graph_report(model_class,
     chronological_pred_scores_target_0_plot.legend()
 
     # ----------------------------------------------------------------------------------------------------------------#
+    if learning_rate == -1:
+        learning_rate = "N/A"
 
-    pooling_strategy_str = "average pooling"
-    if pooling_strategy == 1:
+    if training_batch_size == -1:
+        training_batch_size = "N/A"
+
+    if weight_decay == -1:
+        weight_decay = "N/A"
+
+    if loss_func == -1:
+        loss_func = "N/A"
+
+    pooling_strategy_str = "N/A"
+    if pooling_strategy == 0 and input_type is not "clip":
+        pooling_strategy_str = "average pooling"
+    elif pooling_strategy == 1 and input_type is not "clip":
         pooling_strategy_str = "max pooling"
-    elif pooling_strategy == 2:
+    elif pooling_strategy == 2 and input_type is not "clip":
         pooling_strategy_str = "max abs pooling"
 
-    target_option_str = "target 1 and 0"
-    if target_option == 1:
+    if normalize_vectors == -1:
+        normalize_vectors = "N/A"
+
+    if num_random_layers == -1:
+        num_random_layers = "N/A"
+
+    if add_loss_penalty == -1:
+        add_loss_penalty = "N/A"
+
+    target_option_str = "N/A"
+    if target_option == 0:
+        target_option_str = "target 1 and 0"
+    elif target_option == 1:
         target_option_str = "target 1 only"
     elif target_option == 2:
         target_option_str = "target 0 only"
 
-    duplicate_flip_option_str = "duplicate and flip all"
-    if duplicate_flip_option == 1:
+    duplicate_flip_option_str = "N/A"
+    if duplicate_flip_option == 0:
+        duplicate_flip_option_str = "duplicate and flip all"
+    elif duplicate_flip_option == 1:
         duplicate_flip_option_str = "duplicate and flip random"
+
+    if randomize_data_per_epoch == -1:
+        randomize_data_per_epoch = "N/A"
+
+    if elm_sparsity == -1:
+        elm_sparsity = "N/A"
 
     # add additional info on top left side
     plt.figtext(0, 0.55, "Date = {}\n"
@@ -468,8 +501,8 @@ def get_graph_report(model_class,
                                                                    duplicate_flip_option_str,
                                                                    randomize_data_per_epoch,
                                                                    elm_sparsity,
-                                                                   model_class.training_loss,
-                                                                   model_class.validation_loss,
+                                                                   training_loss,
+                                                                   validation_loss,
                                                                    train_sum_correct,
                                                                    (train_sum_correct / training_total_size) * 100,
                                                                    validation_sum_correct,

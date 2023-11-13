@@ -6,6 +6,11 @@ from pytz import timezone
 import numpy as np
 from xgboost import XGBRegressor
 import time
+import matplotlib.pyplot as plt
+import warnings
+from sklearn.model_selection import train_test_split
+import xgboost as xgb
+from sklearn.metrics import mean_squared_error
 
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
@@ -20,15 +25,12 @@ from utility.minio import cmd
 from training_worker.ab_ranking.model import constants
 from training_worker.ab_ranking.model.reports import upload_score_residual
 
-import numpy as np
-import matplotlib.pyplot as plt
-import warnings
-from sklearn.model_selection import train_test_split
-import xgboost as xgb
-from sklearn.metrics import mean_squared_error
+
+
 
 def np_sigmoid(x):
     return 1.0 / (1.0 + np.exp(-x))
+
 
 def forward_bradley_terry(predicted_score_images_x, predicted_score_images_y, use_sigmoid=True):
     if use_sigmoid:
@@ -54,25 +56,19 @@ def forward_bradley_terry(predicted_score_images_x, predicted_score_images_y, us
 
     return pred_probabilities
 
+
 def train_xgboost(dataset_name: str,
                   minio_ip_addr=None,
                   minio_access_key=None,
                   minio_secret_key=None,
                   input_type="clip",
-                  epochs=10000,
-                  learning_rate=0.05,
                   buffer_size=20000,
                   train_percent=0.9,
-                  training_batch_size=1,
-                  weight_decay=0.00,
                   load_data_to_ram=False,
-                  debug_asserts=False,
                   normalize_vectors=True,
                   pooling_strategy=constants.AVERAGE_POOLING,
-                  add_loss_penalty=True,
                   target_option=constants.TARGET_1_AND_0,
                   duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL,
-                  randomize_data_per_epoch=True,
                   ):
     # raise exception if input is not clip
     if input_type not in ["clip", "embedding"]:
@@ -155,8 +151,8 @@ def train_xgboost(dataset_name: str,
     dtrain_reg = xgb.DMatrix(training_data, training_targets)
     dtest_reg = xgb.DMatrix(validation_data, validation_targets)
 
-    train_len= int(len(training_targets)/2)
-    validate_len = int(len(validation_targets)/2)
+    train_len = int(len(training_targets) / 2)
+    validate_len = int(len(validation_targets) / 2)
 
     # group
     train_group = np.array([2 for _ in range(train_len)])
@@ -165,10 +161,12 @@ def train_xgboost(dataset_name: str,
     dtrain_reg.set_group(train_group)
     dtest_reg.set_group(validation_group)
 
-    params = {'objective': 'rank:pairwise', 'eta': 0.1, 'gamma': 1.0,
-              'min_child_weight': 0.1, 'max_depth': 6}
+    # params based on hyperparam search result
+    params = {'objective': 'rank:pairwise', 'eval_metric': 'error', 'max_depth': 8, 'min_child_weight': 3,
+              'subsample': 0.5327713979402486, 'eta': 0.0998724001538154}
 
     evals = [(dtrain_reg, "train"), (dtest_reg, "validation")]
+    evals_result = {}
     n = 500
     xgboost_model = xgb.train(params,
                               dtrain_reg,
@@ -176,7 +174,14 @@ def train_xgboost(dataset_name: str,
                               evals=evals,
                               verbose_eval=10,  # Every ten rounds
                               early_stopping_rounds=50,  # Activate early stopping
+                              evals_result=evals_result
                               )
+
+    train_loss_per_round = evals_result["train"]["error"]
+    validation_loss_per_round = evals_result["validation"]["error"]
+    epochs = len(train_loss_per_round)
+    training_loss = train_loss_per_round[-1]
+    validation_loss = validation_loss_per_round[-1]
 
     # get training predicted probability
     dtrain_x = xgb.DMatrix(training_features_x)
@@ -207,7 +212,6 @@ def train_xgboost(dataset_name: str,
         prob = forward_bradley_terry(validation_x_pred_scores[i], validation_y_pred_scores[i])
         validation_pred_prob.append(prob)
 
-    ab_model = ABRankingModel(inputs_shape=input_shape)
     training_predicted_score_images_x = train_x_pred_scores
     training_predicted_score_images_y = train_y_pred_scores
     training_predicted_probabilities = train_pred_prob
@@ -216,8 +220,8 @@ def train_xgboost(dataset_name: str,
     validation_predicted_score_images_y = validation_y_pred_scores
     validation_predicted_probabilities = validation_pred_prob
     validation_target_probabilities = validation_targets
-    training_loss_per_epoch = [0] * epochs
-    validation_loss_per_epoch = [0] * epochs
+    training_loss_per_epoch = train_loss_per_round
+    validation_loss_per_epoch = validation_loss_per_round
 
     # data for chronological score graph
     training_shuffled_indices_origin = []
@@ -259,43 +263,37 @@ def train_xgboost(dataset_name: str,
     graph_name = "{}.png".format(filename)
     graph_output_path = os.path.join(output_path, graph_name)
 
-    graph_buffer = get_graph_report(ab_model,
-                                    training_predicted_probabilities,
-                                    training_target_probabilities,
-                                    validation_predicted_probabilities,
-                                    validation_target_probabilities,
-                                    training_predicted_score_images_x,
-                                    training_predicted_score_images_y,
-                                    validation_predicted_score_images_x,
-                                    validation_predicted_score_images_y,
-                                    training_total_size,
-                                    validation_total_size,
-                                    training_loss_per_epoch,
-                                    validation_loss_per_epoch,
-                                    epochs,
-                                    learning_rate,
-                                    training_batch_size,
-                                    weight_decay,
-                                    date_now,
-                                    network_type,
-                                    input_type,
-                                    input_shape,
-                                    output_type,
-                                    train_sum_correct,
-                                    validation_sum_correct,
-                                    "",
-                                    dataset_name,
-                                    pooling_strategy,
-                                    normalize_vectors,
-                                    -1,
-                                    add_loss_penalty,
-                                    target_option,
-                                    duplicate_flip_option,
-                                    randomize_data_per_epoch,
-                                    -1,
-                                    training_shuffled_indices_origin,
-                                    validation_shuffled_indices_origin,
-                                    dataset_loader.total_selection_datapoints)
+    graph_buffer = get_graph_report(training_loss=training_loss,
+                                    validation_loss=validation_loss,
+                                    train_prob_predictions=training_predicted_probabilities,
+                                    training_targets=training_target_probabilities,
+                                    validation_prob_predictions=validation_predicted_probabilities,
+                                    validation_targets=validation_target_probabilities,
+                                    training_pred_scores_img_x=training_predicted_score_images_x,
+                                    training_pred_scores_img_y=training_predicted_score_images_y,
+                                    validation_pred_scores_img_x=validation_predicted_score_images_x,
+                                    validation_pred_scores_img_y=validation_predicted_score_images_y,
+                                    training_total_size=training_total_size,
+                                    validation_total_size=validation_total_size,
+                                    training_losses=training_loss_per_epoch,
+                                    validation_losses=validation_loss_per_epoch,
+                                    epochs=epochs,
+                                    date=date_now,
+                                    network_type=network_type,
+                                    input_type=input_type,
+                                    input_shape=input_shape,
+                                    output_type=output_type,
+                                    train_sum_correct=train_sum_correct,
+                                    validation_sum_correct=validation_sum_correct,
+                                    loss_func="",
+                                    dataset_name=dataset_name,
+                                    training_shuffled_indices_origin=training_shuffled_indices_origin,
+                                    validation_shuffled_indices_origin=validation_shuffled_indices_origin,
+                                    total_selection_datapoints=dataset_loader.total_selection_datapoints,
+                                    pooling_strategy=pooling_strategy,
+                                    target_option=target_option,
+                                    duplicate_flip_option=duplicate_flip_option
+                                    )
 
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name, graph_output_path, graph_buffer)
