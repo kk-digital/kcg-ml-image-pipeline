@@ -26,6 +26,7 @@ msgpack
 matplotlib==3.7.1
 ray[data,train,tune,serve]
 hyperopt==0.2.7
+bayesian-optimization==1.4.3
 python-dateutil
 scikit-learn
 xgboost
