@@ -219,10 +219,9 @@ def get_tagged_images(
                 creation_time=tag_data.get("creation_time", None)
             ))
 
-    if not image_info_list:
-        raise HTTPException(status_code=404, detail="No images found for the given tag or date range!")
-
+    # Return the list of images
     return image_info_list
+
 
 
 
