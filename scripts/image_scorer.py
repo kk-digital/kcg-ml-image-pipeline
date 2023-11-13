@@ -331,7 +331,7 @@ def main():
     dataset_name = args.dataset_name
     minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key,
                                         minio_secret_key=args.minio_secret_key,
-                                        minio_ip_addr=args.minio_ip_addr)
+                                        minio_ip_addr=args.minio_addr)
     if dataset_name != "all":
         run_image_scorer(minio_client, args.dataset_name, args.model_filename)
     else:
