@@ -7,6 +7,7 @@ from tqdm import tqdm
 from ray import tune
 from ray.air import session
 from ray.tune.search.optuna import OptunaSearch
+from ray.tune.search.bayesopt import BayesOptSearch
 
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
@@ -231,6 +232,8 @@ def do_search(minio_access_key, minio_secret_key, dataset_name):
                                           0.20])
         }
 
+    bayesian_opt = BayesOptSearch(utility_kwargs={"kind": "ucb", "kappa": 2.5, "xi": 0.0})
+
     trainable_with_cpu_gpu = tune.with_resources(train_hyperparameter_search, {"cpu": 2})
     tuner = tune.Tuner(tune.with_parameters(trainable_with_cpu_gpu,
                                             dataset_paths=dataset_paths,
@@ -239,6 +242,7 @@ def do_search(minio_access_key, minio_secret_key, dataset_name):
                        tune_config=tune.TuneConfig(
                            metric="training-loss",
                            mode="min",
+                           search_alg=bayesian_opt,
                            num_samples=5,
                        ),
                        param_space=search_space)
