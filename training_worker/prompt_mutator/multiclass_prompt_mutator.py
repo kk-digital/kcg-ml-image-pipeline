@@ -75,7 +75,6 @@ class MulticlassPromptMutator:
 
         # Calculate accuracy
         self.accuracy = sum(y_pred == y_val) / len(y_val)
-        print(f"accuracy:{self.accuracy}")
 
         self.model = model
 
@@ -119,12 +118,15 @@ class MulticlassPromptMutator:
         # Generate a custom colormap representing brightness
         colors = [(1, 1, 1), (1, 0, 0)]  # White to Red
         custom_cmap = LinearSegmentedColormap.from_list('custom_colormap', colors, N=256)
-
-        cm = confusion_matrix(y_true, y_pred)
-        sb.heatmap(cm ,cbar=True, annot=True, cmap=custom_cmap, ax=axs[1])
+ 
+        class_labels=['decrease', 'increase']
+        cm = confusion_matrix(y_true, y_pred, labels=class_labels)
+        sb.heatmap(cm ,cbar=True, annot=True, cmap=custom_cmap, ax=axs[1], 
+                   yticklabels=class_labels, xticklabels=class_labels)
         axs[1].set_title('Confusion Matrix')
         axs[1].set_xlabel('Predicted Labels')
         axs[1].set_ylabel('True Labels')
+        axs[1].invert_yaxis()
 
         # Adjust spacing between subplots
         plt.subplots_adjust(hspace=0.7, wspace=0, left=0.4)
