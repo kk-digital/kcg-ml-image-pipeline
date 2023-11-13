@@ -13,22 +13,21 @@ sys.path.insert(0, base_directory)
 from utility.minio import cmd
 
 class PromptMutator:
-    def __init__(self, minio_client, model=None):
+    def __init__(self, minio_client, model=None, output_type="delta_score"):
         self.model = model
         self.minio_client= minio_client
+        self.output_type= output_type
 
     def train(self, 
               X_train, 
               y_train, 
-              max_depth=10, 
+              max_depth=7, 
               min_child_weight=1,
-              alpha=0.0,
-              gamma=0.0, 
-              lambda_value=0.0, 
+              gamma=0.01, 
               subsample=1, 
               colsample_bytree=1, 
-              eta=0.1,
-              early_stopping=100):
+              eta=0.05,
+              early_stopping=50):
         
         X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, shuffle=True)
 
@@ -37,8 +36,6 @@ class PromptMutator:
 
         params = {
             'objective': 'reg:squarederror',
-            'alpha':alpha,
-            'lambda': lambda_value,
             'max_depth': max_depth,
             'min_child_weight': min_child_weight,
             'gamma': gamma,
@@ -69,14 +66,6 @@ class PromptMutator:
         # Now you can calculate residuals using the predicted values
         val_residuals = y_val - val_preds
         train_residuals = y_train - train_preds
-
-        accuracy=0
-        for val, pred_val in zip(y_val,val_preds):
-            if((val<0 and pred_val<0) or (val>0 and pred_val>0) or (val==0 and pred_val==0)):
-                accuracy+=1
-        
-        print(f'accuracy:{accuracy/len(y_val)}')
-        print(f'params:{params}')
         
         self.save_graph_report(train_rmse, val_rmse, val_residuals, train_residuals, val_preds, y_val, len(X_train), len(X_val))
     
@@ -100,24 +89,24 @@ class PromptMutator:
                                                             'XGBoost',
                                                             'clip_text_embedding',
                                                             '1537',
-                                                            'delta_score',
+                                                            self.output_type,
                                                             training_size,
                                                             validation_size,
                                                             ))
 
-        # Plot Training Rmse vs. Rounds
-        axs[0][0].plot(range(1, len(train_rmse_per_round) + 1), train_rmse_per_round, label='RMSE')
-        axs[0][0].set_title('RMSE per Round for training')
+        # Plot validation and training Rmse vs. Rounds
+        axs[0][0].plot(range(1, len(train_rmse_per_round) + 1), train_rmse_per_round,'b', label='Training rmse')
+        axs[0][0].plot(range(1, len(val_rmse_per_round) + 1), val_rmse_per_round,'r', label='Validation rmse')
+        axs[0][0].set_title('RMSE per Round')
         axs[0][0].set_ylabel('RMSE')
         axs[0][0].set_xlabel('Rounds')
-        axs[0][0].legend(['RMSE'])
+        axs[0][0].legend(['Training rmse', 'Validation rmse'])
         
-        # Plot Validation Rmse vs. Rounds
-        axs[0][1].plot(range(1, len(val_rmse_per_round) + 1), val_rmse_per_round, label='RMSE')
-        axs[0][1].set_title('RMSE per Round for validation')
-        axs[0][1].set_ylabel('RMSE')
-        axs[0][1].set_xlabel('Rounds')
-        axs[0][1].legend(['RMSE'])
+        # Scatter Plot of actual values vs predicted values
+        axs[0][1].scatter(predicted_values, actual_values, color='green', alpha=0.5)
+        axs[0][1].set_title('Predicted values vs actual values')
+        axs[0][1].set_ylabel('True')
+        axs[0][1].set_xlabel('Predicted')
 
         # plot histogram of training residuals
         axs[1][0].hist(train_residuals, bins=30, color='blue', alpha=0.7)
@@ -146,7 +135,7 @@ class PromptMutator:
         # Adjust spacing between subplots
         plt.subplots_adjust(hspace=0.7, wspace=0.3, left=0.3)
 
-        plt.savefig('output/xgboost_model.png')
+        plt.savefig(f'output/{self.output_type}_model.png')
 
         # Save the figure to a file
         buf = BytesIO()
@@ -154,7 +143,7 @@ class PromptMutator:
         buf.seek(0)
 
         # upload the graph report
-        graph_output = os.path.join('environmental', "output/prompt_mutator/xgboost_model.png")
+        graph_output = os.path.join('environmental', f"output/prompt_mutator/{self.output_type}_model.png")
         cmd.upload_data(self.minio_client, 'datasets', graph_output, buf)
     
     def grid_search(self, X_train, y_train, param_grid, cv=5, scoring='neg_mean_squared_error'):
@@ -185,10 +174,9 @@ class PromptMutator:
         self.model.load_model(model_path)
 
     def save_model(self, local_path ,minio_path):
-
         self.model.save_model(local_path)
         
-        # Read the contents of the saved model file
+        #Read the contents of the saved model file
         with open(local_path, "rb") as model_file:
             model_bytes = model_file.read()
 
