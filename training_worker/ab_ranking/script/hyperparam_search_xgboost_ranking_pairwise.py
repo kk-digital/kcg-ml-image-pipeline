@@ -115,7 +115,7 @@ def get_dataset(dataset_name,
                                             minio_access_key=minio_access_key,
                                             minio_secret_key=minio_secret_key,
                                             input_type=input_type)
-    dataset_loader.load_dataset()
+    dataset_loader.load_dataset(pre_shuffle=False)
 
     training_total_size = dataset_loader.get_len_training_ab_data()
     validation_total_size = dataset_loader.get_len_validation_ab_data()
@@ -177,7 +177,7 @@ def tune_xgboost(training_data,
             mode="min",
             search_alg=hyper_opt,
             scheduler=scheduler,
-            num_samples=100,
+            num_samples=200,
         ),
         param_space=search_space,
     )
@@ -209,7 +209,6 @@ def do_hyperparameter_search(dataset_name="environmental",
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
-    training_dataset_path = os.path.join(bucket_name, dataset_name)
     network_type = "xgboost-rank-pairwise"
     output_type = "score"
     output_path = "{}/models/ranking".format(dataset_name)
@@ -365,11 +364,11 @@ def do_hyperparameter_search(dataset_name="environmental",
 if __name__ == "__main__":
     start_time = time.time()
 
-    do_hyperparameter_search(dataset_name="test-generations",
+    do_hyperparameter_search(dataset_name="environmental",
                              minio_ip_addr=None,  # will use default if none is given
                              minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                              minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
-                             input_type="clip",
+                             input_type="embedding",
                              )
 
     time_elapsed = time.time() - start_time
