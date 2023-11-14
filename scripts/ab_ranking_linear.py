@@ -20,7 +20,6 @@ def parse_arguments():
     parser.add_argument('--input-type', type=str, default="embedding")
     parser.add_argument('--epochs', type=int, default=8)
     parser.add_argument('--learning-rate', type=float, default=0.05)
-    parser.add_argument('--buffer-size', type=int, default=20000)
     parser.add_argument('--train-percent', type=float, default=0.9)
     parser.add_argument('--training-batch-size', type=int, default=1)
     parser.add_argument('--weight-decay', type=float, default=0.00)
@@ -49,7 +48,6 @@ if __name__ == '__main__':
                       input_type=args.input_type,
                       epochs=args.epochs,
                       learning_rate=args.learning_rate,
-                      buffer_size=args.buffer_size,
                       train_percent=args.train_percent,
                       training_batch_size=args.training_batch_size,
                       weight_decay=args.weight_decay,
@@ -76,7 +74,6 @@ if __name__ == '__main__':
                               input_type=args.input_type,
                               epochs=args.epochs,
                               learning_rate=args.learning_rate,
-                              buffer_size=args.buffer_size,
                               train_percent=args.train_percent,
                               training_batch_size=args.training_batch_size,
                               weight_decay=args.weight_decay,
