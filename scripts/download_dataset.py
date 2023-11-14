@@ -8,21 +8,18 @@ import requests
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
+from utility.minio import cmd
 
-# MinIO server informatio,
-MINIO_ADDRESS = "123.176.98.90:9000"
-access_key = "GXvqLWtthELCaROPITOG"
-secret_key = "DmlKgey5u0DnMHP30Vg7rkLT0NNbNIGaM8IwPckD"
 
 def parse_args():
     parser = argparse.ArgumentParser()
 
     # Required parameters
-    parser.add_argument("--minio-adress", type=str, default=MINIO_ADDRESS,
-                        help="IP adress of the MinIO server")
-    parser.add_argument("--access-key", type=str, default=access_key,
+    parser.add_argument("--minio-adress", type=str, default=None,
+                        help="Address of the MinIO server, if None, it will use default")
+    parser.add_argument("--access-key", type=str,
                         help="Access key of the MinIO server")
-    parser.add_argument("--secret-key", type=str, default=secret_key,
+    parser.add_argument("--secret-key", type=str,
                         help="Secret key of the MinIO server")
     
     parser.add_argument("--bucket-name", type=str, default="datasets",
@@ -36,21 +33,6 @@ def parse_args():
     
     return parser.parse_args()
 
-def connect_to_minio(minio_addr, access_key, secret_key):
-    # Initialize the MinIO client
-    client = Minio(minio_addr, access_key, secret_key, secure=False)
-
-    #Check server status
-    try:
-        response = requests.get("http://" + minio_addr + "/minio/health/live", timeout=5)
-        if response.status_code == 200:
-            print("Connected to MinIO server.")
-        else:
-            return None
-    except requests.RequestException as e:
-        return None
-    
-    return client
 
 def download_all_files_in_dataset(client, bucket_name, dataset_name, output_path, file_type):
     try:
@@ -89,10 +71,11 @@ def main():
     access_key = args.access_key
     secret_key = args.secret_key
 
-
-    client = connect_to_minio(minio_address, access_key, secret_key)
+    client = cmd.get_minio_client(minio_access_key=access_key,
+                                  minio_secret_key=secret_key,
+                                  minio_ip_addr=minio_address)
     if client is not None:
-        download_all_files_in_dataset(client,bucket_name, dataset_name, output_path, file_type)
+        download_all_files_in_dataset(client, bucket_name, dataset_name, output_path, file_type)
     else:
         print("Failed to connect to MinIO server:")
 
