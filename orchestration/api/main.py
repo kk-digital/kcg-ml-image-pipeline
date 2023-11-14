@@ -18,6 +18,7 @@ from orchestration.api.api_score import router as score_router
 from orchestration.api.api_residual import router as residual_router
 from orchestration.api.api_percentile import router as percentile_router
 from orchestration.api.api_residual_percentile import router as residual_percentile_router
+from orchestration.api.api_image_by_rank import router as image_by_rank_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -34,6 +35,7 @@ app.add_middleware(
 app.include_router(clip_router)
 app.include_router(dataset_router)
 app.include_router(image_router)
+app.include_router(image_by_rank_router)
 app.include_router(job_router)
 app.include_router(job_stats_router)
 app.include_router(ranking_router)
