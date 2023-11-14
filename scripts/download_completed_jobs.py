@@ -1,57 +1,84 @@
 import os
+import sys
 import json
 import msgpack
+import io
 import pymongo
-from bson import json_util  
+from bson import json_util
 from dotenv import dotenv_values
+from minio import Minio
 import argparse
+import time
 
 # Load configuration from .env file
 config = dotenv_values("./orchestration/api/.env")
 
 def connect_to_db():
     mongodb_client = pymongo.MongoClient(config["DB_URL"])
-    mongodb_db = mongodb_client["orchestration-job-db"]  
+    mongodb_db = mongodb_client["orchestration-job-db"]
     print('Connected to database')
     return mongodb_db
 
-def save_job_as_json_and_msgpack(job, dataset):
+# Initialize MinIO client using utility function
+minio_client = Minio(
+    config["MINIO_ADDRESS"],
+    access_key=config["MINIO_ACCESS_KEY"],
+    secret_key=config["MINIO_SECRET_KEY"],
+    secure=False  # Update this according to your MinIO configuration (True if using HTTPS)
+)
+
+def save_job_to_minio(minio_client, bucket_name, job, dataset, job_index):
+
+    job.pop('_id', None)  # Use pop to remove '_id' if it exists and ignore if it doesn't
+    
     # Extract the image name without the file extension
     image_name = job["task_input_dict"]["file_path"].split('/')[-1].split('.')[0]
     
-    # Use the image name for directory and file names
-    directory = f"./{dataset}/{image_name}"
-    os.makedirs(directory, exist_ok=True)
+    # Calculate folder name by dividing job index by 1000 and format it with leading zeros
+    folder_name = str(job_index // 1000).zfill(4)
     
-    json_path = f"{directory}/{image_name}.json"
-    msgpack_path = f"{directory}/{image_name}.msgpack"
+    # Serialize the job to JSON and msgpack formats
+    json_data = json.dumps(job, default=json_util.default)
+    msgpack_data = msgpack.packb(job, default=json_util.default)
 
-    # Save as JSON with custom encoder
-    with open(json_path, "w") as file:
-        json.dump(job, file, default=json_util.default, indent=4)
+    # Define file paths using the specified directory structure
+    json_path = f"{dataset}/job/{folder_name}/{image_name}.json"
+    msgpack_path = f"{dataset}/job/{folder_name}/{image_name}.msgpack"
 
-    # Save as Message Pack
-    with open(msgpack_path, "wb") as file:
-        packed = msgpack.packb(job, default=json_util.default)
-        file.write(packed)
-    
-    return image_name  # Return the image name to use in the calling function
+    # Save JSON to MinIO
+    minio_client.put_object(bucket_name, json_path, io.BytesIO(json_data.encode('utf-8')), len(json_data))
 
-def process_jobs_for_dataset(dataset):
+    # Save msgpack to MinIO
+    minio_client.put_object(bucket_name, msgpack_path, io.BytesIO(msgpack_data), len(msgpack_data))
+
+    print(f"Job saved to MinIO: {json_path} and {msgpack_path}")
+
+
+def process_jobs_for_dataset(minio_client, bucket_name, dataset):
     db = connect_to_db()
     jobs_collection = db['completed-jobs']
     
-    job_count = 0  # Initialize a counter for the number of downloaded jobs
+    job_index = 0  # Initialize a counter for the job index
+    start_time = time.time()  # Record the start time for the entire operation
+
     for job in jobs_collection.find({"task_input_dict.dataset": dataset}):
-        image_name = save_job_as_json_and_msgpack(job, dataset)  # Receive the image name here
-        print(f"Processed job. Files saved in './{dataset}/{image_name}'")
-        job_count += 1  # Increment the counter for each processed job
-    
-    print(f"Total jobs downloaded and saved for dataset '{dataset}': {job_count}")
+
+        save_job_to_minio(minio_client, bucket_name, job, dataset, job_index)
+
+
+        job_index += 1  # Increment the job index for each job
+
+    end_time = time.time()  # Record the end time for the entire operation
+    total_time = end_time - start_time  # Calculate the total time taken
+
+    print(f"Total jobs downloaded and saved to MinIO for dataset '{dataset}': {job_index}")
+    print(f"Total time taken: {total_time:.2f} seconds")
+    print(f"Average time per job: {total_time / job_index:.2f} seconds" if job_index else "No jobs processed.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Download and save jobs for a given dataset.')
     parser.add_argument('dataset', type=str, help='The name of the dataset to process.')
     args = parser.parse_args()
 
-    process_jobs_for_dataset(args.dataset)
+    bucket_name = "datasets"  # This should be your actual bucket name on MinIO
+    process_jobs_for_dataset(minio_client, bucket_name, args.dataset)
