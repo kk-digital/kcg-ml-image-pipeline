@@ -27,15 +27,20 @@ minio_client = Minio(
     secure=False  # Update this according to your MinIO configuration (True if using HTTPS)
 )
 
-def save_job_to_minio(minio_client, bucket_name, job, dataset, job_index):
-
-    job.pop('_id', None)  # Use pop to remove '_id' if it exists and ignore if it doesn't
+def save_job_to_minio(minio_client, bucket_name, job, dataset):
+    job.pop('_id', None)  # Remove the '_id' field if it exists
     
-    # Extract the image name without the file extension
+    # Extract the image name with the file extension and keep it as a string
     image_name = job["task_input_dict"]["file_path"].split('/')[-1].split('.')[0]
     
-    # Calculate folder name by dividing job index by 1000 and format it with leading zeros
-    folder_name = str(job_index // 1000).zfill(4)
+    # Extract the numeric part of the image name for folder calculation
+    image_number_for_folder = int(image_name)
+    
+    # Calculate folder number by floor dividing the image number by 1000 and adding 1
+    folder_number = image_number_for_folder // 1000 + 1
+    
+    # Format the folder number with leading zeros
+    folder_name = str(folder_number).zfill(4)
     
     # Serialize the job to JSON and msgpack formats
     json_data = json.dumps(job, default=json_util.default)
@@ -54,6 +59,7 @@ def save_job_to_minio(minio_client, bucket_name, job, dataset, job_index):
     print(f"Job saved to MinIO: {json_path} and {msgpack_path}")
 
 
+
 def process_jobs_for_dataset(minio_client, bucket_name, dataset):
     db = connect_to_db()
     jobs_collection = db['completed-jobs']
@@ -63,8 +69,7 @@ def process_jobs_for_dataset(minio_client, bucket_name, dataset):
 
     for job in jobs_collection.find({"task_input_dict.dataset": dataset}):
 
-        save_job_to_minio(minio_client, bucket_name, job, dataset, job_index)
-
+        save_job_to_minio(minio_client, bucket_name, job, dataset)  # Removed the job_index argument
 
         job_index += 1  # Increment the job index for each job
 
@@ -74,6 +79,7 @@ def process_jobs_for_dataset(minio_client, bucket_name, dataset):
     print(f"Total jobs downloaded and saved to MinIO for dataset '{dataset}': {job_index}")
     print(f"Total time taken: {total_time:.2f} seconds")
     print(f"Average time per job: {total_time / job_index:.2f} seconds" if job_index else "No jobs processed.")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Download and save jobs for a given dataset.')
