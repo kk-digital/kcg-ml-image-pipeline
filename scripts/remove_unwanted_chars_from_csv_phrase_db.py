@@ -7,6 +7,7 @@ import time
 from tqdm import tqdm
 import re
 
+
 def remove_unwanted_chars(phrase: str):
     # remove non ascii
     phrase_encode = phrase.encode("ascii", "ignore")
@@ -16,8 +17,11 @@ def remove_unwanted_chars(phrase: str):
     phrase = re.sub('(:\d+.\d+)|(:)', '', phrase)
     # remove parenthesis, brackets, braces, parenthesis, quotation, slashes, or, dash, underscores
     phrase = re.sub(r'[()\[\]{}\"\'\\\/\|\-\_]', '', phrase)
+    # remove weird ints and floats
+    phrase = re.sub('(\d+.\d+)|(\d+)', '', phrase)
 
     return phrase
+
 
 def process_csv(source_csv, output_path):
     new_csv = open(output_path, mode='w')
