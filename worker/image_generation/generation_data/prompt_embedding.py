@@ -52,7 +52,7 @@ class PromptEmbedding:
 
     def get_msgpack_string(self):
         serialized = self.serialize()
-        return msgpack.packb(serialized, default=encode_ndarray, use_bin_type=True)
+        return msgpack.packb(serialized, default=encode_ndarray, use_bin_type=True, use_single_float=True)
 
     @classmethod
     def from_msgpack_string(cls, msgpack_string):
