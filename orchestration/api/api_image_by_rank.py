@@ -22,9 +22,11 @@ def image_list_sorted_by_score(
     
     #query to get all scores of the specified model and sort them
     scores_query = {"model_id": model_id}
-    if min_score is not None:
+    if min_score and max_score:
+        scores_query['score'] = {'$gte': min_score, '$lte': max_score}
+    elif min_score:
         scores_query['score'] = {'$gte': min_score}
-    if max_score is not None:
+    elif max_score:
         scores_query['score'] = {'$lte': max_score}
     scores_data = list(request.app.image_scores_collection.find(scores_query, 
     {'_id': 0, 'image_hash': 1, 'score': 1}).sort("score", sort_order))
@@ -79,9 +81,11 @@ def image_list_sorted_by_percentile(
     
     #query to get all percentiles of the specified model and sort them
     percentiles_query = {"model_id": model_id}
-    if min_percentile is not None:
+    if min_percentile and max_percentile:
+        percentiles_query['percentile'] = {'$gte': min_percentile, '$lte': max_percentile}
+    elif min_percentile:
         percentiles_query['percentile'] = {'$gte': min_percentile}
-    if max_percentile is not None:
+    elif max_percentile:
         percentiles_query['percentile'] = {'$lte': max_percentile}
     percentiles_data = list(request.app.image_percentiles_collection.find(percentiles_query, 
     {'_id': 0, 'image_hash': 1, 'percentile': 1}).sort("percentile", sort_order))
@@ -136,9 +140,11 @@ def image_list_sorted_by_residual(
     
     #query to get all residuals of the specified model and sort them
     residuals_query = {"model_id": model_id}
-    if min_residual is not None:
+    if min_residual and max_residual:
+        residuals_query['residual'] = {'$gte': min_residual, '$lte': max_residual}
+    elif min_residual:
         residuals_query['residual'] = {'$gte': min_residual}
-    if max_residual is not None:
+    elif max_residual:
         residuals_query['residual'] = {'$lte': max_residual}
     residuals_data = list(request.app.image_residuals_collection.find(residuals_query, 
     {'_id': 0, 'image_hash': 1, 'residual': 1}).sort("residual", sort_order))
