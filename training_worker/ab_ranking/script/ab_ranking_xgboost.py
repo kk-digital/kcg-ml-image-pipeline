@@ -80,7 +80,7 @@ def train_xgboost(dataset_name: str,
                                             normalize_vectors=normalize_vectors,
                                             target_option=target_option,
                                             duplicate_flip_option=duplicate_flip_option)
-    dataset_loader.load_dataset()
+    dataset_loader.load_dataset(pre_shuffle=False)
 
     # get final filename
     sequence = 0
