@@ -79,8 +79,8 @@ def main(
         dataset.append(data)
 
     # convert to dataframe and save as csv
-    df_dataset = pd.DataFrame(dataset, index=False)
-    df_dataset.to_csv(save_path)
+    df_dataset = pd.DataFrame(dataset)
+    df_dataset.to_csv(save_path, index=False)
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
