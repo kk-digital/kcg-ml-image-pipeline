@@ -70,8 +70,6 @@ class PromptJobGeneratorState:
 
     def load_efficient_net_model(self, dataset, dataset_bucket, model_path):
 
-        print(dataset)
-        print(model_path)
         efficient_net_model = ABRankingEfficientNetModel(in_channels=2)
 
         model_file_data = cmd.get_file_from_minio(self.minio_client, dataset_bucket, model_path)
@@ -259,11 +257,12 @@ class PromptJobGeneratorState:
             return ""
 
     def get_dataset_scoring_model(self, dataset):
-        dataset_model_name = self.get_dataset_ranking_model(dataset)
-
-        model_info = self.get_dataset_model_info(dataset, dataset_model_name)
+        model_info = self.get_dataset_ranking_model(dataset)
 
         if model_info is None:
+            return
+
+        if not isinstance(model_info, dict):
             return
 
         model_type = model_info['model_type']

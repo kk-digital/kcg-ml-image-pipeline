@@ -145,5 +145,5 @@ class CLIPTextEmbedder(nn.Module):
         # Get CLIP embeddings
         clip_output = self.transformer(input_ids=tokens)
         
-        return clip_output.last_hidden_state, clip_output.pooler_output, batch_encoding['attention_mask']
+        return clip_output.last_hidden_state, clip_output.pooler_output, batch_encoding['attention_mask'].to(self.device)
         
