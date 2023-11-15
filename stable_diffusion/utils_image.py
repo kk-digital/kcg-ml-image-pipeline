@@ -11,8 +11,8 @@ from torchvision.transforms import ToPILImage
 
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
-from worker.image_generation.generation_data.generated_image_data import GeneratedImageData
-from worker.image_generation.generation_data.prompt_embedding import PromptEmbedding
+from data_loader.generated_image_data import GeneratedImageData
+from data_loader.prompt_embedding import PromptEmbedding
 
 
 def calculate_sha256(tensor):

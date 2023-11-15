@@ -1,6 +1,7 @@
 import msgpack
 import numpy as np
 
+
 class PromptEmbedding:
     job_uuid: str
     creation_time: str
@@ -9,10 +10,12 @@ class PromptEmbedding:
     file_hash: str
     positive_prompt: str
     negative_prompt: str
-    embedding: list
+    positive_embedding: list
+    negative_embedding: list
+    attention_mask: list = None
 
     def __init__(self, job_uuid, creation_time, dataset, file_path, file_hash, positive_prompt, negative_prompt,
-                 positive_embedding, negative_embedding):
+                 positive_embedding, negative_embedding, attention_mask=None):
         self.job_uuid = job_uuid
         self.creation_time = creation_time
         self.dataset = dataset
@@ -22,6 +25,7 @@ class PromptEmbedding:
         self.negative_prompt = negative_prompt
         self.positive_embedding = positive_embedding
         self.negative_embedding = negative_embedding
+        self.attention_mask = attention_mask
 
     def serialize(self):
         # Convert object to a dictionary
@@ -34,12 +38,17 @@ class PromptEmbedding:
             "positive_prompt": self.positive_prompt,
             "negative_prompt": self.negative_prompt,
             "positive_embedding": self.positive_embedding,
-            "negative_embedding": self.negative_embedding
+            "negative_embedding": self.negative_embedding,
+            "attention_mask": self.attention_mask,
         }
 
     @classmethod
     def deserialize(cls, data):
         # Convert dictionary back to object
+        attention_mask = None
+        if "attention_mask" in data:
+            attention_mask = data["attention_mask"]
+
         return cls(data["job_uuid"],
                    data["creation_time"],
                    data["dataset"],
@@ -48,7 +57,8 @@ class PromptEmbedding:
                    data["positive_prompt"],
                    data["negative_prompt"],
                    data["positive_embedding"],
-                   data["negative_embedding"])
+                   data["negative_embedding"],
+                   attention_mask)
 
     def get_msgpack_string(self):
         serialized = self.serialize()

@@ -139,6 +139,12 @@ def startup_db_client():
     ]
     create_index_if_not_exists(app.image_scores_collection ,scores_index, 'scores_index')
 
+    hash_index=[
+    ('model_id', pymongo.ASCENDING), 
+    ('image_hash', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_scores_collection ,hash_index, 'score_hash_index')
+
     # residuals
     app.image_residuals_collection = app.mongodb_db["image-residuals"]
 
@@ -147,6 +153,7 @@ def startup_db_client():
     ('residual', pymongo.ASCENDING)
     ]
     create_index_if_not_exists(app.image_residuals_collection ,residuals_index, 'residuals_index')
+    create_index_if_not_exists(app.image_residuals_collection ,hash_index, 'residual_hash_index')
 
     # percentiles
     app.image_percentiles_collection = app.mongodb_db["image-percentiles"]
@@ -156,6 +163,7 @@ def startup_db_client():
     ('percentile', pymongo.ASCENDING)
     ]
     create_index_if_not_exists(app.image_percentiles_collection ,percentiles_index, 'percentiles_index')
+    create_index_if_not_exists(app.image_percentiles_collection ,hash_index, 'percentile_hash_index')
 
     # residual percentiles
     app.image_residual_percentiles_collection = app.mongodb_db["image-residual-percentiles"]
