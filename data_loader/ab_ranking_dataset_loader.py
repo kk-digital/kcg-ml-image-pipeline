@@ -5,10 +5,7 @@ import numpy as np
 import time
 import torch
 from torch.nn.functional import normalize as torch_normalize
-from queue import Queue
-from threading import Semaphore
 import msgpack
-import threading
 from random import shuffle, choice, sample
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -20,6 +17,7 @@ from utility.minio import cmd
 from training_worker.ab_ranking.model import constants
 from data_loader.ab_data import ABData
 from data_loader.utils import *
+
 
 class ABRankingDatasetLoader:
     def __init__(self,
