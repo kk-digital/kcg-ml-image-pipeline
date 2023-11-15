@@ -328,3 +328,17 @@ def get_job_generation_rate(request: Request, dataset: str, sample_size : int):
         job_per_second += this_job_per_second / total_jobs
 
     return job_per_second
+
+
+# --------------- Job info ---------------------
+@router.get("/job/get-completed-job-by-hash")
+def get_completed_job_by_hash(request: Request, image_hash):
+    query = {"task_output_file_dict.output_file_hash": image_hash}
+    job = request.app.completed_jobs_collection.find_one(query)
+
+    if job is None:
+        raise HTTPException(status_code=404)
+
+    job.pop('_id', None)
+
+    return job

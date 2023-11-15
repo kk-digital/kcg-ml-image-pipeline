@@ -11,8 +11,8 @@ from torchvision.transforms import ToPILImage
 
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
-from worker.image_generation.generation_data.generated_image_data import GeneratedImageData
-from worker.image_generation.generation_data.prompt_embedding import PromptEmbedding
+from data_loader.generated_image_data import GeneratedImageData
+from data_loader.prompt_embedding import PromptEmbedding
 
 
 def calculate_sha256(tensor):
@@ -132,6 +132,11 @@ def save_images_to_minio(minio_client, images: torch.Tensor, dest_path: str, img
 
     return output_file_hash
 
+
+def get_image_hash(img_byte_arr):
+    # Calculate the hash for the given image byte array
+    return (hashlib.sha256(img_byte_arr)).hexdigest()
+    
 
 def get_image_data(images: torch.Tensor, img_format: str = 'jpeg'):
     # Map images to `[0, 1]` space and clip

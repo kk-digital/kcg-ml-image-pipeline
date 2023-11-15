@@ -16,19 +16,17 @@ It uses HuggingFace Transformers CLIP model.
 import os
 import sys
 from typing import List
-
 import safetensors
 import torch
-import clip
+# import clip
 from torch import nn
 from transformers import CLIPTokenizer, CLIPTextModel, CLIPTextConfig, CLIPModel
-
-from utility.labml.monit import section
-from utility.utils_logger import logger
 
 sys.path.insert(0, os.getcwd())
 from stable_diffusion.model_paths import CLIP_TEXT_EMBEDDER_PATH, CLIP_TOKENIZER_DIR_PATH, CLIP_TEXT_MODEL_DIR_PATH, CLIP_MODEL_PATH
 from stable_diffusion.utils_backend import get_device
+from utility.labml.monit import section
+from utility.utils_logger import logger
 
 
 class CLIPTextEmbedder(nn.Module):
@@ -147,34 +145,5 @@ class CLIPTextEmbedder(nn.Module):
         # Get CLIP embeddings
         clip_output = self.transformer(input_ids=tokens)
         
-        return clip_output.last_hidden_state, clip_output.pooler_output, batch_encoding['attention_mask']
+        return clip_output.last_hidden_state, clip_output.pooler_output, batch_encoding['attention_mask'].to(self.device)
         
-# %%
-
-# if __name__ == "__main__":
-#     prompts = ["", "A painting of a computer virus", "A photo of a computer virus"]
-
-#     clip = CLIPTextEmbedder()
-
-#     embeddings1 = clip(prompts)
-
-#     summary(clip.transformer)
-#     print("embeddings: ", embeddings1)
-#     print("embeddings.shape: ", embeddings1.shape)
-
-#     clip.save()
-
-#     clip.unload_submodels()
-
-#     clip.load_submodels()
-
-#     embeddings2 = clip(prompts)
-
-#     assert torch.allclose(embeddings1, embeddings2)
-
-#     clip = torch.load(TEXT_EMBEDDER_PATH, map_location="cuda:0")
-#     print(clip)
-#     embeddings3 = clip(prompts)
-#     assert torch.allclose(embeddings1, embeddings3), "embeddings1 != embeddings3"
-#     assert torch.allclose(embeddings2, embeddings3), "embeddings2 != embeddings3"
-#     print(os.getcwd())
