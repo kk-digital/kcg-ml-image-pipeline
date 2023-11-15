@@ -15,8 +15,24 @@ def remove_unwanted_chars(phrase: str):
 
     # remove :n.n
     phrase = re.sub('(:\d+.\d+)|(:)', '', phrase)
-    # remove parenthesis, brackets, braces, parenthesis, quotation, slashes, or, dash, underscores
-    phrase = re.sub(r'[()\[\]{}\"\'\\\/\|\-\_]', '', phrase)
+
+    # remove parenthesis
+    phrase = re.sub(r'[()]', '', phrase)
+    # remove brackets
+    phrase = re.sub(r'[\[\]]', '', phrase)
+    # remove braces
+    phrase = re.sub(r'[{}]', '', phrase)
+    # remove quotations
+    phrase = re.sub(r'[\"\']', '', phrase)
+    # remove slashes
+    phrase = re.sub(r'[\\\/]', '', phrase)
+    # remove or character
+    phrase = re.sub(r'[\|]', '', phrase)
+    # remove dash
+    phrase = re.sub(r'[\-]', '', phrase)
+    # remove underscores
+    phrase = re.sub(r'[\_]', '', phrase)
+
     # remove weird ints and floats
     phrase = re.sub('(\d+.\d+)|(\d+)', '', phrase)
 
