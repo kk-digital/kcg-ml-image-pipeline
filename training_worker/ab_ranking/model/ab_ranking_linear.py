@@ -13,7 +13,7 @@ from tqdm import tqdm
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDatasetLoader
+from data_loader.ab_ranking_dataset_loader import ABRankingDatasetLoader
 from utility.minio import cmd
 
 

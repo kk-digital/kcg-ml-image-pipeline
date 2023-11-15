@@ -20,7 +20,7 @@ from matplotlib.ticker import PercentFormatter
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDatasetLoader
+from data_loader.ab_ranking_dataset_loader import ABRankingDatasetLoader
 from training_worker.ab_ranking.script.ab_ranking_xgboost_ranking_pairwise import forward_bradley_terry
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
