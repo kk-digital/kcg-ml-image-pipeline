@@ -212,7 +212,7 @@ def http_get_dataset_model_list(dataset_name: str):
 
 
 def http_get_dataset_latest_ranking_model(dataset : str):
-    url = SERVER_ADRESS + f"/models/rank-embeddings/latest-model?dataset={dataset}"
+    url = SERVER_ADRESS + f"/models/rank-embedding/latest-model?dataset={dataset}"
 
     try:
         response = requests.get(url)
@@ -229,7 +229,7 @@ def http_get_dataset_latest_ranking_model(dataset : str):
 
 def http_set_dataset_ranking_model(dataset : str,
                                    ranking_model : dict):
-    url = SERVER_ADRESS + f"/models/rank-embeddings/latest-model?dataset={dataset}"
+    url = SERVER_ADRESS + f"/models/rank-embedding/latest-model?dataset={dataset}"
 
     try:
         response = requests.get(url)
