@@ -46,7 +46,7 @@ def main(
 
         # compute token lengths
         positive_openai_length = openai_tokenizer(positive_prompt, return_length=True)['length']
-        positive_fast_length = fast_tokenizer(positive_prompt, return_length=True)['length']
+        positive_fast_length = fast_tokenizer(positive_prompt, return_length=True)['length'][0]
         positive_kcg_length = kcg_tokenizer(positive_prompt, return_length=True)['length']
         positive_tt_length = len(tt_tokenizer.encode(positive_prompt))
         
@@ -54,7 +54,7 @@ def main(
         # if NaN, set length as 0
         if isinstance(negative_prompt, str):
             negative_openai_length = openai_tokenizer(negative_prompt, return_length=True)['length']
-            negative_fast_length = fast_tokenizer(negative_prompt, return_length=True)['length']
+            negative_fast_length = fast_tokenizer(negative_prompt, return_length=True)['length'][0]
             negative_kcg_length = kcg_tokenizer(negative_prompt, return_length=True)['length']
             negative_tt_length = len(tt_tokenizer.encode(negative_prompt))
         else:
