@@ -27,15 +27,30 @@ minio_client = Minio(
     secure=False  # Update this according to your MinIO configuration (True if using HTTPS)
 )
 
-def save_job_to_minio(minio_client, bucket_name, job, dataset, job_index):
+def get_last_uploaded_file(minio_client, bucket_name, dataset):
+    last_file = None
+    objects = minio_client.list_objects(bucket_name, prefix=f"{dataset}/job/", recursive=True)
+    for obj in objects:
+        if obj.object_name.endswith('.json'):  # Assuming you want to check the JSON files
+            last_file = obj.object_name
 
-    job.pop('_id', None)  # Use pop to remove '_id' if it exists and ignore if it doesn't
+    return last_file
+
+
+def save_job_to_minio(minio_client, bucket_name, job, dataset):
+    job.pop('_id', None)  # Remove the '_id' field if it exists
     
-    # Extract the image name without the file extension
+    # Extract the image name with the file extension and keep it as a string
     image_name = job["task_input_dict"]["file_path"].split('/')[-1].split('.')[0]
     
-    # Calculate folder name by dividing job index by 1000 and format it with leading zeros
-    folder_name = str(job_index // 1000).zfill(4)
+    # Extract the numeric part of the image name for folder calculation
+    image_number_for_folder = int(image_name)
+    
+    # Calculate folder number by floor dividing the image number by 1000 and adding 1
+    folder_number = image_number_for_folder // 1000 + 1
+    
+    # Format the folder number with leading zeros
+    folder_name = str(folder_number).zfill(4)
     
     # Serialize the job to JSON and msgpack formats
     json_data = json.dumps(job, default=json_util.default)
@@ -58,14 +73,22 @@ def process_jobs_for_dataset(minio_client, bucket_name, dataset):
     db = connect_to_db()
     jobs_collection = db['completed-jobs']
     
+    last_file = get_last_uploaded_file(minio_client, bucket_name, dataset)
+    last_uploaded_image_number = None
+    if last_file:
+        # Extract the last uploaded image number
+        last_uploaded_image_number = int(last_file.split('/')[-1].split('.')[0])
+
     job_index = 0  # Initialize a counter for the job index
     start_time = time.time()  # Record the start time for the entire operation
 
     for job in jobs_collection.find({"task_input_dict.dataset": dataset}):
+        image_number = int(job["task_input_dict"]["file_path"].split('/')[-1].split('.')[0])
 
-        save_job_to_minio(minio_client, bucket_name, job, dataset, job_index)
+        if last_uploaded_image_number and image_number <= last_uploaded_image_number:
+            continue  # Skip already uploaded jobs
 
-
+        save_job_to_minio(minio_client, bucket_name, job, dataset)
         job_index += 1  # Increment the job index for each job
 
     end_time = time.time()  # Record the end time for the entire operation
