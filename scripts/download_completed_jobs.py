@@ -27,6 +27,16 @@ minio_client = Minio(
     secure=False  # Update this according to your MinIO configuration (True if using HTTPS)
 )
 
+def get_last_uploaded_file(minio_client, bucket_name, dataset):
+    last_file = None
+    objects = minio_client.list_objects(bucket_name, prefix=f"{dataset}/job/", recursive=True)
+    for obj in objects:
+        if obj.object_name.endswith('.json'):  # Assuming you want to check the JSON files
+            last_file = obj.object_name
+
+    return last_file
+
+
 def save_job_to_minio(minio_client, bucket_name, job, dataset):
     job.pop('_id', None)  # Remove the '_id' field if it exists
     
@@ -59,18 +69,26 @@ def save_job_to_minio(minio_client, bucket_name, job, dataset):
     print(f"Job saved to MinIO: {json_path} and {msgpack_path}")
 
 
-
 def process_jobs_for_dataset(minio_client, bucket_name, dataset):
     db = connect_to_db()
     jobs_collection = db['completed-jobs']
     
+    last_file = get_last_uploaded_file(minio_client, bucket_name, dataset)
+    last_uploaded_image_number = None
+    if last_file:
+        # Extract the last uploaded image number
+        last_uploaded_image_number = int(last_file.split('/')[-1].split('.')[0])
+
     job_index = 0  # Initialize a counter for the job index
     start_time = time.time()  # Record the start time for the entire operation
 
     for job in jobs_collection.find({"task_input_dict.dataset": dataset}):
+        image_number = int(job["task_input_dict"]["file_path"].split('/')[-1].split('.')[0])
 
-        save_job_to_minio(minio_client, bucket_name, job, dataset)  # Removed the job_index argument
+        if last_uploaded_image_number and image_number <= last_uploaded_image_number:
+            continue  # Skip already uploaded jobs
 
+        save_job_to_minio(minio_client, bucket_name, job, dataset)
         job_index += 1  # Increment the job index for each job
 
     end_time = time.time()  # Record the end time for the entire operation
@@ -79,7 +97,6 @@ def process_jobs_for_dataset(minio_client, bucket_name, dataset):
     print(f"Total jobs downloaded and saved to MinIO for dataset '{dataset}': {job_index}")
     print(f"Total time taken: {total_time:.2f} seconds")
     print(f"Average time per job: {total_time / job_index:.2f} seconds" if job_index else "No jobs processed.")
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Download and save jobs for a given dataset.')
