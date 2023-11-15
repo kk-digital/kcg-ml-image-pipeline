@@ -11,7 +11,7 @@ from utility.regression_utils import torchinfo_summary
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from training_worker.ab_ranking.model.reports.ab_ranking_linear_train_report import get_train_report
 from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import *
-from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDatasetLoader
+from data_loader.ab_ranking_dataset_loader import ABRankingDatasetLoader
 from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
 from utility.minio import cmd
 from training_worker.ab_ranking.model import constants
@@ -25,7 +25,6 @@ def train_ranking(dataset_name: str,
                   input_type="embedding",
                   epochs=10000,
                   learning_rate=0.05,
-                  buffer_size=20000,
                   train_percent=0.9,
                   training_batch_size=1,
                   weight_decay=0.00,
@@ -60,7 +59,6 @@ def train_ranking(dataset_name: str,
                                             minio_access_key=minio_access_key,
                                             minio_secret_key=minio_secret_key,
                                             input_type=input_type,
-                                            buffer_size=buffer_size,
                                             train_percent=train_percent,
                                             load_to_ram=load_data_to_ram,
                                             pooling_strategy=pooling_strategy,
@@ -278,7 +276,6 @@ def run_ab_ranking_linear_task(training_task, minio_access_key, minio_secret_key
                                           minio_secret_key=minio_secret_key,
                                           epochs=training_task["epochs"],
                                           learning_rate=training_task["learning_rate"],
-                                          buffer_size=training_task["buffer_size"],
                                           train_percent=training_task["train_percent"])
 
     return model_output_path, report_output_path, graph_output_path
@@ -292,7 +289,6 @@ def test_run():
                   input_type="embedding-negative",
                   epochs=10,
                   learning_rate=0.05,
-                  buffer_size=20000,
                   train_percent=0.9,
                   training_batch_size=1,
                   weight_decay=0.00,

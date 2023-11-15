@@ -50,13 +50,13 @@ def separate_values_based_on_targets(training_targets, validation_targets, train
             validation_pred_scores_img_x_target_0.append(validation_pred_scores_img_x[i])
             validation_pred_scores_img_y_target_0.append(validation_pred_scores_img_y[i])
 
-    if len(train_prob_predictions_target_1) > 0 and torch.is_tensor(train_prob_predictions_target_1):
+    if len(train_prob_predictions_target_1) > 0 and torch.is_tensor(train_prob_predictions_target_1[0]):
         train_prob_predictions_target_1 = torch.stack(train_prob_predictions_target_1)
-    if len(train_prob_predictions_target_0) > 0 and torch.is_tensor(train_prob_predictions_target_0):
+    if len(train_prob_predictions_target_0) > 0 and torch.is_tensor(train_prob_predictions_target_0[0]):
         train_prob_predictions_target_0 = torch.stack(train_prob_predictions_target_0)
-    if len(validation_prob_predictions_target_1) > 0 and torch.is_tensor(validation_prob_predictions_target_1):
+    if len(validation_prob_predictions_target_1) > 0 and torch.is_tensor(validation_prob_predictions_target_1[0]):
         validation_prob_predictions_target_1 = torch.stack(validation_prob_predictions_target_1)
-    if len(validation_prob_predictions_target_0) > 0 and torch.is_tensor(validation_prob_predictions_target_0):
+    if len(validation_prob_predictions_target_0) > 0 and torch.is_tensor(validation_prob_predictions_target_0[0]):
         validation_prob_predictions_target_0 = torch.stack(validation_prob_predictions_target_0)
 
     return train_prob_predictions_target_1, \
@@ -410,11 +410,11 @@ def get_graph_report(training_loss,
         loss_func = "N/A"
 
     pooling_strategy_str = "N/A"
-    if pooling_strategy == 0 and input_type is not "clip":
+    if pooling_strategy == 0 and input_type != "clip":
         pooling_strategy_str = "average pooling"
-    elif pooling_strategy == 1 and input_type is not "clip":
+    elif pooling_strategy == 1 and input_type != "clip":
         pooling_strategy_str = "max pooling"
-    elif pooling_strategy == 2 and input_type is not "clip":
+    elif pooling_strategy == 2 and input_type != "clip":
         pooling_strategy_str = "max abs pooling"
 
     if normalize_vectors == -1:
