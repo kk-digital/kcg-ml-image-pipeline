@@ -70,6 +70,15 @@ def add_models_counter():
     return True
 
 
+def create_index_if_not_exists(collection, index_key, index_name):
+    existing_indexes = collection.index_information()
+    
+    if index_name not in existing_indexes:
+        collection.create_index(index_key, name=index_name)
+        print(f"Index '{index_name}' created on collection '{collection.name}'.")
+    else:
+        print(f"Index '{index_name}' already exists on collection '{collection.name}'.")
+
 @app.on_event("startup")
 def startup_db_client():
     # add creation of mongodb here for now
@@ -79,6 +88,23 @@ def startup_db_client():
     app.pending_jobs_collection = app.mongodb_db["pending-jobs"]
     app.in_progress_jobs_collection = app.mongodb_db["in-progress-jobs"]
     app.completed_jobs_collection = app.mongodb_db["completed-jobs"]
+
+    completed_jobs_hash_index=[
+    ('task_output_file_dict.output_file_hash', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.completed_jobs_collection ,completed_jobs_hash_index, 'completed_jobs_hash_index')
+
+    completed_jobs_createdAt_index=[
+    ('task_creation_time', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.completed_jobs_collection ,completed_jobs_createdAt_index, 'completed_jobs_createdAt_index')
+    
+    completed_jobs_compound_index=[
+    ('task_input_dict.dataset', pymongo.ASCENDING),
+    ('task_creation_time', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.completed_jobs_collection ,completed_jobs_compound_index, 'completed_jobs_compound_index')
+
     app.failed_jobs_collection = app.mongodb_db["failed-jobs"]
 
     # used to store sequential ids of generated images
@@ -107,11 +133,29 @@ def startup_db_client():
     # scores
     app.image_scores_collection = app.mongodb_db["image-scores"]
 
+    scores_index=[
+    ('model_id', pymongo.ASCENDING), 
+    ('score', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_scores_collection ,scores_index, 'scores_index')
+
     # residuals
     app.image_residuals_collection = app.mongodb_db["image-residuals"]
 
+    residuals_index=[
+    ('model_id', pymongo.ASCENDING), 
+    ('residual', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_residuals_collection ,residuals_index, 'residuals_index')
+
     # percentiles
     app.image_percentiles_collection = app.mongodb_db["image-percentiles"]
+
+    percentiles_index=[
+    ('model_id', pymongo.ASCENDING), 
+    ('percentile', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_percentiles_collection ,percentiles_index, 'percentiles_index')
 
     # residual percentiles
     app.image_residual_percentiles_collection = app.mongodb_db["image-residual-percentiles"]
