@@ -32,15 +32,16 @@ def load_job_from_minio(minio_client, bucket_name, dataset, folder_name, image_n
 
 def load_all_jobs_from_minio(minio_client, bucket_name, dataset):
     job_count = 0
-    folder_name = "0000"
+    folder_number = 1  # Start with the first folder
+
     while True:
-        # This loop will run until there are no more folders to process
+        folder_name = str(folder_number).zfill(4)
         prefix = f"{dataset}/job/{folder_name}/"
         objects = minio_client.list_objects(bucket_name, prefix=prefix, recursive=True)
         objects_list = list(objects)
 
         if not objects_list:
-            # If no objects are found, stop the loop
+            # If no objects are found in the current folder, stop the loop
             break
 
         for obj in objects_list:
@@ -49,11 +50,10 @@ def load_all_jobs_from_minio(minio_client, bucket_name, dataset):
                 load_job_from_minio(minio_client, bucket_name, dataset, folder_name, image_name)
                 job_count += 1
 
-        # Increment the folder name for the next batch of 1000 jobs
-        folder_number = int(folder_name) + 1
-        folder_name = str(folder_number).zfill(4)
+        folder_number += 1  # Increment to the next folder
 
     print(f"Total jobs loaded for dataset '{dataset}': {job_count}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Load jobs from MinIO for a given dataset.')

@@ -140,7 +140,6 @@ class TrainingTask(BaseModel):
     weight_decay: float = 0.01
     training_time_kimgs: int = 10
     epochs: int
-    buffer_size: int
     train_percent: float
     task_creation_time: Union[str, None] = None
     task_start_time: Union[str, None] = None
@@ -159,7 +158,6 @@ class TrainingTask(BaseModel):
             "weight_decay": self.weight_decay,
             "training_time_kimgs": self.training_time_kimgs,
             "epochs": self.epochs,
-            "buffer_size": self.buffer_size,
             "train_percent": self.train_percent,
             "task_creation_time": self.task_creation_time,
             "task_start_time": self.task_start_time,
