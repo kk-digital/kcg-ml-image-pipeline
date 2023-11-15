@@ -14,8 +14,8 @@ def main(
     save_path
 ):
     # load tokenizer
-    clip_tokenizer = CLIPTokenizer.from_pretrained('openai/clip-vit-large-patch14')
-    fast_tokenizer = CLIPTokenizerFast.from_pretrained('openai/clip-vit-large-patch14')
+    openai_tokenizer = CLIPTokenizer.from_pretrained('./input/openai-vit-large-patch14-tokenizer')
+    fast_tokenizer = CLIPTokenizerFast.from_pretrained('./input/openai-vit-large-patch14-tokenizer')
     kcg_tokenizer = CLIPTokenizer.from_pretrained(tokenizer_path)
     tt_tokenizer = tiktoken.get_encoding('cl100k_base')
 
@@ -45,7 +45,7 @@ def main(
         negative_prompt = data['negative_prompt']
 
         # compute token lengths
-        positive_clip_length = clip_tokenizer(positive_prompt, return_length=True)['length']
+        positive_openai_length = openai_tokenizer(positive_prompt, return_length=True)['length']
         positive_fast_length = fast_tokenizer(positive_prompt, return_length=True)['length']
         positive_kcg_length = kcg_tokenizer(positive_prompt, return_length=True)['length']
         positive_tt_length = len(tt_tokenizer.encode(positive_prompt))
@@ -53,28 +53,28 @@ def main(
         # sometimes negative prompt may be NaN
         # if NaN, set length as 0
         if isinstance(negative_prompt, str):
-            negative_clip_length = clip_tokenizer(negative_prompt, return_length=True)['length']
+            negative_openai_length = openai_tokenizer(negative_prompt, return_length=True)['length']
             negative_fast_length = fast_tokenizer(negative_prompt, return_length=True)['length']
             negative_kcg_length = kcg_tokenizer(negative_prompt, return_length=True)['length']
             negative_tt_length = len(tt_tokenizer.encode(negative_prompt))
         else:
-            negative_clip_length = 0
+            negative_openai_length = 0
             negative_fast_length = 0
             negative_kcg_length = 0
             negative_tt_length = 0
 
-        data['positive_clip_length'] = positive_clip_length
+        data['positive_openai_length'] = positive_openai_length
         data['positive_fast_length'] = positive_fast_length
         data['positive_kcg_length'] = positive_kcg_length
         data['positive_tt_length'] = positive_tt_length
 
-        data['negative_clip_length'] = negative_clip_length
+        data['negative_openai_length'] = negative_openai_length
         data['negative_fast_length'] = negative_fast_length
         data['negative_kcg_length'] = negative_kcg_length
         data['negative_tt_length'] = negative_tt_length
 
-        data['hf=kcg (pos)'] = (positive_clip_length == positive_kcg_length)
-        data['hf=kcg (neg)'] = (negative_clip_length == negative_kcg_length)
+        data['openai=kcg (pos)'] = (positive_openai_length == positive_kcg_length)
+        data['openai=kcg (neg)'] = (negative_openai_length == negative_kcg_length)
 
         dataset.append(data)
 
@@ -84,7 +84,7 @@ def main(
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
-    ap.add_argument('--tokenizer_path', type=str, help='Directory path to tokenizer')
+    ap.add_argument('--tokenizer_path', type=str, help='Directory path to kcg tokenizer')
     ap.add_argument('--embedding_path', type=str, help='Directory path to embedding msgpacks')
     ap.add_argument('--save_path', type=str, help='File path to save output csv')
     args = ap.parse_args()
