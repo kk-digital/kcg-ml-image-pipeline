@@ -51,6 +51,9 @@ def main(
         if positive_length > 77 or negative_length > 77:
             data['positive_length'] = positive_length
             data['negative_length'] = negative_length
+            del data['positive_embedding']
+            del data['negative_embedding']
+
             anomalies.append(data)
 
     # convert to dataframe and save as csv
