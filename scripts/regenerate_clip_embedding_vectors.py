@@ -55,6 +55,10 @@ def regenerate_embeddings(minio_client, dataset_name, file_path, text_embedder):
     text_embedding_max_pooled_path = os.path.join(dataset_name, "embeddings/text-embedding", parent_dir, filename + "-text-embedding-max-pooled.msgpack")
     text_embedding_signed_max_pooled_path = os.path.join(dataset_name, "embeddings/text-embedding", parent_dir, filename + "-text-embedding-signed-max-pooled.msgpack")
 
+    # return if exists
+    if cmd.is_object_exists(minio_client, "datasets", text_embedding_path):
+        return
+
     # read the embedding
     embedding_data = get_object(minio_client, file_path)
     prompt_embedding = PromptEmbedding.from_msgpack_bytes(embedding_data)
