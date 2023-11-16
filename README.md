@@ -146,3 +146,14 @@ This checks clip data for selection datapoints in the dataset and creates a clip
 ```
 python ./scripts/check_dataset_clip.py --minio-access-key nkjYl5jO4QnpxQU0k0M1 --minio-secret-key MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1 --dataset-name all
 ```
+
+### Generate dataset for addition / removal prompt mutator
+```
+python scripts/generate_prompt_mutator_dataset.py \
+    --minio-access-key <access key> \
+    --minio-secret-key <secret key> \
+    --df_phrase_path <CSV to sample phrases, must have "phrase str" column> \
+    --df_seed_path <CSV to get seed prompt, must have "positive_prompt" column> \ 
+    --n_data <number of data samples to generate> \
+    --minio_upload_path <minio folder path>
+```

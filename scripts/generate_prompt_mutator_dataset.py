@@ -257,13 +257,13 @@ def main(
             minio_upload_path,
             str(folder).zfill(6),
             'prompt_removal',
-            f'{str(i).zfill(5)}.msgpack'
+            f'{str(i).zfill(6)}.msgpack'
         )
         add_path = os.path.join(
             minio_upload_path,
             str(folder).zfill(6),
             'prompt_addition',
-            f'{str(i).zfill(5)}.msgpack'
+            f'{str(i).zfill(6)}.msgpack'
         )
 
         # add data to list to generate csv
@@ -300,13 +300,13 @@ def main(
                 minio_upload_path,
                 str(folder).zfill(6),
                 'prompt_removal',
-                f'data_removed_{str(i+1).zfill(5)}.csv'
+                f'data_removed_{str(i+1).zfill(6)}.csv'
             )
             add_path = os.path.join(
                 minio_upload_path,
                 str(folder).zfill(6),
                 'prompt_addition',
-                f'data_add_{str(i+1).zfill(5)}.csv'
+                f'data_add_{str(i+1).zfill(6)}.csv'
             )
             dataset_generator.upload_csv_to_minio(df_data_removed, removed_path)
             dataset_generator.upload_csv_to_minio(df_data_add, add_path)
@@ -315,6 +315,7 @@ def main(
             df_data_removed = []
             df_data_add = []
 
+    print('Waiting for upload threads to complete')
     for thread in upload_threads:
         thread.join()
 
