@@ -275,8 +275,8 @@ def main(
         )
         df_data_removed.append(removed_data)
         df_data_add.append(add_data)
-        dataset_generator.upload_data_to_minio(removed_data, removed_path)
-        dataset_generator.upload_data_to_minio(add_data, add_path)
+        dataset_generator.upload_msgpack_to_minio(removed_data, removed_path)
+        dataset_generator.upload_msgpack_to_minio(add_data, add_path)
 
 if __name__ == '__main__':
     args = parse_args()
