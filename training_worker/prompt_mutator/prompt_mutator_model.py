@@ -48,9 +48,11 @@ class PromptMutator:
         encoded_dataset=[]
         for substitution, position, score in zip(dataset, position_encoding, score_encoding):
             if self.use_position_encoding:
-                encoded_dataset.append(np.concatenate([substitution, [position]]))
+                substitution=np.concatenate([substitution, [position]])
             if self.use_score_encoding:
-                encoded_dataset.append(np.concatenate([substitution, [score]]))
+                substitution=np.concatenate([substitution, [score]])
+            
+            encoded_dataset.append(substitution)
         
         return encoded_dataset
 
@@ -76,7 +78,7 @@ class PromptMutator:
         dval = xgb.DMatrix(X_val, label=y_val)
 
         params = {
-            'objective': 'reg:squarederror',
+            'objective': 'reg:absoluteerror',
             'max_depth': max_depth,
             'min_child_weight': min_child_weight,
             'gamma': gamma,
@@ -127,11 +129,13 @@ class PromptMutator:
                             "Input type = {}\n"
                             "Input shape = {}\n"
                             "Output type= {}\n"
-                            "use_position_encoding= \n"
-                            "use_initial_score_encoding= \n\n"
+                            "use_position_encoding={} \n"
+                            "use_initial_score_encoding={} \n\n"
                             ""
                             "Training size = {}\n"
-                            "Validation size = {}\n".format(datetime.now().strftime("%Y-%m-%d"),
+                            "Validation size = {}\n"
+                            "Training loss = {:.4f}\n"
+                            "Validation loss = {:.4f}\n".format(datetime.now().strftime("%Y-%m-%d"),
                                                             'environmental',
                                                             'XGBoost',
                                                             'clip_text_embedding',
@@ -141,6 +145,8 @@ class PromptMutator:
                                                             self.use_score_encoding,
                                                             training_size,
                                                             validation_size,
+                                                            train_mae_per_round[-1],
+                                                            val_mae_per_round[-1],
                                                             ))
 
         # Plot validation and training Rmse vs. Rounds

@@ -246,6 +246,7 @@ def load_dataset(minio_client):
         position_encoding.append(msgpack_data['position_encoding'])
         score_encoding.append(msgpack_data['score_encoding'])
         outputs.append(msgpack_data['output'])
+        
 
     #compute sigma scores for initial score encoding
     sigma_mean=np.mean(score_encoding)
@@ -408,7 +409,7 @@ def main():
     
     # prompt mutator with initial score encoding
     second_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score", 
-                                use_positional_encoding=False,
+                                use_position_encoding=False,
                                 use_score_encoding= True)
     second_mutator.train(inputs, 
                         position_encoding, 
@@ -419,7 +420,7 @@ def main():
     
     # prompt mutator with position encoding
     third_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score",
-                                use_positional_encoding=True,
+                                use_position_encoding=True,
                                 use_score_encoding= False)
     third_mutator.train(inputs, 
                         position_encoding, 
