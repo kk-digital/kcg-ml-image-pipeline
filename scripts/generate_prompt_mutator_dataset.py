@@ -233,14 +233,17 @@ def main(
     df_seed = pd.read_csv(df_seed_path)
     seed_length = 999
     # check if seed prompt token length is shorter than 77 tokens
-    for _ in range(100):
+    for n_tries in range(100):
         seed_prompt = df_seed['positive_prompt'].sample().iloc[0]
         seed_length = dataset_generator.get_token_length(seed_prompt)
+
         if seed_length <= 77:
             break
+
+        if n_tries == 99:
+            # raise error after 100 tries
+            raise RuntimeError('Not able to sample seed prompt with length shorter than 77 tokens after 100 tries')
         
-        # raise error after 100 tries
-        raise RuntimeError('Not able to sample seed prompt with length shorter than 77 tokens after 100 tries')
 
     # folder number to save data
     folder = 0
