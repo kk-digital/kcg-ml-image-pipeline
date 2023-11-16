@@ -9,6 +9,7 @@ import io
 import os
 import msgpack
 import tqdm
+import time
 
 import pandas as pd
 
@@ -141,7 +142,7 @@ class PromptMutatorDatasetGenerator:
             prompt = ', '.join(prompt_phrase[:-1])
             original_length = self.get_token_length(prompt)
             
-        avail_length = 75 - original_length
+        avail_length = 73 - original_length
         original_score = self.score_prompt(prompt)
         original_embedding = self.embed(prompt).cpu().numpy().tolist()
         
@@ -280,6 +281,7 @@ def main(
 
 if __name__ == '__main__':
     args = parse_args()
+    start = time.time()
     main(
         clip_model_path=args.clip_model_path,
         clip_tokenizer_path=args.clip_tokenizer_path,
@@ -291,3 +293,6 @@ if __name__ == '__main__':
         n_data=args.n_data,
         minio_upload_path=args.minio_upload_path
     )
+    end = time.time()
+
+    print(f'Time taken: {end - start:.2f} seconds')
