@@ -192,7 +192,6 @@ def upload_image_data_and_update_job_status(worker_state, job, generation_task, 
     bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
 
     minio_client = worker_state.minio_client
-    clip_text_embedder = worker_state.clip_text_embedder
 
     positive_prompts = generation_task.task_input_dict["positive_prompt"]
     negative_prompts = generation_task.task_input_dict["negative_prompt"]
@@ -241,7 +240,7 @@ def upload_image_data_and_update_job_status(worker_state, job, generation_task, 
                                   output_file_hash,
                                   positive_prompts,
                                   negative_prompts,
-                                  clip_text_embedder)
+                                  worker_state.clip_text_embedder)
 
     info_v2("Upload for job {} completed".format(generation_task.uuid))
     info_v2("Upload time elapsed: {:.4f}s".format(time.time() - start_time))
