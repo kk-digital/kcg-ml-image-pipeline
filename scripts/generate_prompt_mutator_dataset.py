@@ -286,7 +286,7 @@ if __name__ == '__main__':
         clip_tokenizer_path=args.clip_tokenizer_path,
         minio_access_key=args.minio_access_key,
         minio_secret_key=args.minio_secret_key,
-        minio_ip_addr=args.minio_ip_addr,
+        minio_ip_addr=args.minio_addr,
         df_phrase_path=args.df_phrase_path,
         df_seed_path=args.df_seed_path,
         n_data=args.n_data,
