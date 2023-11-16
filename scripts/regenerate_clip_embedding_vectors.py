@@ -104,6 +104,7 @@ def process_embeddings(minio_client,
                        text_embedder):
     embeddings_file_paths = get_embeddings_file_paths(minio_client, dataset_name)
 
+    print("Regenerating embeddings...")
     # use multiprocessing
     with ThreadPoolExecutor(max_workers=10) as executor:
         futures = []
