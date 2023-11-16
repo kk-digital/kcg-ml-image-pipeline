@@ -216,13 +216,7 @@ def main(
     n_data,
     minio_upload_path
 ):
-    df_phrase = pd.read_csv(df_phrase_path)
-    # phrases too long don't make sense, use shorter ones
-    df_phrase = df_phrase[df_phrase['token size'] <= 20]
-    df_seed = pd.read_csv(df_seed_path)
-
-    seed_prompt = df_seed['positive_prompt'].sample().iloc[0]
-
+    
     dataset_generator = PromptMutatorDatasetGenerator(
         clip_model_path=clip_model_path,
         clip_tokenizer_path=clip_tokenizer_path,
@@ -230,6 +224,23 @@ def main(
         minio_secret_key=minio_secret_key,
         minio_ip_addr=minio_ip_addr
     )
+
+    df_phrase = pd.read_csv(df_phrase_path)
+    # phrases too long don't make sense, use shorter ones
+    df_phrase = df_phrase[df_phrase['token size'] <= 20]
+
+    # sample seed prompt
+    df_seed = pd.read_csv(df_seed_path)
+    seed_length = 999
+    # check if seed prompt token length is shorter than 77 tokens
+    for _ in range(100):
+        seed_prompt = df_seed['positive_prompt'].sample().iloc[0]
+        seed_length = dataset_generator.get_token_length(seed_prompt)
+        if seed_length <= 77:
+            break
+        
+        # raise error after 100 tries
+        raise RuntimeError('Not able to sample seed prompt with length shorter than 77 tokens after 100 tries')
 
     # folder number to save data
     folder = 0
