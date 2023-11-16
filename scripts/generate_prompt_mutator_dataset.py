@@ -233,7 +233,7 @@ def main(
         removed_data = dataset_generator.create_remove_datapoint(seed_prompt)
         add_data = dataset_generator.create_add_datapoint(removed_data['removed_prompt'], df_phrase)
 
-        if ((i + 1) % 10000) == 0:
+        if ((i + 1) % 10000) == 0 or (i + 1) == n_data:
             df_data_removed = pd.DataFrame(df_data_removed)
             df_data_add = pd.DataFrame(df_data_add)
 
@@ -247,13 +247,13 @@ def main(
                 minio_upload_path,
                 str(folder).zfill(6),
                 'prompt_removal',
-                f'data_{str(i).zfill(5)}.csv'
+                f'data_{str(i+1).zfill(5)}.csv'
             )
             add_path = os.path.join(
                 minio_upload_path,
                 str(folder).zfill(6),
                 'prompt_addition',
-                f'data_{str(i).zfill(5)}.csv'
+                f'data_{str(i+1).zfill(5)}.csv'
             )
             dataset_generator.upload_csv_to_minio(df_data_removed, removed_path)
             dataset_generator.upload_csv_to_minio(df_data_add, add_path)
