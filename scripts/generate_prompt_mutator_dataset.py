@@ -8,6 +8,7 @@ import transformers
 import io
 import os
 import msgpack
+import tqdm
 
 import pandas as pd
 
@@ -228,7 +229,7 @@ def main(
     folder = 0
     df_data_removed = []
     df_data_add = []
-    for i in range(n_data):
+    for i in tqdm.tqdm(range(n_data)):
         removed_data = dataset_generator.create_remove_datapoint(seed_prompt)
         add_data = dataset_generator.create_add_datapoint(removed_data['removed_prompt'], df_phrase)
 
