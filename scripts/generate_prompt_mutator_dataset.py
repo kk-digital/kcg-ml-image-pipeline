@@ -10,6 +10,7 @@ import os
 import msgpack
 import tqdm
 import time
+import threading
 
 import pandas as pd
 
@@ -105,13 +106,14 @@ class PromptMutatorDatasetGenerator:
         original_embedding = self.embed(prompt).cpu().numpy().tolist()
 
         # remove random phrase
+        # removed_embedding is the embedding of the removed phrase
         prompt_phrase = prompt.split(', ')
         random_index = random.randrange(len(prompt_phrase))
         removed_phrase = prompt_phrase.pop(random_index)
         removed_prompt = ', '.join((prompt_phrase))
         removed_length = self.get_token_length(removed_prompt)
         removed_score = self.score_prompt(removed_prompt)
-        removed_embedding = self.embed(removed_prompt).cpu().numpy().tolist()
+        removed_embedding = self.embed(removed_phrase).cpu().numpy().tolist()
 
         # compute positional encoding
         original_token = self.get_tokens(prompt)
@@ -142,16 +144,18 @@ class PromptMutatorDatasetGenerator:
             prompt = ', '.join(prompt_phrase[:-1])
             original_length = self.get_token_length(prompt)
             
-        avail_length = 73 - original_length
+        avail_length = 70 - original_length
         original_score = self.score_prompt(prompt)
         original_embedding = self.embed(prompt).cpu().numpy().tolist()
         
+        # sample a phrase to add
+        # add_embedding is the embedding of the phrase to add
         df_sample = df_phrase[df_phrase['token size'] <= avail_length].sample().iloc[0]
         add_phrase = df_sample['phrase str']
         add_prompt = f'{add_phrase}, {prompt}'
         add_length = self.get_token_length(add_prompt)
         add_score = self.score_prompt(add_prompt)
-        add_embedding = self.embed(add_prompt).cpu().numpy().tolist()
+        add_embedding = self.embed(add_phrase).cpu().numpy().tolist()
 
         # compute positional encoding
         original_token = self.get_tokens(prompt)
@@ -181,7 +185,7 @@ class PromptMutatorDatasetGenerator:
         cmd.upload_data(self.minio_client, 'users', upload_path, buffer)
 
     def upload_csv_to_minio(self, data, upload_path):
-        csv_buffer = io.StringIO()
+        csv_buffer = io.BytesIO()
         data.to_csv(csv_buffer, index=False)
         csv_buffer.seek(0)
         cmd.upload_data(self.minio_client, 'users', upload_path, csv_buffer)
@@ -213,6 +217,8 @@ def main(
     minio_upload_path
 ):
     df_phrase = pd.read_csv(df_phrase_path)
+    # phrases too long don't make sense, use shorter ones
+    df_phrase = df_phrase[df_phrase['token size'] <= 20]
     df_seed = pd.read_csv(df_seed_path)
 
     seed_prompt = df_seed['positive_prompt'].sample().iloc[0]
@@ -229,39 +235,13 @@ def main(
     folder = 0
     df_data_removed = []
     df_data_add = []
+    upload_threads = []
     for i in tqdm.tqdm(range(n_data)):
+        # generate data points
         removed_data = dataset_generator.create_remove_datapoint(seed_prompt)
         add_data = dataset_generator.create_add_datapoint(removed_data['removed_prompt'], df_phrase)
 
-        if ((i + 1) % 10000) == 0 or (i + 1) == n_data:
-            df_data_removed = pd.DataFrame(df_data_removed)
-            df_data_add = pd.DataFrame(df_data_add)
-
-            df_data_removed = df_data_removed.drop(
-                ['original_embedding', 'removed_embedding', 'positional_encoding'], axis=1
-            )
-            df_data_add = df_data_add.drop(
-                ['original_embedding', 'add_embedding', 'positional_encoding'], axis=1
-            )
-            removed_path = os.path.join(
-                minio_upload_path,
-                str(folder).zfill(6),
-                'prompt_removal',
-                f'data_{str(i+1).zfill(5)}.csv'
-            )
-            add_path = os.path.join(
-                minio_upload_path,
-                str(folder).zfill(6),
-                'prompt_addition',
-                f'data_{str(i+1).zfill(5)}.csv'
-            )
-            dataset_generator.upload_csv_to_minio(df_data_removed, removed_path)
-            dataset_generator.upload_csv_to_minio(df_data_add, add_path)
-
-            folder += 1
-            df_data_removed = []
-            df_data_add = []
-
+        # paths to upload msgpack
         removed_path = os.path.join(
             minio_upload_path,
             str(folder).zfill(6),
@@ -274,10 +254,58 @@ def main(
             'prompt_addition',
             f'{str(i).zfill(5)}.msgpack'
         )
+
+        # add data to list to generate csv
         df_data_removed.append(removed_data)
         df_data_add.append(add_data)
-        dataset_generator.upload_msgpack_to_minio(removed_data, removed_path)
-        dataset_generator.upload_msgpack_to_minio(add_data, add_path)
+
+        # use threading for uploading
+        upload_removed = threading.Thread(
+            target=dataset_generator.upload_msgpack_to_minio,
+            args=(removed_data, removed_path,)
+        )
+        upload_add = threading.Thread(
+            target=dataset_generator.upload_msgpack_to_minio,
+            args=(add_data, add_path,)
+        )
+        upload_threads.append(upload_removed)
+        upload_threads.append(upload_add)
+        upload_removed.start()
+        upload_add.start()
+
+        # every folder should store a maximum of 10000 samples
+        if ((i + 1) % 10000) == 0 or (i + 1) == n_data:
+            df_data_removed = pd.DataFrame(df_data_removed)
+            df_data_add = pd.DataFrame(df_data_add)
+
+            # remove embedding and positional encoding to decluatter csv
+            df_data_removed = df_data_removed.drop(
+                ['original_embedding', 'removed_embedding', 'positional_encoding'], axis=1
+            )
+            df_data_add = df_data_add.drop(
+                ['original_embedding', 'add_embedding', 'positional_encoding'], axis=1
+            )
+            removed_path = os.path.join(
+                minio_upload_path,
+                str(folder).zfill(6),
+                'prompt_removal',
+                f'data_removed_{str(i+1).zfill(5)}.csv'
+            )
+            add_path = os.path.join(
+                minio_upload_path,
+                str(folder).zfill(6),
+                'prompt_addition',
+                f'data_add_{str(i+1).zfill(5)}.csv'
+            )
+            dataset_generator.upload_csv_to_minio(df_data_removed, removed_path)
+            dataset_generator.upload_csv_to_minio(df_data_add, add_path)
+
+            folder += 1
+            df_data_removed = []
+            df_data_add = []
+
+    for thread in upload_threads:
+        thread.join()
 
 if __name__ == '__main__':
     args = parse_args()
