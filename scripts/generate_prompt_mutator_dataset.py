@@ -38,12 +38,11 @@ class PromptMutatorDatasetGenerator:
         self.clip_model, self.tokenizer = self.load_clip(clip_model_path, clip_tokenizer_path)
 
 
-
     def load_clip(self, model_path, tokenizer_path):
         tokenizer = CLIPTokenizer.from_pretrained(tokenizer_path)
         model = CLIPTextModel.from_pretrained(model_path).eval().to('cuda')
 
-        return tokenizer, model
+        return model, tokenizer
 
     def load_model(self, input_size, device='cuda'):
         input_path = "environmental/models/ranking/"
