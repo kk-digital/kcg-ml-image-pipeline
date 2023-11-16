@@ -25,7 +25,6 @@ def get_embeddings_file_paths(minio_client, dataset_name):
     print("Getting only embedding file paths...")
     for path in tqdm(dataset_paths):
         if path.endswith(embedding_file_extension):
-            print(path)
             embedding_paths.append(path)
 
     return embedding_paths
