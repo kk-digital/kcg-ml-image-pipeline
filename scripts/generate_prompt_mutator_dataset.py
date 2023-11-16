@@ -188,7 +188,7 @@ class PromptMutatorDatasetGenerator:
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--minio-addr', required=False, help='Minio server address', default='192.168.3.50:9000')
+    parser.add_argument('--minio-addr', required=False, help='Minio server address', default='192.168.3.5:9000')
     parser.add_argument('--minio-access-key', required=False, help='Minio access key')
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
     parser.add_argument('--df_phrase_path', required=True, help='CSV containing phrases, must have "phrase str" column')
