@@ -229,6 +229,7 @@ def load_dataset(minio_client):
     inputs=[]
     outputs=[]     
     for file in dataset_files:
+        print(file)
         # get prompt embedding
         data = minio_client.get_object('datasets', file)
         # Read the content of the msgpack file
@@ -382,7 +383,7 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     
-    create_dataset(minio_client, device)
+    #create_dataset(minio_client, device)
 
     inputs, outputs =load_dataset(minio_client)
     
