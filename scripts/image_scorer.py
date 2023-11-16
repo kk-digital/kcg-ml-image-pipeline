@@ -261,21 +261,38 @@ class ImageScorer:
     def generate_graphs(self, hash_score_pairs, hash_percentile_dict):
         # Initialize all graphs/subplots
         plt.figure(figsize=(22, 20))
-        figure_shape = (1, 1)
-        score_graph = plt.subplot2grid(figure_shape, (0, 0), rowspan=1, colspan=1)
+        figure_shape = (2, 1)
+        percentile_graph = plt.subplot2grid(figure_shape, (0, 0), rowspan=1, colspan=1)
+        score_graph = plt.subplot2grid(figure_shape, (1, 0), rowspan=1, colspan=1)
 
+        # percentiles
         chronological_percentiles = []
         for pair in hash_score_pairs:
             chronological_percentiles.append(hash_percentile_dict[pair[0]])
 
         x_axis_values = [i for i in range(len(hash_score_pairs))]
-        score_graph.scatter(x_axis_values, chronological_percentiles,
+        percentile_graph.scatter(x_axis_values, chronological_percentiles,
                             label="Image Percentiles over time",
                             c="#281ad9", s=15)
 
+        percentile_graph.set_xlabel("Time")
+        percentile_graph.set_ylabel("Percentile")
+        percentile_graph.set_title("Percentile vs Time")
+        percentile_graph.legend()
+        percentile_graph.autoscale(enable=True, axis='y')
+
+        # scores
+        chronological_scores = []
+        for pair in hash_score_pairs:
+            chronological_scores.append(pair[1])
+
+        score_graph.scatter(x_axis_values, chronological_scores,
+                                 label="Image Scores over time",
+                                 c="#281ad9", s=15)
+
         score_graph.set_xlabel("Time")
-        score_graph.set_ylabel("Percentile")
-        score_graph.set_title("Percentile vs Time")
+        score_graph.set_ylabel("Score")
+        score_graph.set_title("Score vs Time")
         score_graph.legend()
         score_graph.autoscale(enable=True, axis='y')
 
@@ -288,7 +305,7 @@ class ImageScorer:
         buf.seek(0)
 
         # upload the graph report
-        graph_output = os.path.join(self.dataset, "output/percentiles-graph", self.model_name.replace(".pth", ".png"))
+        graph_output = os.path.join(self.dataset, "output/scores-percentiles-graph", self.model_name.replace(".pth", ".png"))
         cmd.upload_data(self.minio_client, 'datasets', graph_output, buf)
 
 
