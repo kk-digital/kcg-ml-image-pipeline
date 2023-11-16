@@ -25,7 +25,7 @@ class PromptMutator:
                                                              use_position_encoding, 
                                                              use_score_encoding)
 
-    def get_model_path(output_type,use_position_encoding, use_score_encoding):
+    def get_model_path(self ,output_type,use_position_encoding, use_score_encoding):
         if use_score_encoding and use_position_encoding:
             encoding="both_encodings"
             input_size=1538
@@ -91,9 +91,9 @@ class PromptMutator:
                                early_stopping_rounds=early_stopping, evals_result=evals_result)
 
  
-        #Extract RMSE values and residuals
-        val_rmse = evals_result['eval']['mae']
-        train_rmse = evals_result['train']['mae']
+        #Extract MAE values and residuals
+        val_mae = evals_result['eval']['mae']
+        train_mae = evals_result['train']['mae']
 
 
         start = time.time()
@@ -109,12 +109,12 @@ class PromptMutator:
         val_residuals = y_val - val_preds
         train_residuals = y_train - train_preds
         
-        self.save_graph_report(train_rmse, val_rmse, 
+        self.save_graph_report(train_mae, val_mae, 
                                val_residuals, train_residuals, 
                                val_preds, y_val,
                                len(X_train), len(X_val))
     
-    def save_graph_report(self, train_rmse_per_round, val_rmse_per_round, 
+    def save_graph_report(self, train_mae_per_round, val_mae_per_round, 
                           val_residuals, train_residuals, 
                           predicted_values, actual_values,
                           training_size, validation_size):
@@ -144,8 +144,8 @@ class PromptMutator:
                                                             ))
 
         # Plot validation and training Rmse vs. Rounds
-        axs[0][0].plot(range(1, len(train_rmse_per_round) + 1), train_rmse_per_round,'b', label='Training mae')
-        axs[0][0].plot(range(1, len(val_rmse_per_round) + 1), val_rmse_per_round,'r', label='Validation mae')
+        axs[0][0].plot(range(1, len(train_mae_per_round) + 1), train_mae_per_round,'b', label='Training mae')
+        axs[0][0].plot(range(1, len(val_mae_per_round) + 1), val_mae_per_round,'r', label='Validation mae')
         axs[0][0].set_title('MAE per Round')
         axs[0][0].set_ylabel('MAE')
         axs[0][0].set_xlabel('Rounds')
