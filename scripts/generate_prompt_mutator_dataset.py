@@ -195,7 +195,7 @@ def parse_args():
     parser.add_argument('--df_seed_path', required=True, help='CSV containing prompts, must have "positive_prompt" column')
     parser.add_argument('--clip_model_path', help='Path to CLIP text model', default='input/model/clip/txt_emb_model/')
     parser.add_argument('--clip_tokenizer_path', help='Path to CLIP tokenizer', default='input/model/clip/txt_emb_tokenizer/')
-    parser.add_argument('--n_data', help='Number of data samples to generate')
+    parser.add_argument('--n_data', type=int, help='Number of data samples to generate')
     parser.add_argument('--minio_upload_path', help='Minio upload folder path')
     args = parser.parse_args()
 
