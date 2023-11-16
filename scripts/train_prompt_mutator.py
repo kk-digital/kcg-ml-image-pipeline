@@ -227,7 +227,10 @@ def load_dataset(minio_client):
     dataset_files= [file.object_name for file in dataset_files]
 
     inputs=[]
-    outputs=[]     
+    outputs=[]
+    score_encoding= []
+    position_encoding= []
+
     for file in dataset_files:
         print(file)
         # get prompt embedding
@@ -239,15 +242,22 @@ def load_dataset(minio_client):
         msgpack_data = msgpack.loads(content)
 
         # get input and output
-        inputs.append(np.concatenate([msgpack_data['input'], 
-                              [msgpack_data['position_encoding']], 
-                              [msgpack_data['score_encoding']]]))
+        inputs.append(msgpack_data['input'])
+        position_encoding.append(msgpack_data['position_encoding'])
+        score_encoding.append(msgpack_data['score_encoding'])
         outputs.append(msgpack_data['output'])
 
-    #compute sigma scores
-    outputs = [(x - np.mean(outputs)) / np.std(outputs) for x in outputs]
+    #compute sigma scores for initial score encoding
+    sigma_mean=np.mean(score_encoding)
+    sigma_std=np.std(score_encoding)
+    score_encoding = [(x - sigma_mean) / sigma_std for x in score_encoding]
 
-    return inputs, outputs     
+    #compute sigma scores for output
+    sigma_mean=np.mean(outputs)
+    sigma_std=np.std(outputs)
+    outputs = [(x - sigma_mean) / sigma_std for x in outputs]
+
+    return inputs, position_encoding, score_encoding, outputs     
         
 
 # def load_dataset(minio_client, device):
@@ -385,7 +395,38 @@ def main():
     
     #create_dataset(minio_client, device)
 
-    inputs, outputs =load_dataset(minio_client)
+    inputs, position_encoding, score_encoding, outputs =load_dataset(minio_client)
+
+    # prompt mutator with both position encoding and initial score encoding
+    first_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score")
+    first_mutator.train(inputs, 
+                        position_encoding, 
+                        score_encoding,
+                        outputs
+                        )
+    first_mutator.save_model()
+    
+    # prompt mutator with initial score encoding
+    second_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score", 
+                                use_positional_encoding=False,
+                                use_score_encoding= True)
+    second_mutator.train(inputs, 
+                        position_encoding, 
+                        score_encoding,
+                        outputs
+                        )
+    second_mutator.save_model()
+    
+    # prompt mutator with position encoding
+    third_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score",
+                                use_positional_encoding=True,
+                                use_score_encoding= False)
+    third_mutator.train(inputs, 
+                        position_encoding, 
+                        score_encoding,
+                        outputs
+                        )
+    third_mutator.save_model()
     
     # input, delta_output, sigma_output, binary_output = load_dataset(minio_client, device)
 
@@ -401,11 +442,6 @@ def main():
     # delta_mutator.save_model(local_path="output/delta_prompt_mutator.json", 
     #                         minio_path="environmental/output/prompt_mutator/delta_prompt_mutator.json")
     
-    # prompt mutator for predicting sigma scores
-    sigma_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score")
-    sigma_mutator.train(inputs, outputs)
-    sigma_mutator.save_model(local_path="output/sigma_prompt_mutator.json", 
-                            minio_path="environmental/output/prompt_mutator/sigma_prompt_mutator.json")
     
     # grid search for hyperparameters
     #last params {'objective': 'reg:squarederror', 'alpha': 0.0, 'lambda': 0.0, 'max_depth': 7, 'min_child_weight': 1, 'gamma': 0.0, 'subsample': 1, 'colsample_bytree': 1, 'eta': 0.05}

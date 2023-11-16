@@ -4,6 +4,7 @@ import os
 import sys
 import time
 from matplotlib import pyplot as plt
+import numpy as np
 import xgboost as xgb
 from sklearn.model_selection import GridSearchCV, KFold, train_test_split
 
@@ -13,21 +14,61 @@ sys.path.insert(0, base_directory)
 from utility.minio import cmd
 
 class PromptMutator:
-    def __init__(self, minio_client, model=None, output_type="delta_score"):
+    def __init__(self, minio_client, model=None, output_type="delta_score",
+                 use_position_encoding=True, use_score_encoding=True):
         self.model = model
         self.minio_client= minio_client
+        self.use_position_encoding=use_position_encoding
+        self.use_score_encoding=use_score_encoding
         self.output_type= output_type
+        self.local_path, self.minio_path, self.input_size=self.get_model_path(output_type,
+                                                             use_position_encoding, 
+                                                             use_score_encoding)
+
+    def get_model_path(output_type,use_position_encoding, use_score_encoding):
+        if use_score_encoding and use_position_encoding:
+            encoding="both_encodings"
+            input_size=1538
+        elif use_position_encoding:
+            encoding="position_encoding"
+            input_size=1537
+        elif use_score_encoding:
+            encoding="score_encoding"
+            input_size=1537
+        else:
+            encoding="no_encoding"
+            input_size=1536
+        
+        local_path=f"output/{output_type}_prompt_mutator.json"
+        minio_path=f"environmental/output/prompt_mutator/{output_type}_model/{encoding}_prompt_mutator.json"
+
+        return local_path, minio_path, input_size
+
+    def add_encoding(self, dataset, position_encoding, score_encoding):
+        encoded_dataset=[]
+        for substitution, position, score in zip(dataset, position_encoding, score_encoding):
+            if self.use_position_encoding:
+                encoded_dataset.append(np.concatenate([substitution, [position]]))
+            if self.use_score_encoding:
+                encoded_dataset.append(np.concatenate([substitution, [score]]))
+        
+        return encoded_dataset
 
     def train(self, 
-              X_train, 
+              X_train,
+              position_encoding,
+              score_encoding, 
               y_train, 
               max_depth=7, 
               min_child_weight=1,
               gamma=0.01, 
               subsample=1, 
               colsample_bytree=1, 
-              eta=0.05,
+              eta=0.1,
               early_stopping=50):
+        
+        if self.use_position_encoding or self.use_score_encoding:
+            X_train=self.add_encoding(X_train, position_encoding, score_encoding)
         
         X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, shuffle=True)
 
@@ -42,16 +83,17 @@ class PromptMutator:
             'subsample': subsample,
             'colsample_bytree': colsample_bytree,
             'eta': eta,
+            'eval_metric': 'mae'
         }
 
         evals_result = {}
-        self.model = xgb.train(params, dtrain, num_boost_round=2000, evals=[(dval,'eval'), (dtrain,'train')], 
+        self.model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval,'eval'), (dtrain,'train')], 
                                early_stopping_rounds=early_stopping, evals_result=evals_result)
 
  
         #Extract RMSE values and residuals
-        val_rmse = evals_result['eval']['rmse']
-        train_rmse = evals_result['train']['rmse']
+        val_rmse = evals_result['eval']['mae']
+        train_rmse = evals_result['train']['mae']
 
 
         start = time.time()
@@ -67,7 +109,10 @@ class PromptMutator:
         val_residuals = y_val - val_preds
         train_residuals = y_train - train_preds
         
-        self.save_graph_report(train_rmse, val_rmse, val_residuals, train_residuals, val_preds, y_val, len(X_train), len(X_val))
+        self.save_graph_report(train_rmse, val_rmse, 
+                               val_residuals, train_residuals, 
+                               val_preds, y_val,
+                               len(X_train), len(X_val))
     
     def save_graph_report(self, train_rmse_per_round, val_rmse_per_round, 
                           val_residuals, train_residuals, 
@@ -81,26 +126,30 @@ class PromptMutator:
                             "Model type = {}\n"
                             "Input type = {}\n"
                             "Input shape = {}\n"
-                            "Output type= {}\n\n"
+                            "Output type= {}\n"
+                            "use_position_encoding= \n"
+                            "use_initial_score_encoding= \n\n"
                             ""
                             "Training size = {}\n"
                             "Validation size = {}\n".format(datetime.now().strftime("%Y-%m-%d"),
                                                             'environmental',
                                                             'XGBoost',
                                                             'clip_text_embedding',
-                                                            '1537',
+                                                            self.input_size,
                                                             self.output_type,
+                                                            self.use_position_encoding,
+                                                            self.use_score_encoding,
                                                             training_size,
                                                             validation_size,
                                                             ))
 
         # Plot validation and training Rmse vs. Rounds
-        axs[0][0].plot(range(1, len(train_rmse_per_round) + 1), train_rmse_per_round,'b', label='Training rmse')
-        axs[0][0].plot(range(1, len(val_rmse_per_round) + 1), val_rmse_per_round,'r', label='Validation rmse')
-        axs[0][0].set_title('RMSE per Round')
-        axs[0][0].set_ylabel('RMSE')
+        axs[0][0].plot(range(1, len(train_rmse_per_round) + 1), train_rmse_per_round,'b', label='Training mae')
+        axs[0][0].plot(range(1, len(val_rmse_per_round) + 1), val_rmse_per_round,'r', label='Validation mae')
+        axs[0][0].set_title('MAE per Round')
+        axs[0][0].set_ylabel('MAE')
         axs[0][0].set_xlabel('Rounds')
-        axs[0][0].legend(['Training rmse', 'Validation rmse'])
+        axs[0][0].legend(['Training mae', 'Validation mae'])
         
         # Scatter Plot of actual values vs predicted values
         axs[0][1].scatter(predicted_values, actual_values, color='green', alpha=0.5)
@@ -135,7 +184,7 @@ class PromptMutator:
         # Adjust spacing between subplots
         plt.subplots_adjust(hspace=0.7, wspace=0.3, left=0.3)
 
-        plt.savefig(f'output/{self.output_type}_model.png')
+        plt.savefig(self.local_path.replace('.json', '.png'))
 
         # Save the figure to a file
         buf = BytesIO()
@@ -143,8 +192,7 @@ class PromptMutator:
         buf.seek(0)
 
         # upload the graph report
-        graph_output = os.path.join('environmental', f"output/prompt_mutator/{self.output_type}_model.png")
-        cmd.upload_data(self.minio_client, 'datasets', graph_output, buf)
+        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.json', '.png'), buf)             
     
     def grid_search(self, X_train, y_train, param_grid, cv=5, scoring='neg_mean_squared_error'):
         kfold = KFold(n_splits=cv, shuffle=True, random_state=42)
@@ -173,14 +221,14 @@ class PromptMutator:
     def load_model(self, model_path):
         self.model.load_model(model_path)
 
-    def save_model(self, local_path ,minio_path):
-        self.model.save_model(local_path)
+    def save_model(self):
+        self.model.save_model(self.local_path)
         
         #Read the contents of the saved model file
-        with open(local_path, "rb") as model_file:
+        with open(self.local_path, "rb") as model_file:
             model_bytes = model_file.read()
 
         # Upload the model to MinIO
-        cmd.upload_data(self.minio_client, 'datasets', minio_path, BytesIO(model_bytes))
+        cmd.upload_data(self.minio_client, 'datasets', self.minio_path, BytesIO(model_bytes))
 
 
