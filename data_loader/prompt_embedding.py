@@ -12,10 +12,11 @@ class PromptEmbedding:
     negative_prompt: str
     positive_embedding: list
     negative_embedding: list
-    attention_mask: list = None
+    positive_attention_mask: list = None
+    negative_attention_mask: list = None
 
     def __init__(self, job_uuid, creation_time, dataset, file_path, file_hash, positive_prompt, negative_prompt,
-                 positive_embedding, negative_embedding, attention_mask=None):
+                 positive_embedding, negative_embedding, positive_attention_mask=None, negative_attention_mask=None):
         self.job_uuid = job_uuid
         self.creation_time = creation_time
         self.dataset = dataset
@@ -25,7 +26,9 @@ class PromptEmbedding:
         self.negative_prompt = negative_prompt
         self.positive_embedding = positive_embedding
         self.negative_embedding = negative_embedding
-        self.attention_mask = attention_mask
+        self.positive_attention_mask = positive_attention_mask
+        self.negative_attention_mask = negative_attention_mask
+
 
     def serialize(self):
         # Convert object to a dictionary
@@ -39,15 +42,20 @@ class PromptEmbedding:
             "negative_prompt": self.negative_prompt,
             "positive_embedding": self.positive_embedding,
             "negative_embedding": self.negative_embedding,
-            "attention_mask": self.attention_mask,
+            "positive_attention_mask": self.positive_attention_mask,
+            "negative_attention_mask": self.negative_attention_mask,
         }
 
     @classmethod
     def deserialize(cls, data):
         # Convert dictionary back to object
-        attention_mask = None
-        if "attention_mask" in data:
-            attention_mask = data["attention_mask"]
+        positive_attention_mask = None
+        if "positive_attention_mask" in data:
+            positive_attention_mask = data["positive_attention_mask"]
+
+        negative_attention_mask = None
+        if "negative_attention_mask" in data:
+            negative_attention_mask = data["negative_attention_mask"]
 
         return cls(data["job_uuid"],
                    data["creation_time"],
@@ -58,7 +66,8 @@ class PromptEmbedding:
                    data["negative_prompt"],
                    data["positive_embedding"],
                    data["negative_embedding"],
-                   attention_mask)
+                   positive_attention_mask,
+                   negative_attention_mask)
 
     def get_msgpack_string(self):
         serialized = self.serialize()
@@ -67,6 +76,11 @@ class PromptEmbedding:
     @classmethod
     def from_msgpack_string(cls, msgpack_string):
         data = msgpack.unpackb(msgpack_string.encode('latin1'), object_hook=decode_ndarray, raw=False)
+        return cls.deserialize(data)
+
+    @classmethod
+    def from_msgpack_bytes(cls, msgpack_string):
+        data = msgpack.unpackb(msgpack_string, object_hook=decode_ndarray, raw=False)
         return cls.deserialize(data)
 
 
