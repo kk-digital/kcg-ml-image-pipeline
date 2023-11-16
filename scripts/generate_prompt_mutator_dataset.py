@@ -258,14 +258,14 @@ def main(
         # paths to upload msgpack
         removed_path = os.path.join(
             minio_upload_path,
-            str(folder).zfill(6),
             'prompt_removal',
+            str(folder).zfill(6),
             f'{str(i).zfill(6)}.msgpack'
         )
         add_path = os.path.join(
             minio_upload_path,
-            str(folder).zfill(6),
             'prompt_addition',
+            str(folder).zfill(6),
             f'{str(i).zfill(6)}.msgpack'
         )
 
@@ -301,14 +301,14 @@ def main(
             )
             removed_path = os.path.join(
                 minio_upload_path,
-                str(folder).zfill(6),
                 'prompt_removal',
+                str(folder).zfill(6),
                 f'data_removed_{str(i+1).zfill(6)}.csv'
             )
             add_path = os.path.join(
                 minio_upload_path,
-                str(folder).zfill(6),
                 'prompt_addition',
+                str(folder).zfill(6),
                 f'data_add_{str(i+1).zfill(6)}.csv'
             )
             dataset_generator.upload_csv_to_minio(df_data_removed, removed_path)
