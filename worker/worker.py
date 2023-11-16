@@ -131,26 +131,6 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
         device=worker_state.device
     )
 
-
-    embedded_prompts = worker_state.clip_text_embedder(positive_prompts)
-    negative_embedded_prompts = worker_state.clip_text_embedder(negative_prompts)
-
-    # Convert embeddings to float32
-    embedded_prompts = embedded_prompts.to(torch.float32)
-    negative_embedded_prompts = negative_embedded_prompts.to(torch.float32)
-
-    # save image meta data
-    save_image_data_to_minio(worker_state.minio_client, generation_task.uuid, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), dataset,
-                             output_file_path.replace('.jpg', '_data.msgpack'), output_file_hash,
-                             positive_prompts, negative_prompts,
-                             cfg_strength, -1, image_width, image_height, sampler, sampler_steps,
-                             prompt_scoring_model, prompt_score, prompt_generation_policy, top_k)
-    # save image embedding data
-    save_image_embedding_to_minio(worker_state.minio_client, generation_task.uuid, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), dataset,
-                             output_file_path.replace('.jpg', '_embedding.msgpack'), output_file_hash,
-                             positive_prompts, negative_prompts, embedded_prompts.detach().cpu().numpy(), negative_embedded_prompts.detach().cpu().numpy())
-
-
     return output_file_path, output_file_hash, img_byte_arr
 
 
@@ -229,28 +209,39 @@ def upload_image_data_and_update_job_status(worker_state, job, generation_task, 
     prompt_generation_policy = generation_task.task_input_dict["prompt_generation_policy"]
     top_k = generation_task.task_input_dict["top_k"]
 
-    embedded_prompts = clip_text_embedder(positive_prompts)
-    negative_embedded_prompts = clip_text_embedder(negative_prompts)
-
-    # Convert embeddings to float32
-    embedded_prompts = embedded_prompts.to(torch.float32)
-    negative_embedded_prompts = negative_embedded_prompts.to(torch.float32)
-
     job_completion_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     cmd.upload_data(minio_client, bucket_name, file_path, data)
 
     # save image meta data
-    save_image_data_to_minio(minio_client, generation_task.uuid, job_completion_time, dataset,
-                             output_file_path.replace('.jpg', '_data.msgpack'), output_file_hash,
-                             positive_prompts, negative_prompts,
-                             cfg_strength, seed, image_width, image_height, sampler, sampler_steps,
-                             prompt_scoring_model, prompt_score, prompt_generation_policy, top_k)
+    save_image_data_to_minio(minio_client,
+                             generation_task.uuid,
+                             job_completion_time,
+                             dataset,
+                             output_file_path,
+                             output_file_hash,
+                             positive_prompts,
+                             negative_prompts,
+                             cfg_strength,
+                             seed,
+                             image_width,
+                             image_height,
+                             sampler,
+                             sampler_steps,
+                             prompt_scoring_model,
+                             prompt_score,
+                             prompt_generation_policy,
+                             top_k)
     # save image embedding data
-    save_image_embedding_to_minio(minio_client, generation_task.uuid, job_completion_time, dataset,
-                                  output_file_path.replace('.jpg', '_embedding.msgpack'), output_file_hash,
-                                  positive_prompts, negative_prompts, embedded_prompts.detach().cpu().numpy(),
-                                  negative_embedded_prompts.detach().cpu().numpy())
+    save_image_embedding_to_minio(minio_client,
+                                  generation_task.uuid,
+                                  job_completion_time,
+                                  dataset,
+                                  output_file_path,
+                                  output_file_hash,
+                                  positive_prompts,
+                                  negative_prompts,
+                                  clip_text_embedder)
 
     info_v2("Upload for job {} completed".format(generation_task.uuid))
     info_v2("Upload time elapsed: {:.4f}s".format(time.time() - start_time))
