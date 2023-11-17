@@ -157,7 +157,7 @@ if __name__ == '__main__':
             try:
                 print("Running script for {}...".format(dataset))
                 process_embeddings(minio_client=minio_client,
-                                   dataset_name=dataset_name,
+                                   dataset_name=dataset,
                                    text_embedder=text_embedder)
             except Exception as e:
                 print("Error running script for {}: {}".format(dataset, e))

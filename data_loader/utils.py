@@ -10,6 +10,7 @@ sys.path.insert(0, base_directory)
 
 from utility.minio import cmd
 from data_loader.ab_data import ABData
+from utility.path import separate_bucket_and_file_path
 
 DATASETS_BUCKET = "datasets"
 
@@ -29,17 +30,7 @@ def get_ab_data(minio_client, path, index):
     if "flagged" in item:
         flagged = item["flagged"]
 
-    ab_data = ABData(task=item["task"],
-                     username=item["username"],
-                     hash_image_1=item["image_1_metadata"]["file_hash"],
-                     hash_image_2=item["image_2_metadata"]["file_hash"],
-                     selected_image_index=item["selected_image_index"],
-                     selected_image_hash=item["selected_image_hash"],
-                     image_archive="",
-                     image_1_path=item["image_1_metadata"]["file_path"],
-                     image_2_path=item["image_2_metadata"]["file_path"],
-                     datetime=item["datetime"],
-                     flagged=flagged)
+    ab_data = ABData.deserialize(item)
 
     return ab_data, flagged, index
 
