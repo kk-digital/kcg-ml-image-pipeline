@@ -284,7 +284,7 @@ def load_classification_dataset(minio_client):
         else:
             output="increase"
 
-        if decrease_data/(decrease_data+ increase_data)>0.6 and output=="decrease":
+        if decrease_data/(decrease_data + increase_data +1)>0.6 and output=="decrease":
             continue
         elif(output=="decrease"):
             decrease_data+=1
