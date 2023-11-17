@@ -252,10 +252,7 @@ def load_dataset(minio_client):
     sigma_mean=np.mean(score_encoding)
     sigma_std=np.std(score_encoding)
     score_encoding = [(x - sigma_mean) / sigma_std for x in score_encoding]
-
     #compute sigma scores for output
-    sigma_mean=np.mean(outputs)
-    sigma_std=np.std(outputs)
     outputs = [(x - sigma_mean) / sigma_std for x in outputs]
 
     return inputs, position_encoding, score_encoding, outputs
@@ -434,22 +431,22 @@ def main():
     
     #create_dataset(minio_client, device)
 
-    inputs, outputs =load_classification_dataset(minio_client)
+    inputs, position_encoding, score_encoding, outputs =load_dataset(minio_client)
 
     # prompt mutator for predicting binary classes (increase, decrease)
-    binary_mutator= MulticlassPromptMutator(minio_client=minio_client)
-    binary_mutator.train(inputs, outputs)
-    binary_mutator.save_model(local_path="output/binary_prompt_mutator.json" , 
-                            minio_path="environmental/output/prompt_mutator/binary_prompt_mutator.json")
+    # binary_mutator= MulticlassPromptMutator(minio_client=minio_client)
+    # binary_mutator.train(inputs, outputs)
+    # binary_mutator.save_model(local_path="output/binary_prompt_mutator.json" , 
+    #                         minio_path="environmental/output/prompt_mutator/binary_prompt_mutator.json")
 
     # prompt mutator with both position encoding and initial score encoding
-    # first_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score")
-    # first_mutator.train(inputs, 
-    #                     position_encoding, 
-    #                     score_encoding,
-    #                     outputs
-    #                     )
-    # first_mutator.save_model()
+    first_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score")
+    first_mutator.train(inputs, 
+                        position_encoding, 
+                        score_encoding,
+                        outputs
+                        )
+    first_mutator.save_model()
     
     # # prompt mutator with initial score encoding
     # second_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score", 
