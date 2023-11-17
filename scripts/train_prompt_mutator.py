@@ -289,7 +289,7 @@ def load_classification_dataset(minio_client):
         elif(output=="decrease"):
             decrease_data+=1
         elif(output=="increase"):
-            decrease_data+=1
+            increase_data+=1
         outputs.append(output)
         inputs.append(msgpack_data['input'])
 
