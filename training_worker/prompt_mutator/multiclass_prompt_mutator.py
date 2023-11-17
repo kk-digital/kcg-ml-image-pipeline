@@ -29,7 +29,7 @@ class MulticlassPromptMutator:
               subsample=0.8, 
               colsample_bytree=0.8, 
               eta=0.05,
-              early_stopping=50):
+              early_stopping=100):
         
         # Label encode the target variable
         label_encoder = LabelEncoder()
