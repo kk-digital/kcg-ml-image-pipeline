@@ -26,17 +26,7 @@ def get_ab_data(minio_client, path, index):
     if "flagged" in item:
         flagged = item["flagged"]
 
-    ab_data = ABData(task=item["task"],
-                     username=item["username"],
-                     hash_image_1=item["image_1_metadata"]["file_hash"],
-                     hash_image_2=item["image_2_metadata"]["file_hash"],
-                     selected_image_index=item["selected_image_index"],
-                     selected_image_hash=item["selected_image_hash"],
-                     image_archive="",
-                     image_1_path=item["image_1_metadata"]["file_path"],
-                     image_2_path=item["image_2_metadata"]["file_path"],
-                     datetime=item["datetime"],
-                     flagged=flagged)
+    ab_data = ABData.deserialize(item)
 
     return ab_data, flagged, path, index
 
@@ -97,19 +87,34 @@ def get_data_dicts(minio_client, dataset_name, input_type):
         futures = []
         for i in range(len(ab_data_list)):
             ab_data = ab_data_list[i]
+            file_path_img_1 = ab_data.image_1_path
+            file_path_img_2 = ab_data.image_2_path
+
             # add to dict
             selection_datapoints_dict[dataset_paths[i]] = ab_data
 
-            input_type_extension = "_embedding.msgpack"
-            if input_type == constants.CLIP:
+            input_type_extension = "-text-embedding.msgpack"
+            if self.input_type == constants.CLIP:
                 input_type_extension = "_clip.msgpack"
+            elif self.input_type == constants.EMBEDDING:
+                # replace with new /embeddings
+                file_path_img_1 = file_path_img_1.replace(self.dataset_name,
+                                                          os.path.join(self.dataset_name, "embeddings/text-embedding"))
+                file_path_img_2 = file_path_img_2.replace(self.dataset_name,
+                                                          os.path.join(self.dataset_name, "embeddings/text-embedding"))
 
-            # embeddings are in file_path_embedding.msgpack
-            file_path_img_1 = ab_data.image_1_path
+                input_type_extension = "-text-embedding.msgpack"
+
+                if self.pooling_strategy == constants.AVERAGE_POOLING:
+                    input_type_extension = "-text-embedding-average-pooled.msgpack"
+                elif self.pooling_strategy == constants.MAX_POOLING:
+                    input_type_extension = "-text-embedding-max-pooled.msgpack"
+                elif self.pooling_strategy == constants.MAX_ABS_POOLING:
+                    input_type_extension = "-text-embedding-signed-max-pooled.msgpack"
+
             features_path_img_1 = file_path_img_1.replace(".jpg", input_type_extension)
             features_path_img_1 = features_path_img_1.replace("datasets/", "")
 
-            file_path_img_2 = ab_data.image_2_path
             features_path_img_2 = file_path_img_2.replace(".jpg", input_type_extension)
             features_path_img_2 = features_path_img_2.replace("datasets/", "")
 
@@ -120,7 +125,6 @@ def get_data_dicts(minio_client, dataset_name, input_type):
             features_data, features_path = future.result()
             # add to dict
             features_dict[features_path] = features_data
-
 
     return dataset_paths, selection_datapoints_dict, features_dict
 

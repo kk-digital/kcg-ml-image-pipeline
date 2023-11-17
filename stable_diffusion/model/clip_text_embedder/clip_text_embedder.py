@@ -129,6 +129,8 @@ class CLIPTextEmbedder(nn.Module):
         # Get token ids
         tokens = batch_encoding["input_ids"].to(self.device)
 
+        self.transformer = self.transformer.to(self.device)
+
         # Get CLIP embeddings
         return self.transformer(input_ids=tokens).last_hidden_state
 
@@ -139,8 +141,11 @@ class CLIPTextEmbedder(nn.Module):
         # Tokenize the prompts
         batch_encoding = self.tokenizer(prompts, truncation=True, max_length=self.max_length, return_length=True,
                                         return_overflowing_tokens=False, padding="max_length", return_tensors="pt")
+
         # Get token ids
         tokens = batch_encoding["input_ids"].to(self.device)
+
+        self.transformer = self.transformer.to(self.device)
 
         # Get CLIP embeddings
         clip_output = self.transformer(input_ids=tokens)
