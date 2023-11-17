@@ -20,7 +20,7 @@ sys.path.insert(0, base_directory)
 
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel, forward_bradley_terry
 from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import *
-from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDatasetLoader
+from data_loader.ab_ranking_dataset_loader import ABRankingDatasetLoader
 from training_worker.ab_ranking.model import constants
 from training_worker.ab_ranking.script.hyperparameter_utils import get_data_dicts, get_performance_graph_report
 from utility.minio import cmd
@@ -41,8 +41,7 @@ def train_elm_v1_hyperparameter(model,
     validation_features_x, \
         validation_features_y, \
         validation_targets = dataset_loader.get_validation_feature_vectors_and_target_hyperparam_elm(selection_datapoints_dict=selection_datapoints_dict,
-                                                                                                     features_dict=features_dict,
-                                                                                                     device="cuda:0")
+                                                                                                     features_dict=features_dict)
 
     # get total number of training features
     num_features = dataset_loader.get_len_training_ab_data()
@@ -67,8 +66,7 @@ def train_elm_v1_hyperparameter(model,
                     batch_features_y_orig, \
                     batch_targets_orig = dataset_loader.get_next_training_feature_vectors_and_target_hyperparam_elm(num_data_to_get,
                                                                                                                     selection_datapoints_dict=selection_datapoints_dict,
-                                                                                                                    features_dict=features_dict,
-                                                                                                                    device="cuda:0")
+                                                                                                                    features_dict=features_dict)
 
                 batch_features_x = batch_features_x_orig.clone().requires_grad_(True)
                 batch_features_y = batch_features_y_orig.clone().requires_grad_(True)
@@ -97,6 +95,11 @@ def train_elm_v1_hyperparameter(model,
 
                 training_loss_arr.append(loss.detach().cpu())
 
+            if randomize_data_per_epoch:
+                dataset_loader.shuffle_training_paths_hyperparam()
+
+            # reset current index
+            dataset_loader.current_training_data_index = 0
 
         # Calculate Validation Loss
         with torch.no_grad():
@@ -139,12 +142,6 @@ def train_elm_v1_hyperparameter(model,
 
         if epoch_training_loss is None:
             epoch_training_loss = epoch_validation_loss
-
-        if randomize_data_per_epoch:
-            dataset_loader.shuffle_training_paths_hyperparam()
-
-        # reset current index
-        dataset_loader.current_training_data_index = 0
 
         session.report({"training-loss": epoch_training_loss.item(), "validation-loss": epoch_validation_loss.item()})
 
@@ -216,9 +213,9 @@ def do_search(minio_access_key, minio_secret_key, dataset_name, input_type, num_
         "input_type": input_type,
         "epochs": 8,
         "num_random_layers": 1,
-        "learning_rate": tune.uniform(0.0, 1.0),
-        "weight_decay": tune.uniform(0.0, 0.5),
-        "elm_sparsity": tune.uniform(0.0, 1.0),
+        "learning_rate": 0.5,
+        "weight_decay": 0.0,
+        "elm_sparsity": 0.5,
         "add_loss_penalty": True,
         "randomize_data_per_epoch": True,
         "pooling_strategy": constants.AVERAGE_POOLING,
@@ -227,9 +224,9 @@ def do_search(minio_access_key, minio_secret_key, dataset_name, input_type, num_
         "duplicate_flip_option": constants.DUPLICATE_AND_FLIP_ALL
         }
 
-    bayesian_opt = BayesOptSearch(utility_kwargs={"kind": "ucb", "kappa": 2.5, "xi": 0.0})
+    bayesian_opt = BayesOptSearch(utility_kwargs={"kind": "ucb", "kappa": 1.9, "xi": 0.0})
 
-    trainable_with_cpu_gpu = tune.with_resources(train_hyperparameter_search, {"gpu": 1})
+    trainable_with_cpu_gpu = tune.with_resources(train_hyperparameter_search, {"cpu": 1})
     tuner = tune.Tuner(tune.with_parameters(trainable_with_cpu_gpu,
                                             dataset_paths=dataset_paths,
                                             selection_datapoints_dict=selection_datapoints_dict,

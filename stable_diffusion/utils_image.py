@@ -8,11 +8,12 @@ import torch
 import torchvision
 from PIL import Image
 from torchvision.transforms import ToPILImage
-
+import os
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
-from worker.image_generation.generation_data.generated_image_data import GeneratedImageData
-from worker.image_generation.generation_data.prompt_embedding import PromptEmbedding
+from data_loader.generated_image_data import GeneratedImageData
+from data_loader.prompt_embedding import PromptEmbedding
+from utility.clip.clip_text_embedder import tensor_attention_pooling, tensor_max_pooling, tensor_max_abs_pooling
 
 
 def calculate_sha256(tensor):
@@ -62,7 +63,6 @@ def save_image_data_to_minio(minio_client, job_uuid, creation_time, dataset, fil
                              negative_prompt,
                              cfg_strength, seed, image_width, image_height, sampler, sampler_steps,
                              prompt_scoring_model, prompt_score, prompt_generation_policy, top_k):
-
     bucket_name, file_path = separate_bucket_and_file_path(file_path)
 
     generated_image_data = GeneratedImageData(job_uuid, creation_time, dataset, file_path, file_hash, positive_prompt,
@@ -77,24 +77,131 @@ def save_image_data_to_minio(minio_client, job_uuid, creation_time, dataset, fil
     buffer.write(msgpack_string)
     buffer.seek(0)
 
-    cmd.upload_data(minio_client, bucket_name, file_path, buffer)
+    cmd.upload_data(minio_client, bucket_name, file_path.replace('.jpg', '_data.msgpack'), buffer)
 
-def save_image_embedding_to_minio(minio_client, job_uuid, creation_time, dataset, file_path, file_hash, positive_prompt,
-                                              negative_prompt, positive_embedding, negative_embedding):
-
-    bucket_name, file_path = separate_bucket_and_file_path(file_path)
-
-    generated_image_data = PromptEmbedding(job_uuid, creation_time, dataset, file_path, file_hash, positive_prompt,
-                                           negative_prompt, positive_embedding, negative_embedding)
-
-
-    msgpack_string = generated_image_data.get_msgpack_string()
+def save_prompt_embedding_to_minio(minio_client, prompt_embedding, file_path):
+    msgpack_string = prompt_embedding.get_msgpack_string()
 
     buffer = io.BytesIO()
     buffer.write(msgpack_string)
     buffer.seek(0)
 
-    cmd.upload_data(minio_client, bucket_name, file_path, buffer)
+    cmd.upload_data(minio_client, "datasets", file_path, buffer)
+
+def get_embeddings(job_uuid,
+                  creation_time,
+                  dataset,
+                  file_path,
+                  file_hash,
+                  positive_prompt,
+                  negative_prompt,
+                  text_embedder):
+    # calculate new embeddings
+    positive_embedding, _, positive_attention_mask = text_embedder.forward_return_all(positive_prompt)
+    negative_embedding, _, negative_attention_mask = text_embedder.forward_return_all(negative_prompt)
+
+    positive_attention_mask_detached = positive_attention_mask.detach().cpu().numpy()
+    negative_attention_mask_detached = negative_attention_mask.detach().cpu().numpy()
+    prompt_embedding = PromptEmbedding(job_uuid,
+                                       creation_time,
+                                       dataset,
+                                       file_path,
+                                       file_hash,
+                                       positive_prompt,
+                                       negative_prompt,
+                                       positive_embedding.detach().cpu().numpy(),
+                                       negative_embedding.detach().cpu().numpy(),
+                                       positive_attention_mask_detached,
+                                       negative_attention_mask_detached)
+
+    # average
+    positive_average_pooled = tensor_attention_pooling(positive_embedding, positive_attention_mask)
+    negative_average_pooled = tensor_attention_pooling(negative_embedding, negative_attention_mask)
+
+    prompt_embedding_average_pooled = PromptEmbedding(job_uuid,
+                                       creation_time,
+                                       dataset,
+                                       file_path,
+                                       file_hash,
+                                       positive_prompt,
+                                       negative_prompt,
+                                       positive_average_pooled.detach().cpu().numpy(),
+                                       negative_average_pooled.detach().cpu().numpy(),
+                                       positive_attention_mask_detached,
+                                       negative_attention_mask_detached)
+
+    # max
+    positive_max_pooled = tensor_max_pooling(positive_embedding)
+    negative_max_pooled = tensor_max_pooling(negative_embedding)
+    prompt_embedding_max_pooled = PromptEmbedding(job_uuid,
+                                                  creation_time,
+                                                  dataset,
+                                                  file_path,
+                                                  file_hash,
+                                                  positive_prompt,
+                                                  negative_prompt,
+                                                  positive_max_pooled.detach().cpu().numpy(),
+                                                  negative_max_pooled.detach().cpu().numpy(),
+                                                  positive_attention_mask_detached,
+                                                  negative_attention_mask_detached)
+
+    # signed max
+    positive_signed_max_pooled = tensor_max_abs_pooling(positive_embedding)
+    negative_signed_max_pooled = tensor_max_abs_pooling(negative_embedding)
+    prompt_embedding_signed_max_pooled = PromptEmbedding(job_uuid,
+                                                          creation_time,
+                                                          dataset,
+                                                          file_path,
+                                                          file_hash,
+                                                          positive_prompt,
+                                                          negative_prompt,
+                                                          positive_signed_max_pooled.detach().cpu().numpy(),
+                                                          negative_signed_max_pooled.detach().cpu().numpy(),
+                                                          positive_attention_mask_detached,
+                                                          negative_attention_mask_detached)
+
+    return prompt_embedding, prompt_embedding_average_pooled, prompt_embedding_max_pooled, prompt_embedding_signed_max_pooled
+
+
+def save_image_embedding_to_minio(minio_client,
+                                  dataset,
+                                  file_path,
+                                  prompt_embedding,
+                                  prompt_embedding_average_pooled,
+                                  prompt_embedding_max_pooled,
+                                  prompt_embedding_signed_max_pooled):
+    bucket_name, file_path = separate_bucket_and_file_path(file_path)
+
+    # get filename
+    filename = os.path.split(file_path)[-1]
+    filename = filename.replace(".jpg", "")
+    # get parent dir
+    parent_dir = os.path.dirname(file_path)
+    parent_dir = os.path.split(parent_dir)[-1]
+
+    text_embedding_path_1 = file_path.replace(".jpg", "_embedding.msgpack")
+    text_embedding_path_2 = os.path.join(dataset, "embeddings/text-embedding", parent_dir,
+                                       filename + "-text-embedding.msgpack")
+    text_embedding_average_pooled_path = os.path.join(dataset, "embeddings/text-embedding", parent_dir,
+                                                      filename + "-text-embedding-average-pooled.msgpack")
+    text_embedding_max_pooled_path = os.path.join(dataset, "embeddings/text-embedding", parent_dir,
+                                                  filename + "-text-embedding-max-pooled.msgpack")
+    text_embedding_signed_max_pooled_path = os.path.join(dataset, "embeddings/text-embedding", parent_dir,
+                                                         filename + "-text-embedding-signed-max-pooled.msgpack")
+
+
+    # save normal embedding 77*768
+    save_prompt_embedding_to_minio(minio_client, prompt_embedding, text_embedding_path_1)
+    save_prompt_embedding_to_minio(minio_client, prompt_embedding, text_embedding_path_2)
+
+    # average
+    save_prompt_embedding_to_minio(minio_client, prompt_embedding_average_pooled, text_embedding_average_pooled_path)
+
+    # max
+    save_prompt_embedding_to_minio(minio_client, prompt_embedding_max_pooled, text_embedding_max_pooled_path)
+
+    # signed max
+    save_prompt_embedding_to_minio(minio_client, prompt_embedding_signed_max_pooled, text_embedding_signed_max_pooled_path)
 
 
 def save_images_to_minio(minio_client, images: torch.Tensor, dest_path: str, img_format: str = 'jpeg'):

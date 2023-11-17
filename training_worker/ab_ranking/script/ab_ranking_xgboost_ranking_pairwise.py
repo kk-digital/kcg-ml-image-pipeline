@@ -19,7 +19,7 @@ from utility.regression_utils import torchinfo_summary
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from training_worker.ab_ranking.model.reports.ab_ranking_linear_train_report import get_train_report
 from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import *
-from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDatasetLoader
+from data_loader.ab_ranking_dataset_loader import ABRankingDatasetLoader
 from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
 from utility.minio import cmd
 from training_worker.ab_ranking.model import constants
@@ -62,7 +62,6 @@ def train_xgboost(dataset_name: str,
                   minio_access_key=None,
                   minio_secret_key=None,
                   input_type="clip",
-                  buffer_size=20000,
                   train_percent=0.9,
                   load_data_to_ram=False,
                   normalize_vectors=True,
@@ -96,7 +95,6 @@ def train_xgboost(dataset_name: str,
                                             minio_access_key=minio_access_key,
                                             minio_secret_key=minio_secret_key,
                                             input_type=input_type,
-                                            buffer_size=buffer_size,
                                             train_percent=train_percent,
                                             load_to_ram=load_data_to_ram,
                                             pooling_strategy=pooling_strategy,
