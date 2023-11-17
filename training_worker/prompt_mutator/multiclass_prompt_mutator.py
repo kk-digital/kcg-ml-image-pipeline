@@ -17,10 +17,9 @@ sys.path.insert(0, base_directory)
 from utility.minio import cmd
 
 class MulticlassPromptMutator:
-    def __init__(self, minio_client, model=None, output_type="binary"):
-        self.model = model
+    def __init__(self, minio_client):
+        self.model = None
         self.minio_client= minio_client
-        self.output_type=output_type
         self.accuracy=0
 
     def train(self, input, output, 
@@ -30,8 +29,7 @@ class MulticlassPromptMutator:
               subsample=1, 
               colsample_bytree=1, 
               eta=0.05,
-              early_stopping=50,
-              num_class=2):
+              early_stopping=50):
         
         # Label encode the target variable
         label_encoder = LabelEncoder()
@@ -39,44 +37,39 @@ class MulticlassPromptMutator:
 
         X_train, X_val, y_train, y_val = train_test_split(input, output, test_size=0.2, shuffle=True)
 
-        dtrain = xgb.DMatrix(X_train, label=y_train)
-        dval = xgb.DMatrix(X_val, label=y_val)
-
         params = {
+            'objective':'binary:logistic',
             'max_depth': max_depth,
             'min_child_weight': min_child_weight,
             'gamma': gamma,
             'subsample': subsample,
             'colsample_bytree': colsample_bytree,
             'eta': eta,
+            'eval_metric':'logloss',
+            'n_estimators': 1000,
+            'early_stopping_rounds':early_stopping
         }
 
-        if(num_class>2):
-            params['objective']='multi:softmax'
-            params['num_class']= num_class
-        else:
-            params['objective']='binary:logistic'
-            params['eval_metric']='logloss'
-        
+        self.model=xgb.XGBClassifier(**params)
+
         # Train the XGBoost model
         evals_result={}
-        model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval,'eval'), (dtrain,'train')], 
-                               early_stopping_rounds=early_stopping, evals_result=evals_result)
-        
-        #Extract logloss values
-        val_logloss = evals_result['eval']['logloss']
-        train_logloss = evals_result['train']['logloss']
+        self.model.fit(X_train, y_train, eval_set=[(X_train, y_train),(X_val, y_val)])
+        # Extract the log loss values for each round
+        evals_result = self.model.evals_result()
+
+        # Extract log loss values for training and validation sets
+        train_logloss = evals_result["validation_0"]["logloss"]
+        val_logloss = evals_result["validation_1"]["logloss"]
 
         # Make predictions on the test set
-        y_pred = model.predict(dval)
+        y_pred = self.model.predict(X_val)
 
         y_pred=label_encoder.inverse_transform(y_pred.astype(int))
         y_val=label_encoder.inverse_transform(y_val)
 
         # Calculate accuracy
         self.accuracy = sum(y_pred == y_val) / len(y_val)
-
-        self.model = model
 
         self.save_graph_report(train_logloss, val_logloss, y_val, y_pred, len(X_train), len(X_val))
     
@@ -100,7 +93,7 @@ class MulticlassPromptMutator:
                                                             'XGBoost',
                                                             'clip_text_embedding',
                                                             '1537',
-                                                            self.output_type,
+                                                            "binary",
                                                             training_size,
                                                             validation_size,
                                                             self.accuracy
@@ -131,7 +124,7 @@ class MulticlassPromptMutator:
         # Adjust spacing between subplots
         plt.subplots_adjust(hspace=0.7, wspace=0, left=0.4)
 
-        plt.savefig(f'output/{self.output_type}_model.png')
+        plt.savefig(f'output/binary_model.png')
 
         # Save the figure to a file
         buf = BytesIO()
@@ -139,9 +132,19 @@ class MulticlassPromptMutator:
         buf.seek(0)
 
         # upload the graph report
-        graph_output = os.path.join('environmental', f"output/prompt_mutator/{self.output_type}_model.png")
+        graph_output ='environmental/' + f"output/prompt_mutator/binary_classification_model.png"
         cmd.upload_data(self.minio_client, 'datasets', graph_output, buf)
         
+    def predict_probs(self, X):
+        class_labels=['decrease', 'increase']
+        y_pred = self.model.predict_proba(X)
+        # Create a list of dictionaries, where each dictionary represents the class probabilities for a single prediction
+        predictions_with_probabilities = [
+            {class_labels[i]: prob for i, prob in enumerate(row)} for row in y_pred
+        ]
+
+        return predictions_with_probabilities
+
     def predict(self, X):
         dtest = xgb.DMatrix(X)
         return self.model.predict(dtest)

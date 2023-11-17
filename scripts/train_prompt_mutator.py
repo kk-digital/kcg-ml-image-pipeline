@@ -258,7 +258,36 @@ def load_dataset(minio_client):
     sigma_std=np.std(outputs)
     outputs = [(x - sigma_mean) / sigma_std for x in outputs]
 
-    return inputs, position_encoding, score_encoding, outputs     
+    return inputs, position_encoding, score_encoding, outputs
+
+def load_classification_dataset(minio_client):
+    dataset_files=minio_client.list_objects('datasets', prefix="environmental/output/prompt_mutator/data/")
+    dataset_files= [file.object_name for file in dataset_files]
+
+    inputs=[]
+    outputs=[]
+
+    for file in dataset_files:
+        print(file)
+        # get prompt embedding
+        data = minio_client.get_object('datasets', file)
+        # Read the content of the msgpack file
+        content = data.read()
+
+        # Deserialize the content using msgpack
+        msgpack_data = msgpack.loads(content)
+
+        # get input and output
+        inputs.append(msgpack_data['input'])
+
+        if msgpack_data['score_encoding']> msgpack_data['output']:
+            output="decrease"
+        else:
+            output="increase"
+        outputs.append(output)
+        
+
+    return inputs, outputs        
         
 
 # def load_dataset(minio_client, device):
@@ -396,46 +425,46 @@ def main():
     
     #create_dataset(minio_client, device)
 
-    inputs, position_encoding, score_encoding, outputs =load_dataset(minio_client)
+    inputs, outputs =load_classification_dataset(minio_client)
+
+    # prompt mutator for predicting binary classes (increase, decrease)
+    binary_mutator= MulticlassPromptMutator(minio_client=minio_client)
+    binary_mutator.train(inputs, outputs)
+    binary_mutator.save_model(local_path="output/binary_prompt_mutator.json" , 
+                            minio_path="environmental/output/prompt_mutator/binary_prompt_mutator.json")
 
     # prompt mutator with both position encoding and initial score encoding
-    first_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score")
-    first_mutator.train(inputs, 
-                        position_encoding, 
-                        score_encoding,
-                        outputs
-                        )
-    first_mutator.save_model()
+    # first_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score")
+    # first_mutator.train(inputs, 
+    #                     position_encoding, 
+    #                     score_encoding,
+    #                     outputs
+    #                     )
+    # first_mutator.save_model()
     
-    # prompt mutator with initial score encoding
-    second_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score", 
-                                use_position_encoding=False,
-                                use_score_encoding= True)
-    second_mutator.train(inputs, 
-                        position_encoding, 
-                        score_encoding,
-                        outputs
-                        )
-    second_mutator.save_model()
+    # # prompt mutator with initial score encoding
+    # second_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score", 
+    #                             use_position_encoding=False,
+    #                             use_score_encoding= True)
+    # second_mutator.train(inputs, 
+    #                     position_encoding, 
+    #                     score_encoding,
+    #                     outputs
+    #                     )
+    # second_mutator.save_model()
     
-    # prompt mutator with position encoding
-    third_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score",
-                                use_position_encoding=True,
-                                use_score_encoding= False)
-    third_mutator.train(inputs, 
-                        position_encoding, 
-                        score_encoding,
-                        outputs
-                        )
-    third_mutator.save_model()
+    # # prompt mutator with position encoding
+    # third_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score",
+    #                             use_position_encoding=True,
+    #                             use_score_encoding= False)
+    # third_mutator.train(inputs, 
+    #                     position_encoding, 
+    #                     score_encoding,
+    #                     outputs
+    #                     )
+    # third_mutator.save_model()
     
     # input, delta_output, sigma_output, binary_output = load_dataset(minio_client, device)
-
-    # # prompt mutator for predicting binary classes (increase, decrease)
-    # binary_mutator= MulticlassPromptMutator(minio_client=minio_client, output_type="binary")
-    # binary_mutator.train(input, binary_output)
-    # binary_mutator.save_model(local_path="output/binary_prompt_mutator.json" , 
-    #                         minio_path="environmental/output/prompt_mutator/binary_prompt_mutator.json")
 
     # # prompt mutator for predicting delta scores
     # delta_mutator= PromptMutator(minio_client=minio_client, output_type="delta_score")
