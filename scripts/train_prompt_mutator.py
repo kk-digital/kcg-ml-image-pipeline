@@ -266,8 +266,17 @@ def load_classification_dataset(minio_client):
 
     inputs=[]
     outputs=[]
+    skip_index=0
 
     for file in dataset_files:
+        if(skip_index<2):
+            skip_index+=1
+            continue
+        elif(skip_index==4):
+            skip_index=1
+            continue
+
+        skip_index+=1
         print(file)
         # get prompt embedding
         data = minio_client.get_object('datasets', file)
