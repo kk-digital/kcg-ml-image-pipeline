@@ -289,8 +289,8 @@ def main(
 
         # every folder should store a maximum of 10000 samples
         if ((i + 1) % 10000) == 0 or (i + 1) == n_data:
-            df_data_removed = pd.DataFrame(df_data_removed)
-            df_data_add = pd.DataFrame(df_data_add)
+            df_data_removed = pd.DataFrame(df_data_removed).round(9)
+            df_data_add = pd.DataFrame(df_data_add).round(9)
 
             # # remove embedding and positional encoding to decluatter csv
             # df_data_removed = df_data_removed.drop(
