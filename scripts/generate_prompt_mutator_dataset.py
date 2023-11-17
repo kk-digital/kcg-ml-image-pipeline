@@ -292,13 +292,13 @@ def main(
             df_data_removed = pd.DataFrame(df_data_removed)
             df_data_add = pd.DataFrame(df_data_add)
 
-            # remove embedding and positional encoding to decluatter csv
-            df_data_removed = df_data_removed.drop(
-                ['original_embedding', 'removed_embedding', 'positional_encoding'], axis=1
-            )
-            df_data_add = df_data_add.drop(
-                ['original_embedding', 'add_embedding', 'positional_encoding'], axis=1
-            )
+            # # remove embedding and positional encoding to decluatter csv
+            # df_data_removed = df_data_removed.drop(
+            #     ['original_embedding', 'removed_embedding', 'positional_encoding'], axis=1
+            # )
+            # df_data_add = df_data_add.drop(
+            #     ['original_embedding', 'add_embedding', 'positional_encoding'], axis=1
+            # )
             removed_path = os.path.join(
                 minio_upload_path,
                 'prompt_removal',
