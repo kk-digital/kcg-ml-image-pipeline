@@ -318,6 +318,8 @@ def main(
             df_data_removed = []
             df_data_add = []
 
+        seed_prompt = add_data['add_prompt']
+
     print('Waiting for upload threads to complete')
     for thread in upload_threads:
         thread.join()
