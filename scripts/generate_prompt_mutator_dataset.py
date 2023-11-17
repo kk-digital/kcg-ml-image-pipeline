@@ -292,13 +292,13 @@ def main(
             df_data_removed = pd.DataFrame(df_data_removed).round(9)
             df_data_add = pd.DataFrame(df_data_add).round(9)
 
-            # # remove embedding and positional encoding to decluatter csv
-            # df_data_removed = df_data_removed.drop(
-            #     ['original_embedding', 'removed_embedding', 'positional_encoding'], axis=1
-            # )
-            # df_data_add = df_data_add.drop(
-            #     ['original_embedding', 'add_embedding', 'positional_encoding'], axis=1
-            # )
+            # remove embedding to decluatter csv
+            df_data_removed = df_data_removed.drop(
+                ['original_embedding', 'removed_embedding'], axis=1
+            )
+            df_data_add = df_data_add.drop(
+                ['original_embedding', 'add_embedding'], axis=1
+            )
             removed_path = os.path.join(
                 minio_upload_path,
                 'prompt_removal',
@@ -311,8 +311,18 @@ def main(
                 str(folder).zfill(6),
                 f'data_add_{str(i+1).zfill(6)}.csv'
             )
-            dataset_generator.upload_csv_to_minio(df_data_removed, removed_path)
-            dataset_generator.upload_csv_to_minio(df_data_add, add_path)
+            upload_removed = threading.Thread(
+                target=dataset_generator.upload_csv_to_minio,
+                args=(df_data_removed, removed_path,)
+            )
+            upload_add = threading.Thread(
+                target=dataset_generator.upload_csv_to_minio,
+                args=(df_data_add, add_path,)
+            )
+            upload_threads.append(upload_removed)
+            upload_threads.append(upload_add)
+            upload_removed.start()
+            upload_add.start()
 
             folder += 1
             df_data_removed = []
