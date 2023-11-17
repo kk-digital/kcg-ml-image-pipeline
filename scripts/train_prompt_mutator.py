@@ -279,8 +279,6 @@ def load_classification_dataset(minio_client):
         msgpack_data = msgpack.loads(content)
 
         # get input and output
-        inputs.append(msgpack_data['input'])
-
         if msgpack_data['score_encoding']> msgpack_data['output'] :
             output="decrease"
         else:
@@ -293,6 +291,7 @@ def load_classification_dataset(minio_client):
         elif(output=="increase"):
             decrease_data+=1
         outputs.append(output)
+        inputs.append(msgpack_data['input'])
 
         print(file)
         
