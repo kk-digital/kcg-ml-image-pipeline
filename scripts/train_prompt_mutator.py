@@ -266,18 +266,10 @@ def load_classification_dataset(minio_client):
 
     inputs=[]
     outputs=[]
-    skip_index=0
+    decrease_data=0
+    increase_data=0
 
     for file in dataset_files:
-        if(skip_index<2):
-            skip_index+=1
-            continue
-        elif(skip_index==4):
-            skip_index=1
-            continue
-
-        skip_index+=1
-        print(file)
         # get prompt embedding
         data = minio_client.get_object('datasets', file)
         # Read the content of the msgpack file
@@ -289,11 +281,20 @@ def load_classification_dataset(minio_client):
         # get input and output
         inputs.append(msgpack_data['input'])
 
-        if msgpack_data['score_encoding']> msgpack_data['output']:
+        if msgpack_data['score_encoding']> msgpack_data['output'] :
             output="decrease"
         else:
             output="increase"
+
+        if decrease_data>increase_data and output=="decrease":
+            continue
+        elif(output=="decrease"):
+            decrease_data+=1
+        elif(output=="increase"):
+            decrease_data+=1
         outputs.append(output)
+
+        print(file)
         
 
     return inputs, outputs        
