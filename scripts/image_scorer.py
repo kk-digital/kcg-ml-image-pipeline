@@ -87,7 +87,7 @@ class ImageScorer:
         all_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', self.dataset)
 
         # Depending on the model type, choose the appropriate msgpack files
-        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "_embedding.msgpack"
+        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "-text-embedding.msgpack"
 
         # Filter the objects to get only those that end with the chosen suffix
         type_paths = [obj for obj in all_objects if obj.endswith(file_suffix)]
