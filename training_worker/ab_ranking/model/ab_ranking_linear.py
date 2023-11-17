@@ -15,7 +15,7 @@ sys.path.insert(0, base_directory)
 
 from data_loader.ab_ranking_dataset_loader import ABRankingDatasetLoader
 from utility.minio import cmd
-
+from utility.clip.clip_text_embedder import tensor_attention_pooling
 
 class ABRankingLinearModel(nn.Module):
     def __init__(self, inputs_shape):
@@ -307,6 +307,8 @@ class ABRankingModel:
             training_loss_per_epoch, \
             validation_loss_per_epoch
 
+    # Deprecate: This will be replaced by
+    # predict_average_pooling
     def predict(self, positive_input, negative_input):
         # get rid of the 1 dimension at start
         positive_input = positive_input.squeeze()
@@ -328,6 +330,34 @@ class ABRankingModel:
             outputs = self.model.forward(inputs).squeeze()
 
             return outputs
+
+    def predict_average_pooling(self,
+                                positive_input,
+                                negative_input,
+                                positive_attention_mask,
+                                negative_attention_mask):
+        # get rid of the 1 dimension at start
+        positive_input = positive_input.squeeze()
+        negative_input = negative_input.squeeze()
+
+        # do average pooling
+        positive_input = tensor_attention_pooling(positive_input, positive_attention_mask)
+        negative_input = tensor_attention_pooling(negative_input, negative_attention_mask)
+
+        # make it [2, 1, 768]
+        inputs = torch.stack((positive_input, negative_input))
+
+        # make it [1, 2, 1, 768]
+        inputs = inputs.unsqueeze(0)
+
+        # then concatenate
+        inputs = inputs.reshape(len(inputs), -1)
+
+        with torch.no_grad():
+            outputs = self.model.forward(inputs).squeeze()
+
+            return outputs
+
 
     def predict_positive_or_negative_only(self, inputs):
         # do average pooling

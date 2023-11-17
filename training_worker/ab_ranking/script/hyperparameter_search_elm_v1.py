@@ -95,6 +95,11 @@ def train_elm_v1_hyperparameter(model,
 
                 training_loss_arr.append(loss.detach().cpu())
 
+            if randomize_data_per_epoch:
+                dataset_loader.shuffle_training_paths_hyperparam()
+
+            # reset current index
+            dataset_loader.current_training_data_index = 0
 
         # Calculate Validation Loss
         with torch.no_grad():
@@ -137,12 +142,6 @@ def train_elm_v1_hyperparameter(model,
 
         if epoch_training_loss is None:
             epoch_training_loss = epoch_validation_loss
-
-        if randomize_data_per_epoch:
-            dataset_loader.shuffle_training_paths_hyperparam()
-
-        # reset current index
-        dataset_loader.current_training_data_index = 0
 
         session.report({"training-loss": epoch_training_loss.item(), "validation-loss": epoch_validation_loss.item()})
 
@@ -214,9 +213,9 @@ def do_search(minio_access_key, minio_secret_key, dataset_name, input_type, num_
         "input_type": input_type,
         "epochs": 8,
         "num_random_layers": 1,
-        "learning_rate": tune.uniform(0.0, 0.1),
-        "weight_decay": tune.uniform(0.0, 0.5),
-        "elm_sparsity": tune.uniform(0.0, 1.0),
+        "learning_rate": 0.5,
+        "weight_decay": 0.0,
+        "elm_sparsity": 0.5,
         "add_loss_penalty": True,
         "randomize_data_per_epoch": True,
         "pooling_strategy": constants.AVERAGE_POOLING,
@@ -225,7 +224,7 @@ def do_search(minio_access_key, minio_secret_key, dataset_name, input_type, num_
         "duplicate_flip_option": constants.DUPLICATE_AND_FLIP_ALL
         }
 
-    bayesian_opt = BayesOptSearch(utility_kwargs={"kind": "ucb", "kappa": 2.5, "xi": 0.0})
+    bayesian_opt = BayesOptSearch(utility_kwargs={"kind": "ucb", "kappa": 1.9, "xi": 0.0})
 
     trainable_with_cpu_gpu = tune.with_resources(train_hyperparameter_search, {"cpu": 1})
     tuner = tune.Tuner(tune.with_parameters(trainable_with_cpu_gpu,
