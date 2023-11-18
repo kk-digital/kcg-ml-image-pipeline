@@ -245,15 +245,15 @@ def load_dataset(minio_client):
         inputs.append(msgpack_data['input'])
         position_encoding.append(msgpack_data['position_encoding'])
         score_encoding.append(msgpack_data['score_encoding'])
-        outputs.append(msgpack_data['output'])
+        outputs.append(msgpack_data['output'] - msgpack_data['score_encoding'])
         
 
     #compute sigma scores for initial score encoding
-    sigma_mean=np.mean(score_encoding)
-    sigma_std=np.std(score_encoding)
-    score_encoding = [(x - sigma_mean) / sigma_std for x in score_encoding]
+    # sigma_mean=np.mean(score_encoding)
+    # sigma_std=np.std(score_encoding)
+    # score_encoding = [(x - sigma_mean) / sigma_std for x in score_encoding]
     #compute sigma scores for output
-    outputs = [(x - sigma_mean) / sigma_std for x in outputs]
+    #outputs = [(x - sigma_mean) / sigma_std for x in outputs]
 
     return inputs, position_encoding, score_encoding, outputs
 
@@ -280,13 +280,8 @@ def load_classification_dataset(minio_client):
             output="decrease"
         else:
             output="increase"
+        
 
-        if decrease_data/(decrease_data + increase_data +1)>0.6 and output=="decrease":
-            continue
-        elif(output=="decrease"):
-            decrease_data+=1
-        elif(output=="increase"):
-            increase_data+=1
         outputs.append(output)
         inputs.append(msgpack_data['input'])
 
@@ -439,8 +434,8 @@ def main():
     # binary_mutator.save_model(local_path="output/binary_prompt_mutator.json" , 
     #                         minio_path="environmental/output/prompt_mutator/binary_prompt_mutator.json")
 
-    # prompt mutator with both position encoding and initial score encoding
-    first_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score")
+    #prompt mutator with both position encoding and initial score encoding
+    first_mutator= PromptMutator(minio_client=minio_client, output_type="delta_score")
     first_mutator.train(inputs, 
                         position_encoding, 
                         score_encoding,
