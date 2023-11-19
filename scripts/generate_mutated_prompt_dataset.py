@@ -11,12 +11,14 @@ import msgpack
 import tqdm
 import time
 import threading
+import traceback
 
 import pandas as pd
 
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from utility.minio import cmd
 from transformers import CLIPTokenizer, CLIPTextModel
+from worker.prompt_generation.prompt_generator import load_base_prompts, generate_image_generation_jobs
 
 transformers.logging.set_verbosity_error()
 
@@ -27,15 +29,17 @@ class PromptMutatorDatasetGenerator:
         clip_tokenizer_path,
         minio_access_key,
         minio_secret_key,
-        minio_ip_addr
+        minio_ip_addr,
+        csv_base_prompts,
+        csv_phrase
     ):
-        
         self.minio_client = cmd.get_minio_client(
             minio_access_key=minio_access_key,
             minio_secret_key=minio_secret_key,
             minio_ip_addr=minio_ip_addr
         )
-
+        self.csv_base_prompts = csv_base_prompts
+        self.df_phrase = pd.read_csv(csv_phrase)
         self.scorer = self.load_model(768, device='cuda')
         self.clip_model, self.tokenizer = self.load_clip(clip_model_path, clip_tokenizer_path)
 
@@ -115,12 +119,6 @@ class PromptMutatorDatasetGenerator:
         removed_score = self.score_prompt(removed_prompt)
         removed_embedding = self.embed(removed_phrase).cpu().numpy().tolist()
 
-        # compute positional encoding
-        original_token = self.get_tokens(prompt)
-        removed_token = self.get_tokens(removed_prompt)
-        positional_encoding = [1 if token in original_token and token not in removed_token else 0 for token in original_token]
-        positional_encoding = positional_encoding + [0] * (77 - len(positional_encoding))
-
         return {
             'original_prompt': prompt,
             'original_length': original_length,
@@ -130,8 +128,7 @@ class PromptMutatorDatasetGenerator:
             'removed_phrase': removed_phrase,
             'removed_length': removed_length,
             'removed_score': removed_score,
-            'removed_embedding': removed_embedding,
-            'positional_encoding': positional_encoding
+            'removed_embedding': removed_embedding
         }
 
     def create_add_datapoint(self, prompt, df_phrase):
@@ -157,11 +154,6 @@ class PromptMutatorDatasetGenerator:
         add_score = self.score_prompt(add_prompt)
         add_embedding = self.embed(add_phrase).cpu().numpy().tolist()
 
-        # compute positional encoding
-        original_token = self.get_tokens(prompt)
-        add_token = self.get_tokens(add_prompt)
-        positional_encoding = [1 if token in add_token and token not in original_token else 0 for token in add_token]
-        positional_encoding = positional_encoding + [0] * (77 - len(positional_encoding))
 
         return {
             'original_prompt': prompt,
@@ -172,9 +164,46 @@ class PromptMutatorDatasetGenerator:
             'add_phrase': add_phrase,
             'add_length': add_length,
             'add_score': add_score,
-            'add_embedding': add_embedding,
-            'positional_encoding': positional_encoding
+            'add_embedding': add_embedding
         }
+    
+    def generate_seed_prompt(self):
+        base_prompt_population = load_base_prompts(self.csv_base_prompts)
+        random.shuffle(base_prompt_population)
+
+        seed_prompt = ''
+        for phrase in base_prompt_population:
+            seed_prompt += f'{phrase},'
+            seed_length = self.get_token_length(seed_prompt)
+            if seed_length >= 60:
+                break
+
+        return seed_prompt
+    
+    def sample_datapoint(self, seed_prompt=None, n_optimization=1000):
+        if seed_prompt is None:
+            seed_prompt = self.generate_seed_prompt()
+
+        modified_prompt = seed_prompt
+        print('Optimizing prompt')
+        for i in tqdm.tqdm(range(n_optimization)):
+            add_data = self.create_add_datapoint(modified_prompt, self.df_phrase)
+            # keep prompt with higher score
+            modified_prompt = add_data['original_prompt'] \
+                if add_data['original_score'] > add_data['add_score'] else add_data['add_prompt']
+            # print(self.score_prompt(modified_prompt))
+            
+            remove_data = self.create_remove_datapoint(modified_prompt)
+            # keep prompt with higher score
+            modified_prompt = remove_data['original_prompt'] \
+                if remove_data['original_score'] > remove_data['removed_score'] else remove_data['removed_prompt']
+            
+        seed_score = self.score_prompt(seed_prompt)
+        modified_score = self.score_prompt(modified_prompt)
+
+        print(f'Prompt: {modified_prompt}  Score: {modified_score:.3f}  Base Score: {seed_score:.3f}')
+            
+        return modified_prompt, modified_score
     
     def upload_msgpack_to_minio(self, data, upload_path):
         buffer = io.BytesIO()
@@ -195,12 +224,17 @@ def parse_args():
     parser.add_argument('--minio-addr', required=False, help='Minio server address', default='192.168.3.5:9000')
     parser.add_argument('--minio-access-key', required=False, help='Minio access key')
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
-    parser.add_argument('--df_phrase_path', required=True, help='CSV containing phrases, must have "phrase str" column')
-    parser.add_argument('--df_seed_path', required=True, help='CSV containing prompts, must have "positive_prompt" column')
+    parser.add_argument('--csv_phrase', help='CSV containing phrases, must have "phrase str" column', default='input/civitai_phrases_database_v7_no_nsfw.csv')
     parser.add_argument('--clip_model_path', help='Path to CLIP text model', default='input/model/clip/txt_emb_model/')
     parser.add_argument('--clip_tokenizer_path', help='Path to CLIP tokenizer', default='input/model/clip/txt_emb_tokenizer/')
-    parser.add_argument('--n_data', type=int, help='Number of data samples to generate')
-    parser.add_argument('--minio_upload_path', help='Minio upload folder path')
+    parser.add_argument('--n_data', type=int, help='Number of data samples to generate', default=20)
+    parser.add_argument(
+        '--csv_base_prompts', help='CSV containing base prompts', 
+        default='input/dataset-config/environmental/base-prompts-environmental.csv'
+    )
+    parser.add_argument('--csv_save_path', help='CSV path to save job info', default='tmp/greedy_output.csv')
+    parser.add_argument('--send_job', action='store_true', default=False)
+    parser.add_argument('--dataset_name', default='test-generations')
     args = parser.parse_args()
 
     return args
@@ -211,10 +245,12 @@ def main(
     minio_access_key,
     minio_secret_key,
     minio_ip_addr,
-    df_phrase_path,
-    df_seed_path,
+    csv_phrase,
     n_data,
-    minio_upload_path
+    csv_save_path,
+    csv_base_prompts,
+    send_job,
+    dataset_name
 ):
     
     dataset_generator = PromptMutatorDatasetGenerator(
@@ -222,117 +258,33 @@ def main(
         clip_tokenizer_path=clip_tokenizer_path,
         minio_access_key=minio_access_key,
         minio_secret_key=minio_secret_key,
-        minio_ip_addr=minio_ip_addr
+        minio_ip_addr=minio_ip_addr,
+        csv_base_prompts=csv_base_prompts,
+        csv_phrase=csv_phrase
     )
 
-    df_phrase = pd.read_csv(df_phrase_path)
-    # phrases too long don't make sense, use shorter ones
-    df_phrase = df_phrase[df_phrase['token size'] <= 20]
+    df_data = []
+    for i in range(n_data):
+        prompt, score = dataset_generator.sample_datapoint(None, 800)
+        if send_job:
+            try:
+                generate_image_generation_jobs(
+                    positive_prompt=prompt,
+                    negative_prompt='',
+                    prompt_scoring_model=dataset_generator.scorer.model_type,
+                    prompt_score=score,
+                    prompt_generation_policy='greedy-search',
+                    top_k='',
+                    dataset_name=dataset_name
+                )
+            except:
+                print('Error occured:')
+                print(traceback.format_exc())
 
-    # sample seed prompt
-    df_seed = pd.read_csv(df_seed_path)
-    seed_length = 999
-    # check if seed prompt token length is shorter than 77 tokens
-    for n_tries in range(100):
-        seed_prompt = df_seed['positive_prompt'].sample().iloc[0]
-        seed_length = dataset_generator.get_token_length(seed_prompt)
+        df_data.append({'prompt': prompt, 'elm_score': score})
 
-        if seed_length <= 77:
-            break
-
-        if n_tries == 99:
-            # raise error after 100 tries
-            raise RuntimeError('Not able to sample seed prompt with length shorter than 77 tokens after 100 tries')
-        
-
-    # folder number to save data
-    folder = 0
-    df_data_removed = []
-    df_data_add = []
-    upload_threads = []
-    for i in tqdm.tqdm(range(n_data)):
-        # generate data points
-        removed_data = dataset_generator.create_remove_datapoint(seed_prompt)
-        add_data = dataset_generator.create_add_datapoint(removed_data['removed_prompt'], df_phrase)
-
-        # paths to upload msgpack
-        removed_path = os.path.join(
-            minio_upload_path,
-            'prompt_removal',
-            str(folder).zfill(6),
-            f'{str(i).zfill(6)}.msgpack'
-        )
-        add_path = os.path.join(
-            minio_upload_path,
-            'prompt_addition',
-            str(folder).zfill(6),
-            f'{str(i).zfill(6)}.msgpack'
-        )
-
-        # add data to list to generate csv
-        df_data_removed.append(removed_data)
-        df_data_add.append(add_data)
-
-        # use threading for uploading
-        upload_removed = threading.Thread(
-            target=dataset_generator.upload_msgpack_to_minio,
-            args=(removed_data, removed_path,)
-        )
-        upload_add = threading.Thread(
-            target=dataset_generator.upload_msgpack_to_minio,
-            args=(add_data, add_path,)
-        )
-        upload_threads.append(upload_removed)
-        upload_threads.append(upload_add)
-        upload_removed.start()
-        upload_add.start()
-
-        # every folder should store a maximum of 10000 samples
-        if ((i + 1) % 10000) == 0 or (i + 1) == n_data:
-            df_data_removed = pd.DataFrame(df_data_removed).round(9)
-            df_data_add = pd.DataFrame(df_data_add).round(9)
-
-            # remove embedding to decluatter csv
-            df_data_removed = df_data_removed.drop(
-                ['original_embedding', 'removed_embedding'], axis=1
-            )
-            df_data_add = df_data_add.drop(
-                ['original_embedding', 'add_embedding'], axis=1
-            )
-            removed_path = os.path.join(
-                minio_upload_path,
-                'prompt_removal',
-                str(folder).zfill(6),
-                f'data_removed_{str(i+1).zfill(6)}.csv'
-            )
-            add_path = os.path.join(
-                minio_upload_path,
-                'prompt_addition',
-                str(folder).zfill(6),
-                f'data_add_{str(i+1).zfill(6)}.csv'
-            )
-            upload_removed = threading.Thread(
-                target=dataset_generator.upload_csv_to_minio,
-                args=(df_data_removed, removed_path,)
-            )
-            upload_add = threading.Thread(
-                target=dataset_generator.upload_csv_to_minio,
-                args=(df_data_add, add_path,)
-            )
-            upload_threads.append(upload_removed)
-            upload_threads.append(upload_add)
-            upload_removed.start()
-            upload_add.start()
-
-            folder += 1
-            df_data_removed = []
-            df_data_add = []
-
-        seed_prompt = add_data['add_prompt']
-
-    print('Waiting for upload threads to complete')
-    for thread in upload_threads:
-        thread.join()
+    df_data = pd.DataFrame(df_data)
+    df_data.to_csv(csv_save_path, index=False)
 
 if __name__ == '__main__':
     args = parse_args()
@@ -343,10 +295,12 @@ if __name__ == '__main__':
         minio_access_key=args.minio_access_key,
         minio_secret_key=args.minio_secret_key,
         minio_ip_addr=args.minio_addr,
-        df_phrase_path=args.df_phrase_path,
-        df_seed_path=args.df_seed_path,
+        csv_phrase=args.csv_phrase,
         n_data=args.n_data,
-        minio_upload_path=args.minio_upload_path
+        csv_save_path=args.csv_save_path,
+        csv_base_prompts=args.csv_base_prompts,
+        send_job=args.send_job,
+        dataset_name=args.dataset_name
     )
     end = time.time()
 
