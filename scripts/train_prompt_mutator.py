@@ -127,16 +127,13 @@ def create_dataset(minio_client, device):
     clip.load_submodels()
 
     # get dataset of phrases
-    phrases_df = pd.read_csv('input/filtered_phrases.csv')
-    # Group by the "elm_percentile_bin" column
-    binned_phrases = phrases_df.groupby('elm_percentile_bin')['phrase']
+    phrases_df = pd.read_csv('input/phrase_scores.csv')
     # get minio paths for embeddings
     embedding_paths = get_embedding_paths(minio_client, "environmental")
     # get ranking mondel
     elm_model= load_model(768,minio_client, device)
 
     prompt_index=1
-    substitution_index=1
     csv_data = []
 
     for embedding in embedding_paths:
@@ -156,70 +153,64 @@ def create_dataset(minio_client, device):
         prompt_embedding = torch.tensor(np.array(prompt_embedding)).float()
         prompt_embedding=prompt_embedding.to(device)
 
-        # Randomly select 5 phrases from the dataset from each bin
-        random_phrases = binned_phrases.apply(random_phrase_from_each_bin)
+        #Randomly select a phrase from the dataset and get an embedding
+        substitute_phrase = random.choice(phrases_df['phrase'].tolist())
 
-        substitutions_per_prompt=1
-        for substitute_phrase in random_phrases:
-            print(f"--------substitution {substitutions_per_prompt} for prompt {prompt_index}")
-            # Choose a random position to substitute in the prompt
-            position_to_substitute = random.randint(0, len(prompt_str.split(',')) - 1)
+        # Choose a random position to substitute in the prompt
+        position_to_substitute = random.randint(0, len(prompt_str.split(',')) - 1)
 
-            # Create a modified prompt with the substitution and get embedding of substituted phrase
-            prompt_list = prompt_str.split(',')
-            substituted_phrase=prompt_list[position_to_substitute]
-            with torch.no_grad():
-                sub_phrase_embedding= clip.forward(substituted_phrase).unsqueeze(0)
+        # Create a modified prompt with the substitution and get embedding of substituted phrase
+        prompt_list = prompt_str.split(',')
+        substituted_phrase=prompt_list[position_to_substitute]
+        with torch.no_grad():
+            sub_phrase_embedding= clip.forward(substituted_phrase).unsqueeze(0)
 
-            prompt_list[position_to_substitute] = substitute_phrase
-            modified_prompt = ",".join(prompt_list)
+        prompt_list[position_to_substitute] = substitute_phrase
+        modified_prompt = ",".join(prompt_list)
 
-            # Get embedding of mutated prompt
-            with torch.no_grad():
-                modified_embedding= clip.forward(modified_prompt)
-                modified_embedding= modified_embedding.unsqueeze(0)
-                modified_embedding=modified_embedding.to(device)
+        # Get embedding of mutated prompt
+        with torch.no_grad():
+            modified_embedding= clip.forward(modified_prompt)
+            modified_embedding= modified_embedding.unsqueeze(0)
+            modified_embedding=modified_embedding.to(device)
 
-            # get score before and after substitution
-            with torch.no_grad():
-                prompt_score=elm_model.predict_positive_or_negative_only(prompt_embedding)
-                modified_pormpt_score= elm_model.predict_positive_or_negative_only(modified_embedding)
-            
-            # mean pooling
-            pooled_prompt_embedding=torch.mean(prompt_embedding, dim=2)
-            #flattening embedding
-            pooled_prompt_embedding = pooled_prompt_embedding.reshape(len(pooled_prompt_embedding), -1).squeeze(0)
-            
-            # mean pooling
-            pooled_sub_phrase_embedding=torch.mean(sub_phrase_embedding, dim=2)
-            #flattening embedding
-            pooled_sub_phrase_embedding = pooled_sub_phrase_embedding.reshape(len(pooled_sub_phrase_embedding), -1).squeeze(0)
-
-            # Append to the CSV data list
-            csv_data.append([
-                prompt_str,  # Prompt string
-                substitute_phrase,        # Substitute phrase string
-                substituted_phrase,  # Substituted phrase string
-                position_to_substitute,   # Substitution position
-                prompt_score.item(), # score before substitution
-                modified_pormpt_score.item() # score after substitution
-            ])
-
-            # Append to the msgpack data list
-            prompt_data={
-            'input': torch.cat([pooled_prompt_embedding, pooled_sub_phrase_embedding], dim=0).tolist(),
-            'position_encoding': position_to_substitute,
-            'score_encoding': prompt_score.item(),
-            'output': modified_pormpt_score.item()
-            }
-
-            store_in_msgpack_file(prompt_data, substitution_index, minio_client)
-            substitutions_per_prompt+=1
-            substitution_index+=1
+        # get score before and after substitution
+        with torch.no_grad():
+            prompt_score=elm_model.predict_positive_or_negative_only(prompt_embedding)
+            modified_pormpt_score= elm_model.predict_positive_or_negative_only(modified_embedding)
         
+        # mean pooling
+        pooled_prompt_embedding=torch.mean(prompt_embedding, dim=2)
+        #flattening embedding
+        pooled_prompt_embedding = pooled_prompt_embedding.reshape(len(pooled_prompt_embedding), -1).squeeze(0)
+        
+        # mean pooling
+        pooled_sub_phrase_embedding=torch.mean(sub_phrase_embedding, dim=2)
+        #flattening embedding
+        pooled_sub_phrase_embedding = pooled_sub_phrase_embedding.reshape(len(pooled_sub_phrase_embedding), -1).squeeze(0)
+
+        # Append to the CSV data list
+        csv_data.append([
+            prompt_str,  # Prompt string
+            substitute_phrase,        # Substitute phrase string
+            substituted_phrase,  # Substituted phrase string
+            position_to_substitute,   # Substitution position
+            prompt_score.item(), # score before substitution
+            modified_pormpt_score.item() # score after substitution
+        ])
+
+        # Append to the msgpack data list
+        prompt_data={
+        'input': torch.cat([pooled_prompt_embedding, pooled_sub_phrase_embedding], dim=0).tolist(),
+        'position_encoding': position_to_substitute,
+        'score_encoding': prompt_score.item(),
+        'output': modified_pormpt_score.item()
+        }
+
+        store_in_msgpack_file(prompt_data, prompt_index, minio_client)
         prompt_index+=1
 
-        store_in_csv_file(csv_data, minio_client)
+    store_in_csv_file(csv_data, minio_client)
 
 def load_dataset(minio_client):
     dataset_files=minio_client.list_objects('datasets', prefix="environmental/output/prompt_mutator/data/")
