@@ -158,7 +158,6 @@ def create_dataset(minio_client, device):
 
         # Randomly select 5 phrases from the dataset from each bin
         random_phrases = binned_phrases.apply(random_phrase_from_each_bin)
-        print(random_phrases)
 
         substitutions_per_prompt=1
         for substitute_phrase in random_phrases:
@@ -173,7 +172,7 @@ def create_dataset(minio_client, device):
                 sub_phrase_embedding= clip.forward(substituted_phrase).unsqueeze(0)
 
             prompt_list[position_to_substitute] = substitute_phrase
-            modified_prompt = " ".join(prompt_list)
+            modified_prompt = ",".join(prompt_list)
 
             # Get embedding of mutated prompt
             with torch.no_grad():
@@ -245,15 +244,15 @@ def load_dataset(minio_client):
         inputs.append(msgpack_data['input'])
         position_encoding.append(msgpack_data['position_encoding'])
         score_encoding.append(msgpack_data['score_encoding'])
-        outputs.append(msgpack_data['output'] - msgpack_data['score_encoding'])
+        outputs.append(msgpack_data['output'])
         
 
     #compute sigma scores for initial score encoding
-    # sigma_mean=np.mean(score_encoding)
-    # sigma_std=np.std(score_encoding)
-    # score_encoding = [(x - sigma_mean) / sigma_std for x in score_encoding]
+    sigma_mean=np.mean(score_encoding)
+    sigma_std=np.std(score_encoding)
+    score_encoding = [(x - sigma_mean) / sigma_std for x in score_encoding]
     #compute sigma scores for output
-    #outputs = [(x - sigma_mean) / sigma_std for x in outputs]
+    outputs = [(x - sigma_mean) / sigma_std for x in outputs]
 
     return inputs, position_encoding, score_encoding, outputs
 
@@ -263,8 +262,6 @@ def load_classification_dataset(minio_client):
 
     inputs=[]
     outputs=[]
-    decrease_data=0
-    increase_data=0
 
     for file in dataset_files:
         # get prompt embedding
@@ -424,7 +421,7 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     
-    #create_dataset(minio_client, device)
+    create_dataset(minio_client, device)
 
     inputs, position_encoding, score_encoding, outputs =load_dataset(minio_client)
 
@@ -435,7 +432,7 @@ def main():
     #                         minio_path="environmental/output/prompt_mutator/binary_prompt_mutator.json")
 
     #prompt mutator with both position encoding and initial score encoding
-    first_mutator= PromptMutator(minio_client=minio_client, output_type="delta_score")
+    first_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score")
     first_mutator.train(inputs, 
                         position_encoding, 
                         score_encoding,
