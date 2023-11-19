@@ -12,6 +12,7 @@ import tqdm
 import time
 import threading
 import traceback
+import json
 
 import pandas as pd
 
@@ -140,8 +141,11 @@ class PromptMutatorDatasetGenerator:
             prompt_phrase = prompt.split(', ')
             prompt = ', '.join(prompt_phrase[:-1])
             original_length = self.get_token_length(prompt)
-            
-        avail_length = 70 - original_length
+        
+        # use smaller number (68) to get available space
+        # the phrase list uses tiktoken and it is not accurate
+        # it may exceed length
+        avail_length = 68 - original_length
         original_score = self.score_prompt(prompt)
         original_embedding = self.embed(prompt).cpu().numpy().tolist()
         
@@ -280,11 +284,20 @@ def main(
                     top_k='',
                     dataset_name=dataset_name
                 )
+                response = json.loads(response)
+                task_uuid = response['uuid']
+                task_time = response['creation_time']
             except:
                 print('Error occured:')
                 print(traceback.format_exc())
+                task_uuid = -1
+                task_time = -1
+                continue
 
-        df_data.append({'prompt': prompt, 'elm_score': score, 'seed_elm_score': seed_score})
+        df_data.append({
+            'prompt': prompt, 'elm_score': score, 'seed_elm_score': seed_score,
+            'task_uuid': task_uuid, 'task_time': task_time
+        })
 
     df_data = pd.DataFrame(df_data)
     df_data.to_csv(csv_save_path, index=False)
