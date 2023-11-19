@@ -1,8 +1,16 @@
 FROM docker.io/nvidia/cuda:11.3.1-cudnn8-runtime-ubuntu20.04
 
 # Copy repo
-COPY ./ /training_worker
 WORKDIR /training_worker
+COPY ./training_worker /training_worker/training_worker
+COPY ./scripts/ab_ranking_elm_v1.py /training_worker/scripts/ab_ranking_elm_v1.py
+COPY ./scripts/ab_ranking_linear.py /training_worker/scripts/ab_ranking_linear.py
+COPY ./utility /training_worker/utility
+COPY ./worker/http/request.py /training_worker/worker/http/request.py
+COPY ./data_loader /training_worker/data_loader
+COPY ./stable_diffusion /training_worker/stable_diffusion
+COPY ./requirements.txt /training_worker/requirements.txt
+COPY ./requirements_scheduled_workers.txt /training_worker/requirements_scheduled_workers.txt
 
 # install prerequisites
 RUN echo 'Acquire::http::Proxy "http://192.168.3.1:3142/";' > /etc/apt/apt.conf.d/squid-deb-proxy.conf
