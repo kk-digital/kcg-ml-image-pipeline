@@ -203,7 +203,7 @@ class PromptMutatorDatasetGenerator:
 
         print(f'Prompt: {modified_prompt}  Score: {modified_score:.3f}  Base Score: {seed_score:.3f}')
             
-        return modified_prompt, modified_score
+        return modified_prompt, modified_score, seed_score
     
     def upload_msgpack_to_minio(self, data, upload_path):
         buffer = io.BytesIO()
@@ -266,7 +266,7 @@ def main(
     df_data = []
     for i in range(n_data):
         print(f'Generation prompt {i+1}')
-        prompt, score = dataset_generator.sample_datapoint(None, 800)
+        prompt, score, seed_score = dataset_generator.sample_datapoint(None, 800)
         if send_job:
             try:
                 generate_image_generation_jobs(
@@ -282,7 +282,7 @@ def main(
                 print('Error occured:')
                 print(traceback.format_exc())
 
-        df_data.append({'prompt': prompt, 'elm_score': score})
+        df_data.append({'prompt': prompt, 'elm_score': score, 'seed_elm_score': seed_score})
 
     df_data = pd.DataFrame(df_data)
     df_data.to_csv(csv_save_path, index=False)
