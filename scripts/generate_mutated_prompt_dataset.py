@@ -292,7 +292,6 @@ def main(
                 print(traceback.format_exc())
                 task_uuid = -1
                 task_time = -1
-                continue
 
         df_data.append({
             'prompt': prompt, 'elm_score': score, 'seed_elm_score': seed_score,
