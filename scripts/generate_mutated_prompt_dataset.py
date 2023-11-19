@@ -185,7 +185,7 @@ class PromptMutatorDatasetGenerator:
             seed_prompt = self.generate_seed_prompt()
 
         modified_prompt = seed_prompt
-        print('Optimizing prompt')
+        print(f'Mutating prompt for {n_optimization} iterations')
         for i in tqdm.tqdm(range(n_optimization)):
             add_data = self.create_add_datapoint(modified_prompt, self.df_phrase)
             # keep prompt with higher score
@@ -265,6 +265,7 @@ def main(
 
     df_data = []
     for i in range(n_data):
+        print(f'Generation prompt {i+1}')
         prompt, score = dataset_generator.sample_datapoint(None, 800)
         if send_job:
             try:
