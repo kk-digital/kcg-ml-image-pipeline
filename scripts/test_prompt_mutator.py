@@ -111,6 +111,9 @@ def mutate_prompt(device, embedding_model,
                   prompt_str, phrase_list, 
                   max_iterations=800, early_stopping=40):
     
+    # early stopping
+    early_stopping_iterations=early_stopping
+
     # calculate prompt embedding and score
     prompt_embedding=get_prompt_embedding(device, embedding_model, prompt_str)
     prompt_score= get_prompt_score(scoring_model, prompt_embedding)
@@ -119,18 +122,19 @@ def mutate_prompt(device, embedding_model,
     print(f"prompt str: {prompt_str}")
     print(f"initial score: {prompt_score}")
 
+    # boolean for if score increased
+    score_increased=True
     # run mutation process iteratively untill score converges
     for i in range(max_iterations):
         print(f"iteration {i}")
-        tokens=get_best_substitution_choice(sigma_model, 
-                                                        prompt_str,
-                                                        prompt_score,
-                                                        prompt_embedding, 
-                                                        phrase_embeddings)
-        
-        if len(tokens)==0:
-            break
 
+        if score_increased:
+            tokens=get_best_substitution_choice(sigma_model, 
+                                                prompt_str,
+                                                prompt_score,
+                                                prompt_embedding, 
+                                                phrase_embeddings)
+        
         for token in tokens:
             #Create a modified prompt with the substitution
             prompt_list = prompt_str.split(',')
@@ -151,14 +155,16 @@ def mutate_prompt(device, embedding_model,
 
         # check if score increased
         if prompt_score >= modified_prompt_score:
-            early_stopping-=1
+            early_stopping_iterations-=1
+            score_increased=False
         else:
+            score_increased=True
             prompt_score= modified_prompt_score
-            early_stopping=10
+            early_stopping_iterations=early_stopping
         
         print(f"----mutated prompt str: {prompt_str}")
         print(f"----resulting score: {prompt_score}")
-        if early_stopping==0:
+        if early_stopping_iterations==0:
             break
 
 def main():
@@ -186,10 +192,6 @@ def main():
     # load the xgboost model
     sigma_model= PromptMutator(minio_client=minio_client, output_type="sigma_score")
     sigma_model.load_model()
-
-    # load the classification model
-    # binary_model= MulticlassPromptMutator(minio_client=minio_client)
-    # binary_model.load_model('environmental/output/prompt_mutator/binary_prompt_mutator.json')
 
     # prompt and phrases
     prompt_str="environmental, pixel art, concept art, side scrolling, video game, neo city, (1 girl), white box, puffy lips, cinematic lighting, colorful, steampunk, partially submerged, original, 1girl, night, ribbon choker, see through top, black tissues, a masterpiece, high heel, hand on own crotch"
