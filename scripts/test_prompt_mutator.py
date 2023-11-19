@@ -70,7 +70,7 @@ def get_prompt_score(model, embedding):
     with torch.no_grad():
         prompt_score=model.predict_positive_or_negative_only(embedding)
     
-    return prompt_score
+    return prompt_score.item()
 
 def get_mean_pooled_embedding(embedding):
     embedding=torch.mean(embedding, dim=2)
