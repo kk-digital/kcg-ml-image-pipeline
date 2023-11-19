@@ -298,6 +298,7 @@ def main(
             'prompt': prompt, 'elm_score': score, 'seed_elm_score': seed_score,
             'task_uuid': task_uuid, 'task_time': task_time
         })
+        pd.DataFrame(df_data).to_csv(csv_save_path, index=False)
 
     df_data = pd.DataFrame(df_data)
     df_data.to_csv(csv_save_path, index=False)
