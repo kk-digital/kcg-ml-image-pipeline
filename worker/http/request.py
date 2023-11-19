@@ -2,7 +2,7 @@
 # this is also used by training workers
 import requests
 
-SERVER_ADRESS = 'http://123.176.98.90:8764'
+SERVER_ADRESS = 'http://192.168.3.1:8111'
 #SERVER_ADRESS = 'http://127.0.0.1:8000'
 
 

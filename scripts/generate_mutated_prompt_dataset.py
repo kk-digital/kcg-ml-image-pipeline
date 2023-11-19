@@ -275,7 +275,7 @@ def main(
         prompt, score, seed_score = dataset_generator.sample_datapoint(None, n_mutation)
         if send_job:
             try:
-                generate_image_generation_jobs(
+                response = generate_image_generation_jobs(
                     positive_prompt=prompt,
                     negative_prompt='',
                     prompt_scoring_model=dataset_generator.scorer.model_type,
