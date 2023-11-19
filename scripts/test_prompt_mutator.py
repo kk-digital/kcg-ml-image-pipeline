@@ -109,7 +109,7 @@ def get_best_substitution_choice(sigma_model,
 def mutate_prompt(device, embedding_model,
                   sigma_model, scoring_model, 
                   prompt_str, phrase_list, 
-                  max_iterations=800, early_stopping=10):
+                  max_iterations=800, early_stopping=40):
     
     # calculate prompt embedding and score
     prompt_embedding=get_prompt_embedding(device, embedding_model, prompt_str)
