@@ -76,7 +76,7 @@ def get_mean_pooled_embedding(embedding):
     embedding=torch.mean(embedding, dim=2)
     embedding = embedding.reshape(len(embedding), -1).squeeze(0)
 
-    return embedding
+    return embedding.cpu().numpy()
 
 def get_best_substitution_choice(xgboost_model ,prompt_str, 
                   prompt_score, prompt_embedding, 
