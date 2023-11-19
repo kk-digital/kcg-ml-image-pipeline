@@ -235,15 +235,15 @@ def load_dataset(minio_client):
         inputs.append(msgpack_data['input'])
         position_encoding.append(msgpack_data['position_encoding'])
         score_encoding.append(msgpack_data['score_encoding'])
-        outputs.append(msgpack_data['output'])
+        outputs.append(msgpack_data['score_encoding'] - msgpack_data['output'])
         
 
     #compute sigma scores for initial score encoding
-    sigma_mean=np.mean(score_encoding)
-    sigma_std=np.std(score_encoding)
-    score_encoding = [(x - sigma_mean) / sigma_std for x in score_encoding]
-    #compute sigma scores for output
-    outputs = [(x - sigma_mean) / sigma_std for x in outputs]
+    # sigma_mean=np.mean(score_encoding)
+    # sigma_std=np.std(score_encoding)
+    # score_encoding = [(x - sigma_mean) / sigma_std for x in score_encoding]
+    # #compute sigma scores for output
+    # outputs = [(x - sigma_mean) / sigma_std for x in outputs]
 
     return inputs, position_encoding, score_encoding, outputs
 
@@ -269,133 +269,16 @@ def load_classification_dataset(minio_client):
         else:
             output="increase"
         
-
         outputs.append(output)
-        inputs.append(msgpack_data['input'])
+        inputs.append(np.concatenate([msgpack_data['input'], 
+                                      [msgpack_data['position_encoding']],
+                                       [msgpack_data['score_encoding']]]))
 
         print(file)
         
 
     return inputs, outputs        
         
-
-# def load_dataset(minio_client, device):
-#     # Load the CLIP model
-#     clip=CLIPTextEmbedder()
-#     clip.load_submodels()
-
-#     # Load the dataset of phrases
-#     phrases_df = pd.read_csv('input/environment_phrase_scores.csv')  # Change this to your phrases dataset
-#     prompts_df = pd.read_csv('input/environment_data.csv')
-
-#     elm_model= load_model(768,minio_client, device)
-
-#     # Create empty lists to store the generated data
-#     input_features = []
-#     output_delta_scores = []
-#     output_scores = []
-#     output_binary_classes = []
-#     csv_data = []
-
-#     for index, prompt in prompts_df.iterrows():
-#         print(f"prompt {index}")
-
-#         # get prompt embedding
-#         data = minio_client.get_object('datasets', prompt['file_path'])
-#         # Read the content of the msgpack file
-#         content = data.read()
-
-#         # Deserialize the content using msgpack
-#         msgpack_data = msgpack.loads(content)
-
-#         # get prompt embedding 
-#         prompt_embedding= list(msgpack_data['positive_embedding'].values())
-#         prompt_embedding = torch.tensor(np.array(prompt_embedding)).float()
-#         prompt_embedding=prompt_embedding.to(device)
-
-#         # Randomly select a phrase from the dataset and get an embedding
-#         substitute_phrase = random.choice(phrases_df['phrase'].tolist())
-
-#         # Choose a random position to substitute in the prompt
-#         position_to_substitute = random.randint(0, len(prompt['positive_prompt'].split(',')) - 1)
-
-#         # Create a modified prompt with the substitution
-#         prompt_list = prompt['positive_prompt'].split(',')
-#         substituted_phrase=prompt_list[position_to_substitute]
-#         with torch.no_grad():
-#             sub_phrase_embedding= clip(substituted_phrase).unsqueeze(0)
-
-#         prompt_list[position_to_substitute] = substitute_phrase
-#         modified_prompt = " ".join(prompt_list)
-
-#         # Get embeddings of mutated promp
-#         with torch.no_grad():
-#             modified_embedding= clip(modified_prompt)
-#             modified_embedding= modified_embedding.unsqueeze(0)
-#             modified_embedding=modified_embedding.to(device)
-
-#         # Calculate the delta score
-#         with torch.no_grad():
-#             prompt_score=elm_model.predict_positive_or_negative_only(prompt_embedding)
-#             modified_pormpt_score= elm_model.predict_positive_or_negative_only(modified_embedding)
-        
-#         delta_score=modified_pormpt_score - prompt_score
-        
-#         score_output= modified_pormpt_score.item()
-#         delta_output= delta_score.item()
-#         #multiclass_output=get_category(delta_score.item())
-#         binary_output="increase" if(delta_score.item()>0) else "decrease"  
-        
-#         prompt_embedding=torch.mean(prompt_embedding, dim=2)
-#         prompt_embedding = prompt_embedding.reshape(len(prompt_embedding), -1).squeeze(0)
-        
-#         sub_phrase_embedding=torch.mean(sub_phrase_embedding, dim=2)
-#         sub_phrase_embedding = sub_phrase_embedding.reshape(len(sub_phrase_embedding), -1).squeeze(0)
-
-#         # Convert the position to a tensor
-#         position_tensor = torch.tensor([position_to_substitute]).float().to(device)
-
-#         # Append to the input and output lists
-#         input_features.append(torch.cat([prompt_embedding, sub_phrase_embedding, position_tensor], dim=0).detach().cpu().numpy())
-#         output_scores.append(score_output)
-#         output_delta_scores.append(delta_output)
-#         output_binary_classes.append(binary_output)
-
-#         # Append to the CSV data list
-#         csv_data.append([
-#             prompt['positive_prompt'],  # Prompt string
-#             substitute_phrase,        # Substitute phrase string
-#             substituted_phrase,  # Substituted phrase string
-#             position_to_substitute,   # Substitution position
-#             score_output,
-#             delta_output,
-#             binary_output
-#         ]) 
-
-#     #compute sigma scores
-#     output_sigma_scores = [(x - np.mean(output_scores)) / np.std(output_scores) for x in output_scores]
-    
-#     # Save data to a CSV file
-#     csv_file = 'output/prompt_substitution_dataset.csv'
-#     with open(csv_file, 'w', newline='') as file:
-#         writer = csv.writer(file)
-#         # Write the header
-#         writer.writerow(['Prompt', 'Substitute Phrase', 'Substituted Phrase', 'Substitution Position', 'New Score', 'Delta Score', 'Category'])
-#         # Write the data
-#         writer.writerows(csv_data)
-    
-#     # Read the contents of the CSV file
-#     with open(csv_file, 'rb') as file:
-#         csv_content = file.read()
-
-#     #Upload the CSV file to Minio
-#     buffer = io.BytesIO(csv_content)
-#     buffer.seek(0)
-
-#     model_path = os.path.join('environmental', 'output/prompt_mutator/dataset.csv')
-#     cmd.upload_data(minio_client, 'datasets', model_path, buffer)
-
-#     return np.array(input_features), np.array(output_delta_scores), np.array(output_sigma_scores), np.array(output_binary_classes)
 
 def main():
     args = parse_args()
@@ -412,24 +295,24 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     
-    create_dataset(minio_client, device)
+    #create_dataset(minio_client, device)
 
     inputs, position_encoding, score_encoding, outputs =load_dataset(minio_client)
+    binary_inputs, binary_outputs =load_classification_dataset(minio_client)
 
     # prompt mutator for predicting binary classes (increase, decrease)
-    # binary_mutator= MulticlassPromptMutator(minio_client=minio_client)
-    # binary_mutator.train(inputs, outputs)
-    # binary_mutator.save_model(local_path="output/binary_prompt_mutator.json" , 
-    #                         minio_path="environmental/output/prompt_mutator/binary_prompt_mutator.json")
+    binary_mutator= MulticlassPromptMutator(minio_client=minio_client)
+    binary_mutator.train(binary_inputs, binary_outputs)
+    binary_mutator.save_model()
 
     #prompt mutator with both position encoding and initial score encoding
-    first_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score")
-    first_mutator.train(inputs, 
-                        position_encoding, 
-                        score_encoding,
-                        outputs
-                        )
-    first_mutator.save_model()
+    # first_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score")
+    # first_mutator.train(inputs, 
+    #                     position_encoding, 
+    #                     score_encoding,
+    #                     outputs
+    #                     )
+    # first_mutator.save_model()
     
     # # prompt mutator with initial score encoding
     # second_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score", 
@@ -455,11 +338,13 @@ def main():
     
     # input, delta_output, sigma_output, binary_output = load_dataset(minio_client, device)
 
-    # # prompt mutator for predicting delta scores
-    # delta_mutator= PromptMutator(minio_client=minio_client, output_type="delta_score")
-    # delta_mutator.train(input, delta_output)
-    # delta_mutator.save_model(local_path="output/delta_prompt_mutator.json", 
-    #                         minio_path="environmental/output/prompt_mutator/delta_prompt_mutator.json")
+    # prompt mutator for predicting delta scores
+    delta_mutator= PromptMutator(minio_client=minio_client, output_type="delta_score")
+    delta_mutator.train(inputs, 
+                        position_encoding,
+                        score_encoding,
+                        outputs)
+    delta_mutator.save_model()
     
     
     # grid search for hyperparameters

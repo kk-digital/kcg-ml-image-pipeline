@@ -2,6 +2,7 @@ from datetime import datetime
 from io import BytesIO
 import os
 import sys
+import tempfile
 import time
 from matplotlib import pyplot as plt
 import numpy as np
@@ -14,7 +15,7 @@ sys.path.insert(0, base_directory)
 from utility.minio import cmd
 
 class PromptMutator:
-    def __init__(self, minio_client, model=None, output_type="delta_score",
+    def __init__(self, minio_client, model=None, output_type="sigma_score",
                  use_position_encoding=True, use_score_encoding=True):
         self.model = model
         self.minio_client= minio_client
@@ -224,8 +225,21 @@ class PromptMutator:
         dtest = xgb.DMatrix(X)
         return self.model.predict(dtest)
 
-    def load_model(self, model_path):
-        self.model.load_model(model_path)
+    def load_model(self):
+        print(self.minio_path)
+        # get model file data from MinIO
+        model_file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', self.minio_path)
+
+        # Create a temporary file and write the downloaded content into it
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            for data in model_file_data.stream(amt=8192):
+                temp_file.write(data)
+
+        # Load the model from the downloaded bytes
+        self.model = xgb.Booster(model_file=temp_file.name)
+
+        # Remove the temporary file
+        os.remove(temp_file.name)
 
     def save_model(self):
         self.model.save_model(self.local_path)
