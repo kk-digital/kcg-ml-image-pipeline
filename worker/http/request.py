@@ -53,6 +53,8 @@ def http_add_job(job):
     if response.status_code != 201 and response.status_code != 200:
         print(f"POST request failed with status code: {response.status_code}")
 
+    return response.content.decode()
+
 
 def http_update_job_completed(job):
     url = SERVER_ADRESS + "/queue/image-generation/update-completed"

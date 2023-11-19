@@ -625,9 +625,9 @@ def generate_image_generation_jobs(positive_prompt,
     generation_task_json = generation_task.to_dict()
 
     # add job
-    request.http_add_job(generation_task_json)
+    response = request.http_add_job(generation_task_json)
 
-
+    return response
 
 
 
