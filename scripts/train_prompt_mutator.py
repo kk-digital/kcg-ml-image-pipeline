@@ -303,7 +303,8 @@ def main():
     # prompt mutator for predicting binary classes (increase, decrease)
     binary_mutator= MulticlassPromptMutator(minio_client=minio_client)
     binary_mutator.train(binary_inputs, binary_outputs)
-    binary_mutator.save_model()
+    binary_mutator.save_model('output/prompt_mutator/binary_prompt_mutator.json',
+                              'environmental/output/prompt_mutator/binary_prompt_mutator.json')
 
     #prompt mutator with both position encoding and initial score encoding
     # first_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score")

@@ -25,10 +25,10 @@ class MulticlassPromptMutator:
     def train(self, input, output, 
               max_depth=7, 
               min_child_weight=1, 
-              gamma=0.05, 
-              subsample=0.8, 
-              colsample_bytree=0.8, 
-              eta=0.05,
+              gamma=0.01, 
+              subsample=1, 
+              colsample_bytree=1, 
+              eta=0.1,
               early_stopping=100):
         
         # Label encode the target variable
@@ -88,11 +88,11 @@ class MulticlassPromptMutator:
                             ""
                             "Training size = {}\n"
                             "Validation size = {}\n"
-                            "Accuracy ={}".format(datetime.now().strftime("%Y-%m-%d"),
+                            "Accuracy ={:.4f}".format(datetime.now().strftime("%Y-%m-%d"),
                                                             'environmental',
                                                             'XGBoost',
                                                             'clip_text_embedding',
-                                                            '1537',
+                                                            '1538',
                                                             "binary",
                                                             training_size,
                                                             validation_size,
@@ -115,7 +115,7 @@ class MulticlassPromptMutator:
         class_labels=['decrease', 'increase']
         cm = confusion_matrix(y_true, y_pred, labels=class_labels)
         sb.heatmap(cm ,cbar=True, annot=True, cmap=custom_cmap, ax=axs[1], 
-                   yticklabels=class_labels, xticklabels=class_labels)
+                   yticklabels=class_labels, xticklabels=class_labels, fmt='g')
         axs[1].set_title('Confusion Matrix')
         axs[1].set_xlabel('Predicted Labels')
         axs[1].set_ylabel('True Labels')
