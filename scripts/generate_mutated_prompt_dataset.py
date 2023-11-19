@@ -262,14 +262,13 @@ def main(
         minio_secret_key=minio_secret_key,
         minio_ip_addr=minio_ip_addr,
         csv_base_prompts=csv_base_prompts,
-        csv_phrase=csv_phrase,
-        n_mutation=n_mutation
+        csv_phrase=csv_phrase
     )
 
     df_data = []
     for i in range(n_data):
         print(f'Generation prompt {i+1}')
-        prompt, score, seed_score = dataset_generator.sample_datapoint(None, 800)
+        prompt, score, seed_score = dataset_generator.sample_datapoint(None, n_mutation)
         if send_job:
             try:
                 generate_image_generation_jobs(
