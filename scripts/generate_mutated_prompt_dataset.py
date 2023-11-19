@@ -180,13 +180,13 @@ class PromptMutatorDatasetGenerator:
 
         return seed_prompt
     
-    def sample_datapoint(self, seed_prompt=None, n_optimization=1000):
+    def sample_datapoint(self, seed_prompt=None, n_mutation=1000):
         if seed_prompt is None:
             seed_prompt = self.generate_seed_prompt()
 
         modified_prompt = seed_prompt
-        print(f'Mutating prompt for {n_optimization} iterations')
-        for i in tqdm.tqdm(range(n_optimization)):
+        print(f'Mutating prompt for {n_mutation} iterations')
+        for i in tqdm.tqdm(range(n_mutation)):
             add_data = self.create_add_datapoint(modified_prompt, self.df_phrase)
             # keep prompt with higher score
             modified_prompt = add_data['original_prompt'] \
@@ -235,6 +235,7 @@ def parse_args():
     parser.add_argument('--csv_save_path', help='CSV path to save job info', default='tmp/greedy_output.csv')
     parser.add_argument('--send_job', action='store_true', default=False)
     parser.add_argument('--dataset_name', default='test-generations')
+    parser.add_argument('--n_mutation', type=int, default=800)
     args = parser.parse_args()
 
     return args
@@ -250,7 +251,8 @@ def main(
     csv_save_path,
     csv_base_prompts,
     send_job,
-    dataset_name
+    dataset_name,
+    n_mutation
 ):
     
     dataset_generator = PromptMutatorDatasetGenerator(
@@ -260,7 +262,8 @@ def main(
         minio_secret_key=minio_secret_key,
         minio_ip_addr=minio_ip_addr,
         csv_base_prompts=csv_base_prompts,
-        csv_phrase=csv_phrase
+        csv_phrase=csv_phrase,
+        n_mutation=n_mutation
     )
 
     df_data = []
@@ -301,7 +304,8 @@ if __name__ == '__main__':
         csv_save_path=args.csv_save_path,
         csv_base_prompts=args.csv_base_prompts,
         send_job=args.send_job,
-        dataset_name=args.dataset_name
+        dataset_name=args.dataset_name,
+        n_mutation=args.n_mutation
     )
     end = time.time()
 
