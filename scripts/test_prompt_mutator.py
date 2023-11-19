@@ -3,6 +3,7 @@ import csv
 import io
 import os
 import sys
+from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 import random
@@ -106,18 +107,13 @@ def get_best_substitution_choice(sigma_model,
     tokens_to_substitute=np.argsort(sigma_scores)
     return tokens_to_substitute
 
-def mutate_prompt(device, embedding_model,
-                  sigma_model, scoring_model, 
-                  prompt_str, phrase_list, 
+def mutate_prompt(device, embedding_model, sigma_model, scoring_model, 
+                  prompt_str, prompt_embedding, prompt_score, 
+                  phrase_embeddings, phrase_list, 
                   max_iterations=800, early_stopping=40):
     
     # early stopping
     early_stopping_iterations=early_stopping
-
-    # calculate prompt embedding and score
-    prompt_embedding=get_prompt_embedding(device, embedding_model, prompt_str)
-    prompt_score= get_prompt_score(scoring_model, prompt_embedding)
-    phrase_embeddings=[get_prompt_embedding(device, embedding_model, phrase) for phrase in prompt_str.split(',')]
     
     print(f"prompt str: {prompt_str}")
     print(f"initial score: {prompt_score}")
@@ -166,15 +162,10 @@ def mutate_prompt(device, embedding_model,
         print(f"----resulting score: {prompt_score}")
         if early_stopping_iterations==0:
             break
+    
+    return prompt_str, prompt_score
 
-def main():
-    args = parse_args()
-
-    # get minio client
-    minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key,
-                                        minio_secret_key=args.minio_secret_key,
-                                        minio_ip_addr=args.minio_addr)
-
+def mutate_prompts(prompts, minio_client):
     # get device
     if torch.cuda.is_available():
             device = 'cuda'
@@ -193,17 +184,82 @@ def main():
     sigma_model= PromptMutator(minio_client=minio_client, output_type="sigma_score")
     sigma_model.load_model()
 
-    # prompt and phrases
-    prompt_str="environmental, pixel art, concept art, side scrolling, video game, neo city, (1 girl), white box, puffy lips, cinematic lighting, colorful, steampunk, partially submerged, original, 1girl, night, ribbon choker, see through top, black tissues, a masterpiece, high heel, hand on own crotch"
+    # prompts
     phrases_list=pd.read_csv('input/phrase_scores.csv')['phrase'].tolist()
 
-    # mutate prompt
-    mutate_prompt(device, 
-                  embedding_model=clip, 
-                  scoring_model=elm_model, 
-                  sigma_model=sigma_model,
-                  prompt_str=prompt_str,
-                  phrase_list=phrases_list)
+    # get scores before and after mutation
+    original_scores=[]
+    mutated_scores=[]
+    mutated_prompts=[]
+
+    for prompt_str in prompts:
+        # calculate prompt embedding and score
+        prompt_embedding=get_prompt_embedding(device, clip, prompt_str)
+        prompt_score= get_prompt_score(elm_model, prompt_embedding)
+        phrase_embeddings=[get_prompt_embedding(device, clip, phrase) for phrase in prompt_str.split(',')]
+
+        original_scores.append(prompt_score)
+
+        # mutate prompt
+        prompt_str, prompt_score= mutate_prompt(device, 
+                    embedding_model=clip, 
+                    scoring_model=elm_model, 
+                    sigma_model=sigma_model,
+                    prompt_str=prompt_str,
+                    prompt_embedding=prompt_embedding,
+                    prompt_score= prompt_score,
+                    phrase_embeddings= phrase_embeddings,
+                    phrase_list=phrases_list)
+        
+        mutated_prompts.append(prompt_str)
+        mutated_scores.append(prompt_score)
+    
+    return mutated_prompts, original_scores, mutated_scores
+    
+
+def compare_distributions(minio_client,original_scores, mutated_scores):
+
+    fig, axs = plt.subplots(1, 2, figsize=(12, 10))
+    
+    # plot histogram of original scores
+    axs[0][0].hist(original_scores, bins=10, color='blue', alpha=0.7)
+    axs[0][0].set_xlabel('Scores')
+    axs[0][0].set_ylabel('Frequency')
+    axs[0][0].set_title('Scores Before Mutation')
+
+    # plot histogram of mutated scores
+    axs[0][1].hist(mutated_scores, bins=10, color='blue', alpha=0.7)
+    axs[0][1].set_xlabel('Scores')
+    axs[0][1].set_ylabel('Frequency')
+    axs[0][1].set_title('Scores After mutation')
+
+    # Adjust spacing between subplots
+    plt.subplots_adjust(wspace=0.5)
+
+    plt.savefig("output/prompt_mutator/mutated_scores.png")
+
+    # Save the figure to a file
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+
+    # upload the graph report
+    cmd.upload_data(minio_client, 'datasets', "environmental/output/prompt_mutator/mutated_scores.png", buf)  
+
+def main():
+    args = parse_args()
+
+    # get minio client
+    minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key,
+                                        minio_secret_key=args.minio_secret_key,
+                                        minio_ip_addr=args.minio_addr)
+    
+    prompts=pd.read_csv('input/environment_data.csv')['positive_prompt'].sample(n=1000, random_state=42)
+    
+    mutated_prompts, original_scores, mutated_scores =mutate_prompts(prompts, minio_client)
+
+    compare_distributions(minio_client, original_scores, mutated_scores)
+    
     
 if __name__ == "__main__":
     main()
