@@ -6,6 +6,7 @@ from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
 from .api_utils import PrettyJSONResponse
 from .api_ranking import get_image_rank_use_count
+import os
 
 router = APIRouter()
 
@@ -316,16 +317,33 @@ def get_image_data_by_filepath_2(request: Request, file_path: str):
     return response
 
 
+@router.get("/get-image-by-job-uuid/{job_uuid}", response_class=Response)
+def get_image_by_job_uuid(request: Request, job_uuid: str):
+    # Fetch the job from the completed_jobs_collection using the UUID
+    job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
 
+    # Extract the output file path from the job data
+    output_file_path = job.get("task_output_file_dict", {}).get("output_file_path")
+    if not output_file_path:
+        raise HTTPException(status_code=404, detail="Output file path not found in job data")
 
+    original_filename = os.path.basename(output_file_path)
 
+    # Fetch the image from MinIO
+    bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
+    file_path = file_path.replace("\\", "/")
+    image_data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, file_path)
 
+    # Load data into memory
+    if image_data is not None:
+        content = image_data.read()
+    else:
+        raise HTTPException(
+            status_code=404,
+            detail="Image with this path doesn't exist") 
 
-
-
-
-
-
-
-
-
+    # Return the image in the response
+    headers = {"Content-Disposition": f"attachment; filename={original_filename}"}
+    return Response(content=content, media_type="image/jpeg", headers=headers)
