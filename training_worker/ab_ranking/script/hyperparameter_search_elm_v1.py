@@ -10,20 +10,18 @@ from ray.tune.search.optuna import OptunaSearch
 from ray.tune.search.bayesopt import BayesOptSearch
 from datetime import datetime
 from pytz import timezone
-import time
-from io import BytesIO
-import matplotlib.pyplot as plt
-from matplotlib.ticker import PercentFormatter
+
 
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel, forward_bradley_terry
-from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import *
+from training_worker.ab_ranking.model.reports.graph_report_ab_ranking import *
 from data_loader.ab_ranking_dataset_loader import ABRankingDatasetLoader
 from training_worker.ab_ranking.model import constants
 from training_worker.ab_ranking.script.hyperparameter_utils import get_data_dicts, get_performance_graph_report
 from utility.minio import cmd
+
 
 def train_elm_v1_hyperparameter(model,
                                 dataset_loader: ABRankingDatasetLoader,
