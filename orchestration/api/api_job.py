@@ -347,7 +347,7 @@ def get_completed_job_by_hash(request: Request, image_hash):
 
 # --------------- Get Job With Required Fields ---------------------
 
-@router.get("/queue/image-generation/by-hash/{image_hash}", response_class=PrettyJSONResponse)
+@router.get("/get-image-generation/by-hash/{image_hash}", response_class=PrettyJSONResponse)
 def get_job_by_image_hash(request: Request, image_hash: str, fields: List[str] = Query(None)):
     # Create a projection object that understands nested fields using dot notation
     projection = {field: 1 for field in fields} if fields else {}
@@ -377,7 +377,7 @@ def get_job_by_image_hash(request: Request, image_hash: str, fields: List[str] =
         print("Job Not Found")
     
 
-@router.get("/queue/image-generation/by-job-id/{job_id}", response_class=PrettyJSONResponse)
+@router.get("/get-image-generation/by-job-id/{job_id}", response_class=PrettyJSONResponse)
 def get_job_by_job_id(request: Request, job_id: str, fields: List[str] = Query(None)):
     # Create a projection object that understands nested fields using dot notation
     projection = {field: 1 for field in fields} if fields else {}
