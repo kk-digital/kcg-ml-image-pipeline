@@ -5,7 +5,7 @@ import requests
 from urllib.parse import unquote
 
 def download_image(uuid, output_path):
-    url = f"http://localhost:8000/get-image-by-job-uuid/{uuid}"
+    url = f"http://123.176.98.90:8764/get-image-by-job-uuid/{uuid}"
     response = requests.get(url, stream=True)
 
     if response.status_code == 200:
