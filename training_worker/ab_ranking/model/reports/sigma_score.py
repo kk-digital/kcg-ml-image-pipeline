@@ -156,11 +156,11 @@ def get_chronological_sigma_scores(training_targets,
 
     # remove none
     for i in range(len(x_chronological_sigma_scores)):
-        if x_chronological_sigma_scores is not None:
+        if x_chronological_sigma_scores[i] is not None:
             cleaned_x_chronological_sigma_scores.append(x_chronological_sigma_scores[i])
             cleaned_x_chronological_image_hashes.append(x_chronological_image_hashes[i])
 
-        if y_chronological_sigma_scores is not None:
+        if y_chronological_sigma_scores[i] is not None:
             cleaned_y_chronological_sigma_scores.append(y_chronological_sigma_scores[i])
 
     return cleaned_x_chronological_sigma_scores, cleaned_x_chronological_image_hashes, cleaned_y_chronological_sigma_scores
