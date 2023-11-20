@@ -216,10 +216,13 @@ class PromptMutatorDatasetGenerator:
             modified_prompt = add_data['original_prompt'] \
                 if add_data['original_score'] > add_data['add_score'] else add_data['add_prompt']
             
-            remove_data = self.create_remove_datapoint(modified_prompt)
-            # keep prompt with higher score
-            modified_prompt = remove_data['original_prompt'] \
-                if remove_data['original_score'] > remove_data['removed_score'] else remove_data['removed_prompt']
+            # prevention for generating empty prompt
+            # if prompt only has 1 phrase, don't run removal op
+            if len(modified_prompt.split(', ')) > 1:
+                remove_data = self.create_remove_datapoint(modified_prompt)
+                # keep prompt with higher score
+                modified_prompt = remove_data['original_prompt'] \
+                    if remove_data['original_score'] > remove_data['removed_score'] else remove_data['removed_prompt']
             
         seed_score = self.score_prompt(seed_prompt)
         modified_score = self.score_prompt(modified_prompt)
@@ -321,12 +324,17 @@ def main(
         })
 
         # create csv filename for saving
-        if ((i + 1) % 1000 ) == 0:
+        if ((i + 1) % 1000) == 0:
             save_name_counter +=  1
+
         csv_save_filename = os.path.join(csv_save_path, f'{str(save_name_counter).zfill(5)}.csv')
 
         # save csv at every iteration just in case script crashes while running
         pd.DataFrame(df_data).to_csv(csv_save_filename, index=False)
+
+        # reset df_data such that it only save 1000 samples in every csv
+        if ((i + 1) % 1000) == 0:
+            df_data = []
 
 
 if __name__ == '__main__':
