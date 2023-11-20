@@ -9,8 +9,8 @@ sys.path.insert(0, base_directory)
 #sys.path.insert(0, '/content/drive/MyDrive/github/new/kcg-ml-image-pipeline')
 from utility.regression_utils import torchinfo_summary
 from training_worker.ab_ranking.model.ab_ranking_efficient_net import ABRankingEfficientNetModel
-from training_worker.ab_ranking.model.reports.ab_ranking_linear_train_report import get_train_report
-from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import *
+from training_worker.ab_ranking.model.reports.ab_ranking_train_report import get_train_report
+from training_worker.ab_ranking.model.reports.graph_report_ab_ranking import *
 from data_loader.ab_ranking_dataset_loader import ABRankingDatasetLoader
 from utility.minio import cmd
 from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
@@ -178,6 +178,8 @@ def train_ranking(dataset_name: str,
                                     validation_total_size,
                                     training_loss_per_epoch,
                                     validation_loss_per_epoch,
+                                    None,
+                                    None,
                                     epochs,
                                     learning_rate,
                                     training_batch_size,
