@@ -287,7 +287,7 @@ class RankingSigmaScore(BaseModel):
         return {
             "model_id": self.model_id,
             "image_hash": self.image_hash,
-            "sigma_score": self.sigma_scoree,
+            "sigma_score": self.sigma_score,
         }
 
 
