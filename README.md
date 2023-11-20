@@ -149,12 +149,12 @@ python ./scripts/check_dataset_clip.py --minio-access-key nkjYl5jO4QnpxQU0k0M1 -
 
 ### Generate prompts using greedy search with addition / removal operations
 ```
-python scripts/generate_mutated_prompt_dataset.py \
+python scripts/prompt_mutator/greedy_prompt_search_v1.py \
     --minio-access-key <access key> \
     --minio-secret-key <secret key> \
     --csv_phrase <CSV containing phrases for sampling, must contain 'phrase str' column> \
     --csv_base_prompts <csv containing base prompts> \ 
     --n_data <number of data samples to generate> \
-    --csv_save_path <path to save generated prompts> \
-    --send_job <OPTIONAL: specify this flag to send prompt to image generation job> 
+    --csv_save_path <Path directory to save generated prompts> \
+    --dataset_name <Image gallery dataset name to upload images to>
 ```

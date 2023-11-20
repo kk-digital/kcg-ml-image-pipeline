@@ -1,6 +1,7 @@
 # NOTE: don't add more imports here
 # this is also used by training workers
 import requests
+import json
 
 SERVER_ADRESS = 'http://192.168.3.1:8111'
 #SERVER_ADRESS = 'http://127.0.0.1:8000'
@@ -53,7 +54,9 @@ def http_add_job(job):
     if response.status_code != 201 and response.status_code != 200:
         print(f"POST request failed with status code: {response.status_code}")
 
-    return response.content.decode()
+    decoded_response = json.loads(response.content.decode())
+
+    return decoded_response
 
 
 def http_update_job_completed(job):

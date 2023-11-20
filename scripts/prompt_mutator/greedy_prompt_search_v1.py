@@ -1,5 +1,5 @@
 import sys
-sys.path.append('.')
+sys.path.append('..')
 
 import argparse
 import torch
@@ -7,12 +7,9 @@ import random
 import transformers
 import io
 import os
-import msgpack
 import tqdm
 import time
-import threading
 import traceback
-import json
 
 import pandas as pd
 
@@ -22,6 +19,12 @@ from transformers import CLIPTokenizer, CLIPTextModel
 from worker.prompt_generation.prompt_generator import load_base_prompts, generate_image_generation_jobs
 
 transformers.logging.set_verbosity_error()
+
+GENERATION_POLICY = 'greedy-prompt-search-v1'
+if torch.cuda.is_available():
+    DEVICE = 'cuda'
+else:
+    DEVICE = 'cpu'
 
 class PromptMutatorDatasetGenerator:
     def __init__(
@@ -41,17 +44,17 @@ class PromptMutatorDatasetGenerator:
         )
         self.csv_base_prompts = csv_base_prompts
         self.df_phrase = pd.read_csv(csv_phrase)
-        self.scorer = self.load_model(768, device='cuda')
+        self.scorer = self.load_model(768, device=DEVICE)
         self.clip_model, self.tokenizer = self.load_clip(clip_model_path, clip_tokenizer_path)
 
 
     def load_clip(self, model_path, tokenizer_path):
         tokenizer = CLIPTokenizer.from_pretrained(tokenizer_path)
-        model = CLIPTextModel.from_pretrained(model_path).eval().to('cuda')
+        model = CLIPTextModel.from_pretrained(model_path).eval().to(DEVICE)
 
         return model, tokenizer
 
-    def load_model(self, input_size, device='cuda'):
+    def load_model(self, input_size, device=DEVICE):
         input_path = "environmental/models/ranking/"
 
         embedding_model = ABRankingELMModel(input_size)
@@ -81,31 +84,41 @@ class PromptMutatorDatasetGenerator:
 
         return embedding_model
 
-    def embed(self, prompt,):
+    def embed(self, prompt):
+        # given a prompt string, this function converts it into text embedding
         with torch.no_grad():
             token_encoding = self.tokenizer(prompt, return_length=True, return_tensors='pt')
-            embedding = self.clip_model(input_ids=token_encoding['input_ids'].to('cuda')).last_hidden_state[0]
+            embedding = self.clip_model(input_ids=token_encoding['input_ids'].to(DEVICE)).last_hidden_state[0]
 
         return embedding
 
     def score_prompt(self, prompt):
+        # given a prompt string, embed it into text embedding and score it using elm model
+        # only considers positive prompt
         embedding = self.embed(prompt)
+        # reshape it such that the sequence dimension is at the end
+        # this is necessary for the elm model
         embedding = embedding.unsqueeze(0).permute(0, 2, 1)
         score = self.scorer.predict_positive_or_negative_only(embedding).item()
 
         return score
 
     def get_token_length(self, prompt):
+        # returns token length of a given prompt
+        # token length include start and end tokens
         token_encoding = self.tokenizer(prompt, return_length=True, return_tensors='pt')
 
         return token_encoding['length'].item()
     
     def get_tokens(self, prompt):
+        # return token ids of input prompt
         token_encoding = self.tokenizer(prompt, return_length=True, return_tensors='pt')
 
         return token_encoding['input_ids'].cpu().numpy()[0].tolist()
 
     def create_remove_datapoint(self, prompt):
+        # perform removal operation on prompt
+
         original_score = self.score_prompt(prompt)
         original_length = self.get_token_length(prompt)
         original_embedding = self.embed(prompt).cpu().numpy().tolist()
@@ -133,19 +146,21 @@ class PromptMutatorDatasetGenerator:
         }
 
     def create_add_datapoint(self, prompt, df_phrase):
+        # perform addition operation on prompt
+
         original_length = self.get_token_length(prompt)
 
         # truncate prompt by removing last phrase 
         # if prompt length is longer than 60
-        if original_length > 60:
+        while original_length > 60:
             prompt_phrase = prompt.split(', ')
             prompt = ', '.join(prompt_phrase[:-1])
             original_length = self.get_token_length(prompt)
         
-        # use smaller number (68) to get available space
+        # use smaller number (65) instead of 77 to get available length
         # the phrase list uses tiktoken and it is not accurate
         # it may exceed length
-        avail_length = 68 - original_length
+        avail_length = 65 - original_length
         original_score = self.score_prompt(prompt)
         original_embedding = self.embed(prompt).cpu().numpy().tolist()
         
@@ -157,7 +172,6 @@ class PromptMutatorDatasetGenerator:
         add_length = self.get_token_length(add_prompt)
         add_score = self.score_prompt(add_prompt)
         add_embedding = self.embed(add_phrase).cpu().numpy().tolist()
-
 
         return {
             'original_prompt': prompt,
@@ -172,6 +186,9 @@ class PromptMutatorDatasetGenerator:
         }
     
     def generate_seed_prompt(self):
+        # generate a seed prompt to mutate
+        # seed prompt is generated by sampling the environmental base prompt list
+        # it samples up to 60 tokens.
         base_prompt_population = load_base_prompts(self.csv_base_prompts)
         random.shuffle(base_prompt_population)
 
@@ -181,10 +198,13 @@ class PromptMutatorDatasetGenerator:
             seed_length = self.get_token_length(seed_prompt)
             if seed_length >= 60:
                 break
-
-        return seed_prompt
+        
+        # exclude last character which is the last comma
+        return seed_prompt[:-1]
     
-    def sample_datapoint(self, seed_prompt=None, n_mutation=1000):
+    def mutate_prompt(self, seed_prompt=None, n_mutation=1000):
+        # this function samples a seed prompt or use a provided seed prompt
+        # then applies add / remove n_mutation times
         if seed_prompt is None:
             seed_prompt = self.generate_seed_prompt()
 
@@ -195,7 +215,6 @@ class PromptMutatorDatasetGenerator:
             # keep prompt with higher score
             modified_prompt = add_data['original_prompt'] \
                 if add_data['original_score'] > add_data['add_score'] else add_data['add_prompt']
-            # print(self.score_prompt(modified_prompt))
             
             remove_data = self.create_remove_datapoint(modified_prompt)
             # keep prompt with higher score
@@ -208,20 +227,6 @@ class PromptMutatorDatasetGenerator:
         print(f'Prompt: {modified_prompt}  Score: {modified_score:.3f}  Base Score: {seed_score:.3f}')
             
         return modified_prompt, modified_score, seed_score
-    
-    def upload_msgpack_to_minio(self, data, upload_path):
-        buffer = io.BytesIO()
-        encoder = msgpack.Packer()
-        encoded_data = encoder.pack(data)
-        buffer.write(encoded_data)
-        buffer.seek(0)
-        cmd.upload_data(self.minio_client, 'users', upload_path, buffer)
-
-    def upload_csv_to_minio(self, data, upload_path):
-        csv_buffer = io.BytesIO()
-        data.to_csv(csv_buffer, index=False)
-        csv_buffer.seek(0)
-        cmd.upload_data(self.minio_client, 'users', upload_path, csv_buffer)
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -236,8 +241,8 @@ def parse_args():
         '--csv_base_prompts', help='CSV containing base prompts', 
         default='input/dataset-config/environmental/base-prompts-environmental.csv'
     )
-    parser.add_argument('--csv_save_path', help='CSV path to save job info', default='tmp/greedy_output.csv')
-    parser.add_argument('--send_job', action='store_true', default=False)
+    parser.add_argument('--csv_save_path', help='CSV path to save job info', default='output/greedy-prompt-search-v1-output/')
+    parser.add_argument('--send_job', action='store_true', default=True)
     parser.add_argument('--dataset_name', default='test-generations')
     parser.add_argument('--n_mutation', type=int, default=800)
     args = parser.parse_args()
@@ -258,7 +263,7 @@ def main(
     dataset_name,
     n_mutation
 ):
-    
+    # initialize prompt mutator data generator
     dataset_generator = PromptMutatorDatasetGenerator(
         clip_model_path=clip_model_path,
         clip_tokenizer_path=clip_tokenizer_path,
@@ -269,10 +274,19 @@ def main(
         csv_phrase=csv_phrase
     )
 
+    # create folder to save csv if it does not exist
+    os.makedirs(csv_save_path, exist_ok=True)
+
+    # every 1000 files increment counter by 1
+    # this counter is for creating csv file name
+    save_name_counter = 0
     df_data = []
     for i in range(n_data):
-        print(f'Generation prompt {i+1}')
-        prompt, score, seed_score = dataset_generator.sample_datapoint(None, n_mutation)
+        print(f'Generating prompt {i+1}')
+
+        # generate prompt by mutation
+        prompt, score, seed_score = dataset_generator.mutate_prompt(None, n_mutation)
+
         if send_job:
             try:
                 response = generate_image_generation_jobs(
@@ -280,11 +294,10 @@ def main(
                     negative_prompt='',
                     prompt_scoring_model=dataset_generator.scorer.model_type,
                     prompt_score=score,
-                    prompt_generation_policy='greedy-search',
+                    prompt_generation_policy=GENERATION_POLICY,
                     top_k='',
                     dataset_name=dataset_name
                 )
-                response = json.loads(response)
                 task_uuid = response['uuid']
                 task_time = response['creation_time']
             except:
@@ -293,14 +306,28 @@ def main(
                 task_uuid = -1
                 task_time = -1
 
+        # data to include to output csv file
+        # first 4 fields are standard
+        # scores are computed using elm model
+        # sigma score is relative to elm model
         df_data.append({
-            'prompt': prompt, 'elm_score': score, 'seed_elm_score': seed_score,
-            'task_uuid': task_uuid, 'task_time': task_time
-        })
-        pd.DataFrame(df_data).to_csv(csv_save_path, index=False)
+            'task_uuid': task_uuid,
+            'score': score,
+            'generation_policy_string': GENERATION_POLICY,
+            'time': task_time,
 
-    df_data = pd.DataFrame(df_data)
-    df_data.to_csv(csv_save_path, index=False)
+            'prompt': prompt,
+            'seed_elm_score': seed_score,
+        })
+
+        # create csv filename for saving
+        if ((i + 1) % 1000 ) == 0:
+            save_name_counter +=  1
+        csv_save_filename = os.path.join(csv_save_path, f'{str(save_name_counter).zfill(5)}.csv')
+
+        # save csv at every iteration just in case script crashes while running
+        pd.DataFrame(df_data).to_csv(csv_save_filename, index=False)
+        
 
 if __name__ == '__main__':
     args = parse_args()
