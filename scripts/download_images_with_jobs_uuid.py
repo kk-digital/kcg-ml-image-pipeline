@@ -2,6 +2,7 @@ import csv
 import os
 import sys
 import requests
+import argparse
 from urllib.parse import unquote
 
 def download_image(uuid, output_path):
@@ -35,13 +36,14 @@ def download_images_from_csv(csv_file_path, output_path):
             uuid = row['task_uuid']
             download_image(uuid, output_path)
 
+def main():
+    parser = argparse.ArgumentParser(description='Download images from a CSV file of UUIDs.')
+    parser.add_argument('--csv_filepath', type=str, required=True, help='Path to the CSV file')
+    parser.add_argument('--output', type=str, required=True, help='Output directory path')
+
+    args = parser.parse_args()
+
+    download_images_from_csv(args.csv_filepath, args.output)
+
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("Usage: python download_images.py <csv_file_path> <output_path>")
-        sys.exit(1)
-
-    csv_file_path = sys.argv[1]
-    output_path = sys.argv[2]
-    download_images_from_csv(csv_file_path, output_path)
-
-
+    main()
