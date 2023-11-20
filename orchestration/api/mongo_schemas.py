@@ -278,6 +278,19 @@ class RankingScore(BaseModel):
         }
 
 
+class RankingSigmaScore(BaseModel):
+    model_id: int
+    image_hash: str
+    sigma_score: float
+
+    def to_dict(self):
+        return {
+            "model_id": self.model_id,
+            "image_hash": self.image_hash,
+            "sigma_score": self.sigma_scoree,
+        }
+
+
 class RankingResidual(BaseModel):
     model_id: int
     image_hash: str
