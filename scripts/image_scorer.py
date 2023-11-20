@@ -351,15 +351,15 @@ class ImageScorer:
         for pair in hash_score_pairs:
             chronological_sigma_scores.append(hash_sigma_score_dict[pair[0]])
 
-        score_graph.scatter(x_axis_values, chronological_sigma_scores,
+        sigma_score_graph.scatter(x_axis_values, chronological_sigma_scores,
                             label="Image Sigma Scores over time",
                             c="#281ad9", s=15)
 
-        score_graph.set_xlabel("Time")
-        score_graph.set_ylabel("Sigma Score")
-        score_graph.set_title("Sigma Score vs Time")
-        score_graph.legend()
-        score_graph.autoscale(enable=True, axis='y')
+        sigma_score_graph.set_xlabel("Time")
+        sigma_score_graph.set_ylabel("Sigma Score")
+        sigma_score_graph.set_title("Sigma Score vs Time")
+        sigma_score_graph.legend()
+        sigma_score_graph.autoscale(enable=True, axis='y')
 
         # Save figure
         # plt.subplots_adjust(left=0.15, hspace=0.5)
