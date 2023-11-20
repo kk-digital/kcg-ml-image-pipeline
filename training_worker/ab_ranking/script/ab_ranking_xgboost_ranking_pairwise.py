@@ -1,31 +1,17 @@
 import os
-import torch
 import sys
 from datetime import datetime
 from pytz import timezone
-import numpy as np
-from xgboost import XGBRegressor
 import time
-import matplotlib.pyplot as plt
-import warnings
-from sklearn.model_selection import train_test_split
 import xgboost as xgb
-from sklearn.metrics import mean_squared_error
 
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from utility.regression_utils import torchinfo_summary
-from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
-from training_worker.ab_ranking.model.reports.ab_ranking_linear_train_report import get_train_report
-from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import *
+from training_worker.ab_ranking.model.reports.graph_report_ab_ranking import *
 from data_loader.ab_ranking_dataset_loader import ABRankingDatasetLoader
-from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
 from utility.minio import cmd
 from training_worker.ab_ranking.model import constants
-from training_worker.ab_ranking.model.reports import upload_score_residual
-
-
 
 
 def np_sigmoid(x):
