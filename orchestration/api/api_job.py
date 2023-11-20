@@ -345,7 +345,7 @@ def get_completed_job_by_hash(request: Request, image_hash):
 
     return job
 
-# --------------- Get Job With Text Fields ---------------------
+# --------------- Get Job With Required Fields ---------------------
 
 @router.get("/queue/image-generation/by-hash/{image_hash}", response_class=PrettyJSONResponse)
 def get_job_by_image_hash(request: Request, image_hash: str, fields: List[str] = Query(None)):
