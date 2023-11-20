@@ -7,7 +7,6 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 import random
-import msgpack
 import torch
 
 
@@ -27,6 +26,27 @@ def parse_args():
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
 
     return parser.parse_args()
+
+def store_in_csv_file(csv_data, minio_client):
+    # Save data to a CSV file
+    csv_file = 'output/prompt_mutator/generated_prompts.csv'
+    with open(csv_file, 'w', newline='') as file:
+        writer = csv.writer(file)
+        # Write the header
+        writer.writerow(['Prompt', 'Mutated Pormpt', 'Original Score', 'New Score'])
+        # Write the data
+        writer.writerows(csv_data)
+    
+    # Read the contents of the CSV file
+    with open(csv_file, 'rb') as file:
+        csv_content = file.read()
+
+    #Upload the CSV file to Minio
+    buffer = io.BytesIO(csv_content)
+    buffer.seek(0)
+
+    model_path = os.path.join('environmental', 'output/prompt_mutator/generated_prompts/prompts.csv')
+    cmd.upload_data(minio_client, 'datasets', model_path, buffer)
 
 def load_model(input_size, minio_client, device):
     input_path="environmental/models/ranking/"
@@ -79,7 +99,7 @@ def get_mean_pooled_embedding(embedding):
 
     return embedding.cpu().numpy()
 
-def get_best_substitution_choice(sigma_model, 
+def rank_substitution_choices(sigma_model, 
                                  prompt_str, 
                                  prompt_score, prompt_embedding, 
                                  phrase_embeddings):
@@ -110,7 +130,7 @@ def get_best_substitution_choice(sigma_model,
 def mutate_prompt(device, embedding_model, sigma_model, scoring_model, 
                   prompt_str, prompt_embedding, prompt_score, 
                   phrase_embeddings, phrase_list, 
-                  max_iterations=800, early_stopping=40):
+                  max_iterations=250, early_stopping=20):
     
     # early stopping
     early_stopping_iterations=early_stopping
@@ -125,7 +145,7 @@ def mutate_prompt(device, embedding_model, sigma_model, scoring_model,
         print(f"iteration {i}")
 
         if score_increased:
-            tokens=get_best_substitution_choice(sigma_model, 
+            tokens=rank_substitution_choices(sigma_model, 
                                                 prompt_str,
                                                 prompt_score,
                                                 prompt_embedding, 
@@ -143,7 +163,7 @@ def mutate_prompt(device, embedding_model, sigma_model, scoring_model,
             modified_prompt_score= get_prompt_score(scoring_model, modified_prompt_embedding)
 
             # check if score improves
-            if(prompt_score< modified_prompt_score):
+            if(prompt_score < modified_prompt_score):
                 prompt_str= modified_prompt_str
                 prompt_embedding= modified_prompt_embedding
                 phrase_embeddings[token]= get_prompt_embedding(device, embedding_model, substituted_phrase)
@@ -180,7 +200,7 @@ def mutate_prompts(prompts, minio_client):
     # load the elm model
     elm_model= load_model(768, minio_client, device)
 
-    # load the xgboost model
+    # load the xgboost sigma score model
     sigma_model= PromptMutator(minio_client=minio_client, output_type="sigma_score")
     sigma_model.load_model()
 
@@ -191,8 +211,13 @@ def mutate_prompts(prompts, minio_client):
     original_scores=[]
     mutated_scores=[]
     mutated_prompts=[]
+    csv_data=[]
+
+    index=0
 
     for prompt_str in prompts:
+        print(f"prompt {index}")
+
         # calculate prompt embedding and score
         prompt_embedding=get_prompt_embedding(device, clip, prompt_str)
         prompt_score= get_prompt_score(elm_model, prompt_embedding)
@@ -201,7 +226,7 @@ def mutate_prompts(prompts, minio_client):
         original_scores.append(prompt_score)
 
         # mutate prompt
-        prompt_str, prompt_score= mutate_prompt(device, 
+        mutated_str, mutated_score= mutate_prompt(device, 
                     embedding_model=clip, 
                     scoring_model=elm_model, 
                     sigma_model=sigma_model,
@@ -211,30 +236,41 @@ def mutate_prompts(prompts, minio_client):
                     phrase_embeddings= phrase_embeddings,
                     phrase_list=phrases_list)
         
-        mutated_prompts.append(prompt_str)
-        mutated_scores.append(prompt_score)
-    
+        mutated_prompts.append(mutated_str)
+        mutated_scores.append(mutated_score)
+        
+        # put data in csv
+        csv_data.append([
+            prompt_str,
+            mutated_str,
+            prompt_score,
+            mutated_score
+        ])
+
+        index+=1
+
+    store_in_csv_file(csv_data, minio_client)
     return mutated_prompts, original_scores, mutated_scores
     
 
 def compare_distributions(minio_client,original_scores, mutated_scores):
 
-    fig, axs = plt.subplots(1, 2, figsize=(12, 10))
+    fig, axs = plt.subplots(2, 1, figsize=(12, 10))
     
     # plot histogram of original scores
-    axs[0][0].hist(original_scores, bins=10, color='blue', alpha=0.7)
-    axs[0][0].set_xlabel('Scores')
-    axs[0][0].set_ylabel('Frequency')
-    axs[0][0].set_title('Scores Before Mutation')
+    axs[0].hist(original_scores, bins=10, color='blue', alpha=0.7)
+    axs[0].set_xlabel('Scores')
+    axs[0].set_ylabel('Frequency')
+    axs[0].set_title('Scores Before Mutation')
 
     # plot histogram of mutated scores
-    axs[0][1].hist(mutated_scores, bins=10, color='blue', alpha=0.7)
-    axs[0][1].set_xlabel('Scores')
-    axs[0][1].set_ylabel('Frequency')
-    axs[0][1].set_title('Scores After mutation')
+    axs[1].hist(mutated_scores, bins=10, color='blue', alpha=0.7)
+    axs[1].set_xlabel('Scores')
+    axs[1].set_ylabel('Frequency')
+    axs[1].set_title('Scores After mutation')
 
     # Adjust spacing between subplots
-    plt.subplots_adjust(wspace=0.5)
+    plt.subplots_adjust(hspace=0.3)
 
     plt.savefig("output/prompt_mutator/mutated_scores.png")
 
@@ -244,7 +280,7 @@ def compare_distributions(minio_client,original_scores, mutated_scores):
     buf.seek(0)
 
     # upload the graph report
-    cmd.upload_data(minio_client, 'datasets', "environmental/output/prompt_mutator/mutated_scores.png", buf)  
+    cmd.upload_data(minio_client, 'datasets', "environmental/output/prompt_mutator/generated_prompts/mutated_scores.png", buf)  
 
 def main():
     args = parse_args()
@@ -254,7 +290,7 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     
-    prompts=pd.read_csv('input/environment_data.csv')['positive_prompt'].sample(n=1000, random_state=42)
+    prompts=pd.read_csv('input/environment_data.csv')['positive_prompt'].sample(n=200, random_state=42)
     
     mutated_prompts, original_scores, mutated_scores =mutate_prompts(prompts, minio_client)
 
