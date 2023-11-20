@@ -1,5 +1,5 @@
 import sys
-sys.path.append('..')
+sys.path.append('.')
 
 import argparse
 import torch
@@ -327,7 +327,7 @@ def main(
 
         # save csv at every iteration just in case script crashes while running
         pd.DataFrame(df_data).to_csv(csv_save_filename, index=False)
-        
+
 
 if __name__ == '__main__':
     args = parse_args()
