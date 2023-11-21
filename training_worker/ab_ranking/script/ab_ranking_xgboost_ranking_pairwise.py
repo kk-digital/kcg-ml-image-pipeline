@@ -228,7 +228,7 @@ def train_xgboost(dataset_name: str,
 
     cmd.upload_data(dataset_loader.minio_client, "datasets", model_output_path, buffer)
 
-    model_hash = hashlib.sha256(buffer).hexdigest()
+    model_hash = hashlib.sha256(xgboost_model_buf).hexdigest()
 
     train_sum_correct = 0
     for i in range(len(training_target_probabilities)):
