@@ -1,23 +1,27 @@
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import csv
 import io
 import os
 import sys
+import traceback
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 import random
 import torch
+from tqdm import tqdm
 
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from training_worker.prompt_mutator.prompt_mutator_model import PromptMutator
-from training_worker.prompt_mutator.multiclass_prompt_mutator import MulticlassPromptMutator
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from utility.minio import cmd
+
+from worker.prompt_generation.prompt_generator import generate_image_generation_jobs
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -110,7 +114,7 @@ def rank_substitution_choices(sigma_model,
     # get number of tokens
     prompt_list = prompt_str.split(',')
     token_number= len(prompt_list)
-    # list of delta scores for each substitution
+    # list of sigma scores for each substitution
     sigma_scores=[]
 
     # Randomly select a phrase from the dataset and get an embedding
@@ -130,20 +134,15 @@ def rank_substitution_choices(sigma_model,
 def mutate_prompt(device, embedding_model, sigma_model, scoring_model, 
                   prompt_str, prompt_embedding, prompt_score, 
                   phrase_embeddings, phrase_list, 
-                  max_iterations=250, early_stopping=20):
+                  max_iterations=200, early_stopping=20):
     
     # early stopping
     early_stopping_iterations=early_stopping
-    
-    print(f"prompt str: {prompt_str}")
-    print(f"initial score: {prompt_score}")
 
     # boolean for if score increased
     score_increased=True
     # run mutation process iteratively untill score converges
     for i in range(max_iterations):
-        print(f"iteration {i}")
-
         if score_increased:
             tokens=rank_substitution_choices(sigma_model, 
                                                 prompt_str,
@@ -178,8 +177,6 @@ def mutate_prompt(device, embedding_model, sigma_model, scoring_model,
             prompt_score= modified_prompt_score
             early_stopping_iterations=early_stopping
         
-        print(f"----mutated prompt str: {prompt_str}")
-        print(f"----resulting score: {prompt_score}")
         if early_stopping_iterations==0:
             break
     
@@ -214,42 +211,45 @@ def mutate_prompts(prompts, minio_client):
     csv_data=[]
 
     index=0
+    with ThreadPoolExecutor(max_workers=50) as executor:
+        futures=[]
+        for prompt_str in prompts:
+            print(f"prompt {index}")
 
-    for prompt_str in prompts:
-        print(f"prompt {index}")
+            # calculate prompt embedding and score
+            prompt_embedding=get_prompt_embedding(device, clip, prompt_str)
+            prompt_score= get_prompt_score(elm_model, prompt_embedding)
+            phrase_embeddings=[get_prompt_embedding(device, clip, phrase) for phrase in prompt_str.split(',')]
 
-        # calculate prompt embedding and score
-        prompt_embedding=get_prompt_embedding(device, clip, prompt_str)
-        prompt_score= get_prompt_score(elm_model, prompt_embedding)
-        phrase_embeddings=[get_prompt_embedding(device, clip, phrase) for phrase in prompt_str.split(',')]
+            original_scores.append(prompt_score)
+            
+            futures.append(executor.submit(mutate_prompt, device, clip, sigma_model, elm_model,
+                                   prompt_str, prompt_embedding, prompt_score, phrase_embeddings, phrases_list))
 
-        original_scores.append(prompt_score)
+    
+    for _ in tqdm(as_completed(futures), total=len(prompts)):
+                continue
+    
+    # Iterate over completed futures
+    for future in futures:
+        try:
+            # Retrieve the result of each task
+            mutated_str, mutated_score = future.result()
+            mutated_prompts.append(mutated_str)
+            mutated_scores.append(mutated_score)
+            
+            # put data in csv
+            csv_data.append([
+                prompt_str,
+                mutated_str,
+                prompt_score,
+                mutated_score
+            ])
 
-        # mutate prompt
-        mutated_str, mutated_score= mutate_prompt(device, 
-                    embedding_model=clip, 
-                    scoring_model=elm_model, 
-                    sigma_model=sigma_model,
-                    prompt_str=prompt_str,
-                    prompt_embedding=prompt_embedding,
-                    prompt_score= prompt_score,
-                    phrase_embeddings= phrase_embeddings,
-                    phrase_list=phrases_list)
-        
-        mutated_prompts.append(mutated_str)
-        mutated_scores.append(mutated_score)
-        
-        # put data in csv
-        csv_data.append([
-            prompt_str,
-            mutated_str,
-            prompt_score,
-            mutated_score
-        ])
+        except Exception as e:
+            print(f"Error during mutation: {e}")
 
-        index+=1
-
-    store_in_csv_file(csv_data, minio_client)
+    #store_in_csv_file(csv_data, minio_client)
     return mutated_prompts, original_scores, mutated_scores
     
 
@@ -258,13 +258,13 @@ def compare_distributions(minio_client,original_scores, mutated_scores):
     fig, axs = plt.subplots(2, 1, figsize=(12, 10))
     
     # plot histogram of original scores
-    axs[0].hist(original_scores, bins=10, color='blue', alpha=0.7)
+    axs[0].hist(original_scores, bins=10, range=[0,5000], color='blue', alpha=0.7)
     axs[0].set_xlabel('Scores')
     axs[0].set_ylabel('Frequency')
     axs[0].set_title('Scores Before Mutation')
 
     # plot histogram of mutated scores
-    axs[1].hist(mutated_scores, bins=10, color='blue', alpha=0.7)
+    axs[1].hist(mutated_scores, bins=10, range=[0,5000], color='blue', alpha=0.7)
     axs[1].set_xlabel('Scores')
     axs[1].set_ylabel('Frequency')
     axs[1].set_title('Scores After mutation')
@@ -282,6 +282,49 @@ def compare_distributions(minio_client,original_scores, mutated_scores):
     # upload the graph report
     cmd.upload_data(minio_client, 'datasets', "environmental/output/prompt_mutator/generated_prompts/mutated_scores.png", buf)  
 
+def generate_images():
+    generated_prompts=pd.read_csv('output/prompt_mutator/prompts.csv')
+    sorted_prompts = generated_prompts.sort_values(by='New Score', ascending=False)
+    
+    # Get the top 50 prompts
+    generated_prompts = sorted_prompts.head(50)
+    
+    df_data=[]
+
+    for index, prompt in generated_prompts.iterrows():
+        try:
+            response = generate_image_generation_jobs(
+                positive_prompt=prompt['Mutated Pormpt'],
+                negative_prompt='',
+                prompt_scoring_model='image-pair-ranking-elm-v1',
+                prompt_score=prompt['New Score'],
+                prompt_generation_policy='greedy-substitution-search-v1',
+                top_k='',
+                dataset_name='test-generations'
+            )
+            task_uuid = response['uuid']
+            task_time = response['creation_time']
+        except:
+            print('Error occured:')
+            print(traceback.format_exc())
+            task_uuid = -1
+            task_time = -1
+
+        # data to include to output csv file
+        # first 4 fields are standard
+        df_data.append({
+            'task_uuid': task_uuid,
+            'score': prompt['New Score'],
+            'generation_policy_string': 'greedy-substitution-search-v1',
+            'time': task_time,
+            'prompt': prompt['Mutated Pormpt'],
+            'seed_elm_score': prompt['Original Score'],
+        })
+
+        # save csv at every iteration just in case script crashes while running
+        pd.DataFrame(df_data).to_csv('output/generated_prompts.csv', index=False)
+
+
 def main():
     args = parse_args()
 
@@ -293,7 +336,6 @@ def main():
     prompts=pd.read_csv('input/environment_data.csv')['positive_prompt'].sample(n=200, random_state=42)
     
     mutated_prompts, original_scores, mutated_scores =mutate_prompts(prompts, minio_client)
-
     compare_distributions(minio_client, original_scores, mutated_scores)
     
     
