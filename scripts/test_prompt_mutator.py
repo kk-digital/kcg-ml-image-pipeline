@@ -101,7 +101,7 @@ def get_mean_pooled_embedding(embedding):
     embedding=torch.mean(embedding, dim=2)
     embedding = embedding.reshape(len(embedding), -1).squeeze(0)
 
-    return embedding.cpu().numpy()
+    return embedding.list()
 
 def rank_substitution_choices(sigma_model, 
                                  prompt_str, 
@@ -198,7 +198,7 @@ def mutate_prompts(prompts, minio_client):
     device = torch.device(device)
 
     # Load the CLIP model
-    clip=CLIPTextEmbedder()
+    clip=CLIPTextEmbedder(device=device)
     clip.load_submodels()
 
     # load the elm model
