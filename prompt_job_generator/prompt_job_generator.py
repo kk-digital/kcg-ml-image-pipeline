@@ -223,7 +223,7 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
             if dataset_latest_model is not None:
                 model_name = dataset_latest_model['model_name']
 
-                prompt_job_generator_state.set_dataset_
+                prompt_job_generator_state.set_dataset_ranking_model(dataset, model_name)
 
         model_info = prompt_job_generator_state.get_dataset_model_info(dataset, model_name)
 
