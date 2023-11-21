@@ -92,7 +92,6 @@ def update_dataset_latest_ranking_model(prompt_job_generator_state, list_dataset
     for dataset in list_datasets:
         latest_ranking_model = http_get_dataset_latest_ranking_model(dataset)
 
-        print('latest ranking model : ', latest_ranking_model)
         if latest_ranking_model is None:
             continue
 
@@ -222,6 +221,7 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
 
         if model_name == 'latest':
             dataset_latest_model = http_get_dataset_latest_ranking_model(dataset)
+            print('latest model : ', dataset_latest_model)
             if dataset_latest_model is not None:
                 model_name = dataset_latest_model['model_name']
 
