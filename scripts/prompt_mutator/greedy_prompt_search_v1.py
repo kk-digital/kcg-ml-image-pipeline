@@ -150,7 +150,7 @@ class PromptMutatorDatasetGenerator:
             'score': original_score, 'mutated_score': removed_score
         }
         df = pd.read_csv(self.remove_dataset_filename)
-        df = df.append(data, ignore_index=True)
+        df = pd.concat([df, data], ignore_index=True)
         df.to_csv(self.remove_dataset_filename, index=False)
 
         return {
@@ -188,7 +188,7 @@ class PromptMutatorDatasetGenerator:
             'score': original_score, 'mutated_score': add_phrase
         }
         df = pd.read_csv(self.remove_dataset_filename)
-        df = df.append(data, ignore_index=True)
+        df = pd.concat([df, data], ignore_index=True)
         df.to_csv(self.remove_dataset_filename, index=False)
 
         return {
