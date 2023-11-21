@@ -58,10 +58,6 @@ def train_xgboost(dataset_name: str,
                   target_option=constants.TARGET_1_AND_0,
                   duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL,
                   ):
-    # raise exception if input is not clip
-    if input_type not in ["clip", "embedding"]:
-        raise Exception("Only 'clip' and 'embedding' is supported for now.")
-
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
