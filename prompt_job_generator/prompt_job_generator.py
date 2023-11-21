@@ -98,15 +98,14 @@ def update_dataset_latest_ranking_model(prompt_job_generator_state, list_dataset
 
         model_file_hash = latest_ranking_model['model_file_hash']
         model_id = http_get_model_id(model_file_hash)
+        model_name = latest_ranking_model['model_name']
 
         if model_id is None:
             continue
 
         model_id = int(model_id)
         latest_ranking_model['model_id'] = model_id
-        print('latest rank model : ----------')
-        print(latest_ranking_model)
-        http_set_dataset_ranking_model(dataset, latest_ranking_model)
+        http_set_dataset_ranking_model(dataset, model_name)
 
 
 def update_dataset_config_data(prompt_job_generator_state, list_datasets):
@@ -215,7 +214,12 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
         return
 
     for dataset in dataset_list:
-        model_info = prompt_job_generator_state.get_dataset_ranking_model(dataset)
+        model_name = prompt_job_generator_state.get_dataset_ranking_model(dataset)
+
+        if model_name is None:
+            continue
+
+        model_info = prompt_job_generator_state.get_dataset_model_info(dataset)
 
         if model_info is None:
             continue
