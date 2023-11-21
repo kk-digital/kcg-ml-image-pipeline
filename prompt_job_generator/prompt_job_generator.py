@@ -219,7 +219,7 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
         if model_name is None:
             continue
 
-        model_info = prompt_job_generator_state.get_dataset_model_info(dataset)
+        model_info = prompt_job_generator_state.get_dataset_model_info(dataset, model_name)
 
         if model_info is None:
             continue
