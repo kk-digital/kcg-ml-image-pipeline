@@ -167,6 +167,7 @@ class PromptGenerationPromptQueue:
 
         scored_prompts = []
         print('--------------')
+        print('dataset  : ', dataset)
         print(scoring_model)
         if scoring_model != None:
             print(scoring_model.model_type)
