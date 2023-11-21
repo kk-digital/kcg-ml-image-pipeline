@@ -5,6 +5,7 @@ WORKDIR /training_worker
 COPY ./training_worker /training_worker/training_worker
 COPY ./scripts/ab_ranking_elm_v1.py /training_worker/scripts/ab_ranking_elm_v1.py
 COPY ./scripts/ab_ranking_linear.py /training_worker/scripts/ab_ranking_linear.py
+COPY ./scripts/ab_ranking_xgboost_pairwise.py /training_worker/scripts/ab_ranking_xgboost_pairwise.py
 COPY ./utility /training_worker/utility
 COPY ./worker/http/request.py /training_worker/worker/http/request.py
 COPY ./data_loader /training_worker/data_loader
