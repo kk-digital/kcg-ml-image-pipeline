@@ -10,6 +10,8 @@ import os
 import tqdm
 import time
 import traceback
+import contextlib
+import msgpack
 
 import pandas as pd
 
@@ -27,11 +29,24 @@ if torch.cuda.is_available():
 else:
     DEVICE = 'cpu'
 
+class Profile(contextlib.ContextDecorator):
+    def __init__(self, t=0.0):
+        self.t = t
+
+    def __enter__(self):
+        self.start = self.time()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.dt = self.time() - self.start  # delta-time
+        self.t += self.dt  # accumulate dt
+
+    def time(self):
+        return time.time()
+
 class PromptMutatorDatasetGenerator:
     def __init__(
         self,
-        clip_model_path,
-        clip_tokenizer_path,
         minio_access_key,
         minio_secret_key,
         minio_ip_addr,
@@ -46,13 +61,10 @@ class PromptMutatorDatasetGenerator:
         self.csv_base_prompts = csv_base_prompts
         self.df_phrase = pd.read_csv(csv_phrase)
         self.scorer = self.load_model(768, device=DEVICE)
-        self.clip_model, self.tokenizer = self.load_clip(clip_model_path, clip_tokenizer_path)
+        self.clip_model, self.tokenizer = self.load_clip()
 
 
-    def load_clip(self, model_path, tokenizer_path):
-        tokenizer = CLIPTokenizer.from_pretrained(tokenizer_path)
-        model = CLIPTextModel.from_pretrained(model_path).eval().to(DEVICE)
-
+    def load_clip(self):
         text_embedder = CLIPTextEmbedder()
         text_embedder.load_submodels()
 
@@ -156,10 +168,10 @@ class PromptMutatorDatasetGenerator:
 
         # truncate prompt by removing last phrase 
         # if prompt length is longer than 60
-        while original_length > 60:
-            prompt_phrase = prompt.split(', ')
-            prompt = ', '.join(prompt_phrase[:-1])
-            original_length = self.get_token_length(prompt)
+        # while original_length > 60:
+        #     prompt_phrase = prompt.split(', ')
+        #     prompt = ', '.join(prompt_phrase[:-1])
+        #     original_length = self.get_token_length(prompt)
         
         # use smaller number (65) instead of 77 to get available length
         # the phrase list uses tiktoken and it is not accurate
@@ -211,15 +223,12 @@ class PromptMutatorDatasetGenerator:
         # then applies add / remove n_mutation times
         if seed_prompt is None:
             seed_prompt = self.generate_seed_prompt()
+        seed_score = self.score_prompt(seed_prompt)
 
         modified_prompt = seed_prompt
+        scores_over_time = [seed_score]
         print(f'Mutating prompt for {n_mutation} iterations')
         for i in tqdm.tqdm(range(n_mutation)):
-            add_data = self.create_add_datapoint(modified_prompt, self.df_phrase)
-            # keep prompt with higher score
-            modified_prompt = add_data['original_prompt'] \
-                if add_data['original_score'] > add_data['add_score'] else add_data['add_prompt']
-            
             # prevention for generating empty prompt
             # if prompt only has 1 phrase, don't run removal op
             if len(modified_prompt.split(', ')) > 1:
@@ -227,13 +236,29 @@ class PromptMutatorDatasetGenerator:
                 # keep prompt with higher score
                 modified_prompt = remove_data['original_prompt'] \
                     if remove_data['original_score'] > remove_data['removed_score'] else remove_data['removed_prompt']
+
+            add_data = self.create_add_datapoint(modified_prompt, self.df_phrase)
+            # keep prompt with higher score
+            modified_prompt = add_data['original_prompt'] \
+                if add_data['original_score'] > add_data['add_score'] else add_data['add_prompt']
             
-        seed_score = self.score_prompt(seed_prompt)
-        modified_score = self.score_prompt(modified_prompt)
+            modified_score = add_data['original_score'] \
+                if add_data['original_score'] > add_data['add_score'] else add_data['add_score']
+            
+            scores_over_time.append(modified_score)
+
 
         print(f'Prompt: {modified_prompt}  Score: {modified_score:.3f}  Base Score: {seed_score:.3f}')
             
-        return modified_prompt, modified_score, seed_score
+        return modified_prompt, modified_score, seed_prompt, seed_score, scores_over_time
+    
+    def upload_msgpack_to_minio(self, data, upload_path):
+        buffer = io.BytesIO()
+        encoder = msgpack.Packer()
+        encoded_data = encoder.pack(data)
+        buffer.write(encoded_data)
+        buffer.seek(0)
+        cmd.upload_data(self.minio_client, 'users', upload_path, buffer)
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -241,8 +266,6 @@ def parse_args():
     parser.add_argument('--minio-access-key', required=False, help='Minio access key')
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
     parser.add_argument('--csv_phrase', help='CSV containing phrases, must have "phrase str" column', default='input/civitai_phrases_database_v7_no_nsfw.csv')
-    parser.add_argument('--clip_model_path', help='Path to CLIP text model', default='input/model/clip/txt_emb_model/')
-    parser.add_argument('--clip_tokenizer_path', help='Path to CLIP tokenizer', default='input/model/clip/txt_emb_tokenizer/')
     parser.add_argument('--n_data', type=int, help='Number of data samples to generate', default=20)
     parser.add_argument(
         '--csv_base_prompts', help='CSV containing base prompts', 
@@ -257,8 +280,6 @@ def parse_args():
     return args
 
 def main(
-    clip_model_path,
-    clip_tokenizer_path,
     minio_access_key,
     minio_secret_key,
     minio_ip_addr,
@@ -272,8 +293,6 @@ def main(
 ):
     # initialize prompt mutator data generator
     dataset_generator = PromptMutatorDatasetGenerator(
-        clip_model_path=clip_model_path,
-        clip_tokenizer_path=clip_tokenizer_path,
         minio_access_key=minio_access_key,
         minio_secret_key=minio_secret_key,
         minio_ip_addr=minio_ip_addr,
@@ -282,17 +301,20 @@ def main(
     )
 
     # create folder to save csv if it does not exist
+    # create another folder to save scores over time
     os.makedirs(csv_save_path, exist_ok=True)
+    os.makedirs(os.path.join(csv_save_path, 'scores_over_time'), exist_ok=True)
 
     # every 1000 files increment counter by 1
     # this counter is for creating csv file name
     save_name_counter = 0
     df_data = []
+    df_scores_over_time = []
     for i in range(n_data):
         print(f'Generating prompt {i+1}')
 
         # generate prompt by mutation
-        prompt, score, seed_score = dataset_generator.mutate_prompt(None, n_mutation)
+        prompt, score, seed_prompt, seed_score, scores_over_time = dataset_generator.mutate_prompt(None, n_mutation)
 
         if send_job:
             try:
@@ -319,34 +341,36 @@ def main(
         # sigma score is relative to linear model
         df_data.append({
             'task_uuid': task_uuid,
-            'score': score,
             'generation_policy_string': GENERATION_POLICY,
             'time': task_time,
-
             'prompt': prompt,
+            'score': score,
+            'seed_prompt': seed_prompt,
             'seed_score': seed_score,
         })
+        df_scores_over_time.append(scores_over_time)
 
         # create csv filename for saving
         if ((i + 1) % 1000) == 0:
             save_name_counter +=  1
 
         csv_save_filename = os.path.join(csv_save_path, f'{str(save_name_counter).zfill(5)}.csv')
+        scores_over_time_filename = os.path.join(csv_save_path, f'{str(save_name_counter).zfill(5)}_scores_over_time.csv')
 
         # save csv at every iteration just in case script crashes while running
         pd.DataFrame(df_data).to_csv(csv_save_filename, index=False)
+        pd.DataFrame(df_scores_over_time).to_csv(scores_over_time_filename, index=False)
 
         # reset df_data such that it only save 1000 samples in every csv
         if ((i + 1) % 1000) == 0:
             df_data = []
+            df_scores_over_time = []
 
 
 if __name__ == '__main__':
     args = parse_args()
     start = time.time()
     main(
-        clip_model_path=args.clip_model_path,
-        clip_tokenizer_path=args.clip_tokenizer_path,
         minio_access_key=args.minio_access_key,
         minio_secret_key=args.minio_secret_key,
         minio_ip_addr=args.minio_addr,
