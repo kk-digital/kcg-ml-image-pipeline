@@ -218,7 +218,7 @@ def mutate_prompts(prompts, minio_client):
     csv_data=[]
 
     index=0
-    with ThreadPoolExecutor(max_workers=50) as executor:
+    with ThreadPoolExecutor(max_workers=5) as executor:
         futures=[]
         for prompt_str in prompts:
             print(f"Prompt {index} added to queue")

@@ -236,7 +236,7 @@ class PromptMutator:
                 temp_file.write(data)
 
         # Load the model from the downloaded bytes
-        self.model = xgb.Booster(model_file=temp_file.name)
+        self.model = xgb.Booster(model_file=temp_file.name).set_param({"device": "cuda:0"})
 
         # Remove the temporary file
         os.remove(temp_file.name)
