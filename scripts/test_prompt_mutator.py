@@ -145,8 +145,8 @@ def mutate_prompt(device, embedding_model, sigma_model, scoring_model,
     # save original score
     original_score=prompt_score 
 
-    print(f"prompt str: {prompt_str}")
-    print(f"initial score: {prompt_score}")
+    # print(f"prompt str: {prompt_str}")
+    # print(f"initial score: {prompt_score}")
 
     # early stopping
     early_stopping_iterations=early_stopping
@@ -192,8 +192,8 @@ def mutate_prompt(device, embedding_model, sigma_model, scoring_model,
             early_stopping_iterations=early_stopping
 
 
-        print(f"prompt str: {prompt_str}")
-        print(f"initial score: {prompt_score}")
+        # print(f"prompt str: {prompt_str}")
+        # print(f"initial score: {prompt_score}")
         if early_stopping_iterations==0:
             break
     
@@ -286,7 +286,7 @@ def async_mutate_prompts(prompts, minio_client):
     csv_data=[]
 
     index=0
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=30) as executor:
         futures=[]
         for prompt_str in prompts:
             print(f"Prompt {index} added to queue")
@@ -394,13 +394,13 @@ def generate_images():
 def main():
     args = parse_args()
 
+    
     # get minio client
     minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key,
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     
     prompts=pd.read_csv('input/environment_data.csv')['positive_prompt'].sample(n=5, random_state=42)
-    
     mutated_prompts, original_scores, mutated_scores =async_mutate_prompts(prompts, minio_client)
     print(original_scores)
     print(mutated_scores)
