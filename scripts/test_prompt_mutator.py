@@ -230,7 +230,7 @@ def mutate_prompts(prompts, minio_client):
     index=0
 
     for prompt_str in prompts:
-        print(f"prompt {index}")
+        #print(f"prompt {index}")
 
         # mutate prompt
         mutated_str, original_score, mutated_score= mutate_prompt(device, 
@@ -400,7 +400,7 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     
-    prompts=pd.read_csv('input/environment_data.csv')['positive_prompt'].sample(n=5, random_state=42)
+    prompts=pd.read_csv('input/environment_data.csv')['positive_prompt'].sample(n=30, random_state=42)
     mutated_prompts, original_scores, mutated_scores =async_mutate_prompts(prompts, minio_client)
     print(original_scores)
     print(mutated_scores)
