@@ -123,6 +123,21 @@ def http_add_score(score_data):
     return None
 
 
+def http_add_sigma_score(sigma_score_data):
+    url = SERVER_ADRESS + "/sigma-score/set-image-rank-sigma-score"
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+
+    try:
+        response = requests.post(url, json=sigma_score_data, headers=headers)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}: {str(response.content)}")
+    except Exception as e:
+        print('request exception ', e)
+
+    return None
+
+
 def http_add_residual(residual_data):
     url = SERVER_ADRESS + "/residual/set-image-rank-residual"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
