@@ -176,7 +176,7 @@ class PromptMutatorDatasetGenerator:
         # use smaller number (65) instead of 77 to get available length
         # the phrase list uses tiktoken and it is not accurate
         # it may exceed length
-        avail_length = 65 - original_length
+        avail_length = 75 - original_length
         original_score = self.score_prompt(prompt)
         original_embedding = self.embed(prompt).cpu().numpy().tolist()
         
