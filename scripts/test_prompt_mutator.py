@@ -136,6 +136,9 @@ def mutate_prompt(device, embedding_model, sigma_model, scoring_model,
                   phrase_embeddings, phrase_list, 
                   max_iterations=200, early_stopping=20):
     
+    # save original score
+    original_score=prompt_score
+
     # early stopping
     early_stopping_iterations=early_stopping
 
@@ -180,7 +183,7 @@ def mutate_prompt(device, embedding_model, sigma_model, scoring_model,
         if early_stopping_iterations==0:
             break
     
-    return prompt_str, prompt_score
+    return prompt_str, original_score, prompt_score
 
 def mutate_prompts(prompts, minio_client):
     # get device
@@ -214,17 +217,15 @@ def mutate_prompts(prompts, minio_client):
     with ThreadPoolExecutor(max_workers=50) as executor:
         futures=[]
         for prompt_str in prompts:
-            print(f"prompt {index}")
-
-            # calculate prompt embedding and score
-            prompt_embedding=get_prompt_embedding(device, clip, prompt_str)
-            prompt_score= get_prompt_score(elm_model, prompt_embedding)
-            phrase_embeddings=[get_prompt_embedding(device, clip, phrase) for phrase in prompt_str.split(',')]
-
-            original_scores.append(prompt_score)
+            print(f"Prompt {index} added to queue")
             
-            futures.append(executor.submit(mutate_prompt, device, clip, sigma_model, elm_model,
-                                   prompt_str, prompt_embedding, prompt_score, phrase_embeddings, phrases_list))
+            futures.append(executor.submit(mutate_prompt, device, clip, sigma_model, elm_model,prompt_str, 
+                                           get_prompt_embedding(device, clip, prompt_str), 
+                                           get_prompt_score(elm_model, get_prompt_embedding(device, clip, prompt_str)), 
+                                           [get_prompt_embedding(device, clip, phrase) for phrase in prompt_str.split(',')],
+                                           phrases_list))
+            
+            index+=1
 
     
     for _ in tqdm(as_completed(futures), total=len(prompts)):
@@ -234,15 +235,16 @@ def mutate_prompts(prompts, minio_client):
     for future in futures:
         try:
             # Retrieve the result of each task
-            mutated_str, mutated_score = future.result()
+            mutated_str, original_score, mutated_score = future.result()
             mutated_prompts.append(mutated_str)
             mutated_scores.append(mutated_score)
+            original_scores.append(original_score)
             
             # put data in csv
             csv_data.append([
                 prompt_str,
                 mutated_str,
-                prompt_score,
+                original_score,
                 mutated_score
             ])
 
