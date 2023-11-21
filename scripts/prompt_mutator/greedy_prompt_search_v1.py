@@ -231,7 +231,7 @@ class PromptMutatorDatasetGenerator:
                 modified_prompt = remove_data['original_prompt'] \
                     if remove_data['original_score'] > remove_data['removed_score'] else remove_data['removed_prompt']
                 modified_score = remove_data['original_score'] \
-                    if remove_data['original_score'] > remove_data['remove_score'] else remove_data['remove_score']
+                    if remove_data['original_score'] > remove_data['removed_score'] else remove_data['removed_score']
             
             # only add phrases if there are less than or equal 65 tokens
             if self.get_token_length(modified_prompt) <= 65:
