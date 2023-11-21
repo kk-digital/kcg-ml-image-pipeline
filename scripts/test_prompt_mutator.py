@@ -155,9 +155,9 @@ def mutate_prompt(device, embedding_model, sigma_model, scoring_model,
     score_increased=True
     # run mutation process iteratively untill score converges
     for i in range(max_iterations):
-        print(f"iteration {i}")
+        #print(f"iteration {i}")
         if score_increased:
-            tokens=rank_substitution_choices(i/max_iterations,   
+            tokens=rank_substitution_choices(0.3,   
                                                 sigma_model, 
                                                 prompt_str,
                                                 prompt_score,
@@ -286,7 +286,7 @@ def async_mutate_prompts(prompts, minio_client):
     csv_data=[]
 
     index=0
-    with ThreadPoolExecutor(max_workers=30) as executor:
+    with ThreadPoolExecutor(max_workers=32) as executor:
         futures=[]
         for prompt_str in prompts:
             print(f"Prompt {index} added to queue")
