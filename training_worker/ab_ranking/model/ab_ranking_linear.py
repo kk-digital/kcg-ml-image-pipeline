@@ -53,6 +53,8 @@ class ABRankingModel:
 
         self.training_loss = 0.0
         self.validation_loss = 0.0
+        self.mean = 0.0
+        self.standard_deviation = 0.0
 
     def _hash_model(self):
         """
@@ -75,6 +77,11 @@ class ABRankingModel:
         model['model-hash'] = self.model_hash
         model['date'] = self.date
 
+        model['training-loss'] = self.training_loss
+        model['validation-loss'] = self.validation_loss
+        model['mean'] = self.mean
+        model['standard-deviation'] = self.standard_deviation
+
         # Saving the model to minio
         buffer = BytesIO()
         torch.save(model, buffer)
@@ -92,6 +99,11 @@ class ABRankingModel:
         self.model_hash = model['model-hash']
         self.date = model['date']
         self.model.load_state_dict(model['model_dict'])
+
+        self.training_loss = model['training-loss']
+        self.validation_loss = model['validation-loss']
+        self.mean = model['mean']
+        self.standard_deviation = model['standard-deviation']
 
     def train(self,
               dataset_loader: ABRankingDatasetLoader,

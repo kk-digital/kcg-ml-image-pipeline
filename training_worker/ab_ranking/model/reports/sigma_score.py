@@ -163,7 +163,7 @@ def get_chronological_sigma_scores(training_targets,
         if y_chronological_sigma_scores[i] is not None:
             cleaned_y_chronological_sigma_scores.append(y_chronological_sigma_scores[i])
 
-    return cleaned_x_chronological_sigma_scores, cleaned_x_chronological_image_hashes, cleaned_y_chronological_sigma_scores
+    return cleaned_x_chronological_sigma_scores, cleaned_x_chronological_image_hashes, cleaned_y_chronological_sigma_scores, x_mean, x_standard_deviation
 
 
 def upload_sigma_score(model_id: int,
