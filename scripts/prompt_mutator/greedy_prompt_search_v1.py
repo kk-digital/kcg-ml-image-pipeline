@@ -14,6 +14,7 @@ import contextlib
 import msgpack
 
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from utility.minio import cmd
@@ -147,7 +148,6 @@ class PromptMutatorDatasetGenerator:
         removed_prompt = ', '.join((prompt_phrase))
         removed_length = self.get_token_length(removed_prompt)
         removed_score = self.score_prompt(removed_prompt)
-        removed_embedding = self.embed(removed_phrase).cpu().numpy().tolist()
 
         return {
             'original_prompt': prompt,
@@ -157,25 +157,15 @@ class PromptMutatorDatasetGenerator:
             'removed_prompt': removed_prompt,
             'removed_phrase': removed_phrase,
             'removed_length': removed_length,
-            'removed_score': removed_score,
-            'removed_embedding': removed_embedding
+            'removed_score': removed_score
         }
 
     def create_add_datapoint(self, prompt, df_phrase):
         # perform addition operation on prompt
 
         original_length = self.get_token_length(prompt)
-
-        # truncate prompt by removing last phrase 
-        # if prompt length is longer than 60
-        # while original_length > 60:
-        #     prompt_phrase = prompt.split(', ')
-        #     prompt = ', '.join(prompt_phrase[:-1])
-        #     original_length = self.get_token_length(prompt)
         
-        # use smaller number (65) instead of 77 to get available length
-        # the phrase list uses tiktoken and it is not accurate
-        # it may exceed length
+        # compute available length to add tokens
         avail_length = 75 - original_length
         original_score = self.score_prompt(prompt)
         original_embedding = self.embed(prompt).cpu().numpy().tolist()
@@ -187,7 +177,6 @@ class PromptMutatorDatasetGenerator:
         add_prompt = f'{add_phrase}, {prompt}'
         add_length = self.get_token_length(add_prompt)
         add_score = self.score_prompt(add_prompt)
-        add_embedding = self.embed(add_phrase).cpu().numpy().tolist()
 
         return {
             'original_prompt': prompt,
@@ -197,8 +186,7 @@ class PromptMutatorDatasetGenerator:
             'add_prompt': add_prompt,
             'add_phrase': add_phrase,
             'add_length': add_length,
-            'add_score': add_score,
-            'add_embedding': add_embedding
+            'add_score': add_score
         }
     
     def generate_seed_prompt(self):
@@ -355,10 +343,20 @@ def main(
 
         csv_save_filename = os.path.join(csv_save_path, f'{str(save_name_counter).zfill(5)}.csv')
         scores_over_time_filename = os.path.join(csv_save_path, f'{str(save_name_counter).zfill(5)}_scores_over_time.csv')
+        score_plot_filename = os.path.join(csv_save_path, f'{str(save_name_counter).zfill(5)}_scores_over_time.jpg')
 
         # save csv at every iteration just in case script crashes while running
         pd.DataFrame(df_data).to_csv(csv_save_filename, index=False)
         pd.DataFrame(df_scores_over_time).to_csv(scores_over_time_filename, index=False)
+
+        # create plot
+        average_scores_per_iteration = pd.DataFrame(df_scores_over_time).mean(axis=0)
+        plt.plot(average_scores_per_iteration.index, average_scores_per_iteration.values)
+        plt.xlabel('Iteration')
+        plt.ylabel('Average Score')
+        plt.title('Change of Scores Over Iterations')
+        plt.grid(True)
+        plt.savefig(score_plot_filename)
 
         # reset df_data such that it only save 1000 samples in every csv
         if ((i + 1) % 1000) == 0:
