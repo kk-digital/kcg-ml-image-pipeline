@@ -220,6 +220,11 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
         if model_name is None:
             continue
 
+        if model_name == 'latest':
+            dataset_latest_model = http_get_dataset_latest_ranking_model(dataset)
+            if dataset_latest_model is not None:
+                model_name = dataset_latest_model['model_name']
+
         model_info = prompt_job_generator_state.get_dataset_model_info(dataset, model_name)
 
 
