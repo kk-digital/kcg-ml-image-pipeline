@@ -49,7 +49,7 @@ def store_in_csv_file(csv_data, minio_client):
     buffer = io.BytesIO(csv_content)
     buffer.seek(0)
 
-    model_path = os.path.join('environmental', 'output/prompt_mutator/generated_prompts/prompts.csv')
+    model_path = 'environmental' + 'output/prompt_mutator/generated_prompts/prompts.csv'
     cmd.upload_data(minio_client, 'datasets', model_path, buffer)
 
 def load_model(input_size, minio_client, device):
@@ -103,7 +103,8 @@ def get_mean_pooled_embedding(embedding):
 
     return embedding.cpu().numpy()
 
-def rank_substitution_choices(sigma_model, 
+def rank_substitution_choices(top_percentage,   
+                                 sigma_model, 
                                  prompt_str, 
                                  prompt_score, prompt_embedding, 
                                  phrase_embeddings):
@@ -128,12 +129,13 @@ def rank_substitution_choices(sigma_model,
         sigma_score=sigma_model.predict([substitution_input])[0]
         sigma_scores.append(-sigma_score)
     
-    tokens_to_substitute=np.argsort(sigma_scores)
-    return tokens_to_substitute
+    tokens=np.argsort(sigma_scores)
+    top_tokens= tokens[:int(token_number * top_percentage)+1]
+    return top_tokens
 
 def mutate_prompt(device, embedding_model, sigma_model, scoring_model, 
                   prompt_str, phrase_list, 
-                  max_iterations=200, early_stopping=20):
+                  max_iterations=100, early_stopping=100):
 
     # calculate prompt embedding, score and embedding of each phrase
     prompt_embedding=get_prompt_embedding(device, embedding_model, prompt_str)
@@ -143,6 +145,9 @@ def mutate_prompt(device, embedding_model, sigma_model, scoring_model,
     # save original score
     original_score=prompt_score 
 
+    print(f"prompt str: {prompt_str}")
+    print(f"initial score: {prompt_score}")
+
     # early stopping
     early_stopping_iterations=early_stopping
 
@@ -150,8 +155,10 @@ def mutate_prompt(device, embedding_model, sigma_model, scoring_model,
     score_increased=True
     # run mutation process iteratively untill score converges
     for i in range(max_iterations):
+        print(f"iteration {i}")
         if score_increased:
-            tokens=rank_substitution_choices(sigma_model, 
+            tokens=rank_substitution_choices(i/max_iterations,   
+                                                sigma_model, 
                                                 prompt_str,
                                                 prompt_score,
                                                 prompt_embedding, 
@@ -183,13 +190,74 @@ def mutate_prompt(device, embedding_model, sigma_model, scoring_model,
             score_increased=True
             prompt_score= modified_prompt_score
             early_stopping_iterations=early_stopping
-        
+
+
+        print(f"prompt str: {prompt_str}")
+        print(f"initial score: {prompt_score}")
         if early_stopping_iterations==0:
             break
     
     return prompt_str, original_score, prompt_score
 
 def mutate_prompts(prompts, minio_client):
+    # get device
+    if torch.cuda.is_available():
+            device = 'cuda'
+    else:
+        device = 'cpu'
+    device = torch.device(device)
+
+    # Load the CLIP model
+    clip=CLIPTextEmbedder()
+    clip.load_submodels()
+
+    # load the elm model
+    elm_model= load_model(768, minio_client, device)
+
+    # load the xgboost sigma score model
+    sigma_model= PromptMutator(minio_client=minio_client, output_type="sigma_score")
+    sigma_model.load_model()
+
+    # prompts
+    phrases_list=pd.read_csv('input/phrase_scores.csv')['phrase'].tolist()
+
+    # get scores before and after mutation
+    original_scores=[]
+    mutated_scores=[]
+    mutated_prompts=[]
+    csv_data=[]
+
+    index=0
+
+    for prompt_str in prompts:
+        print(f"prompt {index}")
+
+        # mutate prompt
+        mutated_str, original_score, mutated_score= mutate_prompt(device, 
+                    embedding_model=clip, 
+                    scoring_model=elm_model, 
+                    sigma_model=sigma_model,
+                    prompt_str=prompt_str,
+                    phrase_list=phrases_list)
+        
+        mutated_prompts.append(mutated_str)
+        original_scores.append(original_score)
+        mutated_scores.append(mutated_score)
+        
+        # put data in csv
+        csv_data.append([
+            prompt_str,
+            mutated_str,
+            original_score,
+            mutated_score
+        ])
+
+        index+=1
+
+    #store_in_csv_file(csv_data, minio_client)
+    return mutated_prompts, original_scores, mutated_scores
+
+def async_mutate_prompts(prompts, minio_client):
     # get device
     if torch.cuda.is_available():
             device = 'cuda'
@@ -251,7 +319,6 @@ def mutate_prompts(prompts, minio_client):
     #store_in_csv_file(csv_data, minio_client)
     return mutated_prompts, original_scores, mutated_scores
     
-
 def compare_distributions(minio_client,original_scores, mutated_scores):
 
     fig, axs = plt.subplots(2, 1, figsize=(12, 10))
@@ -279,7 +346,7 @@ def compare_distributions(minio_client,original_scores, mutated_scores):
     buf.seek(0)
 
     # upload the graph report
-    cmd.upload_data(minio_client, 'datasets', "environmental/output/prompt_mutator/generated_prompts/mutated_scores.png", buf)  
+    #cmd.upload_data(minio_client, 'datasets', "environmental/output/prompt_mutator/generated_prompts/mutated_scores.png", buf)  
 
 def generate_images():
     generated_prompts=pd.read_csv('output/prompt_mutator/prompts.csv')
@@ -332,10 +399,12 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     
-    prompts=pd.read_csv('input/environment_data.csv')['positive_prompt'].sample(n=200, random_state=42)
+    prompts=pd.read_csv('input/environment_data.csv')['positive_prompt'].sample(n=4, random_state=42)
     
     mutated_prompts, original_scores, mutated_scores =mutate_prompts(prompts, minio_client)
-    compare_distributions(minio_client, original_scores, mutated_scores)
+    print(original_scores)
+    print(mutated_scores)
+    #compare_distributions(minio_client, original_scores, mutated_scores)
     
     
 if __name__ == "__main__":
