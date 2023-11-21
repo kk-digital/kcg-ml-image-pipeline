@@ -101,7 +101,7 @@ def get_mean_pooled_embedding(embedding):
     embedding=torch.mean(embedding, dim=2)
     embedding = embedding.reshape(len(embedding), -1).squeeze(0)
 
-    return embedding.list()
+    return embedding.cpu().numpy()
 
 def rank_substitution_choices(sigma_model, 
                                  prompt_str, 
