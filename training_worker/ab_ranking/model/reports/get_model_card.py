@@ -27,3 +27,36 @@ def get_model_card_buf(model,
     buf.seek(0)
 
     return buf, json.dumps(model_card, indent=4)
+
+
+def get_xgboost_model_card_buf(date,
+                               model_type,
+                               model_path,
+                               model_hash,
+                               input_type,
+                               output_type,
+                               number_of_training_points,
+                               number_of_validation_points,
+                               training_loss,
+                               validation_loss,
+                               graph_report_path,
+                               ):
+    model_card = {
+        "model_creation_date": date,
+        "model_type": model_type,
+        "model_path": model_path,
+        "model_file_hash": model_hash,
+        "input_type": input_type,
+        "output_type": output_type,
+        "number_of_training_points": "{}".format(number_of_training_points),
+        "number_of_validation_points": "{}".format(number_of_validation_points),
+        "training_loss": "{}".format(training_loss),
+        "validation_loss": "{}".format(validation_loss),
+        "graph_report": graph_report_path,
+    }
+
+    buf = BytesIO()
+    buf.write(json.dumps(model_card, indent=4).encode())
+    buf.seek(0)
+
+    return buf, json.dumps(model_card, indent=4)
