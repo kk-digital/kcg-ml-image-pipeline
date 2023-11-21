@@ -50,12 +50,9 @@ class PromptMutatorDatasetGenerator:
         self.scorer = self.load_model(768, device=DEVICE)
         self.clip_model, self.tokenizer = self.load_clip()
 
-        # create files for add / remove dataset csv
-        self.add_dataset_filename = os.path.join(csv_save_path, 'add_dataset.csv')
-        self.remove_dataset_filename = os.path.join(csv_save_path, 'remove_dataset.csv')
-
-        pd.DataFrame().to_csv(self.add_dataset_filename)
-        pd.DataFrame().to_csv(self.remove_dataset_filename)
+        # create list to store dataset
+        self.add_dataset = []
+        self.remove_dataset = []
 
     def load_clip(self):
         text_embedder = CLIPTextEmbedder()
@@ -144,14 +141,12 @@ class PromptMutatorDatasetGenerator:
         removed_length = self.get_token_length(removed_prompt)
         removed_score = self.score_prompt(removed_prompt)
 
-        # save data to csv for training
+        # save score data to separate csv for training
         data = {
             'prompt': prompt, 'phrase': removed_phrase,
             'score': original_score, 'mutated_score': removed_score
         }
-        df = pd.read_csv(self.remove_dataset_filename)
-        df = pd.concat([df, pd.Series(data)], ignore_index=True)
-        df.to_csv(self.remove_dataset_filename, index=False)
+        self.remove_dataset.append(data)
 
         return {
             'original_prompt': prompt,
@@ -182,14 +177,12 @@ class PromptMutatorDatasetGenerator:
         add_length = self.get_token_length(add_prompt)
         add_score = self.score_prompt(add_prompt)
 
-        # save data to csv for training
+        # save score data to separate csv for training
         data = {
             'prompt': prompt, 'phrase': add_phrase,
             'score': original_score, 'mutated_score': add_phrase
         }
-        df = pd.read_csv(self.remove_dataset_filename)
-        df = pd.concat([df, pd.Series(data)], ignore_index=True)
-        df.to_csv(self.remove_dataset_filename, index=False)
+        self.add_dataset.append(data)
 
         return {
             'original_prompt': prompt,
@@ -315,6 +308,9 @@ def main(
         # generate prompt by mutation
         prompt, score, seed_prompt, seed_score, scores_over_time = dataset_generator.mutate_prompt(None, n_mutation)
 
+        df_add_dataset = pd.DataFrame(dataset_generator.add_dataset)
+        df_remove_dataset = pd.DataFrame(dataset_generator.remove_dataset)
+
         if send_job:
             try:
                 response = generate_image_generation_jobs(
@@ -355,13 +351,18 @@ def main(
         if ((i + 1) % 1000) == 0:
             save_name_counter +=  1
 
-        csv_save_filename = os.path.join(csv_save_path, f'{str(save_name_counter).zfill(5)}.csv')
+        csv_save_filename = os.path.join(csv_save_path, f'{str(save_name_counter).zfill(5)}_output.csv')
         scores_over_time_filename = os.path.join(csv_save_path, f'{str(save_name_counter).zfill(5)}_scores_over_time.csv')
         score_plot_filename = os.path.join(csv_save_path, f'{str(save_name_counter).zfill(5)}_scores_over_time.jpg')
+
+        add_dataset_filename = os.path.join(csv_save_path, f'{str(save_name_counter).zfill(5)}_add_dataset.csv')
+        remove_dataset_filename = os.path.join(csv_save_path, f'{str(save_name_counter).zfill(5)}_remove_dataset.csv')
 
         # save csv at every iteration just in case script crashes while running
         pd.DataFrame(df_data).to_csv(csv_save_filename, index=False)
         pd.DataFrame(df_scores_over_time).to_csv(scores_over_time_filename, index=False)
+        df_add_dataset.to_csv(add_dataset_filename, index=False)
+        df_remove_dataset.to_csv(remove_dataset_filename, index=False)
 
         # create plot
         average_scores_per_iteration = pd.DataFrame(df_scores_over_time).mean(axis=0)
