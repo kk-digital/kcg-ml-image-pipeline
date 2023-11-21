@@ -13,7 +13,7 @@ import traceback
 
 import pandas as pd
 
-from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
+from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from utility.minio import cmd
 from transformers import CLIPTokenizer, CLIPTextModel
 from stable_diffusion.model.clip_text_embedder import CLIPTextEmbedder
@@ -61,7 +61,7 @@ class PromptMutatorDatasetGenerator:
     def load_model(self, input_size, device=DEVICE):
         input_path = "environmental/models/ranking/"
 
-        embedding_model = ABRankingELMModel(input_size)
+        embedding_model = ABRankingModel(input_size)
 
         model_files = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
         most_recent_model = None
