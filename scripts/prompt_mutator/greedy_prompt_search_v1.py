@@ -52,7 +52,8 @@ class PromptMutatorDatasetGenerator:
         minio_secret_key,
         minio_ip_addr,
         csv_base_prompts,
-        csv_phrase
+        csv_phrase,
+        csv_save_path
     ):
         self.minio_client = cmd.get_minio_client(
             minio_access_key=minio_access_key,
@@ -64,6 +65,12 @@ class PromptMutatorDatasetGenerator:
         self.scorer = self.load_model(768, device=DEVICE)
         self.clip_model, self.tokenizer = self.load_clip()
 
+        # create files for add / remove dataset csv
+        self.add_dataset_filename = os.path.join(csv_save_path, 'add_dataset.csv')
+        self.remove_dataset_filename = os.path.join(csv_save_path, 'remove_dataset.csv')
+
+        pd.DataFrame().to_csv(self.add_dataset_filename)
+        pd.DataFrame().to_csv(self.remove_dataset_filename)
 
     def load_clip(self):
         text_embedder = CLIPTextEmbedder()
@@ -74,7 +81,7 @@ class PromptMutatorDatasetGenerator:
     def load_model(self, input_size, device=DEVICE):
         input_path = "environmental/models/ranking/"
 
-        embedding_model = ABRankingModel(input_size)
+        scoring_model = ABRankingModel(input_size)
 
         model_files = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
         most_recent_model = None
@@ -96,10 +103,10 @@ class PromptMutatorDatasetGenerator:
         # Reset the buffer's position to the beginning
         byte_buffer.seek(0)
 
-        embedding_model.load(byte_buffer)
-        embedding_model.model=embedding_model.model.to(device)
+        scoring_model.load(byte_buffer)
+        scoring_model.model = scoring_model.model.to(device)
 
-        return embedding_model
+        return scoring_model
 
     def embed(self, prompt):
         # given a prompt string, this function converts it into text embedding
@@ -133,7 +140,7 @@ class PromptMutatorDatasetGenerator:
 
         return token_encoding['input_ids'].cpu().numpy()[0].tolist()
 
-    def create_remove_datapoint(self, prompt):
+    def remove_mutation(self, prompt):
         # perform removal operation on prompt
 
         original_score = self.score_prompt(prompt)
@@ -145,9 +152,21 @@ class PromptMutatorDatasetGenerator:
         prompt_phrase = prompt.split(', ')
         random_index = random.randrange(len(prompt_phrase))
         removed_phrase = prompt_phrase.pop(random_index)
+        # this is to prevent extra comma at the end of prompt
+        if prompt_phrase[-1] == '':
+            prompt_phrase = prompt_phrase[:-1]
         removed_prompt = ', '.join((prompt_phrase))
         removed_length = self.get_token_length(removed_prompt)
         removed_score = self.score_prompt(removed_prompt)
+
+        # save data to csv for training
+        data = {
+            'prompt': prompt, 'phrase': removed_phrase,
+            'score': original_score, 'mutated_score': removed_score
+        }
+        df = pd.read_csv(self.remove_dataset_filename)
+        df = df.append(data, ignore_index=True)
+        df.to_csv(self.remove_dataset_filename, index=False)
 
         return {
             'original_prompt': prompt,
@@ -160,7 +179,7 @@ class PromptMutatorDatasetGenerator:
             'removed_score': removed_score
         }
 
-    def create_add_datapoint(self, prompt, df_phrase):
+    def add_mutation(self, prompt, df_phrase):
         # perform addition operation on prompt
 
         original_length = self.get_token_length(prompt)
@@ -177,6 +196,15 @@ class PromptMutatorDatasetGenerator:
         add_prompt = f'{add_phrase}, {prompt}'
         add_length = self.get_token_length(add_prompt)
         add_score = self.score_prompt(add_prompt)
+
+        # save data to csv for training
+        data = {
+            'prompt': prompt, 'phrase': add_phrase,
+            'score': original_score, 'mutated_score': add_phrase
+        }
+        df = pd.read_csv(self.remove_dataset_filename)
+        df = df.append(data, ignore_index=True)
+        df.to_csv(self.remove_dataset_filename, index=False)
 
         return {
             'original_prompt': prompt,
@@ -220,12 +248,12 @@ class PromptMutatorDatasetGenerator:
             # prevention for generating empty prompt
             # if prompt has less than 3 phrases, don't run removal op
             if len(modified_prompt.split(', ')) > 3:
-                remove_data = self.create_remove_datapoint(modified_prompt)
+                remove_data = self.remove_mutation(modified_prompt)
                 # keep prompt with higher score
                 modified_prompt = remove_data['original_prompt'] \
                     if remove_data['original_score'] > remove_data['removed_score'] else remove_data['removed_prompt']
 
-            add_data = self.create_add_datapoint(modified_prompt, self.df_phrase)
+            add_data = self.add_mutation(modified_prompt, self.df_phrase)
             # keep prompt with higher score
             modified_prompt = add_data['original_prompt'] \
                 if add_data['original_score'] > add_data['add_score'] else add_data['add_prompt']
@@ -263,6 +291,10 @@ def parse_args():
     parser.add_argument('--send_job', action='store_true', default=True)
     parser.add_argument('--dataset_name', default='test-generations')
     parser.add_argument('--n_mutation', type=int, default=800)
+    
+    # TODO: update this to retrieve mean and std automatically later
+    parser.add_argument('--mean', type=float, default=0)
+    parser.add_argument('--std', type=float, default=1)
     args = parser.parse_args()
 
     return args
@@ -277,20 +309,23 @@ def main(
     csv_base_prompts,
     send_job,
     dataset_name,
-    n_mutation
+    n_mutation,
+    mean,
+    std
 ):
+    # create folder to save csv if it does not exist
+    # create another folder to save scores over time
+    os.makedirs(csv_save_path, exist_ok=True)
+
     # initialize prompt mutator data generator
     dataset_generator = PromptMutatorDatasetGenerator(
         minio_access_key=minio_access_key,
         minio_secret_key=minio_secret_key,
         minio_ip_addr=minio_ip_addr,
         csv_base_prompts=csv_base_prompts,
-        csv_phrase=csv_phrase
+        csv_phrase=csv_phrase,
+        csv_save_path=csv_save_path
     )
-
-    # create folder to save csv if it does not exist
-    # create another folder to save scores over time
-    os.makedirs(csv_save_path, exist_ok=True)
 
     # every 1000 files increment counter by 1
     # this counter is for creating csv file name
@@ -332,8 +367,10 @@ def main(
             'time': task_time,
             'prompt': prompt,
             'score': score,
+            'sigma_score': (score - mean) / std,
             'seed_prompt': seed_prompt,
             'seed_score': seed_score,
+            'seed_sigma_score': (seed_score - mean) / std
         })
         df_scores_over_time.append(scores_over_time)
 
@@ -357,6 +394,7 @@ def main(
         plt.title('Change of Linear Score Over Iterations')
         plt.grid(True)
         plt.savefig(score_plot_filename)
+        plt.clf()
 
         # reset df_data such that it only save 1000 samples in every csv
         if ((i + 1) % 1000) == 0:
@@ -377,7 +415,9 @@ if __name__ == '__main__':
         csv_base_prompts=args.csv_base_prompts,
         send_job=args.send_job,
         dataset_name=args.dataset_name,
-        n_mutation=args.n_mutation
+        n_mutation=args.n_mutation,
+        mean=args.mean,
+        std=args.std
     )
     end = time.time()
 
