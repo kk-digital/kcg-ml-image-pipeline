@@ -353,8 +353,8 @@ def main(
         average_scores_per_iteration = pd.DataFrame(df_scores_over_time).mean(axis=0)
         plt.plot(average_scores_per_iteration.index, average_scores_per_iteration.values)
         plt.xlabel('Iteration')
-        plt.ylabel('Average Score')
-        plt.title('Change of Scores Over Iterations')
+        plt.ylabel('Linear Score')
+        plt.title('Change of Linear Score Over Iterations')
         plt.grid(True)
         plt.savefig(score_plot_filename)
 
