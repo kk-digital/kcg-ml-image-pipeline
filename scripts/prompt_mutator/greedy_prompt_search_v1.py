@@ -16,11 +16,12 @@ import pandas as pd
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from utility.minio import cmd
 from transformers import CLIPTokenizer, CLIPTextModel
+from stable_diffusion.model.clip_text_embedder import CLIPTextEmbedder
 from worker.prompt_generation.prompt_generator import load_base_prompts, generate_image_generation_jobs
 
 transformers.logging.set_verbosity_error()
 
-GENERATION_POLICY = 'greedy-prompt-search-v1'
+GENERATION_POLICY = 'quincy-greedy-prompt-search-v1'
 if torch.cuda.is_available():
     DEVICE = 'cuda'
 else:
@@ -52,7 +53,10 @@ class PromptMutatorDatasetGenerator:
         tokenizer = CLIPTokenizer.from_pretrained(tokenizer_path)
         model = CLIPTextModel.from_pretrained(model_path).eval().to(DEVICE)
 
-        return model, tokenizer
+        text_embedder = CLIPTextEmbedder()
+        text_embedder.load_submodels()
+
+        return text_embedder, text_embedder.tokenizer
 
     def load_model(self, input_size, device=DEVICE):
         input_path = "environmental/models/ranking/"
@@ -63,7 +67,7 @@ class PromptMutatorDatasetGenerator:
         most_recent_model = None
 
         for model_file in model_files:
-            if model_file.endswith("score-elm-v1-embedding-positive.pth"):
+            if model_file.endswith("score-linear-embedding-positive.pth"):
                 most_recent_model = model_file
 
         if most_recent_model:
@@ -86,18 +90,17 @@ class PromptMutatorDatasetGenerator:
 
     def embed(self, prompt):
         # given a prompt string, this function converts it into text embedding
-        with torch.no_grad():
-            token_encoding = self.tokenizer(prompt, return_length=True, return_tensors='pt')
-            embedding = self.clip_model(input_ids=token_encoding['input_ids'].to(DEVICE)).last_hidden_state[0]
+        embedding, _, attention_mask = self.clip_model.forward_return_all(prompt)
 
-        return embedding
+        # return without the batch dimension
+        return embedding[0]
 
     def score_prompt(self, prompt):
-        # given a prompt string, embed it into text embedding and score it using elm model
+        # given a prompt string, embed it into text embedding and score it using linear model
         # only considers positive prompt
         embedding = self.embed(prompt)
         # reshape it such that the sequence dimension is at the end
-        # this is necessary for the elm model
+        # this is necessary for the linear model
         embedding = embedding.unsqueeze(0).permute(0, 2, 1)
         score = self.scorer.predict_positive_or_negative_only(embedding).item()
 
@@ -311,8 +314,8 @@ def main(
 
         # data to include to output csv file
         # first 4 fields are standard
-        # scores are computed using elm model
-        # sigma score is relative to elm model
+        # scores are computed using linear model
+        # sigma score is relative to linear model
         df_data.append({
             'task_uuid': task_uuid,
             'score': score,
@@ -320,7 +323,7 @@ def main(
             'time': task_time,
 
             'prompt': prompt,
-            'seed_elm_score': seed_score,
+            'seed_score': seed_score,
         })
 
         # create csv filename for saving
