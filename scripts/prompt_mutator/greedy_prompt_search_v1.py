@@ -30,21 +30,6 @@ if torch.cuda.is_available():
 else:
     DEVICE = 'cpu'
 
-class Profile(contextlib.ContextDecorator):
-    def __init__(self, t=0.0):
-        self.t = t
-
-    def __enter__(self):
-        self.start = self.time()
-        return self
-
-    def __exit__(self, type, value, traceback):
-        self.dt = self.time() - self.start  # delta-time
-        self.t += self.dt  # accumulate dt
-
-    def time(self):
-        return time.time()
-
 class PromptMutatorDatasetGenerator:
     def __init__(
         self,
@@ -228,7 +213,7 @@ class PromptMutatorDatasetGenerator:
         for phrase in base_prompt_population:
             seed_prompt += f'{phrase}, '
             seed_length = self.get_token_length(seed_prompt)
-            if seed_length >= 50:
+            if seed_length >= 55:
                 break
         
         # exclude last character which is the last comma
@@ -293,8 +278,8 @@ def parse_args():
     parser.add_argument('--n_mutation', type=int, default=800)
     
     # TODO: update this to retrieve mean and std automatically later
-    parser.add_argument('--mean', type=float, default=0)
-    parser.add_argument('--std', type=float, default=1)
+    parser.add_argument('--mean', type=float, default=4856.1315)
+    parser.add_argument('--std', type=float, default=819.6140)
     args = parser.parse_args()
 
     return args
