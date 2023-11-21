@@ -150,7 +150,7 @@ class PromptMutatorDatasetGenerator:
             'score': original_score, 'mutated_score': removed_score
         }
         df = pd.read_csv(self.remove_dataset_filename)
-        df = pd.concat([df, data], ignore_index=True)
+        df = pd.concat([df, pd.Series(data)], ignore_index=True)
         df.to_csv(self.remove_dataset_filename, index=False)
 
         return {
@@ -188,7 +188,7 @@ class PromptMutatorDatasetGenerator:
             'score': original_score, 'mutated_score': add_phrase
         }
         df = pd.read_csv(self.remove_dataset_filename)
-        df = pd.concat([df, data], ignore_index=True)
+        df = pd.concat([df, pd.Series(data)], ignore_index=True)
         df.to_csv(self.remove_dataset_filename, index=False)
 
         return {
@@ -252,14 +252,6 @@ class PromptMutatorDatasetGenerator:
         print(f'Prompt: {modified_prompt}  Score: {modified_score:.3f}  Base Score: {seed_score:.3f}')
             
         return modified_prompt, modified_score, seed_prompt, seed_score, scores_over_time
-    
-    def upload_msgpack_to_minio(self, data, upload_path):
-        buffer = io.BytesIO()
-        encoder = msgpack.Packer()
-        encoded_data = encoder.pack(data)
-        buffer.write(encoded_data)
-        buffer.seek(0)
-        cmd.upload_data(self.minio_client, 'users', upload_path, buffer)
 
 def parse_args():
     parser = argparse.ArgumentParser()
