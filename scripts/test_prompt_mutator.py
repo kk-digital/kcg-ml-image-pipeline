@@ -132,12 +132,16 @@ def rank_substitution_choices(sigma_model,
     return tokens_to_substitute
 
 def mutate_prompt(device, embedding_model, sigma_model, scoring_model, 
-                  prompt_str, prompt_embedding, prompt_score, 
-                  phrase_embeddings, phrase_list, 
+                  prompt_str, phrase_list, 
                   max_iterations=200, early_stopping=20):
-    
+
+    # calculate prompt embedding, score and embedding of each phrase
+    prompt_embedding=get_prompt_embedding(device, embedding_model, prompt_str)
+    prompt_score= get_prompt_score(scoring_model, get_prompt_embedding(device, embedding_model, prompt_str))
+    phrase_embeddings= [get_prompt_embedding(device, embedding_model, phrase) for phrase in prompt_str.split(',')]
+
     # save original score
-    original_score=prompt_score
+    original_score=prompt_score 
 
     # early stopping
     early_stopping_iterations=early_stopping
@@ -218,16 +222,9 @@ def mutate_prompts(prompts, minio_client):
         futures=[]
         for prompt_str in prompts:
             print(f"Prompt {index} added to queue")
-            
-            futures.append(executor.submit(mutate_prompt, device, clip, sigma_model, elm_model,prompt_str, 
-                                           get_prompt_embedding(device, clip, prompt_str), 
-                                           get_prompt_score(elm_model, get_prompt_embedding(device, clip, prompt_str)), 
-                                           [get_prompt_embedding(device, clip, phrase) for phrase in prompt_str.split(',')],
-                                           phrases_list))
-            
+            futures.append(executor.submit(mutate_prompt, device, clip, sigma_model, elm_model,prompt_str, phrases_list))
             index+=1
 
-    
     for _ in tqdm(as_completed(futures), total=len(prompts)):
                 continue
     
