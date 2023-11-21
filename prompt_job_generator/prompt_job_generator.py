@@ -215,20 +215,15 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
     for dataset in dataset_list:
         model_name = prompt_job_generator_state.get_dataset_ranking_model(dataset)
 
-        print('model name : ', model_name)
         if model_name is None:
             continue
 
         if model_name == 'latest':
             dataset_latest_model = http_get_dataset_latest_ranking_model(dataset)
-            print('latest model : ', dataset_latest_model)
             if dataset_latest_model is not None:
                 model_name = dataset_latest_model['model_name']
 
         model_info = prompt_job_generator_state.get_dataset_model_info(dataset, model_name)
-
-
-        print('model info : ', model_info)
 
         if model_info is None:
             continue
@@ -236,11 +231,14 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
         if not isinstance(model_info, dict):
             continue
 
-        print(model_info['model_path'])
+
 
         model_type = model_info['model_type']
 
         model_path = model_info['model_path']
+
+        print(model_type)
+        print(model_type)
 
         bucket_name, file_path = separate_bucket_and_file_path(model_path)
 
