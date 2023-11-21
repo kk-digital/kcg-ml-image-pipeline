@@ -104,6 +104,7 @@ def update_dataset_latest_ranking_model(prompt_job_generator_state, list_dataset
 
         model_id = int(model_id)
         latest_ranking_model['model_id'] = model_id
+        print(latest_ranking_model)
         http_set_dataset_ranking_model(dataset, latest_ranking_model)
 
 
