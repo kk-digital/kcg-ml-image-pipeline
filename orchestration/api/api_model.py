@@ -163,6 +163,10 @@ def get_latest_ranking_model(request: Request,
 
         model_input_type = model['input_type']
         model_output_type = model['output_type']
+        model_type = model['model_type']
+
+        if model_type != 'image-pair-ranking-linear':
+            continue
 
         # filter the by input_type & output_type
         if input_type != model_input_type or output_type != model_output_type:
