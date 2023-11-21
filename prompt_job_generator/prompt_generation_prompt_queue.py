@@ -166,12 +166,13 @@ class PromptGenerationPromptQueue:
             prompts = prompts[:total_prompt_count]
 
         scored_prompts = []
-        print('--------------')
-        print('dataset  : ', dataset)
-        print(scoring_model)
-        if scoring_model != None:
-            print(scoring_model.model_type)
-        print('---------------')
+        if dataset != 'test-generations':
+            print('--------------')
+            print('dataset  : ', dataset)
+            print(scoring_model)
+            if scoring_model != None:
+                print(scoring_model.model_type)
+            print('---------------')
         for prompt in prompts:
 
             positive_text_prompt = prompt.positive_prompt
