@@ -230,8 +230,8 @@ class PromptMutatorDatasetGenerator:
         print(f'Mutating prompt for {n_mutation} iterations')
         for i in tqdm.tqdm(range(n_mutation)):
             # prevention for generating empty prompt
-            # if prompt only has 1 phrase, don't run removal op
-            if len(modified_prompt.split(', ')) > 1:
+            # if prompt has less than 3 phrases, don't run removal op
+            if len(modified_prompt.split(', ')) > 3:
                 remove_data = self.create_remove_datapoint(modified_prompt)
                 # keep prompt with higher score
                 modified_prompt = remove_data['original_prompt'] \
@@ -303,7 +303,6 @@ def main(
     # create folder to save csv if it does not exist
     # create another folder to save scores over time
     os.makedirs(csv_save_path, exist_ok=True)
-    os.makedirs(os.path.join(csv_save_path, 'scores_over_time'), exist_ok=True)
 
     # every 1000 files increment counter by 1
     # this counter is for creating csv file name
