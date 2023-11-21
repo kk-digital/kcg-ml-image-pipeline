@@ -225,8 +225,8 @@ def mutate_prompts(prompts, minio_client):
             futures.append(executor.submit(mutate_prompt, device, clip, sigma_model, elm_model,prompt_str, phrases_list))
             index+=1
 
-    for _ in tqdm(as_completed(futures), total=len(prompts)):
-                continue
+        for _ in tqdm(as_completed(futures), total=len(prompts)):
+                    continue
     
     # Iterate over completed futures
     for future in futures:
