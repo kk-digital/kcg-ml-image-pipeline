@@ -210,7 +210,7 @@ class PromptMutatorDatasetGenerator:
 
         seed_prompt = ''
         for phrase in base_prompt_population:
-            seed_prompt += f'{phrase},'
+            seed_prompt += f'{phrase}, '
             seed_length = self.get_token_length(seed_prompt)
             if seed_length >= 50:
                 break
