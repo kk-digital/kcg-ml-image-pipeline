@@ -135,7 +135,7 @@ def rank_substitution_choices(top_percentage,
 
 def mutate_prompt(device, embedding_model, sigma_model, scoring_model, 
                   prompt_str, phrase_list, 
-                  max_iterations=100, early_stopping=100):
+                  max_iterations=100, early_stopping=30):
 
     # calculate prompt embedding, score and embedding of each phrase
     prompt_embedding=get_prompt_embedding(device, embedding_model, prompt_str)
@@ -286,7 +286,7 @@ def async_mutate_prompts(prompts, minio_client):
     csv_data=[]
 
     index=0
-    with ThreadPoolExecutor(max_workers=50) as executor:
+    with ThreadPoolExecutor(max_workers=5) as executor:
         futures=[]
         for prompt_str in prompts:
             print(f"Prompt {index} added to queue")
@@ -399,9 +399,9 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     
-    prompts=pd.read_csv('input/environment_data.csv')['positive_prompt'].sample(n=4, random_state=42)
+    prompts=pd.read_csv('input/environment_data.csv')['positive_prompt'].sample(n=5, random_state=42)
     
-    mutated_prompts, original_scores, mutated_scores =mutate_prompts(prompts, minio_client)
+    mutated_prompts, original_scores, mutated_scores =async_mutate_prompts(prompts, minio_client)
     print(original_scores)
     print(mutated_scores)
     #compare_distributions(minio_client, original_scores, mutated_scores)
