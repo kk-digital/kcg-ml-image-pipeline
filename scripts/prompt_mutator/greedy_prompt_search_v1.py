@@ -230,14 +230,16 @@ class PromptMutatorDatasetGenerator:
                 # keep prompt with higher score
                 modified_prompt = remove_data['original_prompt'] \
                     if remove_data['original_score'] > remove_data['removed_score'] else remove_data['removed_prompt']
-
-            add_data = self.add_mutation(modified_prompt, self.df_phrase)
-            # keep prompt with higher score
-            modified_prompt = add_data['original_prompt'] \
-                if add_data['original_score'] > add_data['add_score'] else add_data['add_prompt']
             
-            modified_score = add_data['original_score'] \
-                if add_data['original_score'] > add_data['add_score'] else add_data['add_score']
+            # only add phrases if there are less than or equal 65 tokens
+            if self.get_token_length(modified_prompt) <= 65:
+                add_data = self.add_mutation(modified_prompt, self.df_phrase)
+                # keep prompt with higher score
+                modified_prompt = add_data['original_prompt'] \
+                    if add_data['original_score'] > add_data['add_score'] else add_data['add_prompt']
+                
+                modified_score = add_data['original_score'] \
+                    if add_data['original_score'] > add_data['add_score'] else add_data['add_score']
             
             scores_over_time.append(modified_score)
 
