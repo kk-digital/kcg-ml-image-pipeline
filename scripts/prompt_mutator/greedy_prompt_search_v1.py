@@ -90,7 +90,8 @@ class PromptMutatorDatasetGenerator:
 
     def embed(self, prompt):
         # given a prompt string, this function converts it into text embedding
-        embedding, _, attention_mask = self.clip_model.forward_return_all(prompt)
+        with torch.no_grad():
+            embedding, _, attention_mask = self.clip_model.forward_return_all(prompt)
 
         # return without the batch dimension
         return embedding[0]
