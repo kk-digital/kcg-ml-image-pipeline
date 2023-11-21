@@ -345,6 +345,21 @@ def get_completed_job_by_hash(request: Request, image_hash):
 
     return job
 
+@router.get("/job/get-job/{uuid}", response_class=PrettyJSONResponse)
+def get_job_by_uuid(request: Request, uuid: str):
+    # Assuming the job's UUID is stored in the 'uuid' field
+    query = {"uuid": uuid}
+    job = request.app.completed_jobs_collection.find_one(query)
+
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Remove the '_id' field to avoid issues with JSON serialization
+    job.pop('_id', None)
+
+    return job
+
+
 # --------------- Get Job With Required Fields ---------------------
 
 @router.get("/get-image-generation/by-hash/{image_hash}", response_class=PrettyJSONResponse)
