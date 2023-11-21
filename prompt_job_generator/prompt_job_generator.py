@@ -237,8 +237,6 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
 
         model_path = model_info['model_path']
 
-        print(model_type)
-        print(model_type)
 
         bucket_name, file_path = separate_bucket_and_file_path(model_path)
 

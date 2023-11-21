@@ -259,7 +259,10 @@ class PromptJobGeneratorState:
     def get_dataset_scoring_model(self, dataset):
         model_name = self.get_dataset_ranking_model(dataset)
 
+        print('model name : ', model_name)
         model_info = self.get_dataset_model_info(dataset, model_name)
+
+        print('model_info :', model_info)
 
         if model_info is None:
             return
