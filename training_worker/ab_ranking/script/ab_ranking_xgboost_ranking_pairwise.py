@@ -27,9 +27,8 @@ def forward_bradley_terry(predicted_score_images_x, predicted_score_images_y, us
         # scaled_score_image_x = torch.multiply(1000.0, predicted_score_images_x)
         # scaled_score_image_y = torch.multiply(1000.0, predicted_score_images_y)
 
-        # prob = sigmoid( (x-y) / 100 )
         diff_predicted_score = np.subtract(predicted_score_images_x, predicted_score_images_y)
-        res_predicted_score = np.divide(diff_predicted_score, 50.0)
+        res_predicted_score = np.divide(diff_predicted_score, 1.0)
         pred_probabilities = np_sigmoid(res_predicted_score)
     else:
         epsilon = 0.000001
