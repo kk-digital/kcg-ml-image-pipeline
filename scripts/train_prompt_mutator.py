@@ -173,7 +173,7 @@ def create_dataset(minio_client, device, csv_path, embedding_type):
             substituted_embedding= clip.forward(substituted_phrase).unsqueeze(0)
 
         prompt_list[position_to_substitute] = substitute_phrase
-        modified_prompt = ", ".join(prompt_list)
+        modified_prompt = ",".join(prompt_list)
 
         # Get embedding of mutated prompt
         with torch.no_grad():
@@ -234,7 +234,7 @@ def create_dataset(minio_client, device, csv_path, embedding_type):
 
 def load_dataset(minio_client, embedding_type):
     dataset_path=DATA_MINIO_DIRECTORY + f"/{embedding_type}_prompts/"
-    dataset_files=minio_client.list_objects('datasets', prefix=dataset_path)
+    dataset_files=minio_client.list_objects('datasets', prefix=dataset_path, recursive=True)
     dataset_files= [file.object_name for file in dataset_files]
 
     elm_score_encoding=[]
