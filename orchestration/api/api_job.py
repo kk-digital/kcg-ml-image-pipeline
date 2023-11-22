@@ -440,9 +440,9 @@ def add_attributes_job_completed(request: Request,
                          delta_score):
     query = {"task_output_file_dict.output_file_hash": image_hash}
 
-    update_query = {"$set": {"attributes.clip_sigma_score": clip_sigma_score,
-                             "attributes.embedding_sigma_score": embedding_sigma_score,
-                             "attributes.delta_score": delta_score}}
+    update_query = {"$set": {"task_attributes_dict.clip_sigma_score": clip_sigma_score,
+                             "task_attributes_dict.embedding_sigma_score": embedding_sigma_score,
+                             "task_attributes_dict.delta_score": delta_score}}
 
     request.app.completed_jobs_collection.update_one(query, update_query)
 
