@@ -407,6 +407,23 @@ class ABRankingModel:
 
             return outputs
 
+    # predict pooled embedding
+    def predict_pooled_embeddings(self, positive_input_pooled_embeddings, negative_input_pooled_embeddings):
+        # make it [2, 77, 768]
+        inputs = torch.stack((positive_input_pooled_embeddings, negative_input_pooled_embeddings))
+
+        # make it [1, 2, 77, 768]
+        inputs = inputs.unsqueeze(0)
+
+        # then concatenate
+        inputs = inputs.reshape(len(inputs), -1)
+
+        with torch.no_grad():
+            outputs = self.model.forward(inputs).squeeze()
+
+            return outputs
+
+
     def predict_average_pooling(self,
                                 positive_input,
                                 negative_input,
@@ -446,6 +463,17 @@ class ABRankingModel:
             outputs = self.model.forward(inputs).squeeze()
 
             return outputs
+
+    # accepts only pooled embeddings
+    def predict_positive_or_negative_only_pooled(self, inputs):
+        # then concatenate
+        inputs = inputs.reshape(len(inputs), -1)
+
+        with torch.no_grad():
+            outputs = self.model.forward(inputs).squeeze()
+
+            return outputs
+
 
     def predict_clip(self, inputs):
         # concatenate

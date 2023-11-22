@@ -424,6 +424,8 @@ class ABRankingELMModel:
             training_loss_per_epoch, \
             validation_loss_per_epoch
 
+    # Deprecate: This will be replaced by
+    # predict_average_pooling
     def predict(self, positive_input, negative_input):
         # get rid of the 1 dimension at start
         positive_input = positive_input.squeeze()
@@ -446,8 +448,22 @@ class ABRankingELMModel:
 
             return outputs
 
-    # Deprecate: This will be replaced by
-    # predict_average_pooling
+    # predict pooled embedding
+    def predict_pooled_embeddings(self, positive_input_pooled_embeddings, negative_input_pooled_embeddings):
+        # make it [2, 77, 768]
+        inputs = torch.stack((positive_input_pooled_embeddings, negative_input_pooled_embeddings))
+
+        # make it [1, 2, 77, 768]
+        inputs = inputs.unsqueeze(0)
+
+        # then concatenate
+        inputs = inputs.reshape(len(inputs), -1)
+
+        with torch.no_grad():
+            outputs = self.model.forward(inputs).squeeze()
+
+            return outputs
+
     def predict_average_pooling(self,
                                 positive_input,
                                 negative_input,
@@ -481,6 +497,16 @@ class ABRankingELMModel:
         # do average pooling
         inputs = torch.mean(inputs, dim=2)
 
+        # then concatenate
+        inputs = inputs.reshape(len(inputs), -1)
+
+        with torch.no_grad():
+            outputs = self.model.forward(inputs).squeeze()
+
+            return outputs
+
+    # accepts only pooled embeddings
+    def predict_positive_or_negative_only_pooled(self, inputs):
         # then concatenate
         inputs = inputs.reshape(len(inputs), -1)
 
