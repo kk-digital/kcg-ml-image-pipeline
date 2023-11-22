@@ -89,7 +89,7 @@ def store_in_csv_file(csv_data, minio_client):
     buffer = io.BytesIO(csv_content)
     buffer.seek(0)
 
-    model_path = os.path.join('environmental', 'output/prompt_mutator/dataset.csv')
+    model_path = 'environmental/output/prompt_mutator/dataset.csv'
     cmd.upload_data(minio_client, 'datasets', model_path, buffer)
 
 def store_in_msgpack_file(prompt_data, index, minio_client):
@@ -155,18 +155,20 @@ def create_dataset(minio_client, device):
 
         #Randomly select a phrase from the dataset and get an embedding
         substitute_phrase = random.choice(phrases_df['phrase'].tolist())
+        with torch.no_grad():
+                substitute_embedding= clip.forward(substitute_phrase).unsqueeze(0)
 
         # Choose a random position to substitute in the prompt
         position_to_substitute = random.randint(0, len(prompt_str.split(',')) - 1)
 
         # Create a modified prompt with the substitution and get embedding of substituted phrase
-        prompt_list = prompt_str.split(',')
+        prompt_list = prompt_str.split(', ')
         substituted_phrase=prompt_list[position_to_substitute]
         with torch.no_grad():
-            sub_phrase_embedding= clip.forward(substituted_phrase).unsqueeze(0)
+            substituted_embedding= clip.forward(substituted_phrase).unsqueeze(0)
 
         prompt_list[position_to_substitute] = substitute_phrase
-        modified_prompt = ",".join(prompt_list)
+        modified_prompt = ", ".join(prompt_list)
 
         # Get embedding of mutated prompt
         with torch.no_grad():
@@ -185,9 +187,14 @@ def create_dataset(minio_client, device):
         pooled_prompt_embedding = pooled_prompt_embedding.reshape(len(pooled_prompt_embedding), -1).squeeze(0)
         
         # mean pooling
-        pooled_sub_phrase_embedding=torch.mean(sub_phrase_embedding, dim=2)
+        pooled_substituted_embedding=torch.mean(substituted_embedding, dim=2)
         #flattening embedding
-        pooled_sub_phrase_embedding = pooled_sub_phrase_embedding.reshape(len(pooled_sub_phrase_embedding), -1).squeeze(0)
+        pooled_substituted_embedding = pooled_substituted_embedding.reshape(len(pooled_substituted_embedding), -1).squeeze(0)
+        
+        # mean pooling
+        pooled_substitute_embedding=torch.mean(substitute_embedding, dim=2)
+        #flattening embedding
+        pooled_substitute_embedding = pooled_substitute_embedding.reshape(len(pooled_substitute_embedding), -1).squeeze(0)
 
         # Append to the CSV data list
         csv_data.append([
@@ -201,7 +208,7 @@ def create_dataset(minio_client, device):
 
         # Append to the msgpack data list
         prompt_data={
-        'input': torch.cat([pooled_prompt_embedding, pooled_sub_phrase_embedding], dim=0).tolist(),
+        'input': torch.cat([pooled_prompt_embedding, pooled_substituted_embedding, pooled_substitute_embedding], dim=0).tolist(),
         'position_encoding': position_to_substitute,
         'score_encoding': prompt_score.item(),
         'output': modified_pormpt_score.item()
@@ -235,15 +242,15 @@ def load_dataset(minio_client):
         inputs.append(msgpack_data['input'])
         position_encoding.append(msgpack_data['position_encoding'])
         score_encoding.append(msgpack_data['score_encoding'])
-        outputs.append(msgpack_data['score_encoding'] - msgpack_data['output'])
+        outputs.append(msgpack_data['output'])
         
 
     #compute sigma scores for initial score encoding
-    # sigma_mean=np.mean(score_encoding)
-    # sigma_std=np.std(score_encoding)
-    # score_encoding = [(x - sigma_mean) / sigma_std for x in score_encoding]
-    # #compute sigma scores for output
-    # outputs = [(x - sigma_mean) / sigma_std for x in outputs]
+    sigma_mean=np.mean(score_encoding)
+    sigma_std=np.std(score_encoding)
+    score_encoding = [(x - sigma_mean) / sigma_std for x in score_encoding]
+    #compute sigma scores for output
+    outputs = [(x - sigma_mean) / sigma_std for x in outputs]
 
     return inputs, position_encoding, score_encoding, outputs
 
@@ -295,7 +302,7 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     
-    #create_dataset(minio_client, device)
+    create_dataset(minio_client, device)
 
     inputs, position_encoding, score_encoding, outputs =load_dataset(minio_client)
     binary_inputs, binary_outputs =load_classification_dataset(minio_client)
@@ -307,45 +314,23 @@ def main():
                               'environmental/output/prompt_mutator/binary_prompt_mutator.json')
 
     #prompt mutator with both position encoding and initial score encoding
-    # first_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score")
-    # first_mutator.train(inputs, 
-    #                     position_encoding, 
-    #                     score_encoding,
-    #                     outputs
-    #                     )
-    # first_mutator.save_model()
-    
-    # # prompt mutator with initial score encoding
-    # second_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score", 
-    #                             use_position_encoding=False,
-    #                             use_score_encoding= True)
-    # second_mutator.train(inputs, 
-    #                     position_encoding, 
-    #                     score_encoding,
-    #                     outputs
-    #                     )
-    # second_mutator.save_model()
-    
-    # # prompt mutator with position encoding
-    # third_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score",
-    #                             use_position_encoding=True,
-    #                             use_score_encoding= False)
-    # third_mutator.train(inputs, 
-    #                     position_encoding, 
-    #                     score_encoding,
-    #                     outputs
-    #                     )
-    # third_mutator.save_model()
+    sigma_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score")
+    sigma_mutator.train(inputs, 
+                        position_encoding, 
+                        score_encoding,
+                        outputs
+                        )
+    sigma_mutator.save_model()
     
     # input, delta_output, sigma_output, binary_output = load_dataset(minio_client, device)
 
     # prompt mutator for predicting delta scores
-    delta_mutator= PromptMutator(minio_client=minio_client, output_type="delta_score")
-    delta_mutator.train(inputs, 
-                        position_encoding,
-                        score_encoding,
-                        outputs)
-    delta_mutator.save_model()
+    # delta_mutator= PromptMutator(minio_client=minio_client, output_type="delta_score")
+    # delta_mutator.train(inputs, 
+    #                     position_encoding,
+    #                     score_encoding,
+    #                     outputs)
+    # delta_mutator.save_model()
     
     
     # grid search for hyperparameters

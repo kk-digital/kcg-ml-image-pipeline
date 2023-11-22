@@ -29,16 +29,16 @@ class PromptMutator:
     def get_model_path(self ,output_type,use_position_encoding, use_score_encoding):
         if use_score_encoding and use_position_encoding:
             encoding="both_encodings"
-            input_size=1538
+            input_size=2306
         elif use_position_encoding:
             encoding="position_encoding"
-            input_size=1537
+            input_size=2305
         elif use_score_encoding:
             encoding="score_encoding"
-            input_size=1537
+            input_size=2305
         else:
             encoding="no_encoding"
-            input_size=1536
+            input_size=2304
         
         local_path=f"output/{output_type}_prompt_mutator.json"
         minio_path=f"environmental/output/prompt_mutator/{output_type}_model/{encoding}_prompt_mutator.json"
@@ -80,6 +80,8 @@ class PromptMutator:
 
         params = {
             'objective': 'reg:absoluteerror',
+            "device": "cuda:0",
+            'tree_method': 'gpu_hist',  # Use GPU acceleration
             'max_depth': max_depth,
             'min_child_weight': min_child_weight,
             'gamma': gamma,
@@ -126,6 +128,7 @@ class PromptMutator:
         #info text about the model
         plt.figtext(0.02, 0.7, "Date = {}\n"
                             "Dataset = {}\n"
+                            "Model = {}\n"
                             "Model type = {}\n"
                             "Input type = {}\n"
                             "Input shape = {}\n"
@@ -138,6 +141,7 @@ class PromptMutator:
                             "Training loss = {:.4f}\n"
                             "Validation loss = {:.4f}\n".format(datetime.now().strftime("%Y-%m-%d"),
                                                             'environmental',
+                                                            'Prompt Substitution',
                                                             'XGBoost',
                                                             'clip_text_embedding',
                                                             self.input_size,

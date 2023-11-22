@@ -2,6 +2,7 @@ from datetime import datetime
 from io import BytesIO
 import os
 import sys
+import tempfile
 import time
 from matplotlib import pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
@@ -39,6 +40,8 @@ class MulticlassPromptMutator:
 
         params = {
             'objective':'binary:logistic',
+            "device": "cuda:0",
+            'tree_method': 'gpu_hist',  # Use GPU acceleration
             'max_depth': max_depth,
             'min_child_weight': min_child_weight,
             'gamma': gamma,
@@ -81,6 +84,7 @@ class MulticlassPromptMutator:
         #info text about the model
         plt.figtext(0.03, 0.7, "Date = {}\n"
                             "Dataset = {}\n"
+                            "Model = {}\n"
                             "Model type = {}\n"
                             "Input type = {}\n"
                             "Input shape = {}\n"
@@ -90,9 +94,10 @@ class MulticlassPromptMutator:
                             "Validation size = {}\n"
                             "Accuracy ={:.4f}".format(datetime.now().strftime("%Y-%m-%d"),
                                                             'environmental',
+                                                            'Prompt Substitution'
                                                             'XGBoost',
                                                             'clip_text_embedding',
-                                                            '1538',
+                                                            '2306',
                                                             "binary",
                                                             training_size,
                                                             validation_size,
@@ -149,8 +154,22 @@ class MulticlassPromptMutator:
         dtest = xgb.DMatrix(X)
         return self.model.predict(dtest)
 
-    def load_model(self, model_path):
-        self.model.load_model(model_path)
+    def load_model(self, minio_path):
+        # get model file data from MinIO
+        model_file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', minio_path)
+
+        # Create a temporary file and write the downloaded content into it
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            for data in model_file_data.stream(amt=8192):
+                temp_file.write(data)
+
+        # Load the model from the temporary file into XGBClassifier
+        self.model = xgb.XGBClassifier()
+        self.model.load_model(temp_file.name)
+        self.model.set_params({"device": "cuda:0"})
+
+        # Remove the temporary file
+        os.remove(temp_file.name)
 
     def save_model(self, local_path ,minio_path):
 
