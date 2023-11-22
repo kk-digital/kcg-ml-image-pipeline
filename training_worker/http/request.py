@@ -213,3 +213,25 @@ def http_get_completed_job_by_image_hash(image_hash):
         print('request exception ', e)
 
     return None
+
+
+def http_add_score_attributes(img_hash,
+                              clip_sigma_score,
+                              embedding_sigma_score,
+                              delta_score):
+    endpoint = "/job/add-attributes?image_hash={}&clip_sigma_score={}&embedding_sigma_score&delta_score={}".format(
+        img_hash,
+        clip_sigma_score,
+        embedding_sigma_score,
+        delta_score)
+    url = SERVER_ADRESS + endpoint
+
+    try:
+        response = requests.put(url)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}: {str(response.content)}")
+    except Exception as e:
+        print('request exception ', e)
+
+    return None

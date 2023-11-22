@@ -24,12 +24,22 @@ def get_delta_score(clip_hash_sigma_score_dict,
 def upload_scores_attributes_to_completed_jobs(clip_hash_sigma_score_dict,
                                                embedding_hash_sigma_score_dict,
                                                hash_delta_score_dict):
-    for img_hash, clip_sigma_score in clip_hash_sigma_score_dict.items():
-        # get job
-        job = request.http_get_completed_job_by_image_hash(img_hash)
-        job_uuid = job["uuid"]
-        print("job_uuid=", job_uuid)
-        print("job=", job)
+    print("Uploading scores, sigma scores, and delta scores to mongodb...")
+    with ThreadPoolExecutor(max_workers=50) as executor:
+        futures = []
+        for img_hash, clip_sigma_score in clip_hash_sigma_score_dict.items():
+            embedding_sigma_score = embedding_hash_sigma_score_dict[img_hash]
+            delta_score = hash_delta_score_dict[img_hash]
+
+            futures.append(executor.submit(request.http_add_score_attributes,
+                                           img_hash=img_hash,
+                                           clip_sigma_score=clip_sigma_score,
+                                           embedding_sigma_score=embedding_sigma_score,
+                                           delta_score=delta_score))
+
+        for _ in tqdm(as_completed(futures), total=len(hash_score_pairs)):
+            continue
+
 
 
 def run_image_delta_scorer(minio_client,
