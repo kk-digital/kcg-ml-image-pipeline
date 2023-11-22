@@ -271,7 +271,7 @@ def get_random_image_with_time(
     dataset: str = Query(...),
     time_interval: int = Query(..., description="Time interval in minutes or hours"),
     time_unit: str = Query("minutes", description="Time unit, either 'minutes' or 'hours"),
-    size: int = Query(1, description="Number of images to retrieve")
+    size: int = Query(1, description="Number of images to return")  # Added size parameter with a default of 1
 ):
     # Calculate the time threshold based on the current time and the specified interval
     current_time = datetime.utcnow()
@@ -283,28 +283,26 @@ def get_random_image_with_time(
         raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
 
     # Use $match to filter documents based on dataset and creation time
-    aggregation_pipeline = [
+    documents = request.app.completed_jobs_collection.aggregate([
         {"$match": {
             "task_input_dict.dataset": dataset,
-            "task_creation_time": {"$gte": threshold_time}
+            "task_creation_time": {"$gte": threshold_time.strftime("%Y-%m-%d")}
         }},
-        {"$sample": {"size": size}}
-    ]
-
-    documents = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
+        {"$sample": {"size": size}}  # Use the size parameter here
+    ])
 
     # Convert cursor type to list
     documents = list(documents)
 
     # Ensure the list isn't empty (this is just a safety check)
     if not documents:
-        raise HTTPException(status_code=404, detail=f"No image found for the given dataset within the last {time_interval} {time_unit}")
+        raise HTTPException(status_code=404, detail=f"No images found for the given dataset within the last {time_interval} {time_unit}")
 
     # Remove the auto-generated _id field from each document
     for document in documents:
         document.pop('_id', None)
 
-    return documents
+    return {"images": documents}  # Return the list of images
 
 
 
