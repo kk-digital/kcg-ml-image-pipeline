@@ -147,11 +147,12 @@ class ABRankingModel:
         self.date = model['date']
         self.model.load_state_dict(model['model_dict'])
 
-        self.training_loss = model['training-loss']
-        self.validation_loss = model['validation-loss']
-
         # new added fields not in past models
         # so check first
+        if "training-loss" in model:
+            self.training_loss = model['training-loss']
+            self.validation_loss = model['validation-loss']
+
         if "mean" in model:
             self.mean = model['mean']
             self.standard_deviation = model['standard-deviation']
