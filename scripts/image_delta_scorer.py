@@ -23,25 +23,20 @@ def get_delta_score(clip_hash_sigma_score_dict,
     return hash_delta_score_dict
 
 
-def upload_scores_attributes_to_completed_jobs(clip_hash_score_pairs,
+def upload_scores_attributes_to_completed_jobs(clip_hash_score_dict,
                                                clip_hash_sigma_score_dict,
-                                               embedding_hash_score_pairs,
+                                               embedding_hash_score_dict,
                                                embedding_hash_sigma_score_dict,
                                                hash_delta_score_dict):
     print("Uploading scores, sigma scores, and delta scores to mongodb...")
     with ThreadPoolExecutor(max_workers=50) as executor:
         futures = []
-        for i in range(len(clip_hash_score_pairs)):
-            img_hash = clip_hash_score_pairs[i][0]
-            clip_score =  clip_hash_score_pairs[i][1]
+        for img_hash, clip_score in clip_hash_score_dict.items():
             clip_sigma_score = clip_hash_sigma_score_dict[img_hash]
 
-            if img_hash != embedding_hash_score_pairs[i][0]:
-                print("Skipping due to inconsistent image hashes...")
-                continue
-
-            embedding_score =  embedding_hash_score_pairs[i][1]
+            embedding_score = embedding_hash_score_dict[img_hash]
             embedding_sigma_score = embedding_hash_sigma_score_dict[img_hash]
+            
             delta_score = hash_delta_score_dict[img_hash]
 
             futures.append(executor.submit(request.http_add_score_attributes,
@@ -56,6 +51,12 @@ def upload_scores_attributes_to_completed_jobs(clip_hash_score_pairs,
             continue
 
 
+def convert_pairs_to_dict(hash_score_pairs):
+    hash_score_dict = {}
+    for i in range(len(hash_score_pairs)):
+        hash_score_dict[hash_score_pairs[i][0]] = hash_score_pairs[i][1]
+
+    return hash_score_dict
 
 def run_image_delta_scorer(minio_client,
                            dataset_name,
@@ -88,9 +89,12 @@ def run_image_delta_scorer(minio_client,
     hash_delta_score_dict = get_delta_score(clip_hash_sigma_score_dict=clip_hash_sigma_score_dict,
                                             embedding_hash_sigma_score_dict=embedding_hash_sigma_score_dict)
 
-    upload_scores_attributes_to_completed_jobs(clip_hash_score_pairs=clip_hash_score_pairs,
+    clip_hash_score_dict = convert_pairs_to_dict(clip_hash_score_pairs)
+    embedding_hash_score_dict = convert_pairs_to_dict(embedding_hash_score_pairs)
+
+    upload_scores_attributes_to_completed_jobs(clip_hash_score_dict=clip_hash_score_dict,
                                                clip_hash_sigma_score_dict=clip_hash_sigma_score_dict,
-                                               embedding_hash_score_pairs=embedding_hash_score_pairs,
+                                               embedding_hash_score_dict=embedding_hash_score_dict,
                                                embedding_hash_sigma_score_dict=embedding_hash_sigma_score_dict,
                                                hash_delta_score_dict=hash_delta_score_dict)
 
