@@ -16,52 +16,24 @@ from utility.minio import cmd
 
 class PromptMutator:
     def __init__(self, minio_client, model=None, output_type="sigma_score", prompt_type="positive",
-                 use_position_encoding=True, use_score_encoding=True):
+                 ranking_model="elm"):
         self.model = model
         self.minio_client= minio_client
-        self.use_position_encoding=use_position_encoding
-        self.use_score_encoding=use_score_encoding
         self.output_type= output_type
         self.prompt_type= prompt_type
-        self.local_path, self.minio_path, self.input_size=self.get_model_path(output_type,
-                                                             use_position_encoding, 
-                                                             use_score_encoding)
+        self.ranking_model=ranking_model
+        self.local_path, self.minio_path=self.get_model_path()
+        self.date = datetime.now().strftime("%Y_%m_%d")
 
-    def get_model_path(self ,output_type,use_position_encoding, use_score_encoding):
-        if use_score_encoding and use_position_encoding:
-            encoding="both_encodings"
-            input_size=2306
-        elif use_position_encoding:
-            encoding="position_encoding"
-            input_size=2305
-        elif use_score_encoding:
-            encoding="score_encoding"
-            input_size=2305
-        else:
-            encoding="no_encoding"
-            input_size=2304
+    def get_model_path(self):
         
-        local_path=f"output/{output_type}_prompt_mutator.json"
-        minio_path=f"environmental/model/prompt-generator/substitution/{self.prompt_type}_prompts_only/{output_type}_prompt_mutator.json"
+        local_path=f"output/{self.output_type}_prompt_mutator.json"
+        minio_path=f"environmental/models/prompt-generator/substitution/{self.prompt_type}_prompts_only/{self.date}_{self.output_type}_{self.ranking_model}_model.json"
 
-        return local_path, minio_path, input_size
-
-    def add_encoding(self, dataset, position_encoding, score_encoding):
-        encoded_dataset=[]
-        for substitution, position, score in zip(dataset, position_encoding, score_encoding):
-            if self.use_position_encoding:
-                substitution=np.concatenate([substitution, [position]])
-            if self.use_score_encoding:
-                substitution=np.concatenate([substitution, [score]])
-            
-            encoded_dataset.append(substitution)
-        
-        return encoded_dataset
+        return local_path, minio_path
 
     def train(self, 
               X_train,
-              position_encoding,
-              score_encoding, 
               y_train, 
               max_depth=7, 
               min_child_weight=1,
@@ -71,8 +43,6 @@ class PromptMutator:
               eta=0.1,
               early_stopping=50):
         
-        if self.use_position_encoding or self.use_score_encoding:
-            X_train=self.add_encoding(X_train, position_encoding, score_encoding)
         
         X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, shuffle=True)
 
@@ -133,22 +103,18 @@ class PromptMutator:
                             "Model type = {}\n"
                             "Input type = {}\n"
                             "Input shape = {}\n"
-                            "Output type= {}\n"
-                            "use_position_encoding={} \n"
-                            "use_initial_score_encoding={} \n\n"
+                            "Output type= {}\n\n"
                             ""
                             "Training size = {}\n"
                             "Validation size = {}\n"
                             "Training loss = {:.4f}\n"
-                            "Validation loss = {:.4f}\n".format(datetime.now().strftime("%Y-%m-%d"),
+                            "Validation loss = {:.4f}\n".format(self.date,
                                                             'environmental',
                                                             'Prompt Substitution',
                                                             'XGBoost',
                                                             'clip_text_embedding',
-                                                            self.input_size,
+                                                            '2306',
                                                             self.output_type,
-                                                            self.use_position_encoding,
-                                                            self.use_score_encoding,
                                                             training_size,
                                                             validation_size,
                                                             train_mae_per_round[-1],

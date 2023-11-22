@@ -3,7 +3,6 @@ from io import BytesIO
 import os
 import sys
 import tempfile
-import time
 from matplotlib import pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 from sklearn.preprocessing import LabelEncoder
@@ -17,17 +16,19 @@ sys.path.insert(0, base_directory)
 
 from utility.minio import cmd
 
-class MulticlassPromptMutator:
-    def __init__(self, minio_client, prompt_type="positive"):
+class BinaryPromptMutator:
+    def __init__(self, minio_client, prompt_type="positive", ranking_model="elm"):
         self.model = None
         self.minio_client= minio_client
         self.prompt_type= prompt_type
+        self.ranking_model=ranking_model
         self.local_path, self.minio_path=self.get_model_path()
+        self.date = datetime.now().strftime("%Y_%m_%d")
         self.accuracy=0
 
     def get_model_path(self):    
         local_path=f"output/binary_prompt_mutator.json"
-        minio_path=f"environmental/models/prompt-generator/substitution/{self.prompt_type}_prompts_only/binary_prompt_mutator.json"
+        minio_path=f"environmental/models/prompt-generator/substitution/{self.prompt_type}_prompts_only/{self.date}_binary_{self.ranking_model}_model.json"
 
         return local_path, minio_path
 
