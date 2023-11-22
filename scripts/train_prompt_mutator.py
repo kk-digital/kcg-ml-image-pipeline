@@ -333,7 +333,7 @@ def main():
     elm_binary_mutator.train(elm_inputs, elm_binary_outputs)
     elm_binary_mutator.save_model()
     
-    linear_binary_mutator= BinaryPromptMutator(minio_client=minio_client)
+    linear_binary_mutator= BinaryPromptMutator(minio_client=minio_client, ranking_model="linear")
     linear_binary_mutator.train(linear_inputs, linear_binary_outputs)
     linear_binary_mutator.save_model()
 
@@ -342,7 +342,7 @@ def main():
     elm_sigma_mutator.train(elm_inputs, elm_sigma_outputs)
     elm_sigma_mutator.save_model()
     
-    linear_sigma_mutator= PromptMutator(minio_client=minio_client)
+    linear_sigma_mutator= PromptMutator(minio_client=minio_client, ranking_model="linear")
     linear_sigma_mutator.train(linear_inputs, linear_sigma_outputs)
     linear_sigma_mutator.save_model()
 
