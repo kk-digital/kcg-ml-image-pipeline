@@ -170,6 +170,7 @@ class PromptGenerationPromptQueue:
         if dataset != 'test-generations':
             print('--------------')
             print('dataset  : ', dataset)
+            print('model_name : ', model_name)
             print(scoring_model)
             if scoring_model != None:
                 print(scoring_model.model_type)

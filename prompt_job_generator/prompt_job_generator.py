@@ -233,8 +233,6 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
         if not isinstance(model_info, dict):
             continue
 
-
-
         model_type = model_info['model_type']
 
         model_path = model_info['model_path']
@@ -255,9 +253,7 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
         elif model_type == 'image-pair-ranking-elm-v1':
             prompt_job_generator_state.load_elm_v1_model(bucket_name, 'datasets', model_path)
 
-        print(f'Loaded {model_type}, {model_path} for dataset {dataset}')
         scoring_model = prompt_job_generator_state.get_dataset_scoring_model(dataset)
-        print('scoring_model loaded ', scoring_model, ' for dataset ', dataset)
 
 def update_dataset_prompt_queue_background_thread(prompt_job_generator_state):
 
