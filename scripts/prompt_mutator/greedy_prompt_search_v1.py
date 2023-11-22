@@ -220,8 +220,8 @@ class PromptMutatorDatasetGenerator:
 
         modified_prompt = seed_prompt
         scores_over_time = [seed_score]
-        print(f'Mutating prompt for {n_mutation} iterations')
         mutation_rounds = np.random.choice(n_mutation)
+        print(f'Mutating prompt for {mutation_rounds} iterations')
         for i in tqdm.tqdm(range(mutation_rounds)):
             # prevention for generating empty prompt
             # if prompt has less than 3 phrases, don't run removal op
@@ -306,7 +306,7 @@ def main(
     df_data = []
     df_scores_over_time = []
     for i in range(n_data):
-        print(f'Generating prompt {i+1}')
+        print(f'Generating prompt {i+1} of {n_data}')
 
         # generate prompt by mutation
         prompt, score, seed_prompt, seed_score, scores_over_time = dataset_generator.mutate_prompt(None, n_mutation)
