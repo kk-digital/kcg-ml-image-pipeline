@@ -10,9 +10,8 @@ import os
 import tqdm
 import time
 import traceback
-import contextlib
-import msgpack
 
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -212,7 +211,7 @@ class PromptMutatorDatasetGenerator:
         # exclude last character which is the last comma
         return seed_prompt[:-1]
     
-    def mutate_prompt(self, seed_prompt=None, n_mutation=1000):
+    def mutate_prompt(self, seed_prompt=None, n_mutation=[25, 50, 75, 100]):
         # this function samples a seed prompt or use a provided seed prompt
         # then applies add / remove n_mutation times
         if seed_prompt is None:
@@ -222,7 +221,8 @@ class PromptMutatorDatasetGenerator:
         modified_prompt = seed_prompt
         scores_over_time = [seed_score]
         print(f'Mutating prompt for {n_mutation} iterations')
-        for i in tqdm.tqdm(range(n_mutation)):
+        mutation_rounds = np.random.choice(n_mutation)
+        for i in tqdm.tqdm(range(mutation_rounds)):
             # prevention for generating empty prompt
             # if prompt has less than 3 phrases, don't run removal op
             if len(modified_prompt.split(', ')) > 3:
@@ -263,7 +263,7 @@ def parse_args():
     parser.add_argument('--csv_save_path', help='CSV path to save job info', default='output/greedy-prompt-search-v1-output/')
     parser.add_argument('--send_job', action='store_true', default=True)
     parser.add_argument('--dataset_name', default='test-generations')
-    parser.add_argument('--n_mutation', type=int, default=800)
+    parser.add_argument('--n_mutation', nargs='+', type=int, default=[25, 50, 75, 100])
     
     # TODO: update this to retrieve mean and std automatically later
     parser.add_argument('--mean', type=float, default=4856.1315)
