@@ -16,7 +16,7 @@ sys.path.insert(0, base_directory)
 from training_worker.prompt_mutator.prompt_mutator_model import PromptMutator
 from training_worker.prompt_mutator.binary_prompt_mutator import BinaryPromptMutator
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
-from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingLinearModel
+from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from utility.minio import cmd
 
@@ -29,6 +29,8 @@ def parse_args():
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
     parser.add_argument('--csv-phrase', help='CSV containing phrases, must have "phrase str" column', default='input/civitai_phrases_database_v7_no_nsfw.csv')
     parser.add_argument('--embedding-type', help='type of embedding, positive or negative', default='positive')
+    parser.add_argument('--create-dataset', help='whether to create a new dataset or load existing one', default=False)
+    
     args = parser.parse_args()
     return args
 
@@ -38,7 +40,7 @@ def load_model(input_size, minio_client, device, scoring_model, embedding_type):
     if(scoring_model=="elm-v1"):
         embedding_model = ABRankingELMModel(input_size)
     else:
-        embedding_model= ABRankingLinearModel(input_size)
+        embedding_model= ABRankingModel(input_size)
 
     model_files=cmd.get_list_of_objects_with_prefix(minio_client, 'datasets', input_path)
     most_recent_model = None
@@ -321,7 +323,8 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     
-    create_dataset(minio_client, device, args.csv_phrase, args.embedding_type)
+    if args.create_dataset:
+        create_dataset(minio_client, device, args.csv_phrase, args.embedding_type)
 
     elm_inputs, linear_inputs, elm_sigma_outputs, elm_binary_outputs, linear_sigma_outputs, linear_binary_outputs =load_dataset(minio_client, args.embedding_type)
 
