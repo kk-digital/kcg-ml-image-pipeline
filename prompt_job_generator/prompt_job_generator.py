@@ -108,6 +108,9 @@ def update_dataset_latest_ranking_model(prompt_job_generator_state, list_dataset
             dataset_latest_model = http_get_dataset_latest_ranking_model(dataset)
             if dataset_latest_model is not None:
                 model_name = dataset_latest_model['model_name']
+
+        if model_name == 'latest':
+            print('Could not find latest model for some reason !')
         http_set_dataset_ranking_model(dataset, model_name)
 
 
