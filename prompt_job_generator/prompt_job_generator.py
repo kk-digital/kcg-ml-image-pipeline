@@ -115,6 +115,7 @@ def update_dataset_latest_ranking_model(prompt_job_generator_state, list_dataset
         print('dataset : ', dataset)
         print('setting dataset ranking model : ', model_name)
         http_set_dataset_ranking_model(dataset, model_name)
+        prompt_job_generator_state.set_dataset_ranking_model(dataset, model_name)
 
 
 def update_dataset_config_data(prompt_job_generator_state, list_datasets):
