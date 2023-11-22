@@ -2,6 +2,8 @@ import os
 import sys
 import argparse
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from tqdm import tqdm
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
@@ -37,7 +39,7 @@ def upload_scores_attributes_to_completed_jobs(clip_hash_sigma_score_dict,
                                            embedding_sigma_score=embedding_sigma_score,
                                            delta_score=delta_score))
 
-        for _ in tqdm(as_completed(futures), total=len(hash_score_pairs)):
+        for _ in tqdm(as_completed(futures), total=len(futures)):
             continue
 
 
