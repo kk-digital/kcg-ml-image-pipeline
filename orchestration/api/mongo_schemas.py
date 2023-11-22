@@ -16,7 +16,7 @@ class Task(BaseModel):
     task_input_dict: dict  # required
     task_input_file_dict: Union[dict, None] = None
     task_output_file_dict: Union[dict, None] = None
-    task_attributes_dict: Union[dict, None] = None
+    task_attributes_dict: Union[dict, None] = {}
 
     def to_dict(self):
         return {
