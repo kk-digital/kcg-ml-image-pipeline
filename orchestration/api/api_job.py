@@ -422,4 +422,19 @@ def get_job_by_job_id(request: Request, job_id: str, fields: List[str] = Query(N
         print("Job Not Found")
 
 
+# --------------- Add completed job attributes ---------------------
+@router.put("/job/add-attributes", description="Adds the attributes to a completed job.")
+def add_attributes_job_completed(request: Request,
+                         image_hash,
+                         clip_sigma_score,
+                         embedding_sigma_score,
+                         delta_score):
+    query = {"task_output_file_dict.output_file_hash": image_hash}
 
+    update_query = {"$set": {"attributes.clip_sigma_score": clip_sigma_score,
+                             "attributes.embedding_sigma_score": embedding_sigma_score,
+                             "attributes.delta_score": delta_score}}
+
+    request.app.completed_jobs_collection.update_one(query, update_query)
+
+    return True
