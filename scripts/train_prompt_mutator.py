@@ -233,7 +233,7 @@ def create_dataset(minio_client, device, csv_path, embedding_type):
 
 
 def load_dataset(minio_client, embedding_type):
-    dataset_path=DATA_MINIO_DIRECTORY + f"/{embedding_type}_prompts"
+    dataset_path=DATA_MINIO_DIRECTORY + f"/{embedding_type}_prompts/"
     dataset_files=minio_client.list_objects('datasets', prefix=dataset_path)
     dataset_files= [file.object_name for file in dataset_files]
 
