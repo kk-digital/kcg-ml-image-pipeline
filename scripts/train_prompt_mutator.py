@@ -19,16 +19,15 @@ from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from utility.minio import cmd
 
+DATA_MINIO_DIRECTORY="environmental/data/prompt-generator/substitution"
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--minio-addr', required=False, help='Minio server address', default="123.176.98.90:9000")
     parser.add_argument('--minio-access-key', required=False, help='Minio access key')
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
+    parser.add_argument('--csv-phrase', help='CSV containing phrases, must have "phrase str" column', default='input/civitai_phrases_database_v7_no_nsfw.csv')
 
-    parser.add_argument('--alpha', required=False, default=0.8, help='regularisation term')
-    parser.add_argument('--learning-rate', required=False, default=0.1, help='learning rate for model')
-    parser.add_argument('--max-depth', required=False, default=10, help='max depth of decision trees')
-    parser.add_argument('--min-child_weight', required=False, default=1, help='controls minimum weight of features')
     args = parser.parse_args()
     return args
 
@@ -89,7 +88,7 @@ def store_in_csv_file(csv_data, minio_client):
     buffer = io.BytesIO(csv_content)
     buffer.seek(0)
 
-    model_path = 'environmental/output/prompt_mutator/dataset.csv'
+    model_path = DATA_MINIO_DIRECTORY+ '/data_csv/dataset.csv'
     cmd.upload_data(minio_client, 'datasets', model_path, buffer)
 
 def store_in_msgpack_file(prompt_data, index, minio_client):
@@ -114,20 +113,19 @@ def store_in_msgpack_file(prompt_data, index, minio_client):
     buffer = io.BytesIO(content)
     buffer.seek(0)
 
-    data_output = 'environmental/'+ local_file_path
-    cmd.upload_data(minio_client, 'datasets', data_output, buffer)
+    cmd.upload_data(minio_client, 'datasets', DATA_MINIO_DIRECTORY, buffer)
 
 # function to randomly select one phrase from each bin
 def random_phrase_from_each_bin(group):
     return random.choice(group.tolist())
 
-def create_dataset(minio_client, device):
+def create_dataset(minio_client, device, csv_path):
     # Load the CLIP model
-    clip=CLIPTextEmbedder()
+    clip=CLIPTextEmbedder(device=device)
     clip.load_submodels()
 
     # get dataset of phrases
-    phrases_df = pd.read_csv('input/phrase_scores.csv')
+    phrases_df = pd.read_csv(csv_path)
     # get minio paths for embeddings
     embedding_paths = get_embedding_paths(minio_client, "environmental")
     # get ranking mondel
@@ -154,7 +152,7 @@ def create_dataset(minio_client, device):
         prompt_embedding=prompt_embedding.to(device)
 
         #Randomly select a phrase from the dataset and get an embedding
-        substitute_phrase = random.choice(phrases_df['phrase'].tolist())
+        substitute_phrase = random.choice(phrases_df['phrase str'].tolist())
         with torch.no_grad():
                 substitute_embedding= clip.forward(substitute_phrase).unsqueeze(0)
 
@@ -220,7 +218,7 @@ def create_dataset(minio_client, device):
     store_in_csv_file(csv_data, minio_client)
 
 def load_dataset(minio_client):
-    dataset_files=minio_client.list_objects('datasets', prefix="environmental/output/prompt_mutator/data/")
+    dataset_files=minio_client.list_objects('datasets', prefix=DATA_MINIO_DIRECTORY)
     dataset_files= [file.object_name for file in dataset_files]
 
     inputs=[]
@@ -255,7 +253,7 @@ def load_dataset(minio_client):
     return inputs, position_encoding, score_encoding, outputs
 
 def load_classification_dataset(minio_client):
-    dataset_files=minio_client.list_objects('datasets', prefix="environmental/output/prompt_mutator/data/")
+    dataset_files=minio_client.list_objects('datasets', prefix=DATA_MINIO_DIRECTORY)
     dataset_files= [file.object_name for file in dataset_files]
 
     inputs=[]
@@ -302,7 +300,7 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     
-    create_dataset(minio_client, device)
+    create_dataset(minio_client, device, args.csv_phrase)
 
     inputs, position_encoding, score_encoding, outputs =load_dataset(minio_client)
     binary_inputs, binary_outputs =load_classification_dataset(minio_client)
@@ -310,8 +308,7 @@ def main():
     # prompt mutator for predicting binary classes (increase, decrease)
     binary_mutator= MulticlassPromptMutator(minio_client=minio_client)
     binary_mutator.train(binary_inputs, binary_outputs)
-    binary_mutator.save_model('output/prompt_mutator/binary_prompt_mutator.json',
-                              'environmental/output/prompt_mutator/binary_prompt_mutator.json')
+    binary_mutator.save_model()
 
     #prompt mutator with both position encoding and initial score encoding
     sigma_mutator= PromptMutator(minio_client=minio_client, output_type="sigma_score")

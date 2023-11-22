@@ -15,13 +15,14 @@ sys.path.insert(0, base_directory)
 from utility.minio import cmd
 
 class PromptMutator:
-    def __init__(self, minio_client, model=None, output_type="sigma_score",
+    def __init__(self, minio_client, model=None, output_type="sigma_score", prompt_type="positive",
                  use_position_encoding=True, use_score_encoding=True):
         self.model = model
         self.minio_client= minio_client
         self.use_position_encoding=use_position_encoding
         self.use_score_encoding=use_score_encoding
         self.output_type= output_type
+        self.prompt_type= prompt_type
         self.local_path, self.minio_path, self.input_size=self.get_model_path(output_type,
                                                              use_position_encoding, 
                                                              use_score_encoding)
@@ -41,7 +42,7 @@ class PromptMutator:
             input_size=2304
         
         local_path=f"output/{output_type}_prompt_mutator.json"
-        minio_path=f"environmental/output/prompt_mutator/{output_type}_model/{encoding}_prompt_mutator.json"
+        minio_path=f"environmental/model/prompt-generator/substitution/{self.prompt_type}_prompts_only/{output_type}_prompt_mutator.json"
 
         return local_path, minio_path, input_size
 

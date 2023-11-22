@@ -18,10 +18,18 @@ sys.path.insert(0, base_directory)
 from utility.minio import cmd
 
 class MulticlassPromptMutator:
-    def __init__(self, minio_client):
+    def __init__(self, minio_client, prompt_type="positive"):
         self.model = None
         self.minio_client= minio_client
+        self.prompt_type= prompt_type
+        self.local_path, self.minio_path=self.get_model_path()
         self.accuracy=0
+
+    def get_model_path(self):    
+        local_path=f"output/binary_prompt_mutator.json"
+        minio_path=f"environmental/models/prompt-generator/substitution/{self.prompt_type}_prompts_only/binary_prompt_mutator.json"
+
+        return local_path, minio_path
 
     def train(self, input, output, 
               max_depth=7, 
@@ -129,7 +137,7 @@ class MulticlassPromptMutator:
         # Adjust spacing between subplots
         plt.subplots_adjust(hspace=0.7, wspace=0, left=0.4)
 
-        plt.savefig(f'output/binary_model.png')
+        plt.savefig(self.local_path.replace('.json', '.png'))
 
         # Save the figure to a file
         buf = BytesIO()
@@ -137,8 +145,7 @@ class MulticlassPromptMutator:
         buf.seek(0)
 
         # upload the graph report
-        graph_output ='environmental/' + f"output/prompt_mutator/binary_classification_model.png"
-        cmd.upload_data(self.minio_client, 'datasets', graph_output, buf)
+        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.json', '.png'), buf)
         
     def predict_probs(self, X):
         class_labels=['decrease', 'increase']
@@ -155,8 +162,9 @@ class MulticlassPromptMutator:
         return self.model.predict(dtest)
 
     def load_model(self, minio_path):
+        print(self.minio_path)
         # get model file data from MinIO
-        model_file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', minio_path)
+        model_file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', self.minio_path)
 
         # Create a temporary file and write the downloaded content into it
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
@@ -171,13 +179,13 @@ class MulticlassPromptMutator:
         # Remove the temporary file
         os.remove(temp_file.name)
 
-    def save_model(self, local_path ,minio_path):
+    def save_model(self):
 
-        self.model.save_model(local_path)
+        self.model.save_model(self.local_path)
         
         # Read the contents of the saved model file
-        with open(local_path, "rb") as model_file:
+        with open(self.local_path, "rb") as model_file:
             model_bytes = model_file.read()
 
         # Upload the model to MinIO
-        cmd.upload_data(self.minio_client, 'datasets', minio_path, BytesIO(model_bytes))
+        cmd.upload_data(self.minio_client, 'datasets', self.minio_path, BytesIO(model_bytes))
