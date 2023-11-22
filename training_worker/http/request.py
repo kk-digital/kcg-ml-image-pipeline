@@ -197,3 +197,19 @@ def http_get_dataset_names():
         print('request exception ', e)
 
     return None
+
+
+# Get completed job
+def http_get_completed_job_by_image_hash(image_hash):
+    url = SERVER_ADRESS + "/job/get-completed-job-by-hash?image_hash={}".format(image_hash)
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json
+
+    except Exception as e:
+        print('request exception ', e)
+
+    return None

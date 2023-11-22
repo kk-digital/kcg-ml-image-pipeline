@@ -425,7 +425,7 @@ def main():
         print("dataset names=", dataset_names)
         for dataset in dataset_names:
             try:
-                run_image_scorer(minio_client, args.dataset_name, args.model_filename)
+                run_image_scorer(minio_client, dataset, args.model_filename)
             except Exception as e:
                 print("Error running image scorer for {}: {}".format(dataset, e))
 
