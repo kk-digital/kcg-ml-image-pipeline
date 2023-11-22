@@ -272,6 +272,8 @@ class PromptJobGeneratorState:
         model_type = model_info['model_type']
 
         model = None
+        if dataset == 'test-generations':
+            return model
 
         print('dataset : ', dataset)
         print('getting scoring model : ', model_type)
