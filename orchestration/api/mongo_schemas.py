@@ -16,6 +16,7 @@ class Task(BaseModel):
     task_input_dict: dict  # required
     task_input_file_dict: Union[dict, None] = None
     task_output_file_dict: Union[dict, None] = None
+    task_attributes_dict: Union[dict, None] = {}
 
     def to_dict(self):
         return {
@@ -32,6 +33,7 @@ class Task(BaseModel):
             "task_input_dict": self.task_input_dict,
             "task_input_file_dict": self.task_input_file_dict,
             "task_output_file_dict": self.task_output_file_dict,
+            "task_attributes_dict": self.task_attributes_dict,
         }
 
 
@@ -140,7 +142,6 @@ class TrainingTask(BaseModel):
     weight_decay: float = 0.01
     training_time_kimgs: int = 10
     epochs: int
-    buffer_size: int
     train_percent: float
     task_creation_time: Union[str, None] = None
     task_start_time: Union[str, None] = None
@@ -159,7 +160,6 @@ class TrainingTask(BaseModel):
             "weight_decay": self.weight_decay,
             "training_time_kimgs": self.training_time_kimgs,
             "epochs": self.epochs,
-            "buffer_size": self.buffer_size,
             "train_percent": self.train_percent,
             "task_creation_time": self.task_creation_time,
             "task_start_time": self.task_start_time,
@@ -277,6 +277,19 @@ class RankingScore(BaseModel):
             "model_id": self.model_id,
             "image_hash": self.image_hash,
             "score": self.score,
+        }
+
+
+class RankingSigmaScore(BaseModel):
+    model_id: int
+    image_hash: str
+    sigma_score: float
+
+    def to_dict(self):
+        return {
+            "model_id": self.model_id,
+            "image_hash": self.image_hash,
+            "sigma_score": self.sigma_score,
         }
 
 
