@@ -84,6 +84,7 @@ class ImageScorer:
         print("model_id=", self.model_id)
 
     def get_paths(self):
+        print("Getting paths for dataset: {}...".format(self.dataset))
         all_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', self.dataset)
 
         # Depending on the model type, choose the appropriate msgpack files
@@ -425,7 +426,7 @@ def main():
         print("dataset names=", dataset_names)
         for dataset in dataset_names:
             try:
-                run_image_scorer(minio_client, args.dataset_name, args.model_filename)
+                run_image_scorer(minio_client, dataset, args.model_filename)
             except Exception as e:
                 print("Error running image scorer for {}: {}".format(dataset, e))
 
