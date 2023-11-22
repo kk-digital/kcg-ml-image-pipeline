@@ -275,9 +275,6 @@ class PromptJobGeneratorState:
         if dataset == 'test-generations':
             return model
 
-        print('dataset : ', dataset)
-        print('getting scoring model : ', model_type)
-
         if model_type == 'image-pair-ranking-efficient-net':
             model = self.get_efficient_net_model(dataset)
         elif model_type == 'ab_ranking_efficient_net':
@@ -290,8 +287,6 @@ class PromptJobGeneratorState:
             model = self.get_elm_v1_model(dataset)
         elif model_type == 'image-pair-ranking-elm-v1':
             model = self.get_elm_v1_model(dataset)
-
-        print('got scoring model ', model)
 
         return model
 
