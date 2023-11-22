@@ -6,11 +6,11 @@ from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
 from .api_utils import PrettyJSONResponse
 from .api_ranking import get_image_rank_use_count
+import os
 
 router = APIRouter()
 
 
-# TODO: deprecate
 
 @router.get("/image/get_random_image", response_class=PrettyJSONResponse)
 def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the size parameter
@@ -34,7 +34,6 @@ def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the
     # Return the image in the response
     return {"image": documents[0]}
 
-# TODO: deprecate
 @router.get("/image/get_image_details")
 def get_image_details(request: Request, image_path: str = Query(...)):
     # Query the database to retrieve the image details by its ID
@@ -51,7 +50,6 @@ def get_image_details(request: Request, image_path: str = Query(...)):
     # Return the image details
     return {"image_details": document}  
     
-# TODO: deprecate
 @router.get("/image/get_random_image_list", response_class=PrettyJSONResponse)
 def get_random_image_list(request: Request, dataset: str = Query(...), size: int = Query(1)):  
     # Use Query to get the dataset and size from query parameters
@@ -83,7 +81,6 @@ def get_random_image_list(request: Request, dataset: str = Query(...), size: int
     # Return the images as a list in the response
     return {"images": distinct_documents}
 
-# TODO: deprecate
 @router.get("/image/get_random_previously_ranked_image_list", response_class=PrettyJSONResponse)
 def get_random_previously_ranked_image_list(request: Request, dataset: str = Query(...), size: int = Query(1)):
     # Use Query to get the dataset and size from query parameters
@@ -131,7 +128,6 @@ def get_random_previously_ranked_image_list(request: Request, dataset: str = Que
     # Return the images as a list in the response
     return {"images": distinct_documents}
 
-# TODO: deprecate
 @router.get("/image/get_random_image_by_date_range", response_class=PrettyJSONResponse)
 def get_random_image_date_range(
     request: Request,
@@ -206,7 +202,6 @@ def get_image_data_by_filepath_2(request: Request, file_path: str):
 
     return response
   
-# TODO: deprecate
 @router.get("/image/list-image-metadata-by-dataset", response_class=PrettyJSONResponse)
 def get_images_metadata(
     request: Request,
@@ -215,10 +210,24 @@ def get_images_metadata(
     offset: int = 0,
     start_date: str = None,
     end_date: str = None,
-    order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first")
+    order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first"),
+    time_interval: int = Query(None, description="Time interval in minutes or hours"),
+    time_unit: str = Query("minutes", description="Time unit, either 'minutes' or 'hours")
 ):
 
-    print(f"start_date: {start_date}") 
+    # Calculate the time threshold based on the current time and the specified interval
+    if time_interval is not None:
+        current_time = datetime.utcnow()
+        if time_unit == "minutes":
+            threshold_time = current_time - timedelta(minutes=time_interval)
+        elif time_unit == "hours":
+            threshold_time = current_time - timedelta(hours=time_interval)
+        else:
+            raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
+    else:
+        threshold_time = None
+
+    print(f"start_date: {start_date}, threshold_time: {threshold_time}")
 
     # Construct the initial query
     query = {
@@ -229,13 +238,15 @@ def get_images_metadata(
         'task_input_dict.dataset': dataset
     }
 
-    # Update the query based on provided start_date and end_date
+    # Update the query based on provided start_date, end_date, and threshold_time
     if start_date and end_date:
         query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
     elif start_date:
         query['task_creation_time'] = {'$gte': start_date}
     elif end_date:
         query['task_creation_time'] = {'$lte': end_date}
+    elif threshold_time:
+        query['task_creation_time'] = {'$gte': threshold_time}
 
     # Decide the sort order based on the 'order' parameter
     sort_order = -1 if order == "desc" else 1
@@ -316,16 +327,33 @@ def get_image_data_by_filepath_2(request: Request, file_path: str):
     return response
 
 
+@router.get("/get-image-by-job-uuid/{job_uuid}", response_class=Response)
+def get_image_by_job_uuid(request: Request, job_uuid: str):
+    # Fetch the job from the completed_jobs_collection using the UUID
+    job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
 
+    # Extract the output file path from the job data
+    output_file_path = job.get("task_output_file_dict", {}).get("output_file_path")
+    if not output_file_path:
+        raise HTTPException(status_code=404, detail="Output file path not found in job data")
 
+    original_filename = os.path.basename(output_file_path)
 
+    # Fetch the image from MinIO
+    bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
+    file_path = file_path.replace("\\", "/")
+    image_data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, file_path)
 
+    # Load data into memory
+    if image_data is not None:
+        content = image_data.read()
+    else:
+        raise HTTPException(
+            status_code=404,
+            detail="Image with this path doesn't exist") 
 
-
-
-
-
-
-
-
-
+    # Return the image in the response
+    headers = {"Content-Disposition": f"attachment; filename={original_filename}"}
+    return Response(content=content, media_type="image/jpeg", headers=headers)

@@ -14,14 +14,16 @@ import torch
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from worker.prompt_generation.prompt_generator import run_generate_inpainting_generation_task, run_generate_image_generation_task
+from worker.prompt_generation.prompt_generator import run_generate_inpainting_generation_task, \
+    run_generate_image_generation_task
 from worker.image_generation.scripts.inpaint_A1111 import img2img
 from worker.image_generation.scripts.generate_image_from_text import generate_image_from_text
 from worker.worker_state import WorkerState
 from worker.http import request
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
-from stable_diffusion.utils_image import save_images_to_minio, save_image_data_to_minio, save_image_embedding_to_minio, get_image_data
+from stable_diffusion.utils_image import save_images_to_minio, save_image_data_to_minio, save_image_embedding_to_minio, \
+    get_image_data, get_embeddings
 from worker.clip_calculation.clip_calculator import run_clip_calculation_task
 from worker.generation_task.generation_task import GenerationTask
 
@@ -131,26 +133,6 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
         device=worker_state.device
     )
 
-
-    embedded_prompts = worker_state.clip_text_embedder(positive_prompts)
-    negative_embedded_prompts = worker_state.clip_text_embedder(negative_prompts)
-
-    # Convert embeddings to float32
-    embedded_prompts = embedded_prompts.to(torch.float32)
-    negative_embedded_prompts = negative_embedded_prompts.to(torch.float32)
-
-    # save image meta data
-    save_image_data_to_minio(worker_state.minio_client, generation_task.uuid, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), dataset,
-                             output_file_path.replace('.jpg', '_data.msgpack'), output_file_hash,
-                             positive_prompts, negative_prompts,
-                             cfg_strength, -1, image_width, image_height, sampler, sampler_steps,
-                             prompt_scoring_model, prompt_score, prompt_generation_policy, top_k)
-    # save image embedding data
-    save_image_embedding_to_minio(worker_state.minio_client, generation_task.uuid, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), dataset,
-                             output_file_path.replace('.jpg', '_embedding.msgpack'), output_file_hash,
-                             positive_prompts, negative_prompts, embedded_prompts.detach().cpu().numpy(), negative_embedded_prompts.detach().cpu().numpy())
-
-
     return output_file_path, output_file_hash, img_byte_arr
 
 
@@ -207,12 +189,22 @@ def upload_data_and_update_job_status(job, output_file_path, output_file_hash, d
     request.http_update_job_completed(job)
 
 
-def upload_image_data_and_update_job_status(worker_state, job, generation_task, seed, output_file_path, output_file_hash, data):
+def upload_image_data_and_update_job_status(worker_state,
+                                            job,
+                                            generation_task,
+                                            seed,
+                                            output_file_path,
+                                            output_file_hash,
+                                            job_completion_time,
+                                            data,
+                                            prompt_embedding,
+                                            prompt_embedding_average_pooled,
+                                            prompt_embedding_max_pooled,
+                                            prompt_embedding_signed_max_pooled):
     start_time = time.time()
     bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
 
     minio_client = worker_state.minio_client
-    clip_text_embedder = worker_state.clip_text_embedder
 
     positive_prompts = generation_task.task_input_dict["positive_prompt"]
     negative_prompts = generation_task.task_input_dict["negative_prompt"]
@@ -229,28 +221,35 @@ def upload_image_data_and_update_job_status(worker_state, job, generation_task, 
     prompt_generation_policy = generation_task.task_input_dict["prompt_generation_policy"]
     top_k = generation_task.task_input_dict["top_k"]
 
-    embedded_prompts = clip_text_embedder(positive_prompts)
-    negative_embedded_prompts = clip_text_embedder(negative_prompts)
-
-    # Convert embeddings to float32
-    embedded_prompts = embedded_prompts.to(torch.float32)
-    negative_embedded_prompts = negative_embedded_prompts.to(torch.float32)
-
-    job_completion_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
     cmd.upload_data(minio_client, bucket_name, file_path, data)
 
     # save image meta data
-    save_image_data_to_minio(minio_client, generation_task.uuid, job_completion_time, dataset,
-                             output_file_path.replace('.jpg', '_data.msgpack'), output_file_hash,
-                             positive_prompts, negative_prompts,
-                             cfg_strength, seed, image_width, image_height, sampler, sampler_steps,
-                             prompt_scoring_model, prompt_score, prompt_generation_policy, top_k)
+    save_image_data_to_minio(minio_client,
+                             generation_task.uuid,
+                             job_completion_time,
+                             dataset,
+                             output_file_path,
+                             output_file_hash,
+                             positive_prompts,
+                             negative_prompts,
+                             cfg_strength,
+                             seed,
+                             image_width,
+                             image_height,
+                             sampler,
+                             sampler_steps,
+                             prompt_scoring_model,
+                             prompt_score,
+                             prompt_generation_policy,
+                             top_k)
     # save image embedding data
-    save_image_embedding_to_minio(minio_client, generation_task.uuid, job_completion_time, dataset,
-                                  output_file_path.replace('.jpg', '_embedding.msgpack'), output_file_hash,
-                                  positive_prompts, negative_prompts, embedded_prompts.detach().cpu().numpy(),
-                                  negative_embedded_prompts.detach().cpu().numpy())
+    save_image_embedding_to_minio(minio_client,
+                                  dataset,
+                                  output_file_path,
+                                  prompt_embedding,
+                                  prompt_embedding_average_pooled,
+                                  prompt_embedding_max_pooled,
+                                  prompt_embedding_signed_max_pooled)
 
     info_v2("Upload for job {} completed".format(generation_task.uuid))
     info_v2("Upload time elapsed: {:.4f}s".format(time.time() - start_time))
@@ -274,7 +273,7 @@ def upload_image_data_and_update_job_status(worker_state, job, generation_task, 
                             "task_input_dict": {
                                 "input_file_path": output_file_path,
                                 "input_file_hash": output_file_hash
-                                },
+                            },
                             }
 
     request.http_add_job(clip_calculation_job)
@@ -303,23 +302,60 @@ def process_jobs(worker_state):
             try:
                 if task_type == 'inpainting_generation_task':
                     output_file_path, output_file_hash, img_data = run_inpainting_generation_task(worker_state,
-                                                                                                      generation_task)
+                                                                                                  generation_task)
 
+                    job_completion_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+                    (prompt_embedding,
+                     prompt_embedding_average_pooled,
+                     prompt_embedding_max_pooled,
+                     prompt_embedding_signed_max_pooled) = get_embeddings(generation_task.uuid,
+                                                                          job_completion_time,
+                                                                          generation_task.task_input_dict["dataset"],
+                                                                          output_file_path,
+                                                                          output_file_hash,
+                                                                          generation_task.task_input_dict[
+                                                                              "positive_prompt"],
+                                                                          generation_task.task_input_dict[
+                                                                              "negative_prompt"],
+                                                                          worker_state.clip_text_embedder)
                     # spawn upload data and update job thread
                     thread = threading.Thread(target=upload_image_data_and_update_job_status, args=(
-                        worker_state, job, generation_task, -1, output_file_path, output_file_hash, img_data,))
+                        worker_state, job, generation_task, -1, output_file_path, output_file_hash, job_completion_time,
+                        img_data, prompt_embedding, prompt_embedding_average_pooled, prompt_embedding_max_pooled,
+                        prompt_embedding_signed_max_pooled,))
                     thread.start()
 
                 elif task_type == 'image_generation_task':
-                    output_file_path, output_file_hash, img_data, seed = run_image_generation_task(worker_state, generation_task)
+                    output_file_path, output_file_hash, img_data, seed = run_image_generation_task(worker_state,
+                                                                                                   generation_task)
+
+                    job_completion_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+                    (prompt_embedding,
+                     prompt_embedding_average_pooled,
+                     prompt_embedding_max_pooled,
+                     prompt_embedding_signed_max_pooled) = get_embeddings(generation_task.uuid,
+                                                                          job_completion_time,
+                                                                          generation_task.task_input_dict["dataset"],
+                                                                          output_file_path,
+                                                                          output_file_hash,
+                                                                          generation_task.task_input_dict[
+                                                                              "positive_prompt"],
+                                                                          generation_task.task_input_dict[
+                                                                              "negative_prompt"],
+                                                                          worker_state.clip_text_embedder)
 
                     # spawn upload data and update job thread
                     thread = threading.Thread(target=upload_image_data_and_update_job_status, args=(
-                        worker_state, job, generation_task, seed, output_file_path, output_file_hash, img_data,))
+                        worker_state, job, generation_task, seed, output_file_path, output_file_hash,
+                        job_completion_time, img_data, prompt_embedding, prompt_embedding_average_pooled,
+                        prompt_embedding_max_pooled, prompt_embedding_signed_max_pooled,))
                     thread.start()
 
                 elif task_type == 'clip_calculation_task':
-                    output_file_path, output_file_hash, clip_data = run_clip_calculation_task(worker_state, generation_task)
+                    output_file_path, output_file_hash, clip_data = run_clip_calculation_task(worker_state,
+                                                                                              generation_task)
 
                     # spawn upload data and update job thread
                     thread = threading.Thread(target=upload_data_and_update_job_status, args=(

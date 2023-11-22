@@ -11,7 +11,7 @@ from io import BytesIO
 import matplotlib.pyplot as plt
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
-
+import math
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
@@ -84,10 +84,11 @@ class ImageScorer:
         print("model_id=", self.model_id)
 
     def get_paths(self):
+        print("Getting paths for dataset: {}...".format(self.dataset))
         all_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', self.dataset)
 
         # Depending on the model type, choose the appropriate msgpack files
-        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "_embedding.msgpack"
+        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "-text-embedding-average-pooled.msgpack"
 
         # Filter the objects to get only those that end with the chosen suffix
         type_paths = [obj for obj in all_objects if obj.endswith(file_suffix)]
@@ -175,17 +176,17 @@ class ImageScorer:
                     positive_embedding_array = data[1].to(self.device)
                     negative_embedding_array = data[2].to(self.device)
                     image_hash = data[0]
-                    score = self.model.predict(positive_embedding_array, negative_embedding_array)
+                    score = self.model.predict_pooled_embeddings(positive_embedding_array, negative_embedding_array)
 
                 elif self.model_input_type == "embedding-positive":
                     positive_embedding_array = data[1].to(self.device)
                     image_hash = data[0]
-                    score = self.model.predict_positive_or_negative_only(positive_embedding_array)
+                    score = self.model.predict_positive_or_negative_only_pooled(positive_embedding_array)
 
                 elif self.model_input_type == "embedding-negative":
                     negative_embedding_array = data[1].to(self.device)
                     image_hash = data[0]
-                    score = self.model.predict_positive_or_negative_only(negative_embedding_array)
+                    score = self.model.predict_positive_or_negative_only_pooled(negative_embedding_array)
 
                 elif self.model_input_type == "clip":
                     clip_feature_vector = data[1].to(self.device)
@@ -207,6 +208,38 @@ class ImageScorer:
             hash_percentile_dict[sorted_hash_score_pairs[i][0]] = percentile
 
         return hash_percentile_dict
+
+
+    def get_sigma_scores(self, hash_score_pairs):
+        # get mean
+        sum_score = 0.0
+        count = 0.0
+        for i in range(len(hash_score_pairs)):
+            sum_score += hash_score_pairs[i][1]
+            count += 1.0
+
+        mean = sum_score / count
+
+        # get standard deviation
+        sum_squared_diff = 0
+        for i in range(len(hash_score_pairs)):
+            score = hash_score_pairs[i][1]
+            diff = score - mean
+            squared_diff = diff * diff
+            sum_squared_diff += squared_diff
+
+
+        variance = sum_squared_diff / count
+        standard_deviation = math.sqrt(variance)
+
+        hash_sigma_score_dict = {}
+        for i in range(len(hash_score_pairs)):
+            score = hash_score_pairs[i][1]
+            sigma_score = (score - mean) / standard_deviation
+            hash_sigma_score_dict[hash_score_pairs[i][0]] = sigma_score
+
+        return hash_sigma_score_dict
+
 
     def upload_csv(self, hash_score_pairs, hash_percentile_dict, image_paths):
         print("Saving data to csv...")
@@ -241,6 +274,23 @@ class ImageScorer:
             for _ in tqdm(as_completed(futures), total=len(hash_score_pairs)):
                 continue
 
+    def upload_sigma_scores(self, hash_sigma_score_dict):
+        print("Uploading sigma scores to mongodb...")
+        with ThreadPoolExecutor(max_workers=50) as executor:
+            futures = []
+            for key, val in hash_sigma_score_dict.items():
+                # upload score
+                sigma_score_data = {
+                    "model_id": self.model_id,
+                    "image_hash": key,
+                    "sigma_score": val,
+                }
+
+                futures.append(executor.submit(request.http_add_sigma_score, sigma_score_data=sigma_score_data))
+
+            for _ in tqdm(as_completed(futures), total=len(futures)):
+                continue
+
     def upload_percentile(self, hash_percentile_dict):
         print("Uploading percentiles to mongodb...")
         with ThreadPoolExecutor(max_workers=50) as executor:
@@ -258,26 +308,59 @@ class ImageScorer:
             for _ in tqdm(as_completed(futures), total=len(hash_percentile_dict)):
                 continue
 
-    def generate_graphs(self, hash_score_pairs, hash_percentile_dict):
+    def generate_graphs(self, hash_score_pairs, hash_percentile_dict, hash_sigma_score_dict):
         # Initialize all graphs/subplots
         plt.figure(figsize=(22, 20))
-        figure_shape = (1, 1)
-        score_graph = plt.subplot2grid(figure_shape, (0, 0), rowspan=1, colspan=1)
+        figure_shape = (3, 1)
+        percentile_graph = plt.subplot2grid(figure_shape, (0, 0), rowspan=1, colspan=1)
+        score_graph = plt.subplot2grid(figure_shape, (1, 0), rowspan=1, colspan=1)
+        sigma_score_graph = plt.subplot2grid(figure_shape, (2, 0), rowspan=1, colspan=1)
 
+        # percentiles
         chronological_percentiles = []
         for pair in hash_score_pairs:
             chronological_percentiles.append(hash_percentile_dict[pair[0]])
 
         x_axis_values = [i for i in range(len(hash_score_pairs))]
-        score_graph.scatter(x_axis_values, chronological_percentiles,
+        percentile_graph.scatter(x_axis_values, chronological_percentiles,
                             label="Image Percentiles over time",
                             c="#281ad9", s=15)
 
+        percentile_graph.set_xlabel("Time")
+        percentile_graph.set_ylabel("Percentile")
+        percentile_graph.set_title("Percentile vs Time")
+        percentile_graph.legend()
+        percentile_graph.autoscale(enable=True, axis='y')
+
+        # scores
+        chronological_scores = []
+        for pair in hash_score_pairs:
+            chronological_scores.append(pair[1])
+
+        score_graph.scatter(x_axis_values, chronological_scores,
+                                 label="Image Scores over time",
+                                 c="#281ad9", s=15)
+
         score_graph.set_xlabel("Time")
-        score_graph.set_ylabel("Percentile")
-        score_graph.set_title("Percentile vs Time")
+        score_graph.set_ylabel("Score")
+        score_graph.set_title("Score vs Time")
         score_graph.legend()
         score_graph.autoscale(enable=True, axis='y')
+
+        # sigma scores
+        chronological_sigma_scores = []
+        for pair in hash_score_pairs:
+            chronological_sigma_scores.append(hash_sigma_score_dict[pair[0]])
+
+        sigma_score_graph.scatter(x_axis_values, chronological_sigma_scores,
+                            label="Image Sigma Scores over time",
+                            c="#281ad9", s=15)
+
+        sigma_score_graph.set_xlabel("Time")
+        sigma_score_graph.set_ylabel("Sigma Score")
+        sigma_score_graph.set_title("Sigma Score vs Time")
+        sigma_score_graph.legend()
+        sigma_score_graph.autoscale(enable=True, axis='y')
 
         # Save figure
         # plt.subplots_adjust(left=0.15, hspace=0.5)
@@ -288,7 +371,7 @@ class ImageScorer:
         buf.seek(0)
 
         # upload the graph report
-        graph_output = os.path.join(self.dataset, "output/percentiles-graph", self.model_name.replace(".pth", ".png"))
+        graph_output = os.path.join(self.dataset, "output/scores-percentiles-graph", self.model_name.replace(".pth", ".png"))
         cmd.upload_data(self.minio_client, 'datasets', graph_output, buf)
 
 
@@ -317,9 +400,11 @@ def run_image_scorer(minio_client, dataset_name, model_filename):
     scorer.upload_csv(hash_score_pairs=hash_score_pairs,
                       hash_percentile_dict=hash_percentile_dict,
                       image_paths=image_paths)
-    scorer.generate_graphs(hash_score_pairs, hash_percentile_dict)
+    hash_sigma_score_dict = scorer.get_sigma_scores(hash_score_pairs)
+    scorer.generate_graphs(hash_score_pairs, hash_percentile_dict, hash_sigma_score_dict)
     scorer.upload_scores(hash_score_pairs)
     scorer.upload_percentile(hash_percentile_dict)
+    scorer.upload_sigma_scores(hash_sigma_score_dict)
 
     time_elapsed = time.time() - start_time
     print("Dataset: {}: Total Time elapsed: {}s".format(dataset_name, format(time_elapsed, ".2f")))
@@ -341,7 +426,7 @@ def main():
         print("dataset names=", dataset_names)
         for dataset in dataset_names:
             try:
-                run_image_scorer(minio_client, args.dataset_name, args.model_filename)
+                run_image_scorer(minio_client, dataset, args.model_filename)
             except Exception as e:
                 print("Error running image scorer for {}: {}".format(dataset, e))
 
