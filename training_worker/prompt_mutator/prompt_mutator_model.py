@@ -22,8 +22,8 @@ class PromptMutator:
         self.output_type= output_type
         self.prompt_type= prompt_type
         self.ranking_model=ranking_model
-        self.local_path, self.minio_path=self.get_model_path()
         self.date = datetime.now().strftime("%Y_%m_%d")
+        self.local_path, self.minio_path=self.get_model_path()
 
     def get_model_path(self):
         

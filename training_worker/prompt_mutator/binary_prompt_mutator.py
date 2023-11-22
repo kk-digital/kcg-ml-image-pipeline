@@ -22,8 +22,8 @@ class BinaryPromptMutator:
         self.minio_client= minio_client
         self.prompt_type= prompt_type
         self.ranking_model=ranking_model
-        self.local_path, self.minio_path=self.get_model_path()
         self.date = datetime.now().strftime("%Y_%m_%d")
+        self.local_path, self.minio_path=self.get_model_path()
         self.accuracy=0
 
     def get_model_path(self):    
