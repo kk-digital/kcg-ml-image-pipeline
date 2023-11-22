@@ -23,19 +23,32 @@ def get_delta_score(clip_hash_sigma_score_dict,
     return hash_delta_score_dict
 
 
-def upload_scores_attributes_to_completed_jobs(clip_hash_sigma_score_dict,
+def upload_scores_attributes_to_completed_jobs(clip_hash_score_pairs,
+                                               clip_hash_sigma_score_dict,
+                                               embedding_hash_score_pairs,
                                                embedding_hash_sigma_score_dict,
                                                hash_delta_score_dict):
     print("Uploading scores, sigma scores, and delta scores to mongodb...")
     with ThreadPoolExecutor(max_workers=50) as executor:
         futures = []
-        for img_hash, clip_sigma_score in clip_hash_sigma_score_dict.items():
+        for i in range(len(clip_hash_score_pairs)):
+            img_hash = clip_hash_score_pairs[i][0]
+            clip_score =  clip_hash_score_pairs[i][1]
+            clip_sigma_score = clip_hash_sigma_score_dict[img_hash]
+
+            if img_hash != embedding_hash_score_pairs[i][0]:
+                print("Skipping due to inconsistent image hashes...")
+                continue
+
+            embedding_score =  embedding_hash_score_pairs[i][1]
             embedding_sigma_score = embedding_hash_sigma_score_dict[img_hash]
             delta_score = hash_delta_score_dict[img_hash]
 
             futures.append(executor.submit(request.http_add_score_attributes,
                                            img_hash=img_hash,
+                                           clip_score=clip_score,
                                            clip_sigma_score=clip_sigma_score,
+                                           embedding_score=embedding_score,
                                            embedding_sigma_score=embedding_sigma_score,
                                            delta_score=delta_score))
 
@@ -75,7 +88,9 @@ def run_image_delta_scorer(minio_client,
     hash_delta_score_dict = get_delta_score(clip_hash_sigma_score_dict=clip_hash_sigma_score_dict,
                                             embedding_hash_sigma_score_dict=embedding_hash_sigma_score_dict)
 
-    upload_scores_attributes_to_completed_jobs(clip_hash_sigma_score_dict=clip_hash_sigma_score_dict,
+    upload_scores_attributes_to_completed_jobs(clip_hash_score_pairs=clip_hash_score_pairs,
+                                               clip_hash_sigma_score_dict=clip_hash_sigma_score_dict,
+                                               embedding_hash_score_pairs=embedding_hash_score_pairs,
                                                embedding_hash_sigma_score_dict=embedding_hash_sigma_score_dict,
                                                hash_delta_score_dict=hash_delta_score_dict)
 

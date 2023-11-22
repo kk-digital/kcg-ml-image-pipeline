@@ -216,12 +216,16 @@ def http_get_completed_job_by_image_hash(image_hash):
 
 
 def http_add_score_attributes(img_hash,
+                              clip_score,
                               clip_sigma_score,
+                              embedding_score,
                               embedding_sigma_score,
                               delta_score):
-    endpoint = "/job/add-attributes?image_hash={}&clip_sigma_score={}&embedding_sigma_score={}&delta_score={}".format(
+    endpoint = "/job/add-attributes?image_hash={}&clip_score={}&clip_sigma_score={}&embedding_score={}&embedding_sigma_score={}&delta_score={}".format(
         img_hash,
+        clip_score,
         clip_sigma_score,
+        embedding_score,
         embedding_sigma_score,
         delta_score)
     url = SERVER_ADRESS + endpoint
