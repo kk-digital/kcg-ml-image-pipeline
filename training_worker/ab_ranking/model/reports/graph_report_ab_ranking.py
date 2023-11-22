@@ -87,6 +87,8 @@ def get_graph_report(training_loss,
                      validation_total_size,
                      training_losses,
                      validation_losses,
+                     mean=None,
+                     standard_deviation=None,
                      x_chronological_sigma_scores=None,
                      y_chronological_sigma_scores=None,
                      epochs=-1,
@@ -445,6 +447,12 @@ def get_graph_report(training_loss,
     if elm_sparsity == -1:
         elm_sparsity = "N/A"
 
+    if mean == None:
+        mean = "N/A"
+
+    if standard_deviation == None:
+        standard_deviation = "N/A"
+
     # add additional info on top left side
     plt.figtext(0, 0.55, "Date = {}\n"
                          "Dataset = {}\n"
@@ -475,6 +483,8 @@ def get_graph_report(training_loss,
                          ""
                          "Training loss = {:03.04}\n"
                          "Validation loss = {:03.04}\n"
+                         "Mean = {:03.04}\n"
+                         "Standard Deviation = {:03.04}\n"
                          "Train Correct Predictions \n"
                          "= {}({:02.02f}%)\n"
                          "Validation Correct \n"
@@ -502,6 +512,8 @@ def get_graph_report(training_loss,
                                                                    elm_sparsity,
                                                                    training_loss,
                                                                    validation_loss,
+                                                                   mean,
+                                                                   standard_deviation,
                                                                    train_sum_correct,
                                                                    (train_sum_correct / training_total_size) * 100,
                                                                    validation_sum_correct,
