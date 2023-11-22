@@ -214,6 +214,22 @@ def train_xgboost(dataset_name: str,
     for index in dataset_loader.validation_data_paths_indices_shuffled:
         validation_shuffled_indices_origin.append(index)
 
+    # get sigma scores
+    (x_chronological_sigma_scores,
+     x_chronological_image_hashes,
+     y_chronological_sigma_scores,
+     mean,
+     standard_deviation) = sigma_score.get_chronological_sigma_scores(training_target_probabilities,
+                                                                        validation_target_probabilities,
+                                                                        training_predicted_score_images_x,
+                                                                        validation_predicted_score_images_x,
+                                                                        training_predicted_score_images_y,
+                                                                        validation_predicted_score_images_y,
+                                                                        dataset_loader.training_image_hashes,
+                                                                        dataset_loader.validation_image_hashes,
+                                                                        training_shuffled_indices_origin,
+                                                                        validation_shuffled_indices_origin)
+
     # Upload model to minio
     model_name = "{}.pth".format(filename)
     model_output_path = os.path.join(output_path, model_name)
@@ -243,20 +259,6 @@ def train_xgboost(dataset_name: str,
             if validation_predicted_score_images_x[i] < validation_predicted_score_images_y[i]:
                 validation_sum_correct += 1
 
-    # get sigma scores
-    (x_chronological_sigma_scores,
-     x_chronological_image_hashes,
-     y_chronological_sigma_scores) = sigma_score.get_chronological_sigma_scores(training_target_probabilities,
-                                                                                validation_target_probabilities,
-                                                                                training_predicted_score_images_x,
-                                                                                validation_predicted_score_images_x,
-                                                                                training_predicted_score_images_y,
-                                                                                validation_predicted_score_images_y,
-                                                                                dataset_loader.training_image_hashes,
-                                                                                dataset_loader.validation_image_hashes,
-                                                                                training_shuffled_indices_origin,
-                                                                                validation_shuffled_indices_origin)
-
     # show and save graph
     graph_name = "{}.png".format(filename)
     graph_output_path = os.path.join(output_path, graph_name)
@@ -275,6 +277,8 @@ def train_xgboost(dataset_name: str,
                                     validation_total_size=validation_total_size,
                                     training_losses=training_loss_per_epoch,
                                     validation_losses=validation_loss_per_epoch,
+                                    mean=mean,
+                                    standard_deviation=standard_deviation,
                                     x_chronological_sigma_scores=x_chronological_sigma_scores,
                                     y_chronological_sigma_scores=y_chronological_sigma_scores,
                                     epochs=epochs,

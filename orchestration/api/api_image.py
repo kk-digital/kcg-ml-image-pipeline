@@ -11,7 +11,6 @@ import os
 router = APIRouter()
 
 
-# TODO: deprecate
 
 @router.get("/image/get_random_image", response_class=PrettyJSONResponse)
 def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the size parameter
@@ -35,7 +34,6 @@ def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the
     # Return the image in the response
     return {"image": documents[0]}
 
-# TODO: deprecate
 @router.get("/image/get_image_details")
 def get_image_details(request: Request, image_path: str = Query(...)):
     # Query the database to retrieve the image details by its ID
@@ -52,7 +50,6 @@ def get_image_details(request: Request, image_path: str = Query(...)):
     # Return the image details
     return {"image_details": document}  
     
-# TODO: deprecate
 @router.get("/image/get_random_image_list", response_class=PrettyJSONResponse)
 def get_random_image_list(request: Request, dataset: str = Query(...), size: int = Query(1)):  
     # Use Query to get the dataset and size from query parameters
@@ -84,7 +81,6 @@ def get_random_image_list(request: Request, dataset: str = Query(...), size: int
     # Return the images as a list in the response
     return {"images": distinct_documents}
 
-# TODO: deprecate
 @router.get("/image/get_random_previously_ranked_image_list", response_class=PrettyJSONResponse)
 def get_random_previously_ranked_image_list(request: Request, dataset: str = Query(...), size: int = Query(1)):
     # Use Query to get the dataset and size from query parameters
@@ -132,7 +128,6 @@ def get_random_previously_ranked_image_list(request: Request, dataset: str = Que
     # Return the images as a list in the response
     return {"images": distinct_documents}
 
-# TODO: deprecate
 @router.get("/image/get_random_image_by_date_range", response_class=PrettyJSONResponse)
 def get_random_image_date_range(
     request: Request,
@@ -207,7 +202,6 @@ def get_image_data_by_filepath_2(request: Request, file_path: str):
 
     return response
   
-# TODO: deprecate
 @router.get("/image/list-image-metadata-by-dataset", response_class=PrettyJSONResponse)
 def get_images_metadata(
     request: Request,
