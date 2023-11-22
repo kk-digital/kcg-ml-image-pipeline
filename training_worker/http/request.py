@@ -219,7 +219,7 @@ def http_add_score_attributes(img_hash,
                               clip_sigma_score,
                               embedding_sigma_score,
                               delta_score):
-    endpoint = "/job/add-attributes?image_hash={}&clip_sigma_score={}&embedding_sigma_score&delta_score={}".format(
+    endpoint = "/job/add-attributes?image_hash={}&clip_sigma_score={}&embedding_sigma_score={}&delta_score={}".format(
         img_hash,
         clip_sigma_score,
         embedding_sigma_score,
