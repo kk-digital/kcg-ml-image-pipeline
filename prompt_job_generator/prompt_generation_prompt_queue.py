@@ -83,6 +83,7 @@ class PromptGenerationPromptQueue:
 
         total_prompt_count = int(total_prompt_count)
 
+        model_name = prompt_job_generator_state.get_dataset_ranking_model(dataset)
         scoring_model = prompt_job_generator_state.get_dataset_scoring_model(dataset)
 
         base_prompt_population = load_base_prompts(base_prompts_csv_path)
@@ -185,7 +186,7 @@ class PromptGenerationPromptQueue:
                 positive_prompt_embeddings = clip_text_embedder(positive_text_prompt)
                 negative_prompt_embeddings = clip_text_embedder(negative_text_prompt)
 
-                model_type = scoring_model.model_type
+                model_type = scoring_model.model_type + '-' + model_name
                 prompt_score = scoring_model.predict(positive_prompt_embeddings,
                                                                negative_prompt_embeddings).item()
 
