@@ -156,6 +156,18 @@ def train_ranking(dataset_name: str,
     ab_model.mean = mean
     ab_model.standard_deviation = standard_deviation
 
+    # add hyperparameter data to model
+    ab_model.add_hyperparameters_config(epochs=epochs,
+                                        learning_rate=learning_rate,
+                                        train_percent=train_percent,
+                                        training_batch_size=training_batch_size,
+                                        weight_decay=weight_decay,
+                                        pooling_strategy=pooling_strategy,
+                                        add_loss_penalty=add_loss_penalty,
+                                        target_option=target_option,
+                                        duplicate_flip_option=duplicate_flip_option,
+                                        randomize_data_per_epoch=randomize_data_per_epoch)
+
     # Upload model to minio
     model_name = "{}.pth".format(filename)
     model_output_path = os.path.join(output_path, model_name)

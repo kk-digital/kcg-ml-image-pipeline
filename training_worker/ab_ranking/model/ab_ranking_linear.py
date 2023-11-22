@@ -56,6 +56,18 @@ class ABRankingModel:
         self.mean = 0.0
         self.standard_deviation = 0.0
 
+        # training hyperparameters
+        self.epochs = None
+        self.learning_rate = None
+        self.train_percent = None
+        self.training_batch_size = None
+        self.weight_decay = None
+        self.pooling_strategy = None
+        self.add_loss_penalty = None
+        self.target_option = None
+        self.duplicate_flip_option = None
+        self.randomize_data_per_epoch = None
+
     def _hash_model(self):
         """
         Hashes the current state of the model, and stores the hash in the
@@ -64,27 +76,62 @@ class ABRankingModel:
         model_str = str(self.model.state_dict())
         self.model_hash = hashlib.sha256(model_str.encode()).hexdigest()
 
+    def add_hyperparameters_config(self,
+                                   epochs,
+                                   learning_rate,
+                                   train_percent,
+                                   training_batch_size,
+                                   weight_decay,
+                                   pooling_strategy,
+                                   add_loss_penalty,
+                                   target_option,
+                                   duplicate_flip_option,
+                                   randomize_data_per_epoch):
+        self.epochs = epochs
+        self.learning_rate = learning_rate
+        self.train_percent = train_percent
+        self.training_batch_size = training_batch_size
+        self.weight_decay = weight_decay
+        self.pooling_strategy = pooling_strategy
+        self.add_loss_penalty = add_loss_penalty
+        self.target_option = target_option
+        self.duplicate_flip_option = duplicate_flip_option
+        self.randomize_data_per_epoch = randomize_data_per_epoch
+
+    def to_dict(self):
+        return {
+            "model_dict": self.model.state_dict(),
+            "model-type": self.model_type,
+            "file-path": self.file_path,
+            "model-hash": self.model_hash,
+            "date": self.date,
+            "training-loss": self.training_loss,
+            "validation-loss": self.validation_loss,
+            "mean": self.mean,
+            "standard-deviation": self.standard_deviation,
+            "epochs": self.epochs,
+            "learning-rate": self.learning_rate,
+            "train-percent": self.train_percent,
+            "training-batch-size": self.training_batch_size,
+            "weight-decay": self.weight_decay,
+            "pooling-strategy": self.pooling_strategy,
+            "add-loss-penalty": self.add_loss_penalty,
+            "target-option": self.target_option,
+            "duplicate-flip-option": self.duplicate_flip_option,
+            "randomize-data-per-epoch": self.randomize_data_per_epoch,
+        }
+
     def save(self, minio_client, datasets_bucket, model_output_path):
         # Hashing the model with its current configuration
         self._hash_model()
         self.file_path = model_output_path
-        # Preparing the model to be saved
-        model = {}
-        model['model_dict'] = self.model.state_dict()
-        # Adding metadata
-        model['model-type'] = self.model_type
-        model['file-path'] = self.file_path
-        model['model-hash'] = self.model_hash
-        model['date'] = self.date
 
-        model['training-loss'] = self.training_loss
-        model['validation-loss'] = self.validation_loss
-        model['mean'] = self.mean
-        model['standard-deviation'] = self.standard_deviation
+        # Preparing the model to be saved
+        model_dict = self.to_dict()
 
         # Saving the model to minio
         buffer = BytesIO()
-        torch.save(model, buffer)
+        torch.save(model_dict, buffer)
         buffer.seek(0)
         
         # upload the model
@@ -102,8 +149,24 @@ class ABRankingModel:
 
         self.training_loss = model['training-loss']
         self.validation_loss = model['validation-loss']
-        self.mean = model['mean']
-        self.standard_deviation = model['standard-deviation']
+
+        # new added fields not in past models
+        # so check first
+        if "mean" in model:
+            self.mean = model['mean']
+            self.standard_deviation = model['standard-deviation']
+
+        if "epochs" in model:
+            self.epochs = model['epochs']
+            self.learning_rate = model['learning-rate']
+            self.train_percent = model['train-percent']
+            self.training_batch_size = model['training-batch-size']
+            self.weight_decay = model['weight-decay']
+            self.pooling_strategy = model['pooling-strategy']
+            self.add_loss_penalty = model['add-loss-penalty']
+            self.target_option = model['target-option']
+            self.duplicate_flip_option = model['duplicate-flip-option']
+            self.randomize_data_per_epoch = model['randomize-data-per-epoch']
 
     def train(self,
               dataset_loader: ABRankingDatasetLoader,
