@@ -112,11 +112,8 @@ def update_dataset_latest_ranking_model(prompt_job_generator_state, list_dataset
         if model_name == 'latest':
             print('Could not find latest model for some reason !')
 
-        print('dataset : ', dataset)
-        print('setting dataset ranking model : ', model_name)
+
         http_set_dataset_ranking_model(dataset, model_name)
-        prompt_job_generator_state.set_dataset_ranking_model(dataset, model_name)
-        print('value : ', prompt_job_generator_state.get_dataset_ranking_model(dataset))
 
 
 def update_dataset_config_data(prompt_job_generator_state, list_datasets):
@@ -160,6 +157,16 @@ def update_dataset_config_data(prompt_job_generator_state, list_datasets):
             dataset_top_k = DEFAULT_TOP_K_VALUE
 
         total_rate += dataset_rate
+
+        if 'ranking_model' in dataset_data:
+            model_name = dataset_data['ranking_model']
+            if model_name is not None and model_name == 'latest':
+                model_info = http_get_dataset_latest_ranking_model(dataset)
+
+                if model_info is not None:
+                    new_model_name = model_info['model_name']
+
+                    dataset_data['ranking_model'] = new_model_name
 
         prompt_job_generator_state.set_dataset_data(dataset, dataset_data)
 
@@ -229,13 +236,6 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
 
         if model_name is None:
             continue
-
-        if model_name == 'latest':
-            dataset_latest_model = http_get_dataset_latest_ranking_model(dataset)
-            if dataset_latest_model is not None:
-                model_name = dataset_latest_model['model_name']
-
-                prompt_job_generator_state.set_dataset_ranking_model(dataset, model_name)
 
         model_info = prompt_job_generator_state.get_dataset_model_info(dataset, model_name)
 

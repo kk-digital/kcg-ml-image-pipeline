@@ -252,12 +252,6 @@ class PromptJobGeneratorState:
                     return self.dataset_prompt_generation_data_dictionary[dataset]['ranking_model']
             return ""
 
-    def set_dataset_ranking_model(self, dataset, ranking_model):
-        with self.dataset_prompt_generation_data_lock:
-            if dataset in self.dataset_prompt_generation_data_dictionary:
-                if 'ranking_model' in self.dataset_prompt_generation_data_dictionary[dataset]:
-                    self.dataset_prompt_generation_data_dictionary[dataset]['ranking_model'] = ranking_model
-
     def get_dataset_scoring_model(self, dataset):
         model_name = self.get_dataset_ranking_model(dataset)
 
