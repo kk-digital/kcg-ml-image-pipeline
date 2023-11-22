@@ -338,15 +338,15 @@ def main(
         # scores are computed using linear model
         # sigma score is relative to linear model
         df_data.append({
-            'task_uuid': task_uuid,
-            'generation_policy_string': GENERATION_POLICY,
-            'time': task_time,
-            'prompt': prompt,
+            'seed_score': seed_score,
+            'seed_sigma_score': (seed_score - mean) / std,
             'score': score,
             'sigma_score': (score - mean) / std,
+            'prompt': prompt,
             'seed_prompt': seed_prompt,
-            'seed_score': seed_score,
-            'seed_sigma_score': (seed_score - mean) / std
+            'task_uuid': task_uuid,
+            'generation_policy_string': GENERATION_POLICY,
+            'time': task_time
         })
         df_scores_over_time.append(scores_over_time)
 
