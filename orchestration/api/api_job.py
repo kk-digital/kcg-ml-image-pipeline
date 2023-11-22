@@ -204,6 +204,15 @@ def get_list_completed_jobs(request: Request):
 
     return jobs
 
+@router.get("/queue/image-generation/list-completed-by-dataset", response_class=PrettyJSONResponse)
+def get_list_completed_jobs_by_dataset(request: Request, dataset):
+    jobs = list(request.app.completed_jobs_collection.find({"task_input_dict.dataset": dataset}))
+
+    for job in jobs:
+        job.pop('_id', None)
+
+    return jobs
+
 
 @router.get("/queue/image-generation/list-failed", response_class=PrettyJSONResponse)
 def get_list_failed_jobs(request: Request):
