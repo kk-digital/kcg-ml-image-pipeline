@@ -51,8 +51,7 @@ class PromptMutator:
 
         params = {
             'objective': 'reg:absoluteerror',
-            "device": "cuda:0",
-            'tree_method': 'gpu_hist',  # Use GPU acceleration
+            "device": "cuda",
             'max_depth': max_depth,
             'min_child_weight': min_child_weight,
             'gamma': gamma,
@@ -112,7 +111,7 @@ class PromptMutator:
                                                             'environmental',
                                                             'Prompt Substitution',
                                                             'XGBoost',
-                                                            'clip_text_embedding',
+                                                            f'{self.prompt_type}_clip_text_embedding',
                                                             '2306',
                                                             self.output_type,
                                                             training_size,

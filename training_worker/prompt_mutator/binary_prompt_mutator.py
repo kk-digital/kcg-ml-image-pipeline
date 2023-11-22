@@ -49,8 +49,7 @@ class BinaryPromptMutator:
 
         params = {
             'objective':'binary:logistic',
-            "device": "cuda:0",
-            'tree_method': 'gpu_hist',  # Use GPU acceleration
+            "device": "cuda",
             'max_depth': max_depth,
             'min_child_weight': min_child_weight,
             'gamma': gamma,
@@ -101,11 +100,11 @@ class BinaryPromptMutator:
                             ""
                             "Training size = {}\n"
                             "Validation size = {}\n"
-                            "Accuracy ={:.4f}".format(datetime.now().strftime("%Y-%m-%d"),
+                            "Accuracy ={:.4f}".format(self.date,
                                                             'environmental',
-                                                            'Prompt Substitution'
+                                                            'Prompt Substitution',
                                                             'XGBoost',
-                                                            'clip_text_embedding',
+                                                            f'{self.prompt_type}_clip_text_embedding',
                                                             '2306',
                                                             "binary",
                                                             training_size,
