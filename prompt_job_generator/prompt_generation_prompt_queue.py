@@ -187,7 +187,7 @@ class PromptGenerationPromptQueue:
                 positive_prompt_embeddings = clip_text_embedder(positive_text_prompt)
                 negative_prompt_embeddings = clip_text_embedder(negative_text_prompt)
 
-                model_type = scoring_model.model_type + '-' + model_name
+                model_type = model_name
                 prompt_score = scoring_model.predict(positive_prompt_embeddings,
                                                                negative_prompt_embeddings).item()
 
