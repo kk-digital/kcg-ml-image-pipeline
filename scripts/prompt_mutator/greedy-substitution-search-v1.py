@@ -39,7 +39,7 @@ def parse_args():
     parser.add_argument('--n-data', type=int, help='Number of data samples to generate', default=20)
     parser.add_argument('--send-job', action='store_true', default=False)
     parser.add_argument('--dataset-name', default='test-generations')
-    parser.add_argument('--ranking-model', help="elm or linear", default="linear")
+    parser.add_argument('--ranking-model', help="elm-v1 or linear", default="linear")
 
     # TODO: update this to retrieve mean and std automatically later
     parser.add_argument('--mean', type=float, default=4856.1315)
@@ -65,13 +65,15 @@ def load_model(minio_client, device, embedding_type, scoring_model="linear", inp
 
     if(scoring_model=="elm-v1"):
         embedding_model = ABRankingELMModel(input_size)
-        file_name=f"score-elm-v1-embedding-{embedding_type}.pth"
-    elif(scoring_model=="linear"):
-        embedding_model= ABRankingModel(input_size)
-        file_name=f"score-linear-embedding-{embedding_type}.pth"
+        file_name=f"score-elm-v1-embedding"
     else:
-        embedding_model= ABRankingModel(input_size*2)
-        file_name=f"score-{scoring_model}-embedding.pth"
+        embedding_model= ABRankingModel(input_size)
+        file_name=f"score-linear-embedding"
+    
+    if(embedding_type=="positive" or embedding_type=="negative"):
+        file_name+=f"-{embedding_type}.pth"
+    else:
+        file_name+=".pth"
 
     model_files=cmd.get_list_of_objects_with_prefix(minio_client, 'datasets', input_path)
     most_recent_model = None
@@ -354,7 +356,7 @@ def main():
         path="output/generated_prompts.csv"
         pd.DataFrame(df_data).to_csv(path, index=False)
         store_prompts_in_csv_file(path, minio_client)
-        
+
     compare_distributions(minio_client, original_scores, mutated_scores)
     
     
