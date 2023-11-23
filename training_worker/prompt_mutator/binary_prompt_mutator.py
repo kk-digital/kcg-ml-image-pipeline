@@ -172,7 +172,7 @@ class BinaryPromptMutator:
                 temp_file.write(data)
 
         # Load the model from the temporary file into XGBClassifier
-        self.model = xgb.XGBClassifier()
+        self.model = xgb.XGBClassifier({"device":"cuda"})
         self.model.load_model(temp_file.name)
 
         # Remove the temporary file
