@@ -84,6 +84,22 @@ class ABRankingELMModel:
 
         self.training_loss = 0.0
         self.validation_loss = 0.0
+        self.mean = 0.0
+        self.standard_deviation = 0.0
+
+        # training hyperparameters
+        self.epochs = None
+        self.learning_rate = None
+        self.train_percent = None
+        self.training_batch_size = None
+        self.weight_decay = None
+        self.pooling_strategy = None
+        self.add_loss_penalty = None
+        self.target_option = None
+        self.duplicate_flip_option = None
+        self.randomize_data_per_epoch = None
+        self.num_random_layers = None
+        self.elm_sparsity = None
 
     def _hash_model(self):
         """
@@ -93,22 +109,68 @@ class ABRankingELMModel:
         model_str = str(self.model.state_dict())
         self.model_hash = hashlib.sha256(model_str.encode()).hexdigest()
 
+    def add_hyperparameters_config(self,
+                                   epochs,
+                                   learning_rate,
+                                   train_percent,
+                                   training_batch_size,
+                                   weight_decay,
+                                   pooling_strategy,
+                                   add_loss_penalty,
+                                   target_option,
+                                   duplicate_flip_option,
+                                   randomize_data_per_epoch,
+                                   num_random_layers,
+                                   elm_sparsity):
+        self.epochs = epochs
+        self.learning_rate = learning_rate
+        self.train_percent = train_percent
+        self.training_batch_size = training_batch_size
+        self.weight_decay = weight_decay
+        self.pooling_strategy = pooling_strategy
+        self.add_loss_penalty = add_loss_penalty
+        self.target_option = target_option
+        self.duplicate_flip_option = duplicate_flip_option
+        self.randomize_data_per_epoch = randomize_data_per_epoch
+        self.num_random_layers = num_random_layers
+        self.elm_sparsity = elm_sparsity
+
+    def to_dict(self):
+        return {
+            "model_dict": self.model.state_dict(),
+            "model-type": self.model_type,
+            "file-path": self.file_path,
+            "model-hash": self.model_hash,
+            "date": self.date,
+            "training-loss": self.training_loss,
+            "validation-loss": self.validation_loss,
+            "mean": self.mean,
+            "standard-deviation": self.standard_deviation,
+            "epochs": self.epochs,
+            "learning-rate": self.learning_rate,
+            "train-percent": self.train_percent,
+            "training-batch-size": self.training_batch_size,
+            "weight-decay": self.weight_decay,
+            "pooling-strategy": self.pooling_strategy,
+            "add-loss-penalty": self.add_loss_penalty,
+            "target-option": self.target_option,
+            "duplicate-flip-option": self.duplicate_flip_option,
+            "randomize-data-per-epoch": self.randomize_data_per_epoch,
+            "num-random-layers": self.num_random_layers,
+            "elm-sparsity": self.elm_sparsity,
+        }
+
     def save(self, minio_client, datasets_bucket, model_output_path):
         # Hashing the model with its current configuration
         self._hash_model()
         self.file_path = model_output_path
+
         # Preparing the model to be saved
-        model = {}
-        model['model_dict'] = self.model.state_dict()
-        # Adding metadata
-        model['model-type'] = self.model_type
-        model['file-path'] = self.file_path
-        model['model-hash'] = self.model_hash
-        model['date'] = self.date
+        model_dict = self.to_dict()
 
         # Saving the model to minio
         buffer = BytesIO()
-        torch.save(model, buffer)
+        torch.save(model_dict, buffer)
         buffer.seek(0)
         
         # upload the model
@@ -123,6 +185,30 @@ class ABRankingELMModel:
         self.model_hash = model['model-hash']
         self.date = model['date']
         self.model.load_state_dict(model['model_dict'])
+
+        # new added fields not in past models
+        # so check first
+        if "training-loss" in model:
+            self.training_loss = model['training-loss']
+            self.validation_loss = model['validation-loss']
+
+        if "mean" in model:
+            self.mean = model['mean']
+            self.standard_deviation = model['standard-deviation']
+
+        if "epochs" in model:
+            self.epochs = model['epochs']
+            self.learning_rate = model['learning-rate']
+            self.train_percent = model['train-percent']
+            self.training_batch_size = model['training-batch-size']
+            self.weight_decay = model['weight-decay']
+            self.pooling_strategy = model['pooling-strategy']
+            self.add_loss_penalty = model['add-loss-penalty']
+            self.target_option = model['target-option']
+            self.duplicate_flip_option = model['duplicate-flip-option']
+            self.randomize_data_per_epoch = model['randomize-data-per-epoch']
+            self.num_random_layers = model['num-random-layers']
+            self.elm_sparsity = model['elm-sparsity']
 
     def train(self,
               dataset_loader: ABRankingDatasetLoader,
@@ -338,6 +424,8 @@ class ABRankingELMModel:
             training_loss_per_epoch, \
             validation_loss_per_epoch
 
+    # Deprecate: This will be replaced by
+    # predict_average_pooling
     def predict(self, positive_input, negative_input):
         # get rid of the 1 dimension at start
         positive_input = positive_input.squeeze()
@@ -360,8 +448,22 @@ class ABRankingELMModel:
 
             return outputs
 
-    # Deprecate: This will be replaced by
-    # predict_average_pooling
+    # predict pooled embedding
+    def predict_pooled_embeddings(self, positive_input_pooled_embeddings, negative_input_pooled_embeddings):
+        # make it [2, 77, 768]
+        inputs = torch.stack((positive_input_pooled_embeddings, negative_input_pooled_embeddings))
+
+        # make it [1, 2, 77, 768]
+        inputs = inputs.unsqueeze(0)
+
+        # then concatenate
+        inputs = inputs.reshape(len(inputs), -1)
+
+        with torch.no_grad():
+            outputs = self.model.forward(inputs).squeeze()
+
+            return outputs
+
     def predict_average_pooling(self,
                                 positive_input,
                                 negative_input,
@@ -395,6 +497,16 @@ class ABRankingELMModel:
         # do average pooling
         inputs = torch.mean(inputs, dim=2)
 
+        # then concatenate
+        inputs = inputs.reshape(len(inputs), -1)
+
+        with torch.no_grad():
+            outputs = self.model.forward(inputs).squeeze()
+
+            return outputs
+
+    # accepts only pooled embeddings
+    def predict_positive_or_negative_only_pooled(self, inputs):
         # then concatenate
         inputs = inputs.reshape(len(inputs), -1)
 

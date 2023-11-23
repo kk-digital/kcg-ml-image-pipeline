@@ -210,10 +210,24 @@ def get_images_metadata(
     offset: int = 0,
     start_date: str = None,
     end_date: str = None,
-    order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first")
+    order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first"),
+    time_interval: int = Query(None, description="Time interval in minutes or hours"),
+    time_unit: str = Query("minutes", description="Time unit, either 'minutes' or 'hours")
 ):
 
-    print(f"start_date: {start_date}") 
+    # Calculate the time threshold based on the current time and the specified interval
+    if time_interval is not None:
+        current_time = datetime.utcnow()
+        if time_unit == "minutes":
+            threshold_time = current_time - timedelta(minutes=time_interval)
+        elif time_unit == "hours":
+            threshold_time = current_time - timedelta(hours=time_interval)
+        else:
+            raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
+    else:
+        threshold_time = None
+
+    print(f"start_date: {start_date}, threshold_time: {threshold_time}")
 
     # Construct the initial query
     query = {
@@ -224,13 +238,15 @@ def get_images_metadata(
         'task_input_dict.dataset': dataset
     }
 
-    # Update the query based on provided start_date and end_date
+    # Update the query based on provided start_date, end_date, and threshold_time
     if start_date and end_date:
         query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
     elif start_date:
         query['task_creation_time'] = {'$gte': start_date}
     elif end_date:
         query['task_creation_time'] = {'$lte': end_date}
+    elif threshold_time:
+        query['task_creation_time'] = {'$gte': threshold_time}
 
     # Decide the sort order based on the 'order' parameter
     sort_order = -1 if order == "desc" else 1
@@ -255,6 +271,7 @@ def get_random_image_with_time(
     dataset: str = Query(...),
     time_interval: int = Query(..., description="Time interval in minutes or hours"),
     time_unit: str = Query("minutes", description="Time unit, either 'minutes' or 'hours"),
+    size: int = Query(1, description="Number of images to return")  # Added size parameter with a default of 1
 ):
     # Calculate the time threshold based on the current time and the specified interval
     current_time = datetime.utcnow()
@@ -271,7 +288,7 @@ def get_random_image_with_time(
             "task_input_dict.dataset": dataset,
             "task_creation_time": {"$gte": threshold_time.strftime("%Y-%m-%d")}
         }},
-        {"$sample": {"size": 1}}
+        {"$sample": {"size": size}}  # Use the size parameter here
     ])
 
     # Convert cursor type to list
@@ -279,13 +296,13 @@ def get_random_image_with_time(
 
     # Ensure the list isn't empty (this is just a safety check)
     if not documents:
-        raise HTTPException(status_code=404, detail=f"No image found for the given dataset within the last {time_interval} {time_unit}")
+        raise HTTPException(status_code=404, detail=f"No images found for the given dataset within the last {time_interval} {time_unit}")
 
-    # Remove the auto-generated _id field from the document
-    documents[0].pop('_id', None)
+    # Remove the auto-generated _id field from each document
+    for document in documents:
+        document.pop('_id', None)
 
-    # Return the image in the response
-    return {"image": documents[0]}
+    return {"images": documents}  # Return the list of images
 
 
 

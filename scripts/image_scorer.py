@@ -84,10 +84,11 @@ class ImageScorer:
         print("model_id=", self.model_id)
 
     def get_paths(self):
+        print("Getting paths for dataset: {}...".format(self.dataset))
         all_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', self.dataset)
 
         # Depending on the model type, choose the appropriate msgpack files
-        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "-text-embedding.msgpack"
+        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "-text-embedding-average-pooled.msgpack"
 
         # Filter the objects to get only those that end with the chosen suffix
         type_paths = [obj for obj in all_objects if obj.endswith(file_suffix)]
@@ -175,17 +176,17 @@ class ImageScorer:
                     positive_embedding_array = data[1].to(self.device)
                     negative_embedding_array = data[2].to(self.device)
                     image_hash = data[0]
-                    score = self.model.predict(positive_embedding_array, negative_embedding_array)
+                    score = self.model.predict_pooled_embeddings(positive_embedding_array, negative_embedding_array)
 
                 elif self.model_input_type == "embedding-positive":
                     positive_embedding_array = data[1].to(self.device)
                     image_hash = data[0]
-                    score = self.model.predict_positive_or_negative_only(positive_embedding_array)
+                    score = self.model.predict_positive_or_negative_only_pooled(positive_embedding_array)
 
                 elif self.model_input_type == "embedding-negative":
                     negative_embedding_array = data[1].to(self.device)
                     image_hash = data[0]
-                    score = self.model.predict_positive_or_negative_only(negative_embedding_array)
+                    score = self.model.predict_positive_or_negative_only_pooled(negative_embedding_array)
 
                 elif self.model_input_type == "clip":
                     clip_feature_vector = data[1].to(self.device)
@@ -425,7 +426,7 @@ def main():
         print("dataset names=", dataset_names)
         for dataset in dataset_names:
             try:
-                run_image_scorer(minio_client, args.dataset_name, args.model_filename)
+                run_image_scorer(minio_client, dataset, args.model_filename)
             except Exception as e:
                 print("Error running image scorer for {}: {}".format(dataset, e))
 
