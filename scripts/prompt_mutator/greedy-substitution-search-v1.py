@@ -122,7 +122,8 @@ def get_substitute_embedding(minio_client, phrase):
     msgpack_data = msgpack.loads(content)
     return msgpack_data['embedding']
 
-def rank_substitution_choices(minio_client,  
+def rank_substitution_choices(device,
+                                 embedding_model,  
                                  sigma_model, 
                                  prompt_str, 
                                  prompt_score, prompt_embedding, 
@@ -141,31 +142,31 @@ def rank_substitution_choices(minio_client,
 
     # Randomly select a phrase from the dataset and get an embedding
     for token in range(token_number):
-        # Get substitution phrase embedding
+        # Get substituted phrase embedding
         substituted_embedding=phrase_embeddings[token]
-        # get full input for xgboost model
-        substituted_embedding= get_mean_pooled_embedding(substituted_embedding)
-        substitute_phrase=phrase_list.sample(n=1)
-        substitute_embedding=get_substitute_embedding(minio_client, substitute_phrase)
+        # get substitute phrase embedding
+        substitute_phrase=random.choice(phrase_list)
+        substitute_embedding=get_prompt_embedding(device ,embedding_model, substitute_phrase)
+        substitute_embedding= get_mean_pooled_embedding(substitute_embedding)
+
         substitution_input= np.concatenate([pooled_prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
         # add sigma score to the list of scores
         sigma_score=sigma_model.predict([substitution_input])[0]
         sigma_scores.append(-sigma_score)
-        sub_phrases.append(substitute_phrase['phrase str'].values[0])
+        sub_phrases.append(substitute_phrase)
     
     tokens=np.argsort(sigma_scores)
     sub_phrases=[sub_phrases[token] for token in tokens]
     return tokens, sub_phrases
 
-def mutate_prompt(device, minio_client, 
-                  embedding_model, sigma_model, scoring_model, 
+def mutate_prompt(device, embedding_model, sigma_model, scoring_model, 
                   prompt_str, phrase_list, 
                   max_iterations=100, early_stopping=20):
 
     # calculate prompt embedding, score and embedding of each phrase
     prompt_embedding=get_prompt_embedding(device, embedding_model, prompt_str)
-    prompt_score= get_prompt_score(scoring_model, get_prompt_embedding(device, embedding_model, prompt_str))
-    phrase_embeddings= [get_prompt_embedding(device, embedding_model, phrase) for phrase in prompt_str.split(',')]
+    prompt_score= get_prompt_score(scoring_model, prompt_embedding)
+    phrase_embeddings= [get_mean_pooled_embedding(get_prompt_embedding(device, embedding_model, phrase)) for phrase in prompt_str.split(',')]
 
     # save original score
     original_score=prompt_score 
@@ -179,7 +180,8 @@ def mutate_prompt(device, minio_client,
     # run mutation process iteratively untill score converges
     for i in range(max_iterations):
         print(f"iteration {i}")
-        tokens, sub_phrases=rank_substitution_choices(minio_client,
+        tokens, sub_phrases=rank_substitution_choices(device,
+                                                embedding_model,
                                                 sigma_model, 
                                                 prompt_str,
                                                 prompt_score,
@@ -202,7 +204,7 @@ def mutate_prompt(device, minio_client,
             if(prompt_score < modified_prompt_score):
                 prompt_str= modified_prompt_str
                 prompt_embedding= modified_prompt_embedding
-                phrase_embeddings[token]= get_prompt_embedding(device, embedding_model, substituted_phrase)
+                phrase_embeddings[token]= get_mean_pooled_embedding(get_prompt_embedding(device, embedding_model, substituted_phrase))
                 break
 
         # check if score increased
@@ -468,7 +470,7 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     
-    prompt_str="level design, tile based environment, 2D environmental side scrolling, side scrolling video game, concept art, 2D environmental art side scrolling, snes, video game, whore, bare shoulders, 1girl, twintails, 18 yo girl, multiple_girls, a woman, glare, naked, white box, intricate, photography, doll, (blue eyes:0.7), nipples }, high quality, (large breasts), ( transparent:1.3)"
+    prompt_str="environmental, pixel art, concept art, side scrolling, video game, neo city, (1 girl), white box, puffy lips, cinematic lighting, colorful, steampunk, partially submerged, original, 1girl, night, ribbon choker, see through top, black tissues, a masterpiece, high heel, hand on own crotch"
 
     # get device
     if torch.cuda.is_available():
@@ -488,13 +490,14 @@ def main():
     sigma_model= PromptMutator(minio_client=minio_client, output_type="sigma_score")
     sigma_model.load_model()
 
+    phrase_list=pd.read_csv(args.csv_phrase)['phrase str'].tolist()
+
     print(mutate_prompt(device=device,
-                        minio_client=minio_client, 
                         embedding_model=clip, 
                         sigma_model=sigma_model, 
                         scoring_model=elm_model,
                         prompt_str=prompt_str, 
-                        phrase_list=pd.read_csv(args.csv_phrase)))
+                        phrase_list=phrase_list))
 
     #store_phrase_embeddings(minio_client, args.csv_phrase)
     
