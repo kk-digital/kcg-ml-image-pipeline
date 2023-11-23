@@ -229,13 +229,13 @@ def compare_distributions(minio_client,original_scores, mutated_scores):
     fig, axs = plt.subplots(2, 1, figsize=(12, 10))
     
     # plot histogram of original scores
-    axs[0].hist(original_scores, bins=10, range=[0,10000], color='blue', alpha=0.7)
+    axs[0].hist(original_scores, bins=10, range=[10000,30000], color='blue', alpha=0.7)
     axs[0].set_xlabel('Scores')
     axs[0].set_ylabel('Frequency')
     axs[0].set_title('Scores Before Mutation')
 
     # plot histogram of mutated scores
-    axs[1].hist(mutated_scores, bins=10, range=[0,10000], color='blue', alpha=0.7)
+    axs[1].hist(mutated_scores, bins=10, range=[10000,30000], color='blue', alpha=0.7)
     axs[1].set_xlabel('Scores')
     axs[1].set_ylabel('Frequency')
     axs[1].set_title('Scores After mutation')
