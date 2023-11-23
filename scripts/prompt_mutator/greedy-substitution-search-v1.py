@@ -112,11 +112,23 @@ def get_mean_pooled_embedding(embedding):
 
     return embedding.cpu().numpy()
 
-def rank_substitution_choices(top_percentage,   
+def get_substitute_embedding(minio_client, phrase):
+    index=phrase['index'].values[0]
+    print(index)
+    data = minio_client.get_object('datasets', DATA_MINIO_DIRECTORY + f"/phrase_embeddings/{index}_phrase.msgpack")
+    # Read the content of the msgpack file
+    content = data.read()
+
+    # Deserialize the content using msgpack
+    msgpack_data = msgpack.loads(content)
+    return msgpack_data['embedding']
+
+def rank_substitution_choices(minio_client,  
                                  sigma_model, 
                                  prompt_str, 
                                  prompt_score, prompt_embedding, 
-                                 phrase_embeddings):
+                                 phrase_embeddings,
+                                 phrase_list):
     
     # get mean pooled embedding of prompt for xgboost model
     pooled_prompt_embedding= get_mean_pooled_embedding(prompt_embedding)
@@ -126,6 +138,7 @@ def rank_substitution_choices(top_percentage,
     token_number= len(prompt_list)
     # list of sigma scores for each substitution
     sigma_scores=[]
+    sub_phrases=[]
 
     # Randomly select a phrase from the dataset and get an embedding
     for token in range(token_number):
@@ -133,16 +146,20 @@ def rank_substitution_choices(top_percentage,
         substituted_embedding=phrase_embeddings[token]
         # get full input for xgboost model
         substituted_embedding= get_mean_pooled_embedding(substituted_embedding)
-        substitution_input= np.concatenate([pooled_prompt_embedding, substituted_embedding, [token], [prompt_score]])
+        substitute_phrase=phrase_list.sample(n=1)
+        substitute_embedding=get_substitute_embedding(minio_client, substitute_phrase)
+        substitution_input= np.concatenate([pooled_prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
         # add sigma score to the list of scores
         sigma_score=sigma_model.predict([substitution_input])[0]
         sigma_scores.append(-sigma_score)
+        sub_phrases.append(substitute_phrase['phrase str'].values[0])
     
     tokens=np.argsort(sigma_scores)
-    top_tokens= tokens[:int(token_number * top_percentage)+1]
-    return top_tokens
+    sub_phrases=[sub_phrases[token] for token in tokens]
+    return tokens, sub_phrases
 
-def mutate_prompt(device, embedding_model, sigma_model, scoring_model, 
+def mutate_prompt(device, minio_client, 
+                  embedding_model, sigma_model, scoring_model, 
                   prompt_str, phrase_list, 
                   max_iterations=100, early_stopping=20):
 
@@ -154,8 +171,8 @@ def mutate_prompt(device, embedding_model, sigma_model, scoring_model,
     # save original score
     original_score=prompt_score 
 
-    # print(f"prompt str: {prompt_str}")
-    # print(f"initial score: {prompt_score}")
+    print(f"prompt str: {prompt_str}")
+    print(f"initial score: {prompt_score}")
 
     # early stopping
     early_stopping_iterations=early_stopping
@@ -164,20 +181,21 @@ def mutate_prompt(device, embedding_model, sigma_model, scoring_model,
     score_increased=True
     # run mutation process iteratively untill score converges
     for i in range(max_iterations):
-        #print(f"iteration {i}")
+        print(f"iteration {i}")
         if score_increased:
-            tokens=rank_substitution_choices(0.3,   
+            tokens, sub_phrases=rank_substitution_choices(minio_client,
                                                 sigma_model, 
                                                 prompt_str,
                                                 prompt_score,
                                                 prompt_embedding, 
-                                                phrase_embeddings)
+                                                phrase_embeddings,
+                                                phrase_list)
         
-        for token in tokens:
+        for token, sub_phrase in zip(tokens,sub_phrases):
             #Create a modified prompt with the substitution
             prompt_list = prompt_str.split(',')
             substituted_phrase= prompt_list[token]
-            prompt_list[token] = random.choice(phrase_list)
+            prompt_list[token] = sub_phrase
             modified_prompt_str = ",".join(prompt_list)
 
             #calculate modified prompt embedding and score
@@ -201,8 +219,8 @@ def mutate_prompt(device, embedding_model, sigma_model, scoring_model,
             early_stopping_iterations=early_stopping
 
 
-        # print(f"prompt str: {prompt_str}")
-        # print(f"initial score: {prompt_score}")
+        print(f"prompt str: {prompt_str}")
+        print(f"initial score: {prompt_score}")
         if early_stopping_iterations==0:
             break
     
@@ -456,7 +474,35 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     
-    store_phrase_embeddings(minio_client, args.csv_phrase)
+    prompt_str="level design, tile based environment, 2D environmental side scrolling, side scrolling video game, concept art, 2D environmental art side scrolling, snes, video game, whore, bare shoulders, 1girl, twintails, 18 yo girl, multiple_girls, a woman, glare, naked, white box, intricate, photography, doll, (blue eyes:0.7), nipples }, high quality, (large breasts), ( transparent:1.3)"
+
+    # get device
+    if torch.cuda.is_available():
+            device = 'cuda'
+    else:
+        device = 'cpu'
+    device = torch.device(device)
+
+    # Load the CLIP model
+    clip=CLIPTextEmbedder()
+    clip.load_submodels()
+
+    # load the elm model
+    elm_model= load_model(768, minio_client, device)
+
+    # load the xgboost sigma score model
+    sigma_model= PromptMutator(minio_client=minio_client, output_type="sigma_score")
+    sigma_model.load_model()
+
+    print(mutate_prompt(device=device,
+                        minio_client=minio_client, 
+                        embedding_model=clip, 
+                        sigma_model=sigma_model, 
+                        scoring_model=elm_model,
+                        prompt_str=prompt_str, 
+                        phrase_list=pd.read_csv(args.csv_phrase)))
+
+    #store_phrase_embeddings(minio_client, args.csv_phrase)
     
     # prompts=pd.read_csv(args.csv_initial_prompts)
 
