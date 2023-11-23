@@ -294,6 +294,8 @@ def load_dataset(minio_client, embedding_type):
     #compute sigma scores for initial score encoding
     sigma_mean=np.mean(elm_score_encoding)
     sigma_std=np.std(elm_score_encoding)
+    print(f"elm mean:{sigma_mean}")
+    print(f"elm std:{sigma_std}")
     elm_score_encoding = [(x - sigma_mean) / sigma_std for x in elm_score_encoding]
     #compute sigma scores for output
     elm_sigma_outputs = [(x - sigma_mean) / sigma_std for x in elm_sigma_outputs]
@@ -301,6 +303,8 @@ def load_dataset(minio_client, embedding_type):
     #compute sigma scores for initial score encoding
     sigma_mean=np.mean(linear_score_encoding)
     sigma_std=np.std(linear_score_encoding)
+    print(f"linear mean:{sigma_mean}")
+    print(f"linear std:{sigma_std}")
     linear_score_encoding = [(x - sigma_mean) / sigma_std for x in linear_score_encoding]
     #compute sigma scores for output
     linear_sigma_outputs = [(x - sigma_mean) / sigma_std for x in linear_sigma_outputs]
