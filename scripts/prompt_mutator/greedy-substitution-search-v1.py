@@ -28,7 +28,7 @@ DATA_MINIO_DIRECTORY="environmental/data/prompt-generator/substitution"
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--minio-addr', required=False, help='Minio server address', default="123.176.98.90:9000")
+    parser.add_argument('--minio-addr', required=False, help='Minio server address', default="192.168.3.5:9000")
     parser.add_argument('--minio-access-key', required=False, help='Minio access key')
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
     parser.add_argument('--csv-phrase', help='CSV containing phrases, must have "phrase str" column', default='input/civitai_phrases_database_v7_no_nsfw.csv')
