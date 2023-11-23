@@ -161,7 +161,7 @@ class BinaryPromptMutator:
         dtest = xgb.DMatrix(X)
         return self.model.predict(dtest)
 
-    def load_model(self, minio_path):
+    def load_model(self):
         print(self.minio_path)
         # get model file data from MinIO
         model_file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', self.minio_path)
