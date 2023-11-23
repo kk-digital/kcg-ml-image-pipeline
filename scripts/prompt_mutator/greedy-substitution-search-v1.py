@@ -289,6 +289,7 @@ def main():
     df_data=[]
     original_scores=[]
     mutated_scores=[]
+    index=0
 
     for i, prompt in prompt_list.iterrows():
 
@@ -302,7 +303,7 @@ def main():
         #calculating combined score
         seed_score=combined_model.predict(positive_embedding, negative_embedding)
 
-        original_scores.append(seed_score)
+        original_scores.append(seed_score.item())
 
         #mutate positive prompt
         mutated_positive_prompt, mutated_positive_embedding= mutate_prompt(device=device,
@@ -315,9 +316,9 @@ def main():
         # calculating new score
         score=combined_model.predict(mutated_positive_embedding, negative_embedding)
 
-        mutated_scores.append(score)
+        mutated_scores.append(score.item())
 
-        print(f"prompt {i} mutated.")
+        print(f"prompt {index} mutated.")
 
         if args.send_job:
             try:
@@ -350,6 +351,8 @@ def main():
                 'task_uuid': task_uuid,
                 'time': task_time
             })
+        
+        index+=1
 
     # save csv
     if args.send_job:
