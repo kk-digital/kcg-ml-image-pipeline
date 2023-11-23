@@ -319,6 +319,8 @@ def main():
         mutated_scores.append(score.item())
 
         print(f"prompt {index} mutated.")
+        print(f"----initial score: {seed_score.item()}.")
+        print(f"----final score: {score.item()}.")
 
         if args.send_job:
             try:
