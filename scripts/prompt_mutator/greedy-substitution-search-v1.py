@@ -414,8 +414,9 @@ def store_phrase_embeddings(minio_client, phrases_path):
     clip=CLIPTextEmbedder(device=device)
     clip.load_submodels()
 
-    for index, phrases in phrases_df.iterrows():
+    for i, phrases in phrases_df.iterrows():
         phrase_str=phrases['phrase str']
+        index=phrases['index']
 
         phrase_embedding=get_prompt_embedding(device, clip, phrase_str)
         pooled_embedding= get_mean_pooled_embedding(phrase_embedding)
