@@ -136,6 +136,7 @@ def rank_substitution_choices(device,
     sigma_scores=[]
     sub_phrases=[]
     sub_embeddings=[]
+    tokens=[]
 
     # Randomly select a phrase from the dataset and get an embedding
     for token in range(token_number):
@@ -150,12 +151,12 @@ def rank_substitution_choices(device,
         # add sigma score to the list of scores
         pred=binary_model.predict_probs([substitution_input])[0]
         if pred["increase"]>0.66:
-            sigma_score=sigma_model.predict([substitution_input])[0]
-            sigma_scores.append(-sigma_score)
+            # sigma_score=sigma_model.predict([substitution_input])[0]
+            # sigma_scores.append(-sigma_score)
+            tokens.append(token)
             sub_phrases.append(substitute_phrase)
             sub_embeddings.append(substitute_embedding)
     
-    tokens=np.argsort(sigma_scores)
     sub_phrases=[sub_phrases[token] for token in tokens]
     sub_embeddings=[sub_embeddings[token] for token in tokens]
     return tokens, sub_phrases, sub_embeddings
@@ -198,7 +199,7 @@ def mutate_prompt(device, embedding_model, sigma_model,
             #Create a modified prompt with the substitution
             prompt_list = prompt_str.split(',')
             prompt_list[token] = sub_phrase
-            modified_prompt_str = ",".join(prompt_list)
+            modified_prompt_str = ", ".join(prompt_list)
 
             #calculate modified prompt embedding and score
             modified_prompt_embedding=get_prompt_embedding(device, embedding_model, modified_prompt_str)
