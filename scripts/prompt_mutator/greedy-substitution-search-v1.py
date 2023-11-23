@@ -273,8 +273,8 @@ def main():
     clip.load_submodels()
 
     # load the elm model
-    positive_model= load_model(minio_client, device, args.ranking_model, 'positive')
-    combined_model= load_model(minio_client, device, args.ranking_model, 'combined', input_size=768*2)
+    positive_model= load_model(minio_client, device, 'positive', args.ranking_model)
+    combined_model= load_model(minio_client, device, 'combined', args.ranking_model, input_size=768*2)
     
     # load the xgboost binary model
     if(args.ranking_model=="elm-v1"):
