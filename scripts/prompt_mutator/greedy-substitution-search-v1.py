@@ -157,8 +157,6 @@ def rank_substitution_choices(device,
             sub_phrases.append(substitute_phrase)
             sub_embeddings.append(substitute_embedding)
     
-    sub_phrases=[sub_phrases[token] for token in tokens]
-    sub_embeddings=[sub_embeddings[token] for token in tokens]
     return tokens, sub_phrases, sub_embeddings
 
 def mutate_prompt(device, embedding_model, sigma_model, 
