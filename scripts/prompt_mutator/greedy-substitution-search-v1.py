@@ -117,16 +117,6 @@ def get_mean_pooled_embedding(embedding):
 
     return embedding.cpu().numpy()
 
-def get_substitute_embedding(minio_client, phrase):
-    index=phrase['index'].values[0]
-    data = minio_client.get_object('datasets', DATA_MINIO_DIRECTORY + f"/phrase_embeddings/{index}_phrase.msgpack")
-    # Read the content of the msgpack file
-    content = data.read()
-
-    # Deserialize the content using msgpack
-    msgpack_data = msgpack.loads(content)
-    return msgpack_data['embedding']
-
 def rank_substitution_choices(device,
                                  embedding_model,  
                                  sigma_model,
@@ -158,7 +148,7 @@ def rank_substitution_choices(device,
         substitution_input= np.concatenate([pooled_prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
         # add sigma score to the list of scores
         pred=binary_model.predict_probs([substitution_input])[0]
-        if pred["increase"]>0.66:
+        if pred["decrease"]>0.66:
             sigma_score=sigma_model.predict([substitution_input])[0]
             sigma_scores.append(-sigma_score)
             sub_phrases.append(substitute_phrase)
