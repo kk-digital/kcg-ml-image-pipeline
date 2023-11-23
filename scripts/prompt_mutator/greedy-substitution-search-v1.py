@@ -42,8 +42,8 @@ def parse_args():
     parser.add_argument('--ranking-model', help="elm-v1 or linear", default="linear")
 
     # TODO: update this to retrieve mean and std automatically later
-    parser.add_argument('--mean', type=float, default=4856.1315)
-    parser.add_argument('--std', type=float, default=819.6140)
+    parser.add_argument('--mean', type=float, default=14856.1315)
+    parser.add_argument('--std', type=float, default=2819.6140)
 
     return parser.parse_args()
 
@@ -133,7 +133,7 @@ def rank_substitution_choices(device,
     pooled_prompt_embedding= get_mean_pooled_embedding(prompt_embedding)
 
     # get number of tokens
-    prompt_list = prompt_str.split(',')
+    prompt_list = prompt_str.split(', ')
     token_number= len(prompt_list)
     # list of sigma scores for each substitution
     sub_phrases=[]
