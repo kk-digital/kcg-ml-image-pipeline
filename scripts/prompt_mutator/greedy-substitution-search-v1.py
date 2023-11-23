@@ -434,7 +434,7 @@ def store_phrase_embeddings(minio_client, phrases_path):
         os.makedirs(local_directory, exist_ok=True)
 
         # Create a local file with the packed data
-        local_file_path = local_directory + f"{index}_embedding.msgpack"
+        local_file_path = local_directory + f"{index}_phrase.msgpack"
         with open(local_file_path, 'wb') as local_file:
             local_file.write(packed_data)
         
@@ -446,7 +446,7 @@ def store_phrase_embeddings(minio_client, phrases_path):
         buffer = io.BytesIO(content)
         buffer.seek(0)
 
-        minio_path=DATA_MINIO_DIRECTORY + f"/phrase_embeddings/{index}_embedding.msgpack"
+        minio_path=DATA_MINIO_DIRECTORY + f"/phrase_embeddings/{index}_phrase.msgpack"
         cmd.upload_data(minio_client, 'datasets',minio_path, buffer)
 
 def main():
