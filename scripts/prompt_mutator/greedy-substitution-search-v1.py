@@ -160,7 +160,7 @@ def rank_substitution_choices(device,
 def mutate_prompt(device, embedding_model, sigma_model, 
                   scoring_model, binary_model,
                   prompt_str, phrase_list, 
-                  max_iterations=30, early_stopping=30):
+                  max_iterations=100, early_stopping=10):
 
     # calculate prompt embedding, score and embedding of each phrase
     prompt_embedding=get_prompt_embedding(device, embedding_model, prompt_str)
