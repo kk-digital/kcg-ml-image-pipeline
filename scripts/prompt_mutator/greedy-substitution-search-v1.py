@@ -200,7 +200,7 @@ def mutate_prompt(device, embedding_model, sigma_model,
                                                 phrase_list)
         
         num_attempts=0
-        
+        modified_prompt_score=prompt_score
         for token, sub_phrase in zip(tokens,sub_phrases):
             #Create a modified prompt with the substitution
             prompt_list = prompt_str.split(',')
