@@ -301,9 +301,9 @@ def main():
         negative_embedding= get_prompt_embedding(device, clip, negative_prompt)
 
         #calculating combined score
-        seed_score=combined_model.predict(positive_embedding, negative_embedding)
+        seed_score=combined_model.predict(positive_embedding, negative_embedding).item()
 
-        original_scores.append(seed_score.item())
+        original_scores.append(seed_score)
 
         #mutate positive prompt
         mutated_positive_prompt, mutated_positive_embedding= mutate_prompt(device=device,
@@ -314,9 +314,9 @@ def main():
                         phrase_list=phrase_list)
 
         # calculating new score
-        score=combined_model.predict(mutated_positive_embedding, negative_embedding)
+        score=combined_model.predict(mutated_positive_embedding, negative_embedding).item()
 
-        mutated_scores.append(score.item())
+        mutated_scores.append(score)
 
         print(f"prompt {index} mutated.")
         print(f"----initial score: {seed_score.item()}.")
