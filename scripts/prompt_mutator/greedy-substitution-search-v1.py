@@ -491,7 +491,7 @@ def main():
     clip.load_submodels()
 
     # load the elm model
-    elm_model= load_model(768, minio_client, device, 'elm', 'positive')
+    elm_model= load_model(768, minio_client, device, 'elm-v1', 'positive')
 
     # load the xgboost sigma score model
     sigma_model= PromptMutator(minio_client=minio_client, output_type="sigma_score", ranking_model="elm")
