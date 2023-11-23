@@ -195,7 +195,7 @@ def mutate_prompt(device, embedding_model, sigma_model,
         modified_prompt_score=prompt_score
         for token, sub_phrase, embedding in zip(tokens,sub_phrases, embeddings):
             #Create a modified prompt with the substitution
-            prompt_list = prompt_str.split(',')
+            prompt_list = prompt_str.split(', ')
             prompt_list[token] = sub_phrase
             modified_prompt_str = ", ".join(prompt_list)
 
