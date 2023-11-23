@@ -13,12 +13,12 @@ import torch
 from tqdm import tqdm
 import msgpack
 
-
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from training_worker.prompt_mutator.prompt_mutator_model import PromptMutator
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
+from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from utility.minio import cmd
 
@@ -61,16 +61,19 @@ def store_in_csv_file(csv_data, minio_client):
     model_path = 'environmental' + 'output/prompt_mutator/generated_prompts/prompts.csv'
     cmd.upload_data(minio_client, 'datasets', model_path, buffer)
 
-def load_model(input_size, minio_client, device):
+def load_model(input_size, minio_client, device, scoring_model, embedding_type):
     input_path="environmental/models/ranking/"
 
-    embedding_model = ABRankingELMModel(input_size)
+    if(scoring_model=="elm-v1"):
+        embedding_model = ABRankingELMModel(input_size)
+    else:
+        embedding_model= ABRankingModel(input_size)
 
     model_files=cmd.get_list_of_objects_with_prefix(minio_client, 'datasets', input_path)
     most_recent_model = None
 
     for model_file in model_files:
-        if model_file.endswith("score-elm-v1-embedding-positive.pth"):
+        if model_file.endswith(f"score-{scoring_model}-embedding-{embedding_type}.pth"):
             most_recent_model = model_file
 
     if most_recent_model:
@@ -78,6 +81,18 @@ def load_model(input_size, minio_client, device):
     else:
         print("No .pth files found in the list.")
         return
+
+    # Create a BytesIO object and write the downloaded content into it
+    byte_buffer = io.BytesIO()
+    for data in model_file_data.stream(amt=8192):
+        byte_buffer.write(data)
+    # Reset the buffer's position to the beginning
+    byte_buffer.seek(0)
+
+    embedding_model.load(byte_buffer)
+    embedding_model.model=embedding_model.model.to(device)
+
+    return embedding_model
 
     # Create a BytesIO object and write the downloaded content into it
     byte_buffer = io.BytesIO()
@@ -152,16 +167,16 @@ def rank_substitution_choices(device,
         substitution_input= np.concatenate([pooled_prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
         # add sigma score to the list of scores
         sigma_score=sigma_model.predict([substitution_input])[0]
-        sigma_scores.append(sigma_score)
+        sigma_scores.append(-sigma_score)
         sub_phrases.append(substitute_phrase)
     
-    token=np.argmax(sigma_scores)
-    sub_phrase=sub_phrases[token]
-    return [token], [sub_phrase]
+    tokens=np.argsort(sigma_scores)
+    sub_phrases=[sub_phrases[token] for token in tokens]
+    return tokens, sub_phrases
 
 def mutate_prompt(device, embedding_model, sigma_model, scoring_model, 
                   prompt_str, phrase_list, 
-                  max_iterations=100, early_stopping=20):
+                  max_iterations=30, early_stopping=30):
 
     # calculate prompt embedding, score and embedding of each phrase
     prompt_embedding=get_prompt_embedding(device, embedding_model, prompt_str)
@@ -484,7 +499,7 @@ def main():
     clip.load_submodels()
 
     # load the elm model
-    elm_model= load_model(768, minio_client, device)
+    elm_model= load_model(768, minio_client, device, 'linear', 'positive')
 
     # load the xgboost sigma score model
     sigma_model= PromptMutator(minio_client=minio_client, output_type="sigma_score")
