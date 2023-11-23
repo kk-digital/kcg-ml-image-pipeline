@@ -161,7 +161,7 @@ class BinaryPromptMutator:
         class_labels=['decrease', 'increase']
         dtest = xgb.DMatrix(X)
         y_pred=self.model.get_booster().predict(dtest)
-        predicted_labels = [ class_labels[row] for row in y_pred ]
+        predicted_labels = [ class_labels[int(row)] for row in y_pred ]
 
         return predicted_labels
         
