@@ -4,6 +4,7 @@ import csv
 import io
 import os
 import sys
+import time
 import traceback
 from matplotlib import pyplot as plt
 import numpy as np
@@ -204,6 +205,8 @@ def mutate_prompt(device, embedding_model, sigma_model, scoring_model,
                                                 phrase_embeddings,
                                                 phrase_list)
         
+        num_attempts=0
+        
         for token, sub_phrase in zip(tokens,sub_phrases):
             #Create a modified prompt with the substitution
             prompt_list = prompt_str.split(',')
@@ -215,6 +218,8 @@ def mutate_prompt(device, embedding_model, sigma_model, scoring_model,
             modified_prompt_embedding=get_prompt_embedding(device, embedding_model, modified_prompt_str)
             modified_prompt_score= get_prompt_score(scoring_model, modified_prompt_embedding)
 
+            num_attempts+=1
+
             # check if score improves
             if(prompt_score < modified_prompt_score):
                 prompt_str= modified_prompt_str
@@ -222,6 +227,7 @@ def mutate_prompt(device, embedding_model, sigma_model, scoring_model,
                 phrase_embeddings[token]= get_mean_pooled_embedding(get_prompt_embedding(device, embedding_model, substituted_phrase))
                 break
 
+        print(f"failed {num_attempts} times")
         # check if score increased
         if prompt_score >= modified_prompt_score:
             early_stopping_iterations-=1
@@ -507,12 +513,16 @@ def main():
 
     phrase_list=pd.read_csv(args.csv_phrase)['phrase str'].tolist()
 
+    start=time.time()
     print(mutate_prompt(device=device,
                         embedding_model=clip, 
                         sigma_model=sigma_model, 
                         scoring_model=elm_model,
                         prompt_str=prompt_str, 
                         phrase_list=phrase_list))
+    end=time.time()
+    print(f'Time taken for mutating a prompt is: {end - start:.2f} seconds')
+
 
     #store_phrase_embeddings(minio_client, args.csv_phrase)
     
