@@ -176,13 +176,10 @@ def mutate_prompt(device, minio_client,
     # early stopping
     early_stopping_iterations=early_stopping
 
-    # boolean for if score increased
-    score_increased=True
     # run mutation process iteratively untill score converges
     for i in range(max_iterations):
         print(f"iteration {i}")
-        if score_increased:
-            tokens, sub_phrases=rank_substitution_choices(minio_client,
+        tokens, sub_phrases=rank_substitution_choices(minio_client,
                                                 sigma_model, 
                                                 prompt_str,
                                                 prompt_score,
@@ -211,9 +208,7 @@ def mutate_prompt(device, minio_client,
         # check if score increased
         if prompt_score >= modified_prompt_score:
             early_stopping_iterations-=1
-            score_increased=False
         else:
-            score_increased=True
             prompt_score= modified_prompt_score
             early_stopping_iterations=early_stopping
 
