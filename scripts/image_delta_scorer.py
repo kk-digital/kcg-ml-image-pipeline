@@ -64,40 +64,74 @@ def convert_pairs_to_dict(hash_score_pairs):
 
     return hash_score_dict
 
+def get_csv_row_data(index,
+                     img_hash,
+                     clip_score,
+                     embedding_hash_score_dict,
+                     clip_hash_sigma_score_dict,
+                     embedding_hash_sigma_score_dict,
+                     hash_delta_score_dict):
+    # get job
+    job = request.http_get_completed_job_by_image_hash(img_hash)
+    if job is None:
+        return None, index
+
+    job_uuid = job["uuid"]
+    prompt_generation_policy = "N/A"
+    if "prompt_generation_policy" in job["task_input_dict"]:
+        prompt_generation_policy = job["task_input_dict"]["prompt_generation_policy"]
+
+    positive_prompt = "N/A"
+    if "positive_prompt" in job["task_input_dict"]:
+        positive_prompt = job["task_input_dict"]["positive_prompt"]
+
+    negative_prompt = "N/A"
+    if "negative_prompt" in job["task_input_dict"]:
+        negative_prompt = job["task_input_dict"]["negative_prompt"]
+
+    embedding_score = embedding_hash_score_dict[img_hash]
+    clip_sigma_score = clip_hash_sigma_score_dict[img_hash]
+    embedding_sigma_score = embedding_hash_sigma_score_dict[img_hash]
+    delta_score = hash_delta_score_dict[img_hash]
+    row = [job_uuid, clip_score, embedding_score, clip_sigma_score, embedding_sigma_score, delta_score,
+           prompt_generation_policy, positive_prompt, negative_prompt]
+
+    return row, index
+
+
 def get_delta_score_csv_data(clip_hash_score_dict,
                               clip_hash_sigma_score_dict,
                               embedding_hash_score_dict,
                               embedding_hash_sigma_score_dict,
                               hash_delta_score_dict):
     print("Processing delta score csv data...")
-    csv_data = []
-    for img_hash, clip_score in tqdm(clip_hash_score_dict.items()):
-        # get job
-        job = request.http_get_completed_job_by_image_hash(img_hash)
-        if job is None:
-            continue
+    csv_data = [None] * len(clip_hash_score_dict)
 
-        job_uuid = job["uuid"]
-        prompt_generation_policy = "N/A"
-        if "prompt_generation_policy" in job["task_input_dict"]:
-            prompt_generation_policy = job["task_input_dict"]["prompt_generation_policy"]
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = []
+        count = 0
+        for img_hash, clip_score in tqdm(clip_hash_score_dict.items()):
+            futures.append(executor.submit(get_csv_row_data,
+                                           index=count,
+                                           img_hash=img_hash,
+                                           clip_score=clip_score,
+                                           embedding_hash_score_dict=embedding_hash_score_dict,
+                                           clip_hash_sigma_score_dict=clip_hash_sigma_score_dict,
+                                           embedding_hash_sigma_score_dict=embedding_hash_sigma_score_dict,
+                                           hash_delta_score_dict=hash_delta_score_dict))
+            count += 1
 
-        positive_prompt = "N/A"
-        if "positive_prompt" in job["task_input_dict"]:
-            positive_prompt = job["task_input_dict"]["positive_prompt"]
+        for future in tqdm(as_completed(futures), total=len(futures)):
+            row, index = future.result()
+            csv_data[index] = row
 
-        negative_prompt = "N/A"
-        if "negative_prompt" in job["task_input_dict"]:
-            negative_prompt = job["task_input_dict"]["negative_prompt"]
+    cleaned_csv_data = []
+    for data in csv_data:
+        if data is not None:
+            cleaned_csv_data.append(data)
 
-        embedding_score = embedding_hash_score_dict[img_hash]
-        clip_sigma_score = clip_hash_sigma_score_dict[img_hash]
-        embedding_sigma_score = embedding_hash_sigma_score_dict[img_hash]
-        delta_score = hash_delta_score_dict[img_hash]
-        row = [job_uuid, clip_score, embedding_score, clip_sigma_score, embedding_sigma_score, delta_score, prompt_generation_policy, positive_prompt, negative_prompt]
-        csv_data.append(row)
+    return cleaned_csv_data
 
-    return csv_data
 
 def upload_delta_score_to_csv(minio_client,
                               dataset,
@@ -155,7 +189,8 @@ def generate_delta_scores_graph(minio_client,
     clip_scores_hist.hist(clip_scores_data,
                                 weights=np.ones(len(clip_scores_data)) / len(
                                     clip_scores_data))
-    clip_scores_hist.yaxis.set_major_formatter(PercentFormatter(1))
+    # clip_scores_hist.yaxis.set_major_formatter(PercentFormatter(1))
+    clip_scores_hist.ticklabel_format(useOffset=False)
 
     # embedding scores hist
     embedding_scores_hist.set_xlabel("Embedding Score")
@@ -164,7 +199,8 @@ def generate_delta_scores_graph(minio_client,
     embedding_scores_hist.hist(embedding_scores_data,
                           weights=np.ones(len(embedding_scores_data)) / len(
                               embedding_scores_data))
-    clip_scores_hist.yaxis.set_major_formatter(PercentFormatter(1))
+    # embedding_scores_hist.yaxis.set_major_formatter(PercentFormatter(1))
+    embedding_scores_hist.ticklabel_format(useOffset=False)
 
     # scores
     x_axis_values = [i for i in range(len(clip_hash_score_dict))]
@@ -194,7 +230,8 @@ def generate_delta_scores_graph(minio_client,
     clip_sigma_scores_hist.hist(clip_sigma_scores_data,
                           weights=np.ones(len(clip_sigma_scores_data)) / len(
                               clip_sigma_scores_data))
-    clip_sigma_scores_hist.yaxis.set_major_formatter(PercentFormatter(1))
+    # clip_sigma_scores_hist.yaxis.set_major_formatter(PercentFormatter(1))
+    clip_sigma_scores_hist.ticklabel_format(useOffset=False)
 
     # embedding sigma scores hist
     embedding_sigma_scores_hist.set_xlabel("Embedding Sigma Score")
@@ -203,7 +240,8 @@ def generate_delta_scores_graph(minio_client,
     embedding_sigma_scores_hist.hist(embedding_sigma_scores_data,
                                 weights=np.ones(len(embedding_sigma_scores_data)) / len(
                                     embedding_sigma_scores_data))
-    embedding_sigma_scores_hist.yaxis.set_major_formatter(PercentFormatter(1))
+    # embedding_sigma_scores_hist.yaxis.set_major_formatter(PercentFormatter(1))
+    embedding_sigma_scores_hist.ticklabel_format(useOffset=False)
 
     # sigma scores
     x_axis_values = [i for i in range(len(clip_hash_sigma_score_dict))]
@@ -232,7 +270,8 @@ def generate_delta_scores_graph(minio_client,
     delta_scores_hist.hist(delta_scores_data,
                            weights=np.ones(len(delta_scores_data)) / len(
                                          delta_scores_data))
-    delta_scores_hist.yaxis.set_major_formatter(PercentFormatter(1))
+    # delta_scores_hist.yaxis.set_major_formatter(PercentFormatter(1))
+    delta_scores_hist.ticklabel_format(useOffset=False)
 
     x_axis_values = [i for i in range(len(hash_delta_score_dict))]
     delta_scores_graph.plot(x_axis_values, delta_scores_data,
@@ -275,7 +314,6 @@ def run_image_delta_scorer(minio_client,
     clip_paths = clip_scorer.get_paths()
     clip_hash_score_pairs, image_paths = clip_scorer.get_scores(clip_paths)
     clip_hash_sigma_score_dict = clip_scorer.get_sigma_scores(clip_hash_score_pairs)
-
 
     # embedding
     embedding_scorer = ImageScorer(minio_client=minio_client,
