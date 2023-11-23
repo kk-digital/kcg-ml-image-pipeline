@@ -163,7 +163,7 @@ def create_dataset(minio_client, device, csv_path, embedding_type):
         with torch.no_grad():
                 substitute_embedding= clip.forward(substitute_phrase).unsqueeze(0)
         
-        prompt_list = prompt_str.split(',')
+        prompt_list = prompt_str.split(', ')
         # Choose a random position to substitute in the prompt
         position_to_substitute = random.randint(0, len(prompt_list) - 1)
 
@@ -173,7 +173,7 @@ def create_dataset(minio_client, device, csv_path, embedding_type):
             substituted_embedding= clip.forward(substituted_phrase).unsqueeze(0)
 
         prompt_list[position_to_substitute] = substitute_phrase
-        modified_prompt = ",".join(prompt_list)
+        modified_prompt = ", ".join(prompt_list)
 
         # Get embedding of mutated prompt
         with torch.no_grad():
