@@ -114,7 +114,6 @@ def get_mean_pooled_embedding(embedding):
 
 def get_substitute_embedding(minio_client, phrase):
     index=phrase['index'].values[0]
-    print(index)
     data = minio_client.get_object('datasets', DATA_MINIO_DIRECTORY + f"/phrase_embeddings/{index}_phrase.msgpack")
     # Read the content of the msgpack file
     content = data.read()
