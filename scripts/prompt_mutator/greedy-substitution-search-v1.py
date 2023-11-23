@@ -152,16 +152,16 @@ def rank_substitution_choices(device,
         substitution_input= np.concatenate([pooled_prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
         # add sigma score to the list of scores
         sigma_score=sigma_model.predict([substitution_input])[0]
-        sigma_scores.append(-sigma_score)
+        sigma_scores.append(sigma_score)
         sub_phrases.append(substitute_phrase)
     
-    tokens=np.argsort(sigma_scores)
-    sub_phrases=[sub_phrases[token] for token in tokens]
-    return tokens, sub_phrases
+    token=np.argmax(sigma_scores)
+    sub_phrase=sub_phrases[token]
+    return [token], [sub_phrase]
 
 def mutate_prompt(device, embedding_model, sigma_model, scoring_model, 
                   prompt_str, phrase_list, 
-                  max_iterations=100, early_stopping=20):
+                  max_iterations=50, early_stopping=10):
 
     # calculate prompt embedding, score and embedding of each phrase
     prompt_embedding=get_prompt_embedding(device, embedding_model, prompt_str)
