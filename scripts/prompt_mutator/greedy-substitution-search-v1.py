@@ -491,14 +491,14 @@ def main():
     clip.load_submodels()
 
     # load the elm model
-    elm_model= load_model(768, minio_client, device, 'elm-v1', 'positive')
+    elm_model= load_model(768, minio_client, device, 'linear', 'positive')
 
     # load the xgboost sigma score model
-    sigma_model= PromptMutator(minio_client=minio_client, output_type="sigma_score", ranking_model="elm")
+    sigma_model= PromptMutator(minio_client=minio_client, output_type="sigma_score", ranking_model="linear")
     sigma_model.load_model()
     
     # load the xgboost binary model
-    binary_model= BinaryPromptMutator(minio_client=minio_client, ranking_model="elm")
+    binary_model= BinaryPromptMutator(minio_client=minio_client, ranking_model="linear")
     binary_model.load_model()
 
     phrase_list=pd.read_csv(args.csv_phrase)['phrase str'].tolist()
