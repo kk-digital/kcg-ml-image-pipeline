@@ -167,7 +167,7 @@ def mutate_prompt(device, embedding_model, sigma_model,
     # calculate prompt embedding, score and embedding of each phrase
     prompt_embedding=get_prompt_embedding(device, embedding_model, prompt_str)
     prompt_score= get_prompt_score(scoring_model, prompt_embedding)
-    phrase_embeddings= [get_mean_pooled_embedding(get_prompt_embedding(device, embedding_model, phrase)) for phrase in prompt_str.split(',')]
+    phrase_embeddings= [get_mean_pooled_embedding(get_prompt_embedding(device, embedding_model, phrase)) for phrase in prompt_str.split(', ')]
 
     # save original score
     original_score=prompt_score 
@@ -210,21 +210,22 @@ def mutate_prompt(device, embedding_model, sigma_model,
                 prompt_str= modified_prompt_str
                 prompt_embedding= modified_prompt_embedding
                 phrase_embeddings[token]= embedding
+                prompt_score= modified_prompt_score
                 break
 
         print(f"failed {num_attempts} times")
-        # check if score increased
-        if prompt_score >= modified_prompt_score:
-            early_stopping_iterations-=1
-        else:
-            prompt_score= modified_prompt_score
-            early_stopping_iterations=early_stopping
+        # # check if score increased
+        # if prompt_score >= modified_prompt_score:
+        #     early_stopping_iterations-=1
+        # else:
+        #     prompt_score= modified_prompt_score
+        #     early_stopping_iterations=early_stopping
 
 
         print(f"prompt str: {prompt_str}")
         print(f"initial score: {prompt_score}")
-        if early_stopping_iterations==0:
-            break
+        # if early_stopping_iterations==0:
+        #     break
     
     return prompt_str, original_score, prompt_score
 
