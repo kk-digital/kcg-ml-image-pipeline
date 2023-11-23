@@ -194,7 +194,6 @@ def mutate_prompt(device, embedding_model, sigma_model,
         for token, sub_phrase in zip(tokens,sub_phrases):
             #Create a modified prompt with the substitution
             prompt_list = prompt_str.split(',')
-            substituted_phrase= prompt_list[token]
             prompt_list[token] = sub_phrase
             modified_prompt_str = ",".join(prompt_list)
 
@@ -208,7 +207,7 @@ def mutate_prompt(device, embedding_model, sigma_model,
             if(prompt_score < modified_prompt_score):
                 prompt_str= modified_prompt_str
                 prompt_embedding= modified_prompt_embedding
-                phrase_embeddings[token]= get_mean_pooled_embedding(get_prompt_embedding(device, embedding_model, substituted_phrase))
+                phrase_embeddings[token]= get_mean_pooled_embedding(get_prompt_embedding(device, embedding_model, sub_phrase))
                 break
 
         print(f"failed {num_attempts} times")
