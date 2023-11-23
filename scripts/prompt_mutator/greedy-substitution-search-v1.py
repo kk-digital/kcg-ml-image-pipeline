@@ -135,6 +135,7 @@ def rank_substitution_choices(device,
     # list of sigma scores for each substitution
     sigma_scores=[]
     sub_phrases=[]
+    sub_embeddings=[]
 
     # Randomly select a phrase from the dataset and get an embedding
     for token in range(token_number):
@@ -152,15 +153,17 @@ def rank_substitution_choices(device,
             sigma_score=sigma_model.predict([substitution_input])[0]
             sigma_scores.append(-sigma_score)
             sub_phrases.append(substitute_phrase)
+            sub_embeddings.append(substitute_embedding)
     
     tokens=np.argsort(sigma_scores)
     sub_phrases=[sub_phrases[token] for token in tokens]
-    return tokens, sub_phrases
+    sub_embeddings=[sub_embeddings[token] for token in tokens]
+    return tokens, sub_phrases, sub_embeddings
 
 def mutate_prompt(device, embedding_model, sigma_model, 
                   scoring_model, binary_model,
                   prompt_str, phrase_list, 
-                  max_iterations=100, early_stopping=10):
+                  max_iterations=100, early_stopping=20):
 
     # calculate prompt embedding, score and embedding of each phrase
     prompt_embedding=get_prompt_embedding(device, embedding_model, prompt_str)
@@ -179,7 +182,7 @@ def mutate_prompt(device, embedding_model, sigma_model,
     # run mutation process iteratively untill score converges
     for i in range(max_iterations):
         print(f"iteration {i}")
-        tokens, sub_phrases=rank_substitution_choices(device,
+        tokens, sub_phrases, embeddings=rank_substitution_choices(device,
                                                 embedding_model,
                                                 sigma_model,
                                                 binary_model, 
@@ -191,7 +194,7 @@ def mutate_prompt(device, embedding_model, sigma_model,
         
         num_attempts=0
         modified_prompt_score=prompt_score
-        for token, sub_phrase in zip(tokens,sub_phrases):
+        for token, sub_phrase, embedding in zip(tokens,sub_phrases, embeddings):
             #Create a modified prompt with the substitution
             prompt_list = prompt_str.split(',')
             prompt_list[token] = sub_phrase
@@ -207,7 +210,7 @@ def mutate_prompt(device, embedding_model, sigma_model,
             if(prompt_score < modified_prompt_score):
                 prompt_str= modified_prompt_str
                 prompt_embedding= modified_prompt_embedding
-                phrase_embeddings[token]= get_mean_pooled_embedding(get_prompt_embedding(device, embedding_model, sub_phrase))
+                phrase_embeddings[token]= embedding
                 break
 
         print(f"failed {num_attempts} times")
