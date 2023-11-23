@@ -33,7 +33,7 @@ def parse_args():
     parser.add_argument('--minio-addr', required=False, help='Minio server address', default="192.168.3.5:9000")
     parser.add_argument('--minio-access-key', required=False, help='Minio access key')
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
-    parser.add_argument('--csv-phrase', help='CSV containing phrases, must have "phrase str" column', default='input/civitai_phrases_database_v7_no_nsfw.csv')
+    parser.add_argument('--csv-phrase', help='CSV containing phrases, must have "phrase str" column', default='input/phrase_scores.csv')
     parser.add_argument('--csv-initial-prompts', help='CSV containing initial prompts', default='input/environment_data.csv')
     parser.add_argument('--n-data', type=int, help='Number of data samples to generate', default=20)
     parser.add_argument('--send-job', action='store_true', default=True)
@@ -491,14 +491,14 @@ def main():
     clip.load_submodels()
 
     # load the elm model
-    elm_model= load_model(768, minio_client, device, 'linear', 'positive')
+    elm_model= load_model(768, minio_client, device, 'elm', 'positive')
 
     # load the xgboost sigma score model
-    sigma_model= PromptMutator(minio_client=minio_client, output_type="sigma_score", ranking_model="linear")
+    sigma_model= PromptMutator(minio_client=minio_client, output_type="sigma_score", ranking_model="elm")
     sigma_model.load_model()
     
     # load the xgboost binary model
-    binary_model= BinaryPromptMutator(minio_client=minio_client, ranking_model="linear")
+    binary_model= BinaryPromptMutator(minio_client=minio_client, ranking_model="elm")
     binary_model.load_model()
 
     phrase_list=pd.read_csv(args.csv_phrase)['phrase str'].tolist()
