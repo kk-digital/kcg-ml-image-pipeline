@@ -157,8 +157,8 @@ def rank_substitution_choices(device,
 
         substitution_input= np.concatenate([pooled_prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
         # add sigma score to the list of scores
-        probs=binary_model.predict_probs([substitution_input])[0]
-        if probs['increase']>0.66:
+        pred=binary_model.predict([substitution_input])[0]
+        if pred=="increase":
             sigma_score=sigma_model.predict([substitution_input])[0]
             sigma_scores.append(-sigma_score)
             sub_phrases.append(substitute_phrase)

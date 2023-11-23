@@ -158,8 +158,13 @@ class BinaryPromptMutator:
         return predictions_with_probabilities
 
     def predict(self, X):
+        class_labels=['decrease', 'increase']
         dtest = xgb.DMatrix(X)
-        return self.model.predict(dtest)
+        y_pred=self.model.get_booster().predict(dtest)
+        predicted_labels = [ class_labels[row] for row in y_pred ]
+
+        return predicted_labels
+        
 
     def load_model(self):
         print(self.minio_path)
