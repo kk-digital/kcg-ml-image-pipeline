@@ -18,6 +18,7 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from training_worker.prompt_mutator.prompt_mutator_model import PromptMutator
+from training_worker.prompt_mutator.binary_prompt_mutator import BinaryPromptMutator
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
@@ -95,18 +96,6 @@ def load_model(input_size, minio_client, device, scoring_model, embedding_type):
 
     return embedding_model
 
-    # Create a BytesIO object and write the downloaded content into it
-    byte_buffer = io.BytesIO()
-    for data in model_file_data.stream(amt=8192):
-        byte_buffer.write(data)
-    # Reset the buffer's position to the beginning
-    byte_buffer.seek(0)
-
-    embedding_model.load(byte_buffer)
-    embedding_model.model=embedding_model.model.to(device)
-
-    return embedding_model
-
 def get_prompt_embedding(device, model, prompt):
     with torch.no_grad():
         embedding= model(prompt)
@@ -140,7 +129,8 @@ def get_substitute_embedding(minio_client, phrase):
 
 def rank_substitution_choices(device,
                                  embedding_model,  
-                                 sigma_model, 
+                                 sigma_model,
+                                 binary_model, 
                                  prompt_str, 
                                  prompt_score, prompt_embedding, 
                                  phrase_embeddings,
@@ -167,15 +157,18 @@ def rank_substitution_choices(device,
 
         substitution_input= np.concatenate([pooled_prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
         # add sigma score to the list of scores
-        sigma_score=sigma_model.predict([substitution_input])[0]
-        sigma_scores.append(-sigma_score)
-        sub_phrases.append(substitute_phrase)
+        label=binary_model.predict_probs(substitution_input)[0]
+        if label=="increase":
+            sigma_score=sigma_model.predict([substitution_input])[0]
+            sigma_scores.append(-sigma_score)
+            sub_phrases.append(substitute_phrase)
     
     tokens=np.argsort(sigma_scores)
     sub_phrases=[sub_phrases[token] for token in tokens]
     return tokens, sub_phrases
 
-def mutate_prompt(device, embedding_model, sigma_model, scoring_model, 
+def mutate_prompt(device, embedding_model, sigma_model, 
+                  scoring_model, binary_model,
                   prompt_str, phrase_list, 
                   max_iterations=30, early_stopping=30):
 
@@ -198,7 +191,8 @@ def mutate_prompt(device, embedding_model, sigma_model, scoring_model,
         print(f"iteration {i}")
         tokens, sub_phrases=rank_substitution_choices(device,
                                                 embedding_model,
-                                                sigma_model, 
+                                                sigma_model,
+                                                binary_model, 
                                                 prompt_str,
                                                 prompt_score,
                                                 prompt_embedding, 
@@ -510,13 +504,18 @@ def main():
     # load the xgboost sigma score model
     sigma_model= PromptMutator(minio_client=minio_client, output_type="sigma_score", ranking_model="linear")
     sigma_model.load_model()
+    
+    # load the xgboost binary model
+    binary_model= BinaryPromptMutator(minio_client=minio_client, ranking_model="linear")
+    binary_model.load_model()
 
     phrase_list=pd.read_csv(args.csv_phrase)['phrase str'].tolist()
 
     start=time.time()
     print(mutate_prompt(device=device,
                         embedding_model=clip, 
-                        sigma_model=sigma_model, 
+                        sigma_model=sigma_model,
+                        binary_model=binary_model, 
                         scoring_model=elm_model,
                         prompt_str=prompt_str, 
                         phrase_list=phrase_list))
