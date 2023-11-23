@@ -487,7 +487,7 @@ def main():
     device = torch.device(device)
 
     # Load the CLIP model
-    clip=CLIPTextEmbedder()
+    clip=CLIPTextEmbedder(device=device)
     clip.load_submodels()
 
     # load the elm model
