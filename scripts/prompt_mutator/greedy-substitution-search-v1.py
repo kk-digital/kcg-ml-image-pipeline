@@ -508,7 +508,7 @@ def main():
     elm_model= load_model(768, minio_client, device, 'linear', 'positive')
 
     # load the xgboost sigma score model
-    sigma_model= PromptMutator(minio_client=minio_client, output_type="sigma_score")
+    sigma_model= PromptMutator(minio_client=minio_client, output_type="sigma_score", ranking_model="linear")
     sigma_model.load_model()
 
     phrase_list=pd.read_csv(args.csv_phrase)['phrase str'].tolist()
