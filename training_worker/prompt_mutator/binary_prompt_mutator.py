@@ -161,11 +161,8 @@ class BinaryPromptMutator:
     def load_model(self):
         minio_path=f"environmental/models/prompt-generator/substitution/{self.prompt_type}_prompts_only/"
         file_name=f"_binary_{self.ranking_model}_model.json"
-        
-        print(minio_path, file_name)
         # get model file data from MinIO
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', minio_path)
-        print(model_files)
         most_recent_model = None
 
         for model_file in model_files:
@@ -177,6 +174,8 @@ class BinaryPromptMutator:
         else:
             print("No .pth files found in the list.")
             return
+        
+        print(most_recent_model)
 
         # Create a temporary file and write the downloaded content into it
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
