@@ -161,7 +161,7 @@ class BinaryPromptMutator:
     def load_model(self):
         print(self.minio_path)
         minio_path=f"environmental/models/prompt-generator/substitution/{self.prompt_type}_prompts_only/"
-        file_name=f"{self.date}_binary_{self.ranking_model}_model.json"
+        file_name=f"_binary_{self.ranking_model}_model.json"
         
         # get model file data from MinIO
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', minio_path)
