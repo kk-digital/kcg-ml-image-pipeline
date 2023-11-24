@@ -14,7 +14,7 @@ sys.path.insert(0, base_directory)
 
 from utility.minio import cmd
 from data_loader.utils import get_object, get_phrases_from_prompt, get_datasets
-
+from data_loader.generated_image_data import GeneratedImageData
 
 class PhraseVectorLoader:
     def __init__(self,
@@ -47,11 +47,10 @@ class PhraseVectorLoader:
     def get_phrases(self, path):
         # get object from minio
         data = get_object(self.minio_client, path)
-        decoded_data = data.decode().replace("'", '"')
-        item = json.loads(decoded_data)
+        generated_image_data = GeneratedImageData.from_msgpack_string(data)
 
-        positive_prompt = item['positive_prompt']
-        negative_prompt = item['negative_prompt']
+        positive_prompt = generated_image_data.positive_prompt
+        negative_prompt = generated_image_data.negative_prompt
 
         positive_prompt_phrases = get_phrases_from_prompt(positive_prompt)
         negative_prompt_phrases = get_phrases_from_prompt(negative_prompt)
@@ -67,8 +66,10 @@ class PhraseVectorLoader:
             raise Exception("Dataset is not in minio server")
 
         data_paths = self.get_data_paths()
+        positive_index = 0
+        negative_index = 0
 
-        with ThreadPoolExecutor(max_workers=50) as executor:
+        with ThreadPoolExecutor(max_workers=10) as executor:
             futures = []
             for path in data_paths:
                 futures.append(executor.submit(self.get_phrases,
@@ -77,13 +78,11 @@ class PhraseVectorLoader:
             for future in tqdm(as_completed(futures), total=len(futures)):
                 positive_phrases, negative_phrases = future.result()
 
-                positive_index = 0
                 for phrase in positive_phrases:
                     if phrase not in self.positive_phrases_index_dict:
                         self.positive_phrases_index_dict[phrase] = positive_index
                         positive_index += 1
 
-                negative_index = 0
                 for phrase in negative_phrases:
                     if phrase not in self.negative_phrases_index_dict:
                         self.negative_phrases_index_dict[phrase] = negative_index
