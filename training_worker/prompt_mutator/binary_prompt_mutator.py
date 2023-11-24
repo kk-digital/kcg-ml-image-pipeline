@@ -177,7 +177,6 @@ class BinaryPromptMutator:
         else:
             print("No .pth files found in the list.")
             return
-        model_file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', self.minio_path)
 
         # Create a temporary file and write the downloaded content into it
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
