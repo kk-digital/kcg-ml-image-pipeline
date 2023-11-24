@@ -171,6 +171,8 @@ class ImageScorer:
         features_data, image_paths = self.get_all_feature_pairs(msgpack_paths)
         print('Predicting dataset scores...')
         with torch.no_grad():
+            count=0
+            weird_count = 0
             for data in tqdm(features_data):
                 if self.model_input_type == "embedding":
                     positive_embedding_array = data[1].to(self.device)
@@ -193,7 +195,17 @@ class ImageScorer:
                     image_hash = data[0]
                     score = self.model.predict_clip(clip_feature_vector)
 
+                if score > 100000.0 or score < -100000.0:
+                    print("score more than or less than 100k and -100k")
+                    print("Score=", score)
+                    print("image path=", image_paths[count])
+                    weird_count += 1
+                    continue
+
                 hash_score_pairs.append((image_hash, score.item()))
+                count += 1
+
+        print("Weird scores count = ", weird_count)
 
         return hash_score_pairs, image_paths
 
@@ -209,37 +221,34 @@ class ImageScorer:
 
         return hash_percentile_dict
 
-
     def get_sigma_scores(self, hash_score_pairs):
-        # get mean
-        sum_score = 0.0
-        count = 0.0
-        for i in range(len(hash_score_pairs)):
-            sum_score += hash_score_pairs[i][1]
-            count += 1.0
-
-        mean = sum_score / count
-
-        # get standard deviation
-        sum_squared_diff = 0
+        scores_arr = []
         for i in range(len(hash_score_pairs)):
             score = hash_score_pairs[i][1]
-            diff = score - mean
-            squared_diff = diff * diff
-            sum_squared_diff += squared_diff
+            if math.isnan(score):
+                # skip nan
+                continue
 
+            scores_arr.append(score)
 
-        variance = sum_squared_diff / count
-        standard_deviation = math.sqrt(variance)
+        scores_np_arr = np.array(scores_arr)
+        print("max=", scores_np_arr.max())
+        print("min=", scores_np_arr.min())
+
+        mean = scores_np_arr.mean(dtype=np.float64)
+        standard_deviation = scores_np_arr.std(dtype=np.float64)
+
+        print("numpy arr=", scores_np_arr)
+        print("mean=", mean)
+        print("standard_dev=", standard_deviation)
 
         hash_sigma_score_dict = {}
         for i in range(len(hash_score_pairs)):
             score = hash_score_pairs[i][1]
             sigma_score = (score - mean) / standard_deviation
-            hash_sigma_score_dict[hash_score_pairs[i][0]] = sigma_score
+            hash_sigma_score_dict[hash_score_pairs[i][0]] = float(sigma_score)
 
         return hash_sigma_score_dict
-
 
     def upload_csv(self, hash_score_pairs, hash_percentile_dict, image_paths):
         print("Saving data to csv...")
