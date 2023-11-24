@@ -1,6 +1,6 @@
 from fastapi import Request, HTTPException, APIRouter, Response, Query, status
 from datetime import datetime, timedelta
-
+from typing import Optional
 import pymongo
 from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
@@ -206,6 +206,7 @@ def get_image_data_by_filepath_2(request: Request, file_path: str):
 def get_images_metadata(
     request: Request,
     dataset: str = None,
+    prompt_generation_policy: Optional[str] = None,  # Optional query parameter for prompt_generation_policy
     limit: int = 20,
     offset: int = 0,
     start_date: str = None,
@@ -224,10 +225,11 @@ def get_images_metadata(
             threshold_time = current_time - timedelta(hours=time_interval)
         else:
             raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
-    else:
-        threshold_time = None
 
-    print(f"start_date: {start_date}, threshold_time: {threshold_time}")
+        # Convert threshold_time to a string in ISO format
+        threshold_time_str = threshold_time.isoformat(timespec='milliseconds') + 'Z'
+    else:
+        threshold_time_str = None
 
     # Construct the initial query
     query = {
@@ -238,31 +240,41 @@ def get_images_metadata(
         'task_input_dict.dataset': dataset
     }
 
-    # Update the query based on provided start_date, end_date, and threshold_time
+    # Optionally add prompt_generation_policy to the query if provided
+    if prompt_generation_policy:
+        query['task_input_dict.prompt_generation_policy'] = prompt_generation_policy
+
+    # Update the query based on provided start_date, end_date, and threshold_time_str
     if start_date and end_date:
         query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
     elif start_date:
         query['task_creation_time'] = {'$gte': start_date}
     elif end_date:
         query['task_creation_time'] = {'$lte': end_date}
-    elif threshold_time:
-        query['task_creation_time'] = {'$gte': threshold_time}
+    elif threshold_time_str:
+        query['task_creation_time'] = {'$gte': threshold_time_str}
 
     # Decide the sort order based on the 'order' parameter
     sort_order = -1 if order == "desc" else 1
 
+    # Query the completed_jobs_collection using the constructed query
     jobs = request.app.completed_jobs_collection.find(query).sort('task_creation_time', sort_order).skip(offset).limit(limit)
 
+    # Collect the metadata for the images that match the query
     images_metadata = []
     for job in jobs:
         image_meta_data = {
-            'dataset': job['task_input_dict']['dataset'],
-            'task_type': job['task_type'],
-            'image_path': job['task_output_file_dict']['output_file_path'],
-            'image_hash': job['task_output_file_dict']['output_file_hash']
+            'dataset': job['task_input_dict'].get('dataset'),
+            'task_type': job.get('task_type'),
+            'image_path': job['task_output_file_dict'].get('output_file_path'),
+            'image_hash': job['task_output_file_dict'].get('output_file_hash'),
+            'prompt_generation_policy': job['task_input_dict'].get('prompt_generation_policy', prompt_generation_policy)  # Include the policy if present
         }
-        images_metadata.append(image_meta_data)
+        # If prompt_generation_policy is not a filter or if it matches the job's policy, append the metadata
+        if not prompt_generation_policy or image_meta_data['prompt_generation_policy'] == prompt_generation_policy:
+            images_metadata.append(image_meta_data)
 
+    # Return the metadata for the filtered images
     return images_metadata
 
 @router.get("/image/get_random_image_with_time", response_class=PrettyJSONResponse)
@@ -271,6 +283,7 @@ def get_random_image_with_time(
     dataset: str = Query(...),
     time_interval: int = Query(..., description="Time interval in minutes or hours"),
     time_unit: str = Query("minutes", description="Time unit, either 'minutes' or 'hours"),
+    size: int = Query(1, description="Number of images to return")  # Added size parameter with a default of 1
 ):
     # Calculate the time threshold based on the current time and the specified interval
     current_time = datetime.utcnow()
@@ -287,7 +300,7 @@ def get_random_image_with_time(
             "task_input_dict.dataset": dataset,
             "task_creation_time": {"$gte": threshold_time.strftime("%Y-%m-%d")}
         }},
-        {"$sample": {"size": 1}}
+        {"$sample": {"size": size}}  # Use the size parameter here
     ])
 
     # Convert cursor type to list
@@ -295,13 +308,13 @@ def get_random_image_with_time(
 
     # Ensure the list isn't empty (this is just a safety check)
     if not documents:
-        raise HTTPException(status_code=404, detail=f"No image found for the given dataset within the last {time_interval} {time_unit}")
+        raise HTTPException(status_code=404, detail=f"No images found for the given dataset within the last {time_interval} {time_unit}")
 
-    # Remove the auto-generated _id field from the document
-    documents[0].pop('_id', None)
+    # Remove the auto-generated _id field from each document
+    for document in documents:
+        document.pop('_id', None)
 
-    # Return the image in the response
-    return {"image": documents[0]}
+    return {"images": documents}  # Return the list of images
 
 
 
@@ -357,3 +370,7 @@ def get_image_by_job_uuid(request: Request, job_uuid: str):
     # Return the image in the response
     headers = {"Content-Disposition": f"attachment; filename={original_filename}"}
     return Response(content=content, media_type="image/jpeg", headers=headers)
+
+@router.get("/list-prompt-generation-policies")
+def list_prompt_generation_policies():
+    return ["greedy-substitution-search-v1", "quincy-greedy-prompt-search-v1", "distilgpt2_han-v1", "top-k", "proportional-sampling-top-k"]
