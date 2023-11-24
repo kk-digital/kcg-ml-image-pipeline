@@ -3,7 +3,7 @@ import requests
 import argparse
 
 def upload_jsons_from_csv(csv_file_path):
-    api_url = "http://localhost:8000"
+    api_url = "http://123.176.98.90:8764"
 
     with open(csv_file_path, mode='r') as file:
         csv_reader = csv.DictReader(file)
