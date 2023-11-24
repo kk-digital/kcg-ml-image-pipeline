@@ -156,21 +156,26 @@ class BinaryPromptMutator:
         ]
 
         return predictions_with_probabilities
-
-    def predict(self, X):
-        class_labels=['decrease', 'increase']
-        dtest = xgb.DMatrix(X)
-        y_pred=self.model.get_booster().predict(dtest)
-        predictions_with_probabilities = [
-            {class_labels[i]: prob for i, prob in enumerate(row)} for row in y_pred
-        ]
-
-        return predictions_with_probabilities
         
 
     def load_model(self):
         print(self.minio_path)
+        minio_path=f"environmental/models/prompt-generator/substitution/{self.prompt_type}_prompts_only/"
+        file_name=f"{self.date}_binary_{self.ranking_model}_model.json"
+        
         # get model file data from MinIO
+        model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', minio_path)
+        most_recent_model = None
+
+        for model_file in model_files:
+            if model_file.endswith(file_name):
+                most_recent_model = model_file
+
+        if most_recent_model:
+            model_file_data =cmd.get_file_from_minio(self.minio_client, 'datasets', most_recent_model)
+        else:
+            print("No .pth files found in the list.")
+            return
         model_file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', self.minio_path)
 
         # Create a temporary file and write the downloaded content into it
