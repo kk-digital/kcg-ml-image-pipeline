@@ -251,7 +251,7 @@ def update_prompt_list(minio_client, device, csv_path):
     elm_scores=[]
     linear_scores=[]
 
-    elm_model= load_model(minio_client, device, 'combined', 'elm', input_size=768*2)
+    elm_model= load_model(minio_client, device, 'combined', 'elm-v1', input_size=768*2)
     linear_model= load_model(minio_client, device, 'combined', 'linear', input_size=768*2)
 
     for embedding in embedding_paths:
