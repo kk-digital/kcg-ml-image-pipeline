@@ -246,6 +246,7 @@ def compare_distributions(minio_client,original_scores, mutated_scores):
 
 def update_prompt_list(minio_client, device, csv_path):
     embedding_paths = get_embedding_paths(minio_client, "environmental")
+    embedding_paths=embedding_paths[:10]
     df_data=[]
     elm_scores=[]
     linear_scores=[]
@@ -254,7 +255,7 @@ def update_prompt_list(minio_client, device, csv_path):
     linear_model= load_model(minio_client, device, 'combined', 'linear', input_size=768*2)
 
     for embedding in embedding_paths:
-        print(embedding_paths)
+        print(embedding)
         # get prompt embedding
         data = minio_client.get_object('datasets', embedding)
         # Read the content of the msgpack file
@@ -321,7 +322,7 @@ def update_prompt_list(minio_client, device, csv_path):
         json.dump(data, json_file)
         
     # Read the contents of the JSON file
-    with open(json_file, 'rb') as file:
+    with open(json_file.name, 'rb') as file:
         json_content = file.read()
 
     #Upload the Json file to Minio
@@ -330,6 +331,9 @@ def update_prompt_list(minio_client, device, csv_path):
 
     minio_path = DATA_MINIO_DIRECTORY + "/mean_std_values.json"
     cmd.upload_data(minio_client, 'datasets', minio_path, buffer)
+
+    # Remove the temporary file
+    os.remove(json_file.name)
 
 def get_initial_prompts(minio_client, n_data):
     try:
@@ -351,11 +355,9 @@ def get_mean_std_values(minio_client, ranking_model):
     minio_path = DATA_MINIO_DIRECTORY + "/mean_std_values.json"
     json_file_data =cmd.get_file_from_minio(minio_client, 'datasets', minio_path)
 
-    # Create a temporary file and write the downloaded content into it
-    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-        for data in json_file_data.stream(amt=8192):
-            temp_file.write(data)
-    
+    # Parse JSON data
+    data = json.loads(json_file_data.read().decode('utf-8'))
+
     if(ranking_model=="elm-v1"):
         return data['elm_mean'], data['elm_std']
     else:
@@ -406,6 +408,8 @@ def main():
     original_scores=[]
     mutated_scores=[]
     index=0
+
+    return
 
     for i, prompt in prompt_list.iterrows():
 
