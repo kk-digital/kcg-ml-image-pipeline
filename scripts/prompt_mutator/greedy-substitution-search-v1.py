@@ -276,8 +276,9 @@ def update_prompt_list(minio_client, device, csv_path):
         negative_embedding = torch.tensor(np.array(negative_embedding)).float()
         negative_embedding=negative_embedding.to(device)
 
-        linear_score=elm_model.predict(positive_embedding, negative_embedding)
-        elm_score= linear_model.predict(positive_embedding, negative_embedding)
+        # get linear and elm score for each prompt
+        linear_score=elm_model.predict(positive_embedding, negative_embedding).item()
+        elm_score= linear_model.predict(positive_embedding, negative_embedding).item()
 
         elm_scores.append(elm_score)
         linear_scores.append(linear_score)
@@ -295,6 +296,7 @@ def update_prompt_list(minio_client, device, csv_path):
                 'elm_score': elm_score
             })
     
+    # save data locally
     pd.DataFrame(df_data).to_csv(csv_path, index=False)
 
     # Read the contents of the CSV file
