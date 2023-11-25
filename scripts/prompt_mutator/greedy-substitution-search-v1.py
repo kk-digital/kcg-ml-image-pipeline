@@ -2,10 +2,13 @@ import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import csv
 import io
+import json
 import os
 import sys
+import tempfile
 import time
 import traceback
+from xmlrpc.client import ResponseError
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
@@ -35,15 +38,12 @@ def parse_args():
     parser.add_argument('--minio-access-key', required=False, help='Minio access key')
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
     parser.add_argument('--csv-phrase', help='CSV containing phrases, must have "phrase str" column', default='input/civitai_phrases_database_v7_no_nsfw.csv')
-    parser.add_argument('--csv-initial-prompts', help='CSV containing initial prompts', default='input/environment_data.csv')
+    parser.add_argument('--csv-initial-prompts', help='CSV containing initial prompts', default='/input/environment_data.csv')
     parser.add_argument('--n-data', type=int, help='Number of data samples to generate', default=20)
     parser.add_argument('--send-job', action='store_true', default=False)
+    parser.add_argument('--update-prompts', action='store_true', default=False)
     parser.add_argument('--dataset-name', default='test-generations')
     parser.add_argument('--ranking-model', help="elm-v1 or linear", default="linear")
-
-    # TODO: update this to retrieve mean and std automatically later
-    parser.add_argument('--mean', type=float, default=14856.1315)
-    parser.add_argument('--std', type=float, default=2819.6140)
 
     return parser.parse_args()
 
@@ -59,6 +59,15 @@ def store_prompts_in_csv_file(csv_path, minio_client):
 
     minio_path = DATA_MINIO_DIRECTORY + "/generated_prompts.csv"
     cmd.upload_data(minio_client, 'datasets', minio_path, buffer)
+
+def get_embedding_paths(minio_client, dataset):
+    objects=minio_client.list_objects('datasets', dataset, recursive=True)
+    embedding_files = []
+    for obj in objects: 
+        if obj.object_name.endswith("_embedding.msgpack"):
+            embedding_files.append(obj.object_name)
+            
+    return embedding_files
 
 def load_model(minio_client, device, embedding_type, scoring_model="linear", input_size=768):
     input_path="environmental/models/ranking/"
@@ -127,7 +136,7 @@ def rank_substitution_choices(device,
                                  prompt_str, 
                                  prompt_score, prompt_embedding, 
                                  phrase_embeddings,
-                                 phrase_list):
+                                 phrase_list, mean, std):
     
     # get mean pooled embedding of prompt for xgboost model
     pooled_prompt_embedding= get_mean_pooled_embedding(prompt_embedding)
@@ -150,11 +159,10 @@ def rank_substitution_choices(device,
         substitute_embedding= get_mean_pooled_embedding(substitute_embedding)
 
         substitution_input= np.concatenate([pooled_prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
-        # add sigma score to the list of scores
+        # sigma_score=sigma_model.predict([substitution_input])[0]
+        # sigma_scores.append(-sigma_score)
         pred=binary_model.predict_probs([substitution_input])[0]
         if pred["increase"]>0.66:
-            # sigma_score=sigma_model.predict([substitution_input])[0]
-            # sigma_scores.append(-sigma_score)
             tokens.append(token)
             sub_phrases.append(substitute_phrase)
             sub_embeddings.append(substitute_embedding)
@@ -163,23 +171,18 @@ def rank_substitution_choices(device,
 
 def mutate_prompt(device, embedding_model,
                   scoring_model, binary_model,
-                  prompt_str, phrase_list, 
+                  prompt_str, phrase_list,
+                  prompt_embedding, prompt_score,
+                  mean, std, 
                   max_iterations=50):
 
     # calculate prompt embedding, score and embedding of each phrase
-    prompt_embedding=get_prompt_embedding(device, embedding_model, prompt_str)
+    #prompt_embedding=get_prompt_embedding(device, embedding_model, prompt_str)
     prompt_score= get_prompt_score(scoring_model, prompt_embedding)
     phrase_embeddings= [get_mean_pooled_embedding(get_prompt_embedding(device, embedding_model, phrase)) for phrase in prompt_str.split(', ')]
 
-    # print(f"prompt str: {prompt_str}")
-    # print(f"initial score: {prompt_score}")
-
-    # early stopping
-    #early_stopping_iterations=early_stopping
-
     # run mutation process iteratively untill score converges
     for i in range(max_iterations):
-        #print(f"iteration {i}")
         tokens, sub_phrases, embeddings=rank_substitution_choices(device,
                                                 embedding_model,
                                                 binary_model, 
@@ -187,7 +190,8 @@ def mutate_prompt(device, embedding_model,
                                                 prompt_score,
                                                 prompt_embedding, 
                                                 phrase_embeddings,
-                                                phrase_list)
+                                                phrase_list,
+                                                mean,std)
         
         modified_prompt_score=prompt_score
         for token, sub_phrase, embedding in zip(tokens,sub_phrases, embeddings):
@@ -207,20 +211,6 @@ def mutate_prompt(device, embedding_model,
                 phrase_embeddings[token]= embedding
                 prompt_score= modified_prompt_score
                 break
-
-        # print(f"failed {num_attempts} times")
-        # # check if score increased
-        # if prompt_score >= modified_prompt_score:
-        #     early_stopping_iterations-=1
-        # else:
-        #     prompt_score= modified_prompt_score
-        #     early_stopping_iterations=early_stopping
-
-
-        # print(f"prompt str: {prompt_str}")
-        # print(f"initial score: {prompt_score}")
-        # if early_stopping_iterations==0:
-        #     break
     
     return prompt_str, prompt_embedding
 
@@ -254,6 +244,123 @@ def compare_distributions(minio_client,original_scores, mutated_scores):
     minio_path = DATA_MINIO_DIRECTORY + "/generated_prompts.png"
     cmd.upload_data(minio_client, 'datasets', minio_path, buf)  
 
+def update_prompt_list(minio_client, device, csv_path):
+    embedding_paths = get_embedding_paths(minio_client, "environmental")
+    df_data=[]
+    elm_scores=[]
+    linear_scores=[]
+
+    elm_model= load_model(minio_client, device, 'combined', 'elm', input_size=768*2)
+    linear_model= load_model(minio_client, device, 'combined', 'linear', input_size=768*2)
+
+    for embedding in embedding_paths:
+        # get prompt embedding
+        data = minio_client.get_object('datasets', embedding)
+        # Read the content of the msgpack file
+        content = data.read()
+
+        # Deserialize the content using msgpack
+        msgpack_data = msgpack.loads(content)
+
+        # get positive prompt embedding 
+        positive_prompt=msgpack_data['positive_prompt']
+        positive_embedding= list(msgpack_data['positive_embedding'].values())
+        positive_embedding = torch.tensor(np.array(positive_embedding)).float()
+        positive_embedding=positive_embedding.to(device)
+       
+        # get negative prompt embedding 
+        negative_prompt=msgpack_data['negative_prompt']
+        negative_embedding= list(msgpack_data['negative_embedding'].values())
+        negative_embedding = torch.tensor(np.array(negative_embedding)).float()
+        negative_embedding=negative_embedding.to(device)
+
+        linear_score=elm_model.predict(positive_embedding, negative_embedding)
+        elm_score= linear_model.predict(positive_embedding, negative_embedding)
+
+        elm_scores.append(elm_score)
+        linear_scores.append(linear_score)
+
+        # save data 
+        df_data.append({
+                'job_uuid':msgpack_data['job_uuid'],
+                'creation_time':msgpack_data['creation_time'],
+                'dataset':msgpack_data['dataset'],
+                'file_path':msgpack_data['file_path'],
+                'file_hash':msgpack_data['file_hash'],
+                'positive_prompt':positive_prompt,
+                'negative_prompt':negative_prompt,
+                'linear_score': linear_score,
+                'elm_score': elm_score
+            })
+    
+    pd.DataFrame(df_data).to_csv(csv_path, index=False)
+
+    # Read the contents of the CSV file
+    with open(csv_path, 'rb') as file:
+        csv_content = file.read()
+
+    #Upload the CSV file to Minio
+    buffer = io.BytesIO(csv_content)
+    buffer.seek(0)
+
+    minio_path = DATA_MINIO_DIRECTORY + "/input/initial_prompts.csv"
+    cmd.upload_data(minio_client, 'datasets', minio_path, buffer)
+
+
+    # updated mean and std values
+    data = {
+        'linear_mean': np.mean(linear_scores),
+        'linear_std': np.std(linear_scores),
+        'elm_mean': np.mean(elm_scores),
+        'elm_std': np.mean(elm_scores),
+    }
+
+    # Writing to a JSON file
+    with tempfile.NamedTemporaryFile(delete=False) as json_file:
+        json.dump(data, json_file)
+        
+    # Read the contents of the JSON file
+    with open(json_file, 'rb') as file:
+        json_content = file.read()
+
+    #Upload the Json file to Minio
+    buffer = io.BytesIO(json_content)
+    buffer.seek(0)
+
+    minio_path = DATA_MINIO_DIRECTORY + "/mean_std_values.json"
+    cmd.upload_data(minio_client, 'datasets', minio_path, buffer)
+
+def get_initial_prompts(minio_client, n_data):
+    try:
+        # Get the CSV file as BytesIO object
+        minio_path = DATA_MINIO_DIRECTORY + "/input/initial_prompts.csv"
+        data = minio_client.get_object('datasets', minio_path)
+        csv_data = io.BytesIO(data.read())
+
+        # Read CSV using pandas
+        df = pd.read_csv(csv_data).sample(n=n_data)
+
+        return df
+
+    except ResponseError as err:
+        print(f"Error: {err}")
+        return None
+
+def get_mean_std_values(minio_client, ranking_model):
+    minio_path = DATA_MINIO_DIRECTORY + "/mean_std_values.json"
+    json_file_data =cmd.get_file_from_minio(minio_client, 'datasets', minio_path)
+
+    # Create a temporary file and write the downloaded content into it
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        for data in json_file_data.stream(amt=8192):
+            temp_file.write(data)
+    
+    if(ranking_model=="elm-v1"):
+        return data['elm_mean'], data['elm_std']
+    else:
+        return data['linear_mean'], data['linear_std']
+
+
 def main():
     args = parse_args()
     # get minio client
@@ -284,8 +391,16 @@ def main():
 
     binary_model.load_model()
 
+    # update list of prompts if necessary
+    if(args.update_prompts):
+        update_prompt_list(minio_client, device, args.csv_initial_prompts)
+
+    # get mean and std values
+    mean, std= get_mean_std_values(minio_client,args.ranking_model)
+    print(mean,std)
+
     phrase_list=pd.read_csv(args.csv_phrase)['phrase str'].tolist()
-    prompt_list=pd.read_csv(args.csv_initial_prompts).sample(n=args.n_data)
+    prompt_list = get_initial_prompts(minio_client, args.n_data)
     df_data=[]
     original_scores=[]
     mutated_scores=[]
@@ -293,15 +408,35 @@ def main():
 
     for i, prompt in prompt_list.iterrows():
 
-        #getting positive prompt and embedding
+        #getting negative and positive prompts
         positive_prompt=prompt['positive_prompt'] 
-        positive_embedding= get_prompt_embedding(device, clip, positive_prompt)
-        #getting negative prompt and embedding
         negative_prompt=prompt['negative_prompt']
-        negative_embedding= get_prompt_embedding(device, clip, negative_prompt)
+        
+        # get prompt embedding
+        data = minio_client.get_object('datasets', prompt['file_path'])
+        # Read the content of the msgpack file
+        content = data.read()
+
+        # Deserialize the content using msgpack
+        msgpack_data = msgpack.loads(content)
+        positive_embedding= list(msgpack_data['positive_embedding'].values())
+        positive_embedding = torch.tensor(np.array(positive_embedding)).float()
+        positive_embedding=positive_embedding.to(device)
+        
+        negative_embedding= list(msgpack_data['negative_embedding'].values())
+        negative_embedding = torch.tensor(np.array(negative_embedding)).float()
+        negative_embedding=negative_embedding.to(device)
+
+        #negative_embedding= get_prompt_embedding(device, clip, negative_prompt)
+        #positive_embedding= get_prompt_embedding(device, clip, positive_prompt)
 
         #calculating combined score
-        seed_score=combined_model.predict(positive_embedding, negative_embedding).item()
+        #seed_score=combined_model.predict(positive_embedding, negative_embedding).item()
+
+        if(args.ranking_model=="elm-v1"):
+            seed_score=prompt['elm_score']
+        else:
+            seed_score=prompt['linear_score']
 
         original_scores.append(seed_score)
 
@@ -311,7 +446,9 @@ def main():
                         binary_model=binary_model, 
                         scoring_model=positive_model,
                         prompt_str=positive_prompt, 
-                        phrase_list=phrase_list)
+                        phrase_list=phrase_list,
+                        prompt_embedding=positive_embedding,
+                        mean=mean, std=std)
 
         # calculating new score
         score=combined_model.predict(mutated_positive_embedding, negative_embedding).item()
@@ -343,9 +480,9 @@ def main():
 
             df_data.append({
                 'seed_score': seed_score,
-                'seed_sigma_score': (seed_score - args.mean) / args.std,
+                'seed_sigma_score': (seed_score - mean) / std,
                 'score': score,
-                'sigma_score': (score - args.mean) / args.std,
+                'sigma_score': (score - mean) / std,
                 'positive_prompt': mutated_positive_prompt,
                 'negative_prompt': negative_prompt,
                 'seed_prompt': positive_prompt,
