@@ -254,6 +254,7 @@ def update_prompt_list(minio_client, device, csv_path):
     linear_model= load_model(minio_client, device, 'combined', 'linear', input_size=768*2)
 
     for embedding in embedding_paths:
+        print(embedding_paths)
         # get prompt embedding
         data = minio_client.get_object('datasets', embedding)
         # Read the content of the msgpack file
