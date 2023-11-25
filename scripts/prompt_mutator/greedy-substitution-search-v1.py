@@ -244,7 +244,7 @@ def compare_distributions(minio_client,original_scores, mutated_scores):
     minio_path = DATA_MINIO_DIRECTORY + "/generated_prompts.png"
     cmd.upload_data(minio_client, 'datasets', minio_path, buf)  
 
-def update_prompt_list(minio_client, device, csv_path):
+def update_prompt_list(minio_client, device):
     embedding_paths = get_embedding_paths(minio_client, "environmental")
     embedding_paths=embedding_paths[:10]
     df_data=[]
@@ -297,10 +297,10 @@ def update_prompt_list(minio_client, device, csv_path):
             })
     
     # save data locally
-    pd.DataFrame(df_data).to_csv(csv_path, index=False)
+    pd.DataFrame(df_data).to_csv('output/initial_prompts.csv', index=False)
 
     # Read the contents of the CSV file
-    with open(csv_path, 'rb') as file:
+    with open('output/initial_prompts.csv', 'rb') as file:
         csv_content = file.read()
 
     #Upload the CSV file to Minio
@@ -310,6 +310,8 @@ def update_prompt_list(minio_client, device, csv_path):
     minio_path = DATA_MINIO_DIRECTORY + "/input/initial_prompts.csv"
     cmd.upload_data(minio_client, 'datasets', minio_path, buffer)
 
+    # Remove the temporary file
+    os.remove('output/initial_prompts.csv')
 
     # updated mean and std values
     data = {
@@ -319,23 +321,23 @@ def update_prompt_list(minio_client, device, csv_path):
         'elm_std': np.std(elm_scores),
     }
 
-    # Writing to a JSON file
-    with tempfile.NamedTemporaryFile(delete=False) as json_file:
+    # Writing to a local JSON file
+    with open('output/mean_std_values.json', 'w') as json_file:
         json.dump(data, json_file)
         
     # Read the contents of the JSON file
-    with open(json_file.name, 'rb') as file:
+    with open('output/mean_std_values.json', 'rb') as file:
         json_content = file.read()
 
     #Upload the Json file to Minio
     buffer = io.BytesIO(json_content)
     buffer.seek(0)
 
-    minio_path = DATA_MINIO_DIRECTORY + "/mean_std_values.json"
+    minio_path = DATA_MINIO_DIRECTORY + "/input/mean_std_values.json"
     cmd.upload_data(minio_client, 'datasets', minio_path, buffer)
 
     # Remove the temporary file
-    os.remove(json_file.name)
+    os.remove('output/mean_std_values.json')
 
 def get_initial_prompts(minio_client, n_data):
     try:
@@ -354,7 +356,7 @@ def get_initial_prompts(minio_client, n_data):
         return None
 
 def get_mean_std_values(minio_client, ranking_model):
-    minio_path = DATA_MINIO_DIRECTORY + "/mean_std_values.json"
+    minio_path = DATA_MINIO_DIRECTORY + "/input/mean_std_values.json"
     json_file_data =cmd.get_file_from_minio(minio_client, 'datasets', minio_path)
 
     # Parse JSON data
@@ -398,7 +400,7 @@ def main():
 
     # update list of prompts if necessary
     if(args.update_prompts):
-        update_prompt_list(minio_client, device, args.csv_initial_prompts)
+        update_prompt_list(minio_client, device)
 
     # get mean and std values
     mean, std= get_mean_std_values(minio_client,args.ranking_model)
