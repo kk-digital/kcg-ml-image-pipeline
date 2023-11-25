@@ -31,7 +31,9 @@ class PhraseVectorLoader:
                                                  minio_ip_addr=minio_ip_addr)
 
         self.positive_phrases_index_dict = {}
+        self.index_positive_phrases_dict = {}
         self.negative_phrases_index_dict = {}
+        self.index_negative_phrases_dict = {}
 
     def get_data_paths(self):
         print("Getting paths for dataset: {}...".format(self.dataset_name))
@@ -81,12 +83,45 @@ class PhraseVectorLoader:
                 for phrase in positive_phrases:
                     if phrase not in self.positive_phrases_index_dict:
                         self.positive_phrases_index_dict[phrase] = positive_index
+                        self.index_positive_phrases_dict[positive_index] = phrase
                         positive_index += 1
 
                 for phrase in negative_phrases:
                     if phrase not in self.negative_phrases_index_dict:
                         self.negative_phrases_index_dict[phrase] = negative_index
+                        self.index_negative_phrases_dict[negative_index] = phrase
                         negative_index += 1
+
+        print("Dataset loaded...")
+        print("Time elapsed: {0}s".format(format(time.time() - start_time, ".2f")))
+
+    def load_dataset_phrases_from_csv(self, csv_filename):
+        start_time = time.time()
+        print("Loading dataset references from csv...")
+
+        full_path = os.path.join(self.dataset_name, "output/phrases-csv", csv_filename)
+
+        # check if exists
+        if not cmd.is_object_exists(self.minio_client, "datasets", full_path):
+            raise Exception("{} doesnt exist in minio server...".format(full_path))
+
+        csv_data = get_object(self.minio_client,full_path)
+        csv_data = csv_data.decode().replace("'", '"')
+        lines = csv_data.splitlines()
+        csv_reader = csv.reader(lines, delimiter=',')
+
+        line_count = 0
+        for row in csv_reader:
+            if line_count == 0:
+                print(f'Column names are {", ".join(row)}')
+            else:
+                positive_index = int(row[0])
+                phrase = row[1]
+                self.positive_phrases_index_dict[phrase] = positive_index
+                self.index_positive_phrases_dict[positive_index] = phrase
+
+            line_count += 1
+
 
         print("Dataset loaded...")
         print("Time elapsed: {0}s".format(format(time.time() - start_time, ".2f")))
@@ -124,11 +159,11 @@ class PhraseVectorLoader:
         cmd.upload_data(self.minio_client, 'datasets', csv_path, bytes_buffer)
 
     def get_positive_phrase_vector(self, prompt):
-        phrase_vector = [0] * len(self.positive_phrases_index_dict)
+        phrase_vector = [False] * len(self.positive_phrases_index_dict)
         phrases = get_phrases_from_prompt(prompt)
         for phrase in phrases:
             index = self.positive_phrases_index_dict[phrase]
-            phrase_vector[index] = 1
+            phrase_vector[index] = True
 
         return phrase_vector
 
