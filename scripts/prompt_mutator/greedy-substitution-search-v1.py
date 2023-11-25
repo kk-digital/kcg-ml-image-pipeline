@@ -313,7 +313,7 @@ def update_prompt_list(minio_client, device, csv_path):
         'linear_mean': np.mean(linear_scores),
         'linear_std': np.std(linear_scores),
         'elm_mean': np.mean(elm_scores),
-        'elm_std': np.mean(elm_scores),
+        'elm_std': np.std(elm_scores),
     }
 
     # Writing to a JSON file
