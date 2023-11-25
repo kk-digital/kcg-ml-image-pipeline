@@ -244,7 +244,7 @@ def compare_distributions(minio_client,original_scores, mutated_scores):
     minio_path = DATA_MINIO_DIRECTORY + "/generated_prompts.png"
     cmd.upload_data(minio_client, 'datasets', minio_path, buf)  
 
-def update_prompt_list(minio_client, device):
+def update_prompt_list(minio_client, device, embedding_model):
     embedding_paths = get_embedding_paths(minio_client, "environmental")
     embedding_paths=embedding_paths[:10]
     df_data=[]
@@ -266,19 +266,21 @@ def update_prompt_list(minio_client, device):
 
         # get positive prompt embedding 
         positive_prompt=msgpack_data['positive_prompt']
-        positive_embedding= list(msgpack_data['positive_embedding'].values())
-        positive_embedding = torch.tensor(np.array(positive_embedding)).float()
-        positive_embedding=positive_embedding.to(device)
+        positive_embedding= get_prompt_embedding(device, embedding_model, positive_prompt)
+        # positive_embedding= list(msgpack_data['positive_embedding'].values())
+        # positive_embedding = torch.tensor(np.array(positive_embedding)).float()
+        # positive_embedding=positive_embedding.to(device)
        
         # get negative prompt embedding 
         negative_prompt=msgpack_data['negative_prompt']
-        negative_embedding= list(msgpack_data['negative_embedding'].values())
-        negative_embedding = torch.tensor(np.array(negative_embedding)).float()
-        negative_embedding=negative_embedding.to(device)
+        negative_embedding= get_prompt_embedding(device, embedding_model, negative_prompt)
+        # negative_embedding= list(msgpack_data['negative_embedding'].values())
+        # negative_embedding = torch.tensor(np.array(negative_embedding)).float()
+        # negative_embedding=negative_embedding.to(device)
 
         # get linear and elm score for each prompt
-        linear_score=elm_model.predict(positive_embedding, negative_embedding).item()
-        elm_score= linear_model.predict(positive_embedding, negative_embedding).item()
+        elm_score=elm_model.predict(positive_embedding, negative_embedding).item()
+        linear_score= linear_model.predict(positive_embedding, negative_embedding).item()
 
         elm_scores.append(elm_score)
         linear_scores.append(linear_score)
@@ -400,7 +402,7 @@ def main():
 
     # update list of prompts if necessary
     if(args.update_prompts):
-        update_prompt_list(minio_client, device)
+        update_prompt_list(minio_client, device, clip)
 
     # get mean and std values
     mean, std= get_mean_std_values(minio_client,args.ranking_model)
