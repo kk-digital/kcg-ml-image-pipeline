@@ -123,6 +123,21 @@ def http_add_score(score_data):
     return None
 
 
+def http_add_sigma_score(sigma_score_data):
+    url = SERVER_ADRESS + "/sigma-score/set-image-rank-sigma-score"
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+
+    try:
+        response = requests.post(url, json=sigma_score_data, headers=headers)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}: {str(response.content)}")
+    except Exception as e:
+        print('request exception ', e)
+
+    return None
+
+
 def http_add_residual(residual_data):
     url = SERVER_ADRESS + "/residual/set-image-rank-residual"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
@@ -178,6 +193,48 @@ def http_get_dataset_names():
             data_json = response.json()
             return data_json
 
+    except Exception as e:
+        print('request exception ', e)
+
+    return None
+
+
+# Get completed job
+def http_get_completed_job_by_image_hash(image_hash):
+    url = SERVER_ADRESS + "/job/get-completed-job-by-hash?image_hash={}".format(image_hash)
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json
+
+    except Exception as e:
+        print('request exception ', e)
+
+    return None
+
+
+def http_add_score_attributes(img_hash,
+                              clip_score,
+                              clip_sigma_score,
+                              embedding_score,
+                              embedding_sigma_score,
+                              delta_score):
+    endpoint = "/job/add-attributes?image_hash={}&clip_score={}&clip_sigma_score={}&embedding_score={}&embedding_sigma_score={}&delta_score={}".format(
+        img_hash,
+        clip_score,
+        clip_sigma_score,
+        embedding_score,
+        embedding_sigma_score,
+        delta_score)
+    url = SERVER_ADRESS + endpoint
+
+    try:
+        response = requests.put(url)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}: {str(response.content)}")
     except Exception as e:
         print('request exception ', e)
 

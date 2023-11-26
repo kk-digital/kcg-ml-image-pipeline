@@ -1,4 +1,4 @@
-from fastapi import Request, APIRouter, HTTPException
+from fastapi import Request, APIRouter, HTTPException, Query
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 import uuid
@@ -7,6 +7,8 @@ from orchestration.api.mongo_schemas import Task
 from orchestration.api.api_dataset import get_sequential_id
 import pymongo
 from .api_utils import PrettyJSONResponse
+from typing import List
+
 
 router = APIRouter()
 
@@ -202,6 +204,15 @@ def get_list_completed_jobs(request: Request):
 
     return jobs
 
+@router.get("/queue/image-generation/list-completed-by-dataset", response_class=PrettyJSONResponse)
+def get_list_completed_jobs_by_dataset(request: Request, dataset):
+    jobs = list(request.app.completed_jobs_collection.find({"task_input_dict.dataset": dataset}))
+
+    for job in jobs:
+        job.pop('_id', None)
+
+    return jobs
+
 
 @router.get("/queue/image-generation/list-failed", response_class=PrettyJSONResponse)
 def get_list_failed_jobs(request: Request):
@@ -342,3 +353,101 @@ def get_completed_job_by_hash(request: Request, image_hash):
     job.pop('_id', None)
 
     return job
+
+@router.get("/job/get-job/{uuid}", response_class=PrettyJSONResponse)
+def get_job_by_uuid(request: Request, uuid: str):
+    # Assuming the job's UUID is stored in the 'uuid' field
+    query = {"uuid": uuid}
+    job = request.app.completed_jobs_collection.find_one(query)
+
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Remove the '_id' field to avoid issues with JSON serialization
+    job.pop('_id', None)
+
+    return job
+
+
+# --------------- Get Job With Required Fields ---------------------
+
+@router.get("/get-image-generation/by-hash/{image_hash}", response_class=PrettyJSONResponse)
+def get_job_by_image_hash(request: Request, image_hash: str, fields: List[str] = Query(None)):
+    # Create a projection object that understands nested fields using dot notation
+    projection = {field: 1 for field in fields} if fields else {}
+    projection['_id'] = 0  # Exclude the _id field
+
+    job = request.app.completed_jobs_collection.find_one({"task_output_file_dict.output_file_hash": image_hash}, projection)
+    if job:
+        # If specific fields are requested, filter the job dictionary
+        if fields is not None:
+            filtered_job = {}
+            for field in fields:
+                field_parts = field.split('.')
+                if len(field_parts) == 1:
+                    # Top-level field
+                    filtered_job[field] = job.get(field)
+                else:
+                    # Nested fields
+                    nested_field = job
+                    for part in field_parts:
+                        nested_field = nested_field.get(part, {})
+                    if isinstance(nested_field, dict):
+                        nested_field = None
+                    filtered_job[field_parts[-1]] = nested_field
+            return filtered_job
+        return job
+    else:
+        print("Job Not Found")
+    
+
+@router.get("/get-image-generation/by-job-id/{job_id}", response_class=PrettyJSONResponse)
+def get_job_by_job_id(request: Request, job_id: str, fields: List[str] = Query(None)):
+    # Create a projection object that understands nested fields using dot notation
+    projection = {field: 1 for field in fields} if fields else {}
+    projection['_id'] = 0  # Exclude the _id field
+
+    job = request.app.completed_jobs_collection.find_one({"uuid": job_id}, projection)
+    if job:
+        # If specific fields are requested, filter the job dictionary
+        if fields is not None:
+            filtered_job = {}
+            for field in fields:
+                field_parts = field.split('.')
+                if len(field_parts) == 1:
+                    # Top-level field
+                    filtered_job[field] = job.get(field)
+                else:
+                    # Nested fields
+                    nested_field = job
+                    for part in field_parts:
+                        nested_field = nested_field.get(part, {})
+                    if isinstance(nested_field, dict):
+                        nested_field = None
+                    filtered_job[field_parts[-1]] = nested_field
+            return filtered_job
+        return job
+    else:
+        print("Job Not Found")
+
+
+# --------------- Add completed job attributes ---------------------
+@router.put("/job/add-attributes", description="Adds the attributes to a completed job.")
+def add_attributes_job_completed(request: Request,
+                                 image_hash,
+                                 clip_score,
+                                 clip_sigma_score,
+                                 embedding_score,
+                                 embedding_sigma_score,
+                                 delta_score):
+    query = {"task_output_file_dict.output_file_hash": image_hash}
+
+    update_query = {"$set": {"task_attributes_dict.clip_score": clip_score,
+                             "task_attributes_dict.clip_sigma_score": clip_sigma_score,
+                             "task_attributes_dict.embedding_score": embedding_score,
+                             "task_attributes_dict.embedding_sigma_score": embedding_sigma_score,
+                             "task_attributes_dict.delta_score": delta_score}}
+
+    request.app.completed_jobs_collection.update_one(query, update_query)
+
+    return True

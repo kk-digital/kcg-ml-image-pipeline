@@ -15,6 +15,7 @@ from orchestration.api.api_tag import router as tag_router
 from orchestration.api.api_dataset_settings import router as dataset_settings_router
 from orchestration.api.api_users import router as user_router
 from orchestration.api.api_score import router as score_router
+from orchestration.api.api_sigma_score import router as sigma_score_router
 from orchestration.api.api_residual import router as residual_router
 from orchestration.api.api_percentile import router as percentile_router
 from orchestration.api.api_residual_percentile import router as residual_percentile_router
@@ -45,6 +46,7 @@ app.include_router(tag_router)
 app.include_router(dataset_settings_router)
 app.include_router(user_router)
 app.include_router(score_router)
+app.include_router(sigma_score_router)
 app.include_router(residual_router)
 app.include_router(percentile_router)
 app.include_router(residual_percentile_router)
@@ -139,6 +141,27 @@ def startup_db_client():
     ]
     create_index_if_not_exists(app.image_scores_collection ,scores_index, 'scores_index')
 
+    hash_index=[
+    ('model_id', pymongo.ASCENDING), 
+    ('image_hash', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_scores_collection ,hash_index, 'score_hash_index')
+
+    # sigma scores
+    app.image_sigma_scores_collection = app.mongodb_db["image-sigma-scores"]
+
+    sigma_scores_index = [
+        ('model_id', pymongo.ASCENDING),
+        ('sigma-score', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_sigma_scores_collection, sigma_scores_index, 'sigma_scores_index')
+
+    hash_index = [
+        ('model_id', pymongo.ASCENDING),
+        ('image_hash', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_sigma_scores_collection, hash_index, 'sigma_score_hash_index')
+
     # residuals
     app.image_residuals_collection = app.mongodb_db["image-residuals"]
 
@@ -147,6 +170,7 @@ def startup_db_client():
     ('residual', pymongo.ASCENDING)
     ]
     create_index_if_not_exists(app.image_residuals_collection ,residuals_index, 'residuals_index')
+    create_index_if_not_exists(app.image_residuals_collection ,hash_index, 'residual_hash_index')
 
     # percentiles
     app.image_percentiles_collection = app.mongodb_db["image-percentiles"]
@@ -156,6 +180,7 @@ def startup_db_client():
     ('percentile', pymongo.ASCENDING)
     ]
     create_index_if_not_exists(app.image_percentiles_collection ,percentiles_index, 'percentiles_index')
+    create_index_if_not_exists(app.image_percentiles_collection ,hash_index, 'percentile_hash_index')
 
     # residual percentiles
     app.image_residual_percentiles_collection = app.mongodb_db["image-residual-percentiles"]

@@ -1,8 +1,8 @@
 #!/bin/bash
 
-curl -X 'POST' http://127.0.0.1:8000/queue/image-generation/add -H 'Content-Type: application/json' -d '{
+curl -X 'POST' http://192.168.3.1:8111/queue/image-generation/add -H 'Content-Type: application/json' -d '{
         "uuid": "1234567",
-        "task_type": "inpainting_generation_task",
+        "task_type": "inpainting_generation_task_test",
         "model_name" : "v1-5-pruned-emaonly",
         "model_file_name": "v1-5-pruned-emaonly",
         "model_file_path": "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors",
@@ -31,7 +31,11 @@ curl -X 'POST' http://127.0.0.1:8000/queue/image-generation/add -H 'Content-Type
             "denoising_strength": 0.75,
             "image_cfg_scale": 1.5,
             "inpaint_full_res_padding": 32,
-            "inpainting_mask_invert": 0
+            "inpainting_mask_invert": 0,
+            "prompt_scoring_model": "test-scoring-model",
+            "prompt_score": 1000,
+            "prompt_generation_policy": "N/A",
+            "top_k": 0
         },
         "task_input_file_dict": {},
         "task_output_file_dict": {}

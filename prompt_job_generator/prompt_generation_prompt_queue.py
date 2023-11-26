@@ -84,7 +84,6 @@ class PromptGenerationPromptQueue:
         total_prompt_count = int(total_prompt_count)
 
         scoring_model = prompt_job_generator_state.get_dataset_scoring_model(dataset)
-        print('scoring_model ', scoring_model, ' for dataset ', dataset)
 
         base_prompt_population = load_base_prompts(base_prompts_csv_path)
 

@@ -10,13 +10,13 @@ sys.path.insert(0, base_directory)
 
 from utility.regression_utils import torchinfo_summary
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
-from training_worker.ab_ranking.model.reports.ab_ranking_linear_train_report import get_train_report
-from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import *
-from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDatasetLoader
+from training_worker.ab_ranking.model.reports.ab_ranking_train_report import get_train_report
+from training_worker.ab_ranking.model.reports.graph_report_ab_ranking import *
+from data_loader.ab_ranking_dataset_loader import ABRankingDatasetLoader
 from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
 from utility.minio import cmd
 from training_worker.ab_ranking.model import constants
-from training_worker.ab_ranking.model.reports import upload_score_residual
+from training_worker.ab_ranking.model.reports import score_residual, sigma_score
 
 
 def train_ranking(dataset_name: str,
@@ -26,7 +26,6 @@ def train_ranking(dataset_name: str,
                   input_type="embedding",
                   epochs=8,
                   learning_rate=0.05,
-                  buffer_size=20000,
                   train_percent=0.9,
                   training_batch_size=1,
                   weight_decay=0.00,
@@ -62,7 +61,6 @@ def train_ranking(dataset_name: str,
                                             minio_access_key=minio_access_key,
                                             minio_secret_key=minio_secret_key,
                                             input_type=input_type,
-                                            buffer_size=buffer_size,
                                             train_percent=train_percent,
                                             load_to_ram=load_data_to_ram,
                                             pooling_strategy=pooling_strategy,
@@ -116,12 +114,6 @@ def train_ranking(dataset_name: str,
     for index in dataset_loader.validation_data_paths_indices_shuffled:
         validation_shuffled_indices_origin.append(index)
 
-    # Upload model to minio
-    model_name = "{}.pth".format(filename)
-
-    model_output_path = os.path.join(output_path, model_name)
-    ab_model.save(dataset_loader.minio_client, bucket_name, model_output_path)
-
     # Generate report
     nn_summary = torchinfo_summary(ab_model.model)
 
@@ -149,6 +141,43 @@ def train_ranking(dataset_name: str,
 
     training_loss_per_epoch = training_loss_per_epoch.detach().cpu()
     validation_loss_per_epoch = validation_loss_per_epoch.detach().cpu()
+
+    # get sigma scores
+    (x_chronological_sigma_scores,
+     x_chronological_image_hashes,
+     y_chronological_sigma_scores,
+     mean,
+     standard_deviation) = sigma_score.get_chronological_sigma_scores(training_target_probabilities,
+                                                                        validation_target_probabilities,
+                                                                        training_predicted_score_images_x,
+                                                                        validation_predicted_score_images_x,
+                                                                        training_predicted_score_images_y,
+                                                                        validation_predicted_score_images_y,
+                                                                        dataset_loader.training_image_hashes,
+                                                                        dataset_loader.validation_image_hashes,
+                                                                        training_shuffled_indices_origin,
+                                                                        validation_shuffled_indices_origin)
+    ab_model.mean = mean
+    ab_model.standard_deviation = standard_deviation
+
+    # add hyperparameter data to model
+    ab_model.add_hyperparameters_config(epochs=epochs,
+                                        learning_rate=learning_rate,
+                                        train_percent=train_percent,
+                                        training_batch_size=training_batch_size,
+                                        weight_decay=weight_decay,
+                                        pooling_strategy=pooling_strategy,
+                                        add_loss_penalty=add_loss_penalty,
+                                        target_option=target_option,
+                                        duplicate_flip_option=duplicate_flip_option,
+                                        randomize_data_per_epoch=randomize_data_per_epoch,
+                                        num_random_layers=num_random_layers,
+                                        elm_sparsity=elm_sparsity)
+
+    # Upload model to minio
+    model_name = "{}.pth".format(filename)
+    model_output_path = os.path.join(output_path, model_name)
+    ab_model.save(dataset_loader.minio_client, bucket_name, model_output_path)
 
     train_sum_correct = 0
     for i in range(len(training_target_probabilities)):
@@ -203,44 +232,48 @@ def train_ranking(dataset_name: str,
     graph_name = "{}.png".format(filename)
     graph_output_path = os.path.join(output_path, graph_name)
 
-    graph_buffer = get_graph_report(ab_model.training_loss,
-                                    ab_model.validation_loss,
-                                    training_predicted_probabilities,
-                                    training_target_probabilities,
-                                    validation_predicted_probabilities,
-                                    validation_target_probabilities,
-                                    training_predicted_score_images_x,
-                                    training_predicted_score_images_y,
-                                    validation_predicted_score_images_x,
-                                    validation_predicted_score_images_y,
-                                    training_total_size,
-                                    validation_total_size,
-                                    training_loss_per_epoch,
-                                    validation_loss_per_epoch,
-                                    epochs,
-                                    learning_rate,
-                                    training_batch_size,
-                                    weight_decay,
-                                    date_now,
-                                    network_type,
-                                    input_type,
-                                    input_shape,
-                                    output_type,
-                                    train_sum_correct,
-                                    validation_sum_correct,
-                                    ab_model.loss_func_name,
-                                    dataset_name,
-                                    pooling_strategy,
-                                    normalize_vectors,
-                                    num_random_layers,
-                                    add_loss_penalty,
-                                    target_option,
-                                    duplicate_flip_option,
-                                    randomize_data_per_epoch,
-                                    elm_sparsity,
-                                    training_shuffled_indices_origin,
-                                    validation_shuffled_indices_origin,
-                                    dataset_loader.total_selection_datapoints)
+    graph_buffer = get_graph_report(training_loss=ab_model.training_loss,
+                                    validation_loss=ab_model.validation_loss,
+                                    train_prob_predictions=training_predicted_probabilities,
+                                    training_targets=training_target_probabilities,
+                                    validation_prob_predictions=validation_predicted_probabilities,
+                                    validation_targets=validation_target_probabilities,
+                                    training_pred_scores_img_x=training_predicted_score_images_x,
+                                    training_pred_scores_img_y=training_predicted_score_images_y,
+                                    validation_pred_scores_img_x=validation_predicted_score_images_x,
+                                    validation_pred_scores_img_y=validation_predicted_score_images_y,
+                                    training_total_size=training_total_size,
+                                    validation_total_size=validation_total_size,
+                                    training_losses=training_loss_per_epoch,
+                                    validation_losses=validation_loss_per_epoch,
+                                    mean=mean,
+                                    standard_deviation=standard_deviation,
+                                    x_chronological_sigma_scores=x_chronological_sigma_scores,
+                                    y_chronological_sigma_scores=y_chronological_sigma_scores,
+                                    epochs=epochs,
+                                    learning_rate=learning_rate,
+                                    training_batch_size=training_batch_size,
+                                    weight_decay=weight_decay,
+                                    date=date_now,
+                                    network_type=network_type,
+                                    input_type=input_type,
+                                    input_shape=input_shape,
+                                    output_type=output_type,
+                                    train_sum_correct=train_sum_correct,
+                                    validation_sum_correct=validation_sum_correct,
+                                    loss_func=ab_model.loss_func_name,
+                                    dataset_name=dataset_name,
+                                    pooling_strategy=pooling_strategy,
+                                    normalize_vectors=normalize_vectors,
+                                    num_random_layers=num_random_layers,
+                                    add_loss_penalty=add_loss_penalty,
+                                    target_option=target_option,
+                                    duplicate_flip_option=duplicate_flip_option,
+                                    randomize_data_per_epoch=randomize_data_per_epoch,
+                                    elm_sparsity=elm_sparsity,
+                                    training_shuffled_indices_origin=training_shuffled_indices_origin,
+                                    validation_shuffled_indices_origin=validation_shuffled_indices_origin,
+                                    total_selection_datapoints=dataset_loader.total_selection_datapoints)
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name, graph_output_path, graph_buffer)
 
@@ -256,10 +289,10 @@ def train_ranking(dataset_name: str,
     cmd.upload_data(dataset_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
 
     # add model card
-    model_id = upload_score_residual.add_model_card(model_card)
+    model_id = score_residual.add_model_card(model_card)
 
     # upload score and residual
-    upload_score_residual.upload_score_residual(model_id,
+    score_residual.upload_score_residual(model_id,
                                                 training_predicted_probabilities,
                                                 training_target_probabilities,
                                                 validation_predicted_probabilities,
@@ -270,6 +303,11 @@ def train_ranking(dataset_name: str,
                                                 dataset_loader.validation_image_hashes,
                                                 training_shuffled_indices_origin,
                                                 validation_shuffled_indices_origin)
+
+    # upload sigma scores
+    sigma_score.upload_sigma_score(model_id,
+                                   x_chronological_sigma_scores,
+                                   x_chronological_image_hashes)
 
     return model_output_path, report_output_path, graph_output_path
 
@@ -282,7 +320,6 @@ def run_ab_ranking_elm_v1_task(training_task, minio_access_key, minio_secret_key
                                           minio_secret_key=minio_secret_key,
                                           epochs=training_task["epochs"],
                                           learning_rate=training_task["learning_rate"],
-                                          buffer_size=training_task["buffer_size"],
                                           train_percent=training_task["train_percent"])
 
     return model_output_path, report_output_path, graph_output_path
@@ -296,7 +333,6 @@ def test_run():
                   input_type="embedding",
                   epochs=10,
                   learning_rate=0.1,
-                  buffer_size=20000,
                   train_percent=0.9,
                   training_batch_size=1,
                   weight_decay=0.01,

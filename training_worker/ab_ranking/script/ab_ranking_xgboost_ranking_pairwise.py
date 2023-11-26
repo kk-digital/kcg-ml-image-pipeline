@@ -1,31 +1,20 @@
 import os
-import torch
 import sys
 from datetime import datetime
 from pytz import timezone
-import numpy as np
-from xgboost import XGBRegressor
 import time
-import matplotlib.pyplot as plt
-import warnings
-from sklearn.model_selection import train_test_split
 import xgboost as xgb
-from sklearn.metrics import mean_squared_error
+import hashlib
 
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from utility.regression_utils import torchinfo_summary
-from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
-from training_worker.ab_ranking.model.reports.ab_ranking_linear_train_report import get_train_report
-from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import *
-from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDatasetLoader
-from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
+from training_worker.ab_ranking.model.reports.graph_report_ab_ranking import *
+from data_loader.ab_ranking_dataset_loader import ABRankingDatasetLoader
 from utility.minio import cmd
 from training_worker.ab_ranking.model import constants
-from training_worker.ab_ranking.model.reports import upload_score_residual
-
-
+from training_worker.ab_ranking.model.reports.get_model_card import get_xgboost_model_card_buf
+from training_worker.ab_ranking.model.reports import score_residual, sigma_score
 
 
 def np_sigmoid(x):
@@ -38,9 +27,8 @@ def forward_bradley_terry(predicted_score_images_x, predicted_score_images_y, us
         # scaled_score_image_x = torch.multiply(1000.0, predicted_score_images_x)
         # scaled_score_image_y = torch.multiply(1000.0, predicted_score_images_y)
 
-        # prob = sigmoid( (x-y) / 100 )
         diff_predicted_score = np.subtract(predicted_score_images_x, predicted_score_images_y)
-        res_predicted_score = np.divide(diff_predicted_score, 50.0)
+        res_predicted_score = np.divide(diff_predicted_score, 1.0)
         pred_probabilities = np_sigmoid(res_predicted_score)
     else:
         epsilon = 0.000001
@@ -62,7 +50,6 @@ def train_xgboost(dataset_name: str,
                   minio_access_key=None,
                   minio_secret_key=None,
                   input_type="clip",
-                  buffer_size=20000,
                   train_percent=0.9,
                   load_data_to_ram=False,
                   normalize_vectors=True,
@@ -70,10 +57,6 @@ def train_xgboost(dataset_name: str,
                   target_option=constants.TARGET_1_AND_0,
                   duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL,
                   ):
-    # raise exception if input is not clip
-    if input_type not in ["clip", "embedding"]:
-        raise Exception("Only 'clip' and 'embedding' is supported for now.")
-
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
@@ -96,7 +79,6 @@ def train_xgboost(dataset_name: str,
                                             minio_access_key=minio_access_key,
                                             minio_secret_key=minio_secret_key,
                                             input_type=input_type,
-                                            buffer_size=buffer_size,
                                             train_percent=train_percent,
                                             load_to_ram=load_data_to_ram,
                                             pooling_strategy=pooling_strategy,
@@ -232,6 +214,22 @@ def train_xgboost(dataset_name: str,
     for index in dataset_loader.validation_data_paths_indices_shuffled:
         validation_shuffled_indices_origin.append(index)
 
+    # get sigma scores
+    (x_chronological_sigma_scores,
+     x_chronological_image_hashes,
+     y_chronological_sigma_scores,
+     mean,
+     standard_deviation) = sigma_score.get_chronological_sigma_scores(training_target_probabilities,
+                                                                        validation_target_probabilities,
+                                                                        training_predicted_score_images_x,
+                                                                        validation_predicted_score_images_x,
+                                                                        training_predicted_score_images_y,
+                                                                        validation_predicted_score_images_y,
+                                                                        dataset_loader.training_image_hashes,
+                                                                        dataset_loader.validation_image_hashes,
+                                                                        training_shuffled_indices_origin,
+                                                                        validation_shuffled_indices_origin)
+
     # Upload model to minio
     model_name = "{}.pth".format(filename)
     model_output_path = os.path.join(output_path, model_name)
@@ -240,6 +238,8 @@ def train_xgboost(dataset_name: str,
     buffer.seek(0)
 
     cmd.upload_data(dataset_loader.minio_client, "datasets", model_output_path, buffer)
+
+    model_hash = hashlib.sha256(xgboost_model_buf).hexdigest()
 
     train_sum_correct = 0
     for i in range(len(training_target_probabilities)):
@@ -277,6 +277,10 @@ def train_xgboost(dataset_name: str,
                                     validation_total_size=validation_total_size,
                                     training_losses=training_loss_per_epoch,
                                     validation_losses=validation_loss_per_epoch,
+                                    mean=mean,
+                                    standard_deviation=standard_deviation,
+                                    x_chronological_sigma_scores=x_chronological_sigma_scores,
+                                    y_chronological_sigma_scores=y_chronological_sigma_scores,
                                     epochs=epochs,
                                     date=date_now,
                                     network_type=network_type,
@@ -298,6 +302,42 @@ def train_xgboost(dataset_name: str,
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name, graph_output_path, graph_buffer)
 
+    # get model card and upload
+    model_card_name = "{}.json".format(filename)
+    model_card_name_output_path = os.path.join(output_path, model_card_name)
+    model_card_buf, model_card = get_xgboost_model_card_buf(date_now,
+                                                            network_type,
+                                                            model_output_path,
+                                                            model_hash,
+                                                            input_type,
+                                                            output_type,
+                                                            training_total_size,
+                                                            validation_total_size,
+                                                            training_loss,
+                                                            validation_loss,
+                                                            graph_output_path)
+    cmd.upload_data(dataset_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
+
+    # add model card
+    model_id = score_residual.add_model_card(model_card)
+
+    # upload score and residual
+    score_residual.upload_score_residual(model_id,
+                                         training_predicted_probabilities,
+                                         training_target_probabilities,
+                                         validation_predicted_probabilities,
+                                         validation_target_probabilities,
+                                         training_predicted_score_images_x,
+                                         validation_predicted_score_images_x,
+                                         dataset_loader.training_image_hashes,
+                                         dataset_loader.validation_image_hashes,
+                                         training_shuffled_indices_origin,
+                                         validation_shuffled_indices_origin)
+
+    # upload sigma scores
+    sigma_score.upload_sigma_score(model_id,
+                                   x_chronological_sigma_scores,
+                                   x_chronological_image_hashes)
 
 if __name__ == '__main__':
     start_time = time.time()
@@ -307,6 +347,12 @@ if __name__ == '__main__':
                   minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
                   input_type="embedding",
+                  train_percent=0.9,
+                  load_data_to_ram=True,
+                  normalize_vectors=True,
+                  pooling_strategy=constants.AVERAGE_POOLING,
+                  target_option=constants.TARGET_1_AND_0,
+                  duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL,
                   )
 
     time_elapsed = time.time() - start_time

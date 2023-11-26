@@ -1,8 +1,5 @@
-import sklearn.datasets
-import sklearn.metrics
 import os
 from ray.tune.schedulers import ASHAScheduler
-from sklearn.model_selection import train_test_split
 import xgboost as xgb
 import sys
 from ray import train, tune
@@ -15,19 +12,15 @@ from pytz import timezone
 import time
 from io import BytesIO
 import matplotlib.pyplot as plt
-from matplotlib.ticker import PercentFormatter
 
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from training_worker.ab_ranking.model.ab_ranking_data_loader import ABRankingDatasetLoader
+from data_loader.ab_ranking_dataset_loader import ABRankingDatasetLoader
 from training_worker.ab_ranking.script.ab_ranking_xgboost_ranking_pairwise import forward_bradley_terry
-from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
-from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
 from utility.minio import cmd
-from training_worker.ab_ranking.model import constants
-from training_worker.ab_ranking.model.reports import upload_score_residual
-from training_worker.ab_ranking.model.reports.graph_report_ab_ranking_linear import get_graph_report
+from training_worker.ab_ranking.model.reports.graph_report_ab_ranking import get_graph_report
+
 
 def get_performance_graph_report(results):
     # Initialize all graphs/subplots
