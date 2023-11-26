@@ -489,7 +489,8 @@ def main():
     original_scores=[]
     mutated_scores=[]
     index=0
-
+ 
+    start=time.time()
     for i, prompt in prompt_list.iterrows():
 
         #getting negative and positive prompts
@@ -573,6 +574,10 @@ def main():
             })
         
         index+=1
+
+    end=time.time()
+
+    print(f"time taken for {args.n_data} prompts is {end - start:.2f} seconds")
 
     current_date=datetime.now().strftime("%Y-%m-%d-%H:%M")
     generation_path=DATA_MINIO_DIRECTORY + f"/generated-images/{current_date}-generated-data"
