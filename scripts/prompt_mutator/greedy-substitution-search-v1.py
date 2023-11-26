@@ -145,7 +145,9 @@ def rejection_sampling_by_sigma_score(device,
     
     # get mean pooled embedding of prompt for xgboost model
     pooled_prompt_embedding= get_mean_pooled_embedding(prompt_embedding)
-    prompt_sigma_score=prompt_score - mean / std
+    print(prompt_score)
+    prompt_sigma_score= (prompt_score - mean) / std
+    print(prompt_sigma_score, mean, std)
 
     # get number of tokens
     prompt_list = prompt_str.split(', ')
