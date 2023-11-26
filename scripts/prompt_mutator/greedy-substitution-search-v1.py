@@ -101,6 +101,8 @@ def load_model(minio_client, device, embedding_type, scoring_model="linear", inp
     else:
         print("No .pth files found in the list.")
         return
+    
+    print(most_recent_model)
 
     # Create a BytesIO object and write the downloaded content into it
     byte_buffer = io.BytesIO()
@@ -186,10 +188,11 @@ def rejection_sampling_by_probability(device,
                                  prompt_str, 
                                  prompt_score, prompt_embedding, 
                                  phrase_embeddings,
-                                 phrase_list):
+                                 phrase_list, mean, std):
     
     # get mean pooled embedding of prompt for xgboost model
     pooled_prompt_embedding= get_mean_pooled_embedding(prompt_embedding)
+    prompt_sigma_score= (prompt_score - mean) / std
 
     # get number of tokens
     prompt_list = prompt_str.split(', ')
@@ -208,7 +211,7 @@ def rejection_sampling_by_probability(device,
         substitute_embedding=get_prompt_embedding(device ,embedding_model, substitute_phrase)
         substitute_embedding= get_mean_pooled_embedding(substitute_embedding)
 
-        substitution_input= np.concatenate([pooled_prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
+        substitution_input= np.concatenate([pooled_prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_sigma_score]])
         pred=xgboost_model.predict_probs([substitution_input])[0]
         if pred["increase"]>0.66:
             tokens.append(token)
@@ -226,28 +229,23 @@ def mutate_prompt(device, embedding_model,
     # calculate embedding of each phrase in the prompt 
     phrase_embeddings= [get_mean_pooled_embedding(get_prompt_embedding(device, embedding_model, phrase)) for phrase in prompt_str.split(', ')]
 
+    # get rejection policy function
+    if(rejection_policy=="sigma_score"):
+        rejection_func=rejection_sampling_by_sigma_score
+    else:
+        rejection_func=rejection_sampling_by_probability
+
     # run mutation process iteratively untill score converges
     for i in range(max_iterations):
-        if(rejection_policy=="sigma_score"):
-            tokens, sub_phrases, embeddings=rejection_sampling_by_sigma_score(device,
-                                                embedding_model,
-                                                xgboost_model, 
-                                                prompt_str,
-                                                prompt_score,
-                                                prompt_embedding, 
-                                                phrase_embeddings,
-                                                phrase_list, mean, std)
-        else:
-            tokens, sub_phrases, embeddings=rejection_sampling_by_probability(device,
-                                                embedding_model,
-                                                xgboost_model, 
-                                                prompt_str,
-                                                prompt_score,
-                                                prompt_embedding, 
-                                                phrase_embeddings,
-                                                phrase_list)
+        tokens, sub_phrases, embeddings=rejection_func(device,
+                                            embedding_model,
+                                            xgboost_model, 
+                                            prompt_str,
+                                            prompt_score,
+                                            prompt_embedding, 
+                                            phrase_embeddings,
+                                            phrase_list, mean, std)
         
-        num_attempts=1
         for token, sub_phrase, embedding in zip(tokens,sub_phrases, embeddings):
             #Create a modified prompt with the substitution
             prompt_list = prompt_str.split(', ')
@@ -266,9 +264,6 @@ def mutate_prompt(device, embedding_model,
                 prompt_score= modified_prompt_score
                 break
 
-            num_attempts+=1
-        
-        print(f"failed {num_attempts} times")
     
     return prompt_str, prompt_embedding
 
