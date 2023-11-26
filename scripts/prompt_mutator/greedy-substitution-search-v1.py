@@ -169,7 +169,7 @@ def rejection_sampling_by_sigma_score(device,
 
         substitution_input= np.concatenate([pooled_prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
         sigma_score=xgboost_model.predict([substitution_input])[0]
-        print(sigma_score, prompt_sigma_score)
+        #print(sigma_score, prompt_sigma_score)
         if sigma_score>prompt_sigma_score:
             sigma_scores.append(-sigma_score)
             tokens.append(token)
