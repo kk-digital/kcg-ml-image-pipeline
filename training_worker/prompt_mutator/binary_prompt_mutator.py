@@ -148,9 +148,8 @@ class BinaryPromptMutator:
         cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.json', '.png'), buf)
         
     def predict_probs(self, X):
-        dtest = xgb.DMatrix(X)
         class_labels=['decrease', 'increase']
-        y_pred = self.model.predict_proba(dtest)
+        y_pred = self.model.predict_proba(X)
         # Create a list of dictionaries, where each dictionary represents the class probabilities for a single prediction
         predictions_with_probabilities = [
             {class_labels[i]: prob for i, prob in enumerate(row)} for row in y_pred
