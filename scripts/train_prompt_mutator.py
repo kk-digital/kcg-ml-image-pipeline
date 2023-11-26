@@ -1,6 +1,7 @@
 import argparse
 import csv
 import io
+import json
 import os
 import sys
 import numpy as np
@@ -232,13 +233,27 @@ def create_dataset(minio_client, device, csv_path, embedding_type):
     store_in_csv_file(csv_data, minio_client, embedding_type)
 
 
+def get_mean_std_values(minio_client, ranking_model):
+    minio_path = DATA_MINIO_DIRECTORY + "/input/mean_std_values.json"
+    json_file_data =cmd.get_file_from_minio(minio_client, 'datasets', minio_path)
+
+    # Parse JSON data
+    data = json.loads(json_file_data.read().decode('utf-8'))
+
+    if(ranking_model=="elm-v1"):
+        return data['positive_elm_mean'], data['positive_elm_std']
+    else:
+        return data['positive_linear_mean'], data['positive_linear_std']
+
+
 def load_dataset(minio_client, embedding_type):
     dataset_path=DATA_MINIO_DIRECTORY + f"/{embedding_type}_prompts/"
     dataset_files=minio_client.list_objects('datasets', prefix=dataset_path, recursive=True)
     dataset_files= [file.object_name for file in dataset_files]
 
-    elm_score_encoding=[]
-    linear_score_encoding=[]
+    # get mean and std values
+    elm_mean, elm_std= get_mean_std_values(minio_client, "elm-v1")
+    linear_mean, linear_std= get_mean_std_values(minio_client, "linear")
     
     elm_inputs=[]
     linear_inputs=[]
@@ -259,22 +274,20 @@ def load_dataset(minio_client, embedding_type):
         # Deserialize the content using msgpack
         msgpack_data = msgpack.loads(content)
 
-        # get scores
-        elm_score_encoding.append(msgpack_data['elm_score_encoding'])
-        linear_score_encoding.append(msgpack_data['linear_score_encoding'])
-
         # get elm and linear input
+        elm_sigma_score= (msgpack_data['elm_score_encoding'] - elm_mean) / elm_std
         elm_inputs.append(np.concatenate([msgpack_data['input'], 
                                       [msgpack_data['position_encoding']],
-                                       [msgpack_data['elm_score_encoding']]]))
+                                      [elm_sigma_score]]))
         
+        linear_sigma_score= (msgpack_data['linear_score_encoding'] - linear_mean) / linear_std
         linear_inputs.append(np.concatenate([msgpack_data['input'], 
                                       [msgpack_data['position_encoding']],
-                                       [msgpack_data['linear_score_encoding']]]))
+                                       [linear_sigma_score]]))
         
         # get sigma output
-        elm_sigma_outputs.append(msgpack_data['elm_output'])
-        linear_sigma_outputs.append(msgpack_data['linear_output'])
+        elm_sigma_outputs.append((msgpack_data['elm_output'] - elm_mean) / elm_std)
+        linear_sigma_outputs.append((msgpack_data['linear_output']- linear_mean) / linear_std)
 
         # get binary input
         if msgpack_data['linear_score_encoding']> msgpack_data['linear_output'] :
@@ -290,24 +303,6 @@ def load_dataset(minio_client, embedding_type):
         elm_binary_outputs.append(binary_elm_output)
         linear_binary_outputs.append(binary_linear_output)
         
-
-    #compute sigma scores for initial score encoding
-    sigma_mean=np.mean(elm_score_encoding)
-    sigma_std=np.std(elm_score_encoding)
-    print(f"elm mean:{sigma_mean}")
-    print(f"elm std:{sigma_std}")
-    elm_score_encoding = [(x - sigma_mean) / sigma_std for x in elm_score_encoding]
-    #compute sigma scores for output
-    elm_sigma_outputs = [(x - sigma_mean) / sigma_std for x in elm_sigma_outputs]
-    
-    #compute sigma scores for initial score encoding
-    sigma_mean=np.mean(linear_score_encoding)
-    sigma_std=np.std(linear_score_encoding)
-    print(f"linear mean:{sigma_mean}")
-    print(f"linear std:{sigma_std}")
-    linear_score_encoding = [(x - sigma_mean) / sigma_std for x in linear_score_encoding]
-    #compute sigma scores for output
-    linear_sigma_outputs = [(x - sigma_mean) / sigma_std for x in linear_sigma_outputs]
 
     return elm_inputs, linear_inputs, elm_sigma_outputs, elm_binary_outputs, linear_sigma_outputs, linear_binary_outputs     
         
