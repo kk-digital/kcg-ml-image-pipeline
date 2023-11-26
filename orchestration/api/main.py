@@ -20,6 +20,7 @@ from orchestration.api.api_residual import router as residual_router
 from orchestration.api.api_percentile import router as percentile_router
 from orchestration.api.api_residual_percentile import router as residual_percentile_router
 from orchestration.api.api_image_by_rank import router as image_by_rank_router
+from orchestration.api.api_queue_ranking import router as queue_ranking
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -50,6 +51,7 @@ app.include_router(sigma_score_router)
 app.include_router(residual_router)
 app.include_router(percentile_router)
 app.include_router(residual_percentile_router)
+app.include_router(queue_ranking)
 
 
 def get_minio_client(minio_access_key, minio_secret_key):
