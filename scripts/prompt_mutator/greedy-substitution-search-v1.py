@@ -519,7 +519,8 @@ def main():
             seed_score=prompt['linear_score']
             positive_score= prompt['positive_linear_score']
 
-        original_scores.append(seed_score)
+        seed_sigma_score=(seed_score - mean) / std
+        original_scores.append(seed_sigma_score)
 
         #mutate positive prompt
         mutated_positive_prompt, mutated_positive_embedding= mutate_prompt(device=device,
@@ -535,7 +536,8 @@ def main():
         # calculating new score
         score=combined_model.predict(mutated_positive_embedding, negative_embedding).item()
 
-        mutated_scores.append(score)
+        sigma_score=(score - mean) / std
+        mutated_scores.append(sigma_score)
 
         print(f"prompt {index} mutated.")
         print(f"----initial score: {seed_score}.")
@@ -562,9 +564,9 @@ def main():
 
             df_data.append({
                 'seed_score': seed_score,
-                'seed_sigma_score': (seed_score - mean) / std,
+                'seed_sigma_score': seed_sigma_score,
                 'score': score,
-                'sigma_score': (score - mean) / std,
+                'sigma_score': sigma_score,
                 'positive_prompt': mutated_positive_prompt,
                 'negative_prompt': negative_prompt,
                 'seed_prompt': positive_prompt,
