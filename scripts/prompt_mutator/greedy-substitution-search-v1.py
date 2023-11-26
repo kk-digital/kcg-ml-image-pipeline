@@ -587,7 +587,6 @@ def main():
     if args.send_job:
         store_prompts_in_csv_file(df_data, generation_path, minio_client)
 
-    print(original_scores, mutated_scores)
     compare_distributions(minio_client, generation_path, original_scores, mutated_scores)
     
     
