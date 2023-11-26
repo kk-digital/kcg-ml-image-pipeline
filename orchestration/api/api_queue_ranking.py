@@ -11,12 +11,11 @@ import random
 router = APIRouter()
 
 
-@router.get("/queue-ranking/upload/{job_uuid}")
-def get_job_details(request: Request, job_uuid: str):
-    # Find the job in the completed_jobs_collection
+@router.post("/queue-ranking/upload")
+def get_job_details(request: Request, job_uuid: str = Query(...)):  # Use Query to specify that job_uuid is a query parameter
     job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
     if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+        print("Job not found")
 
     # Extract the bucket name, dataset name, file name, and subfolder from the output_file_path
     output_file_path = job["task_output_file_dict"]["output_file_path"]
@@ -59,7 +58,7 @@ def get_job_details(request: Request, job_uuid: str):
 
 
 @router.get("/queue-ranking/get-random-json", response_class=PrettyJSONResponse)
-async def get_random_json(request: Request, dataset: str = Query(...)):
+def get_random_json(request: Request, dataset: str = Query(...)):
     minio_client = request.app.minio_client
     bucket_name = "datasets"
     prefix = f"{dataset}/queue-ranking/"
