@@ -167,7 +167,6 @@ def rejection_sampling_by_sigma_score(device,
 
         substitution_input= np.concatenate([pooled_prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_sigma_score]])
         sigma_score=xgboost_model.predict([substitution_input])[0]
-        print(sigma_score, prompt_sigma_score)
         if sigma_score>prompt_sigma_score:
             sigma_scores.append(-sigma_score)
             tokens.append(token)
@@ -248,6 +247,7 @@ def mutate_prompt(device, embedding_model,
                                                 phrase_embeddings,
                                                 phrase_list)
         
+        num_attempts=1
         for token, sub_phrase, embedding in zip(tokens,sub_phrases, embeddings):
             #Create a modified prompt with the substitution
             prompt_list = prompt_str.split(', ')
@@ -265,6 +265,10 @@ def mutate_prompt(device, embedding_model,
                 phrase_embeddings[token]= embedding
                 prompt_score= modified_prompt_score
                 break
+
+            num_attempts+=1
+        
+        print(f"failed {num_attempts} times")
     
     return prompt_str, prompt_embedding
 
