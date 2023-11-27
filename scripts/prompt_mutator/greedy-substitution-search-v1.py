@@ -424,7 +424,7 @@ def get_initial_prompts(minio_client, n_data, ranking_model, mean):
         df = pd.read_csv(csv_data)
 
         # Filter the DataFrame based on the condition
-        filtered_df = df[df[score_field] >= mean]
+        filtered_df = df[len(df["positive_prompt"].split(', '))>10]
 
   
         # get sample prompts
@@ -557,6 +557,7 @@ def main():
 
         print(f"prompt {index} mutated.")
         print(f"prompt {mutated_positive_prompt} mutated.")
+        print(f"negative prompt {negative_prompt}")
         print(f"----initial score: {seed_score}.")
         print(f"----final score: {score}.")
 
