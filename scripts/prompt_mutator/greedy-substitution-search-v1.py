@@ -550,7 +550,7 @@ def main():
                         mean=positive_mean, std=positive_std, rejection_policy=args.rejection_policy)
 
         # calculating new score
-        score=combined_model.predict(mutated_positive_embedding, negative_embedding).float()
+        score=combined_model.predict(mutated_positive_embedding, negative_embedding).item()
 
         sigma_score=(score - mean) / std
         mutated_scores.append(sigma_score)
@@ -565,7 +565,7 @@ def main():
                     positive_prompt=mutated_positive_prompt,
                     negative_prompt=negative_prompt,
                     prompt_scoring_model=f'image-pair-ranking-{args.ranking_model}',
-                    prompt_score=score,
+                    prompt_score=float(round(score,4)),
                     prompt_generation_policy=GENERATION_POLICY,
                     top_k='',
                     dataset_name=args.dataset_name
