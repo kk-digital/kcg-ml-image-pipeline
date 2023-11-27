@@ -160,7 +160,7 @@ class ABRankingIndependentApproximationV1Model:
                     phrase_info = self.dataset_loader.phrase_vector_loader.index_positive_prompt_phrase_info[index]
                     occurrences = phrase_info.occurrences
                     token_length = phrase_info.token_length
-                    score = score_vector[i]
+                    score = "{:f}".format(score_vector[i])
                     writer.writerow([index, phrase, occurrences, token_length, score])
 
                 bytes_buffer = BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
