@@ -410,15 +410,12 @@ def update_prompt_list(minio_client, device):
     # Remove the temporary file
     os.remove('output/mean_std_values.json')
 
-def get_initial_prompts(minio_client, n_data, ranking_model, mean):
+def get_initial_prompts(minio_client, n_data):
     try:
         # Get the CSV file as BytesIO object
         minio_path = DATA_MINIO_DIRECTORY + "/input/initial_prompts.csv"
         data = minio_client.get_object('datasets', minio_path)
         csv_data = io.BytesIO(data.read())
-        
-        # score field to filter by
-        score_field=f"positive_{ranking_model}_score"
 
         # Read the CSV into a DataFrame
         df = pd.read_csv(csv_data)
@@ -491,15 +488,14 @@ def main():
 
     # get mean and std values
     mean, std, positive_mean, positive_std= get_mean_std_values(minio_client,args.ranking_model)
+    print(mean,std, positive_mean, positive_std)
+    print(positive_model.mean, positive_model.standard_deviation)
 
     # get phrase list for substitutions
     phrase_list=pd.read_csv(args.csv_phrase)['phrase str'].tolist()
     
-    # get initial prompts, and filtering prompts with less then mean score
-    if(args.ranking_model=="elm-v1"):
-        prompt_list = get_initial_prompts(minio_client, args.n_data, 'elm', positive_mean)
-    else:
-        prompt_list = get_initial_prompts(minio_client, args.n_data, 'linear', positive_mean)
+    # get initial prompts
+    prompt_list = get_initial_prompts(minio_client, args.n_data)
 
     df_data=[]
     original_scores=[]
