@@ -552,7 +552,7 @@ def main():
         # calculating new score
         score=combined_model.predict(mutated_positive_embedding, negative_embedding).item()
 
-        print(score.type())
+        print(type(score))
 
         sigma_score=(score - mean) / std
         mutated_scores.append(sigma_score)
