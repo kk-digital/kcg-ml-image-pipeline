@@ -4,7 +4,7 @@ import json
 import time
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
+import re
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
@@ -16,7 +16,7 @@ DATASETS_BUCKET = "datasets"
 
 
 def get_datasets(minio_client):
-    datasets = cmd.get_list_of_objects(minio_client, DATASETS_BUCKET)
+    datasets = cmd.get_list_of_objects(minio_client, "datasets")
     return datasets
 
 
@@ -37,7 +37,7 @@ def get_ab_data(minio_client, path, index):
 
 def get_aggregated_selection_datapoints(minio_client, dataset_name):
     prefix = os.path.join(dataset_name, "data/ranking/aggregate")
-    dataset_paths = cmd.get_list_of_objects_with_prefix(minio_client, DATASETS_BUCKET, prefix=prefix)
+    dataset_paths = cmd.get_list_of_objects_with_prefix(minio_client, "datasets", prefix=prefix)
 
     print("Get selection datapoints contents and filter out flagged datapoints...")
     ab_data_list = [None] * len(dataset_paths)
@@ -66,7 +66,7 @@ def get_aggregated_selection_datapoints(minio_client, dataset_name):
 
 
 def get_object(client, file_path):
-    response = client.get_object(DATASETS_BUCKET, file_path)
+    response = client.get_object("datasets", file_path)
     data = response.data
 
     return data
@@ -81,3 +81,41 @@ def split_ab_data_vectors(image_pair_data):
     target_probability = image_pair_data[2]
 
     return image_x_feature_vector, image_y_feature_vector, target_probability
+
+
+def format_prompt(prompt):
+    prompt = prompt.strip()
+
+    while re.search(r'(\([\s,\.:;\|]*\))|(\<[\s,\.:;\|]*\>)|(\[[\s,\.:;\|]*\])|(\{[\s,\.:;\|]*\})', prompt):
+        prompt = re.sub(r'(\([\s,\.:;\|]*\))|(\<[\s,\.:;\|]*\>)|(\[[\s,\.:;\|]*\])|(\{[\s,\.:;\|]*\})', '', prompt)
+
+    prompt = re.sub(r'([\[\(\{\<])\s', r'\1', prompt)
+    prompt = re.sub(r'\s([\]\)\}\>])', r'\1', prompt)
+    prompt = re.sub(r'\s+', ' ', prompt)
+    prompt = re.sub(r'(\s?[,;])+', r',', prompt)
+
+    prompt = re.sub(r'^[\.,;\s]+', '', prompt)
+    prompt = re.sub(r'[\.,;\s]+$', '', prompt)
+
+    return prompt
+
+
+def remove_weight(prompt):
+    prompt = re.sub(':[-\s0-9,\.]*', ', ', prompt)
+    prompt = re.sub(r'[\(\[\{\<\>\}\]\)]+', '', prompt)
+    return prompt
+
+
+def get_phrases_from_prompt(prompt):
+    prompt = format_prompt(prompt)
+    prompt = remove_weight(prompt)
+    prompt = format_prompt(prompt)
+
+    phrases = []
+    for phrase in prompt.split(','):
+        phrase = phrase.strip()
+        if len(phrase) == 0:
+            continue
+        phrases.append(phrase)
+
+    return phrases
