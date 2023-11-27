@@ -550,9 +550,7 @@ def main():
                         mean=positive_mean, std=positive_std, rejection_policy=args.rejection_policy)
 
         # calculating new score
-        score=combined_model.predict(mutated_positive_embedding, negative_embedding).item()
-
-        print(type(score))
+        score=float(combined_model.predict(mutated_positive_embedding, negative_embedding).item())
 
         sigma_score=(score - mean) / std
         mutated_scores.append(sigma_score)
