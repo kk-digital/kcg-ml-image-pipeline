@@ -565,7 +565,7 @@ def main():
                     positive_prompt=mutated_positive_prompt,
                     negative_prompt=negative_prompt,
                     prompt_scoring_model=f'image-pair-ranking-{args.ranking_model}',
-                    prompt_score=round(score,2),
+                    prompt_score=int(score),
                     prompt_generation_policy=GENERATION_POLICY,
                     top_k='',
                     dataset_name=args.dataset_name
