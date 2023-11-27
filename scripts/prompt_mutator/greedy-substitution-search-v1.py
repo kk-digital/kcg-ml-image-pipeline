@@ -489,7 +489,7 @@ def main():
     # get mean and std values
     mean, std, positive_mean, positive_std= get_mean_std_values(minio_client,args.ranking_model)
     print(mean,std, positive_mean, positive_std)
-    print(positive_model.mean, positive_model.standard_deviation)
+    print(combined_model.mean, combined_model.standard_deviation)
 
     # get phrase list for substitutions
     phrase_list=pd.read_csv(args.csv_phrase)['phrase str'].tolist()
