@@ -402,8 +402,8 @@ class IndependentApproximationDatasetLoader:
         image_x_feature_vectors = np.array(image_x_feature_vectors)
         image_y_feature_vectors = np.array(image_y_feature_vectors)
 
-        image_x_feature_vectors = torch.tensor(image_x_feature_vectors)
-        image_y_feature_vectors = torch.tensor(image_y_feature_vectors)
+        image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.bool)
+        image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.bool)
 
         target_probabilities = torch.tensor(target_probabilities).to(torch.float)
 
@@ -441,8 +441,8 @@ class IndependentApproximationDatasetLoader:
         image_x_feature_vectors = np.array(image_x_feature_vectors)
         image_y_feature_vectors = np.array(image_y_feature_vectors)
 
-        image_x_feature_vectors = torch.tensor(image_x_feature_vectors)
-        image_y_feature_vectors = torch.tensor(image_y_feature_vectors)
+        image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.bool)
+        image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.bool)
 
         target_probabilities = torch.tensor(target_probabilities).to(torch.float)
 
