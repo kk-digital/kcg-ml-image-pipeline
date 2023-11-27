@@ -424,7 +424,7 @@ def get_initial_prompts(minio_client, n_data, ranking_model, mean):
         df = pd.read_csv(csv_data)
 
         # Filter the DataFrame based on the condition
-        filtered_df = df[len(df["positive_prompt"].split(', '))>10]
+        filtered_df = df[df['positive_prompt'].str.split(', ').apply(len)>=10]
 
   
         # get sample prompts
