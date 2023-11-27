@@ -125,17 +125,17 @@ def store_in_msgpack_file(prompt_data, index, minio_client, embedding_type):
     minio_path=DATA_MINIO_DIRECTORY + f"/{embedding_type}_prompts/{str(index).zfill(6)}_substitution.msgpack"
     cmd.upload_data(minio_client, 'datasets',minio_path, buffer)
 
-def get_mean_std_values(minio_client, ranking_model):
-    minio_path = DATA_MINIO_DIRECTORY + "/input/mean_std_values.json"
-    json_file_data =cmd.get_file_from_minio(minio_client, 'datasets', minio_path)
+# def get_mean_std_values(minio_client, ranking_model):
+#     minio_path = DATA_MINIO_DIRECTORY + "/input/mean_std_values.json"
+#     json_file_data =cmd.get_file_from_minio(minio_client, 'datasets', minio_path)
 
-    # Parse JSON data
-    data = json.loads(json_file_data.read().decode('utf-8'))
+#     # Parse JSON data
+#     data = json.loads(json_file_data.read().decode('utf-8'))
 
-    if(ranking_model=="elm-v1"):
-        return data['positive_elm_mean'], data['positive_elm_std']
-    else:
-        return data['positive_linear_mean'], data['positive_linear_std']
+#     if(ranking_model=="elm-v1"):
+#         return data['positive_elm_mean'], data['positive_elm_std']
+#     else:
+#         return data['positive_linear_mean'], data['positive_linear_std']
 
 def create_dataset(minio_client, device, csv_path, embedding_type):
     # Load the CLIP model
@@ -150,8 +150,8 @@ def create_dataset(minio_client, device, csv_path, embedding_type):
     elm_model= load_model(768,minio_client, device, 'elm-v1', embedding_type)
     linear_model= load_model(768,minio_client, device, 'linear', embedding_type)
     # get mean and std values
-    elm_mean, elm_std= get_mean_std_values(minio_client, "elm-v1")
-    linear_mean, linear_std= get_mean_std_values(minio_client, "linear")
+    elm_mean, elm_std= elm_model.mean, elm_model.standard_deviation
+    linear_mean, linear_std= linear_model.mean, linear_model.standard_deviation
 
     prompt_index=1
     csv_data = []
@@ -278,12 +278,10 @@ def load_dataset(minio_client, embedding_type):
         msgpack_data = msgpack.loads(content)
 
         # get elm and linear input
-        elm_inputs.append(np.concatenate([msgpack_data['input'], 
-                                      [msgpack_data['position_encoding']],
+        elm_inputs.append(np.concatenate([msgpack_data['input'],
                                       [msgpack_data['elm_score_encoding']]]))
         
-        linear_inputs.append(np.concatenate([msgpack_data['input'], 
-                                      [msgpack_data['position_encoding']],
+        linear_inputs.append(np.concatenate([msgpack_data['input'],
                                        [msgpack_data['linear_score_encoding']]]))
         
         # get sigma output
