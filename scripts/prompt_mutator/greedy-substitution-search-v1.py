@@ -143,7 +143,7 @@ def rejection_sampling_by_sigma_score(device,
                                  prompt_str, 
                                  prompt_score, prompt_embedding, 
                                  phrase_embeddings,
-                                 phrase_list, mean, std):
+                                 phrase_list, mean, std, threshold=0.15):
     
     # get mean pooled embedding of prompt for xgboost model
     pooled_prompt_embedding= get_mean_pooled_embedding(prompt_embedding)
@@ -169,7 +169,7 @@ def rejection_sampling_by_sigma_score(device,
 
         substitution_input= np.concatenate([pooled_prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_sigma_score]])
         sigma_score=xgboost_model.predict([substitution_input])[0]
-        if sigma_score>prompt_sigma_score:
+        if sigma_score > prompt_sigma_score + threshold:
             sigma_scores.append(-sigma_score)
             tokens.append(token)
             sub_phrases.append(substitute_phrase)
@@ -481,7 +481,6 @@ def main():
 
     # get mean and std values
     mean, std, positive_mean, positive_std= get_mean_std_values(minio_client,args.ranking_model)
-    print(mean, std, positive_mean, positive_std)
 
     phrase_list=pd.read_csv(args.csv_phrase)['phrase str'].tolist()
     prompt_list = get_initial_prompts(minio_client, args.n_data)
@@ -549,7 +548,7 @@ def main():
                     positive_prompt=mutated_positive_prompt,
                     negative_prompt=negative_prompt,
                     prompt_scoring_model=f'image-pair-ranking-{args.ranking_model}',
-                    prompt_score=score,
+                    prompt_score=round(score,4),
                     prompt_generation_policy=GENERATION_POLICY,
                     top_k='',
                     dataset_name=args.dataset_name
