@@ -222,11 +222,11 @@ class PhraseVectorLoader:
         cmd.upload_data(self.minio_client, 'datasets', csv_path, bytes_buffer)
 
     def get_positive_phrase_vector(self, prompt):
-        phrase_vector = [0] * len(self.positive_phrases_index_dict)
+        phrase_vector = [False] * len(self.positive_phrases_index_dict)
         phrases = get_phrases_from_prompt(prompt)
         for phrase in phrases:
             index = self.positive_phrases_index_dict[phrase]
-            phrase_vector[index] = 1
+            phrase_vector[index] = True
 
         return phrase_vector
 

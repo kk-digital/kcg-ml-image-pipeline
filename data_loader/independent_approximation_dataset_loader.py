@@ -157,7 +157,7 @@ class IndependentApproximationDatasetLoader:
         generated_image_data_1 = GeneratedImageData.from_msgpack_string(features_img_1_data)
         prompt_img_1 = generated_image_data_1.positive_prompt
         phrase_vector = self.phrase_vector_loader.get_positive_phrase_vector(prompt_img_1)
-        phrase_vector = np.array(phrase_vector)
+        phrase_vector = np.array(phrase_vector, dtype=bool)
         phrase_vector = sp.sparse.coo_array(phrase_vector)
         features_vector_img_1 = phrase_vector
 
@@ -165,7 +165,7 @@ class IndependentApproximationDatasetLoader:
         generated_image_data_2 = GeneratedImageData.from_msgpack_string(features_img_2_data)
         prompt_img_2 = generated_image_data_2.positive_prompt
         phrase_vector = self.phrase_vector_loader.get_positive_phrase_vector(prompt_img_2)
-        phrase_vector = np.array(phrase_vector)
+        phrase_vector = np.array(phrase_vector, dtype=bool)
         phrase_vector = sp.sparse.coo_array(phrase_vector)
         features_vector_img_2 = phrase_vector
 
@@ -402,8 +402,8 @@ class IndependentApproximationDatasetLoader:
         image_x_feature_vectors = np.array(image_x_feature_vectors)
         image_y_feature_vectors = np.array(image_y_feature_vectors)
 
-        image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.float)
-        image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.float)
+        image_x_feature_vectors = torch.tensor(image_x_feature_vectors)
+        image_y_feature_vectors = torch.tensor(image_y_feature_vectors)
 
         target_probabilities = torch.tensor(target_probabilities).to(torch.float)
 
@@ -441,8 +441,8 @@ class IndependentApproximationDatasetLoader:
         image_x_feature_vectors = np.array(image_x_feature_vectors)
         image_y_feature_vectors = np.array(image_y_feature_vectors)
 
-        image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.float)
-        image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.float)
+        image_x_feature_vectors = torch.tensor(image_x_feature_vectors)
+        image_y_feature_vectors = torch.tensor(image_y_feature_vectors)
 
         target_probabilities = torch.tensor(target_probabilities).to(torch.float)
 
