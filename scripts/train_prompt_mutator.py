@@ -55,6 +55,8 @@ def load_model(input_size, minio_client, device, scoring_model, embedding_type):
     else:
         print("No .pth files found in the list.")
         return
+   
+    print(most_recent_model)
 
     # Create a BytesIO object and write the downloaded content into it
     byte_buffer = io.BytesIO()
@@ -152,6 +154,9 @@ def create_dataset(minio_client, device, csv_path, embedding_type):
     # get mean and std values
     elm_mean, elm_std= elm_model.mean, elm_model.standard_deviation
     linear_mean, linear_std= linear_model.mean, linear_model.standard_deviation
+
+    print(f"elm mean: {elm_mean}, elm std {elm_std}")
+    print(f"linear mean: {linear_mean}, linear std {linear_std}")
 
     prompt_index=1
     csv_data = []
