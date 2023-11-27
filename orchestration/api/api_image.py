@@ -82,27 +82,30 @@ def get_random_image_list(request: Request, dataset: str = Query(...), size: int
     return {"images": distinct_documents}
 
 @router.get("/image/get_random_previously_ranked_image_list", response_class=PrettyJSONResponse)
-def get_random_previously_ranked_image_list(request: Request, dataset: str = Query(...), size: int = Query(1)):
-    # Use Query to get the dataset and size from query parameters
-
+def get_random_previously_ranked_image_list(
+    request: Request, 
+    dataset: str = Query(...), 
+    size: int = Query(1),
+    prompt_generation_policy: Optional[str] = None  # Add this line for the new parameter
+):
     distinct_documents = []
     tried_ids = set()
 
+    # Update the match query to include prompt_generation_policy if provided
+    match_query = {"task_input_dict.dataset": dataset, "_id": {"$nin": list(tried_ids)}}
+    if prompt_generation_policy:
+        match_query["task_input_dict.prompt_generation_policy"] = prompt_generation_policy  # Include the policy in the query
+
     while len(distinct_documents) < size:
-        # Use $sample to get 'size' random documents
         documents = request.app.completed_jobs_collection.aggregate([
-            {"$match": {"task_input_dict.dataset": dataset, "_id": {"$nin": list(tried_ids)}}},
-            # Exclude already tried ids
-            {"$sample": {"size": size - len(distinct_documents)}}  # Only fetch the remaining needed size
+            {"$match": match_query},  # Use the updated match query with prompt_generation_policy
+            {"$sample": {"size": size - len(distinct_documents)}}
         ])
 
-        # Convert cursor type to list
         documents = list(documents)
-
-        # Store the tried image ids
         tried_ids.update([doc["_id"] for doc in documents])
 
-        # use only documents that has rank use count greater than 0
+        # The following logic remains the same as before
         prev_ranked_docs = []
         for doc in documents:
             print("checking ...")
@@ -117,16 +120,14 @@ def get_random_previously_ranked_image_list(request: Request, dataset: str = Que
                 prev_ranked_docs.append(doc)
 
         distinct_documents.extend(prev_ranked_docs)
-
-        # Ensure only distinct images are retained
         seen = set()
         distinct_documents = [doc for doc in distinct_documents if doc["_id"] not in seen and not seen.add(doc["_id"])]
 
     for doc in distinct_documents:
-        doc.pop('_id', None)  # remove the auto generated field
+        doc.pop('_id', None)  # Remove the auto-generated field
 
-    # Return the images as a list in the response
     return {"images": distinct_documents}
+
 
 @router.get("/image/get_random_image_by_date_range", response_class=PrettyJSONResponse)
 def get_random_image_date_range(
@@ -134,14 +135,12 @@ def get_random_image_date_range(
     dataset: str = None,
     start_date: str = None,
     end_date: str = None,
-    size: int = None
+    size: int = None,
+    prompt_generation_policy: Optional[str] = None  # Optional query parameter
 ):
-
     query = {
         'task_input_dict.dataset': dataset
     }
-
-    # Update the query based on provided start_date and end_date
     if start_date and end_date:
         query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
     elif start_date:
@@ -149,23 +148,22 @@ def get_random_image_date_range(
     elif end_date:
         query['task_creation_time'] = {'$lte': end_date}
 
-    # Create the aggregation pipeline
-    aggregation_pipeline = [{"$match": query}]
+    # Include prompt_generation_policy in the query if provided
+    if prompt_generation_policy:
+        query['task_input_dict.prompt_generation_policy'] = prompt_generation_policy
 
-    # Add the $sample stage if the size is provided
+    aggregation_pipeline = [{"$match": query}]
     if size:
         aggregation_pipeline.append({"$sample": {"size": size}})
 
     documents = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
-
-    # Convert the cursor to a list
     documents = list(documents)
 
-    # Remove the auto-generated field for each document
     for document in documents:
-        document.pop('_id', None)
+        document.pop('_id', None)  # Remove the auto-generated field
 
     return documents
+
 
 """
 @router.get("/image/data-by-filepath")

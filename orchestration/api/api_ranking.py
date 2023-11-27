@@ -5,6 +5,8 @@ import os
 import json
 from io import BytesIO
 from orchestration.api.mongo_schemas import Selection, RelevanceSelection
+from .api_utils import PrettyJSONResponse
+import random
 
 router = APIRouter()
 
@@ -132,4 +134,3 @@ def add_relevancy_selection_datapoint(request: Request, relevance_selection: Rel
     cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
 
     return True
-
