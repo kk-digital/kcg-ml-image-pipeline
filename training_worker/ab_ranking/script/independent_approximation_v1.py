@@ -59,7 +59,11 @@ def train_ranking(dataset_name: str,
     output_type = "score"
     output_path = "{}/models/ranking".format(dataset_name)
 
-    input_shape = len(phrase_loader.positive_phrases_index_dict)
+    if input_type == "positive":
+        input_shape = len(phrase_loader.positive_phrases_index_dict)
+    else:
+        input_shape = len(phrase_loader.negative_phrases_index_dict)
+
     print("input shape=", input_shape)
     # load dataset
     dataset_loader = IndependentApproximationDatasetLoader(dataset_name=dataset_name,
