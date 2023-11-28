@@ -19,7 +19,7 @@ from scripts.image_scorer import ImageScorer
 from training_worker.http import request
 from utility.minio import cmd
 from data_loader.phrase_scores_loader import PhraseScoresLoader
-from worker.prompt_generation.prompt_generator import generate_image_generation_jobs
+from worker.prompt_generation.prompt_generator import generate_image_generation_jobs_with_temperature
 
 
 # find the first element, whose cumulative prob is more than the random float
@@ -56,11 +56,11 @@ def find_first_element_binary_search(cumulative_prob_arr, random_float):
 
 
 def generate_prompt(positive_phrase_scores_loader,
-                     positive_phrase_origin_indexes,
-                     positive_cumulative_probability_arr,
-                     negative_phrase_scores_loader,
-                     negative_phrase_origin_indexes,
-                     negative_cumulative_probability_arr,
+                    positive_phrase_origin_indexes,
+                    positive_cumulative_probability_arr,
+                    negative_phrase_scores_loader,
+                    negative_phrase_origin_indexes,
+                    negative_cumulative_probability_arr,
                     ):
     max_token_size = 75
     comma_token_size = 1
@@ -129,7 +129,9 @@ def generate_prompts(dataset_name,
                      negative_phrase_scores_loader,
                      negative_phrase_origin_indexes,
                      negative_cumulative_probability_arr,
-                     prompt_count):
+                     prompt_count,
+                     boltzman_temperature,
+                     boltzman_k):
     generated_prompts = []
 
     print("Generating {} prompts...".format(prompt_count))
@@ -151,18 +153,23 @@ def generate_prompts(dataset_name,
             # print("positive prompt=", positive_prompt)
             # print("negative prompt=", negative_prompt)
             # print("---------------------------------------------------------------")
-            response = generate_image_generation_jobs(positive_prompt=positive_prompt,
-                                                      negative_prompt=negative_prompt,
-                                                      prompt_scoring_model="n/a",
-                                                      prompt_score=0.0,
-                                                      prompt_generation_policy="independent_approx_v1",
-                                                      top_k=0.0,
-                                                      dataset_name=dataset_name)
+            response = generate_image_generation_jobs_with_temperature(positive_prompt=positive_prompt,
+                                                                       negative_prompt=negative_prompt,
+                                                                       prompt_scoring_model="n/a",
+                                                                       prompt_score=0.0,
+                                                                       prompt_generation_policy="independent_approx_v1",
+                                                                       top_k=0.0,
+                                                                       dataset_name=dataset_name,
+                                                                       boltzman_temperature=boltzman_temperature,
+                                                                       boltzman_k=boltzman_k)
             job_uuid = response['uuid']
 
     return generated_prompts
 
-def get_cumulative_probability_arr(index_phrase_score_data):
+def get_cumulative_probability_arr(index_phrase_score_data,
+                                   boltzman_temperature,
+                                   boltzman_k,
+                                   ):
     scores_arr = []
     for index, data in index_phrase_score_data.items():
         score = data.score
@@ -170,10 +177,7 @@ def get_cumulative_probability_arr(index_phrase_score_data):
 
     scores_np_arr = np.array(scores_arr)
 
-    # get boltzman prob
-    k = 1.0
-    temperature = 0.8
-    probability_arr = np.exp(-(scores_np_arr/(k*temperature)))
+    probability_arr = np.exp(-(scores_np_arr/(boltzman_k*boltzman_temperature)))
 
     # normalize
     normalized_probability_arr = probability_arr/np.sum(probability_arr)
@@ -202,13 +206,18 @@ def run_prompt_generator(minio_client,
                          dataset_name,
                          positive_phrase_scores_csv,
                          negative_phrase_scores_csv,
-                         prompt_count):
+                         prompt_count,
+                         boltzman_temperature,
+                         boltzman_k,
+                         ):
     positive_phrase_scores_loader = PhraseScoresLoader(dataset_name=dataset_name,
                                                        phrase_scores_csv=positive_phrase_scores_csv,
                                                        minio_client=minio_client,
                                                        )
     positive_phrase_scores_loader.load_dataset()
-    positive_phrase_origin_indexes, positive_cumulative_probability_arr = get_cumulative_probability_arr(positive_phrase_scores_loader.index_phrase_score_data)
+    positive_phrase_origin_indexes, positive_cumulative_probability_arr = get_cumulative_probability_arr(index_phrase_score_data=positive_phrase_scores_loader.index_phrase_score_data,
+                                                                                                         boltzman_temperature=boltzman_temperature,
+                                                                                                         boltzman_k=boltzman_k)
 
     negative_phrase_scores_loader = PhraseScoresLoader(dataset_name=dataset_name,
                                                        phrase_scores_csv=negative_phrase_scores_csv,
@@ -216,7 +225,9 @@ def run_prompt_generator(minio_client,
                                                        )
 
     negative_phrase_scores_loader.load_dataset()
-    negative_phrase_origin_indexes, negative_cumulative_probability_arr = get_cumulative_probability_arr(negative_phrase_scores_loader.index_phrase_score_data)
+    negative_phrase_origin_indexes, negative_cumulative_probability_arr = get_cumulative_probability_arr(index_phrase_score_data=negative_phrase_scores_loader.index_phrase_score_data,
+                                                                                                         boltzman_temperature=boltzman_temperature,
+                                                                                                         boltzman_k=boltzman_k)
 
     generate_prompts(dataset_name,
                      positive_phrase_scores_loader,
@@ -237,6 +248,8 @@ def parse_args():
     parser.add_argument('--positive-phrase-scores-csv', required=True, help='Filename of the positive phrase scores csv')
     parser.add_argument('--negative-phrase-scores-csv', required=True, help='Filename of the negative phrase scores csv')
     parser.add_argument('--prompt-count', required=True, type=int, help='Number of prompt jobs to generate')
+    parser.add_argument('--boltzman-k', default=1.0, type=float, help='K for boltzman probability')
+    parser.add_argument('--boltzman-temperature', default=0.8, type=float, help='Temperature for boltzman probability')
     args = parser.parse_args()
     return args
 
@@ -253,7 +266,9 @@ def main():
                              args.dataset_name,
                              args.positive_phrase_scores_csv,
                              args.negative_phrase_scores_csv,
-                             args.prompt_count)
+                             args.prompt_count,
+                             args.boltzman_temperature,
+                             args.boltzman_k)
     else:
         # if all, do for all existing datasets
         # get dataset name list
@@ -265,7 +280,9 @@ def main():
                                      args.dataset_name,
                                      args.positive_phrase_scores_csv,
                                      args.negative_phrase_scores_csv,
-                                     args.prompt_count)
+                                     args.prompt_count,
+                                     args.boltzman_temperature,
+                                     args.boltzman_k)
             except Exception as e:
                 print("Error running prompt generator for {}: {}".format(dataset, e))
 
