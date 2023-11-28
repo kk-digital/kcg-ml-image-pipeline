@@ -146,8 +146,6 @@ def create_dataset(minio_client, device, csv_path, embedding_type):
 
     # get dataset of phrases
     phrases_df = pd.read_csv(csv_path)
-    # get minio paths for embeddings
-    embedding_paths = get_embedding_paths(minio_client, "environmental")
     # get ranking mondel
     elm_model= load_model(768,minio_client, device, 'elm-v1', embedding_type)
     linear_model= load_model(768,minio_client, device, 'linear', embedding_type)
@@ -157,6 +155,9 @@ def create_dataset(minio_client, device, csv_path, embedding_type):
 
     print(f"elm mean: {elm_mean}, elm std {elm_std}")
     print(f"linear mean: {linear_mean}, linear std {linear_std}")
+    
+    # get minio paths for embeddings
+    embedding_paths = get_embedding_paths(minio_client, "environmental")
 
     prompt_index=1
     csv_data = []
