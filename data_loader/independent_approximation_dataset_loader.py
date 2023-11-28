@@ -156,7 +156,7 @@ class IndependentApproximationDatasetLoader:
         features_img_1_data = get_object(self.minio_client, features_path_img_1)
         generated_image_data_1 = GeneratedImageData.from_msgpack_string(features_img_1_data)
         prompt_img_1 = generated_image_data_1.positive_prompt
-        phrase_vector = self.phrase_vector_loader.get_positive_phrase_vector(prompt_img_1)
+        phrase_vector = self.phrase_vector_loader.get_phrase_vector(prompt_img_1)
         phrase_vector = np.array(phrase_vector, dtype=bool)
         phrase_vector = sp.sparse.coo_array(phrase_vector)
         features_vector_img_1 = phrase_vector
@@ -164,7 +164,7 @@ class IndependentApproximationDatasetLoader:
         features_img_2_data = get_object(self.minio_client, features_path_img_2)
         generated_image_data_2 = GeneratedImageData.from_msgpack_string(features_img_2_data)
         prompt_img_2 = generated_image_data_2.positive_prompt
-        phrase_vector = self.phrase_vector_loader.get_positive_phrase_vector(prompt_img_2)
+        phrase_vector = self.phrase_vector_loader.get_phrase_vector(prompt_img_2)
         phrase_vector = np.array(phrase_vector, dtype=bool)
         phrase_vector = sp.sparse.coo_array(phrase_vector)
         features_vector_img_2 = phrase_vector
@@ -207,25 +207,6 @@ class IndependentApproximationDatasetLoader:
 
         return image_pairs, index, selected_img_hash, other_img_hash
 
-    # def convert_prompts_to_sparsed_phrase_vectors(self, pair, index):
-    #     first_feature_prompt = pair[0]
-    #     second_feature_prompt = pair[1]
-    #     target = pair [2]
-    #
-    #     # get phrase vector first feature
-    #     first_phrase_vector = self.phrase_vector_loader.get_positive_phrase_vector(first_feature_prompt)
-    #     first_phrase_vector = np.array(first_phrase_vector)
-    #     first_phrase_vector = sp.sparse.coo_array(first_phrase_vector)
-    #     first_features_vector = first_phrase_vector
-    #
-    #     # get phrase vector second feature
-    #     second_phrase_vector = self.phrase_vector_loader.get_positive_phrase_vector(second_feature_prompt)
-    #     second_phrase_vector = np.array(second_phrase_vector)
-    #     second_phrase_vector = sp.sparse.coo_array(second_phrase_vector)
-    #     second_features_vector = second_phrase_vector
-    #
-    #     return (first_features_vector, second_features_vector, target), index
-
     def load_all_training_data(self, paths_list, pre_shuffle=True):
         print("Loading all training data to ram...")
         start_time = time.time()
@@ -252,23 +233,6 @@ class IndependentApproximationDatasetLoader:
                         training_image_hashes.append(other_img_hash)
 
         self.training_data_paths_indices = new_training_data_paths_indices
-
-        # # convert to sparsed phrase vectors
-        # print("Converting prompt to sparsed phrase vectors...")
-        # sparsed_phrase_vector_pairs = [None] * len(self.training_image_pair_data_arr)
-        # with ThreadPoolExecutor(max_workers=10) as executor:
-        #     futures = []
-        #
-        #     count = 0
-        #     for pair in self.training_image_pair_data_arr:
-        #         futures.append(executor.submit(self.convert_prompts_to_sparsed_phrase_vectors, pair=pair, index=count))
-        #         count += 1
-        #
-        #     for future in tqdm(as_completed(futures), total=len(futures)):
-        #         pair, index = future.result()
-        #         sparsed_phrase_vector_pairs[index] = pair
-        #
-        # self.training_image_pair_data_arr = sparsed_phrase_vector_pairs
 
         len_training_data_paths = len(self.training_data_paths_indices)
         if pre_shuffle is False:
@@ -323,23 +287,6 @@ class IndependentApproximationDatasetLoader:
                         validation_image_hashes.append(other_img_hash)
 
         self.validation_data_paths_indices = new_validation_data_paths_indices
-
-        # # convert to sparsed phrase vectors
-        # print("Converting prompt to sparsed phrase vectors...")
-        # sparsed_phrase_vector_pairs = [None] * len(self.validation_image_pair_data_arr)
-        # with ThreadPoolExecutor(max_workers=10) as executor:
-        #     futures = []
-        #
-        #     count = 0
-        #     for pair in self.validation_image_pair_data_arr:
-        #         futures.append(executor.submit(self.convert_prompts_to_sparsed_phrase_vectors, pair=pair, index=count))
-        #         count += 1
-        #
-        #     for future in tqdm(as_completed(futures), total=len(futures)):
-        #         pair, index = future.result()
-        #         sparsed_phrase_vector_pairs[index] = pair
-        #
-        # self.validation_image_pair_data_arr = sparsed_phrase_vector_pairs
 
         # shuffle
         shuffled_validation_data = []
