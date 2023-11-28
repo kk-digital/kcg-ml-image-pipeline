@@ -622,7 +622,7 @@ def main():
         store_prompts_in_csv_file(df_data, generation_path, minio_client)
 
     compare_distributions(minio_client, generation_path, original_scores, mutated_scores)
-    self_training(xgboost_model , training_data)
+    #self_training(xgboost_model , training_data)
 
 
     
