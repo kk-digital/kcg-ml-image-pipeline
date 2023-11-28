@@ -267,7 +267,7 @@ def mutate_prompt(device, embedding_model,
                 prompt_score= modified_prompt_score
                 break
         
-        print(f"failed {num_attempts} times")
+        print(f"failed {num_attempts}/{len(tokens)} times")
     
     return prompt_str, prompt_embedding
 
