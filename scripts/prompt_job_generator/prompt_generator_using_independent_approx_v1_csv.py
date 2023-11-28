@@ -73,8 +73,8 @@ def generate_prompt(positive_phrase_scores_loader,
 
     # positive prompt
     while positive_prompt_total_token_size < max_token_size:
-        random_int = random.randint(0, positive_total_cumulative)
-        random_index = find_first_element_binary_search(positive_cumulative_probability_arr, random_int)
+        random_float = random.uniform(0, positive_total_cumulative)
+        random_index = find_first_element_binary_search(positive_cumulative_probability_arr, random_float)
         if random_index in positive_used_phrase_dict:
             continue
 
@@ -93,8 +93,8 @@ def generate_prompt(positive_phrase_scores_loader,
 
     # negative prompt
     while negative_prompt_total_token_size < max_token_size:
-        random_int = random.randint(0, negative_total_cumulative)
-        random_index = find_first_element_binary_search(negative_cumulative_probability_arr, random_int)
+        random_float = random.uniform(0, negative_total_cumulative)
+        random_index = find_first_element_binary_search(negative_cumulative_probability_arr, random_float)
         if random_index in negative_used_phrase_dict:
             continue
 
