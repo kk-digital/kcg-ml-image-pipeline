@@ -284,9 +284,11 @@ def load_dataset(minio_client, embedding_type):
 
         # get elm and linear input
         elm_inputs.append(np.concatenate([msgpack_data['input'],
+                                         [msgpack_data['position_encoding']],
                                       [msgpack_data['elm_score_encoding']]]))
         
         linear_inputs.append(np.concatenate([msgpack_data['input'],
+                                            [msgpack_data['position_encoding']],
                                        [msgpack_data['linear_score_encoding']]]))
         
         # get sigma output
