@@ -19,6 +19,7 @@ def get_job_details(request: Request, job_uuid: str = Query(...)):  # Use Query 
 
     # Extract the bucket name, dataset name, file name, and subfolder from the output_file_path
     output_file_path = job["task_output_file_dict"]["output_file_path"]
+    task_creation_time = job["task_creation_time"]
     path_parts = output_file_path.split('/')
     if len(path_parts) < 4:
         raise HTTPException(status_code=500, detail="Invalid output file path format")
@@ -30,14 +31,13 @@ def get_job_details(request: Request, job_uuid: str = Query(...)):  # Use Query 
     file_name_without_extension = original_file_name.split('.')[0]
 
     # Add the date_added to job details
-    date_added = datetime.now().isoformat()
     job_details = {
         "job_uuid": job_uuid,
         "dataset_name": dataset_name,
         "file_name": original_file_name,
         "image_path": output_file_path,
         "image_hash": job["task_output_file_dict"]["output_file_hash"],
-        "date_added": date_added,
+        "job_creation_time": task_creation_time,
         "put_type" : "single-image"
     }
 
