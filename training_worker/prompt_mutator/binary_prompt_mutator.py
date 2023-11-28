@@ -186,7 +186,6 @@ class BinaryPromptMutator:
     def predict_probs(self, X):
         class_labels=['decrease', 'increase']
         y_pred = self.model.predict(xgb.DMatrix(X))
-        print(y_pred)
         # Create a list of dictionaries, where each dictionary represents the class probabilities for a single prediction
         predictions_with_probabilities = [
             {"decrease":prob, "increase":1- prob } for prob in y_pred]
