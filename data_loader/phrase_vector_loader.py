@@ -8,6 +8,7 @@ from datetime import datetime
 from pytz import timezone
 import io
 import csv
+import tiktoken
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -15,6 +16,15 @@ sys.path.insert(0, base_directory)
 from utility.minio import cmd
 from data_loader.utils import get_object, get_phrases_from_prompt, get_datasets
 from data_loader.generated_image_data import GeneratedImageData
+
+class PromptPhraseInformation:
+    def __init__(self,
+                 phrase: str,
+                 occurrences: int,
+                 token_length: int):
+        self.phrase = phrase
+        self.occurrences = occurrences
+        self.token_length = token_length
 
 class PhraseVectorLoader:
     def __init__(self,
@@ -30,8 +40,11 @@ class PhraseVectorLoader:
                                                  minio_secret_key=self.minio_secret_key,
                                                  minio_ip_addr=minio_ip_addr)
 
+        self.index_positive_prompt_phrase_info = {}
         self.positive_phrases_index_dict = {}
         self.index_positive_phrases_dict = {}
+
+        self.index_negative_prompt_phrase_info = {}
         self.negative_phrases_index_dict = {}
         self.index_negative_phrases_dict = {}
 
@@ -71,6 +84,9 @@ class PhraseVectorLoader:
         positive_index = 0
         negative_index = 0
 
+        # initialize tokenizer
+        tokenizer = tiktoken.get_encoding("cl100k_base")
+
         with ThreadPoolExecutor(max_workers=10) as executor:
             futures = []
             for path in data_paths:
@@ -84,13 +100,47 @@ class PhraseVectorLoader:
                     if phrase not in self.positive_phrases_index_dict:
                         self.positive_phrases_index_dict[phrase] = positive_index
                         self.index_positive_phrases_dict[positive_index] = phrase
+
+                        # token length
+                        tokens = tokenizer.encode(phrase)
+                        token_length = len(tokens)
+                        prompt_phrase_info = PromptPhraseInformation(phrase,
+                                                                            occurrences=1,
+                                                                            token_length=token_length)
+                        self.index_positive_prompt_phrase_info[positive_index] = prompt_phrase_info
+
                         positive_index += 1
+                    else:
+                        phrase_index = self.positive_phrases_index_dict[phrase]
+                        prompt_phrase_info = self.index_positive_prompt_phrase_info[phrase_index]
+                        count = prompt_phrase_info.occurrences
+                        count += 1
+                        prompt_phrase_info.occurrences = count
+                        self.index_positive_prompt_phrase_info[phrase_index] = prompt_phrase_info
+
 
                 for phrase in negative_phrases:
                     if phrase not in self.negative_phrases_index_dict:
                         self.negative_phrases_index_dict[phrase] = negative_index
                         self.index_negative_phrases_dict[negative_index] = phrase
+
+                        # token length
+                        tokens = tokenizer.encode(phrase)
+                        token_length = len(tokens)
+
+                        prompt_phrase_info = PromptPhraseInformation(phrase,
+                                                                     occurrences=1,
+                                                                     token_length=token_length)
+                        self.index_negative_prompt_phrase_info[negative_index] = prompt_phrase_info
+
                         negative_index += 1
+                    else:
+                        phrase_index = self.negative_phrases_index_dict[phrase]
+                        prompt_phrase_info = self.index_negative_prompt_phrase_info[phrase_index]
+                        count = prompt_phrase_info.occurrences
+                        count += 1
+                        prompt_phrase_info.occurrences = count
+                        self.index_negative_prompt_phrase_info[phrase_index] = prompt_phrase_info
 
         print("Dataset loaded...")
         print("Time elapsed: {0}s".format(format(time.time() - start_time, ".2f")))
@@ -117,8 +167,14 @@ class PhraseVectorLoader:
             else:
                 positive_index = int(row[0])
                 phrase = row[1]
+                num_occurrences = int(row[2])
+                token_length = int(row[3])
                 self.positive_phrases_index_dict[phrase] = positive_index
                 self.index_positive_phrases_dict[positive_index] = phrase
+                prompt_info = PromptPhraseInformation(phrase,
+                                                      num_occurrences,
+                                                      token_length)
+                self.index_positive_prompt_phrase_info[positive_index] = prompt_info
 
             line_count += 1
 
@@ -128,13 +184,17 @@ class PhraseVectorLoader:
 
     def upload_csv(self):
         print("Saving phrases csv...")
+        csv_header = ["index", "phrase", "occurrences", "token length"]
         # positive
         csv_buffer = io.StringIO()
         writer = csv.writer(csv_buffer)
-        writer.writerow((["index", "phrase"]))
+        writer.writerow(csv_header)
 
         for phrase, index in self.positive_phrases_index_dict.items():
-            writer.writerow([index, phrase])
+            prompt_phrase_info = self.index_positive_prompt_phrase_info[index]
+            num_occurrences = prompt_phrase_info.occurrences
+            token_length = prompt_phrase_info.token_length
+            writer.writerow([index, phrase, num_occurrences, token_length])
 
         bytes_buffer = io.BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
         # upload the csv
@@ -146,10 +206,13 @@ class PhraseVectorLoader:
         # negative
         csv_buffer = io.StringIO()
         writer = csv.writer(csv_buffer)
-        writer.writerow((["index", "phrase"]))
+        writer.writerow(csv_header)
 
         for phrase, index in self.negative_phrases_index_dict.items():
-            writer.writerow([index, phrase])
+            prompt_phrase_info = self.index_negative_prompt_phrase_info[index]
+            num_occurrences = prompt_phrase_info.occurrences
+            token_length = prompt_phrase_info.token_length
+            writer.writerow([index, phrase, num_occurrences, token_length])
 
         bytes_buffer = io.BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
         # upload the csv

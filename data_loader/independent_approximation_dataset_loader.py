@@ -9,7 +9,7 @@ import msgpack
 from random import shuffle, choice, sample
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
+import scipy as sp
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
@@ -156,12 +156,18 @@ class IndependentApproximationDatasetLoader:
         features_img_1_data = get_object(self.minio_client, features_path_img_1)
         generated_image_data_1 = GeneratedImageData.from_msgpack_string(features_img_1_data)
         prompt_img_1 = generated_image_data_1.positive_prompt
-        features_vector_img_1 = prompt_img_1
+        phrase_vector = self.phrase_vector_loader.get_positive_phrase_vector(prompt_img_1)
+        phrase_vector = np.array(phrase_vector, dtype=bool)
+        phrase_vector = sp.sparse.coo_array(phrase_vector)
+        features_vector_img_1 = phrase_vector
 
         features_img_2_data = get_object(self.minio_client, features_path_img_2)
         generated_image_data_2 = GeneratedImageData.from_msgpack_string(features_img_2_data)
         prompt_img_2 = generated_image_data_2.positive_prompt
-        features_vector_img_2 = prompt_img_2
+        phrase_vector = self.phrase_vector_loader.get_positive_phrase_vector(prompt_img_2)
+        phrase_vector = np.array(phrase_vector, dtype=bool)
+        phrase_vector = sp.sparse.coo_array(phrase_vector)
+        features_vector_img_2 = phrase_vector
 
         # if image 1 is the selected
         if selected_image_index == 0:
@@ -201,6 +207,25 @@ class IndependentApproximationDatasetLoader:
 
         return image_pairs, index, selected_img_hash, other_img_hash
 
+    # def convert_prompts_to_sparsed_phrase_vectors(self, pair, index):
+    #     first_feature_prompt = pair[0]
+    #     second_feature_prompt = pair[1]
+    #     target = pair [2]
+    #
+    #     # get phrase vector first feature
+    #     first_phrase_vector = self.phrase_vector_loader.get_positive_phrase_vector(first_feature_prompt)
+    #     first_phrase_vector = np.array(first_phrase_vector)
+    #     first_phrase_vector = sp.sparse.coo_array(first_phrase_vector)
+    #     first_features_vector = first_phrase_vector
+    #
+    #     # get phrase vector second feature
+    #     second_phrase_vector = self.phrase_vector_loader.get_positive_phrase_vector(second_feature_prompt)
+    #     second_phrase_vector = np.array(second_phrase_vector)
+    #     second_phrase_vector = sp.sparse.coo_array(second_phrase_vector)
+    #     second_features_vector = second_phrase_vector
+    #
+    #     return (first_features_vector, second_features_vector, target), index
+
     def load_all_training_data(self, paths_list, pre_shuffle=True):
         print("Loading all training data to ram...")
         start_time = time.time()
@@ -227,6 +252,23 @@ class IndependentApproximationDatasetLoader:
                         training_image_hashes.append(other_img_hash)
 
         self.training_data_paths_indices = new_training_data_paths_indices
+
+        # # convert to sparsed phrase vectors
+        # print("Converting prompt to sparsed phrase vectors...")
+        # sparsed_phrase_vector_pairs = [None] * len(self.training_image_pair_data_arr)
+        # with ThreadPoolExecutor(max_workers=10) as executor:
+        #     futures = []
+        #
+        #     count = 0
+        #     for pair in self.training_image_pair_data_arr:
+        #         futures.append(executor.submit(self.convert_prompts_to_sparsed_phrase_vectors, pair=pair, index=count))
+        #         count += 1
+        #
+        #     for future in tqdm(as_completed(futures), total=len(futures)):
+        #         pair, index = future.result()
+        #         sparsed_phrase_vector_pairs[index] = pair
+        #
+        # self.training_image_pair_data_arr = sparsed_phrase_vector_pairs
 
         len_training_data_paths = len(self.training_data_paths_indices)
         if pre_shuffle is False:
@@ -282,6 +324,23 @@ class IndependentApproximationDatasetLoader:
 
         self.validation_data_paths_indices = new_validation_data_paths_indices
 
+        # # convert to sparsed phrase vectors
+        # print("Converting prompt to sparsed phrase vectors...")
+        # sparsed_phrase_vector_pairs = [None] * len(self.validation_image_pair_data_arr)
+        # with ThreadPoolExecutor(max_workers=10) as executor:
+        #     futures = []
+        #
+        #     count = 0
+        #     for pair in self.validation_image_pair_data_arr:
+        #         futures.append(executor.submit(self.convert_prompts_to_sparsed_phrase_vectors, pair=pair, index=count))
+        #         count += 1
+        #
+        #     for future in tqdm(as_completed(futures), total=len(futures)):
+        #         pair, index = future.result()
+        #         sparsed_phrase_vector_pairs[index] = pair
+        #
+        # self.validation_image_pair_data_arr = sparsed_phrase_vector_pairs
+
         # shuffle
         shuffled_validation_data = []
         shuffled_validation_data_indices = []
@@ -330,24 +389,26 @@ class IndependentApproximationDatasetLoader:
             image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
                 training_image_pair_data)
 
-            # get phrase vector
-            image_x_phrase_vector = self.phrase_vector_loader.get_positive_phrase_vector(image_x_feature_vector)
-            image_y_phrase_vector = self.phrase_vector_loader.get_positive_phrase_vector(image_y_feature_vector)
+            # since we're using sparsed tensor
+            # we have to convert input to to_dense first
+            image_x_feature_vector = image_x_feature_vector.todense()
+            image_y_feature_vector = image_y_feature_vector.todense()
 
-            image_x_feature_vectors.append(image_x_phrase_vector)
-            image_y_feature_vectors.append(image_y_phrase_vector)
+            image_x_feature_vectors.append(image_x_feature_vector)
+            image_y_feature_vectors.append(image_y_feature_vector)
             target_probabilities.append(target_probability)
             self.current_training_data_index += 1
 
-        image_x_feature_vectors = np.array(image_x_feature_vectors, dtype=bool)
-        image_y_feature_vectors = np.array(image_y_feature_vectors, dtype=bool)
-
-        target_probabilities = np.array(target_probabilities)
+        image_x_feature_vectors = np.array(image_x_feature_vectors)
+        image_y_feature_vectors = np.array(image_y_feature_vectors)
 
         image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.bool)
         image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.bool)
 
         target_probabilities = torch.tensor(target_probabilities).to(torch.float)
+
+        image_x_feature_vectors = image_x_feature_vectors.squeeze(1)
+        image_y_feature_vectors = image_y_feature_vectors.squeeze(1)
 
         if device is not None:
             image_x_feature_vectors = image_x_feature_vectors.to(device)
@@ -367,29 +428,32 @@ class IndependentApproximationDatasetLoader:
             image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
                 validation_image_pair_data)
 
-            image_x_phrase_vector = self.phrase_vector_loader.get_positive_phrase_vector(image_x_feature_vector)
-            image_y_phrase_vector = self.phrase_vector_loader.get_positive_phrase_vector(image_y_feature_vector)
+            # since we're using sparsed tensor
+            # we have to convert input to to_dense first
+            image_x_feature_vector = image_x_feature_vector.todense()
+            image_y_feature_vector = image_y_feature_vector.todense()
 
-            image_x_feature_vectors.append(image_x_phrase_vector)
-            image_y_feature_vectors.append(image_y_phrase_vector)
+            image_x_feature_vectors.append(image_x_feature_vector)
+            image_y_feature_vectors.append(image_y_feature_vector)
 
             target_probabilities.append(target_probability)
 
-        image_x_feature_vectors = np.array(image_x_feature_vectors, dtype=bool)
-        image_y_feature_vectors = np.array(image_y_feature_vectors, dtype=bool)
-        target_probabilities = np.array(target_probabilities)
+        image_x_feature_vectors = np.array(image_x_feature_vectors)
+        image_y_feature_vectors = np.array(image_y_feature_vectors)
 
         image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.bool)
         image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.bool)
 
         target_probabilities = torch.tensor(target_probabilities).to(torch.float)
 
+        image_x_feature_vectors = image_x_feature_vectors.squeeze(1)
+        image_y_feature_vectors = image_y_feature_vectors.squeeze(1)
         print("feature shape=", image_x_feature_vectors.shape)
 
-        if device is not None:
-            image_x_feature_vectors = image_x_feature_vectors.to(device)
-            image_y_feature_vectors = image_y_feature_vectors.to(device)
-            target_probabilities = target_probabilities.to(device)
+        # if device is not None:
+        #     image_x_feature_vectors = image_x_feature_vectors.to(device)
+        #     image_y_feature_vectors = image_y_feature_vectors.to(device)
+        #     target_probabilities = target_probabilities.to(device)
 
         return image_x_feature_vectors, image_y_feature_vectors, target_probabilities
 
