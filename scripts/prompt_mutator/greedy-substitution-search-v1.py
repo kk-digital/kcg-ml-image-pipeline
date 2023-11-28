@@ -143,7 +143,7 @@ def rejection_sampling_by_sigma_score(device,
                                  prompt_str, 
                                  prompt_score, prompt_embedding, 
                                  phrase_embeddings,
-                                 phrase_list, mean, std, threshold=0.35):
+                                 phrase_list, mean, std, threshold=0.3):
     
     # get mean pooled embedding of prompt for xgboost model
     pooled_prompt_embedding= get_mean_pooled_embedding(prompt_embedding)
