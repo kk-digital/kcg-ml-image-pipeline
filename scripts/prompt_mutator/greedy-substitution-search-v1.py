@@ -235,6 +235,9 @@ def mutate_prompt(device, embedding_model,
     else:
         rejection_func=rejection_sampling_by_probability
 
+    num_attempts=0
+    num_success=0
+
     # run mutation process iteratively untill score converges
     for i in range(max_iterations):
         tokens, sub_phrases, embeddings=rejection_func(device,
@@ -246,7 +249,6 @@ def mutate_prompt(device, embedding_model,
                                             phrase_embeddings,
                                             phrase_list, mean, std)
         
-        num_attempts=0
         for token, sub_phrase, embedding in zip(tokens,sub_phrases, embeddings):
             #Create a modified prompt with the substitution
             prompt_list = prompt_str.split(', ')
@@ -265,9 +267,11 @@ def mutate_prompt(device, embedding_model,
                 prompt_embedding= modified_prompt_embedding
                 phrase_embeddings[token]= embedding
                 prompt_score= modified_prompt_score
+                num_success+=1
                 break
         
-        print(f"failed {num_attempts}/{len(tokens)} times")
+        
+    print(f"succeeded {num_success} out of {num_attempts} times")
     
     return prompt_str, prompt_embedding
 
