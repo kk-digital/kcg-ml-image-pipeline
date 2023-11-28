@@ -281,8 +281,7 @@ def get_random_image_with_time(
     dataset: str = Query(...),
     time_interval: int = Query(..., description="Time interval in minutes or hours"),
     time_unit: str = Query("minutes", description="Time unit, either 'minutes' or 'hours"),
-    size: int = Query(1, description="Number of images to return"),  # Existing size parameter
-    prompt_generation_policy: Optional[str] = None  # Added new parameter
+    size: int = Query(1, description="Number of images to return")
 ):
     # Calculate the time threshold based on the current time and the specified interval
     current_time = datetime.utcnow()
@@ -293,18 +292,13 @@ def get_random_image_with_time(
     else:
         raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
 
-    # Update the match query to include prompt_generation_policy if provided
-    match_query = {
-        "task_input_dict.dataset": dataset,
-        "task_creation_time": {"$gte": threshold_time.strftime("%Y-%m-%d")}
-    }
-    if prompt_generation_policy:
-        match_query["task_input_dict.prompt_generation_policy"] = prompt_generation_policy
-
-    # Use $match to filter documents based on dataset, creation time, and prompt_generation_policy
+    # Use $match to filter documents based on dataset and creation time
     documents = request.app.completed_jobs_collection.aggregate([
-        {"$match": match_query},
-        {"$sample": {"size": size}}
+        {"$match": {
+            "task_input_dict.dataset": dataset,
+            "task_creation_time": {"$gte": threshold_time.strftime("%Y-%m-%dT%H:%M:%S")}
+        }},
+        {"$sample": {"size": size}}  # Use the size parameter here
     ])
 
     # Convert cursor type to list
