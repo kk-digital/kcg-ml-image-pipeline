@@ -84,6 +84,42 @@ class BinaryPromptMutator:
 
         self.save_graph_report(train_logloss, val_logloss, y_val, y_pred, len(X_train), len(X_val))
     
+    def fine_tune(self, X_train, y_train, 
+              max_depth=7, 
+              min_child_weight=1, 
+              gamma=0.01, 
+              subsample=1, 
+              colsample_bytree=1, 
+              eta=0.1,
+              early_stopping=100):
+         
+
+        params = {
+            'objective':'binary:logistic',
+            "device": "cuda",
+            'max_depth': max_depth,
+            'min_child_weight': min_child_weight,
+            'gamma': gamma,
+            'subsample': subsample,
+            'colsample_bytree': colsample_bytree,
+            'eta': eta,
+            'eval_metric':'logloss',
+            'n_estimators': 1000,
+            'early_stopping_rounds':early_stopping
+        }
+
+        self.model=xgb.XGBClassifier(**params)
+
+        # Train the XGBoost model
+        evals_result={}
+        self.model.fit(X_train, y_train, eval_set=[(X_train, y_train)])
+        # Extract the log loss values for each round
+        evals_result = self.model.evals_result()
+
+        # Extract log loss values for training and validation sets
+        train_logloss = evals_result["validation_0"]["logloss"]
+        #val_logloss = evals_result["validation_1"]["logloss"]
+    
     def save_graph_report(self, train_logloss_per_round, val_logloss_per_round,
                           y_true, y_pred,  
                           training_size, validation_size):

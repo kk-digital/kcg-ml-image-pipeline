@@ -281,14 +281,14 @@ def mutate_prompt(device, embedding_model,
                 prompt_embedding= modified_prompt_embedding
                 phrase_embeddings[token]= sub_embedding
                 data=np.concatenate([pooled_prompt_embedding, original_embedding, sub_embedding, [token], [prompt_score]])
-                self_training_data.append({"input":data, "output":"increase"})
+                self_training_data.append({"input":data, "output":1})
 
                 prompt_score= modified_prompt_score
                 num_success+=1
                 break
             elif(num_choices==1):
                 data=np.concatenate([pooled_prompt_embedding, original_embedding, sub_embedding, [token], [prompt_score]])
-                self_training_data.append({"input":data, "output":"decrease"})
+                self_training_data.append({"input":data, "output":0})
         
         num_attempts+=num_choices
         
@@ -462,18 +462,11 @@ def get_initial_prompts(minio_client, n_data):
         print(f"Error: {err}")
         return None
 
-def get_mean_std_values(minio_client, ranking_model):
-    minio_path = DATA_MINIO_DIRECTORY + "/input/mean_std_values.json"
-    json_file_data =cmd.get_file_from_minio(minio_client, 'datasets', minio_path)
+def self_training(xgboost_model, training_data):
+    inputs=[data['input'] for data in training_data]
+    outputs=[data['output'] for data in training_data]
 
-    # Parse JSON data
-    data = json.loads(json_file_data.read().decode('utf-8'))
-
-    if(ranking_model=="elm-v1"):
-        return data['elm_mean'], data['elm_std'], data['positive_elm_mean'], data['positive_elm_std']
-    else:
-        return data['linear_mean'], data['linear_std'], data['positive_linear_mean'], data['positive_linear_std']
-
+    xgboost_model.fine_tune(inputs, outputs)
 
 def main():
     args = parse_args()
@@ -516,7 +509,6 @@ def main():
         update_prompt_list(minio_client, device)
 
     # get mean and std values
-    #mean, std, positive_mean, positive_std= get_mean_std_values(minio_client,args.ranking_model)
     mean, std= combined_model.mean, combined_model.standard_deviation
     positive_mean, positive_std= positive_model.mean, positive_model.standard_deviation
 
@@ -529,6 +521,7 @@ def main():
     df_data=[]
     original_scores=[]
     mutated_scores=[]
+    training_data=[]
     index=0
  
     start=time.time()
@@ -562,7 +555,7 @@ def main():
         original_scores.append(seed_sigma_score)
 
         #mutate positive prompt
-        mutated_positive_prompt, mutated_positive_embedding, training_data= mutate_prompt(device=device,
+        mutated_positive_prompt, mutated_positive_embedding, collected_data= mutate_prompt(device=device,
                         embedding_model=clip,
                         xgboost_model=xgboost_model, 
                         scoring_model=positive_model,
@@ -571,6 +564,8 @@ def main():
                         prompt_embedding=positive_embedding,
                         prompt_score=positive_score,
                         mean=positive_mean, std=positive_std, rejection_policy=args.rejection_policy)
+        
+        training_data=np.concatenate(training_data, collected_data)
 
         # calculating new score
         score=combined_model.predict(mutated_positive_embedding, negative_embedding).item()
@@ -581,7 +576,6 @@ def main():
         print(f"prompt {index} mutated.")
         print(f"----initial score: {seed_score}.")
         print(f"----final score: {score}.")
-        print([data['output'] for data in training_data])
 
         if args.send_job:
             try:
@@ -628,6 +622,9 @@ def main():
         store_prompts_in_csv_file(df_data, generation_path, minio_client)
 
     compare_distributions(minio_client, generation_path, original_scores, mutated_scores)
+    self_training(xgboost_model , training_data)
+
+
     
     
 if __name__ == "__main__":
