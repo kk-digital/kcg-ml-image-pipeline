@@ -565,7 +565,7 @@ def main():
                         prompt_score=positive_score,
                         mean=positive_mean, std=positive_std, rejection_policy=args.rejection_policy)
         
-        training_data=np.concatenate(training_data, collected_data)
+        training_data.extend(collected_data)
 
         # calculating new score
         score=combined_model.predict(mutated_positive_embedding, negative_embedding).item()
