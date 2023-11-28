@@ -20,6 +20,7 @@ from data_loader.phrase_vector_loader import PhraseVectorLoader
 
 
 def train_ranking(dataset_name: str,
+                  input_type="positive",
                   minio_ip_addr=None,
                   minio_access_key=None,
                   minio_secret_key=None,
@@ -54,26 +55,31 @@ def train_ranking(dataset_name: str,
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
     network_type = "independent-approximation-v1"
-    input_type = "phrase-vector"
+    input_type_str = "{}-phrase-vector".format(input_type)
     output_type = "score"
     output_path = "{}/models/ranking".format(dataset_name)
 
-    input_shape = len(phrase_loader.positive_phrases_index_dict)
+    if input_type == "positive":
+        input_shape = len(phrase_loader.positive_phrases_index_dict)
+    else:
+        input_shape = len(phrase_loader.negative_phrases_index_dict)
+
     print("input shape=", input_shape)
     # load dataset
     dataset_loader = IndependentApproximationDatasetLoader(dataset_name=dataset_name,
-                                                            minio_ip_addr=minio_ip_addr,
-                                                            minio_access_key=minio_access_key,
-                                                            minio_secret_key=minio_secret_key,
-                                                            train_percent=train_percent,
-                                                           phrase_vector_loader=phrase_loader)
+                                                           minio_ip_addr=minio_ip_addr,
+                                                           minio_access_key=minio_access_key,
+                                                           minio_secret_key=minio_secret_key,
+                                                           train_percent=train_percent,
+                                                           phrase_vector_loader=phrase_loader,
+                                                           input_type=input_type)
     dataset_loader.load_dataset()
 
     # get final filename
     sequence = 0
     # if exist, increment sequence
     while True:
-        filename = "{}-{:02}-{}-{}-{}".format(date_now, sequence, output_type, network_type, input_type)
+        filename = "{}-{:02}-{}-{}-{}".format(date_now, sequence, output_type, network_type, input_type_str)
         exists = cmd.is_object_exists(dataset_loader.minio_client, bucket_name,
                                       os.path.join(output_path, filename + ".pth"))
         if not exists:
@@ -85,7 +91,8 @@ def train_ranking(dataset_name: str,
     validation_total_size = dataset_loader.get_len_validation_ab_data()
 
     ab_model = ABRankingIndependentApproximationV1Model(inputs_shape=input_shape,
-                                                        dataset_loader=dataset_loader)
+                                                        dataset_loader=dataset_loader,
+                                                        input_type=input_type)
     training_predicted_score_images_x, \
         training_predicted_score_images_y, \
         training_predicted_probabilities, \
@@ -252,7 +259,7 @@ def train_ranking(dataset_name: str,
                                     weight_decay=weight_decay,
                                     date=date_now,
                                     network_type=network_type,
-                                    input_type=input_type,
+                                    input_type=input_type_str,
                                     input_shape=input_shape,
                                     output_type=output_type,
                                     train_sum_correct=train_sum_correct,
@@ -281,7 +288,7 @@ def train_ranking(dataset_name: str,
                                                     training_total_size,
                                                     validation_total_size,
                                                     graph_output_path,
-                                                    input_type,
+                                                    input_type_str,
                                                     output_type)
     cmd.upload_data(dataset_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
 
