@@ -81,4 +81,10 @@ class PhraseScoresLoader:
         print("Dataset loaded...")
         print("Time elapsed: {0}s".format(format(time.time() - start_time, ".2f")))
 
+    def get_phrase(self, index):
+        return self.index_phrase_score_data[index].phrase
+
+    def get_token_size(self, index):
+        return self.index_phrase_score_data[index].token_length
+
 
