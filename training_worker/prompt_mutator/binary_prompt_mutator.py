@@ -118,7 +118,7 @@ class BinaryPromptMutator:
 
         # Extract log loss values for training and validation sets
         train_logloss = evals_result["validation_0"]["logloss"]
-        #val_logloss = evals_result["validation_1"]["logloss"]
+        print(train_logloss[0])
     
     def save_graph_report(self, train_logloss_per_round, val_logloss_per_round,
                           y_true, y_pred,  
