@@ -250,7 +250,7 @@ def mutate_prompt(device, embedding_model,
     # run mutation process iteratively untill score converges
     for i in range(max_iterations):
         pooled_prompt_embedding=get_mean_pooled_embedding(prompt_embedding)
-        
+
         tokens, sub_phrases, original_embeddings, sub_embeddings=rejection_func(device,
                                             embedding_model,
                                             xgboost_model, 
@@ -258,7 +258,7 @@ def mutate_prompt(device, embedding_model,
                                             prompt_score,
                                             pooled_prompt_embedding, 
                                             phrase_embeddings,
-                                            phrase_list, mean, std)
+                                            phrase_list)
         
         for token, sub_phrase, original_embedding, sub_embedding in zip(tokens,sub_phrases, original_embeddings, sub_embeddings):
             #Create a modified prompt with the substitution
