@@ -188,11 +188,7 @@ def rejection_sampling_by_probability(device,
                                  prompt_str, 
                                  prompt_score, prompt_embedding, 
                                  phrase_embeddings,
-                                 phrase_list, mean, std):
-    
-    # get mean pooled embedding of prompt for xgboost model
-    # pooled_prompt_embedding= get_mean_pooled_embedding(prompt_embedding)
-    # prompt_sigma_score= (prompt_score - mean) / std
+                                 phrase_list):
 
     # get number of tokens
     prompt_list = prompt_str.split(', ')
@@ -253,12 +249,14 @@ def mutate_prompt(device, embedding_model,
 
     # run mutation process iteratively untill score converges
     for i in range(max_iterations):
+        pooled_prompt_embedding=get_mean_pooled_embedding(prompt_embedding)
+        
         tokens, sub_phrases, original_embeddings, sub_embeddings=rejection_func(device,
                                             embedding_model,
                                             xgboost_model, 
                                             prompt_str,
                                             prompt_score,
-                                            prompt_embedding, 
+                                            pooled_prompt_embedding, 
                                             phrase_embeddings,
                                             phrase_list, mean, std)
         
@@ -278,16 +276,16 @@ def mutate_prompt(device, embedding_model,
             # check if score improves
             if(prompt_score < modified_prompt_score):
                 prompt_str= modified_prompt_str
-                prompt_embedding= get_mean_pooled_embedding(modified_prompt_embedding)
+                prompt_embedding= modified_prompt_embedding
                 phrase_embeddings[token]= sub_embedding
-                data=np.concatenate([prompt_embedding, original_embedding, sub_embedding, [token], [prompt_score]])
+                data=np.concatenate([pooled_prompt_embedding, original_embedding, sub_embedding, [token], [prompt_score]])
                 self_training_data.append({"input":data, "output":"increase"})
 
                 prompt_score= modified_prompt_score
                 num_success+=1
                 break
             elif(num_attempts==1):
-                data=np.concatenate([prompt_embedding, original_embedding, sub_embedding, [token], [prompt_score]])
+                data=np.concatenate([pooled_prompt_embedding, original_embedding, sub_embedding, [token], [prompt_score]])
                 self_training_data.append({"input":data, "output":"decrease"})
         
         
@@ -556,7 +554,6 @@ def main():
         positive_score=positive_model.predict_positive_or_negative_only(positive_embedding).item()
         
         positive_score= (positive_score - positive_mean) / positive_std
-        positive_embedding= get_mean_pooled_embedding(positive_embedding)
 
         seed_sigma_score=(seed_score - mean) / std
         original_scores.append(seed_sigma_score)
