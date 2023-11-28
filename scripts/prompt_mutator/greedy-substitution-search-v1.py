@@ -214,8 +214,8 @@ def rejection_sampling_by_probability(device,
 
         substitution_input= np.concatenate([pooled_prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_sigma_score]])
         pred=xgboost_model.predict_probs([substitution_input])[0]
-        if pred["decrease"]>0.66:
-            decrease_probs.append(pred['increase'])
+        if pred["increase"]>0.66:
+            decrease_probs.append(pred['decrease'])
             tokens.append(token)
             sub_phrases.append(substitute_phrase)
             sub_embeddings.append(substitute_embedding)
