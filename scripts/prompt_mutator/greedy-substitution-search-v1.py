@@ -260,6 +260,8 @@ def mutate_prompt(device, embedding_model,
                                             phrase_embeddings,
                                             phrase_list)
         
+        num_choices=0
+        
         for token, sub_phrase, original_embedding, sub_embedding in zip(tokens,sub_phrases, original_embeddings, sub_embeddings):
             #Create a modified prompt with the substitution
             prompt_list = prompt_str.split(', ')
@@ -271,7 +273,7 @@ def mutate_prompt(device, embedding_model,
             modified_prompt_score= get_prompt_score(scoring_model, modified_prompt_embedding)
             modified_prompt_score= (modified_prompt_score - mean) / std
 
-            num_attempts+=1
+            num_choices+=1
 
             # check if score improves
             if(prompt_score < modified_prompt_score):
@@ -284,10 +286,11 @@ def mutate_prompt(device, embedding_model,
                 prompt_score= modified_prompt_score
                 num_success+=1
                 break
-            elif(num_attempts==1):
+            elif(num_choices==1):
                 data=np.concatenate([pooled_prompt_embedding, original_embedding, sub_embedding, [token], [prompt_score]])
                 self_training_data.append({"input":data, "output":"decrease"})
         
+        num_attempts+=num_choices
         
     print(f"succeeded {num_success} out of {num_attempts} times")
     
