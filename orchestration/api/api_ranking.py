@@ -110,7 +110,7 @@ def get_image_rank_use_count(request: Request, image_hash: str):
 
     item = request.app.image_rank_use_count_collection.find_one(query)
     if item is None:
-        return {"Image rank use count data not found"}
+        return 0
 
     return item["count"]
 
