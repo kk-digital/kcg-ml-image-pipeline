@@ -19,6 +19,8 @@ from scripts.image_scorer import ImageScorer
 from training_worker.http import request
 from utility.minio import cmd
 from data_loader.phrase_scores_loader import PhraseScoresLoader
+from worker.prompt_generation.prompt_generator import generate_image_generation_jobs
+
 
 # find the first element, whose cumulative prob is more than the random float
 def find_first_element_binary_search(cumulative_prob_arr, random_float):
@@ -51,6 +53,7 @@ def find_first_element_binary_search(cumulative_prob_arr, random_float):
 
     # If we reach here, then the element was not present
     return -1
+
 
 def generate_prompt(positive_phrase_scores_loader,
                      positive_phrase_origin_indexes,
@@ -118,7 +121,9 @@ def generate_prompt(positive_phrase_scores_loader,
 
     return prompt
 
-def generate_prompts(positive_phrase_scores_loader,
+
+def generate_prompts(dataset_name,
+                     positive_phrase_scores_loader,
                      positive_phrase_origin_indexes,
                      positive_cumulative_probability_arr,
                      negative_phrase_scores_loader,
@@ -143,9 +148,17 @@ def generate_prompts(positive_phrase_scores_loader,
             prompt = future.result()
             positive_prompt = prompt[0]
             negative_prompt = prompt[1]
-            print("positive prompt=", positive_prompt)
-            print("negative prompt=", negative_prompt)
-            print("---------------------------------------------------------------")
+            # print("positive prompt=", positive_prompt)
+            # print("negative prompt=", negative_prompt)
+            # print("---------------------------------------------------------------")
+            response = generate_image_generation_jobs(positive_prompt=positive_prompt,
+                                                      negative_prompt=negative_prompt,
+                                                      prompt_scoring_model="n/a",
+                                                      prompt_score=0.0,
+                                                      prompt_generation_policy="independent_approx_v1",
+                                                      top_k=0.0,
+                                                      dataset_name=dataset_name)
+            job_uuid = response['uuid']
 
     return generated_prompts
 
@@ -205,7 +218,8 @@ def run_prompt_generator(minio_client,
     negative_phrase_scores_loader.load_dataset()
     negative_phrase_origin_indexes, negative_cumulative_probability_arr = get_cumulative_probability_arr(negative_phrase_scores_loader.index_phrase_score_data)
 
-    generate_prompts(positive_phrase_scores_loader,
+    generate_prompts(dataset_name,
+                     positive_phrase_scores_loader,
                      positive_phrase_origin_indexes,
                      positive_cumulative_probability_arr,
                      negative_phrase_scores_loader,
