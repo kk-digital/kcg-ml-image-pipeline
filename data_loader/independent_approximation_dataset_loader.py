@@ -29,10 +29,12 @@ class IndependentApproximationDatasetLoader:
                  train_percent=0.9,
                  phrase_vector_loader: PhraseVectorLoader =None,
                  target_option=constants.TARGET_1_AND_0,
-                 duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL
+                 duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL,
+                 input_type="positive",
                  ):
         self.dataset_name = dataset_name
         self.phrase_vector_loader = phrase_vector_loader
+        self.input_type = input_type
 
         if minio_access_key is not None:
             self.minio_access_key = minio_access_key
@@ -155,16 +157,24 @@ class IndependentApproximationDatasetLoader:
 
         features_img_1_data = get_object(self.minio_client, features_path_img_1)
         generated_image_data_1 = GeneratedImageData.from_msgpack_string(features_img_1_data)
-        prompt_img_1 = generated_image_data_1.positive_prompt
-        phrase_vector = self.phrase_vector_loader.get_phrase_vector(prompt_img_1)
+        if self.input_type == "positive":
+            prompt_img_1 = generated_image_data_1.positive_prompt
+        else:
+            prompt_img_1 = generated_image_data_1.negative_prompt
+
+        phrase_vector = self.phrase_vector_loader.get_phrase_vector(prompt_img_1, input_type=self.input_type)
         phrase_vector = np.array(phrase_vector, dtype=bool)
         phrase_vector = sp.sparse.coo_array(phrase_vector)
         features_vector_img_1 = phrase_vector
 
         features_img_2_data = get_object(self.minio_client, features_path_img_2)
         generated_image_data_2 = GeneratedImageData.from_msgpack_string(features_img_2_data)
-        prompt_img_2 = generated_image_data_2.positive_prompt
-        phrase_vector = self.phrase_vector_loader.get_phrase_vector(prompt_img_2)
+        if self.input_type == "positive":
+            prompt_img_2 = generated_image_data_2.positive_prompt
+        else:
+            prompt_img_2 = generated_image_data_2.negative_prompt
+
+        phrase_vector = self.phrase_vector_loader.get_phrase_vector(prompt_img_2, input_type=self.input_type)
         phrase_vector = np.array(phrase_vector, dtype=bool)
         phrase_vector = sp.sparse.coo_array(phrase_vector)
         features_vector_img_2 = phrase_vector
