@@ -161,7 +161,12 @@ class ABRankingIndependentApproximationV1Model:
                     index_phrase_dict = self.dataset_loader.phrase_vector_loader.index_negative_phrases_dict
                     index_phrase_info = self.dataset_loader.phrase_vector_loader.index_negative_prompt_phrase_info
 
+                has_negative_index = False
+                if -1 in index_phrase_dict:
+                    has_negative_index = True
                 for i in range(len(score_vector)):
+                    if has_negative_index:
+                        i -= 1
                     index = i
                     phrase = index_phrase_dict[i]
                     phrase_info = index_phrase_info[index]
