@@ -118,7 +118,6 @@ class BinaryPromptMutator:
 
         # Extract log loss values for training and validation sets
         train_logloss = evals_result["validation_0"]["logloss"]
-        print(train_logloss[0])
     
     def save_graph_report(self, train_logloss_per_round, val_logloss_per_round,
                           y_true, y_pred,  
@@ -185,10 +184,11 @@ class BinaryPromptMutator:
         
     def predict_probs(self, X):
         class_labels=['decrease', 'increase']
-        y_pred = self.model.predict(xgb.DMatrix(X))
+        y_pred = self.model.predict_proba(X)
         # Create a list of dictionaries, where each dictionary represents the class probabilities for a single prediction
         predictions_with_probabilities = [
-            {"decrease":prob, "increase":1- prob } for prob in y_pred]
+            {class_labels[i]: prob for i, prob in enumerate(row)} for row in y_pred
+        ]
 
         return predictions_with_probabilities
         
@@ -218,9 +218,8 @@ class BinaryPromptMutator:
                 temp_file.write(data)
 
         # Load the model from the temporary file into XGBClassifier
-        self.model = xgb.Booster()
+        self.model = xgb.XGBClassifier(device="cuda", tree_method='gpu_hist')
         self.model.load_model(temp_file.name)
-        self.model.set_param({"device": "cuda"})
 
         # Remove the temporary file
         os.remove(temp_file.name)
