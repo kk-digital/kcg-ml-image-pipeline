@@ -253,7 +253,7 @@ def mutate_prompt(device, embedding_model,
 
     # run mutation process iteratively untill score converges
     for i in range(max_iterations):
-        tokens, sub_phrases, original_embeddings, sub_embeddings, original_embeddings=rejection_func(device,
+        tokens, sub_phrases, original_embeddings, sub_embeddings=rejection_func(device,
                                             embedding_model,
                                             xgboost_model, 
                                             prompt_str,
