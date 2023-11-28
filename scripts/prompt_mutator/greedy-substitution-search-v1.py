@@ -143,7 +143,7 @@ def rejection_sampling_by_sigma_score(device,
                                  prompt_str, 
                                  prompt_score, prompt_embedding, 
                                  phrase_embeddings,
-                                 phrase_list, mean, std, threshold=0.2):
+                                 phrase_list, mean, std, threshold=0.35):
     
     # get mean pooled embedding of prompt for xgboost model
     pooled_prompt_embedding= get_mean_pooled_embedding(prompt_embedding)
@@ -487,9 +487,9 @@ def main():
         update_prompt_list(minio_client, device)
 
     # get mean and std values
-    mean, std, positive_mean, positive_std= get_mean_std_values(minio_client,args.ranking_model)
-    print(mean,std, positive_mean, positive_std)
-    print(combined_model.mean, combined_model.standard_deviation)
+    #mean, std, positive_mean, positive_std= get_mean_std_values(minio_client,args.ranking_model)
+    mean, std= combined_model.mean, combined_model.standard_deviation
+    positive_mean, positive_std= positive_model.mean, positive_model.standard_deviation
 
     # get phrase list for substitutions
     phrase_list=pd.read_csv(args.csv_phrase)['phrase str'].tolist()
@@ -524,12 +524,8 @@ def main():
         negative_embedding = torch.tensor(np.array(negative_embedding)).float()
         negative_embedding=negative_embedding.to(device)
 
-        if(args.ranking_model=="elm-v1"):
-            seed_score=prompt['elm_score']
-            positive_score= prompt['positive_elm_score']
-        else:
-            seed_score=prompt['linear_score']
-            positive_score= prompt['positive_linear_score']
+        seed_score=combined_model.predict(positive_embedding, negative_embedding).item()
+        positive_score=positive_model.predict_positive_or_negative_only(positive_embedding).item()
 
         seed_sigma_score=(seed_score - mean) / std
         original_scores.append(seed_sigma_score)
@@ -546,14 +542,12 @@ def main():
                         mean=positive_mean, std=positive_std, rejection_policy=args.rejection_policy)
 
         # calculating new score
-        score=round(float(combined_model.predict(mutated_positive_embedding, negative_embedding)), 4)
+        score=combined_model.predict(mutated_positive_embedding, negative_embedding).item()
 
         sigma_score=(score - mean) / std
         mutated_scores.append(sigma_score)
 
         print(f"prompt {index} mutated.")
-        print(f"prompt {mutated_positive_prompt} mutated.")
-        print(f"negative prompt {negative_prompt}")
         print(f"----initial score: {seed_score}.")
         print(f"----final score: {score}.")
 
