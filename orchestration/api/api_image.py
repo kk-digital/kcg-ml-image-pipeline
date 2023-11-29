@@ -378,4 +378,4 @@ def get_image_by_job_uuid(request: Request, job_uuid: str):
 
 @router.get("/list-prompt-generation-policies")
 def list_prompt_generation_policies():
-    return ["greedy-substitution-search-v1", "quincy-greedy-prompt-search-v1", "distilgpt2_han-v1", "top-k", "proportional-sampling-top-k"]
+    return ["greedy-substitution-search-v1", "quincy-greedy-prompt-search-v1", "distilgpt2_han-v1", "top-k", "proportional-sampling-top-k", "independent_approx_v1"]
