@@ -210,6 +210,9 @@ def generate_prompts(minio_client,
                                                                     boltzman_k=boltzman_k,
                                                                     init_img_path="./test/test_inpainting/white_512x512.jpg",
                                                                     mask_path=mask_path)
+            else:
+                raise Exception("dataset unsupported")
+
             job_uuid = response['uuid']
             data = {"job_uud": job_uuid,
                     "positive_prompt": positive_prompt,
