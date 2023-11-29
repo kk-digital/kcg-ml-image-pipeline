@@ -11,7 +11,8 @@ import numpy as np
 from matplotlib.ticker import PercentFormatter
 import random
 import math
-
+from datetime import datetime
+from pytz import timezone
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
@@ -19,7 +20,7 @@ from scripts.image_scorer import ImageScorer
 from training_worker.http import request
 from utility.minio import cmd
 from data_loader.phrase_scores_loader import PhraseScoresLoader
-from worker.prompt_generation.prompt_generator import generate_image_generation_jobs_with_temperature
+from worker.prompt_generation.prompt_generator import generate_image_generation_jobs_with_temperature, generate_inpainting_job_with_temperature
 
 
 # find the first element, whose cumulative prob is more than the random float
@@ -53,6 +54,30 @@ def find_first_element_binary_search(cumulative_prob_arr, random_float):
 
     # If we reach here, then the element was not present
     return -1
+
+
+def upload_prompt_generation_data_to_csv(minio_client,
+                                         dataset_name,
+                                         prompt_generation_data,
+                                         boltzman_temperature,
+                                         boltzman_k):
+    print("Saving prompt generation data to csv...")
+    csv_buffer = io.StringIO()
+    writer = csv.writer(csv_buffer)
+    writer.writerow((["job_uuid", "positive_prompt", "negative_prompt", "boltzman temperature", "boltzman k"]))
+
+    for data in prompt_generation_data:
+        job_uuid = data["job_uuid"]
+        positive_prompt = data["positive_prompt"]
+        negative_prompt = data["negative_prompt"]
+        writer.writerow([job_uuid, positive_prompt, negative_prompt, boltzman_temperature, boltzman_k])
+
+    bytes_buffer = io.BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
+    # upload the csv
+    date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
+    filename = "{}-independent_approx_v1.csv".format(date_now)
+    csv_path = os.path.join(dataset_name, "output/generated-prompts-csv", filename)
+    cmd.upload_data(minio_client, 'datasets', csv_path, bytes_buffer)
 
 
 def generate_prompt(positive_phrase_scores_loader,
@@ -122,7 +147,8 @@ def generate_prompt(positive_phrase_scores_loader,
     return prompt
 
 
-def generate_prompts(dataset_name,
+def generate_prompts(minio_client,
+                     dataset_name,
                      positive_phrase_scores_loader,
                      positive_phrase_origin_indexes,
                      positive_cumulative_probability_arr,
@@ -153,18 +179,49 @@ def generate_prompts(dataset_name,
             # print("positive prompt=", positive_prompt)
             # print("negative prompt=", negative_prompt)
             # print("---------------------------------------------------------------")
-            response = generate_image_generation_jobs_with_temperature(positive_prompt=positive_prompt,
-                                                                       negative_prompt=negative_prompt,
-                                                                       prompt_scoring_model="n/a",
-                                                                       prompt_score=0.0,
-                                                                       prompt_generation_policy="independent_approx_v1",
-                                                                       top_k=0.0,
-                                                                       dataset_name=dataset_name,
-                                                                       boltzman_temperature=boltzman_temperature,
-                                                                       boltzman_k=boltzman_k)
-            job_uuid = response['uuid']
+            if dataset_name in ["environmental", "propaganda-poster", "waifu"]:
+                response = generate_image_generation_jobs_with_temperature(positive_prompt=positive_prompt,
+                                                                           negative_prompt=negative_prompt,
+                                                                           prompt_scoring_model="n/a",
+                                                                           prompt_score=0.0,
+                                                                           prompt_generation_policy="independent_approx_v1",
+                                                                           top_k=0.0,
+                                                                           dataset_name=dataset_name,
+                                                                           boltzman_temperature=boltzman_temperature,
+                                                                           boltzman_k=boltzman_k)
+            elif dataset_name in ["character", "mech", " icons"]:
+                mask_path = "./test/test_inpainting/icon_mask.png"
+                if dataset_name == "character":
+                    mask_path = "./test/test_inpainting/character_mask.png"
+                elif dataset_name == "mech":
+                    sizes = ["1x1", "1x2", "2x1", "2x2", "2x3", "3x2", "3x3"]
+                    chosen_size = random.randint(0, len(sizes))
+                    size_str = sizes[chosen_size]
+                    mask_path = "./input/mask/mech/mech_mask_{}.png".format(size_str)
 
-    return generated_prompts
+                response = generate_inpainting_job_with_temperature(positive_prompt=positive_prompt,
+                                                                    negative_prompt=negative_prompt,
+                                                                    prompt_scoring_model="n/a",
+                                                                    prompt_score=0.0,
+                                                                    prompt_generation_policy="independent_approx_v1",
+                                                                    top_k=0.0,
+                                                                    dataset_name=dataset_name,
+                                                                    boltzman_temperature=boltzman_temperature,
+                                                                    boltzman_k=boltzman_k,
+                                                                    init_img_path="./test/test_inpainting/white_512x512.jpg",
+                                                                    mask_path=mask_path)
+            job_uuid = response['uuid']
+            data = {"job_uud": job_uuid,
+                    "positive_prompt": positive_prompt,
+                    "negative_prompt": negative_prompt}
+            generated_prompts.append(data)
+
+        upload_prompt_generation_data_to_csv(minio_client=minio_client,
+                                             dataset_name=dataset_name,
+                                             prompt_generation_data=generated_prompts,
+                                             boltzman_temperature=boltzman_temperature,
+                                             boltzman_k=boltzman_k)
+
 
 def get_cumulative_probability_arr(index_phrase_score_data,
                                    boltzman_temperature,
@@ -229,7 +286,8 @@ def run_prompt_generator(minio_client,
                                                                                                          boltzman_temperature=boltzman_temperature,
                                                                                                          boltzman_k=boltzman_k)
 
-    generate_prompts(dataset_name,
+    generate_prompts(minio_client,
+                     dataset_name,
                      positive_phrase_scores_loader,
                      positive_phrase_origin_indexes,
                      positive_cumulative_probability_arr,
