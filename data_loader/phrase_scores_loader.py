@@ -41,6 +41,7 @@ class PhraseScoresLoader:
 
     def load_dataset(self):
         start_time = time.time()
+        print("-------------------------------------------------------------------------------------")
         print("Loading dataset references from csv...")
 
         full_path = os.path.join(self.dataset_name, "output/phrases-score-csv", self.phrase_scores_csv)
@@ -55,6 +56,7 @@ class PhraseScoresLoader:
         csv_reader = csv.reader(lines, delimiter=',')
 
         line_count = 0
+        index_count = 0
         for row in csv_reader:
             if line_count == 0:
                 print(f'Column names are {", ".join(row)}')
@@ -74,10 +76,12 @@ class PhraseScoresLoader:
                                               occurrences=occurrences,
                                               token_length=token_length,
                                               score=score)
-                self.index_phrase_score_data[index] = phrase_data
+                self.index_phrase_score_data[index_count] = phrase_data
+                index_count += 1
 
             line_count += 1
 
+        print("index phrase score data len=", len(self.index_phrase_score_data))
         print("Dataset loaded...")
         print("Time elapsed: {0}s".format(format(time.time() - start_time, ".2f")))
 
