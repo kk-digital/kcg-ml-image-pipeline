@@ -490,6 +490,7 @@ def store_self_training_data(minio_client, training_data):
 
     for data in training_data:
         store_in_msgpack_file(data, index, minio_client)
+        index+=1
 
 def store_in_msgpack_file(prompt_data, index, minio_client):
     packed_data = msgpack.packb(prompt_data, use_single_float=True)
