@@ -282,32 +282,34 @@ def mutate_prompt(device, embedding_model,
                 phrase_embeddings[token]= sub_embedding
                 data=np.concatenate([pooled_prompt_embedding, original_embedding, sub_embedding]).tolist(),
                 
-                # keeping data fo self training
-                prompt_data={
-                    'input': data,
-                    'position_encoding': token,
-                    'elm_score_encoding': "",
-                    'elm_output': "",
-                    'linear_score_encoding': prompt_score,
-                    'linear_output': modified_prompt_score
-                }
-                self_training_data.append(prompt_data)
+                if(i>10):
+                    # keeping data fo self training
+                    prompt_data={
+                        'input': data,
+                        'position_encoding': token,
+                        'elm_score_encoding': "",
+                        'elm_output': "",
+                        'linear_score_encoding': prompt_score,
+                        'linear_output': modified_prompt_score
+                    }
+                    self_training_data.append(prompt_data)
 
                 prompt_score= modified_prompt_score
                 num_success+=1
                 break
             elif(num_choices==1):
                 data=np.concatenate([pooled_prompt_embedding, original_embedding, sub_embedding]).tolist(),
-                # keeping data fo self training
-                prompt_data={
-                    'input': data,
-                    'position_encoding': token,
-                    'elm_score_encoding': "",
-                    'elm_output': "",
-                    'linear_score_encoding': prompt_score,
-                    'linear_output': modified_prompt_score
-                }
-                self_training_data.append(prompt_data)
+                if(i>10):
+                    # keeping data fo self training
+                    prompt_data={
+                        'input': data,
+                        'position_encoding': token,
+                        'elm_score_encoding': "",
+                        'elm_output': "",
+                        'linear_score_encoding': prompt_score,
+                        'linear_output': modified_prompt_score
+                    }
+                    self_training_data.append(prompt_data)
         
         num_attempts+=num_choices
         
