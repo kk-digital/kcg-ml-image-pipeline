@@ -126,18 +126,7 @@ def store_in_msgpack_file(prompt_data, index, minio_client, embedding_type):
 
     minio_path=DATA_MINIO_DIRECTORY + f"/{embedding_type}_prompts/{str(index).zfill(6)}_substitution.msgpack"
     cmd.upload_data(minio_client, 'datasets',minio_path, buffer)
-
-# def get_mean_std_values(minio_client, ranking_model):
-#     minio_path = DATA_MINIO_DIRECTORY + "/input/mean_std_values.json"
-#     json_file_data =cmd.get_file_from_minio(minio_client, 'datasets', minio_path)
-
-#     # Parse JSON data
-#     data = json.loads(json_file_data.read().decode('utf-8'))
-
-#     if(ranking_model=="elm-v1"):
-#         return data['positive_elm_mean'], data['positive_elm_std']
-#     else:
-#         return data['positive_linear_mean'], data['positive_linear_std']
+    
 
 def create_dataset(minio_client, device, csv_path, embedding_type):
     # Load the CLIP model
@@ -155,7 +144,7 @@ def create_dataset(minio_client, device, csv_path, embedding_type):
 
     print(f"elm mean: {elm_mean}, elm std {elm_std}")
     print(f"linear mean: {linear_mean}, linear std {linear_std}")
-    
+
     # get minio paths for embeddings
     embedding_paths = get_embedding_paths(minio_client, "environmental")
 

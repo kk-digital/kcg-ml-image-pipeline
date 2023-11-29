@@ -281,14 +281,33 @@ def mutate_prompt(device, embedding_model,
                 prompt_embedding= modified_prompt_embedding
                 phrase_embeddings[token]= sub_embedding
                 data=np.concatenate([pooled_prompt_embedding, original_embedding, sub_embedding, [token], [prompt_score]])
-                self_training_data.append({"input":data, "output":1})
+                
+                # keeping data fo self training
+                prompt_data={
+                    'input': data,
+                    'position_encoding': token,
+                    'elm_score_encoding': "",
+                    'elm_output': "",
+                    'linear_score_encoding': prompt_score,
+                    'linear_output': modified_prompt_score
+                }
+                self_training_data.append(prompt_data)
 
                 prompt_score= modified_prompt_score
                 num_success+=1
                 break
             elif(num_choices==1):
                 data=np.concatenate([pooled_prompt_embedding, original_embedding, sub_embedding, [token], [prompt_score]])
-                self_training_data.append({"input":data, "output":0})
+                # keeping data fo self training
+                prompt_data={
+                    'input': data,
+                    'position_encoding': token,
+                    'elm_score_encoding': "",
+                    'elm_output': "",
+                    'linear_score_encoding': prompt_score,
+                    'linear_output': modified_prompt_score
+                }
+                self_training_data.append(prompt_data)
         
         num_attempts+=num_choices
         
@@ -462,11 +481,42 @@ def get_initial_prompts(minio_client, n_data):
         print(f"Error: {err}")
         return None
 
-def self_training(xgboost_model, training_data):
-    inputs=[data['input'] for data in training_data]
-    outputs=[data['output'] for data in training_data]
+def store_self_training_data(minio_client, training_data):
+    # get minio paths for existing self training data
+    dataset_path=DATA_MINIO_DIRECTORY + f"/self_training/"
+    dataset_files=minio_client.list_objects('datasets', prefix=dataset_path, recursive=True)
+    index= len(dataset_files) + 1
 
-    xgboost_model.fine_tune(inputs, outputs)
+    for data in training_data:
+        store_in_msgpack_file(data, index, minio_client)
+
+def store_in_msgpack_file(prompt_data, index, minio_client):
+    packed_data = msgpack.packb(prompt_data, use_single_float=True)
+
+    # Define the local directory path for embedding
+    local_directory = 'output/prompt_mutator/data/'
+
+    # Ensure the local directory exists, create it if necessary
+    os.makedirs(local_directory, exist_ok=True)
+
+    # Create a local file with the packed data
+    local_file_path = local_directory + f"{str(index).zfill(6)}_substitution.msgpack"
+    with open(local_file_path, 'wb') as local_file:
+        local_file.write(packed_data)
+    
+    # Read the contents of the CSV file
+    with open(local_file_path, 'rb') as file:
+        content = file.read()
+
+    # Upload the local file to MinIO
+    buffer = io.BytesIO(content)
+    buffer.seek(0)
+
+    minio_path=DATA_MINIO_DIRECTORY + f"/self_training/{str(index).zfill(6)}_substitution.msgpack"
+    cmd.upload_data(minio_client, 'datasets',minio_path, buffer)
+
+    # Remove the temporary file
+    os.remove(local_file_path)
 
 def main():
     args = parse_args()
@@ -622,7 +672,7 @@ def main():
         store_prompts_in_csv_file(df_data, generation_path, minio_client)
 
     compare_distributions(minio_client, generation_path, original_scores, mutated_scores)
-    #self_training(xgboost_model , training_data)
+    store_self_training_data(minio_client, training_data)
 
 
     
