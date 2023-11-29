@@ -32,7 +32,10 @@ def find_first_element_binary_search(cumulative_prob_arr, random_float):
     mid = 0
 
     loop_count = 0
-    while low <= high:
+    while low < high:
+        loop_count += 1
+        assert loop_count < 32, "Error: binary search loop count is more than 32"
+
         mid = (high + low) / 2
         mid = math.floor(mid)
 
@@ -40,15 +43,8 @@ def find_first_element_binary_search(cumulative_prob_arr, random_float):
         if cumulative_prob_arr[mid] < random_float:
             low = mid + 1
         # If random_float is smaller, ignore right half
-        elif cumulative_prob_arr[mid] > random_float:
+        elif cumulative_prob_arr[mid] >= random_float:
             high = mid - 1
-        # else:
-        #     return mid
-
-        # check if items inside re all the same
-        if all_same(cumulative_prob_arr[low:high]):
-            # choose random num
-            return random.randint(low, high)
 
         # use this index since sometimes the exact
         # random num is not in the list
@@ -60,8 +56,6 @@ def find_first_element_binary_search(cumulative_prob_arr, random_float):
 
             return low
 
-        loop_count += 1
-        assert loop_count < 32, "Error: binary search loop count is more than 32"
 
     # If we reach here, then the element was not present
     return -1
