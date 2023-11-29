@@ -485,6 +485,7 @@ def store_self_training_data(minio_client, training_data):
     # get minio paths for existing self training data
     dataset_path=DATA_MINIO_DIRECTORY + f"/self_training/"
     dataset_files=minio_client.list_objects('datasets', prefix=dataset_path, recursive=True)
+    dataset_files= [file.object_name for file in dataset_files]
     index= len(dataset_files) + 1
 
     for data in training_data:
