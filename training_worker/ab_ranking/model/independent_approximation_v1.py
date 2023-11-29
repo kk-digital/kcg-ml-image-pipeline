@@ -34,14 +34,14 @@ class IndependentApproximationV1Model(nn.Module):
 
         product = torch.mul(input, self.score_vector)
         sum = torch.sum(product, dim=1)
-        sum = sum.unsqueeze(1)
+        output = sum.unsqueeze(1)
 
-        assert sum.shape == (1, 1)
-        return sum
+        assert output.shape == (1, 1)
+        return output
 
 
 class ABRankingIndependentApproximationV1Model:
-    def __init__(self, inputs_shape, dataset_loader: IndependentApproximationDatasetLoader):
+    def __init__(self, inputs_shape, dataset_loader: IndependentApproximationDatasetLoader, input_type="positive"):
         if torch.cuda.is_available():
             device = 'cuda'
         else:
@@ -49,6 +49,7 @@ class ABRankingIndependentApproximationV1Model:
         self._device = torch.device(device)
 
         self.dataset_loader = dataset_loader
+        self.input_type = input_type
 
         self.model = IndependentApproximationV1Model(inputs_shape).to(self._device)
         self.model_type = 'ab-ranking-independent-approximation-v1'
@@ -148,22 +149,36 @@ class ABRankingIndependentApproximationV1Model:
 
         csv_buffer = StringIO()
         writer = csv.writer(csv_buffer)
-        writer.writerow((["index", "phrase", "score"]))
+        writer.writerow((["index", "phrase", "occurrences", "token length", "score"]))
 
         for name, param in self.model.named_parameters():
             if name == "score_vector":
                 score_vector = param.cpu().detach().squeeze().numpy()
+                if self.input_type == "positive":
+                    index_phrase_dict = self.dataset_loader.phrase_vector_loader.index_positive_phrases_dict
+                    index_phrase_info = self.dataset_loader.phrase_vector_loader.index_positive_prompt_phrase_info
+                else:
+                    index_phrase_dict = self.dataset_loader.phrase_vector_loader.index_negative_phrases_dict
+                    index_phrase_info = self.dataset_loader.phrase_vector_loader.index_negative_prompt_phrase_info
 
+                has_negative_index = False
+                if -1 in index_phrase_dict:
+                    has_negative_index = True
                 for i in range(len(score_vector)):
+                    if has_negative_index:
+                        i -= 1
                     index = i
-                    phrase = self.dataset_loader.phrase_vector_loader.index_positive_phrases_dict[i]
-                    score = score_vector[i]
-                    writer.writerow([index, phrase, score])
+                    phrase = index_phrase_dict[i]
+                    phrase_info = index_phrase_info[index]
+                    occurrences = phrase_info.occurrences
+                    token_length = phrase_info.token_length
+                    score = "{:f}".format(score_vector[i])
+                    writer.writerow([index, phrase, occurrences, token_length, score])
 
                 bytes_buffer = BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
                 # upload the csv
                 date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
-                filename = "{}-positive-phrases-score.csv".format(date_now)
+                filename = "{}-{}-phrases-score.csv".format(date_now, self.input_type)
                 csv_path = os.path.join(self.dataset_loader.dataset_name, "output/phrases-score-csv", filename)
                 cmd.upload_data(self.dataset_loader.minio_client, 'datasets', csv_path, bytes_buffer)
 
@@ -302,6 +317,10 @@ class ABRankingIndependentApproximationV1Model:
                     validation_target = validation_targets[i]
                     validation_target = validation_target.unsqueeze(0)
 
+                    validation_feature_x = validation_feature_x.to(self._device)
+                    validation_feature_y = validation_feature_y.to(self._device)
+                    validation_target = validation_target.to(self._device)
+
                     predicted_score_image_x = self.model.forward(validation_feature_x)
                     with torch.no_grad():
                         predicted_score_image_y = self.model.forward(validation_feature_y)
@@ -388,6 +407,9 @@ class ABRankingIndependentApproximationV1Model:
                 validation_feature_x = validation_feature_x.unsqueeze(0)
                 validation_feature_y = validation_features_y[i]
                 validation_feature_y = validation_feature_y.unsqueeze(0)
+
+                validation_feature_x = validation_feature_x.to(self._device)
+                validation_feature_y = validation_feature_y.to(self._device)
 
                 predicted_score_image_x = self.model.forward(validation_feature_x)
                 predicted_score_image_y = self.model.forward(validation_feature_y)

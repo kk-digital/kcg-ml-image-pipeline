@@ -630,6 +630,59 @@ def generate_image_generation_jobs(positive_prompt,
     return response
 
 
+def generate_image_generation_jobs_with_temperature(positive_prompt,
+                                                    negative_prompt,
+                                                    prompt_scoring_model,
+                                                    prompt_score,
+                                                    prompt_generation_policy,
+                                                    top_k,
+                                                    dataset_name,
+                                                    boltzman_temperature,
+                                                    boltzman_k):
+
+    # get sequential ids
+    sequential_ids = request.http_get_sequential_id(dataset_name, 1)
+
+    count = 0
+    # generate UUID
+    task_uuid = str(uuid.uuid4())
+    task_type = "image_generation_task"
+    model_name = "v1-5-pruned-emaonly"
+    model_file_name = "v1-5-pruned-emaonly"
+    model_file_path = "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors"
+    task_input_dict = {
+        "positive_prompt": positive_prompt,
+        "negative_prompt": negative_prompt,
+        "cfg_strength": 12,
+        "seed": "",
+        "dataset": dataset_name,
+        "file_path": sequential_ids[count]+".jpg",
+        "num_images": 1,
+        "image_width": 512,
+        "image_height": 512,
+        "sampler": "ddim",
+        "sampler_steps": 20,
+        "prompt_scoring_model": prompt_scoring_model,
+        "prompt_score": prompt_score,
+        "prompt_generation_policy": prompt_generation_policy,
+        "top_k": top_k,
+        "boltzman_temperature": boltzman_temperature,
+        "boltzman_k": boltzman_k,
+    }
+
+    generation_task = GenerationTask(uuid=task_uuid,
+                                     task_type=task_type,
+                                     model_name=model_name,
+                                     model_file_name=model_file_name,
+                                     model_file_path=model_file_path,
+                                     task_input_dict=task_input_dict)
+    generation_task_json = generation_task.to_dict()
+
+    # add job
+    response = request.http_add_job(generation_task_json)
+
+    return response
+
 
 # use the dataset csv & the base prompt csv to generate inpainting jobs
 def generate_inpainting_job(positive_prompt,

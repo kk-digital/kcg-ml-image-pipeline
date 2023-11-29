@@ -8,6 +8,7 @@ from datetime import datetime
 from pytz import timezone
 import io
 import csv
+import tiktoken
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -15,6 +16,15 @@ sys.path.insert(0, base_directory)
 from utility.minio import cmd
 from data_loader.utils import get_object, get_phrases_from_prompt, get_datasets
 from data_loader.generated_image_data import GeneratedImageData
+
+class PromptPhraseInformation:
+    def __init__(self,
+                 phrase: str,
+                 occurrences: int,
+                 token_length: int):
+        self.phrase = phrase
+        self.occurrences = occurrences
+        self.token_length = token_length
 
 class PhraseVectorLoader:
     def __init__(self,
@@ -30,8 +40,11 @@ class PhraseVectorLoader:
                                                  minio_secret_key=self.minio_secret_key,
                                                  minio_ip_addr=minio_ip_addr)
 
+        self.index_positive_prompt_phrase_info = {}
         self.positive_phrases_index_dict = {}
         self.index_positive_phrases_dict = {}
+
+        self.index_negative_prompt_phrase_info = {}
         self.negative_phrases_index_dict = {}
         self.index_negative_phrases_dict = {}
 
@@ -71,6 +84,9 @@ class PhraseVectorLoader:
         positive_index = 0
         negative_index = 0
 
+        # initialize tokenizer
+        tokenizer = tiktoken.get_encoding("cl100k_base")
+
         with ThreadPoolExecutor(max_workers=10) as executor:
             futures = []
             for path in data_paths:
@@ -81,16 +97,64 @@ class PhraseVectorLoader:
                 positive_phrases, negative_phrases = future.result()
 
                 for phrase in positive_phrases:
+                    if len(phrase) > 80:
+                        phrase = "more than 80 characters"
+
                     if phrase not in self.positive_phrases_index_dict:
-                        self.positive_phrases_index_dict[phrase] = positive_index
-                        self.index_positive_phrases_dict[positive_index] = phrase
-                        positive_index += 1
+                        index_to_use = positive_index
+                        if phrase == "more than 80 characters":
+                            index_to_use = -1
+
+                        self.positive_phrases_index_dict[phrase] = index_to_use
+                        self.index_positive_phrases_dict[index_to_use] = phrase
+
+                        # token length
+                        tokens = tokenizer.encode(phrase)
+                        token_length = len(tokens)
+                        prompt_phrase_info = PromptPhraseInformation(phrase,
+                                                                     occurrences=1,
+                                                                     token_length=token_length)
+                        self.index_positive_prompt_phrase_info[index_to_use] = prompt_phrase_info
+
+                        if index_to_use != -1:
+                            positive_index += 1
+                    else:
+                        phrase_index = self.positive_phrases_index_dict[phrase]
+                        prompt_phrase_info = self.index_positive_prompt_phrase_info[phrase_index]
+                        count = prompt_phrase_info.occurrences
+                        count += 1
+                        prompt_phrase_info.occurrences = count
+                        self.index_positive_prompt_phrase_info[phrase_index] = prompt_phrase_info
 
                 for phrase in negative_phrases:
+                    if len(phrase) > 80:
+                        phrase = "more than 80 characters"
+
                     if phrase not in self.negative_phrases_index_dict:
-                        self.negative_phrases_index_dict[phrase] = negative_index
-                        self.index_negative_phrases_dict[negative_index] = phrase
-                        negative_index += 1
+                        index_to_use = negative_index
+                        if phrase == "more than 80 characters":
+                            index_to_use = -1
+
+                        self.negative_phrases_index_dict[phrase] = index_to_use
+                        self.index_negative_phrases_dict[index_to_use] = phrase
+
+                        # token length
+                        tokens = tokenizer.encode(phrase)
+                        token_length = len(tokens)
+
+                        prompt_phrase_info = PromptPhraseInformation(phrase,
+                                                                     occurrences=1,
+                                                                     token_length=token_length)
+                        self.index_negative_prompt_phrase_info[index_to_use] = prompt_phrase_info
+                        if index_to_use != -1:
+                            negative_index += 1
+                    else:
+                        phrase_index = self.negative_phrases_index_dict[phrase]
+                        prompt_phrase_info = self.index_negative_prompt_phrase_info[phrase_index]
+                        count = prompt_phrase_info.occurrences
+                        count += 1
+                        prompt_phrase_info.occurrences = count
+                        self.index_negative_prompt_phrase_info[phrase_index] = prompt_phrase_info
 
         print("Dataset loaded...")
         print("Time elapsed: {0}s".format(format(time.time() - start_time, ".2f")))
@@ -117,8 +181,14 @@ class PhraseVectorLoader:
             else:
                 positive_index = int(row[0])
                 phrase = row[1]
+                num_occurrences = int(row[2])
+                token_length = int(row[3])
                 self.positive_phrases_index_dict[phrase] = positive_index
                 self.index_positive_phrases_dict[positive_index] = phrase
+                prompt_info = PromptPhraseInformation(phrase,
+                                                      num_occurrences,
+                                                      token_length)
+                self.index_positive_prompt_phrase_info[positive_index] = prompt_info
 
             line_count += 1
 
@@ -128,13 +198,17 @@ class PhraseVectorLoader:
 
     def upload_csv(self):
         print("Saving phrases csv...")
+        csv_header = ["index", "phrase", "occurrences", "token length"]
         # positive
         csv_buffer = io.StringIO()
         writer = csv.writer(csv_buffer)
-        writer.writerow((["index", "phrase"]))
+        writer.writerow(csv_header)
 
         for phrase, index in self.positive_phrases_index_dict.items():
-            writer.writerow([index, phrase])
+            prompt_phrase_info = self.index_positive_prompt_phrase_info[index]
+            num_occurrences = prompt_phrase_info.occurrences
+            token_length = prompt_phrase_info.token_length
+            writer.writerow([index, phrase, num_occurrences, token_length])
 
         bytes_buffer = io.BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
         # upload the csv
@@ -146,10 +220,13 @@ class PhraseVectorLoader:
         # negative
         csv_buffer = io.StringIO()
         writer = csv.writer(csv_buffer)
-        writer.writerow((["index", "phrase"]))
+        writer.writerow(csv_header)
 
         for phrase, index in self.negative_phrases_index_dict.items():
-            writer.writerow([index, phrase])
+            prompt_phrase_info = self.index_negative_prompt_phrase_info[index]
+            num_occurrences = prompt_phrase_info.occurrences
+            token_length = prompt_phrase_info.token_length
+            writer.writerow([index, phrase, num_occurrences, token_length])
 
         bytes_buffer = io.BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
         # upload the csv
@@ -158,13 +235,26 @@ class PhraseVectorLoader:
         csv_path = os.path.join(self.dataset_name, "output/phrases-csv", filename)
         cmd.upload_data(self.minio_client, 'datasets', csv_path, bytes_buffer)
 
-    def get_positive_phrase_vector(self, prompt):
-        phrase_vector = [False] * len(self.positive_phrases_index_dict)
+    def get_phrase_vector(self, prompt, input_type="positive"):
+        if input_type == "positive":
+            len_vector = len(self.positive_phrases_index_dict)
+        else:
+            len_vector = len(self.negative_phrases_index_dict)
+
+        phrase_vector = [False] * len_vector
         phrases = get_phrases_from_prompt(prompt)
         for phrase in phrases:
-            index = self.positive_phrases_index_dict[phrase]
+            if len(phrase) > 80:
+                phrase = "more than 80 characters"
+
+            if input_type == "positive":
+                index = self.positive_phrases_index_dict[phrase]
+            else:
+                index = self.negative_phrases_index_dict[phrase]
+
             phrase_vector[index] = True
 
         return phrase_vector
+
 
 

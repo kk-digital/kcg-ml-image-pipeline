@@ -296,7 +296,7 @@ def get_random_image_with_time(
     # Update the match query to include prompt_generation_policy if provided
     match_query = {
         "task_input_dict.dataset": dataset,
-        "task_creation_time": {"$gte": threshold_time.strftime("%Y-%m-%d")}
+        "task_creation_time": {"$gte": threshold_time.strftime("%Y-%m-%dT%H:%M:%S")}
     }
     if prompt_generation_policy:
         match_query["task_input_dict.prompt_generation_policy"] = prompt_generation_policy
