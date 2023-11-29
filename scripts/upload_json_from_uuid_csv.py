@@ -9,8 +9,9 @@ def upload_jsons_from_csv(csv_file_path):
         csv_reader = csv.DictReader(file)
         for row in csv_reader:
             job_uuid = row["job_uuid"]
+            policy = row["policy"]
             # Endpoint URL with job_uuid as a query parameter
-            endpoint_url = f"{api_url}/queue-ranking/upload?job_uuid={job_uuid}"
+            endpoint_url = f"{api_url}/ranking-queue/add-image-to-queue?job_uuid={job_uuid}&policy={policy}"
             response = requests.post(endpoint_url)  # Use POST instead of GET
 
             if response.status_code == 200:
