@@ -740,7 +740,72 @@ def generate_inpainting_job(positive_prompt,
     generation_task_json = generation_task.to_dict()
 
     # add job
-    request.http_add_job(generation_task_json)
+    response = request.http_add_job(generation_task_json)
+
+    return response
+
+
+def generate_inpainting_job_with_temperature(positive_prompt,
+                                             negative_prompt,
+                                             prompt_scoring_model,
+                                             prompt_score,
+                                             prompt_generation_policy,
+                                             top_k,
+                                             dataset_name,
+                                             boltzman_temperature,
+                                             boltzman_k,
+                                             init_img_path="./test/test_inpainting/white_512x512.jpg",
+                                             mask_path="./test/test_inpainting/icon_mask.png"):
+
+    # get sequential ids
+    sequential_ids = request.http_get_sequential_id(dataset_name, 1)
+
+    task_uuid = str(uuid.uuid4())
+    task_type = "inpainting_generation_task"
+    model_name = "v1-5-pruned-emaonly"
+    model_file_name = "v1-5-pruned-emaonly"
+    model_file_path = "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors"
+    task_input_dict = {
+        "positive_prompt": positive_prompt,
+        "negative_prompt": negative_prompt,
+        "cfg_strength": 12,
+        "seed": "",
+        "dataset": dataset_name,
+        "file_path": sequential_ids[0] + ".jpg",
+        "image_width": 512,
+        "image_height": 512,
+        "sampler": "ddim",
+        "sampler_steps": 20,
+        "init_img": init_img_path,
+        "init_mask": mask_path,
+        "mask_blur": 0,
+        "inpainting_fill_mode": 1,
+        "styles": [],
+        "resize_mode": 0,
+        "denoising_strength": 0.75,
+        "image_cfg_scale": 1.5,
+        "inpaint_full_res_padding": 32,
+        "inpainting_mask_invert": 0,
+        "prompt_scoring_model": prompt_scoring_model,
+        "prompt_score": prompt_score,
+        "prompt_generation_policy": prompt_generation_policy,
+        "top_k": top_k,
+        "boltzman_temperature": boltzman_temperature,
+        "boltzman_k": boltzman_k,
+    }
+
+    generation_task = GenerationTask(uuid=task_uuid,
+                                     task_type=task_type,
+                                     model_name=model_name,
+                                     model_file_name=model_file_name,
+                                     model_file_path=model_file_path,
+                                     task_input_dict=task_input_dict)
+    generation_task_json = generation_task.to_dict()
+
+    # add job
+    response = request.http_add_job(generation_task_json)
+
+    return response
 
 
 def load_base_prompts(base_prompts_csv_path):
