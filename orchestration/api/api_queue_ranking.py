@@ -114,9 +114,6 @@ def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: 
     return True
 
 
-
-
-
 @router.get("/ranking-queue/get-random-image", response_class=PrettyJSONResponse)
 def get_random_json(request: Request, dataset: str = Query(...)):
     minio_client = request.app.minio_client
@@ -182,3 +179,53 @@ def get_random_image_pair(request: Request, dataset: str = Query(...)):
         raise HTTPException(status_code=500, detail="Invalid JSON content")
 
     return json_data
+
+
+@router.delete("/ranking-queue/remove-ranking-queue-single")
+def remove_single_image_from_queue(request: Request, dataset: str = Query(...), policy: str = Query(...), filename: str = Query(...)):
+    # Define bucket name and construct the base path with the dataset name
+    minio_client = request.app.minio_client
+    bucket_name = "datasets"
+    base_path = f"{dataset}/ranking-queue-image/{policy}"  # Construct path including dataset name
+
+    # List all objects in the bucket within the specified base path
+    objects = minio_client.list_objects(bucket_name, prefix=base_path, recursive=True)
+    
+    # Find the object with the matching filename
+    object_to_remove = None
+    for obj in objects:
+        if filename in obj.object_name:
+            object_to_remove = obj.object_name
+            break
+    
+    if object_to_remove:
+        # Remove the object from MinIO
+        cmd.remove_an_object(minio_client, bucket_name, object_to_remove)
+        return {"status": "success", "message": "Image removed from queue"}
+    else:
+        raise HTTPException(status_code=404, detail="File not found")
+
+@router.delete("/ranking-queue/remove-ranking-queue-pair")
+def remove_image_pair_from_queue(request: Request, dataset: str = Query(...), policy: str = Query(...), filename: str = Query(...)):
+    # Define bucket name and construct the base path with the dataset name
+    minio_client = request.app.minio_client
+    bucket_name = "datasets"
+    base_path = f"{dataset}/ranking-queue-pair/{policy}"  # Adjust base path for pairs
+
+    # List all objects in the bucket within the specified base path
+    objects = minio_client.list_objects(bucket_name, prefix=base_path, recursive=True)
+    
+    # Find the object with the matching filename pair
+    object_to_remove = None
+    for obj in objects:
+        if filename in obj.object_name:
+            object_to_remove = obj.object_name
+            break
+    
+    if object_to_remove:
+        # Remove the object from MinIO
+        cmd.remove_an_object(minio_client, bucket_name, object_to_remove)
+        return {"status": "success", "message": "Image pair removed from queue"}
+    else:
+        raise HTTPException(status_code=404, detail="File not found")
+
