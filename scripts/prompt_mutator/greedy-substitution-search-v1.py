@@ -382,8 +382,8 @@ def generation_stats(minio_client, minio_path,
     content += f"Loading time: {loading_time:.2f} seconds\n"
     content += f"Batch size: {batch_size}\n\n"
 
-    content += f"Average score before mutation: {avg_score_before_mutation:.2f}\n"
-    content += f"Average score after mutation: {avg_score_after_mutation:.2f}\n"
+    content += f"Average sigma score before mutation: {avg_score_before_mutation:.2f}\n"
+    content += f"Average sigma score after mutation: {avg_score_after_mutation:.2f}\n"
 
     # Write content to a text file
     file_path = "generation_stats.txt"  # Update with the desired file path
