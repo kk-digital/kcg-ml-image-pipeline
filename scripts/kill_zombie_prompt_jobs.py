@@ -131,7 +131,9 @@ def kill_zombie_jobs(dataset, max_days):
         if task_input_dict is None:
             continue
 
-        print(task_input_dict)
+        # make sure the input_dictionary has a dataset field
+        if 'dataset' not in task_input_dict:
+            continue
 
         job_dataset = task_input_dict['dataset']
 
