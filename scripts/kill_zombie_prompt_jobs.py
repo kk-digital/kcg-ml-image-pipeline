@@ -153,6 +153,9 @@ def kill_zombie_jobs(dataset, max_days):
 
         result = is_time_difference_more_than_n_days(job_creation_time, max_days)
 
+        print(job_creation_time)
+        print(result)
+
         # if the difference is more than max_days
         # clear the zombie job
         # set the in progress job as failed
