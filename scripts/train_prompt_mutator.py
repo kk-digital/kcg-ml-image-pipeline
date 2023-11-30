@@ -254,7 +254,6 @@ def create_dataset(minio_client, device, csv_path, embedding_type):
 
     store_in_csv_file(csv_data, minio_client, embedding_type)
 
-
 def load_dataset(minio_client, embedding_type):
     dataset_path=DATA_MINIO_DIRECTORY + f"/{embedding_type}_prompts/"
     dataset_files=minio_client.list_objects('datasets', prefix=dataset_path, recursive=True)
@@ -321,7 +320,22 @@ def load_dataset(minio_client, embedding_type):
         
 
     return elm_inputs, linear_inputs, elm_sigma_outputs, elm_binary_outputs, linear_sigma_outputs, linear_binary_outputs     
-        
+
+def fix_dataset(minio_client):
+    self_training_data= get_self_training_paths(minio_client)
+    for file in self_training_data:
+        print(file)
+        # get prompt embedding
+        data = minio_client.get_object('datasets', file)
+        # Read the content of the msgpack file
+        content = data.read()
+
+        # Deserialize the content using msgpack
+        msgpack_data = msgpack.loads(content)
+
+        print(len(msgpack_data['input'][0]))
+
+
 
 def main():
     args = parse_args()
@@ -341,25 +355,27 @@ def main():
     if args.create_dataset:
         create_dataset(minio_client, device, args.csv_phrase, args.embedding_type)
 
-    elm_inputs, linear_inputs, elm_sigma_outputs, elm_binary_outputs, linear_sigma_outputs, linear_binary_outputs =load_dataset(minio_client, args.embedding_type)
-
-    # prompt mutator for predicting binary classes (increase, decrease) wth elm scores and linear scores
-    elm_binary_mutator= BinaryPromptMutator(minio_client=minio_client)
-    elm_binary_mutator.train(elm_inputs, elm_binary_outputs)
-    elm_binary_mutator.save_model()
     
-    linear_binary_mutator= BinaryPromptMutator(minio_client=minio_client, ranking_model="linear")
-    linear_binary_mutator.train(linear_inputs, linear_binary_outputs)
-    linear_binary_mutator.save_model()
+    fix_dataset(minio_client)
+    # elm_inputs, linear_inputs, elm_sigma_outputs, elm_binary_outputs, linear_sigma_outputs, linear_binary_outputs =load_dataset(minio_client, args.embedding_type)
 
-    #prompt mutator for predicting sigma scores for elm and linear scores
-    elm_sigma_mutator= PromptMutator(minio_client=minio_client)
-    elm_sigma_mutator.train(elm_inputs, elm_sigma_outputs)
-    elm_sigma_mutator.save_model()
+    # # prompt mutator for predicting binary classes (increase, decrease) wth elm scores and linear scores
+    # elm_binary_mutator= BinaryPromptMutator(minio_client=minio_client)
+    # elm_binary_mutator.train(elm_inputs, elm_binary_outputs)
+    # elm_binary_mutator.save_model()
     
-    linear_sigma_mutator= PromptMutator(minio_client=minio_client, ranking_model="linear")
-    linear_sigma_mutator.train(linear_inputs, linear_sigma_outputs)
-    linear_sigma_mutator.save_model()
+    # linear_binary_mutator= BinaryPromptMutator(minio_client=minio_client, ranking_model="linear")
+    # linear_binary_mutator.train(linear_inputs, linear_binary_outputs)
+    # linear_binary_mutator.save_model()
+
+    # #prompt mutator for predicting sigma scores for elm and linear scores
+    # elm_sigma_mutator= PromptMutator(minio_client=minio_client)
+    # elm_sigma_mutator.train(elm_inputs, elm_sigma_outputs)
+    # elm_sigma_mutator.save_model()
+    
+    # linear_sigma_mutator= PromptMutator(minio_client=minio_client, ranking_model="linear")
+    # linear_sigma_mutator.train(linear_inputs, linear_sigma_outputs)
+    # linear_sigma_mutator.save_model()
 
 if __name__ == "__main__":
     main()
