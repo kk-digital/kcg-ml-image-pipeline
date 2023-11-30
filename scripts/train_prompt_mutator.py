@@ -264,7 +264,7 @@ def load_dataset(minio_client, embedding_type):
     self_training_data= get_self_training_paths(minio_client)
     print(len(self_training_data))
 
-    dataset_files= dataset_files.extend(self_training_data)
+    dataset_files= dataset_files + self_training_data
     
     elm_inputs=[]
     linear_inputs=[]
