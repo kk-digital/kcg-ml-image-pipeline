@@ -51,7 +51,7 @@ class PhraseScoresLoader:
             raise Exception("{} doesnt exist in minio server...".format(full_path))
 
         csv_data = get_object(self.minio_client, full_path)
-        csv_data = csv_data.decode().replace("'", '"')
+        csv_data = csv_data.decode(encoding='utf-8')
         lines = csv_data.splitlines()
         csv_reader = csv.reader(lines, delimiter=',')
 

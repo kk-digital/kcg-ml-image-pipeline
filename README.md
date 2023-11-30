@@ -148,13 +148,44 @@ python ./scripts/check_dataset_clip.py --minio-access-key nkjYl5jO4QnpxQU0k0M1 -
 ```
 
 ### Generate prompts using greedy search with addition / removal operations
+Please refer to script for default values of arguments
 ```
 python scripts/prompt_mutator/greedy_prompt_search_v1.py \
     --minio-access-key <access key> \
     --minio-secret-key <secret key> \
-    --csv_phrase <CSV containing phrases for sampling, must contain 'phrase str' column> \
-    --csv_base_prompts <csv containing base prompts> \ 
-    --n_data <number of data samples to generate> \
-    --csv_save_path <Path directory to save generated prompts> \
-    --dataset_name <Image gallery dataset name to upload images to>
+    --csv_phrase <CSV containing phrases for sampling, must contain 'phrase str' column, i.e. input/civitai_phrases_database_v7_no_nsfw.csv> \
+    --csv_base_prompts <csv containing base prompts, i.e. input/dataset-config/environmental/base-prompts-environmental.csv> \ 
+    --n_data <number of data samples to generate, i.e. 5000> \
+    --csv_save_path <Path directory to save generated prompts, i.e. output/> \
+    --dataset_name <Image gallery dataset name to upload images to, i.e. environmental> \
+    --n_mutation <list of number of iterations to randomly choose from separated by space, i.e. 25 50 75 100>
+```  
+
+### Random prompt generator for testing
+```
+python scripts/test_prompt_image_generation.py \
+    --data_csv_path <csv with phrases to sample from, must contain "phrase str" column> \
+    --n_prompts <number of prompts to generate, i.e. 5000> \
+    --tokenizer_path <tokenizer config json directory, i.e. input/model/clip/txt_emb_tokenizer> \
+    --model_path <text embedder model weight directory, i.e. input/model/clip/txt_emb_model> \
+    --score_path <scoring model weights directory, i.e. weights/2023-11-03-00-score-elm-v1-embedding-positive.pth> \
+    --top_k <top number percentage of prompts to choose to send to job, i.e. 0.05> \
+    --dataset_name <dataset name to generate, i.e. environmental> \
+    --save_path <output csv path to save results, i.e. output.csv>
+```
+
+### Check msgpacks for prompts with token lengths exceeding 77
+```
+python scripts/check_token_length.py \
+    --tokenizer_path <tokenizer config json directory, i.e. input/model/clip/txt_emb_tokenizer> \
+    --embedding_path <directory to msgpacks, i.e. environmental_dataset/environmental/ranking_v1/embeddings> \
+    --save_path <output csv path to save results, i.e. token_lengths.csv>
+```
+
+### Compare token lengths using different tokenizers
+```
+python scripts/check_token_length.py \
+    --tokenizer_path <directory path to kcg tokenizer, i.e. input/model/clip/txt_emb_tokenizer> \
+    --embedding_path <directory to msgpacks, i.e. environmental_dataset/environmental/ranking_v1/embeddings> \
+    --save_path <output csv path to save results, i.e. compare_lengths.csv>
 ```

@@ -26,14 +26,23 @@ class IndependentApproximationV1Model(nn.Module):
         self.inputs_shape = inputs_shape
         initial_score_vector = torch.rand((1, inputs_shape), dtype=torch.float32)
         self.score_vector = nn.Parameter(data=initial_score_vector, requires_grad=True)
+        initial_prompt_phrase_average_weight = torch.zeros(1, dtype=torch.float32)
+        self.prompt_phrase_average_weight = nn.Parameter(data=initial_prompt_phrase_average_weight, requires_grad=True)
         self.l1_loss = nn.L1Loss()
 
     # for score
     def forward(self, input):
         assert input.shape == (1, self.inputs_shape)
 
+        # phrase average weight param
+        average_weight_param_product = torch.sum(input, dim=1) * self.prompt_phrase_average_weight
+
+        # phrase score
         product = torch.mul(input, self.score_vector)
-        sum = torch.sum(product, dim=1)
+        score_sum = torch.sum(product, dim=1)
+
+        sum = score_sum + average_weight_param_product
+
         output = sum.unsqueeze(1)
 
         assert output.shape == (1, 1)
@@ -149,7 +158,11 @@ class ABRankingIndependentApproximationV1Model:
 
         csv_buffer = StringIO()
         writer = csv.writer(csv_buffer)
-        writer.writerow((["index", "phrase", "occurrences", "token length", "score"]))
+        writer.writerow((["index", "phrase", "occurrences", "token length", "score", "prompt_phrase_average_weight"]))
+        average_weight = None
+        for name, param in self.model.named_parameters():
+            if name == "prompt_phrase_average_weight":
+                average_weight = param.cpu().detach().squeeze().numpy()
 
         for name, param in self.model.named_parameters():
             if name == "score_vector":
@@ -173,7 +186,7 @@ class ABRankingIndependentApproximationV1Model:
                     occurrences = phrase_info.occurrences
                     token_length = phrase_info.token_length
                     score = "{:f}".format(score_vector[i])
-                    writer.writerow([index, phrase, occurrences, token_length, score])
+                    writer.writerow([index, phrase, occurrences, token_length, score, average_weight])
 
                 bytes_buffer = BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
                 # upload the csv
