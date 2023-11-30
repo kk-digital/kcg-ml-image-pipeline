@@ -41,6 +41,18 @@ def http_get_in_progress_jobs():
 
     return None
 
+def http_update_failed_job(job):
+    url = SERVER_ADRESS + "/queue/image-generation/update-failed"
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+
+    try:
+        response = requests.put(url, json=job, headers=headers)
+    except Exception as e:
+        print('request exception ', e)
+
+    if response.status_code != 200:
+        print(f"request failed with status code: {response.status_code}")
+
 
 def http_get_dataset_list():
     url = SERVER_ADRESS + "/dataset/list"
@@ -83,7 +95,11 @@ def parse_arguments():
     parser.add_argument('--dataset-name', type=str,
                         help="The dataset name to use, use 'all' for all datasets",
                         default='all')
+    parser.add_argument('--max_days', type=int,
+                            help="The maximum number of days the job can be in progress for",
+                            default=2)
 
+    return parser.parse_args()
 
 def is_time_difference_more_than_n_days(creation_date_str, max_days):
     # Convert the creation date string to a datetime object
@@ -130,10 +146,15 @@ def kill_zombie_jobs(dataset, max_days):
 
         # if the difference is more than max_days
         # clear the zombie job
+        # set the in progress job as failed
         if result:
+            http_update_failed_job(job)
 
 
-
+# go through all the in progress jobs
+# and make sure they are not too old
+# if they are more than 2, 3 days it means
+# that the jobs are failed
 def main():
     args = parse_arguments()
 
