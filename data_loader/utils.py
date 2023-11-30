@@ -105,6 +105,42 @@ def remove_weight(prompt):
     prompt = re.sub(r'[\(\[\{\<\>\}\]\)]+', '', prompt)
     return prompt
 
+def remove_unwanted_chars(phrase: str):
+    # remove non ascii
+    phrase_encode = phrase.encode("ascii", "ignore")
+    phrase = phrase_encode.decode()
+
+    # remove :n.n
+    phrase = re.sub('(:\d+.\d+)|(:)', '', phrase)
+    # remove parenthesis
+    phrase = re.sub(r'[()]', '', phrase)
+    # remove brackets
+    phrase = re.sub(r'[\[\]]', '', phrase)
+    # remove braces
+    phrase = re.sub(r'[{}]', '', phrase)
+    # remove quotations
+    phrase = re.sub(r'[\"\']', '', phrase)
+    # remove slashes
+    phrase = re.sub(r'[\\\/]', '', phrase)
+    # remove or character
+    phrase = re.sub(r'[\|]', '', phrase)
+    # remove dash
+    phrase = re.sub(r'[\-]', '', phrase)
+    # remove underscores
+    phrase = re.sub(r'[\_]', '', phrase)
+    # remove weird ints and floats
+    phrase = re.sub('(\d+.\d+)|(\d+)', '', phrase)
+    # remove tabs
+    phrase = re.sub(r'[\t]', '', phrase)
+    # remove newlines
+    phrase = re.sub(r'[\n]', '', phrase)
+    # remove carriage returns
+    phrase = re.sub(r'[\r]', '', phrase)
+    # remove double space
+    phrase = re.sub(r'\s{2,}', ' ', phrase)
+
+    return phrase
+
 
 def get_phrases_from_prompt(prompt):
     prompt = format_prompt(prompt)
@@ -114,6 +150,8 @@ def get_phrases_from_prompt(prompt):
     phrases = []
     for phrase in prompt.split(','):
         phrase = phrase.strip()
+        phrase = remove_unwanted_chars(phrase)
+
         if len(phrase) == 0:
             continue
         phrases.append(phrase)
