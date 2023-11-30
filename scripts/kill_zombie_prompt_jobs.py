@@ -135,16 +135,52 @@ def kill_zombie_jobs(dataset, max_days):
         # available on image generation tasks
         task_input_dict = job['task_input_dict']
 
-        if task_input_dict is not None:
-            # make sure the input_dictionary has a dataset field
-            # if it does not contain this field means that its not
-            # an image generation task
-            if 'dataset' in task_input_dict:
-                job_dataset = task_input_dict['dataset']
+        if task_input_dict is None:
+            continue
 
-                # skip the job if the dataset does not match
-                if job_dataset != dataset:
-                    continue
+        # make sure the input_dictionary has a dataset field
+        # if it does not contain this field means that its not
+        # an image generation task
+        if 'dataset' not in task_input_dict:
+            continue
+
+        job_dataset = task_input_dict['dataset']
+
+        # skip the job if the dataset does not match
+        if job_dataset != dataset:
+            continue
+
+        # task_creation_time field is present in all job task_types
+        job_creation_time = job['task_creation_time']
+
+        if job_creation_time is None:
+            continue
+
+        result = is_time_difference_more_than_n_days(job_creation_time, max_days)
+
+        # if the difference is more than max_days
+        # clear the zombie job
+        # set the in progress job as failed
+        if result:
+            http_update_failed_job(job)
+
+            number_of_removed_jobs = number_of_removed_jobs + 1
+
+    print(f'number of removed jobs {number_of_removed_jobs}')
+
+
+def kill_all_zombie_jobs(max_days):
+    job_list = http_get_in_progress_jobs()
+
+    job_count = len(job_list)
+    job_index = 0
+    number_of_removed_jobs = 0
+
+    for job in job_list:
+        job_index = job_index + 1
+        print(f'processing job {job_index} out of {job_count}')
+        if job is None:
+            continue
 
         # task_creation_time field is present in all job task_types
         job_creation_time = job['task_creation_time']
@@ -180,10 +216,7 @@ def main():
     if dataset_name == 'all':
         # if dataset name is 'all'
         # we would kill all zombie jobs
-        dataset_list = http_get_dataset_list()
-
-        for dataset in dataset_list:
-            kill_zombie_jobs(dataset, max_days)
+        kill_all_zombie_jobs(max_days)
     else:
         # otherwise just kill the jobs
         # that belong to the dataset
