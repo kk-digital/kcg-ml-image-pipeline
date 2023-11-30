@@ -137,14 +137,14 @@ def kill_zombie_jobs(dataset, max_days):
             continue
 
         # make sure the input_dictionary has a dataset field
-        if 'dataset' not in task_input_dict:
-            continue
+        # if it does not contain this field means that its not
+        # an image generation task
+        if 'dataset' in task_input_dict:
+            job_dataset = task_input_dict['dataset']
 
-        job_dataset = task_input_dict['dataset']
-
-        # skip the job if the dataset does not match
-        if job_dataset != dataset:
-            continue
+            # skip the job if the dataset does not match
+            if job_dataset != dataset:
+                continue
 
         job_creation_time = job['task_creation_time']
 
