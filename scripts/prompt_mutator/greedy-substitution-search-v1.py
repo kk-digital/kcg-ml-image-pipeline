@@ -45,6 +45,7 @@ def parse_args():
     parser.add_argument('--dataset-name', default='test-generations')
     parser.add_argument('--ranking-model', help="elm-v1 or linear", default="linear")
     parser.add_argument('--rejection-policy', help="by probability or sigma_score", default="sigma_score")
+    parser.add_argument('--self-training', action='store_true', default=False)
 
     return parser.parse_args()
 
@@ -351,6 +352,57 @@ def compare_distributions(minio_client, minio_path, original_scores, mutated_sco
     # Remove the temporary file
     os.remove("output/mutated_scores.png")
 
+def generation_stats(minio_client, minio_path,
+                     ranking_model,
+                     dataset_name,
+                     n_data,
+                     generation_speed,
+                     loading_time,
+                     avg_score_before_mutation,
+                     avg_score_after_mutation):
+
+    # General Info
+    current_date = datetime.now().strftime("%Y-%m-%d")
+    operation = "Phrase substitution"
+
+    # Generation Stats
+    batch_size = 1
+
+    # Create the text content
+    content = f"================ General Info ==================\n"
+    content += f"Date: {current_date}\n"
+    content += f"Policy name: {GENERATION_POLICY}\n"
+    content += f"Operation: {operation}\n"
+    content += f"Scoring model: {ranking_model}\n"
+    content += f"Dataset: {dataset_name}\n\n"
+
+    content += f"================ Generation Stats ==================\n"
+    content += f"Number of generated prompts: {n_data}\n"
+    content += f"Generation speed: {generation_speed} prompts/sec\n"
+    content += f"Loading time: {loading_time} seconds\n"
+    content += f"Batch size: {batch_size}\n\n"
+
+    content += f"Average score before mutation: {avg_score_before_mutation}\n"
+    content += f"Average score after mutation: {avg_score_after_mutation}\n"
+
+    # Write content to a text file
+    file_path = "generation_stats.txt"  # Update with the desired file path
+    with open(file_path, "w") as file:
+        file.write(content)
+
+    # Read the contents of the text file
+    with open(file_path, 'rb') as file:
+        txt_content = file.read()
+
+    #Upload the text file to Minio
+    buffer = io.BytesIO(txt_content)
+    buffer.seek(0)
+
+    minio_path= minio_path + "/generation_stats.txt"
+    cmd.upload_data(minio_client, 'datasets', minio_path, buffer)
+    # Remove the temporary file
+    os.remove(file_path)
+
 def update_prompt_list(minio_client, device):
     embedding_paths = get_embedding_paths(minio_client, "environmental")
     df_data=[]
@@ -523,6 +575,8 @@ def store_in_msgpack_file(prompt_data, index, minio_client):
     os.remove(local_file_path)
 
 def main():
+    start=time.time()
+
     args = parse_args()
     # get minio client
     minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key,
@@ -571,6 +625,9 @@ def main():
     
     # get initial prompts
     prompt_list = get_initial_prompts(minio_client, args.n_data)
+
+    end=time.time()
+    loading_time= end - start
 
     df_data=[]
     original_scores=[]
@@ -669,6 +726,8 @@ def main():
 
     print(f"time taken for {args.n_data} prompts is {end - start:.2f} seconds")
 
+    generation_speed= args.n_data/(end - start)
+
     current_date=datetime.now().strftime("%Y-%m-%d-%H:%M")
     generation_path=DATA_MINIO_DIRECTORY + f"/generated-images/{current_date}-generated-data"
     # save csv and histogram
@@ -676,8 +735,18 @@ def main():
         store_prompts_in_csv_file(df_data, generation_path, minio_client)
 
     compare_distributions(minio_client, generation_path, original_scores, mutated_scores)
-    store_self_training_data(minio_client, training_data)
-
+    generation_stats(minio_client, generation_path,
+                     ranking_model=args.ranking_model,
+                     dataset_name=args.dataset_name,
+                     n_data=args.n_data,
+                     generation_speed=generation_speed,
+                     loading_time=loading_time,
+                     avg_score_before_mutation= np.mean(original_scores),
+                     avg_score_after_mutation= np.mean(mutated_scores),
+                     )
+    
+    if args.self_training:
+        store_self_training_data(minio_client, training_data)
 
     
     
