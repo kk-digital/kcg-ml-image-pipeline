@@ -79,6 +79,14 @@ def get_embedding_paths(minio_client, dataset):
             
     return embedding_files
 
+def get_self_training_paths(minio_client):
+    # get minio paths for existing self training data
+    dataset_path=DATA_MINIO_DIRECTORY + f"/self_training/"
+    dataset_files=minio_client.list_objects('datasets', prefix=dataset_path, recursive=True)
+    dataset_files= [file.object_name for file in dataset_files]
+    
+    return dataset_files
+
 def store_in_csv_file(csv_data, minio_client, embedding_type):
     # Save data to a CSV file
     csv_file = 'output/prompt_substitution_dataset.csv'
@@ -127,7 +135,6 @@ def store_in_msgpack_file(prompt_data, index, minio_client, embedding_type):
     minio_path=DATA_MINIO_DIRECTORY + f"/{embedding_type}_prompts/{str(index).zfill(6)}_substitution.msgpack"
     cmd.upload_data(minio_client, 'datasets',minio_path, buffer)
     
-
 def create_dataset(minio_client, device, csv_path, embedding_type):
     # Load the CLIP model
     clip=CLIPTextEmbedder(device=device)
@@ -252,6 +259,10 @@ def load_dataset(minio_client, embedding_type):
     dataset_path=DATA_MINIO_DIRECTORY + f"/{embedding_type}_prompts/"
     dataset_files=minio_client.list_objects('datasets', prefix=dataset_path, recursive=True)
     dataset_files= [file.object_name for file in dataset_files]
+
+    self_training_data= get_self_training_paths(minio_client)
+
+    dataset_files= dataset_files.extend(self_training_data)
     
     elm_inputs=[]
     linear_inputs=[]
@@ -272,32 +283,39 @@ def load_dataset(minio_client, embedding_type):
         # Deserialize the content using msgpack
         msgpack_data = msgpack.loads(content)
 
-        # get elm and linear input
-        elm_inputs.append(np.concatenate([msgpack_data['input'],
-                                         [msgpack_data['position_encoding']],
-                                      [msgpack_data['elm_score_encoding']]]))
-        
-        linear_inputs.append(np.concatenate([msgpack_data['input'],
+        if(msgpack_data["elm_output"]!=""):
+            # get elm input
+            elm_inputs.append(np.concatenate([msgpack_data['input'],
                                             [msgpack_data['position_encoding']],
-                                       [msgpack_data['linear_score_encoding']]]))
-        
-        # get sigma output
-        elm_sigma_outputs.append(msgpack_data['elm_output'])
-        linear_sigma_outputs.append(msgpack_data['linear_output'])
+                                        [msgpack_data['elm_score_encoding']]]))
+            
+            # get sigma output
+            elm_sigma_outputs.append(msgpack_data['elm_output'])
 
-        # get binary input
-        if msgpack_data['linear_score_encoding']> msgpack_data['linear_output'] :
-            binary_linear_output="decrease"
-        else:
-            binary_linear_output="increase"
-        
-        if msgpack_data['elm_score_encoding']> msgpack_data['elm_output'] :
-            binary_elm_output="decrease"
-        else:
-            binary_elm_output="increase"
+            # get binary input
+            if msgpack_data['elm_score_encoding']> msgpack_data['elm_output'] :
+                binary_elm_output="decrease"
+            else:
+                binary_elm_output="increase"
 
-        elm_binary_outputs.append(binary_elm_output)
-        linear_binary_outputs.append(binary_linear_output)
+            elm_binary_outputs.append(binary_elm_output)
+
+        if(msgpack_data["linear_output"]!=""):
+            # get linear input
+            linear_inputs.append(np.concatenate([msgpack_data['input'],
+                                                [msgpack_data['position_encoding']],
+                                        [msgpack_data['linear_score_encoding']]]))
+            
+            # get sigma output
+            linear_sigma_outputs.append(msgpack_data['linear_output'])
+
+            # get binary input
+            if msgpack_data['linear_score_encoding']> msgpack_data['linear_output'] :
+                binary_linear_output="decrease"
+            else:
+                binary_linear_output="increase"
+
+            linear_binary_outputs.append(binary_linear_output)
         
 
     return elm_inputs, linear_inputs, elm_sigma_outputs, elm_binary_outputs, linear_sigma_outputs, linear_binary_outputs     
