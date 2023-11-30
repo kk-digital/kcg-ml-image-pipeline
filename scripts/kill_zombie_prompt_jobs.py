@@ -131,6 +131,8 @@ def kill_zombie_jobs(dataset, max_days):
         if task_input_dict is None:
             continue
 
+        print(task_input_dict)
+
         job_dataset = task_input_dict['dataset']
 
         # skip the job if the dataset does not match
