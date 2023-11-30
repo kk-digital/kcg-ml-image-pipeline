@@ -62,6 +62,22 @@ class GeneratedImageData:
     @classmethod
     def deserialize(cls, data):
         # Convert dictionary back to object
+        prompt_scoring_model = None
+        if "prompt_scoring_model" in data:
+            prompt_scoring_model = data["prompt_scoring_model"]
+
+        prompt_score = None
+        if "prompt_score" in data:
+            prompt_score = data["prompt_score"]
+
+        prompt_generation_policy = None
+        if "prompt_generation_policy" in data:
+            prompt_generation_policy = data["prompt_generation_policy"]
+
+        top_k = None
+        if "top_k" in data:
+            top_k = data["top_k"]
+
         return cls(data["job_uuid"],
                    data["creation_time"],
                    data["dataset"],
@@ -75,10 +91,10 @@ class GeneratedImageData:
                    data["image_height"],
                    data["sampler"],
                    data["sampler_steps"],
-                   data["prompt_scoring_model"],
-                   data["prompt_score"],
-                   data["prompt_generation_policy"],
-                   data["top_k"])
+                   prompt_scoring_model,
+                   prompt_score,
+                   prompt_generation_policy,
+                   top_k)
 
     def get_msgpack_string(self):
         serialized = self.serialize()
@@ -86,5 +102,5 @@ class GeneratedImageData:
 
     @classmethod
     def from_msgpack_string(cls, msgpack_string):
-        data = msgpack.unpackb(msgpack_string.encode('latin1'), raw=False)
+        data = msgpack.unpackb(msgpack_string, raw=False)
         return cls.deserialize(data)
