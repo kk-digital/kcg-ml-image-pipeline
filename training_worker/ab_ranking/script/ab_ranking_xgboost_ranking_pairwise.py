@@ -27,9 +27,8 @@ def forward_bradley_terry(predicted_score_images_x, predicted_score_images_y, us
         # scaled_score_image_x = torch.multiply(1000.0, predicted_score_images_x)
         # scaled_score_image_y = torch.multiply(1000.0, predicted_score_images_y)
 
-        # prob = sigmoid( (x-y) / 100 )
         diff_predicted_score = np.subtract(predicted_score_images_x, predicted_score_images_y)
-        res_predicted_score = np.divide(diff_predicted_score, 50.0)
+        res_predicted_score = np.divide(diff_predicted_score, 1.0)
         pred_probabilities = np_sigmoid(res_predicted_score)
     else:
         epsilon = 0.000001
@@ -215,6 +214,22 @@ def train_xgboost(dataset_name: str,
     for index in dataset_loader.validation_data_paths_indices_shuffled:
         validation_shuffled_indices_origin.append(index)
 
+    # get sigma scores
+    (x_chronological_sigma_scores,
+     x_chronological_image_hashes,
+     y_chronological_sigma_scores,
+     mean,
+     standard_deviation) = sigma_score.get_chronological_sigma_scores(training_target_probabilities,
+                                                                        validation_target_probabilities,
+                                                                        training_predicted_score_images_x,
+                                                                        validation_predicted_score_images_x,
+                                                                        training_predicted_score_images_y,
+                                                                        validation_predicted_score_images_y,
+                                                                        dataset_loader.training_image_hashes,
+                                                                        dataset_loader.validation_image_hashes,
+                                                                        training_shuffled_indices_origin,
+                                                                        validation_shuffled_indices_origin)
+
     # Upload model to minio
     model_name = "{}.pth".format(filename)
     model_output_path = os.path.join(output_path, model_name)
@@ -244,20 +259,6 @@ def train_xgboost(dataset_name: str,
             if validation_predicted_score_images_x[i] < validation_predicted_score_images_y[i]:
                 validation_sum_correct += 1
 
-    # get sigma scores
-    (x_chronological_sigma_scores,
-     x_chronological_image_hashes,
-     y_chronological_sigma_scores) = sigma_score.get_chronological_sigma_scores(training_target_probabilities,
-                                                                                validation_target_probabilities,
-                                                                                training_predicted_score_images_x,
-                                                                                validation_predicted_score_images_x,
-                                                                                training_predicted_score_images_y,
-                                                                                validation_predicted_score_images_y,
-                                                                                dataset_loader.training_image_hashes,
-                                                                                dataset_loader.validation_image_hashes,
-                                                                                training_shuffled_indices_origin,
-                                                                                validation_shuffled_indices_origin)
-
     # show and save graph
     graph_name = "{}.png".format(filename)
     graph_output_path = os.path.join(output_path, graph_name)
@@ -276,6 +277,8 @@ def train_xgboost(dataset_name: str,
                                     validation_total_size=validation_total_size,
                                     training_losses=training_loss_per_epoch,
                                     validation_losses=validation_loss_per_epoch,
+                                    mean=mean,
+                                    standard_deviation=standard_deviation,
                                     x_chronological_sigma_scores=x_chronological_sigma_scores,
                                     y_chronological_sigma_scores=y_chronological_sigma_scores,
                                     epochs=epochs,
