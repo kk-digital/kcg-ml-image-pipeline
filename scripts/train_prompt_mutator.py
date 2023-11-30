@@ -1,6 +1,7 @@
 import argparse
 import csv
 import io
+import json
 import os
 import sys
 import numpy as np
@@ -54,6 +55,8 @@ def load_model(input_size, minio_client, device, scoring_model, embedding_type):
     else:
         print("No .pth files found in the list.")
         return
+   
+    print(most_recent_model)
 
     # Create a BytesIO object and write the downloaded content into it
     byte_buffer = io.BytesIO()
@@ -123,7 +126,7 @@ def store_in_msgpack_file(prompt_data, index, minio_client, embedding_type):
 
     minio_path=DATA_MINIO_DIRECTORY + f"/{embedding_type}_prompts/{str(index).zfill(6)}_substitution.msgpack"
     cmd.upload_data(minio_client, 'datasets',minio_path, buffer)
-
+    
 
 def create_dataset(minio_client, device, csv_path, embedding_type):
     # Load the CLIP model
@@ -132,11 +135,18 @@ def create_dataset(minio_client, device, csv_path, embedding_type):
 
     # get dataset of phrases
     phrases_df = pd.read_csv(csv_path)
-    # get minio paths for embeddings
-    embedding_paths = get_embedding_paths(minio_client, "environmental")
     # get ranking mondel
     elm_model= load_model(768,minio_client, device, 'elm-v1', embedding_type)
     linear_model= load_model(768,minio_client, device, 'linear', embedding_type)
+    # get mean and std values
+    elm_mean, elm_std= elm_model.mean, elm_model.standard_deviation
+    linear_mean, linear_std= linear_model.mean, linear_model.standard_deviation
+
+    print(f"elm mean: {elm_mean}, elm std {elm_std}")
+    print(f"linear mean: {linear_mean}, linear std {linear_std}")
+
+    # get minio paths for embeddings
+    embedding_paths = get_embedding_paths(minio_client, "environmental")
 
     prompt_index=1
     csv_data = []
@@ -183,11 +193,11 @@ def create_dataset(minio_client, device, csv_path, embedding_type):
 
         # get score before and after substitution
         with torch.no_grad():
-            elm_prompt_score=elm_model.predict_positive_or_negative_only(prompt_embedding)
-            elm_modified_pormpt_score= elm_model.predict_positive_or_negative_only(modified_embedding)
+            elm_prompt_score=elm_model.predict_positive_or_negative_only(prompt_embedding).item()
+            elm_modified_pormpt_score= elm_model.predict_positive_or_negative_only(modified_embedding).item()
             
-            linear_prompt_score=linear_model.predict_positive_or_negative_only(prompt_embedding)
-            linear_modified_pormpt_score= linear_model.predict_positive_or_negative_only(modified_embedding)
+            linear_prompt_score=linear_model.predict_positive_or_negative_only(prompt_embedding).item()
+            linear_modified_pormpt_score= linear_model.predict_positive_or_negative_only(modified_embedding).item()
         
         # mean pooling
         pooled_prompt_embedding=torch.mean(prompt_embedding, dim=2)
@@ -204,26 +214,32 @@ def create_dataset(minio_client, device, csv_path, embedding_type):
         #flattening embedding
         pooled_substitute_embedding = pooled_substitute_embedding.reshape(len(pooled_substitute_embedding), -1).squeeze(0)
 
+        # calculate sigma scores
+        sigma_elm_score=(elm_prompt_score - elm_mean) / elm_std
+        modified_sigma_elm_score= (elm_modified_pormpt_score - elm_mean) / elm_std
+        sigma_linear_score= (linear_prompt_score - linear_mean) / linear_std
+        modified_sigma_linear_score= (linear_modified_pormpt_score - linear_mean) / linear_std 
+
         # Append to the CSV data list
         csv_data.append([
             prompt_str,  # Prompt string
             substitute_phrase,        # Substitute phrase string
             substituted_phrase,  # Substituted phrase string
             position_to_substitute,   # Substitution position
-            elm_prompt_score.item(), # elm score before substitution
-            elm_modified_pormpt_score.item(), # elm score after substitution
-            linear_prompt_score.item(), # elm score before substitution
-            linear_modified_pormpt_score.item() # elm score after substitution
+            sigma_elm_score, # elm score before substitution
+            modified_sigma_elm_score, # elm score after substitution
+            sigma_linear_score, # linear score before substitution
+            modified_sigma_linear_score # linear score after substitution
         ])
 
         # Append to the msgpack data list
         prompt_data={
         'input': torch.cat([pooled_prompt_embedding, pooled_substituted_embedding, pooled_substitute_embedding], dim=0).tolist(),
         'position_encoding': position_to_substitute,
-        'elm_score_encoding': elm_prompt_score.item(),
-        'elm_output': elm_modified_pormpt_score.item(),
-        'linear_score_encoding': linear_prompt_score.item(),
-        'linear_output': linear_modified_pormpt_score.item()
+        'elm_score_encoding': sigma_elm_score,
+        'elm_output': modified_sigma_elm_score,
+        'linear_score_encoding': sigma_linear_score,
+        'linear_output': modified_sigma_linear_score
         }
 
         store_in_msgpack_file(prompt_data, prompt_index, minio_client, embedding_type)
@@ -236,9 +252,6 @@ def load_dataset(minio_client, embedding_type):
     dataset_path=DATA_MINIO_DIRECTORY + f"/{embedding_type}_prompts/"
     dataset_files=minio_client.list_objects('datasets', prefix=dataset_path, recursive=True)
     dataset_files= [file.object_name for file in dataset_files]
-
-    elm_score_encoding=[]
-    linear_score_encoding=[]
     
     elm_inputs=[]
     linear_inputs=[]
@@ -259,17 +272,13 @@ def load_dataset(minio_client, embedding_type):
         # Deserialize the content using msgpack
         msgpack_data = msgpack.loads(content)
 
-        # get scores
-        elm_score_encoding.append(msgpack_data['elm_score_encoding'])
-        linear_score_encoding.append(msgpack_data['linear_score_encoding'])
-
         # get elm and linear input
-        elm_inputs.append(np.concatenate([msgpack_data['input'], 
-                                      [msgpack_data['position_encoding']],
-                                       [msgpack_data['elm_score_encoding']]]))
+        elm_inputs.append(np.concatenate([msgpack_data['input'],
+                                         [msgpack_data['position_encoding']],
+                                      [msgpack_data['elm_score_encoding']]]))
         
-        linear_inputs.append(np.concatenate([msgpack_data['input'], 
-                                      [msgpack_data['position_encoding']],
+        linear_inputs.append(np.concatenate([msgpack_data['input'],
+                                            [msgpack_data['position_encoding']],
                                        [msgpack_data['linear_score_encoding']]]))
         
         # get sigma output
@@ -290,24 +299,6 @@ def load_dataset(minio_client, embedding_type):
         elm_binary_outputs.append(binary_elm_output)
         linear_binary_outputs.append(binary_linear_output)
         
-
-    #compute sigma scores for initial score encoding
-    sigma_mean=np.mean(elm_score_encoding)
-    sigma_std=np.std(elm_score_encoding)
-    print(f"elm mean:{sigma_mean}")
-    print(f"elm std:{sigma_std}")
-    elm_score_encoding = [(x - sigma_mean) / sigma_std for x in elm_score_encoding]
-    #compute sigma scores for output
-    elm_sigma_outputs = [(x - sigma_mean) / sigma_std for x in elm_sigma_outputs]
-    
-    #compute sigma scores for initial score encoding
-    sigma_mean=np.mean(linear_score_encoding)
-    sigma_std=np.std(linear_score_encoding)
-    print(f"linear mean:{sigma_mean}")
-    print(f"linear std:{sigma_std}")
-    linear_score_encoding = [(x - sigma_mean) / sigma_std for x in linear_score_encoding]
-    #compute sigma scores for output
-    linear_sigma_outputs = [(x - sigma_mean) / sigma_std for x in linear_sigma_outputs]
 
     return elm_inputs, linear_inputs, elm_sigma_outputs, elm_binary_outputs, linear_sigma_outputs, linear_binary_outputs     
         

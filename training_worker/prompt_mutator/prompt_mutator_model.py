@@ -196,9 +196,23 @@ class PromptMutator:
         return self.model.predict(dtest)
 
     def load_model(self):
-        print(self.minio_path)
+        minio_path=f"environmental/models/prompt-generator/substitution/{self.prompt_type}_prompts_only/"
+        file_name=f"_{self.output_type}_{self.ranking_model}_model.json"
         # get model file data from MinIO
-        model_file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', self.minio_path)
+        model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', minio_path)
+        most_recent_model = None
+
+        for model_file in model_files:
+            if model_file.endswith(file_name):
+                most_recent_model = model_file
+
+        if most_recent_model:
+            model_file_data =cmd.get_file_from_minio(self.minio_client, 'datasets', most_recent_model)
+        else:
+            print("No .pth files found in the list.")
+            return
+        
+        print(most_recent_model)
 
         # Create a temporary file and write the downloaded content into it
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
