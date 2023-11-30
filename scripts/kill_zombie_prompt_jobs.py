@@ -2,6 +2,7 @@ import os
 import sys
 import argparse
 import requests
+from datetime import datetime, timedelta
 
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
@@ -11,7 +12,22 @@ SERVER_ADRESS = 'http://192.168.3.1:8111'
 
 
 def http_get_in_progress_jobs_count(dataset_name: str):
-    url = SERVER_ADRESS + "/queue/image-generation/count-in-progress?dataset=" + dataset_name
+    url = SERVER_ADRESS + "/queue/image-generation/in-progress-count?dataset=" + dataset_name
+
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            job_json = response.json()
+            return job_json
+
+    except Exception as e:
+        print('request exception ', e)
+
+    return None
+
+def http_get_in_progress_jobs():
+    url = SERVER_ADRESS + "/queue/image-generation/list-in-progress"
 
     try:
         response = requests.get(url)
@@ -68,16 +84,73 @@ def parse_arguments():
                         help="The dataset name to use, use 'all' for all datasets",
                         default='all')
 
+
+def is_time_difference_more_than_n_days(creation_date_str, max_days):
+    # Convert the creation date string to a datetime object
+    creation_date = datetime.strptime(creation_date_str, '%Y-%m-%dT%H:%M:%S.%f')
+
+    # Get the current date and time
+    current_date = datetime.now()
+
+    # Calculate the time difference
+    time_difference = current_date - creation_date
+
+    # Check if the time difference is more than n days
+    if time_difference > timedelta(days=max_days):
+        return True
+    else:
+        return False
+
+
+def kill_zombie_jobs(dataset, max_days):
+    job_list = http_get_in_progress_jobs()
+
+    for job in job_list:
+
+        if job is None:
+            continue
+
+        task_input_dict = job['task_input_dict']
+
+        if task_input_dict is None:
+            continue
+
+        job_dataset = task_input_dict['dataset']
+
+        # skip the job if the dataset does not match
+        if job_dataset != dataset:
+            continue
+
+        job_creation_time = job['task_creation_time']
+
+        if job_creation_time is None:
+            continue
+
+        result = is_time_difference_more_than_n_days(job_creation_time, max_days)
+
+        # if the difference is more than max_days
+        # clear the zombie job
+        if result:
+
+
+
 def main():
     args = parse_arguments()
 
     dataset_name = args.dataset_name
+    max_days = args.max_days
 
-    # if dataset name is 'all'
-    # we would kill all zombie jobs
     if dataset_name == 'all':
+        # if dataset name is 'all'
+        # we would kill all zombie jobs
+        dataset_list = http_get_dataset_list()
 
-
+        for dataset in dataset_list:
+            kill_zombie_jobs(dataset, max_days)
+    else:
+        # otherwise just kill the jobs
+        # that belong to the dataset
+        kill_zombie_jobs(dataset_name, max_days)
 
 if __name__ == '__main__':
     main()
