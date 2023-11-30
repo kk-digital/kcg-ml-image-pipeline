@@ -11,7 +11,8 @@ import numpy as np
 from matplotlib.ticker import PercentFormatter
 import random
 import math
-
+from datetime import datetime
+from pytz import timezone
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
@@ -19,8 +20,10 @@ from scripts.image_scorer import ImageScorer
 from training_worker.http import request
 from utility.minio import cmd
 from data_loader.phrase_scores_loader import PhraseScoresLoader
-from worker.prompt_generation.prompt_generator import generate_image_generation_jobs_with_temperature
+from worker.prompt_generation.prompt_generator import generate_image_generation_jobs_with_temperature, generate_inpainting_job_with_temperature
 
+def all_same(items):
+    return np.all(x == items[0] for x in items)
 
 # find the first element, whose cumulative prob is more than the random float
 def find_first_element_binary_search(cumulative_prob_arr, random_float):
@@ -28,7 +31,11 @@ def find_first_element_binary_search(cumulative_prob_arr, random_float):
     high = len(cumulative_prob_arr) - 1
     mid = 0
 
-    while low <= high:
+    loop_count = 0
+    while low < high:
+        loop_count += 1
+        assert loop_count < 32, "Error: binary search loop count is more than 32"
+
         mid = (high + low) / 2
         mid = math.floor(mid)
 
@@ -36,10 +43,8 @@ def find_first_element_binary_search(cumulative_prob_arr, random_float):
         if cumulative_prob_arr[mid] < random_float:
             low = mid + 1
         # If random_float is smaller, ignore right half
-        elif cumulative_prob_arr[mid] > random_float:
+        elif cumulative_prob_arr[mid] >= random_float:
             high = mid - 1
-        # else:
-        #     return mid
 
         # use this index since sometimes the exact
         # random num is not in the list
@@ -51,8 +56,106 @@ def find_first_element_binary_search(cumulative_prob_arr, random_float):
 
             return low
 
+
     # If we reach here, then the element was not present
     return -1
+
+
+def upload_prompt_generation_data_to_csv(minio_client,
+                                         dataset_name,
+                                         prompt_generation_data,
+                                         boltzman_temperature,
+                                         boltzman_k):
+    print("Saving prompt generation data to csv...")
+    csv_buffer = io.StringIO()
+    writer = csv.writer(csv_buffer)
+    writer.writerow((["job_uuid", "positive_prompt", "negative_prompt", "boltzman temperature", "boltzman k"]))
+
+    for data in prompt_generation_data:
+        job_uuid = data["job_uuid"]
+        positive_prompt = data["positive_prompt"]
+        negative_prompt = data["negative_prompt"]
+        writer.writerow([job_uuid, positive_prompt, negative_prompt, boltzman_temperature, boltzman_k])
+
+    bytes_buffer = io.BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
+
+    date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
+    # get final filename
+    sequence = 0
+    # if exist, increment sequence
+    while True:
+        filename = "{}-independent-approx-v1-{:02}-{}.csv".format(date_now, sequence, dataset_name)
+        csv_path = os.path.join(dataset_name, "output/generated-prompts-csv", filename)
+
+        exists = cmd.is_object_exists(minio_client, 'datasets', csv_path)
+        if not exists:
+            break
+
+        sequence += 1
+
+    # upload the csv
+    cmd.upload_data(minio_client, 'datasets', csv_path, bytes_buffer)
+
+
+def upload_score_probability_data_to_csv(minio_client,
+                                         dataset_name,
+                                         index_phrase_score_data,
+                                         probability_arr,
+                                         normalized_probability_arr,
+                                         renormalized_prob_arr,
+                                         unsmooth_sorted_indexes,
+                                         unsmooth_cumulative_probability_arr,
+                                         smooth_sorted_indexes,
+                                         smooth_cumulative_probability_arr,
+                                         boltzman_temperature,
+                                         boltzman_k,
+                                         type="positive"):
+    print("Saving prompt generation data to csv...")
+    # sort cumulative by original index
+    smooth_sorted_cumulative_prob = [None] * len(smooth_cumulative_probability_arr)
+    for i in range(len(smooth_cumulative_probability_arr)):
+        index = smooth_sorted_indexes[i]
+        smooth_sorted_cumulative_prob[index] = smooth_cumulative_probability_arr[i]
+
+    unsmooth_sorted_cumulative_prob = [None] * len(unsmooth_cumulative_probability_arr)
+    for i in range(len(unsmooth_cumulative_probability_arr)):
+        index = unsmooth_sorted_indexes[i]
+        unsmooth_sorted_cumulative_prob[index] = unsmooth_cumulative_probability_arr[i]
+
+    csv_buffer = io.StringIO()
+    writer = csv.writer(csv_buffer)
+    writer.writerow((["index", "phrase", "occurrences", "token length", "boltzman_temperature", "boltzman k", "score", "boltzman probability", "normalized probability", "unsmooth cumulative probability", "normalized with epsilon", "smooth cumulative probability"]))
+
+    for index, data in index_phrase_score_data.items():
+        phrase = data.phrase
+        score = "{:f}".format(data.score)
+        occurrences = data.occurrences
+        token_length = data.token_length
+        boltzman_prob = probability_arr[index]
+        normalized_prob = normalized_probability_arr[index]
+        renormalized_prob = renormalized_prob_arr[index]
+        unsmooth_cumulative_prob = unsmooth_sorted_cumulative_prob[index]
+        smooth_cumulative_prob = smooth_sorted_cumulative_prob[index]
+        writer.writerow([index, phrase, occurrences, token_length, boltzman_temperature, boltzman_k, score, boltzman_prob, normalized_prob, unsmooth_cumulative_prob, renormalized_prob, smooth_cumulative_prob])
+
+    bytes_buffer = io.BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
+
+    date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
+    # get final filename
+    sequence = 0
+    # if exist, increment sequence
+    while True:
+        filename = "{}-phrase-scores-probability-{:02}-{}-{}.csv".format(date_now, sequence, dataset_name, type)
+        csv_path = os.path.join(dataset_name, "output/generated-phrases-scores-probability-csv", filename)
+
+        exists = cmd.is_object_exists(minio_client, 'datasets', csv_path)
+        if not exists:
+            break
+
+        sequence += 1
+
+    # upload the csv
+    cmd.upload_data(minio_client, 'datasets', csv_path, bytes_buffer)
 
 
 def generate_prompt(positive_phrase_scores_loader,
@@ -64,8 +167,6 @@ def generate_prompt(positive_phrase_scores_loader,
                     ):
     max_token_size = 75
     comma_token_size = 1
-    positive_total_cumulative = int(positive_cumulative_probability_arr[-1])
-    negative_total_cumulative = int(negative_cumulative_probability_arr[-1])
 
     positive_prompt_total_token_size = 0
     negative_prompt_total_token_size = 0
@@ -76,7 +177,7 @@ def generate_prompt(positive_phrase_scores_loader,
 
     # positive prompt
     while positive_prompt_total_token_size < max_token_size:
-        random_float = random.uniform(0, positive_total_cumulative)
+        random_float = random.uniform(positive_cumulative_probability_arr.min(), 1.0)
         random_index = find_first_element_binary_search(positive_cumulative_probability_arr, random_float)
         if random_index in positive_used_phrase_dict:
             continue
@@ -96,9 +197,10 @@ def generate_prompt(positive_phrase_scores_loader,
 
     # negative prompt
     while negative_prompt_total_token_size < max_token_size:
-        random_float = random.uniform(0, negative_total_cumulative)
+        random_float = random.uniform(negative_cumulative_probability_arr.min(), 1.0)
         random_index = find_first_element_binary_search(negative_cumulative_probability_arr, random_float)
         if random_index in negative_used_phrase_dict:
+            # print("float={} index={}", random_float, random_index)
             continue
 
         prompt_index = negative_phrase_origin_indexes[random_index]
@@ -122,7 +224,8 @@ def generate_prompt(positive_phrase_scores_loader,
     return prompt
 
 
-def generate_prompts(dataset_name,
+def generate_prompts(minio_client,
+                     dataset_name,
                      positive_phrase_scores_loader,
                      positive_phrase_origin_indexes,
                      positive_cumulative_probability_arr,
@@ -153,22 +256,59 @@ def generate_prompts(dataset_name,
             # print("positive prompt=", positive_prompt)
             # print("negative prompt=", negative_prompt)
             # print("---------------------------------------------------------------")
-            response = generate_image_generation_jobs_with_temperature(positive_prompt=positive_prompt,
-                                                                       negative_prompt=negative_prompt,
-                                                                       prompt_scoring_model="n/a",
-                                                                       prompt_score=0.0,
-                                                                       prompt_generation_policy="independent_approx_v1",
-                                                                       top_k=0.0,
-                                                                       dataset_name=dataset_name,
-                                                                       boltzman_temperature=boltzman_temperature,
-                                                                       boltzman_k=boltzman_k)
+            if dataset_name in ["environmental", "propaganda-poster", "waifu", "test-generations"]:
+                response = generate_image_generation_jobs_with_temperature(positive_prompt=positive_prompt,
+                                                                           negative_prompt=negative_prompt,
+                                                                           prompt_scoring_model="n/a",
+                                                                           prompt_score=0.0,
+                                                                           prompt_generation_policy="independent_approx_v1",
+                                                                           top_k=0.0,
+                                                                           dataset_name=dataset_name,
+                                                                           boltzman_temperature=boltzman_temperature,
+                                                                           boltzman_k=boltzman_k)
+            elif dataset_name in ["character", "mech", "icons"]:
+                mask_path = "./test/test_inpainting/icon_mask.png"
+                if dataset_name == "character":
+                    mask_path = "./test/test_inpainting/character_mask.png"
+                elif dataset_name == "mech":
+                    sizes = ["1x1", "1x2", "2x1", "2x2", "2x3", "3x2", "3x3"]
+                    chosen_size = random.randint(0, len(sizes)-1)
+                    size_str = sizes[chosen_size]
+                    mask_path = "./input/mask/mech/mech_mask_{}.png".format(size_str)
+
+                response = generate_inpainting_job_with_temperature(positive_prompt=positive_prompt,
+                                                                    negative_prompt=negative_prompt,
+                                                                    prompt_scoring_model="n/a",
+                                                                    prompt_score=0.0,
+                                                                    prompt_generation_policy="independent_approx_v1",
+                                                                    top_k=0.0,
+                                                                    dataset_name=dataset_name,
+                                                                    boltzman_temperature=boltzman_temperature,
+                                                                    boltzman_k=boltzman_k,
+                                                                    init_img_path="./test/test_inpainting/white_512x512.jpg",
+                                                                    mask_path=mask_path)
+            else:
+                raise Exception("dataset unsupported")
+
             job_uuid = response['uuid']
+            data = {"job_uuid": job_uuid,
+                    "positive_prompt": positive_prompt,
+                    "negative_prompt": negative_prompt}
+            generated_prompts.append(data)
 
-    return generated_prompts
+        upload_prompt_generation_data_to_csv(minio_client=minio_client,
+                                             dataset_name=dataset_name,
+                                             prompt_generation_data=generated_prompts,
+                                             boltzman_temperature=boltzman_temperature,
+                                             boltzman_k=boltzman_k)
 
-def get_cumulative_probability_arr(index_phrase_score_data,
+
+def get_cumulative_probability_arr(minio_client,
+                                   dataset_name,
+                                   index_phrase_score_data,
                                    boltzman_temperature,
                                    boltzman_k,
+                                   type="positive"
                                    ):
     scores_arr = []
     for index, data in index_phrase_score_data.items():
@@ -183,23 +323,58 @@ def get_cumulative_probability_arr(index_phrase_score_data,
     normalized_probability_arr = probability_arr/np.sum(probability_arr)
     assert round(np.sum(normalized_probability_arr), 4) == 1.0, "sum={}".format(np.sum(normalized_probability_arr))
 
-    # sort
-    sorted_probability_arr = []
-    sorted_indexes = sorted(range(len(normalized_probability_arr)), key=lambda x: normalized_probability_arr[x], reverse=True)
-    for i in sorted_indexes:
-        sorted_probability_arr.append(normalized_probability_arr[i])
-    sorted_probability_arr = np.array(sorted_probability_arr)
+    # unsmooth cumulative
+    unsmooth_sorted_probability_arr = []
+    unsmooth_sorted_indexes = sorted(range(len(normalized_probability_arr)), key=lambda x: normalized_probability_arr[x],
+                                   reverse=True)
+    for i in unsmooth_sorted_indexes:
+        unsmooth_sorted_probability_arr.append(normalized_probability_arr[i])
+    unsmooth_sorted_probability_arr = np.array(unsmooth_sorted_probability_arr)
 
     # get cumulative
-    cumulative_probability_arr = sorted_probability_arr.cumsum()
+    unsmooth_cumulative_probability_arr = unsmooth_sorted_probability_arr.cumsum()
 
+    # epsilon
+    epsilon = 0.001 / len(index_phrase_score_data)
+
+    normalized_prob_epsilon_arr = normalized_probability_arr + epsilon
+    renormalized_prob_arr = normalized_prob_epsilon_arr/ np.sum(normalized_prob_epsilon_arr)
+
+    # sort smooth
+    smooth_sorted_probability_arr = []
+    smooth_sorted_indexes = sorted(range(len(renormalized_prob_arr)), key=lambda x: renormalized_prob_arr[x], reverse=True)
+    for i in smooth_sorted_indexes:
+        smooth_sorted_probability_arr.append(renormalized_prob_arr[i])
+    smooth_sorted_probability_arr = np.array(smooth_sorted_probability_arr)
+
+    # get cumulative
+    smooth_cumulative_probability_arr = smooth_sorted_probability_arr.cumsum()
+
+    print("-------------------------------------------------------------------------------------")
     print("scores=", scores_np_arr)
     print("prob=", probability_arr)
     print("normalized=", normalized_probability_arr)
-    print("sorted prob=", sorted_probability_arr)
-    print("cumulative=", cumulative_probability_arr)
+    print("renormalized prob=", renormalized_prob_arr)
+    print("smooth_sorted prob=", smooth_sorted_probability_arr)
+    print("smooth_cumulative=", smooth_cumulative_probability_arr)
+    print("smooth_cumulative prob length =", len(smooth_cumulative_probability_arr))
+    print("smooth_cumulative prob count of value 1=", (smooth_cumulative_probability_arr > 0.9999999999999).sum())
 
-    return sorted_indexes, cumulative_probability_arr
+    upload_score_probability_data_to_csv(minio_client,
+                                         dataset_name,
+                                         index_phrase_score_data,
+                                         probability_arr,
+                                         normalized_probability_arr,
+                                         renormalized_prob_arr,
+                                         unsmooth_sorted_indexes,
+                                         unsmooth_cumulative_probability_arr,
+                                         smooth_sorted_indexes,
+                                         smooth_cumulative_probability_arr,
+                                         boltzman_temperature,
+                                         boltzman_k,
+                                         type)
+
+    return smooth_sorted_indexes, smooth_cumulative_probability_arr
 
 
 def run_prompt_generator(minio_client,
@@ -215,9 +390,12 @@ def run_prompt_generator(minio_client,
                                                        minio_client=minio_client,
                                                        )
     positive_phrase_scores_loader.load_dataset()
-    positive_phrase_origin_indexes, positive_cumulative_probability_arr = get_cumulative_probability_arr(index_phrase_score_data=positive_phrase_scores_loader.index_phrase_score_data,
+    positive_phrase_origin_indexes, positive_cumulative_probability_arr = get_cumulative_probability_arr(minio_client=minio_client,
+                                                                                                         dataset_name=dataset_name,
+                                                                                                         index_phrase_score_data=positive_phrase_scores_loader.index_phrase_score_data,
                                                                                                          boltzman_temperature=boltzman_temperature,
-                                                                                                         boltzman_k=boltzman_k)
+                                                                                                         boltzman_k=boltzman_k,
+                                                                                                         type="positive")
 
     negative_phrase_scores_loader = PhraseScoresLoader(dataset_name=dataset_name,
                                                        phrase_scores_csv=negative_phrase_scores_csv,
@@ -225,18 +403,24 @@ def run_prompt_generator(minio_client,
                                                        )
 
     negative_phrase_scores_loader.load_dataset()
-    negative_phrase_origin_indexes, negative_cumulative_probability_arr = get_cumulative_probability_arr(index_phrase_score_data=negative_phrase_scores_loader.index_phrase_score_data,
+    negative_phrase_origin_indexes, negative_cumulative_probability_arr = get_cumulative_probability_arr(minio_client=minio_client,
+                                                                                                         dataset_name=dataset_name,
+                                                                                                         index_phrase_score_data=negative_phrase_scores_loader.index_phrase_score_data,
                                                                                                          boltzman_temperature=boltzman_temperature,
-                                                                                                         boltzman_k=boltzman_k)
+                                                                                                         boltzman_k=boltzman_k,
+                                                                                                         type="negative")
 
-    generate_prompts(dataset_name,
+    generate_prompts(minio_client,
+                     dataset_name,
                      positive_phrase_scores_loader,
                      positive_phrase_origin_indexes,
                      positive_cumulative_probability_arr,
                      negative_phrase_scores_loader,
                      negative_phrase_origin_indexes,
                      negative_cumulative_probability_arr,
-                     prompt_count)
+                     prompt_count,
+                     boltzman_temperature,
+                     boltzman_k)
 
 
 def parse_args():
@@ -249,7 +433,7 @@ def parse_args():
     parser.add_argument('--negative-phrase-scores-csv', required=True, help='Filename of the negative phrase scores csv')
     parser.add_argument('--prompt-count', required=True, type=int, help='Number of prompt jobs to generate')
     parser.add_argument('--boltzman-k', default=1.0, type=float, help='K for boltzman probability')
-    parser.add_argument('--boltzman-temperature', default=0.8, type=float, help='Temperature for boltzman probability')
+    parser.add_argument('--boltzman-temperature', default=8, type=float, help='Temperature for boltzman probability')
     args = parser.parse_args()
     return args
 
