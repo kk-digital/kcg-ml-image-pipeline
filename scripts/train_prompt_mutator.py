@@ -366,8 +366,9 @@ def fix_dataset(minio_client):
         # Upload the local file to MinIO
         buffer = io.BytesIO(content)
         buffer.seek(0)
-        
-        cmd.upload_data(minio_client, 'datasets', file , buffer)
+
+        minio_path=DATA_MINIO_DIRECTORY + f"/self_training/{str(index).zfill(6)}_substitution.msgpack"
+        cmd.upload_data(minio_client, 'datasets',minio_path, buffer)
 
         # Remove the temporary file
         os.remove(local_file_path)
