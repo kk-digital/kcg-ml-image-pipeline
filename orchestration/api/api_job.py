@@ -462,7 +462,7 @@ def get_worker_stats(server_address: str = Query(...), ssh_port: int = Query(22)
     ssh.connect(server_address, port=ssh_port, username='root', key_filename=ssh_key_path)
 
     command = '''
-    python -c "import json; import socket; import GPUtil; print(json.dumps([{\'temperature\': gpu.temperature, \'load\': gpu.load, \'total_memory\': gpu.memoryTotal, \'used_memory\': gpu.memoryUsed, \'worker_name\': socket.gethostname()} for gpu in GPUtil.getGPUs()]))"
+    python -c "import json; import socket; import GPUtil; print(json.dumps([{\'id\': gpu.id, \'temperature\': gpu.temperature, \'load\': gpu.load, \'total_memory\': gpu.memoryTotal, \'used_memory\': gpu.memoryUsed, \'worker_name\': socket.gethostname()} for gpu in GPUtil.getGPUs()]))"
     '''
     stdin, stdout, stderr = ssh.exec_command(command)
 
@@ -479,4 +479,5 @@ def get_worker_stats(server_address: str = Query(...), ssh_port: int = Query(22)
 
     ssh.close()
     return gpu_stats
+
 
