@@ -148,6 +148,7 @@ python ./scripts/check_dataset_clip.py --minio-access-key nkjYl5jO4QnpxQU0k0M1 -
 ```
 
 ### Generate prompts using greedy search with addition / removal operations
+Please refer to script for default values of arguments
 ```
 python scripts/prompt_mutator/greedy_prompt_search_v1.py \
     --minio-access-key <access key> \
@@ -156,5 +157,35 @@ python scripts/prompt_mutator/greedy_prompt_search_v1.py \
     --csv_base_prompts <csv containing base prompts> \ 
     --n_data <number of data samples to generate> \
     --csv_save_path <Path directory to save generated prompts> \
-    --dataset_name <Image gallery dataset name to upload images to>
+    --dataset_name <Image gallery dataset name to upload images to> \
+    --n_mutation <list of number of iterations to randomly choose from separated by space, i.e. 25 50 75 100>
+```  
+
+### Random prompt generator for testing
+```
+python scripts/test_prompt_image_generation.py \
+    --data_csv_path <csv with phrases to sample from, must contain "phrase str" column> \
+    --n_prompts <number of prompts to generate> \
+    --tokenizer_path <tokenizer config json directory> \
+    --model_path <text embedder model weight directory> \
+    --score_path <scoring model weights directory> \
+    --top_k <top number percentage of prompts to choose to send to job> \
+    --dataset_name <dataset name to generate> \
+    --save_path <output csv path to save results>
+```
+
+### Check msgpacks for prompts with token lengths exceeding 77
+```
+python scripts/check_token_length.py \
+    --tokenizer_path <tokenizer config json directory> \
+    --embedding_path <directory to msgpacks> \
+    --save_path <output csv path to save results>
+```
+
+### Compare token lengths using different tokenizers
+```
+python scripts/check_token_length.py \
+    --tokenizer_path <directory path to kcg tokenizer> \
+    --embedding_path <directory to msgpacks> \
+    --save_path <output csv path to save results>
 ```
