@@ -24,4 +24,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libasound-dev portaudio19-
 RUN pip install -r /training_worker/requirements.txt
 RUN pip install -r /training_worker/requirements_scheduled_workers.txt
 
+# for tiktoken
+RUN python -c "import tiktoken; tiktoken.get_encoding("cl100k_base")"
+
 ENTRYPOINT ["/training_worker/training_worker/run_training_worker.sh"]
