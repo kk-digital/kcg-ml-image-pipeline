@@ -20,36 +20,42 @@ from data_loader.independent_approximation_dataset_loader import IndependentAppr
 from utility.minio import cmd
 
 
-class IndependentApproximationV1Model(nn.Module):
+class PhraseSmoothingModel(nn.Module):
     def __init__(self, inputs_shape):
-        super(IndependentApproximationV1Model, self).__init__()
+        super(PhraseSmoothingModel, self).__init__()
         self.inputs_shape = inputs_shape
+
         initial_score_vector = torch.rand((1, inputs_shape), dtype=torch.float32)
         self.score_vector = nn.Parameter(data=initial_score_vector, requires_grad=True)
-        initial_prompt_phrase_average_weight = torch.zeros(1, dtype=torch.float32)
-        self.prompt_phrase_average_weight = nn.Parameter(data=initial_prompt_phrase_average_weight, requires_grad=True)
+        self.l1_loss = nn.L1Loss()
+
+        # smoothing
+        self.linear = nn.Linear(inputs_shape, inputs_shape)
+        initial_score_offset = torch.zeros(1, dtype=torch.float32)
+        self.score_offset = nn.Parameter(data=initial_score_offset, requires_grad=True)
+
         self.l1_loss = nn.L1Loss()
 
     # for score
-    def forward(self, input):
-        assert input.shape == (1, self.inputs_shape)
-
-        # phrase average weight param
-        average_weight_param_product = torch.sum(input, dim=1) * self.prompt_phrase_average_weight
+    def forward(self, phrase_vector):
+        assert phrase_vector.shape == (1, self.inputs_shape)
 
         # phrase score
-        product = torch.mul(input, self.score_vector)
-        score_sum = torch.sum(product, dim=1)
+        product = torch.mul(phrase_vector, self.score_vector)
 
-        sum = score_sum + average_weight_param_product
+        # smoothing
+        phrase_base_scores = self.linear(phrase_vector.to(torch.float32))
+        base_scores = phrase_base_scores + self.score_offset
 
-        output = sum.unsqueeze(1)
+        sum = product + base_scores
+        prompt_score = torch.sum(sum, dim=1)
+        prompt_score = prompt_score.unsqueeze(0)
 
-        assert output.shape == (1, 1)
-        return output
+        assert prompt_score.shape == (1, 1), "shape={}".format(prompt_score.shape)
+        return prompt_score
 
 
-class ABRankingIndependentApproximationV1Model:
+class ScorePhraseSmoothingModel:
     def __init__(self, inputs_shape,
                  dataset_loader: IndependentApproximationDatasetLoader,
                  input_type="positive"):
@@ -62,8 +68,8 @@ class ABRankingIndependentApproximationV1Model:
         self.dataset_loader = dataset_loader
         self.input_type = input_type
 
-        self.model = IndependentApproximationV1Model(inputs_shape).to(self._device)
-        self.model_type = 'ab-ranking-independent-approximation-v1'
+        self.model = PhraseSmoothingModel(inputs_shape).to(self._device)
+        self.model_type = 'score-phrase-smoothing'
         self.loss_func_name = ''
         self.file_path = ''
         self.model_hash = ''
@@ -154,6 +160,7 @@ class ABRankingIndependentApproximationV1Model:
 
         # upload the model
         cmd.upload_data(minio_client, datasets_bucket, model_output_path, buffer)
+
 
     def upload_phrases_score_csv(self):
         print("Saving phrases score csv...")
