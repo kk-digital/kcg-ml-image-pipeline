@@ -121,8 +121,13 @@ def is_time_difference_more_than_n_days(creation_date_str, max_days):
 def kill_zombie_jobs(dataset, max_days):
     job_list = http_get_in_progress_jobs()
 
-    for job in job_list:
+    job_count = len(job_list)
+    job_index = 0
+    number_of_removed_jobs = 0
 
+    for job in job_list:
+        job_index = job_index + 1
+        print(f'processing job {job_index} out of {job_count}')
         if job is None:
             continue
 
@@ -154,6 +159,9 @@ def kill_zombie_jobs(dataset, max_days):
         if result:
             http_update_failed_job(job)
 
+            number_of_removed_jobs = number_of_removed_jobs + 1
+
+    print(f'number of removed jobs {number_of_removed_jobs}')
 
 # go through all the in progress jobs
 # and make sure they are not too old
@@ -176,6 +184,9 @@ def main():
         # otherwise just kill the jobs
         # that belong to the dataset
         kill_zombie_jobs(dataset_name, max_days)
+
+    print('all zombie jobs have been deleted successfully')
+
 
 if __name__ == '__main__':
     main()
