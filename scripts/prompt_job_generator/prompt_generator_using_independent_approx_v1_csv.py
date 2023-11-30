@@ -128,7 +128,7 @@ def upload_score_probability_data_to_csv(minio_client,
 
     for index, data in index_phrase_score_data.items():
         phrase = data.phrase
-        score = data.score
+        score = "{:f}".format(data.score)
         occurrences = data.occurrences
         token_length = data.token_length
         boltzman_prob = probability_arr[index]
