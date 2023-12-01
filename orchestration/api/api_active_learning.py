@@ -103,8 +103,8 @@ def get_ranking_comparison(
 @router.get("/active-learning/uncertainty-sampling-pair-v2", response_class=PrettyJSONResponse)
 def get_ranking_comparison(
     request: Request,
-    dataset: str,  # Dataset parameter
-    score_type: str,  # Score type parameter (clip_sigma_score or embedding_sigma_score)
+    dataset: str,  
+    score_type: str,  # Added score_type parameter to choose between clip_sigma_score and embedding_sigma_score
     min_score: float,
     max_score: float,
     threshold: float
@@ -112,18 +112,15 @@ def get_ranking_comparison(
     if score_type not in ["clip_sigma_score", "embedding_sigma_score"]:
         raise HTTPException(status_code=400, detail="Invalid score_type parameter")
 
-    completed_jobs_collection = request.app.completed_jobs_collection
+    completed_jobs_collection: Collection = request.app.completed_jobs_collection
 
     try:
-        # Adjust the query to navigate the nested structure of the scores
-        score_query = {
-            f"task_attributes_dict.{score_type}": {"$gte": min_score, "$lte": max_score},
-            "task_input_dict.dataset": dataset  # Adjusted to match the nested dataset field
-        }
-
         # Fetch a random image score within the score range and the specified dataset
         first_image_cursor = completed_jobs_collection.aggregate([
-            {"$match": score_query},
+            {"$match": {
+                "task_attributes_dict." + score_type: {"$gte": min_score, "$lte": max_score},
+                "task_input_dict.dataset": dataset  # Filter by dataset
+            }},
             {"$sample": {"size": 1}}
         ])
         first_image_score = next(first_image_cursor, None)
@@ -135,20 +132,20 @@ def get_ranking_comparison(
             )
 
         # Calculate the score range for the second image using the selected score_type
-        base_score = first_image_score['task_attributes_dict'][score_type]
+        base_score = first_image_score['task_attributes_dict'][score_type]  # Use dynamic score_type
 
         # Fetch candidate images for the second image within the specified dataset
         candidates_cursor = completed_jobs_collection.find({
-            f"task_attributes_dict.{score_type}": {"$gte": min_score, "$lte": max_score},
+            "task_attributes_dict." + score_type: {"$gte": min_score, "$lte": max_score},
             "task_output_file_dict.output_file_hash": {"$ne": first_image_score['task_output_file_dict']['output_file_hash']},
-            "task_input_dict.dataset": dataset  # Adjusted to match the nested dataset field
+            "task_input_dict.dataset": dataset  # Filter by dataset
         })
 
         # Compute probabilities using sigmoid function based on the score_type
         candidates = list(candidates_cursor)
         total_probability = 0
         for candidate in candidates:
-            score_diff = abs(candidate['task_attributes_dict'][score_type] - base_score)
+            score_diff = abs(candidate['task_attributes_dict'][score_type] - base_score)  # Use dynamic score_type
             probability = 1 / (1 + math.exp((score_diff - threshold) / 50))
             candidate['probability'] = probability
             total_probability += probability
@@ -178,13 +175,12 @@ def get_ranking_comparison(
     images = [
         {
             "image_hash": first_image_score['task_output_file_dict']['output_file_hash'],
-            "image_score": first_image_score['task_attributes_dict'][score_type]
+            "image_score": first_image_score['task_attributes_dict'][score_type]  # Use dynamic score_type
         },
         {
             "image_hash": second_image_score['task_output_file_dict']['output_file_hash'],
-            "image_score": second_image_score['task_attributes_dict'][score_type]
+            "image_score": second_image_score['task_attributes_dict'][score_type]  # Use dynamic score_type
         }
     ]
 
     return {"images": images}
-

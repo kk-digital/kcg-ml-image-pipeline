@@ -226,6 +226,57 @@ def list_ranking_files(request: Request, dataset: str):
         raise HTTPException(status_code=404, detail=f"No JSON files found in {path_prefix}.")
 
     return json_files
+    
+
+@router.get("/datasets/rank/list-v1", response_class=PrettyJSONResponse)
+def list_ranking_files(
+    request: Request, 
+    dataset: str, 
+    start_date: str = None, 
+    end_date: str = None, 
+    list_size: int = Query(100),  # New parameter for list size
+    order: str = Query("desc")  # New parameter for ordering
+):
+    # Convert start_date and end_date strings to datetime objects
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
+
+    # Construct the path prefix for ranking
+    path_prefix = f"{dataset}/data/ranking/aggregate"
+
+    # Fetch the list of objects with the given prefix
+    objects = cmd.get_list_of_objects_with_prefix(request.app.minio_client, "datasets", path_prefix)
+
+    # Filter out non-JSON files and apply date filters
+    filtered_json_files = []
+    for obj in objects:
+        if obj.endswith('.json'):
+            # Extract date from the filename
+            file_date_str = obj.split('/')[-1].split('-')[0:3]
+            file_date_str = '-'.join(file_date_str)  # Reformat to 'YYYY-MM-DD'
+            file_date_obj = datetime.strptime(file_date_str, "%Y-%m-%d")
+
+            # Apply date filtering
+            if start_date_obj and file_date_obj < start_date_obj:
+                continue
+            if end_date_obj and file_date_obj > end_date_obj:
+                continue
+
+            filtered_json_files.append(obj)
+
+    # Apply ordering
+    if order == "desc":
+        filtered_json_files.sort(reverse=True)
+    else:
+        filtered_json_files.sort()
+        
+    # Apply list size limit
+    filtered_json_files = filtered_json_files[:list_size]
+
+    if not filtered_json_files:
+        raise HTTPException(status_code=404, detail=f"No JSON files found in {path_prefix} between {start_date} and {end_date}.")
+
+    return filtered_json_files
 
 
 def read_json_data(request, json_file):
