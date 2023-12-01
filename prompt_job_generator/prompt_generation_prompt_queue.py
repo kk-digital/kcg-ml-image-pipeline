@@ -163,6 +163,8 @@ class PromptGenerationPromptQueue:
             random.shuffle(positive_prompts)
             random.shuffle(negative_prompts)
 
+            prompts = []
+
             # for each positive prompt, choose a random negative prompt
             # each negative & positive prompt can only be used once
             for i in range(len(positive_prompts)):
