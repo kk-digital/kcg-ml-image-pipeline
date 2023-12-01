@@ -5,12 +5,12 @@ import argparse
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from training_worker.ab_ranking.script.independent_approximation_v1 import train_ranking
+from training_worker.ab_ranking.script.phrase_smoothing import train_ranking
 from worker.http import request
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description="Train ab ranking independent approximation model")
+        description="Train score phrase smoothing")
 
     parser.add_argument('--minio-access-key', type=str, help='Minio access key')
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
