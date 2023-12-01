@@ -282,7 +282,7 @@ def mutate_prompt(device, embedding_model,
                 prompt_embedding= modified_prompt_embedding
                 phrase_embeddings[token]= sub_embedding
                 data= pooled_prompt_embedding + original_embedding + sub_embedding,
-                print(len(data))
+                print(len(data[0]))
                 
                 if(i>=max_iterations/2):
                     # keeping data for self training
@@ -305,7 +305,7 @@ def mutate_prompt(device, embedding_model,
                 if(i>=max_iterations/2):
                     # keeping data for self training
                     prompt_data={
-                        'input': data,
+                        'input': data[0],
                         'position_encoding': token,
                         'elm_score_encoding': "",
                         'elm_output': "",
