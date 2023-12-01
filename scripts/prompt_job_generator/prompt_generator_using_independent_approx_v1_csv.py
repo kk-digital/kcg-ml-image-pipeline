@@ -303,6 +303,42 @@ def generate_prompts(minio_client,
                                              boltzman_k=boltzman_k)
 
 
+def generate_prompts_array(positive_phrase_scores_loader,
+                     positive_phrase_origin_indexes,
+                     positive_cumulative_probability_arr,
+                     negative_phrase_scores_loader,
+                     negative_phrase_origin_indexes,
+                     negative_cumulative_probability_arr,
+                     prompt_count):
+    generated_prompts = []
+
+    print("Generating {} prompts...".format(prompt_count))
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = []
+        for i in range(prompt_count):
+            futures.append(executor.submit(generate_prompt,
+                                           positive_phrase_scores_loader=positive_phrase_scores_loader,
+                                           positive_phrase_origin_indexes=positive_phrase_origin_indexes,
+                                           positive_cumulative_probability_arr=positive_cumulative_probability_arr,
+                                           negative_phrase_scores_loader=negative_phrase_scores_loader,
+                                           negative_phrase_origin_indexes=negative_phrase_origin_indexes,
+                                           negative_cumulative_probability_arr=negative_cumulative_probability_arr))
+
+        for future in tqdm(as_completed(futures), total=len(futures)):
+            prompt = future.result()
+            positive_prompt = prompt[0]
+            negative_prompt = prompt[1]
+            # print("positive prompt=", positive_prompt)
+            # print("negative prompt=", negative_prompt)
+            # print("---------------------------------------------------------------")
+
+
+            data = {"positive_prompt": positive_prompt,
+                    "negative_prompt": negative_prompt}
+            generated_prompts.append(data)
+
+        return generated_prompts
+
 def get_cumulative_probability_arr(minio_client,
                                    dataset_name,
                                    index_phrase_score_data,
