@@ -297,7 +297,7 @@ def update_dataset_values_background_thread(prompt_job_generator_state):
 
         load_dataset_models(prompt_job_generator_state, list_datasets)
 
-        sleep_time_in_seconds = 15.0
+        sleep_time_in_seconds = 2.0
         time.sleep(sleep_time_in_seconds)
 
 
