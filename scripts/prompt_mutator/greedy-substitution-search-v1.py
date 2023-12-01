@@ -281,7 +281,8 @@ def mutate_prompt(device, embedding_model,
                 prompt_str= modified_prompt_str
                 prompt_embedding= modified_prompt_embedding
                 phrase_embeddings[token]= sub_embedding
-                data=np.concatenate((pooled_prompt_embedding, original_embedding, sub_embedding)).tolist(),
+                data= pooled_prompt_embedding + original_embedding + sub_embedding,
+                print(len(data))
                 
                 if(i>=max_iterations/2):
                     # keeping data for self training
@@ -299,7 +300,8 @@ def mutate_prompt(device, embedding_model,
                 num_success+=1
                 break
             elif(num_choices==1):
-                data=np.concatenate((pooled_prompt_embedding, original_embedding, sub_embedding)).tolist(),
+                data= pooled_prompt_embedding + original_embedding + sub_embedding,
+                print(len(data))
                 if(i>=max_iterations/2):
                     # keeping data for self training
                     prompt_data={
