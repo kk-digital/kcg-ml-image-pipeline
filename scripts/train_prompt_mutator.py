@@ -275,7 +275,6 @@ def load_dataset(minio_client, embedding_type):
     linear_binary_outputs=[]
 
     for file in dataset_files:
-        print(file)
         # get prompt embedding
         data = minio_client.get_object('datasets', file)
         # Read the content of the msgpack file
@@ -283,7 +282,10 @@ def load_dataset(minio_client, embedding_type):
 
         # Deserialize the content using msgpack
         msgpack_data = msgpack.loads(content)
-        
+
+        if(len(msgpack_data)!=2304):
+            print(file)
+
         if(msgpack_data["elm_output"]!=""):
             # get elm input
             elm_inputs.append(np.concatenate([msgpack_data['input'],
