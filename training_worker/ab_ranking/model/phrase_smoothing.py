@@ -44,7 +44,7 @@ class PhraseSmoothingModel(nn.Module):
         product = torch.mul(phrase_vector, self.score_vector)
 
         # smoothing
-        phrase_base_scores = self.linear(phrase_vector.to(torch.float32))
+        phrase_base_scores = self.linear(phrase_vector.detach().to(torch.float32))
         base_scores = phrase_base_scores + self.score_offset
 
         sum = product + base_scores
@@ -200,7 +200,7 @@ class ScorePhraseSmoothingModel:
                 bytes_buffer = BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
                 # upload the csv
                 date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
-                filename = "{}-{}-phrases-score.csv".format(date_now, self.input_type)
+                filename = "{}-{}-phrases-score-smoothing.csv".format(date_now, self.input_type)
                 csv_path = os.path.join(self.dataset_loader.dataset_name, "output/phrases-score-csv", filename)
                 cmd.upload_data(self.dataset_loader.minio_client, 'datasets', csv_path, bytes_buffer)
 

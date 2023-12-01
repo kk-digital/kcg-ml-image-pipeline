@@ -402,12 +402,12 @@ def get_graph_report(training_loss,
 
     # ----------------------------------------------------------------------------------------------------------------#
     # Phrase Scores Histogram
-    train_scores_histogram.set_xlabel("Phrase Score Vector")
-    train_scores_histogram.set_ylabel("Frequency")
-    train_scores_histogram.set_title("Phrase Scores Histogram")
-    train_scores_histogram.hist(phrase_scores,
+    phrase_scores_histogram.set_xlabel("Phrase Score Vector")
+    phrase_scores_histogram.set_ylabel("Frequency")
+    phrase_scores_histogram.set_title("Phrase Scores Histogram")
+    phrase_scores_histogram.hist(phrase_scores,
                                 weights=np.ones(len(phrase_scores)) / len(phrase_scores))
-    train_scores_histogram.yaxis.set_major_formatter(PercentFormatter(1))
+    phrase_scores_histogram.yaxis.set_major_formatter(PercentFormatter(1))
 
     # ----------------------------------------------------------------------------------------------------------------#
     if learning_rate == -1:
