@@ -579,7 +579,7 @@ def store_phrase_embeddings(minio_client, csv_phrase):
     phrase_list= phrase_list.sort_values(by="index")
     
     for index, row in phrase_list.iterrows():
-        print(row['index'], row['prompt str'])
+        print(row['index'], row['phrase str'])
 
 
 def main():
