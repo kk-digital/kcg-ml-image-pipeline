@@ -109,7 +109,7 @@ def get_ranking_comparison(
     max_score: float,
     threshold: float
 ):
-    if score_type not in ["task_attributes_dict.clip_sigma_score", "task_attributes_dict.embedding_sigma_score"]:
+    if score_type not in ["clip_sigma_score", "embedding_sigma_score"]:
         raise HTTPException(status_code=400, detail="Invalid score_type parameter")
 
     completed_jobs_collection = request.app.completed_jobs_collection
