@@ -283,7 +283,7 @@ def load_dataset(minio_client, embedding_type):
         # Deserialize the content using msgpack
         msgpack_data = msgpack.loads(content)
 
-        if(len(msgpack_data)!=2304):
+        if(len(msgpack_data['input'])!=2304):
             print(file)
 
         if(msgpack_data["elm_output"]!=""):
