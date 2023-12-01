@@ -51,7 +51,7 @@ def main():
     csv_file_path = args.csv_filepath
     progress_file_path = args.progress_filepath if args.progress_filepath else None
     
-    upload_jsons_from_csv(csv_file_path, progress_file_path)
+    upload_pair_of_jsons_from_csv(csv_file_path, progress_file_path)
 
 if __name__ == "__main__":
     main()
