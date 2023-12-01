@@ -121,8 +121,6 @@ class PromptJobGeneratorState:
         with self.dataset_model_lock:
             self.prompt_linear_model_dictionary[dataset] = linear_model
 
-        print('Linear model loaded successfully')
-
 
     def load_elm_v1_model(self, dataset, dataset_bucket, model_path):
 
@@ -145,8 +143,6 @@ class PromptJobGeneratorState:
 
         with self.dataset_model_lock:
             self.prompt_elm_v1_model_dictionary[dataset] = elm_model
-
-        print('Elm model loaded successfully')
 
 
     def get_linear_model(self, dataset):
@@ -257,7 +253,9 @@ class PromptJobGeneratorState:
             return ""
 
     def get_dataset_scoring_model(self, dataset):
-        model_info = self.get_dataset_ranking_model(dataset)
+        model_name = self.get_dataset_ranking_model(dataset)
+
+        model_info = self.get_dataset_model_info(dataset, model_name)
 
         if model_info is None:
             return
@@ -268,6 +266,8 @@ class PromptJobGeneratorState:
         model_type = model_info['model_type']
 
         model = None
+        if dataset == 'test-generations':
+            return model
 
         if model_type == 'image-pair-ranking-efficient-net':
             model = self.get_efficient_net_model(dataset)
