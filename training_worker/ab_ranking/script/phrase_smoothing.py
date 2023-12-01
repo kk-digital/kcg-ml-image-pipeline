@@ -92,6 +92,7 @@ def train_ranking(dataset_name: str,
 
     ab_model = ScorePhraseSmoothingModel(inputs_shape=input_shape,
                                          dataset_loader=dataset_loader,
+                                         phrase_vector_loader=phrase_loader,
                                          input_type=input_type)
 
     training_predicted_score_images_x, \
@@ -241,7 +242,7 @@ def train_ranking(dataset_name: str,
     # get phrase scores vector
     phrase_scores_vector = None
     for name, param in ab_model.model.named_parameters():
-        if name == "score_vector":
+        if name == "prompt_phrase_trainable_score":
             phrase_scores_vector = param.cpu().detach().squeeze().numpy()
 
     # show and save graph

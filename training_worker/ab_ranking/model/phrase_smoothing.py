@@ -17,40 +17,57 @@ base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
 from data_loader.independent_approximation_dataset_loader import IndependentApproximationDatasetLoader
+from data_loader.phrase_vector_loader import PhraseVectorLoader
 from utility.minio import cmd
-
+from stable_diffusion.model.clip_text_embedder import CLIPTextEmbedder
+from utility.clip.clip_text_embedder import tensor_attention_pooling
 
 class PhraseSmoothingModel(nn.Module):
-    def __init__(self, inputs_shape):
+    def __init__(self, inputs_shape, phrase_vector_loader: PhraseVectorLoader, text_embedder, input_type):
         super(PhraseSmoothingModel, self).__init__()
         self.inputs_shape = inputs_shape
 
         initial_score_vector = torch.rand((1, inputs_shape), dtype=torch.float32)
-        self.score_vector = nn.Parameter(data=initial_score_vector, requires_grad=True)
+        self.prompt_phrase_trainable_score = nn.Parameter(data=initial_score_vector, requires_grad=True)
         self.l1_loss = nn.L1Loss()
 
         # smoothing
-        self.linear = nn.Linear(inputs_shape, inputs_shape)
+        # input is phrase embedding
+        self.linear = nn.Linear(768, 1)
         initial_score_offset = torch.zeros(1, dtype=torch.float32)
         self.score_offset = nn.Parameter(data=initial_score_offset, requires_grad=True)
 
         self.l1_loss = nn.L1Loss()
+
+        # phrase vector loader
+        self.phrase_vector_loader = phrase_vector_loader
+        # add clip text embedding model
+        self.text_embedder = text_embedder
+        self.input_type = input_type
 
     # for score
     def forward(self, phrase_vector):
         assert phrase_vector.shape == (1, self.inputs_shape)
 
         # phrase score
-        product = torch.mul(phrase_vector, self.score_vector)
+        product = torch.mul(phrase_vector, self.prompt_phrase_trainable_score)
 
         # smoothing
-        phrase_base_scores = self.linear(phrase_vector.detach().to(torch.float32))
-        base_scores = phrase_base_scores + self.score_offset
+        for i in range(len(phrase_vector)):
+            if phrase_vector[0][i] == True:
+                if self.input_type == "positive":
+                    phrase = self.phrase_vector_loader.index_positive_phrases_dict[i]
+                else:
+                    phrase = self.phrase_vector_loader.index_negative_phrases_dict[i]
 
-        sum = product + base_scores
-        prompt_score = torch.sum(sum, dim=1)
+                # get embedding
+                phrase_embedding, _, phrase_attention_mask = self.text_embedder.forward_return_all(phrase)
+                phrase_average_pooled = tensor_attention_pooling(phrase_embedding, phrase_attention_mask)
+                phrase_base_score = self.linear(phrase_average_pooled)
+                product[0][i] = product[0][i] + phrase_base_score + self.score_offset
+
+        prompt_score = torch.sum(product, dim=1)
         prompt_score = prompt_score.unsqueeze(0)
-
         assert prompt_score.shape == (1, 1), "shape={}".format(prompt_score.shape)
         return prompt_score
 
@@ -58,6 +75,7 @@ class PhraseSmoothingModel(nn.Module):
 class ScorePhraseSmoothingModel:
     def __init__(self, inputs_shape,
                  dataset_loader: IndependentApproximationDatasetLoader,
+                 phrase_vector_loader: PhraseVectorLoader,
                  input_type="positive"):
         if torch.cuda.is_available():
             device = 'cuda'
@@ -68,7 +86,12 @@ class ScorePhraseSmoothingModel:
         self.dataset_loader = dataset_loader
         self.input_type = input_type
 
-        self.model = PhraseSmoothingModel(inputs_shape).to(self._device)
+        text_embedder = CLIPTextEmbedder()
+        text_embedder.load_submodels()
+        self.model = PhraseSmoothingModel(inputs_shape,
+                                          phrase_vector_loader,
+                                          text_embedder,
+                                          input_type).to(self._device)
         self.model_type = 'score-phrase-smoothing'
         self.loss_func_name = ''
         self.file_path = ''
