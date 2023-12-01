@@ -114,11 +114,8 @@ def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: 
     return True
 
 
-
-
-
 @router.get("/ranking-queue/get-random-image", response_class=PrettyJSONResponse)
-def get_random_json(request: Request, dataset: str = Query(...)):
+def get_random_json(request: Request, dataset: str = Query(...), size: int = Query(...)):
     minio_client = request.app.minio_client
     bucket_name = "datasets"
     prefix = f"{dataset}/ranking-queue-image/"
@@ -130,29 +127,72 @@ def get_random_json(request: Request, dataset: str = Query(...)):
     if not json_files:
         raise HTTPException(status_code=404, detail="No JSON files found for the given dataset")
 
-    # Randomly select a json file
-    random_file_name = random.choice(json_files)
+    # Randomly select 'size' number of json files
+    selected_files = random.sample(json_files, min(size, len(json_files)))
 
-    # Get the file content from MinIO
-    data = cmd.get_file_from_minio(minio_client, bucket_name, random_file_name)
-    if data is None:
-        raise HTTPException(status_code=500, detail="Failed to retrieve file from MinIO")
+    results = []
+    for file_name in selected_files:
+        # Get the file content from MinIO
+        data = cmd.get_file_from_minio(minio_client, bucket_name, file_name)
+        if data is None:
+            continue  # Skip if file not found or error occurs
 
-    # Read the content of the json file
-    json_content = data.read().decode('utf-8')
+        # Read and parse the content of the json file
+        json_content = data.read().decode('utf-8')
+        try:
+            json_data = json.loads(json_content)
+            results.append(json_data)
+        except json.JSONDecodeError:
+            continue  # Skip on JSON decode error
 
-    # Parse JSON content to ensure it is properly formatted JSON
-    try:
-        json_data = json.loads(json_content)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=500, detail="Invalid JSON content")
+    return results
 
-    # Assuming you want to return the JSON content directly
-    return json_data
+
+@router.get("/ranking-queue/get-random-image-v1", response_class=PrettyJSONResponse)
+def get_random_json(request: Request, dataset: str = Query(...), size: int = Query(...)):
+    minio_client = request.app.minio_client
+    bucket_name = "datasets"
+    prefix = f"{dataset}/ranking-queue-image/"
+
+    # List all json files in the queue-ranking directory
+    json_files = cmd.get_list_of_objects_with_prefix(minio_client, bucket_name, prefix)
+    json_files = [name for name in json_files if name.endswith('.json') and prefix in name]
+
+    if not json_files:
+        raise HTTPException(status_code=404, detail="No JSON files found for the given dataset")
+
+    # Randomly select 'size' number of json files
+    selected_files = random.sample(json_files, min(size, len(json_files)))
+
+    results = []
+    for file_path in selected_files:
+        # Get just the filename without the path
+        file_name = os.path.basename(file_path)
+
+        # Get the file content from MinIO
+        data = cmd.get_file_from_minio(minio_client, bucket_name, file_path)
+        if data is None:
+            continue  # Skip if file not found or error occurs
+
+        # Read and parse the content of the json file
+        json_content = data.read().decode('utf-8')
+        try:
+            json_data = json.loads(json_content)
+            # Construct the result with the 'json_file_name' and the rest of the content
+            result = {
+                'json_file_name': file_name
+            }
+            result.update(json_data)  # Merge the content under the same dictionary
+            results.append(result)
+        except json.JSONDecodeError:
+            continue  # Skip on JSON decode error
+
+    return results
+
 
 
 @router.get("/ranking-queue/get-random-image-pair", response_class=PrettyJSONResponse)
-def get_random_image_pair(request: Request, dataset: str = Query(...)):
+def get_random_image_pair(request: Request, dataset: str = Query(...), size: int = Query(...)):
     minio_client = request.app.minio_client
     bucket_name = "datasets"
     prefix = f"{dataset}/ranking-queue-pair/"
@@ -164,21 +204,120 @@ def get_random_image_pair(request: Request, dataset: str = Query(...)):
     if not json_files:
         raise HTTPException(status_code=404, detail="No image pair JSON files found for the given dataset")
 
-    # Randomly select a json file
-    random_file_name = random.choice(json_files)
+    # Randomly select 'size' number of json files
+    selected_files = random.sample(json_files, min(size, len(json_files)))
 
-    # Get the file content from MinIO
-    data = cmd.get_file_from_minio(minio_client, bucket_name, random_file_name)
-    if data is None:
-        raise HTTPException(status_code=500, detail="Failed to retrieve file from MinIO")
+    results = []
+    for file_name in selected_files:
+        # Get the file content from MinIO
+        data = cmd.get_file_from_minio(minio_client, bucket_name, file_name)
+        if data is None:
+            continue  # Skip if file not found or error occurs
 
-    # Read the content of the json file
-    json_content = data.read().decode('utf-8')
+        # Read and parse the content of the json file
+        json_content = data.read().decode('utf-8')
+        try:
+            json_data = json.loads(json_content)
+            results.append(json_data)
+        except json.JSONDecodeError:
+            continue  # Skip on JSON decode error
 
-    # Parse JSON content to ensure it is properly formatted
-    try:
-        json_data = json.loads(json_content)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=500, detail="Invalid JSON content")
+    return results
 
-    return json_data
+
+@router.get("/ranking-queue/get-random-image-pair-v1", response_class=PrettyJSONResponse)
+def get_random_image_pair(request: Request, dataset: str = Query(...), size: int = Query(...)):
+    minio_client = request.app.minio_client
+    bucket_name = "datasets"
+    prefix = f"{dataset}/ranking-queue-pair/"
+
+    # List all json files in the ranking-queue-pair directory
+    json_files = cmd.get_list_of_objects_with_prefix(minio_client, bucket_name, prefix)
+    json_files = [name for name in json_files if name.endswith('.json') and prefix in name]
+
+    if not json_files:
+        raise HTTPException(status_code=404, detail="No image pair JSON files found for the given dataset")
+
+    # Randomly select 'size' number of json files
+    selected_files = random.sample(json_files, min(size, len(json_files)))
+
+    results = []
+    for file_path in selected_files:
+        # Get just the filename without the path
+        json_file_name = os.path.basename(file_path)
+
+        # Get the file content from MinIO
+        data = cmd.get_file_from_minio(minio_client, bucket_name, file_path)
+        if data is None:
+            continue  # Skip if file not found or error occurs
+
+        # Read and parse the content of the json file
+        json_content = data.read().decode('utf-8')
+        try:
+            json_data = json.loads(json_content)
+            # Add the filename to each item in the pair
+            pair_data = []
+            for item in json_data:
+                item_with_filename = {
+                    'json_file_name': json_file_name
+                }
+                item_with_filename.update(item)
+                pair_data.append(item_with_filename)
+            results.append(pair_data)
+        except json.JSONDecodeError:
+            continue  # Skip on JSON decode error
+
+    return results
+
+
+
+
+
+@router.delete("/ranking-queue/remove-ranking-queue-single")
+def remove_single_image_from_queue(request: Request, dataset: str = Query(...), policy: str = Query(...), filename: str = Query(...)):
+    # Define bucket name and construct the base path with the dataset name
+    minio_client = request.app.minio_client
+    bucket_name = "datasets"
+    base_path = f"{dataset}/ranking-queue-image/{policy}"  # Construct path including dataset name
+
+    # List all objects in the bucket within the specified base path
+    objects = minio_client.list_objects(bucket_name, prefix=base_path, recursive=True)
+    
+    # Find the object with the matching filename
+    object_to_remove = None
+    for obj in objects:
+        if filename in obj.object_name:
+            object_to_remove = obj.object_name
+            break
+    
+    if object_to_remove:
+        # Remove the object from MinIO
+        cmd.remove_an_object(minio_client, bucket_name, object_to_remove)
+        return {"status": "success", "message": "Image removed from queue"}
+    else:
+        raise HTTPException(status_code=404, detail="File not found")
+
+@router.delete("/ranking-queue/remove-ranking-queue-pair")
+def remove_image_pair_from_queue(request: Request, dataset: str = Query(...), policy: str = Query(...), filename: str = Query(...)):
+    # Define bucket name and construct the base path with the dataset name
+    minio_client = request.app.minio_client
+    bucket_name = "datasets"
+    base_path = f"{dataset}/ranking-queue-pair/{policy}"  # Adjust base path for pairs
+
+    # List all objects in the bucket within the specified base path
+    objects = minio_client.list_objects(bucket_name, prefix=base_path, recursive=True)
+    
+    # Find the object with the matching filename pair
+    object_to_remove = None
+    for obj in objects:
+        if filename in obj.object_name:
+            object_to_remove = obj.object_name
+            break
+    
+    if object_to_remove:
+        # Remove the object from MinIO
+        cmd.remove_an_object(minio_client, bucket_name, object_to_remove)
+        return {"status": "success", "message": "Image pair removed from queue"}
+    else:
+        raise HTTPException(status_code=404, detail="File not found")
+
