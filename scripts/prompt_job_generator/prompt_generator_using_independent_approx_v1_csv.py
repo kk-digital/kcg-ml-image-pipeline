@@ -328,13 +328,12 @@ def generate_prompts_array(positive_phrase_scores_loader,
             prompt = future.result()
             positive_prompt = prompt[0]
             negative_prompt = prompt[1]
-            # print("positive prompt=", positive_prompt)
-            # print("negative prompt=", negative_prompt)
-            # print("---------------------------------------------------------------")
 
+            data = {
+                "positive_prompt": positive_prompt,
+                "negative_prompt": negative_prompt
+            }
 
-            data = {"positive_prompt": positive_prompt,
-                    "negative_prompt": negative_prompt}
             generated_prompts.append(data)
 
         return generated_prompts
