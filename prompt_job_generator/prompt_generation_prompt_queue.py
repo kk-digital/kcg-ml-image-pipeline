@@ -1,6 +1,7 @@
 import sys
 import queue
 import math
+import random
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -158,9 +159,19 @@ class PromptGenerationPromptQueue:
                 positive_prompts.append(positive_text_prompt)
                 negative_prompts.append(negative_text_prompt)
 
-            # Create a list of all possible combinations
-            prompts = [ScoredPrompt(0, positive, negative, 'N/A', 'N/A', 0) for positive in positive_prompts for negative in
-                                negative_prompts]
+            # shuffle the positive & negative prompts to ensure randomness
+            random.shuffle(positive_prompts)
+            random.shuffle(negative_prompts)
+
+            # for each positive prompt, choose a random negative prompt
+            # each negative & positive prompt can only be used once
+            for i in range(len(positive_prompts)):
+
+                positive_prompt = positive_prompts[i]
+                negative_prompt = negative_prompts[i]
+
+                scored_prompt = ScoredPrompt(0, positive_prompt, negative_prompt, 'N/A', 'N/A', 0)
+                prompts.append(scored_prompt)
 
             # remove excess prompts, will only remove a tiny bit of prompts
             # so no one cares
