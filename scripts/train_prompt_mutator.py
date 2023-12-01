@@ -325,7 +325,7 @@ def load_dataset(minio_client, embedding_type):
 def fix_dataset(minio_client):
     self_training_data= get_self_training_paths(minio_client)
     self_training_data= self_training_data[122539:]
-    index=1
+    index=122539
     for file in self_training_data:
         print(file)
         # get prompt embedding
