@@ -46,6 +46,7 @@ def parse_args():
     parser.add_argument('--ranking-model', help="elm-v1 or linear", default="linear")
     parser.add_argument('--rejection-policy', help="by probability or sigma_score", default="sigma_score")
     parser.add_argument('--self-training', action='store_true', default=False)
+    parser.add_argument('--store-embeddings', action='store_true', default=False)
 
     return parser.parse_args()
 
@@ -573,6 +574,14 @@ def store_in_msgpack_file(prompt_data, index, minio_client):
     # Remove the temporary file
     os.remove(local_file_path)
 
+def store_phrase_embeddings(minio_client, csv_phrase):
+    phrase_list=pd.read_csv(csv_phrase)
+    phrase_list= phrase_list.sort_values(by="index")
+    
+    for index, row in phrase_list.iterrows():
+        print(row['index'], row['prompt str'])
+
+
 def main():
     start=time.time()
 
@@ -619,9 +628,13 @@ def main():
     mean, std= combined_model.mean, combined_model.standard_deviation
     positive_mean, positive_std= positive_model.mean, positive_model.standard_deviation
 
-    # get phrase list for substitutions
-    phrase_list=pd.read_csv(args.csv_phrase)['phrase str'].tolist()
+    # store phrase embeddings in minio
+    if(args.store_embeddings):
+        store_phrase_embeddings(minio_client, args.csv_phrase)
     
+    # get phrase list
+    phrase_list=pd.read_csv(args.csv_phrase)
+
     # get initial prompts
     prompt_list = get_initial_prompts(minio_client, args.n_data)
 
