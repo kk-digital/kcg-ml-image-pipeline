@@ -149,10 +149,10 @@ def get_random_json(request: Request, dataset: str = Query(...), size: int = Que
 
 
 @router.get("/ranking-queue/get-random-image-v1", response_class=PrettyJSONResponse)
-def get_random_json(request: Request, dataset: str = Query(...), size: int = Query(...)):
+def get_random_json(request: Request, dataset: str = Query(...), size: int = Query(...), policy: str = Query(...)):
     minio_client = request.app.minio_client
     bucket_name = "datasets"
-    prefix = f"{dataset}/ranking-queue-image/"
+    prefix = f"{dataset}/ranking-queue-image/{policy}"
 
     # List all json files in the queue-ranking directory
     json_files = cmd.get_list_of_objects_with_prefix(minio_client, bucket_name, prefix)
@@ -226,10 +226,10 @@ def get_random_image_pair(request: Request, dataset: str = Query(...), size: int
 
 
 @router.get("/ranking-queue/get-random-image-pair-v1", response_class=PrettyJSONResponse)
-def get_random_image_pair(request: Request, dataset: str = Query(...), size: int = Query(...)):
+def get_random_image_pair(request: Request, dataset: str = Query(...), size: int = Query(...), policy: str = Query(...)):
     minio_client = request.app.minio_client
     bucket_name = "datasets"
-    prefix = f"{dataset}/ranking-queue-pair/"
+    prefix = f"{dataset}/ranking-queue-pair/{policy}"
 
     # List all json files in the ranking-queue-pair directory
     json_files = cmd.get_list_of_objects_with_prefix(minio_client, bucket_name, prefix)
