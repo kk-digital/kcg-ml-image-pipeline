@@ -16,7 +16,9 @@ def upload_jsons_from_csv(csv_file_path, progress_file_path=None):
     start_index = 0
     if os.path.exists(progress_file_path):
         with open(progress_file_path, 'r') as progress_file:
-            start_index = int(progress_file.read().strip())
+            progress_content = progress_file.read().strip()
+            if progress_content.isdigit():  # Check if the content is a number
+                start_index = int(progress_content)
 
     with open(csv_file_path, mode='r') as file:
         csv_reader = csv.DictReader(file)
@@ -33,7 +35,7 @@ def upload_jsons_from_csv(csv_file_path, progress_file_path=None):
             if response.status_code == 200:
                 print(f"Successfully processed job UUID: {job_uuid}")
                 with open(progress_file_path, 'w') as progress_file:
-                    progress_file.write(str(i))
+                    progress_file.write(str(i+1))  # Write the next index to be processed
             else:
                 print(f"Failed to process job UUID: {job_uuid}. Response: {response.status_code} - {response.text}")
 
@@ -44,13 +46,16 @@ def upload_jsons_from_csv(csv_file_path, progress_file_path=None):
 def main():
     parser = argparse.ArgumentParser(description="Upload JSONs from CSV to MinIO via API")
     parser.add_argument("--csv_filepath", type=str, required=True, help="Path to the CSV file")
-    parser.add_argument("--progress_filepath", type=str, help="Path to the progress file (optional)")
+    # Set a default value for the progress file path
+    parser.add_argument("--progress_filepath", type=str, default='progress.txt', help="Path to the progress file (optional)")
 
     args = parser.parse_args()
     csv_file_path = args.csv_filepath
-    progress_file_path = args.progress_filepath if args.progress_filepath else None
-    
+    # Use the provided progress file path or the default one
+    progress_file_path = args.progress_filepath
+    print(f"{progress_file_path}")
     upload_jsons_from_csv(csv_file_path, progress_file_path)
 
 if __name__ == "__main__":
     main()
+

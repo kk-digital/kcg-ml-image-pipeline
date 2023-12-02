@@ -65,7 +65,7 @@ def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: 
     def extract_job_details(job_uuid, suffix, policy):
         job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
         if not job:
-            raise HTTPException(status_code=404, detail=f"Job {job_uuid} not found")
+            print(f"Job {job_uuid} not found")
 
         output_file_path = job["task_output_file_dict"]["output_file_path"]
         task_creation_time = job["task_creation_time"]
@@ -125,7 +125,7 @@ def get_random_json(request: Request, dataset: str = Query(...), size: int = Que
     json_files = [name for name in json_files if name.endswith('.json') and prefix in name]
 
     if not json_files:
-        raise HTTPException(status_code=404, detail="No JSON files found for the given dataset")
+        print("No JSON files found for the given dataset")
 
     # Randomly select 'size' number of json files
     selected_files = random.sample(json_files, min(size, len(json_files)))
@@ -159,7 +159,7 @@ def get_random_json(request: Request, dataset: str = Query(...), size: int = Que
     json_files = [name for name in json_files if name.endswith('.json') and prefix in name]
 
     if not json_files:
-        raise HTTPException(status_code=404, detail="No JSON files found for the given dataset")
+        print("No JSON files found for the given dataset")
 
     # Randomly select 'size' number of json files
     selected_files = random.sample(json_files, min(size, len(json_files)))
@@ -202,7 +202,7 @@ def get_random_image_pair(request: Request, dataset: str = Query(...), size: int
     json_files = [name for name in json_files if name.endswith('.json') and prefix in name]
 
     if not json_files:
-        raise HTTPException(status_code=404, detail="No image pair JSON files found for the given dataset")
+        print("No image pair JSON files found for the given dataset")
 
     # Randomly select 'size' number of json files
     selected_files = random.sample(json_files, min(size, len(json_files)))
@@ -236,7 +236,7 @@ def get_random_image_pair(request: Request, dataset: str = Query(...), size: int
     json_files = [name for name in json_files if name.endswith('.json') and prefix in name]
 
     if not json_files:
-        raise HTTPException(status_code=404, detail="No image pair JSON files found for the given dataset")
+        print("No image pair JSON files found for the given dataset")
 
     # Randomly select 'size' number of json files
     selected_files = random.sample(json_files, min(size, len(json_files)))
@@ -295,7 +295,7 @@ def remove_single_image_from_queue(request: Request, dataset: str = Query(...), 
         cmd.remove_an_object(minio_client, bucket_name, object_to_remove)
         return {"status": "success", "message": "Image removed from queue"}
     else:
-        raise HTTPException(status_code=404, detail="File not found")
+        print("File not found")
 
 @router.delete("/ranking-queue/remove-ranking-queue-pair")
 def remove_image_pair_from_queue(request: Request, dataset: str = Query(...), policy: str = Query(...), filename: str = Query(...)):
@@ -319,5 +319,5 @@ def remove_image_pair_from_queue(request: Request, dataset: str = Query(...), po
         cmd.remove_an_object(minio_client, bucket_name, object_to_remove)
         return {"status": "success", "message": "Image pair removed from queue"}
     else:
-        raise HTTPException(status_code=404, detail="File not found")
+        print("File not found")
 

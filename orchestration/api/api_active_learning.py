@@ -39,10 +39,7 @@ def get_ranking_comparison(
         first_image_score = next(first_image_cursor, None)
 
         if not first_image_score:
-            return JSONResponse(
-                status_code=404,
-                content={"message": "No images found within the provided score range and dataset."}
-            )
+            print("No images found within the provided score range and dataset")
 
         # Calculate the score range for the second image using the selected score_type
         base_score = first_image_score[score_type]  # Use dynamic score_type
@@ -65,10 +62,7 @@ def get_ranking_comparison(
 
         # Select the second image based on computed probabilities
         if total_probability == 0:
-            return JSONResponse(
-                status_code=404,
-                content={"message": "No second image found within the threshold range for the specified dataset."}
-            )
+            print("No second image found within the threshold range for the specified dataset")
 
         random_choice = random.uniform(0, total_probability)
         cumulative = 0
@@ -126,10 +120,7 @@ def get_ranking_comparison(
         first_image_score = next(first_image_cursor, None)
 
         if not first_image_score:
-            return JSONResponse(
-                status_code=404,
-                content={"message": "No images found within the provided score range and dataset."}
-            )
+            print("No images found within the provided score range and dataset.")
 
         # Calculate the score range for the second image using the selected score_type
         base_score = first_image_score['task_attributes_dict'][score_type]  # Use dynamic score_type
@@ -152,10 +143,7 @@ def get_ranking_comparison(
 
         # Select the second image based on computed probabilities
         if total_probability == 0:
-            return JSONResponse(
-                status_code=404,
-                content={"message": "No second image found within the threshold range for the specified dataset."}
-            )
+            print("No second image found within the threshold range for the specified dataset")
 
         random_choice = random.uniform(0, total_probability)
         cumulative = 0
