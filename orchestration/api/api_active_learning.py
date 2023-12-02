@@ -97,41 +97,42 @@ def get_ranking_comparison(
 def get_ranking_comparison(
     request: Request,
     dataset: str,  
-    score_type: str,  # Added score_type parameter to choose between clip_sigma_score and embedding_sigma_score
+    score_type: str,
     min_score: float,
     max_score: float,
     threshold: float
 ):
     if score_type not in ["clip_sigma_score", "embedding_sigma_score"]:
-        raise HTTPException(status_code=400, detail="Invalid score_type parameter")
-
+        print("Invalid score_type parameter")
+    
     completed_jobs_collection: Collection = request.app.completed_jobs_collection
 
     try:
-        # Convert min_score and max_score to strings for the query
-        min_score_str = str(min_score)
-        max_score_str = str(max_score)
 
+        min_score = str(min_score)
+        max_score = str(max_score)
         first_image_cursor = completed_jobs_collection.aggregate([
             {"$match": {
-                "task_attributes_dict." + score_type: {"$gte": min_score_str, "$lte": max_score_str},
-                "task_input_dict.dataset": dataset  # Filter by dataset
+                "task_attributes_dict." + score_type: {"$gte": min_score, "$lte": max_score},
+                "task_input_dict.dataset": dataset
             }},
             {"$sample": {"size": 1}}
         ])
 
         first_image_score = next(first_image_cursor, None)
         if not first_image_score:
-            print("No images found within the provided score range and dataset.")
+            print("No images found within the provided score range and dataset")
 
-        # Check if 'task_attributes_dict' exists in the fetched document
         if 'task_attributes_dict' not in first_image_score or score_type not in first_image_score['task_attributes_dict']:
-           print("Error: 'task_attributes_dict' not found or missing score_type in the fetched document.")
+            print("task_attributes_dict not found in the fetched document")
 
-        base_score = first_image_score['task_attributes_dict'][score_type]
-       
+        base_score = float(first_image_score['task_attributes_dict'][score_type])
+        print(base_score)
+        lower_bound = str(base_score - threshold)
+        upper_bound = str(base_score + threshold)
+
         candidates_cursor = completed_jobs_collection.find({
-            "task_attributes_dict." + score_type: {"$gte": str(min_score), "$lte": str(max_score)},
+            "task_attributes_dict." + score_type: {"$gte": str(lower_bound), "$lte": str(upper_bound)},
             "task_output_file_dict.output_file_hash": {"$ne": first_image_score['task_output_file_dict']['output_file_hash']},
             "task_input_dict.dataset": dataset
         })
@@ -139,34 +140,9 @@ def get_ranking_comparison(
         candidates = list(candidates_cursor)
 
         if not candidates:
-            print("No candidates found.")  # Debug print
+            print("No suitable second image found within the score range")
 
-        total_probability = 0
-        for candidate in candidates:
-            candidate_score = float(candidate['task_attributes_dict'][score_type])
-            base_score_float = float(base_score)
-            score_diff = abs(candidate_score - base_score_float)
-            probability = 1 / (1 + math.exp((score_diff - threshold) / 50))
-            candidate['probability'] = probability
-            total_probability += probability
-
-        print(f"Total probability: {total_probability}")  # Debug print
-
-        if total_probability == 0:
-             print("Probability = 0, No suitable second image found within the specified score range and dataset.")
-
-            
-        random_choice = random.uniform(0, total_probability)
-        cumulative = 0
-        second_image_score = None
-        for candidate in candidates:
-            cumulative += candidate['probability']
-            if cumulative >= random_choice:
-                second_image_score = candidate
-                break
-
-        if not second_image_score:
-            print("Error: No suitable second image found.")
+        second_image_score = random.choice(candidates)
 
         images = [
             {
@@ -182,4 +158,6 @@ def get_ranking_comparison(
         return {"images": images}
 
     except StopIteration:
-        return JSONResponse(status_code=500, content={"message": "Error fetching images from the database."})
+        print("Error fetching images from the database.")
+       
+
