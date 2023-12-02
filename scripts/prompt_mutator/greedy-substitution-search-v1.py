@@ -192,10 +192,6 @@ class PromptSubstitutionGenerator:
                                     prompt_embedding, 
                                     phrase_embeddings,
                                     threshold=0.2):
-        
-        # get mean pooled embedding of prompt for xgboost model
-        pooled_prompt_embedding= self.get_mean_pooled_embedding(prompt_embedding)
-        prompt_sigma_score= (prompt_score - self.positive_mean) / self.positive_std
 
         # get number of tokens
         prompt_list = prompt_str.split(', ')
@@ -215,9 +211,9 @@ class PromptSubstitutionGenerator:
             substitute_phrase_str=str(substitute_phrase['phrase str'])
             substitute_embedding= self.phrase_embeddings[substitute_phrase['index']]
 
-            substitution_input= np.concatenate([pooled_prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_sigma_score]])
+            substitution_input= np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
             sigma_score=self.substitution_model.predict([substitution_input])[0]
-            if sigma_score > prompt_sigma_score + threshold:
+            if sigma_score > prompt_score + threshold:
                 sigma_scores.append(-sigma_score)
                 tokens.append(token)
                 sub_phrases.append(substitute_phrase_str)
