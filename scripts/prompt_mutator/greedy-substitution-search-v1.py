@@ -211,15 +211,17 @@ class PromptMutator:
             # Get substituted phrase embedding
             substituted_embedding=phrase_embeddings[token]
             # get substitute phrase embedding
-            substitute_phrase=self.phrase_list.sample(1)
-            substitute_embedding= self.phrase_embeddings[substitute_phrase['index']][0]
+            substitute_phrase=self.phrase_list.sample(1).iloc[0]
+            substitute_phrase_str=str(substitute_phrase['phrase str'])
+            print(substitute_phrase['index'], substitute_phrase_str)
+            substitute_embedding= self.phrase_embeddings[substitute_phrase['index']]
 
             substitution_input= np.concatenate([pooled_prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_sigma_score]])
             sigma_score=self.substitution_model.predict([substitution_input])[0]
             if sigma_score > prompt_sigma_score + threshold:
                 sigma_scores.append(-sigma_score)
                 tokens.append(token)
-                sub_phrases.append(substitute_phrase['phrase str'].str)
+                sub_phrases.append(substitute_phrase_str)
                 sub_embeddings.append(substitute_embedding)
             
         token_order= np.argsort(sigma_scores)
@@ -252,15 +254,17 @@ class PromptMutator:
             # Get substituted phrase embedding
             substituted_embedding=phrase_embeddings[token]
             # get substitute phrase embedding
-            substitute_phrase=self.phrase_list.sample(1)
-            substitute_embedding= self.phrase_embeddings[substitute_phrase['index']][0]
+            substitute_phrase=self.phrase_list.sample(1).iloc[0]
+            substitute_phrase_str=str(substitute_phrase['phrase str'])
+            print(substitute_phrase['index'], substitute_phrase_str)
+            substitute_embedding= self.phrase_embeddings[substitute_phrase['index']]
 
             substitution_input= np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
             pred=self.substitution_model.predict_probs([substitution_input])[0]
             if pred["increase"]>0.66:
                 decrease_probs.append(pred['decrease'])
                 tokens.append(token)
-                sub_phrases.append(substitute_phrase['phrase str'].str)
+                sub_phrases.append(substitute_phrase_str)
                 sub_embeddings.append(substitute_embedding)
                 original_embeddings.append(substituted_embedding)
         
