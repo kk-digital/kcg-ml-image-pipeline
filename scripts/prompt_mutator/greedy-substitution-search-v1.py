@@ -212,7 +212,7 @@ class PromptMutator:
             substituted_embedding=phrase_embeddings[token]
             # get substitute phrase embedding
             substitute_phrase=self.phrase_list.sample(1)
-            substitute_embedding= self.phrase_embeddings[substitute_phrase['index']]
+            substitute_embedding= self.phrase_embeddings[substitute_phrase['index']][0]
 
             substitution_input= np.concatenate([pooled_prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_sigma_score]])
             sigma_score=self.substitution_model.predict([substitution_input])[0]
@@ -253,7 +253,7 @@ class PromptMutator:
             substituted_embedding=phrase_embeddings[token]
             # get substitute phrase embedding
             substitute_phrase=self.phrase_list.sample(1)
-            substitute_embedding= self.phrase_embeddings[substitute_phrase['index']]
+            substitute_embedding= self.phrase_embeddings[substitute_phrase['index']][0]
 
             substitution_input= np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
             pred=self.substitution_model.predict_probs([substitution_input])[0]
