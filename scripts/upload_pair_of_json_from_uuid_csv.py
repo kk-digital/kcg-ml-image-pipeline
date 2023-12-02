@@ -17,7 +17,7 @@ def upload_pair_of_jsons_from_csv(csv_file_path, progress_file_path=None):
     if os.path.exists(progress_file_path):
         with open(progress_file_path, 'r') as progress_file:
             progress_content = progress_file.read().strip()
-            print(f"Last recorded progress: {progress_content}")  # Debug print
+           
             if progress_content:  # Check if the content is not empty
                 start_index = int(progress_content)
 
@@ -49,14 +49,21 @@ def upload_pair_of_jsons_from_csv(csv_file_path, progress_file_path=None):
 def main():
     parser = argparse.ArgumentParser(description="Upload JSONs from CSV to MinIO via API")
     parser.add_argument("--csv_filepath", type=str, required=True, help="Path to the CSV file")
-    parser.add_argument("--progress_filepath", type=str, default='progress.txt', help="Path to the progress file (optional)")
+    parser.add_argument("--progress_filepath", type=str, help="Path to the progress file (optional)")
 
     args = parser.parse_args()
     csv_file_path = args.csv_filepath
-    progress_file_path = args.progress_filepath
-    
+
+    # If progress_filepath is not provided, use default based on csv_file_path
+    if args.progress_filepath:
+        progress_file_path = args.progress_filepath
+    else:
+        # Create a default progress file name based on the CSV file path
+        progress_file_path = f"{csv_file_path}_progress.txt"
+
     upload_pair_of_jsons_from_csv(csv_file_path, progress_file_path)
 
 if __name__ == "__main__":
     main()
+
 

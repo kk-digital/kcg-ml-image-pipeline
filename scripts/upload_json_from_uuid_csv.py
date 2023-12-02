@@ -46,16 +46,21 @@ def upload_jsons_from_csv(csv_file_path, progress_file_path=None):
 def main():
     parser = argparse.ArgumentParser(description="Upload JSONs from CSV to MinIO via API")
     parser.add_argument("--csv_filepath", type=str, required=True, help="Path to the CSV file")
-    # Set a default value for the progress file path
-    parser.add_argument("--progress_filepath", type=str, default='progress.txt', help="Path to the progress file (optional)")
+    parser.add_argument("--progress_filepath", type=str, help="Path to the progress file (optional)")
 
     args = parser.parse_args()
     csv_file_path = args.csv_filepath
-    # Use the provided progress file path or the default one
-    progress_file_path = args.progress_filepath
-    print(f"{progress_file_path}")
+
+    # If progress_filepath is not provided, use default based on csv_file_path
+    if args.progress_filepath:
+        progress_file_path = args.progress_filepath
+    else:
+        progress_file_path = f"{csv_file_path}_progress.txt"
+
+    print(f"Progress file path: {progress_file_path}")
     upload_jsons_from_csv(csv_file_path, progress_file_path)
 
 if __name__ == "__main__":
     main()
+
 
