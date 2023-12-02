@@ -111,8 +111,9 @@ class PromptMutator:
         if(store_embeddings):
             self.store_phrase_embeddings()
         
-        # get phrase list
-        self.phrase_list=pd.read_csv(csv_phrase)['phrase str'].tolist()
+        # get phrase list and embeddings
+        self.phrase_list=pd.read_csv(csv_phrase)
+        self.phrase_embeddings= self.load_phrase_embeddings()
 
         end=time.time()
         self.loading_time= end-start
@@ -184,6 +185,7 @@ class PromptMutator:
 
         return embedding.cpu().numpy()
 
+    # function for rejection sampling with sigma scores
     def rejection_sampling_by_sigma_score(self,
                                     prompt_str, 
                                     prompt_score, 
@@ -209,16 +211,15 @@ class PromptMutator:
             # Get substituted phrase embedding
             substituted_embedding=phrase_embeddings[token]
             # get substitute phrase embedding
-            substitute_phrase=random.choice(self.phrase_list)
-            substitute_embedding=self.get_prompt_embedding(substitute_phrase)
-            substitute_embedding= self.get_mean_pooled_embedding(substitute_embedding)
+            substitute_phrase=self.phrase_list.sample(1)
+            substitute_embedding= self.phrase_embeddings[substitute_phrase['index']]
 
             substitution_input= np.concatenate([pooled_prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_sigma_score]])
             sigma_score=self.substitution_model.predict([substitution_input])[0]
             if sigma_score > prompt_sigma_score + threshold:
                 sigma_scores.append(-sigma_score)
                 tokens.append(token)
-                sub_phrases.append(substitute_phrase)
+                sub_phrases.append(substitute_phrase['phrase str'])
                 sub_embeddings.append(substitute_embedding)
             
         token_order= np.argsort(sigma_scores)
@@ -228,6 +229,7 @@ class PromptMutator:
         
         return tokens, sub_phrases, sub_embeddings
 
+    # function for rejection sampling with score increase probability
     def rejection_sampling_by_probability(self, 
                                     prompt_str, 
                                     prompt_score, 
@@ -250,16 +252,15 @@ class PromptMutator:
             # Get substituted phrase embedding
             substituted_embedding=phrase_embeddings[token]
             # get substitute phrase embedding
-            substitute_phrase=random.choice(self.phrase_list)
-            substitute_embedding=self.get_prompt_embedding(substitute_phrase)
-            substitute_embedding= self.get_mean_pooled_embedding(substitute_embedding)
+            substitute_phrase=self.phrase_list.sample(1)
+            substitute_embedding= self.phrase_embeddings[substitute_phrase['index']]
 
             substitution_input= np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
             pred=self.substitution_model.predict_probs([substitution_input])[0]
             if pred["increase"]>0.66:
                 decrease_probs.append(pred['decrease'])
                 tokens.append(token)
-                sub_phrases.append(substitute_phrase)
+                sub_phrases.append(substitute_phrase['phrase str'])
                 sub_embeddings.append(substitute_embedding)
                 original_embeddings.append(substituted_embedding)
         
@@ -271,6 +272,7 @@ class PromptMutator:
         
         return tokens, sub_phrases, original_embeddings, sub_embeddings
 
+    # function mutating a prompt
     def mutate_prompt(self,
                     prompt_str,
                     prompt_embedding, 
@@ -358,6 +360,7 @@ class PromptMutator:
         
         return prompt_str, prompt_embedding, self_training_data
 
+    # function to generate n images
     def generate_images(self, num_images):
         df_data=[]
         original_scores=[]
@@ -473,6 +476,7 @@ class PromptMutator:
         if self.self_training:
             self.store_self_training_data(training_data)
 
+    # get paths for embeddings of all prompts in a dataset
     def get_embedding_paths(self, dataset):
             objects=self.minio_client.list_objects('datasets', dataset, recursive=True)
             embedding_files = []
@@ -482,6 +486,7 @@ class PromptMutator:
                     
             return embedding_files
 
+    # store list of initial prompts in a csv to use for prompt mutation
     def store_prompts_in_csv_file(self, data, minio_path):
         local_path="output/generated_prompts.csv"
         pd.DataFrame(data).to_csv(local_path, index=False)
@@ -498,6 +503,7 @@ class PromptMutator:
         # Remove the temporary file
         os.remove(local_path)
 
+    # outputs a two histograms for scores before and after mutation for comparison 
     def compare_distributions(self, minio_path, original_scores, mutated_scores):
 
         fig, axs = plt.subplots(2, 1, figsize=(12, 10))
@@ -532,6 +538,7 @@ class PromptMutator:
         # Remove the temporary file
         os.remove("output/mutated_scores.png")
 
+    # outputs a text file containing logged information about image generation
     def generation_stats(self,
                         minio_path,
                         generation_speed,
@@ -581,6 +588,7 @@ class PromptMutator:
         # Remove the temporary file
         os.remove(file_path)
 
+    # function to update the initial list of prompts in minIO
     def update_prompt_list(self):
         embedding_paths = self.get_embedding_paths("environmental")
         df_data=[]
@@ -628,6 +636,7 @@ class PromptMutator:
         # Remove the temporary file
         os.remove('output/initial_prompts.csv')
 
+    # get list of initial prompts from minIO
     def get_initial_prompts(self, num_prompts):
         try:
             # Get the CSV file as BytesIO object
@@ -651,6 +660,7 @@ class PromptMutator:
             print(f"Error: {err}")
             return None
 
+    # store self training datapoints
     def store_self_training_data(self, training_data):
         # get minio paths for existing self training data
         dataset_path=DATA_MINIO_DIRECTORY + f"/self_training/"
@@ -662,6 +672,7 @@ class PromptMutator:
             self.store_in_msgpack_file(data, index)
             index+=1
 
+    # store one training datapoint in a msgpack file
     def store_in_msgpack_file(self, prompt_data, index):
         packed_data = msgpack.packb(prompt_data, use_single_float=True)
 
@@ -690,6 +701,7 @@ class PromptMutator:
         # Remove the temporary file
         os.remove(local_file_path)
 
+    # store embeddings of all phrases in civitai in a file in minIO
     def store_phrase_embeddings(self):
         phrase_list=pd.read_csv(self.csv_phrase)
         phrase_list= phrase_list.sort_values(by="index")
@@ -721,6 +733,25 @@ class PromptMutator:
 
         # Remove the temporary file
         os.remove(local_file_path)
+
+    # get civitai phrase embeddings from minIO
+    def load_phrase_embeddings(self):
+        # Get the file data from MinIO
+        minio_path = DATA_MINIO_DIRECTORY + f"/input/phrase_embeddings.npz"
+        file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', minio_path)
+
+        # Create a BytesIO object and write the downloaded content into it
+        byte_buffer = io.BytesIO()
+        for data in file_data.stream(amt=8192):
+            byte_buffer.write(data)
+        # Reset the buffer's position to the beginning
+        byte_buffer.seek(0)
+
+        # Load the compressed numpy array from the BytesIO object
+        with np.load(byte_buffer) as data:
+            phrase_embeddings = data['arr_0']
+
+        return phrase_embeddings
 
 
 def main():
