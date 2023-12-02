@@ -45,7 +45,7 @@ def parse_args():
 
     return parser.parse_args()
 
-class PromptMutator:
+class PromptSubstitutionGenerator:
     def __init__(
         self,
         minio_access_key,
@@ -191,7 +191,7 @@ class PromptMutator:
                                     prompt_score, 
                                     prompt_embedding, 
                                     phrase_embeddings,
-                                    threshold=0.3):
+                                    threshold=0.2):
         
         # get mean pooled embedding of prompt for xgboost model
         pooled_prompt_embedding= self.get_mean_pooled_embedding(prompt_embedding)
@@ -758,7 +758,7 @@ class PromptMutator:
 
 def main():
     args = parse_args()
-    prompt_mutator= PromptMutator(minio_access_key=args.minio_access_key,
+    prompt_mutator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
                                   minio_secret_key=args.minio_secret_key,
                                   minio_ip_addr=args.minio_addr,
                                   csv_phrase=args.csv_phrase,
