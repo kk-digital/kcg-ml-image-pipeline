@@ -199,6 +199,7 @@ class PromptSubstitutionGenerator:
         # list of sigma scores for each substitution
         sub_phrases=[]
         sub_embeddings=[]
+        original_embeddings=[]
         tokens=[]
         sigma_scores=[]
 
@@ -218,13 +219,15 @@ class PromptSubstitutionGenerator:
                 tokens.append(token)
                 sub_phrases.append(substitute_phrase_str)
                 sub_embeddings.append(substitute_embedding)
+                original_embeddings.append(substituted_embedding)
             
         token_order= np.argsort(sigma_scores)
         tokens=[tokens[token_pos] for token_pos in token_order]
         sub_phrases=[sub_phrases[token_pos] for token_pos in token_order]
         sub_embeddings=[sub_embeddings[token_pos] for token_pos in token_order]
+        original_embeddings=[original_embeddings[token_pos] for token_pos in token_order]
         
-        return tokens, sub_phrases, sub_embeddings
+        return tokens, sub_phrases, original_embeddings, sub_embeddings
 
     # function for rejection sampling with score increase probability
     def rejection_sampling_by_probability(self, 
