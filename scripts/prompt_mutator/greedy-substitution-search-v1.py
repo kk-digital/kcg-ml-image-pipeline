@@ -219,7 +219,7 @@ class PromptMutator:
             if sigma_score > prompt_sigma_score + threshold:
                 sigma_scores.append(-sigma_score)
                 tokens.append(token)
-                sub_phrases.append(substitute_phrase['phrase str'])
+                sub_phrases.append(substitute_phrase['phrase str'].str)
                 sub_embeddings.append(substitute_embedding)
             
         token_order= np.argsort(sigma_scores)
@@ -260,7 +260,7 @@ class PromptMutator:
             if pred["increase"]>0.66:
                 decrease_probs.append(pred['decrease'])
                 tokens.append(token)
-                sub_phrases.append(substitute_phrase['phrase str'])
+                sub_phrases.append(substitute_phrase['phrase str'].str)
                 sub_embeddings.append(substitute_embedding)
                 original_embeddings.append(substituted_embedding)
         
