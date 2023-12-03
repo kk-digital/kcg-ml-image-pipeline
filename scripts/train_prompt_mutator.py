@@ -274,7 +274,7 @@ def load_dataset(minio_client, embedding_type):
     linear_sigma_outputs=[]
     linear_binary_outputs=[]
 
-    for file in dataset_files:
+    for file in self_training_data:
         print(file)
         # get prompt embedding
         data = minio_client.get_object('datasets', file)
