@@ -328,7 +328,7 @@ class PromptSubstitutionGenerator:
                     prompt_embedding= modified_prompt_embedding
                     phrase_embeddings[token]= sub_embedding
                     data=np.concatenate((pooled_prompt_embedding, original_embedding, sub_embedding)).tolist(),
-                    if(i<=max_iterations/2):
+                    if(i<10):
                         # keeping data for self training
                         prompt_data={
                             'input': data[0],
@@ -346,7 +346,7 @@ class PromptSubstitutionGenerator:
                     break
                 elif(num_choices==1):
                     data=np.concatenate((pooled_prompt_embedding, original_embedding, sub_embedding)).tolist(),
-                    if(i<=max_iterations/2):
+                    if(i<10):
                         # keeping data for self training
                         prompt_data={
                             'input': data[0],
