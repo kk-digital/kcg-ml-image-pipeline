@@ -342,7 +342,6 @@ def main():
 
     elm_inputs, linear_inputs, elm_sigma_outputs, elm_binary_outputs, linear_sigma_outputs, linear_binary_outputs =load_dataset(minio_client, args.embedding_type)
 
-    return
     # prompt mutator for predicting binary classes (increase, decrease) wth elm scores and linear scores
     elm_binary_mutator= BinaryPromptMutator(minio_client=minio_client)
     elm_binary_mutator.train(elm_inputs, elm_binary_outputs)
