@@ -255,15 +255,15 @@ def create_dataset(minio_client, device, csv_path, embedding_type):
     store_in_csv_file(csv_data, minio_client, embedding_type)
 
 def load_dataset(minio_client, embedding_type):
-    # dataset_path=DATA_MINIO_DIRECTORY + f"/{embedding_type}_prompts/"
-    # dataset_files=minio_client.list_objects('datasets', prefix=dataset_path, recursive=True)
-    # dataset_files= [file.object_name for file in dataset_files]
-    #print(len(dataset_files))
+    dataset_path=DATA_MINIO_DIRECTORY + f"/{embedding_type}_prompts/"
+    dataset_files=minio_client.list_objects('datasets', prefix=dataset_path, recursive=True)
+    dataset_files= [file.object_name for file in dataset_files]
+    print(len(dataset_files))
 
     self_training_data= get_self_training_paths(minio_client)
     print(len(self_training_data))
 
-    #dataset_files= dataset_files + self_training_data
+    dataset_files= dataset_files + self_training_data
     
     elm_inputs=[]
     linear_inputs=[]
@@ -274,7 +274,7 @@ def load_dataset(minio_client, embedding_type):
     linear_sigma_outputs=[]
     linear_binary_outputs=[]
 
-    for file in self_training_data:
+    for file in dataset_files:
         print(file)
         # get prompt embedding
         data = minio_client.get_object('datasets', file)
