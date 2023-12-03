@@ -344,7 +344,7 @@ class PromptSubstitutionGenerator:
                     prompt_score= modified_prompt_score
                     num_success+=1
                     break
-                elif(num_choices==1):
+                else:
                     data=np.concatenate((pooled_prompt_embedding, original_embedding, sub_embedding)).tolist(),
                     if(i<5):
                         # keeping data for self training
