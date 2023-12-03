@@ -117,7 +117,7 @@ class PromptSubstitutionGenerator:
         if(store_embeddings):
             self.store_phrase_embeddings()
         
-        # get phrase list and embeddings
+        # get list of phrases and their embeddings
         self.phrase_list=pd.read_csv(csv_phrase)
         self.phrase_embeddings= self.load_phrase_embeddings()
 
@@ -248,7 +248,7 @@ class PromptSubstitutionGenerator:
                                     phrase_embeddings,
                                     ):
 
-        # get number of tokens
+        # get list of phrases
         prompt_list = prompt_str.split(', ')
         token_number= len(prompt_list)
         # list of original and substitute phrases, embeddings ,position and increase probability for each substitution
