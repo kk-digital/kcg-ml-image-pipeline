@@ -255,9 +255,9 @@ def create_dataset(minio_client, device, csv_path, embedding_type):
     store_in_csv_file(csv_data, minio_client, embedding_type)
 
 def load_dataset(minio_client, embedding_type):
-    dataset_path=DATA_MINIO_DIRECTORY + f"/{embedding_type}_prompts/"
-    dataset_files=minio_client.list_objects('datasets', prefix=dataset_path, recursive=True)
-    dataset_files= [file.object_name for file in dataset_files]
+    # dataset_path=DATA_MINIO_DIRECTORY + f"/{embedding_type}_prompts/"
+    # dataset_files=minio_client.list_objects('datasets', prefix=dataset_path, recursive=True)
+    # dataset_files= [file.object_name for file in dataset_files]
     print(len(dataset_files))
 
     self_training_data= get_self_training_paths(minio_client)
@@ -342,6 +342,7 @@ def main():
 
     elm_inputs, linear_inputs, elm_sigma_outputs, elm_binary_outputs, linear_sigma_outputs, linear_binary_outputs =load_dataset(minio_client, args.embedding_type)
 
+    return
     # prompt mutator for predicting binary classes (increase, decrease) wth elm scores and linear scores
     elm_binary_mutator= BinaryPromptMutator(minio_client=minio_client)
     elm_binary_mutator.train(elm_inputs, elm_binary_outputs)
