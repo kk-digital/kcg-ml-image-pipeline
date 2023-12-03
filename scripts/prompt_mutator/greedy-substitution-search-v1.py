@@ -294,6 +294,8 @@ class PromptSubstitutionGenerator:
 
         num_attempts=0
         num_success=0
+        increase_datapoints=0
+        decrease_datapoints=0
 
         # run mutation process iteratively untill score converges
         for i in range(max_iterations):
@@ -337,6 +339,7 @@ class PromptSubstitutionGenerator:
                             'linear_output': modified_prompt_score
                         }
                         self_training_data.append(prompt_data)
+                        increase_datapoints+=1
 
                     prompt_score= modified_prompt_score
                     num_success+=1
@@ -354,10 +357,12 @@ class PromptSubstitutionGenerator:
                             'linear_output': modified_prompt_score
                         }
                         self_training_data.append(prompt_data)
+                        decrease_datapoints+=1
             
             num_attempts+=num_choices
             
         print(f"succeeded {num_success} out of {num_attempts} times")
+        print(f"increase {increase_datapoints} decrease {decrease_datapoints}")
         
         return prompt_str, prompt_embedding, self_training_data
 
