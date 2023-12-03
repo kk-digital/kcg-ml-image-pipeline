@@ -270,9 +270,6 @@ def get_random_image_pair(request: Request, dataset: str = Query(...), size: int
     return results
 
 
-
-
-
 @router.delete("/ranking-queue/remove-ranking-queue-single")
 def remove_single_image_from_queue(request: Request, dataset: str = Query(...), policy: str = Query(...), filename: str = Query(...)):
     # Define bucket name and construct the base path with the dataset name
@@ -320,4 +317,31 @@ def remove_image_pair_from_queue(request: Request, dataset: str = Query(...), po
         return {"status": "success", "message": "Image pair removed from queue"}
     else:
         print("File not found")
+        
+
+@router.get("/ranking-queue/get-policy-list", response_class=PrettyJSONResponse)
+def get_directory_names(request: Request, dataset: str, type: str):
+    if type not in ["ranking-queue-pair", "ranking-queue-image"]:
+        raise HTTPException(status_code=400, detail="Invalid type parameter")
+
+    minio_client = request.app.minio_client
+    bucket_name = "datasets"
+    prefix = f"{dataset}/{type}"
+
+
+    # List all objects with the prefix
+    objects = cmd.get_list_of_objects_with_prefix(minio_client, bucket_name, prefix)
+
+    # Extracting unique directory names
+    directories = set()
+    for obj in objects:
+        path_parts = obj.split('/')
+        if len(path_parts) > 2:  # Ensure there's a sub-directory
+            directories.add(path_parts[2])
+
+    if not directories:
+        return {"message": "No directories found for the given dataset and type"}
+
+    return list(directories)
+
 
