@@ -2,15 +2,17 @@ import sys
 import queue
 import math
 import random
+import threading
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from worker.prompt_generation.prompt_generator import generate_prompts_proportional_selection, generate_base_prompts, load_base_prompts
 from scripts.prompt_job_generator.prompt_generator_using_independent_approx_v1_csv import PhraseScoresLoader, get_cumulative_probability_arr
+from independent_approx_v1.independent_approx_v1 import IndependentApproxV1
 
 class PromptGenerationPromptQueue:
-    def __init__(self, queue_size):
+    def __init__(self, minio_client, queue_size):
         # prompt queue
         # contains the prompts used in generation jobs
         self.queue_dictionary = {}
@@ -19,41 +21,24 @@ class PromptGenerationPromptQueue:
         # dataset dictionary for base prompts
         # maps dataset => csv base prompt path
         self.dataset_base_prompt_dictionary = {}
+        # independent approx v1
+        # prompt generator for each dataset
+        self.dataset_independent_prompt_gen_dictionary = {}
+        self.dataset_independent_prompt_gen_dictionary_lock = threading.Lock()
 
+    def load_prompt_approx_v1(self, dataset, minio_client, positive_phrase_scores_csv, negative_phrase_scores_csv):
+        if minio_client is None:
+            print('Failed to load independent approx v1 prompt generator for dataset ', dataset)
+            return
 
-    def load_prompt_approx_v1(self,
-                              minio_client,
-                              dataset_name,
-                              positive_phrase_scores_csv,
-                              negative_phrase_scores_csv,
-                              boltzman_temperature,
-                              boltzman_k):
-        positive_phrase_scores_loader = PhraseScoresLoader(dataset_name=dataset_name,
-                                                          phrase_scores_csv=positive_phrase_scores_csv,
-                                                          minio_client=minio_client,
-                                                          )
-        positive_phrase_scores_loader.load_dataset()
-        positive_phrase_origin_indexes, positive_cumulative_probability_arr = get_cumulative_probability_arr(
-            minio_client=minio_client,
-            dataset_name=dataset_name,
-            index_phrase_score_data=positive_phrase_scores_loader.index_phrase_score_data,
-            boltzman_temperature=boltzman_temperature,
-            boltzman_k=boltzman_k,
-            type="positive")
+        boltzman_temperature = 8
+        boltzman_k = 1
+        prompt_generator = IndependentApproxV1(dataset, boltzman_temperature, boltzman_k)
+        prompt_generator.load_csv(minio_client, positive_phrase_scores_csv, negative_phrase_scores_csv)
+        with self.dataset_independent_prompt_gen_dictionary_lock:
+            self.dataset_independent_prompt_gen_dictionary[dataset] = prompt_generator
 
-        negative_phrase_scores_loader = PhraseScoresLoader(dataset_name=dataset_name,
-                                                           phrase_scores_csv=negative_phrase_scores_csv,
-                                                           minio_client=minio_client,
-                                                           )
-
-        negative_phrase_scores_loader.load_dataset()
-        negative_phrase_origin_indexes, negative_cumulative_probability_arr = get_cumulative_probability_arr(
-            minio_client=minio_client,
-            dataset_name=dataset_name,
-            index_phrase_score_data=negative_phrase_scores_loader.index_phrase_score_data,
-            boltzman_temperature=boltzman_temperature,
-            boltzman_k=boltzman_k,
-            type="negative")
+    def generate_prompts_independent_approx_v1(self):
 
     def set_dataset_base_prompt(self, dataset, base_prompt_path):
         self.dataset_base_prompt_dictionary[dataset] = base_prompt_path
