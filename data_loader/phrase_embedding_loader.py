@@ -132,6 +132,10 @@ class PhraseEmbeddingLoader:
         # save after update
         self.upload_phrases_embedding_npz()
 
+    def get_embedding(self, phrase):
+        index = self.phrase_index_dict[phrase]
+        return self.phrase_embedding_arr[index]
+
 
 
 

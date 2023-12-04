@@ -17,7 +17,7 @@ from training_worker.ab_ranking.model.reports import score_residual, sigma_score
 from training_worker.ab_ranking.model.phrase_smoothing import ScorePhraseSmoothingModel
 from data_loader.independent_approximation_dataset_loader import IndependentApproximationDatasetLoader
 from data_loader.phrase_vector_loader import PhraseVectorLoader
-
+from data_loader.phrase_embedding_loader import PhraseEmbeddingLoader
 
 def train_ranking(dataset_name: str,
                   input_type="positive",
@@ -38,6 +38,7 @@ def train_ranking(dataset_name: str,
                   duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL,
                   randomize_data_per_epoch=True
                   ):
+
     # load phrase
     phrase_loader = PhraseVectorLoader(dataset_name=dataset_name,
                                        minio_ip_addr=minio_ip_addr,
@@ -49,6 +50,16 @@ def train_ranking(dataset_name: str,
     else:
         phrase_loader.load_dataset_phrases()
         phrase_loader.upload_csv()
+
+    # load phrase embeddings
+    phrase_embedding_loader = PhraseEmbeddingLoader(dataset_name=dataset_name,
+                                                    minio_ip_addr=minio_ip_addr,
+                                                    minio_access_key=minio_access_key,
+                                                    minio_secret_key=minio_secret_key)
+    phrase_embedding_loader.load_dataset_phrases()
+
+    # update phrase embeddings
+    phrase_embedding_loader.update_dataset_phrases(phrase_loader.get_positive_phrases_arr())
 
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
@@ -93,6 +104,7 @@ def train_ranking(dataset_name: str,
     ab_model = ScorePhraseSmoothingModel(inputs_shape=input_shape,
                                          dataset_loader=dataset_loader,
                                          phrase_vector_loader=phrase_loader,
+                                         phrase_embedding_loader=phrase_embedding_loader,
                                          input_type=input_type)
 
     training_predicted_score_images_x, \

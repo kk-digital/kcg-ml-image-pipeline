@@ -18,15 +18,20 @@ sys.path.insert(0, base_directory)
 
 from data_loader.independent_approximation_dataset_loader import IndependentApproximationDatasetLoader
 from data_loader.phrase_vector_loader import PhraseVectorLoader
+from data_loader.phrase_embedding_loader import PhraseEmbeddingLoader
 from utility.minio import cmd
-from stable_diffusion.model.clip_text_embedder import CLIPTextEmbedder
-from utility.clip.clip_text_embedder import tensor_attention_pooling
+
 
 class PhraseSmoothingModel(nn.Module):
-    def __init__(self, inputs_shape, phrase_vector_loader: PhraseVectorLoader, text_embedder, input_type):
+    def __init__(self,
+                 inputs_shape,
+                 phrase_vector_loader: PhraseVectorLoader,
+                 phrase_embedding_loader: PhraseEmbeddingLoader,
+                 input_type,
+                 device):
         super(PhraseSmoothingModel, self).__init__()
         self.inputs_shape = inputs_shape
-
+        self._device = device
         initial_score_vector = torch.rand((1, inputs_shape), dtype=torch.float32)
         self.prompt_phrase_trainable_score = nn.Parameter(data=initial_score_vector, requires_grad=True)
         self.l1_loss = nn.L1Loss()
@@ -39,10 +44,9 @@ class PhraseSmoothingModel(nn.Module):
 
         self.l1_loss = nn.L1Loss()
 
-        # phrase vector loader
+        # data loaders
         self.phrase_vector_loader = phrase_vector_loader
-        # add clip text embedding model
-        self.text_embedder = text_embedder
+        self.phrase_embedding_loader = phrase_embedding_loader
         self.input_type = input_type
 
     # for score
@@ -61,9 +65,9 @@ class PhraseSmoothingModel(nn.Module):
                     phrase = self.phrase_vector_loader.index_negative_phrases_dict[i]
 
                 # get embedding
-                phrase_embedding, _, phrase_attention_mask = self.text_embedder.forward_return_all(phrase)
-                phrase_average_pooled = tensor_attention_pooling(phrase_embedding, phrase_attention_mask)
-                phrase_base_score = self.linear(phrase_average_pooled)
+                phrase_embedding = self.phrase_embedding_loader.get_embedding(phrase)
+                phrase_embedding = torch.from_numpy(phrase_embedding).to(self._device)
+                phrase_base_score = self.linear(phrase_embedding)
                 product[0][i] = product[0][i] + phrase_base_score + self.score_offset
 
         prompt_score = torch.sum(product, dim=1)
@@ -76,6 +80,7 @@ class ScorePhraseSmoothingModel:
     def __init__(self, inputs_shape,
                  dataset_loader: IndependentApproximationDatasetLoader,
                  phrase_vector_loader: PhraseVectorLoader,
+                 phrase_embedding_loader: PhraseEmbeddingLoader,
                  input_type="positive"):
         if torch.cuda.is_available():
             device = 'cuda'
@@ -86,12 +91,11 @@ class ScorePhraseSmoothingModel:
         self.dataset_loader = dataset_loader
         self.input_type = input_type
 
-        text_embedder = CLIPTextEmbedder()
-        text_embedder.load_submodels()
         self.model = PhraseSmoothingModel(inputs_shape,
                                           phrase_vector_loader,
-                                          text_embedder,
-                                          input_type).to(self._device)
+                                          phrase_embedding_loader,
+                                          input_type,
+                                          self._device).to(self._device)
         self.model_type = 'score-phrase-smoothing'
         self.loss_func_name = ''
         self.file_path = ''
