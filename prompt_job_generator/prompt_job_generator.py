@@ -5,6 +5,7 @@ import time
 import threading
 import os
 import re
+from datetime import datetime
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -129,6 +130,7 @@ def extract_dates_from_strings(string_list):
     return date_list
 
 
+# should only be used if we are using independent approx v1 to generate prompts
 def load_dataset_prompt_gen_approx_v1(prompt_job_generator_state, dataset):
     minio_client = prompt_job_generator_state.minio_client
 
@@ -137,9 +139,23 @@ def load_dataset_prompt_gen_approx_v1(prompt_job_generator_state, dataset):
     # the goal is to filter by date
     # we are interested in the latest csv files
     csv_list = get_list_of_objects_with_prefix(minio_client, 'datasets', 'environmental/output/phrases_score_csv/2023-11-28-negative-phrases-score.csv')
+    date_string_list = extract_dates_from_strings(csv_list)
 
+    date_objects = []
 
+    # go through date strings and
+    # convert to date class to compare them easily
+    for date_string in date_string_list:
+        date = datetime.strptime(date_string, "%Y-%m-%d")
+        date_objects.append(date)
 
+    # Find the latest date using the max function
+    latest_date = max(date_objects)
+    # Format the latest date as a string
+    latest_date_str = latest_date.strftime("%Y-%m-%d")
+
+    positive_phrase_scores_csv = f'{latest_date_str}-positive-phrases-score.csv'
+    negative_phrase_scores_csv = f'{latest_date_str}-negative-phrases-score.csv'
     prompt_job_generator_state.prompt_queue.load_prompt_approx_v1(dataset,
                                                                   minio_client,
                                                                   positive_phrase_scores_csv,
@@ -199,9 +215,9 @@ def update_dataset_config_data(prompt_job_generator_state, list_datasets):
 
                     dataset_data['ranking_model'] = new_model_name
 
-        if '' in dataset_data:
-            if dataset_data[''] == :
-                load_dataset_prompt_gen_approx_v1(dataset)
+        if 'generation_policy' in dataset_data:
+            if dataset_data['generation_policy'] == 'independent-approx-top-k':
+                load_dataset_prompt_gen_approx_v1(prompt_job_generator_state, dataset)
 
         prompt_job_generator_state.set_dataset_data(dataset, dataset_data)
 
