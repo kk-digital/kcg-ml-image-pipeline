@@ -81,31 +81,57 @@ def get_random_image_list(request: Request, dataset: str = Query(...), size: int
     # Return the images as a list in the response
     return {"images": distinct_documents}
 
+
 @router.get("/image/get_random_previously_ranked_image_list", response_class=PrettyJSONResponse)
 def get_random_previously_ranked_image_list(
     request: Request, 
     dataset: str = Query(...), 
     size: int = Query(1),
-    prompt_generation_policy: Optional[str] = None  # Add this line for the new parameter
+    prompt_generation_policy: Optional[str] = None,
+    start_date: str = None,
+    end_date: str = None,
+    time_interval: int = Query(None, description="Time interval in minutes or hours"),
+    time_unit: str = Query("minutes", description="Time unit, either 'minutes' or 'hours")
 ):
     distinct_documents = []
     tried_ids = set()
 
-    # Update the match query to include prompt_generation_policy if provided
     match_query = {"task_input_dict.dataset": dataset, "_id": {"$nin": list(tried_ids)}}
     if prompt_generation_policy:
-        match_query["task_input_dict.prompt_generation_policy"] = prompt_generation_policy  # Include the policy in the query
+        match_query["task_input_dict.prompt_generation_policy"] = prompt_generation_policy
+
+    # Apply the date/time filters
+    if start_date and end_date:
+        match_query["task_creation_time"] = {"$gte": start_date, "$lte": end_date}
+    elif start_date:
+        match_query["task_creation_time"] = {"$gte": start_date}
+    elif end_date:
+        match_query["task_creation_time"] = {"$lte": end_date}
+
+    if time_interval is not None and time_unit:
+        current_time = datetime.utcnow()
+        if time_unit == "minutes":
+            threshold_time = current_time - timedelta(minutes=time_interval)
+        elif time_unit == "hours":
+            threshold_time = current_time - timedelta(hours=time_interval)
+        else:
+            raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
+
+        # Convert threshold_time to a string in ISO format with milliseconds precision
+        threshold_time_str = threshold_time.isoformat(timespec='milliseconds')
+        time_query = match_query.get("task_creation_time", {})
+        time_query["$gte"] = threshold_time_str
+        match_query["task_creation_time"] = time_query
 
     while len(distinct_documents) < size:
         documents = request.app.completed_jobs_collection.aggregate([
-            {"$match": match_query},  # Use the updated match query with prompt_generation_policy
+            {"$match": match_query}, # Use the updated match query with prompt_generation_policy
             {"$sample": {"size": size - len(distinct_documents)}}
         ])
 
         documents = list(documents)
         tried_ids.update([doc["_id"] for doc in documents])
 
-        # The following logic remains the same as before
         prev_ranked_docs = []
         for doc in documents:
             print("checking ...")
@@ -127,6 +153,7 @@ def get_random_previously_ranked_image_list(
         doc.pop('_id', None)  # Remove the auto-generated field
 
     return {"images": distinct_documents}
+
 
 
 @router.get("/image/get_random_image_by_date_range", response_class=PrettyJSONResponse)
@@ -225,7 +252,7 @@ def get_images_metadata(
             raise HTTPException(status_code=400, detail="Invalid time unit. Use 'minutes' or 'hours'.")
 
         # Convert threshold_time to a string in ISO format
-        threshold_time_str = threshold_time.isoformat(timespec='milliseconds') + 'Z'
+        threshold_time_str = threshold_time.isoformat(timespec='milliseconds') 
     else:
         threshold_time_str = None
 

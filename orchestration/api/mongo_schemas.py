@@ -102,7 +102,7 @@ class Selection(BaseModel):
     selected_image_index: Union[int, None] = None
     selected_image_hash: Union[str, None] = None
     datetime: Union[str, None] = None
-    active_learning: Union[bool, None] = None
+    training_mode: Union[str, None] = None
     active_learning_type: Union[str, None] = None
     active_learning_policy: Union[str, None] = None
 
@@ -115,7 +115,7 @@ class Selection(BaseModel):
             "selected_image_index": self.selected_image_index,
             "selected_image_hash": self.selected_image_hash,
             "datetime": self.datetime,
-            "active_learning": self.active_learning,
+            "training_mode": self.training_mode,
             "active_learning_type": self.active_learning_type,
             "active_learning_policy": self.active_learning_policy,
         }
