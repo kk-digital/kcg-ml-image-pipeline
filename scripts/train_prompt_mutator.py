@@ -181,6 +181,8 @@ def create_permutation_dataset(minio_client, device, embedding_type):
 
         
         prompt_list = prompt_str.split(', ')
+        if(len(prompt_str)<2):
+            continue
         # Choose two random positions in the prompt to do permutation
         random_numbers = random.sample(range(0, len(prompt_list)-1), 2)
 
