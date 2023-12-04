@@ -188,6 +188,8 @@ def create_permutation_dataset(minio_client, device, embedding_type):
 
         position1, position2= random_numbers[0], random_numbers[1]
 
+        print(position1, position2)
+
         # Calculate text embedding of the two phrases to be permutated
         phrase1=prompt_list[position1]
         with torch.no_grad():
