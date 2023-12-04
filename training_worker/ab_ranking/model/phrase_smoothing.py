@@ -190,14 +190,14 @@ class ScorePhraseSmoothingModel:
 
         csv_buffer = StringIO()
         writer = csv.writer(csv_buffer)
-        writer.writerow((["index", "phrase", "occurrences", "token length", "score", "prompt_phrase_average_weight"]))
-        average_weight = None
+        writer.writerow((["index", "phrase", "occurrences", "token length", "score", "score offset"]))
+        score_offset = None
         for name, param in self.model.named_parameters():
-            if name == "prompt_phrase_average_weight":
-                average_weight = param.cpu().detach().squeeze().numpy()
+            if name == "score_offset":
+                score_offset = param.cpu().detach().squeeze().numpy()
 
         for name, param in self.model.named_parameters():
-            if name == "score_vector":
+            if name == "prompt_phrase_trainable_score":
                 score_vector = param.cpu().detach().squeeze().numpy()
                 if self.input_type == "positive":
                     index_phrase_dict = self.dataset_loader.phrase_vector_loader.index_positive_phrases_dict
@@ -218,7 +218,7 @@ class ScorePhraseSmoothingModel:
                     occurrences = phrase_info.occurrences
                     token_length = phrase_info.token_length
                     score = "{:f}".format(score_vector[i])
-                    writer.writerow([index, phrase, occurrences, token_length, score, average_weight])
+                    writer.writerow([index, phrase, occurrences, token_length, score, score_offset])
 
                 bytes_buffer = BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
                 # upload the csv
