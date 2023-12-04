@@ -38,7 +38,14 @@ class PromptGenerationPromptQueue:
         with self.dataset_independent_prompt_gen_dictionary_lock:
             self.dataset_independent_prompt_gen_dictionary[dataset] = prompt_generator
 
-    def generate_prompts_independent_approx_v1(self):
+    def generate_prompts_independent_approx_v1(self, dataset, prompt_count):
+        prompt_list = []
+        with self.dataset_independent_prompt_gen_dictionary_lock:
+            if dataset in self.dataset_independent_prompt_gen_dictionary:
+                prompt_generator = self.dataset_independent_prompt_gen_dictionary[dataset]
+                prompt_list = prompt_generator.generate_prompts(prompt_count)
+
+        return prompt_list
 
     def set_dataset_base_prompt(self, dataset, base_prompt_path):
         self.dataset_base_prompt_dictionary[dataset] = base_prompt_path
@@ -95,7 +102,7 @@ class PromptGenerationPromptQueue:
         top_k = prompt_job_generator_state.get_dataset_top_k(dataset)
 
         # number of total prompts to generate before choosing n prompts
-        if generation_policy == 'top-k':
+        if generation_policy == 'top-k' or generation_policy == 'independent-approx-top-k':
             # if the generation policy is top-k we generate
             # more prompts so that the top-k are allways equal to prompt_count
             # example:  if top-k is 0.1 and we need 1 prompt, we generate 10 and choose best one
@@ -146,6 +153,18 @@ class PromptGenerationPromptQueue:
                                                 'N/A',
                                                 0))
 
+            prompts = prompt_list
+
+        elif generation_policy == 'independent-approx-top-k':
+            prompts = self.generate_prompts_independent_approx_v1(dataset, total_prompt_count)
+            prompt_list = []
+            for prompt in prompts:
+                prompt_list.append(ScoredPrompt(0,
+                                                prompt['positive_prompt'],
+                                                prompt['negative_prompt'],
+                                                'N/A',
+                                                'N/A',
+                                                0))
             prompts = prompt_list
 
         elif generation_policy == 'combined-top-k':
