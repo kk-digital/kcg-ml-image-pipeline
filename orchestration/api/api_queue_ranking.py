@@ -317,7 +317,7 @@ def remove_image_pair_from_queue(request: Request, dataset: str = Query(...), po
         return {"status": "success", "message": "Image pair removed from queue"}
     else:
         print("File not found")
-        
+
 
 @router.get("/ranking-queue/get-policy-list", response_class=PrettyJSONResponse)
 def get_directory_names(request: Request, dataset: str, type: str):
@@ -343,5 +343,49 @@ def get_directory_names(request: Request, dataset: str, type: str):
         return {"message": "No directories found for the given dataset and type"}
 
     return list(directories)
+
+
+@router.get("/ranking-queue/count-image-pairs")
+def count_image_pairs(
+    request: Request,
+    dataset: str = Query(default=None),
+    policy: str = Query(default=None)
+):
+    minio_client = request.app.minio_client
+    bucket_name = "datasets"
+    
+    try:
+        # If both dataset and policy are specified
+        if dataset and policy:
+            prefix = f"{dataset}/ranking-queue-pair/{policy}/"
+            objects = minio_client.list_objects(bucket_name, prefix=prefix, recursive=True)
+            count = sum(1 for _ in objects)
+        # If only dataset is specified
+        elif dataset:
+            prefix = f"{dataset}/ranking-queue-pair/"
+            objects = minio_client.list_objects(bucket_name, prefix=prefix, recursive=True)
+            count = sum(1 for _ in objects)
+        # If only policy is specified or neither
+        else:
+            # Need to iterate over possible datasets to get the count
+            count = 0
+            objects = minio_client.list_objects(bucket_name, recursive=False)
+            for obj in objects:
+                # Check if the object name contains a '/' indicating it's a directory
+                if '/' in obj.object_name:
+                    ds = obj.object_name.split('/')[0]
+                    # Construct the prefix
+                    prefix = f"{ds}/ranking-queue-pair/"
+                    if policy:
+                        prefix += f"{policy}/"
+                    # List and count objects using the prefix
+                    count += sum(1 for _ in minio_client.list_objects(bucket_name, prefix=prefix, recursive=True))
+
+        return {"count": count}
+    
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")  
+        
+
 
 
