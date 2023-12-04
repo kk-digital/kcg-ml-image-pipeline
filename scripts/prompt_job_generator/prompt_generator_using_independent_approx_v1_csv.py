@@ -412,6 +412,50 @@ def get_cumulative_probability_arr(minio_client,
     return smooth_sorted_indexes, smooth_cumulative_probability_arr
 
 
+def get_cumulative_probability_arr_without_upload(
+                                   index_phrase_score_data,
+                                   boltzman_temperature,
+                                   boltzman_k
+                                   ):
+    scores_arr = []
+    for index, data in index_phrase_score_data.items():
+        score = data.score
+        scores_arr.append(score)
+
+    scores_np_arr = np.array(scores_arr)
+
+    probability_arr = np.exp(-(scores_np_arr/(boltzman_k*boltzman_temperature)))
+
+    # normalize
+    normalized_probability_arr = probability_arr/np.sum(probability_arr)
+    assert round(np.sum(normalized_probability_arr), 4) == 1.0, "sum={}".format(np.sum(normalized_probability_arr))
+
+    # unsmooth cumulative
+    unsmooth_sorted_probability_arr = []
+    unsmooth_sorted_indexes = sorted(range(len(normalized_probability_arr)), key=lambda x: normalized_probability_arr[x],
+                                   reverse=True)
+    for i in unsmooth_sorted_indexes:
+        unsmooth_sorted_probability_arr.append(normalized_probability_arr[i])
+    unsmooth_sorted_probability_arr = np.array(unsmooth_sorted_probability_arr)
+
+    # epsilon
+    epsilon = 0.001 / len(index_phrase_score_data)
+
+    normalized_prob_epsilon_arr = normalized_probability_arr + epsilon
+    renormalized_prob_arr = normalized_prob_epsilon_arr/ np.sum(normalized_prob_epsilon_arr)
+
+    # sort smooth
+    smooth_sorted_probability_arr = []
+    smooth_sorted_indexes = sorted(range(len(renormalized_prob_arr)), key=lambda x: renormalized_prob_arr[x], reverse=True)
+    for i in smooth_sorted_indexes:
+        smooth_sorted_probability_arr.append(renormalized_prob_arr[i])
+    smooth_sorted_probability_arr = np.array(smooth_sorted_probability_arr)
+
+    # get cumulative
+    smooth_cumulative_probability_arr = smooth_sorted_probability_arr.cumsum()
+
+    return smooth_sorted_indexes, smooth_cumulative_probability_arr
+
 def run_prompt_generator(minio_client,
                          dataset_name,
                          positive_phrase_scores_csv,

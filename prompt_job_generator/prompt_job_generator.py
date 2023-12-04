@@ -140,10 +140,9 @@ def load_dataset_prompt_gen_approx_v1(prompt_job_generator_state, dataset):
     # we are interested in the latest csv files
     csv_list = get_list_of_objects_with_prefix(minio_client, 'datasets',
                                                f'{dataset}/output/phrases-score-csv/')
-    print(csv_list)
+
     date_string_list = extract_dates_from_strings(csv_list)
 
-    print(date_string_list)
     date_objects = []
 
     # go through date strings and
@@ -152,7 +151,6 @@ def load_dataset_prompt_gen_approx_v1(prompt_job_generator_state, dataset):
         date = datetime.strptime(date_string, "%Y-%m-%d")
         date_objects.append(date)
 
-    print(date_objects)
     # Find the latest date using the max function
     latest_date = max(date_objects)
     # Format the latest date as a string
@@ -164,7 +162,6 @@ def load_dataset_prompt_gen_approx_v1(prompt_job_generator_state, dataset):
                                                                   minio_client,
                                                                   positive_phrase_scores_csv,
                                                                   negative_phrase_scores_csv)
-
 
 
 def update_dataset_config_data(prompt_job_generator_state, list_datasets):
