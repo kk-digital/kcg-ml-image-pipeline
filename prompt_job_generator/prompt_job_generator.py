@@ -138,7 +138,8 @@ def load_dataset_prompt_gen_approx_v1(prompt_job_generator_state, dataset):
     # in the minio directory
     # the goal is to filter by date
     # we are interested in the latest csv files
-    csv_list = get_list_of_objects_with_prefix(minio_client, 'datasets', 'environmental/output/phrases_score_csv/2023-11-28-negative-phrases-score.csv')
+    csv_list = get_list_of_objects_with_prefix(minio_client, 'datasets',
+                                               f'{dataset}/output/phrases-score-csv/')
     print(csv_list)
     date_string_list = extract_dates_from_strings(csv_list)
 
