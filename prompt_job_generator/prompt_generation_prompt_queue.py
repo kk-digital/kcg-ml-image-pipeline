@@ -12,7 +12,7 @@ from scripts.prompt_job_generator.prompt_generator_using_independent_approx_v1_c
 from independent_approx_v1.independent_approx_v1 import IndependentApproxV1
 
 class PromptGenerationPromptQueue:
-    def __init__(self, minio_client, queue_size):
+    def __init__(self, queue_size):
         # prompt queue
         # contains the prompts used in generation jobs
         self.queue_dictionary = {}
