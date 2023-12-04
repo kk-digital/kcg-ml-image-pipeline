@@ -1,5 +1,5 @@
 from fastapi import Request, APIRouter, Query, HTTPException
-from datetime import datetime
+from datetime import datetime, timezone
 from utility.minio import cmd
 import os
 import json
@@ -12,52 +12,43 @@ router = APIRouter()
 
 
 @router.post("/ranking-queue/add-image-to-queue")
-def get_job_details(request: Request, job_uuid: str = Query(...), policy: str = Query(...)):  # Use Query to specify that job_uuid is a query parameter
+def get_job_details(request: Request, job_uuid: str = Query(...), policy: str = Query(...)):
     job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
     if not job:
         print("Job not found")
 
-    # Extract the bucket name, dataset name, file name, and subfolder from the output_file_path
     output_file_path = job["task_output_file_dict"]["output_file_path"]
     task_creation_time = job["task_creation_time"]
-    #prompt_generation_policy = job["prompt_generation_policy"]
-    creation_date = datetime.fromisoformat(task_creation_time).strftime("%Y-%m-%d")
     path_parts = output_file_path.split('/')
     if len(path_parts) < 4:
         raise HTTPException(status_code=500, detail="Invalid output file path format")
 
-    bucket_name = "datasets"
-    dataset_name = path_parts[1]
-    subfolder_name = path_parts[2]  # Subfolder name from the path
-    original_file_name = path_parts[-1]
-    file_name_without_extension = original_file_name.split('.')[0]
-
-    # Add the date_added to job details
-    #date_added = datetime.now().isoformat()
+    # UTC date and time when the JSON is created
+    creation_date_utc = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    datetime.now()
     job_details = {
         "job_uuid": job_uuid,
-        "dataset_name": dataset_name,
-        "file_name": original_file_name,
+        "dataset_name": path_parts[1],
+        "file_name": path_parts[-1],
         "image_path": output_file_path,
         "image_hash": job["task_output_file_dict"]["output_file_hash"],
-        "policy": policy,
+        "active-learning-policy": policy,
+        "creation_date": creation_date_utc,
         "job_creation_time": task_creation_time,
-        "put_type" : "single-image"
+        "put_type": "single-image",
+        "creation_date": creation_date_utc  # Adding creation_date in UTC+0
     }
 
-    # Serialize job details to JSON
     json_data = json.dumps(job_details, indent=4).encode('utf-8')
     data = BytesIO(json_data)
 
-    # Prepare path using the subfolder and the original file name for the JSON file
-    json_file_name = f"{creation_date}_{file_name_without_extension}.json"
-    path = "ranking-queue-image"
-    full_path = os.path.join(dataset_name, path, policy, subfolder_name, json_file_name)
+    json_file_name = f"{datetime.fromisoformat(task_creation_time).strftime('%Y-%m-%d')}_{path_parts[-1].split('.')[0]}.json"
+    full_path = os.path.join(path_parts[1], "ranking-queue-image", policy, path_parts[2], json_file_name)
 
-    # Upload to MinIO
-    cmd.upload_data(request.app.minio_client, bucket_name, full_path, data)
+    cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
 
     return True
+
 
 
 @router.post("/ranking-queue/add-image-pair-to-queue")
