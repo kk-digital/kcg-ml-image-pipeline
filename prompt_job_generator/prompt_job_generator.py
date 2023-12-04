@@ -141,6 +141,7 @@ def load_dataset_prompt_gen_approx_v1(prompt_job_generator_state, dataset):
     csv_list = get_list_of_objects_with_prefix(minio_client, 'datasets', 'environmental/output/phrases_score_csv/2023-11-28-negative-phrases-score.csv')
     date_string_list = extract_dates_from_strings(csv_list)
 
+    print(date_string_list)
     date_objects = []
 
     # go through date strings and
@@ -149,6 +150,7 @@ def load_dataset_prompt_gen_approx_v1(prompt_job_generator_state, dataset):
         date = datetime.strptime(date_string, "%Y-%m-%d")
         date_objects.append(date)
 
+    print(date_objects)
     # Find the latest date using the max function
     latest_date = max(date_objects)
     # Format the latest date as a string
