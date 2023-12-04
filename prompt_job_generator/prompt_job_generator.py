@@ -4,11 +4,14 @@ import sys
 import time
 import threading
 import os
+import re
+from datetime import datetime
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from prompt_job_generator_state import PromptJobGeneratorState
+from utility.minio.cmd import get_list_of_objects_with_prefix
 from prompt_job_generator_functions import (generate_icon_generation_jobs, generate_character_generation_jobs, generate_mechs_image_generation_jobs,
 generate_propaganda_posters_image_generation_jobs, generate_environmental_image_generation_jobs, generate_waifu_image_generation_jobs)
 from prompt_job_generator.http_requests.request import (http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list,
@@ -116,6 +119,51 @@ def update_dataset_latest_ranking_model(prompt_job_generator_state, list_dataset
         http_set_dataset_ranking_model(dataset, model_name)
 
 
+def extract_dates_from_strings(string_list):
+    date_pattern = r'\b\d{4}-\d{2}-\d{2}\b'  # Regular expression for the date pattern
+
+    date_list = []
+    for text in string_list:
+        matches = re.findall(date_pattern, text)
+        date_list.extend(matches)
+
+    return date_list
+
+
+# should only be used if we are using independent approx v1 to generate prompts
+def load_dataset_prompt_gen_approx_v1(prompt_job_generator_state, dataset):
+    minio_client = prompt_job_generator_state.minio_client
+
+    # get the list of all csv files
+    # in the minio directory
+    # the goal is to filter by date
+    # we are interested in the latest csv files
+    csv_list = get_list_of_objects_with_prefix(minio_client, 'datasets',
+                                               f'{dataset}/output/phrases-score-csv/')
+
+    date_string_list = extract_dates_from_strings(csv_list)
+
+    date_objects = []
+
+    # go through date strings and
+    # convert to date class to compare them easily
+    for date_string in date_string_list:
+        date = datetime.strptime(date_string, "%Y-%m-%d")
+        date_objects.append(date)
+
+    # Find the latest date using the max function
+    latest_date = max(date_objects)
+    # Format the latest date as a string
+    latest_date_str = latest_date.strftime("%Y-%m-%d")
+
+    positive_phrase_scores_csv = f'{latest_date_str}-positive-phrases-score.csv'
+    negative_phrase_scores_csv = f'{latest_date_str}-negative-phrases-score.csv'
+    prompt_job_generator_state.prompt_queue.load_prompt_approx_v1(dataset,
+                                                                  minio_client,
+                                                                  positive_phrase_scores_csv,
+                                                                  negative_phrase_scores_csv)
+
+
 def update_dataset_config_data(prompt_job_generator_state, list_datasets):
 
     # if dataset list is null return
@@ -167,6 +215,10 @@ def update_dataset_config_data(prompt_job_generator_state, list_datasets):
                     new_model_name = model_info['model_name']
 
                     dataset_data['ranking_model'] = new_model_name
+
+        if 'generation_policy' in dataset_data:
+            if dataset_data['generation_policy'] == 'independent-approx-v1-top-k':
+                load_dataset_prompt_gen_approx_v1(prompt_job_generator_state, dataset)
 
         prompt_job_generator_state.set_dataset_data(dataset, dataset_data)
 
@@ -297,7 +349,7 @@ def update_dataset_values_background_thread(prompt_job_generator_state):
 
         load_dataset_models(prompt_job_generator_state, list_datasets)
 
-        sleep_time_in_seconds = 15.0
+        sleep_time_in_seconds = 2.0
         time.sleep(sleep_time_in_seconds)
 
 

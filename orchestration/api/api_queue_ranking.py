@@ -1,5 +1,5 @@
 from fastapi import Request, APIRouter, Query, HTTPException
-from datetime import datetime
+from datetime import datetime, timezone
 from utility.minio import cmd
 import os
 import json
@@ -12,60 +12,51 @@ router = APIRouter()
 
 
 @router.post("/ranking-queue/add-image-to-queue")
-def get_job_details(request: Request, job_uuid: str = Query(...), policy: str = Query(...)):  # Use Query to specify that job_uuid is a query parameter
+def get_job_details(request: Request, job_uuid: str = Query(...), policy: str = Query(...)):
     job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
     if not job:
         print("Job not found")
 
-    # Extract the bucket name, dataset name, file name, and subfolder from the output_file_path
     output_file_path = job["task_output_file_dict"]["output_file_path"]
     task_creation_time = job["task_creation_time"]
-    #prompt_generation_policy = job["prompt_generation_policy"]
-    creation_date = datetime.fromisoformat(task_creation_time).strftime("%Y-%m-%d")
     path_parts = output_file_path.split('/')
     if len(path_parts) < 4:
         raise HTTPException(status_code=500, detail="Invalid output file path format")
 
-    bucket_name = "datasets"
-    dataset_name = path_parts[1]
-    subfolder_name = path_parts[2]  # Subfolder name from the path
-    original_file_name = path_parts[-1]
-    file_name_without_extension = original_file_name.split('.')[0]
-
-    # Add the date_added to job details
-    #date_added = datetime.now().isoformat()
+    # UTC date and time when the JSON is created
+    creation_date_utc = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    datetime.now()
     job_details = {
         "job_uuid": job_uuid,
-        "dataset_name": dataset_name,
-        "file_name": original_file_name,
+        "dataset_name": path_parts[1],
+        "file_name": path_parts[-1],
         "image_path": output_file_path,
         "image_hash": job["task_output_file_dict"]["output_file_hash"],
-        "policy": policy,
+        "active-learning-policy": policy,
+        "creation_date": creation_date_utc,
         "job_creation_time": task_creation_time,
-        "put_type" : "single-image"
+        "put_type": "single-image",
+        "creation_date": creation_date_utc  # Adding creation_date in UTC+0
     }
 
-    # Serialize job details to JSON
     json_data = json.dumps(job_details, indent=4).encode('utf-8')
     data = BytesIO(json_data)
 
-    # Prepare path using the subfolder and the original file name for the JSON file
-    json_file_name = f"{creation_date}_{file_name_without_extension}.json"
-    path = "ranking-queue-image"
-    full_path = os.path.join(dataset_name, path, policy, subfolder_name, json_file_name)
+    json_file_name = f"{datetime.fromisoformat(task_creation_time).strftime('%Y-%m-%d')}_{path_parts[-1].split('.')[0]}.json"
+    full_path = os.path.join(path_parts[1], "ranking-queue-image", policy, path_parts[2], json_file_name)
 
-    # Upload to MinIO
-    cmd.upload_data(request.app.minio_client, bucket_name, full_path, data)
+    cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
 
     return True
 
 
 @router.post("/ranking-queue/add-image-pair-to-queue")
 def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: str = Query(...), policy: str = Query(...)):
-    def extract_job_details(job_uuid, suffix, policy):
+    def extract_job_details(job_uuid, suffix):
         job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
         if not job:
             print(f"Job {job_uuid} not found")
+           
 
         output_file_path = job["task_output_file_dict"]["output_file_path"]
         task_creation_time = job["task_creation_time"]
@@ -73,45 +64,44 @@ def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: 
         if len(path_parts) < 4:
             raise HTTPException(status_code=500, detail="Invalid output file path format")
 
-        original_file_name = path_parts[-1]
-
         return {
             f"job_uuid_{suffix}": job_uuid,
-            "dataset_name": path_parts[1],
-            f"file_name_{suffix}": original_file_name,
+            f"file_name_{suffix}": path_parts[-1],
             f"image_path_{suffix}": output_file_path,
             f"image_hash_{suffix}": job["task_output_file_dict"]["output_file_hash"],
-            "policy": policy, 
             f"job_creation_time_{suffix}": task_creation_time,
-            "put_type": "pair-image"
         }
 
-    # Extract details for both jobs
-    job_details_1 = extract_job_details(job_uuid_1, "1", policy)
-    job_details_2 = extract_job_details(job_uuid_2, "2", policy)
+    job_details_1 = extract_job_details(job_uuid_1, "1")
+    job_details_2 = extract_job_details(job_uuid_2, "2")
 
-    # Create a list with two separate dictionaries
-    combined_job_details = [job_details_1, job_details_2]
+    if not job_details_1 or not job_details_2:
+        return {"error": "Job details extraction failed"}
 
-    # Serialize to JSON
-    json_data = json.dumps(combined_job_details, indent=4).encode('utf-8')
-    data = BytesIO(json_data)
+    combined_job_details = {
+        "active_learning_policy": policy,
+        "put_type": "pair-image",
+        "dataset_name": job_details_1['image_path_1'].split('/')[1],  # Extract dataset name
+        "creation_date": datetime.utcnow().isoformat(),  # UTC time
+        "images": [job_details_1, job_details_2]
+    }
 
-    # Format the date from the first job's task_creation_time
     creation_date_1 = datetime.fromisoformat(job_details_1["job_creation_time_1"]).strftime("%Y-%m-%d")
     creation_date_2 = datetime.fromisoformat(job_details_2["job_creation_time_2"]).strftime("%Y-%m-%d")
 
+    json_data = json.dumps([combined_job_details], indent=4).encode('utf-8')  # Note the list brackets around combined_job_details
+    data = BytesIO(json_data)
 
-    # Define the path for the JSON file with the formatted date
+    # Define the path for the JSON file
     base_file_name_1 = job_details_1['file_name_1'].split('.')[0]
     base_file_name_2 = job_details_2['file_name_2'].split('.')[0]
     json_file_name = f"{creation_date_1}_{base_file_name_1}_and_{creation_date_2}_{base_file_name_2}.json"
-    full_path = os.path.join(job_details_1['dataset_name'], "ranking-queue-pair", policy, json_file_name)
+    full_path = f"{combined_job_details['dataset_name']}/ranking-queue-pair/{policy}/{json_file_name}"
 
-    # Upload to MinIO
     cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
 
     return True
+
 
 
 @router.get("/ranking-queue/get-random-image", response_class=PrettyJSONResponse)
@@ -317,7 +307,7 @@ def remove_image_pair_from_queue(request: Request, dataset: str = Query(...), po
         return {"status": "success", "message": "Image pair removed from queue"}
     else:
         print("File not found")
-        
+
 
 @router.get("/ranking-queue/get-policy-list", response_class=PrettyJSONResponse)
 def get_directory_names(request: Request, dataset: str, type: str):
@@ -343,5 +333,49 @@ def get_directory_names(request: Request, dataset: str, type: str):
         return {"message": "No directories found for the given dataset and type"}
 
     return list(directories)
+
+
+@router.get("/ranking-queue/count-image-pairs")
+def count_image_pairs(
+    request: Request,
+    dataset: str = Query(default=None),
+    policy: str = Query(default=None)
+):
+    minio_client = request.app.minio_client
+    bucket_name = "datasets"
+    
+    try:
+        # If both dataset and policy are specified
+        if dataset and policy:
+            prefix = f"{dataset}/ranking-queue-pair/{policy}/"
+            objects = minio_client.list_objects(bucket_name, prefix=prefix, recursive=True)
+            count = sum(1 for _ in objects)
+        # If only dataset is specified
+        elif dataset:
+            prefix = f"{dataset}/ranking-queue-pair/"
+            objects = minio_client.list_objects(bucket_name, prefix=prefix, recursive=True)
+            count = sum(1 for _ in objects)
+        # If only policy is specified or neither
+        else:
+            # Need to iterate over possible datasets to get the count
+            count = 0
+            objects = minio_client.list_objects(bucket_name, recursive=False)
+            for obj in objects:
+                # Check if the object name contains a '/' indicating it's a directory
+                if '/' in obj.object_name:
+                    ds = obj.object_name.split('/')[0]
+                    # Construct the prefix
+                    prefix = f"{ds}/ranking-queue-pair/"
+                    if policy:
+                        prefix += f"{policy}/"
+                    # List and count objects using the prefix
+                    count += sum(1 for _ in minio_client.list_objects(bucket_name, prefix=prefix, recursive=True))
+
+        return {"count": count}
+    
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")  
+        
+
 
 
