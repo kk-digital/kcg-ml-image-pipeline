@@ -538,7 +538,7 @@ def main():
         if args.operation=="substitution":
             create_substitution_dataset(minio_client, device, args.csv_phrase, args.embedding_type)
         elif args.operation=="permutation":
-            create_permutation_dataset(minio_client, device, args.csv_phrase, args.embedding_type)
+            create_permutation_dataset(minio_client, device, args.embedding_type)
 
     if args.operation=="substitution":
         elm_inputs, linear_inputs, elm_sigma_outputs, elm_binary_outputs, linear_sigma_outputs, linear_binary_outputs =load_substitution_dataset(minio_client, args.embedding_type)
