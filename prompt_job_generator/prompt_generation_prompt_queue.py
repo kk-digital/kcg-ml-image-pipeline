@@ -155,7 +155,7 @@ class PromptGenerationPromptQueue:
 
             prompts = prompt_list
 
-        elif generation_policy == 'independent-approx-top-k':
+        elif generation_policy == 'independent-approx-v1-top-k':
             prompts = self.generate_prompts_independent_approx_v1(dataset, total_prompt_count)
             prompt_list = []
             for prompt in prompts:

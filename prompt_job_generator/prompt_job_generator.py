@@ -217,7 +217,7 @@ def update_dataset_config_data(prompt_job_generator_state, list_datasets):
                     dataset_data['ranking_model'] = new_model_name
 
         if 'generation_policy' in dataset_data:
-            if dataset_data['generation_policy'] == 'independent-approx-top-k':
+            if dataset_data['generation_policy'] == 'independent-approx-v1-top-k':
                 load_dataset_prompt_gen_approx_v1(prompt_job_generator_state, dataset)
 
         prompt_job_generator_state.set_dataset_data(dataset, dataset_data)
