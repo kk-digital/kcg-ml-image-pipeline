@@ -65,7 +65,7 @@ def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: 
     def extract_job_details(job_uuid, suffix, policy):
         job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
         if not job:
-            raise HTTPException(status_code=404, detail=f"Job {job_uuid} not found")
+            print(f"Job {job_uuid} not found")
 
         output_file_path = job["task_output_file_dict"]["output_file_path"]
         task_creation_time = job["task_creation_time"]
@@ -125,7 +125,7 @@ def get_random_json(request: Request, dataset: str = Query(...), size: int = Que
     json_files = [name for name in json_files if name.endswith('.json') and prefix in name]
 
     if not json_files:
-        raise HTTPException(status_code=404, detail="No JSON files found for the given dataset")
+        print("No JSON files found for the given dataset")
 
     # Randomly select 'size' number of json files
     selected_files = random.sample(json_files, min(size, len(json_files)))
@@ -149,17 +149,17 @@ def get_random_json(request: Request, dataset: str = Query(...), size: int = Que
 
 
 @router.get("/ranking-queue/get-random-image-v1", response_class=PrettyJSONResponse)
-def get_random_json(request: Request, dataset: str = Query(...), size: int = Query(...)):
+def get_random_json(request: Request, dataset: str = Query(...), size: int = Query(...), policy: str = Query(...)):
     minio_client = request.app.minio_client
     bucket_name = "datasets"
-    prefix = f"{dataset}/ranking-queue-image/"
+    prefix = f"{dataset}/ranking-queue-image/{policy}"
 
     # List all json files in the queue-ranking directory
     json_files = cmd.get_list_of_objects_with_prefix(minio_client, bucket_name, prefix)
     json_files = [name for name in json_files if name.endswith('.json') and prefix in name]
 
     if not json_files:
-        raise HTTPException(status_code=404, detail="No JSON files found for the given dataset")
+        print("No JSON files found for the given dataset")
 
     # Randomly select 'size' number of json files
     selected_files = random.sample(json_files, min(size, len(json_files)))
@@ -202,7 +202,7 @@ def get_random_image_pair(request: Request, dataset: str = Query(...), size: int
     json_files = [name for name in json_files if name.endswith('.json') and prefix in name]
 
     if not json_files:
-        raise HTTPException(status_code=404, detail="No image pair JSON files found for the given dataset")
+        print("No image pair JSON files found for the given dataset")
 
     # Randomly select 'size' number of json files
     selected_files = random.sample(json_files, min(size, len(json_files)))
@@ -226,17 +226,17 @@ def get_random_image_pair(request: Request, dataset: str = Query(...), size: int
 
 
 @router.get("/ranking-queue/get-random-image-pair-v1", response_class=PrettyJSONResponse)
-def get_random_image_pair(request: Request, dataset: str = Query(...), size: int = Query(...)):
+def get_random_image_pair(request: Request, dataset: str = Query(...), size: int = Query(...), policy: str = Query(...)):
     minio_client = request.app.minio_client
     bucket_name = "datasets"
-    prefix = f"{dataset}/ranking-queue-pair/"
+    prefix = f"{dataset}/ranking-queue-pair/{policy}"
 
     # List all json files in the ranking-queue-pair directory
     json_files = cmd.get_list_of_objects_with_prefix(minio_client, bucket_name, prefix)
     json_files = [name for name in json_files if name.endswith('.json') and prefix in name]
 
     if not json_files:
-        raise HTTPException(status_code=404, detail="No image pair JSON files found for the given dataset")
+        print("No image pair JSON files found for the given dataset")
 
     # Randomly select 'size' number of json files
     selected_files = random.sample(json_files, min(size, len(json_files)))
@@ -270,9 +270,6 @@ def get_random_image_pair(request: Request, dataset: str = Query(...), size: int
     return results
 
 
-
-
-
 @router.delete("/ranking-queue/remove-ranking-queue-single")
 def remove_single_image_from_queue(request: Request, dataset: str = Query(...), policy: str = Query(...), filename: str = Query(...)):
     # Define bucket name and construct the base path with the dataset name
@@ -295,7 +292,7 @@ def remove_single_image_from_queue(request: Request, dataset: str = Query(...), 
         cmd.remove_an_object(minio_client, bucket_name, object_to_remove)
         return {"status": "success", "message": "Image removed from queue"}
     else:
-        raise HTTPException(status_code=404, detail="File not found")
+        print("File not found")
 
 @router.delete("/ranking-queue/remove-ranking-queue-pair")
 def remove_image_pair_from_queue(request: Request, dataset: str = Query(...), policy: str = Query(...), filename: str = Query(...)):
@@ -319,5 +316,32 @@ def remove_image_pair_from_queue(request: Request, dataset: str = Query(...), po
         cmd.remove_an_object(minio_client, bucket_name, object_to_remove)
         return {"status": "success", "message": "Image pair removed from queue"}
     else:
-        raise HTTPException(status_code=404, detail="File not found")
+        print("File not found")
+        
+
+@router.get("/ranking-queue/get-policy-list", response_class=PrettyJSONResponse)
+def get_directory_names(request: Request, dataset: str, type: str):
+    if type not in ["ranking-queue-pair", "ranking-queue-image"]:
+        raise HTTPException(status_code=400, detail="Invalid type parameter")
+
+    minio_client = request.app.minio_client
+    bucket_name = "datasets"
+    prefix = f"{dataset}/{type}"
+
+
+    # List all objects with the prefix
+    objects = cmd.get_list_of_objects_with_prefix(minio_client, bucket_name, prefix)
+
+    # Extracting unique directory names
+    directories = set()
+    for obj in objects:
+        path_parts = obj.split('/')
+        if len(path_parts) > 2:  # Ensure there's a sub-directory
+            directories.add(path_parts[2])
+
+    if not directories:
+        return {"message": "No directories found for the given dataset and type"}
+
+    return list(directories)
+
 

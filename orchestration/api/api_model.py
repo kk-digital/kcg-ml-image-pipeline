@@ -196,8 +196,8 @@ def get_model_card(request: Request, file_path: str = Query(...)):
     
     # Check if the file exists in the MinIO bucket
     if not cmd.is_object_exists(request.app.minio_client, bucket_name, file_path):
-        raise HTTPException(status_code=404, detail="File not found")
-    
+        print("File not found")
+
     data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, file_path)
     
     # If the file is a .json file, decode it and return the content, otherwise, return the raw content
@@ -213,7 +213,7 @@ def get_graph(request: Request, file_path: str = Query(...)):
     
     # Check if the file exists
     if not cmd.is_object_exists(request.app.minio_client, bucket_name, file_path):
-        raise HTTPException(status_code=404, detail="File not found")
+        print("File not found")
     
     image_data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, file_path)
     
@@ -233,7 +233,7 @@ def get_report(request: Request, file_path: str = Query(...)):
     
     # Check if the file exists
     if not cmd.is_object_exists(request.app.minio_client, bucket_name, file_path):
-        raise HTTPException(status_code=404, detail="File not found")
+        print("File not found")
     
     report_data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, file_path)
     
@@ -267,7 +267,7 @@ def get_model_id(request: Request, model_hash: str):
     query = {"model_file_hash": model_hash}
     item = request.app.models_collection.find_one(query)
     if item is None:
-        raise HTTPException(status_code=404, detail="Model not found")
+        print("Model not found")
 
     return item["model_id"]
 
@@ -281,7 +281,7 @@ def get_model_card(request: Request, file_path: str):
     bucket_name = "datasets"
     
     if not cmd.is_object_exists(request.app.minio_client, bucket_name, file_path):
-        raise HTTPException(status_code=404, detail="File not found")
+        print("File not found")
     
     data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, file_path)
     
@@ -296,7 +296,7 @@ def get_graph(request: Request, file_path: str):
     bucket_name = "datasets"
     
     if not cmd.is_object_exists(request.app.minio_client, bucket_name, file_path):
-        raise HTTPException(status_code=404, detail="File not found")
+        print("File not found")
     
     image_data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, file_path)
     
@@ -311,7 +311,7 @@ def get_report(request: Request, file_path: str):
     bucket_name = "datasets"
     
     if not cmd.is_object_exists(request.app.minio_client, bucket_name, file_path):
-        raise HTTPException(status_code=404, detail="File not found")
+        print("File not found")
     
     report_data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, file_path)
     

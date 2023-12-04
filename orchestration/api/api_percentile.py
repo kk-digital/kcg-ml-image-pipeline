@@ -26,7 +26,7 @@ def get_image_rank_percentile_by_hash(request: Request, image_hash: str, model_i
 
     item = request.app.image_percentiles_collection.find_one(query)
     if item is None:
-        raise HTTPException(status_code=404, detail="Image rank percentile data not found")
+        print("Image rank percentile data not found")
 
     # remove the auto generated field
     item.pop('_id', None)
@@ -41,7 +41,7 @@ def get_image_rank_percentiles_by_model_id(request: Request, model_id: int):
     query = {"model_id": model_id}
     items = request.app.image_percentiles_collection.find(query).sort("percentile", -1)
     if items is None:
-        raise HTTPException(status_code=404, detail="Image rank percentiles data not found")
+         print("Image rank percentile data not found")
 
     percentile_data = []
     for item in items:
