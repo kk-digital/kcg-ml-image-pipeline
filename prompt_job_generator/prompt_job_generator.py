@@ -4,11 +4,13 @@ import sys
 import time
 import threading
 import os
+import re
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from prompt_job_generator_state import PromptJobGeneratorState
+from utility.minio.cmd import get_list_of_objects_with_prefix
 from prompt_job_generator_functions import (generate_icon_generation_jobs, generate_character_generation_jobs, generate_mechs_image_generation_jobs,
 generate_propaganda_posters_image_generation_jobs, generate_environmental_image_generation_jobs, generate_waifu_image_generation_jobs)
 from prompt_job_generator.http_requests.request import (http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list,
@@ -116,6 +118,35 @@ def update_dataset_latest_ranking_model(prompt_job_generator_state, list_dataset
         http_set_dataset_ranking_model(dataset, model_name)
 
 
+def extract_dates_from_strings(string_list):
+    date_pattern = r'\b\d{4}-\d{2}-\d{2}\b'  # Regular expression for the date pattern
+
+    date_list = []
+    for text in string_list:
+        matches = re.findall(date_pattern, text)
+        date_list.extend(matches)
+
+    return date_list
+
+
+def load_dataset_prompt_gen_approx_v1(prompt_job_generator_state, dataset):
+    minio_client = prompt_job_generator_state.minio_client
+
+    # get the list of all csv files
+    # in the minio directory
+    # the goal is to filter by date
+    # we are interested in the latest csv files
+    csv_list = get_list_of_objects_with_prefix(minio_client, 'datasets', 'environmental/output/phrases_score_csv/2023-11-28-negative-phrases-score.csv')
+
+
+
+    prompt_job_generator_state.prompt_queue.load_prompt_approx_v1(dataset,
+                                                                  minio_client,
+                                                                  positive_phrase_scores_csv,
+                                                                  negative_phrase_scores_csv)
+
+
+
 def update_dataset_config_data(prompt_job_generator_state, list_datasets):
 
     # if dataset list is null return
@@ -167,6 +198,10 @@ def update_dataset_config_data(prompt_job_generator_state, list_datasets):
                     new_model_name = model_info['model_name']
 
                     dataset_data['ranking_model'] = new_model_name
+
+        if '' in dataset_data:
+            if dataset_data[''] == :
+                load_dataset_prompt_gen_approx_v1(dataset)
 
         prompt_job_generator_state.set_dataset_data(dataset, dataset_data)
 

@@ -106,7 +106,6 @@ def get_list_of_objects(client, bucket_name):
     return object_names
 
 
-
 def get_list_of_objects_with_prefix(client, bucket_name, prefix):
     object_names = []
     objects = client.list_objects(bucket_name, prefix=prefix, recursive=True)
