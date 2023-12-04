@@ -159,7 +159,7 @@ def get_all_dataset_config(request: Request):
     # find
     items = request.app.dataset_config_collection.find({})
     if items is None:
-        raise HTTPException(status_code=404)
+        print("Dataset not found")
 
     for item in items:
         # remove the auto generated field
@@ -177,7 +177,7 @@ def set_relevance_model(request: Request, dataset: str, relevance_model: str):
     item = request.app.dataset_config_collection.find_one(query)
     
     if item is None:
-        raise HTTPException(status_code=404, detail="Dataset not found")
+        print("Dataset not found")
     
     # update the relevance model
     new_values = {
@@ -198,7 +198,7 @@ def set_ranking_model(request: Request, dataset: str, ranking_model: str):
     item = request.app.dataset_config_collection.find_one(query)
     
     if item is None:
-        raise HTTPException(status_code=404, detail="Dataset not found")
+        print("Dataset not found")
     
     # update the ranking model
     new_values = {
@@ -223,8 +223,7 @@ def list_ranking_files(request: Request, dataset: str):
     json_files = [obj for obj in objects if obj.endswith('.json')]
 
     if not json_files:
-        raise HTTPException(status_code=404, detail=f"No JSON files found in {path_prefix}.")
-
+        print(f"No JSON files found in {path_prefix}.")
     return json_files
     
 
@@ -269,12 +268,12 @@ def list_ranking_files(
         filtered_json_files.sort(reverse=True)
     else:
         filtered_json_files.sort()
-        
+
     # Apply list size limit
     filtered_json_files = filtered_json_files[:list_size]
 
     if not filtered_json_files:
-        raise HTTPException(status_code=404, detail=f"No JSON files found in {path_prefix} between {start_date} and {end_date}.")
+        print(f"No JSON files found in {path_prefix} between {start_date} and {end_date}.")
 
     return filtered_json_files
 
@@ -304,16 +303,15 @@ def list_ranking_files_sort_by_residual(request: Request, dataset: str,
     json_files = [obj for obj in objects if obj.endswith('.json')]
 
     if not json_files:
-        raise HTTPException(status_code=404, detail=f"No JSON files found in {path_prefix}.")
-
+        print(f"No JSON files found in {path_prefix}.")
     # get all model id residuals
     query = {"model_id": model_id}
     sort_order = -1 if order == "desc" else 1
     model_residuals = request.app.image_residuals_collection.find(query).sort("residual", sort_order)
     model_residuals = list(model_residuals)
-    if len(model_residuals) == 0:
-        raise HTTPException(status_code=404, detail="Image rank residuals data not found")
 
+    if len(model_residuals) == 0:
+        print("Image rank residuals data not found")
     # use concurrency
     # read json files and put selected hash in a dict
     json_files_selected_hash_dict = {}
@@ -350,7 +348,7 @@ def list_relevancy_files(request: Request, dataset: str):
     json_files = [obj for obj in objects if obj.endswith('.json')]
 
     if not json_files:
-        raise HTTPException(status_code=404, detail=f"No JSON files found in {path_prefix}.")
+        print(f"No JSON files found in {path_prefix}.")
 
     return json_files
 
@@ -365,7 +363,7 @@ def read_ranking_file(request: Request, dataset: str,
     data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
 
     if data is None:
-        raise HTTPException(status_code=404, detail=f"File {filename} not found.")
+        print(f"File {filename} not found.")
 
     file_content = ""
     for chunk in data.stream(32 * 1024):
@@ -385,7 +383,7 @@ def read_relevancy_file(request: Request, dataset: str,
     data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
 
     if data is None:
-        raise HTTPException(status_code=404, detail=f"File {filename} not found.")
+        print(f"File {filename} not found.")
 
     file_content = ""
     for chunk in data.stream(32 * 1024):
@@ -404,8 +402,8 @@ def update_ranking_file(request: Request, dataset: str, filename: str, update_da
     data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
 
     if data is None:
-        raise HTTPException(status_code=404, detail=f"File {filename} not found.")
-
+        print(f"File {filename} not found.")
+        
     file_content = ""
     for chunk in data.stream(32 * 1024):
         file_content += chunk.decode('utf-8')

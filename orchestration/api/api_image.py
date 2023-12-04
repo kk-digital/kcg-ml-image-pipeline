@@ -26,7 +26,7 @@ def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the
 
     # Ensure the list isn't empty (this is just a safety check)
     if not documents:
-        raise HTTPException(status_code=404, detail="No image found for the given dataset")
+        print("No image found for the given dataset")
 
     # Remove the auto generated _id field from the document
     documents[0].pop('_id', None)
@@ -42,8 +42,8 @@ def get_image_details(request: Request, image_path: str = Query(...)):
     )
 
     if document is None:
-        raise HTTPException(status_code=404, detail="Image not found")
-
+        print("Image not found")
+        
     # Remove the auto-generated _id field from the document
     document.pop('_id', None)
 
@@ -312,7 +312,7 @@ def get_random_image_with_time(
 
     # Ensure the list isn't empty (this is just a safety check)
     if not documents:
-        raise HTTPException(status_code=404, detail=f"No images found for the given dataset within the last {time_interval} {time_unit}")
+        print(f"No images found for the given dataset within the last {time_interval} {time_unit}")
 
     # Remove the auto-generated _id field from each document
     for document in documents:
@@ -350,12 +350,12 @@ def get_image_by_job_uuid(request: Request, job_uuid: str):
     # Fetch the job from the completed_jobs_collection using the UUID
     job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
     if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+        print("Job not found")
 
     # Extract the output file path from the job data
     output_file_path = job.get("task_output_file_dict", {}).get("output_file_path")
     if not output_file_path:
-        raise HTTPException(status_code=404, detail="Output file path not found in job data")
+        print("Output file path not found in job data")
 
     original_filename = os.path.basename(output_file_path)
 
@@ -371,7 +371,7 @@ def get_image_by_job_uuid(request: Request, job_uuid: str):
         raise HTTPException(
             status_code=404,
             detail="Image with this path doesn't exist") 
-
+            
     # Return the image in the response
     headers = {"Content-Disposition": f"attachment; filename={original_filename}"}
     return Response(content=content, media_type="image/jpeg", headers=headers)

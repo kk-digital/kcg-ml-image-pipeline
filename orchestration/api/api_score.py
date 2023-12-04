@@ -26,7 +26,7 @@ def get_image_rank_score_by_hash(request: Request, image_hash: str, model_id: in
 
     item = request.app.image_scores_collection.find_one(query)
     if item is None:
-        raise HTTPException(status_code=404, detail="Image rank score data not found")
+        print("Image rank score data not found")
 
     # remove the auto generated field
     item.pop('_id', None)
@@ -41,8 +41,8 @@ def get_image_rank_scores_by_model_id(request: Request, model_id: int):
     query = {"model_id": model_id}
     items = request.app.image_scores_collection.find(query).sort("score", -1)
     if items is None:
-        raise HTTPException(status_code=404, detail="Image rank scores data not found")
-
+        print("Image rank scores data not found")
+    
     score_data = []
     for item in items:
         # remove the auto generated field
