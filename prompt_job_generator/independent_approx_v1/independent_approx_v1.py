@@ -32,6 +32,8 @@ class IndependentApproxV1:
         self.csv_loaded = False
 
     def load_csv(self, minio_client, positive_phrase_scores_csv, negative_phrase_scores_csv):
+        print(f'loading independent approx csvs using {positive_phrase_scores_csv} and {negative_phrase_scores_csv}')
+
         dataset_name = self.dataset_name
         boltzman_temperature = self.boltzman_temperature
         boltzman_k = self.boltzman_k
@@ -70,7 +72,6 @@ class IndependentApproxV1:
         self.csv_loaded = True
 
     def generate_prompts(self, prompt_count):
-
         # making sure the csv was loaded from minio
         if self.csv_loaded is False:
             return []
