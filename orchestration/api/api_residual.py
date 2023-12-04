@@ -26,7 +26,7 @@ def get_image_rank_residual_by_hash(request: Request, image_hash: str, model_id:
 
     item = request.app.image_residuals_collection.find_one(query)
     if item is None:
-        raise HTTPException(status_code=404, detail="Image rank residual data not found")
+        print("Image rank residual data not found")
 
     # remove the auto generated field
     item.pop('_id', None)
@@ -41,8 +41,7 @@ def get_image_rank_residuals_by_model_id(request: Request, model_id: int):
     query = {"model_id": model_id}
     items = request.app.image_residuals_collection.find(query).sort("residual", -1)
     if items is None:
-        raise HTTPException(status_code=404, detail="Image rank residuals data not found")
-
+        print("Image rank residuals data not found")
     residual_data = []
     for item in items:
         # remove the auto generated field

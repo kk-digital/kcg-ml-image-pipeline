@@ -158,7 +158,7 @@ def update_job_completed(request: Request, training_task: TrainingTask):
     # check if exist
     job = request.app.training_in_progress_jobs_collection.find_one({"uuid": training_task.uuid})
     if job is None:
-        raise HTTPException(status_code=404)
+        print("Job not found")
 
     # add to completed
     request.app.training_completed_jobs_collection.insert_one(training_task.to_dict())
@@ -174,7 +174,7 @@ def update_job_failed(request: Request, training_task: TrainingTask):
     # check if exist
     job = request.app.training_in_progress_jobs_collection.find_one({"uuid": training_task.uuid})
     if job is None:
-        raise HTTPException(status_code=404)
+        print("Job not found")
 
     # add to failed
     request.app.training_failed_jobs_collection.insert_one(training_task.to_dict())
