@@ -50,13 +50,13 @@ def get_job_details(request: Request, job_uuid: str = Query(...), policy: str = 
     return True
 
 
-
 @router.post("/ranking-queue/add-image-pair-to-queue")
 def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: str = Query(...), policy: str = Query(...)):
-    def extract_job_details(job_uuid, suffix, policy):
+    def extract_job_details(job_uuid, suffix):
         job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
         if not job:
             print(f"Job {job_uuid} not found")
+           
 
         output_file_path = job["task_output_file_dict"]["output_file_path"]
         task_creation_time = job["task_creation_time"]
@@ -64,45 +64,44 @@ def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: 
         if len(path_parts) < 4:
             raise HTTPException(status_code=500, detail="Invalid output file path format")
 
-        original_file_name = path_parts[-1]
-
         return {
             f"job_uuid_{suffix}": job_uuid,
-            "dataset_name": path_parts[1],
-            f"file_name_{suffix}": original_file_name,
+            f"file_name_{suffix}": path_parts[-1],
             f"image_path_{suffix}": output_file_path,
             f"image_hash_{suffix}": job["task_output_file_dict"]["output_file_hash"],
-            "policy": policy, 
             f"job_creation_time_{suffix}": task_creation_time,
-            "put_type": "pair-image"
         }
 
-    # Extract details for both jobs
-    job_details_1 = extract_job_details(job_uuid_1, "1", policy)
-    job_details_2 = extract_job_details(job_uuid_2, "2", policy)
+    job_details_1 = extract_job_details(job_uuid_1, "1")
+    job_details_2 = extract_job_details(job_uuid_2, "2")
 
-    # Create a list with two separate dictionaries
-    combined_job_details = [job_details_1, job_details_2]
+    if not job_details_1 or not job_details_2:
+        return {"error": "Job details extraction failed"}
 
-    # Serialize to JSON
-    json_data = json.dumps(combined_job_details, indent=4).encode('utf-8')
-    data = BytesIO(json_data)
+    combined_job_details = {
+        "active_learning_policy": policy,
+        "put_type": "pair-image",
+        "dataset_name": job_details_1['image_path_1'].split('/')[1],  # Extract dataset name
+        "creation_date": datetime.utcnow().isoformat(),  # UTC time
+        "images": [job_details_1, job_details_2]
+    }
 
-    # Format the date from the first job's task_creation_time
     creation_date_1 = datetime.fromisoformat(job_details_1["job_creation_time_1"]).strftime("%Y-%m-%d")
     creation_date_2 = datetime.fromisoformat(job_details_2["job_creation_time_2"]).strftime("%Y-%m-%d")
 
+    json_data = json.dumps([combined_job_details], indent=4).encode('utf-8')  # Note the list brackets around combined_job_details
+    data = BytesIO(json_data)
 
-    # Define the path for the JSON file with the formatted date
+    # Define the path for the JSON file
     base_file_name_1 = job_details_1['file_name_1'].split('.')[0]
     base_file_name_2 = job_details_2['file_name_2'].split('.')[0]
     json_file_name = f"{creation_date_1}_{base_file_name_1}_and_{creation_date_2}_{base_file_name_2}.json"
-    full_path = os.path.join(job_details_1['dataset_name'], "ranking-queue-pair", policy, json_file_name)
+    full_path = f"{combined_job_details['dataset_name']}/ranking-queue-pair/{policy}/{json_file_name}"
 
-    # Upload to MinIO
     cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
 
     return True
+
 
 
 @router.get("/ranking-queue/get-random-image", response_class=PrettyJSONResponse)
