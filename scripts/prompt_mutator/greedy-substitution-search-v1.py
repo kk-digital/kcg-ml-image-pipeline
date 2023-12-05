@@ -588,8 +588,8 @@ class PromptSubstitutionGenerator:
         cmd.upload_data(self.minio_client, 'datasets', minio_path, buf)
         # Remove the temporary file
         os.remove("output/average_score_by_iteration.png")
-        # clear graphs
-        plt.cla()
+        # Clear the current figure
+        plt.clf()
 
     # outputs two histograms for scores before and after mutation for comparison 
     def compare_distributions(self, minio_path, original_scores, mutated_scores):
@@ -625,8 +625,8 @@ class PromptSubstitutionGenerator:
         cmd.upload_data(self.minio_client, 'datasets', minio_path, buf)
         # Remove the temporary file
         os.remove("output/mutated_scores.png")
-        # clear graphs
-        plt.cla()
+        # Clear the current figure
+        plt.clf()
 
     # outputs a text file containing logged information about image generation
     def generation_stats(self,
