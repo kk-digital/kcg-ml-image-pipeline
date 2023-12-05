@@ -536,7 +536,7 @@ class PromptSubstitutionGenerator:
         
         # save a graph for score improvement by number of iterations
         self.average_score_by_iteration= np.divide(self.average_score_by_iteration, num_images)
-        self.score_improvement_graph()
+        self.score_improvement_graph(minio_path=generation_path)
 
         # save self training data
         if self.self_training:
@@ -570,7 +570,7 @@ class PromptSubstitutionGenerator:
         os.remove(local_path)
 
     # outputs a graph of average score improvement in each iteration
-    def score_improvement_graph(self):
+    def score_improvement_graph(self, minio_path):
         plt.plot(range(1, self.max_iterations+1), self.average_score_by_iteration)
         plt.xlabel('Iterations')
         plt.ylabel('Average Score')
