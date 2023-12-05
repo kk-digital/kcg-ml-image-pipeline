@@ -19,24 +19,11 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from scripts.image_scorer import ImageScorer
-from training_worker.http import request
+from training_worker.http.request import http_get_completed_job_by_uuid
 from utility.minio import cmd
 from data_loader.generated_prompts_loader import GeneratedPromptsLoader
 
-# Get completed job
-def http_get_completed_job_by_uuid(job_uuid):
-    url = SERVER_ADRESS + "/job/get-job/{}".format(job_uuid)
-    try:
-        response = requests.get(url)
 
-        if response.status_code == 200:
-            data_json = response.json()
-            return data_json
-
-    except Exception as e:
-        print('request exception ', e)
-
-    return None
 
 def get_updated_generated_prompt_scores(generated_prompt,
                                         index):

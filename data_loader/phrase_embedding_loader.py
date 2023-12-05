@@ -112,27 +112,42 @@ class PhraseEmbeddingLoader:
         text_embedder.load_submodels()
 
         print("Updating phrase embeddings data...")
+        len_phrases_arr = len(phrases_arr)
         count_added = 0
+        max_batch_size = 64
+        batch_phrase = []
+        i = 0
         for phrase in tqdm(phrases_arr):
             if phrase not in self.phrase_index_dict:
-                # get embedding of phrase
-                phrase_embedding, _, phrase_attention_mask = text_embedder.forward_return_all(phrase)
-                phrase_average_pooled = tensor_attention_pooling(phrase_embedding, phrase_attention_mask)
-                phrase_average_pooled = phrase_average_pooled.cpu().detach().numpy()
+                batch_phrase.append(phrase)
 
-                curr_len = len(self.phrase_arr)
-                self.phrase_index_dict[phrase] = curr_len
-                self.phrase_arr = np.append(self.phrase_arr, phrase)
-                if len(self.phrase_embedding_arr)==0:
-                    self.phrase_embedding_arr = np.append(self.phrase_embedding_arr, phrase_average_pooled)
-                else:
-                    if self.phrase_embedding_arr.shape == (768,):
-                        self.phrase_embedding_arr = np.expand_dims(self.phrase_embedding_arr, axis=0)
-                    self.phrase_embedding_arr = np.append(self.phrase_embedding_arr, phrase_average_pooled, axis=0)
-                count_added += 1
-                # update every 30k data are newly added
-                if count_added % 30000 == 0:
-                    self.upload_phrases_embedding_npz()
+                if len(batch_phrase) == max_batch_size or i >= (len_phrases_arr - max_batch_size):
+                    # get embedding of phrase
+                    phrase_embeddings, _, phrase_attention_masks = text_embedder.forward_return_all(batch_phrase)
+                    phrase_average_pooled = tensor_attention_pooling(phrase_embeddings, phrase_attention_masks)
+                    phrase_average_pooled_results = phrase_average_pooled.cpu().detach().numpy()
+
+                    for i in range(len(batch_phrase)):
+                            phrase = batch_phrase[i]
+
+                            curr_len = len(self.phrase_arr)
+                            self.phrase_index_dict[phrase] = curr_len
+                            self.phrase_arr = np.append(self.phrase_arr, phrase)
+
+                    if len(self.phrase_embedding_arr)==0:
+                        self.phrase_embedding_arr = np.append(self.phrase_embedding_arr, phrase_average_pooled_results)
+                    else:
+                        if self.phrase_embedding_arr.shape == (768,):
+                            self.phrase_embedding_arr = np.expand_dims(self.phrase_embedding_arr, axis=0)
+                        self.phrase_embedding_arr = np.append(self.phrase_embedding_arr, phrase_average_pooled_results, axis=0)
+
+                    count_added += len(batch_phrase)
+                    # update every 30k data are newly added
+                    if count_added % 30000 == 0:
+                        self.upload_phrases_embedding_npz()
+
+                    batch_phrase = []
+            i += 1
 
         # save after update
         self.upload_phrases_embedding_npz()

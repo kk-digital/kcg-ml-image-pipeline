@@ -17,20 +17,20 @@ from data_loader.utils import get_object, get_phrases_from_prompt, get_datasets
 
 
 class GeneratedPromptData:
-    self.job_uuid = None
-    self.positive_prompt = None
-    self.negative_prompt = None
-    self.boltzman_temperature = None
-    self.boltzman_k = None
+    job_uuid = None
+    positive_prompt = None
+    negative_prompt = None
+    boltzman_temperature = None
+    boltzman_k = None
 
     # attributes
-    self.image_clip_score = None
-    self.image_clip_sigma_score = None
-    self.image_clip_percentile = None
-    self.text_embedding_score = None
-    self.text_embedding_sigma_score = None
-    self.text_embedding_percentile = None
-    self.delta_sigma_score = None
+    image_clip_score = None
+    image_clip_sigma_score = None
+    image_clip_percentile = None
+    text_embedding_score = None
+    text_embedding_sigma_score = None
+    text_embedding_percentile = None
+    delta_sigma_score = None
 
     def __init__(self,
                  job_uuid: str,
