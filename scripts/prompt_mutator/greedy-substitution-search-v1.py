@@ -323,7 +323,7 @@ class PromptSubstitutionGenerator:
                                                 phrase_embeddings)
             end= time.time()
 
-            rejection_policy_time+= start - end
+            rejection_policy_time+= end - start
             
             start= time.time()
             # test every choice and take the first choice that increases score
@@ -360,7 +360,7 @@ class PromptSubstitutionGenerator:
                     break
             
             end= time.time()
-            substitution_time+= start - end
+            substitution_time+= end - start
         
         print(f"time for rejection policy {rejection_policy_time}")
         print(f"time for substitutions {substitution_time}")
