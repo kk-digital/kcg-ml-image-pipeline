@@ -40,6 +40,10 @@ def parse_args():
     parser.add_argument('--dataset-name', default='test-generations')
     parser.add_argument('--scoring-model', help="elm or linear", default="linear")
     parser.add_argument('--rejection-policy', help="by probability or sigma_score", default="sigma_score")
+    parser.add_argument('--probability-threshold', help="threshold of rejection policy for probability of increase", default=0.66)
+    parser.add_argument('--sigma-threshold', help="threshold of rejection policy for increase of sigma score", default=0.1)
+    parser.add_argument('--rejection-policy', help="by probability or sigma_score", default="sigma_score")
+    parser.add_argument('--max-iterations', help="number of mutation iterations", default=100)
     parser.add_argument('--self-training', action='store_true', default=False)
     parser.add_argument('--store-embeddings', action='store_true', default=False)
 
@@ -53,7 +57,10 @@ class PromptSubstitutionGenerator:
         minio_ip_addr,
         csv_phrase,
         scoring_model,
+        max_iterations,
         rejection_policy,
+        probability_threshold,
+        sigma_threshold,
         dataset_name,
         update_prompts,
         store_embeddings,
@@ -67,8 +74,16 @@ class PromptSubstitutionGenerator:
         self.csv_phrase=csv_phrase
         # the scoring model used for prompt mutation (elm or linear)
         self.scoring_model= scoring_model
+        # number of iterations for prompt mutation
+        self.max_iterations= max_iterations
+        # average score by iteration to track score improvement
+        self.average_score_by_iteration=np.zeros(self.max_iterations)
         # rejection policy (by probability of increasing score or sigma score)
         self.rejection_policy= rejection_policy
+        # rejection threshold for increase probability
+        self.probability_threshold= probability_threshold
+        # rejection threshold for increase in sigma score
+        self.sigma_threshold= sigma_threshold
         # name of dataset
         self.dataset_name=dataset_name
         # wheher to self training or not
@@ -199,8 +214,7 @@ class PromptSubstitutionGenerator:
                                     prompt_str, 
                                     prompt_score, 
                                     prompt_embedding, 
-                                    phrase_embeddings,
-                                    threshold=0.0):
+                                    phrase_embeddings):
 
         # get number of tokens
         prompt_list = prompt_str.split(', ')
@@ -236,7 +250,7 @@ class PromptSubstitutionGenerator:
         # Process the batch predictions
         for token, sigma_score in enumerate(batch_preds):
             # only take substitutions that increase score by more then a set threshold
-            if sigma_score > prompt_score + threshold:
+            if sigma_score > prompt_score + self.sigma_threshold:
                 sigma_scores.append(-sigma_score)
                 tokens.append(token)
                 sub_phrases.append(sampled_phrases[token])
@@ -295,7 +309,7 @@ class PromptSubstitutionGenerator:
         # Process the batch predictions
         for token, pred in enumerate(batch_preds):
             # only take substitutions that have more than 66% chance to increase score
-            if pred["increase"] > 0.66:
+            if pred["increase"] > self.probability_threshold:
                 increase_probs.append(-pred["increase"])
                 tokens.append(token)
                 sub_phrases.append(sampled_phrases[token])
@@ -315,8 +329,7 @@ class PromptSubstitutionGenerator:
     def mutate_prompt(self,
                     prompt_str,
                     prompt_embedding, 
-                    prompt_score,
-                    max_iterations=100):
+                    prompt_score):
 
         # calculate mean pooled embedding of each phrase in the prompt 
         phrase_embeddings= [self.get_mean_pooled_embedding(self.get_prompt_embedding(phrase)) for phrase in prompt_str.split(', ')]
@@ -335,7 +348,7 @@ class PromptSubstitutionGenerator:
         num_success=0
         
         # run mutation process for a set number of iterations
-        for i in range(max_iterations):
+        for i in range(self.max_iterations):
             # get pooled embedding of the prompt
             pooled_prompt_embedding=self.get_mean_pooled_embedding(prompt_embedding)
             
@@ -386,6 +399,7 @@ class PromptSubstitutionGenerator:
                     num_success+=1
                     break
             
+            self.average_score_by_iteration[i]+=prompt_score
             end= time.time()
             substitution_time+= end - start
         
@@ -521,6 +535,10 @@ class PromptSubstitutionGenerator:
                         avg_score_after_mutation= np.mean(mutated_scores),
                         )
         
+        # save a graph for score improvement by number of iterations
+        self.average_score_by_iteration= np.divide(self.average_score_by_iteration, num_images)
+        self.score_improvement_graph()
+
         # save self training data
         if self.self_training:
             self.store_self_training_data(training_data)
@@ -551,6 +569,26 @@ class PromptSubstitutionGenerator:
         cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
         # Remove the temporary file
         os.remove(local_path)
+
+    # outputs a graph of average score improvement in each iteration
+    def score_improvement_graph(self):
+        plt.plot(range(1, self.max_iterations+1), self.average_score_by_iteration)
+        plt.xlabel('Iterations')
+        plt.ylabel('Average Score')
+        plt.title('Average score in each iteration')
+
+        plt.savefig("output/average_score_by_iteration.png")
+
+        # Save the figure to a file
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+
+        # upload the graph report
+        minio_path= minio_path + "/average_score_by_iteration.png"
+        cmd.upload_data(self.minio_client, 'datasets', minio_path, buf)
+        # Remove the temporary file
+        os.remove("output/mutated_scores.png")
 
     # outputs two histograms for scores before and after mutation for comparison 
     def compare_distributions(self, minio_path, original_scores, mutated_scores):
@@ -824,7 +862,10 @@ def main():
                                   minio_ip_addr=args.minio_addr,
                                   csv_phrase=args.csv_phrase,
                                   scoring_model=args.scoring_model,
+                                  max_iterations=args.max_iterations,
                                   rejection_policy=args.rejection_policy,
+                                  probability_threshold=args.probability_threshold,
+                                  sigma_threshold=args.sigma_threshold,
                                   dataset_name=args.dataset_name,
                                   update_prompts=args.update_prompts,
                                   store_embeddings=args.store_embeddings,
