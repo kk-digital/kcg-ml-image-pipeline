@@ -40,9 +40,9 @@ def parse_args():
     parser.add_argument('--dataset-name', default='test-generations')
     parser.add_argument('--scoring-model', help="elm or linear", default="linear")
     parser.add_argument('--rejection-policy', help="by probability or sigma_score", default="sigma_score")
-    parser.add_argument('--probability-threshold', help="threshold of rejection policy for probability of increase", default=0.66)
-    parser.add_argument('--sigma-threshold', help="threshold of rejection policy for increase of sigma score", default=0.1)
-    parser.add_argument('--max-iterations', help="number of mutation iterations", default=100)
+    parser.add_argument('--probability-threshold', type=float, help="threshold of rejection policy for probability of increase", default=0.66)
+    parser.add_argument('--sigma-threshold', type=float, help="threshold of rejection policy for increase of sigma score", default=0.1)
+    parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=100)
     parser.add_argument('--self-training', action='store_true', default=False)
     parser.add_argument('--store-embeddings', action='store_true', default=False)
 
