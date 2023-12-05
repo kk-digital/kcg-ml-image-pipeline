@@ -206,7 +206,7 @@ class PromptSubstitutionGenerator:
         embedding=torch.mean(embedding, dim=2)
         embedding = embedding.reshape(len(embedding), -1).squeeze(0)
 
-        return embedding.cpu().numpy()
+        return embedding.detach().numpy()
 
     # function for rejection sampling with sigma scores
     def rejection_sampling_by_sigma_score(self,
