@@ -797,10 +797,7 @@ class PromptSubstitutionGenerator:
             file_path=f"{self.scoring_model}/{str(index).zfill(4)}_substitution.msgpack"
         packed_data = msgpack.packb(batch, use_single_float=True)
 
-        local_directory = 'output/prompt_mutator/data/'
-        os.makedirs(local_directory, exist_ok=True)
-
-        local_file_path = local_directory + file_path
+        local_file_path = f"output/temporary_file.msgpack"
         with open(local_file_path, 'wb') as local_file:
             local_file.write(packed_data)
 
