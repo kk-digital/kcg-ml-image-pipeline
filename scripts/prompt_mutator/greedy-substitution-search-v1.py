@@ -390,7 +390,7 @@ class PromptSubstitutionGenerator:
                 modified_prompt_score= (modified_prompt_score - self.positive_mean) / self.positive_std
 
                 # collect self training data, only in the first 5 iterations
-                if(i<5):
+                if(i<self.max_iterations / 2):
                     # keeping data for self training
                     data=np.concatenate((pooled_prompt_embedding, original_embedding, sub_embedding)).tolist(),
                     prompt_data={
