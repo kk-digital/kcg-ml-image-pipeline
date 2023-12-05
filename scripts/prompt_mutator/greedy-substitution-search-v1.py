@@ -257,23 +257,27 @@ class PromptSubstitutionGenerator:
         original_embeddings=[]
         tokens=[]
         increase_probs=[]
-        inference_time=0
+        
+         # Create a batch of substitution inputs
+        batch_substitution_inputs = []
+        sampled_phrases = []
+        sampled_embeddings = []
 
         # Create a batch of substitution inputs
         batch_substitution_inputs = []
         for token in range(token_number):
             substituted_embedding = phrase_embeddings[token]
             substitute_phrase = self.phrase_list.sample(1).iloc[0]
+            substitute_phrase_str = str(substitute_phrase['phrase str'])
             substitute_embedding = self.phrase_embeddings[substitute_phrase['index']]
 
             substitution_input = np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
             batch_substitution_inputs.append(substitution_input)
+            sampled_phrases.append(substitute_phrase_str)
+            sampled_embeddings.append(substitute_embedding)
 
         # Make a single inference for the entire batch
-        start = time.time()
         batch_preds = self.substitution_model.predict_probs(batch_substitution_inputs)
-        end = time.time()
-        inference_time += end - start
 
         # Process the batch predictions
         for token, pred in enumerate(batch_preds):
@@ -281,8 +285,8 @@ class PromptSubstitutionGenerator:
             if pred["increase"] > 0.66:
                 increase_probs.append(-pred["increase"])
                 tokens.append(token)
-                sub_phrases.append(self.phrase_list.sample(1).iloc[0]['phrase str'])
-                sub_embeddings.append(self.phrase_embeddings[self.phrase_list.sample(1).iloc[0]['index']])
+                sub_phrases.append(sampled_phrases[token])
+                sub_embeddings.append(sampled_embeddings[token])
                 original_embeddings.append(phrase_embeddings[token])
 
         # substitutions are sorted from highest increase probability to lowest
@@ -291,8 +295,6 @@ class PromptSubstitutionGenerator:
         sub_phrases = [sub_phrases[token_pos] for token_pos in token_order]
         sub_embeddings = [sub_embeddings[token_pos] for token_pos in token_order]
         original_embeddings = [original_embeddings[token_pos] for token_pos in token_order]
-
-        print(f"time for inference of {token_number} is {inference_time}")
 
         return tokens, sub_phrases, original_embeddings, sub_embeddings
 
