@@ -331,7 +331,9 @@ class PromptSubstitutionGenerator:
         self_training_data=[]
         rejection_policy_time=0
         substitution_time=0
-
+        num_attempts=0
+        num_success=0
+        
         # run mutation process for a set number of iterations
         for i in range(max_iterations):
             # get pooled embedding of the prompt
@@ -373,6 +375,7 @@ class PromptSubstitutionGenerator:
                     }
                     self_training_data.append(prompt_data)
 
+                num_attempts+=1
                 # check if score improves
                 if(prompt_score < modified_prompt_score):
                     # if it does improve, the new prompt is saved and it jumps to the next iteration
@@ -380,6 +383,7 @@ class PromptSubstitutionGenerator:
                     prompt_embedding= modified_prompt_embedding
                     phrase_embeddings[token]= sub_embedding
                     prompt_score= modified_prompt_score
+                    num_success+=1
                     break
             
             end= time.time()
@@ -387,6 +391,7 @@ class PromptSubstitutionGenerator:
         
         print(f"time for rejection policy {rejection_policy_time}")
         print(f"time for substitutions {substitution_time}")
+        print(f"success rate: {num_success}/{num_attempts}")
         
         return prompt_str, prompt_embedding, self_training_data
 
