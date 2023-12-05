@@ -265,6 +265,7 @@ class PromptSubstitutionGenerator:
 
         # Create a batch of substitution inputs
         batch_substitution_inputs = []
+        start=time.time()
         for token in range(token_number):
             substituted_embedding = phrase_embeddings[token]
             substitute_phrase = self.phrase_list.sample(1).iloc[0]
@@ -275,10 +276,17 @@ class PromptSubstitutionGenerator:
             batch_substitution_inputs.append(substitution_input)
             sampled_phrases.append(substitute_phrase_str)
             sampled_embeddings.append(substitute_embedding)
+        
+        end=time.time()
+        print(f"getting input {end - start}")
 
+        start=time.time()
         # Make a single inference for the entire batch
         batch_preds = self.substitution_model.predict_probs(batch_substitution_inputs)
+        end=time.time()
+        print(f"inference {end - start}")
 
+        start=time.time()
         # Process the batch predictions
         for token, pred in enumerate(batch_preds):
             # only take substitutions that have more than 66% chance to increase score
@@ -295,7 +303,9 @@ class PromptSubstitutionGenerator:
         sub_phrases = [sub_phrases[token_pos] for token_pos in token_order]
         sub_embeddings = [sub_embeddings[token_pos] for token_pos in token_order]
         original_embeddings = [original_embeddings[token_pos] for token_pos in token_order]
-
+        
+        end=time.time()
+        print(f"filtering and sorting {end - start}")
         return tokens, sub_phrases, original_embeddings, sub_embeddings
 
     # function mutating a prompt
