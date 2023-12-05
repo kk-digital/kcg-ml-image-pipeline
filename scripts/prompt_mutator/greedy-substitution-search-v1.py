@@ -2,6 +2,7 @@ import argparse
 from datetime import datetime
 import io
 import os
+import random
 import sys
 import time
 import traceback
@@ -118,7 +119,8 @@ class PromptSubstitutionGenerator:
             self.store_phrase_embeddings()
         
         # get list of phrases and their embeddings
-        self.phrase_list=pd.read_csv(csv_phrase)
+        phrase_df=pd.read_csv(csv_phrase).sort_values(by="index")
+        self.phrase_list=phrase_df['phrase str'].tolist()
         self.phrase_embeddings= self.load_phrase_embeddings()
 
         end=time.time()
@@ -268,13 +270,13 @@ class PromptSubstitutionGenerator:
         start=time.time()
         for token in range(token_number):
             substituted_embedding = phrase_embeddings[token]
-            # substitute_phrase = self.phrase_list.sample(1).iloc[0]
-            substitute_phrase_str = str("zfzef")
-            substitute_embedding = self.phrase_embeddings[0]
+            random_index=random.randrange(0, len(self.phrase_list))
+            substitute_phrase = self.phrase_list[random_index]
+            substitute_embedding = self.phrase_embeddings[random_index]
 
-            substitution_input = np.concatenate([prompt_embedding, substituted_embedding, [token], [prompt_score]])
+            substitution_input = np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
             batch_substitution_inputs.append(substitution_input)
-            sampled_phrases.append(substitute_phrase_str)
+            sampled_phrases.append(substitute_phrase)
             sampled_embeddings.append(substitute_embedding)
         
         end=time.time()
