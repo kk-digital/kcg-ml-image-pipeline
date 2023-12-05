@@ -775,9 +775,9 @@ class PromptSubstitutionGenerator:
             last_file_path=dataset_files[len(dataset_files)-1]
             # Read the content of the last unfinished file
             if last_file_path.endswith("_incomplete.msgpack"):
-                with open(last_file_path, 'rb') as file:
-                    content = file.read()
-                    batch = msgpack.unpackb(content, raw=False)
+                data = self.minio_client.get_object('datasets', last_file_path)
+                content = data.read()
+                batch = msgpack.loads(content)
                 index = len(dataset_files)
                 self.minio_client.remove_object('datasets', last_file_path)
             else:
