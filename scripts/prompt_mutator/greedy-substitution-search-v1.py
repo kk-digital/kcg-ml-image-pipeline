@@ -378,6 +378,7 @@ class PromptSubstitutionGenerator:
             
             start= time.time()
             # test every choice and take the first choice that increases score
+            num_choices=0
             for token, sub_phrase, original_embedding, sub_embedding in zip(tokens,sub_phrases, original_embeddings, sub_embeddings):
                 #Create a modified prompt with the substitution
                 prompt_list = prompt_str.split(', ')
@@ -387,21 +388,10 @@ class PromptSubstitutionGenerator:
                 #calculate modified prompt embedding and sigma score
                 modified_prompt_embedding=self.get_prompt_embedding(modified_prompt_str)
                 modified_prompt_score= self.get_prompt_score(modified_prompt_embedding)
-                modified_prompt_score= (modified_prompt_score - self.positive_mean) / self.positive_std
-
-                # collect self training data, only in the first 5 iterations
-                if(i<self.max_iterations / 2):
-                    # keeping data for self training
-                    data=np.concatenate((pooled_prompt_embedding, original_embedding, sub_embedding)).tolist(),
-                    prompt_data={
-                        'input': data[0],
-                        'position_encoding': token,
-                        'score_encoding': prompt_score,
-                        'output': modified_prompt_score
-                    }
-                    self_training_data.append(prompt_data)
+                modified_prompt_score= (modified_prompt_score - self.positive_mean) / self.positive_std               
 
                 num_attempts+=1
+                num_choices+=1
                 # check if score improves
                 if(prompt_score < modified_prompt_score):
                     # if it does improve, the new prompt is saved and it jumps to the next iteration
@@ -411,6 +401,16 @@ class PromptSubstitutionGenerator:
                     prompt_score= modified_prompt_score
                     num_success+=1
                     break
+                elif(num_choices==1):
+                    # keeping data for self training
+                    data=np.concatenate((pooled_prompt_embedding, original_embedding, sub_embedding)).tolist(),
+                    prompt_data={
+                        'input': data[0],
+                        'position_encoding': token,
+                        'score_encoding': prompt_score,
+                        'output': modified_prompt_score
+                    }
+                    self_training_data.append(prompt_data)
             
             self.average_score_by_iteration[i]+=prompt_score
             end= time.time()
