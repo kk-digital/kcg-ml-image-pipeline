@@ -266,7 +266,7 @@ class PromptSubstitutionGenerator:
                 original_embeddings.append(phrase_embeddings[token])
             
         # substitutions are sorted from highest sigma score to lowest
-        token_order= np.argsort(-sigma_scores)
+        token_order= np.argsort(-1 * sigma_scores)
         tokens=[tokens[token_pos] for token_pos in token_order]
         sub_phrases=[sub_phrases[token_pos] for token_pos in token_order]
         sub_embeddings=[sub_embeddings[token_pos] for token_pos in token_order]
