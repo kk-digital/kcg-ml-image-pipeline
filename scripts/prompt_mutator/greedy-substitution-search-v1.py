@@ -779,6 +779,7 @@ class PromptSubstitutionGenerator:
                     content = file.read()
                     batch = msgpack.unpackb(content, raw=False)
                 index = len(dataset_files)
+                self.minio_client.remove_object('datasets', last_file_path)
             else:
                 index= len(dataset_files) + 1
 
