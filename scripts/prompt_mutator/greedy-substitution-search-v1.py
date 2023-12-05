@@ -259,20 +259,20 @@ class PromptSubstitutionGenerator:
         for token, sigma_score in enumerate(batch_preds):
             # only take substitutions that increase score by more then a set threshold
             if sigma_score > prompt_score + self.sigma_threshold:
-                sigma_scores.append(-sigma_score)
+                sigma_scores.append(sigma_score)
                 tokens.append(token)
                 sub_phrases.append(sampled_phrases[token])
                 sub_embeddings.append(sampled_embeddings[token])
                 original_embeddings.append(phrase_embeddings[token])
             
         # substitutions are sorted from highest sigma score to lowest
-        token_order= np.argsort(sigma_scores)
+        token_order= np.argsort(-sigma_scores)
         tokens=[tokens[token_pos] for token_pos in token_order]
         sub_phrases=[sub_phrases[token_pos] for token_pos in token_order]
         sub_embeddings=[sub_embeddings[token_pos] for token_pos in token_order]
         original_embeddings=[original_embeddings[token_pos] for token_pos in token_order]
         
-        return tokens, sub_phrases, original_embeddings, sub_embeddings
+        return tokens, sub_phrases, original_embeddings, sub_embeddings, sigma_scores
 
     # function for rejection sampling with score increase probability
     def rejection_sampling_by_probability(self, 
@@ -367,7 +367,7 @@ class PromptSubstitutionGenerator:
             
             start= time.time()
             # return a list of potential substitution choices, filtered by the rejection policy
-            tokens, sub_phrases, original_embeddings, sub_embeddings=rejection_func(
+            tokens, sub_phrases, original_embeddings, sub_embeddings, predicted_scores=rejection_func(
                                                 prompt_str,
                                                 prompt_score,
                                                 pooled_prompt_embedding, 
@@ -378,8 +378,7 @@ class PromptSubstitutionGenerator:
             
             start= time.time()
             # test every choice and take the first choice that increases score
-            num_choices=0
-            for token, sub_phrase, original_embedding, sub_embedding in zip(tokens,sub_phrases, original_embeddings, sub_embeddings):
+            for token, sub_phrase, original_embedding, sub_embedding, pred_score in zip(tokens,sub_phrases, original_embeddings, sub_embeddings, predicted_scores):
                 #Create a modified prompt with the substitution
                 prompt_list = prompt_str.split(', ')
                 prompt_list[token] = sub_phrase
@@ -388,10 +387,20 @@ class PromptSubstitutionGenerator:
                 #calculate modified prompt embedding and sigma score
                 modified_prompt_embedding=self.get_prompt_embedding(modified_prompt_str)
                 modified_prompt_score= self.get_prompt_score(modified_prompt_embedding)
-                modified_prompt_score= (modified_prompt_score - self.positive_mean) / self.positive_std               
+                modified_prompt_score= (modified_prompt_score - self.positive_mean) / self.positive_std
+
+                # collect self training data
+                data=np.concatenate((pooled_prompt_embedding, original_embedding, sub_embedding)).tolist(),
+                prompt_data={
+                    'input': data[0],
+                    'position_encoding': token,
+                    'score_encoding': prompt_score,
+                    'output': modified_prompt_score,
+                    'delta': abs(modified_prompt_score - pred_score)
+                }
+                self_training_data.append(prompt_data)
 
                 num_attempts+=1
-                num_choices+=1
                 # check if score improves
                 if(prompt_score < modified_prompt_score):
                     # if it does improve, the new prompt is saved and it jumps to the next iteration
@@ -401,16 +410,6 @@ class PromptSubstitutionGenerator:
                     prompt_score= modified_prompt_score
                     num_success+=1
                     break
-                elif(num_choices==1):
-                    # keeping data for self training
-                    data=np.concatenate((pooled_prompt_embedding, original_embedding, sub_embedding)).tolist(),
-                    prompt_data={
-                        'input': data[0],
-                        'position_encoding': token,
-                        'score_encoding': prompt_score,
-                        'output': modified_prompt_score
-                    }
-                    self_training_data.append(prompt_data)
             
             self.average_score_by_iteration[i]+=prompt_score
             end= time.time()
@@ -419,7 +418,9 @@ class PromptSubstitutionGenerator:
         print(f"time for rejection policy {rejection_policy_time}")
         print(f"time for substitutions {substitution_time}")
         print(f"success rate: {num_success}/{num_attempts}")
-        
+
+        # taking top 10 training datapoints with highest delta
+        self_training_data = sorted(self_training_data, key=lambda d: d['delta'], reverse=True)[:10]  
         return prompt_str, prompt_embedding, self_training_data
 
     # function to generate n images
