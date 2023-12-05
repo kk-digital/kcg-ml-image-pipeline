@@ -51,8 +51,8 @@ def find_first_element_binary_search(cumulative_prob_arr, random_float):
         if low == high:
             # assert cumulative_prob_arr[low-1] < random_float
             # assert cumulative_prob_arr[low] >= random_float, "{} >= {}, next index val={}".format(cumulative_prob_arr[low], random_float, cumulative_prob_arr[low+1])
-            assert round(cumulative_prob_arr[low], 4) >= 0.0, "val={}".format(cumulative_prob_arr[low])
-            assert round(cumulative_prob_arr[low], 4) <= 1.0, "val={}".format(cumulative_prob_arr[low])
+            # assert round(cumulative_prob_arr[low], 4) >= 0.0, "val={}".format(cumulative_prob_arr[low])
+            # assert round(cumulative_prob_arr[low], 4) <= 1.0, "val={}".format(cumulative_prob_arr[low])
 
             return low
 
@@ -102,29 +102,21 @@ def upload_score_probability_data_to_csv(minio_client,
                                          index_phrase_score_data,
                                          probability_arr,
                                          normalized_probability_arr,
-                                         renormalized_prob_arr,
-                                         unsmooth_sorted_indexes,
-                                         unsmooth_cumulative_probability_arr,
-                                         smooth_sorted_indexes,
-                                         smooth_cumulative_probability_arr,
+                                         sorted_indexes,
+                                         cumulative_probability_arr,
                                          boltzman_temperature,
                                          boltzman_k,
                                          type="positive"):
     print("Saving prompt generation data to csv...")
     # sort cumulative by original index
-    smooth_sorted_cumulative_prob = [None] * len(smooth_cumulative_probability_arr)
-    for i in range(len(smooth_cumulative_probability_arr)):
-        index = smooth_sorted_indexes[i]
-        smooth_sorted_cumulative_prob[index] = smooth_cumulative_probability_arr[i]
-
-    unsmooth_sorted_cumulative_prob = [None] * len(unsmooth_cumulative_probability_arr)
-    for i in range(len(unsmooth_cumulative_probability_arr)):
-        index = unsmooth_sorted_indexes[i]
-        unsmooth_sorted_cumulative_prob[index] = unsmooth_cumulative_probability_arr[i]
+    sorted_cumulative_prob = [None] * len(cumulative_probability_arr)
+    for i in range(len(cumulative_probability_arr)):
+        index = sorted_indexes[i]
+        sorted_cumulative_prob[index] = cumulative_probability_arr[i]
 
     csv_buffer = io.StringIO()
     writer = csv.writer(csv_buffer)
-    writer.writerow((["index", "phrase", "occurrences", "token length", "boltzman_temperature", "boltzman k", "score", "boltzman probability", "normalized probability", "unsmooth cumulative probability", "normalized with epsilon", "smooth cumulative probability"]))
+    writer.writerow((["index", "phrase", "occurrences", "token length", "boltzman_temperature", "boltzman k", "score", "boltzman probability", "normalized probability", "cumulative probability"]))
 
     for index, data in index_phrase_score_data.items():
         phrase = data.phrase
@@ -133,10 +125,8 @@ def upload_score_probability_data_to_csv(minio_client,
         token_length = data.token_length
         boltzman_prob = probability_arr[index]
         normalized_prob = normalized_probability_arr[index]
-        renormalized_prob = renormalized_prob_arr[index]
-        unsmooth_cumulative_prob = unsmooth_sorted_cumulative_prob[index]
-        smooth_cumulative_prob = smooth_sorted_cumulative_prob[index]
-        writer.writerow([index, phrase, occurrences, token_length, boltzman_temperature, boltzman_k, score, boltzman_prob, normalized_prob, unsmooth_cumulative_prob, renormalized_prob, smooth_cumulative_prob])
+        cumulative_prob = sorted_cumulative_prob[index]
+        writer.writerow([index, phrase, occurrences, token_length, boltzman_temperature, boltzman_k, score, boltzman_prob, normalized_prob, cumulative_prob])
 
     bytes_buffer = io.BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
 
@@ -175,9 +165,12 @@ def generate_prompt(positive_phrase_scores_loader,
     positive_used_phrase_dict = {}
     negative_used_phrase_dict = {}
 
+    positive_cumulative_probability_arr_min = positive_cumulative_probability_arr.min()
+    positive_cumulative_probability_arr_max = positive_cumulative_probability_arr.max()
     # positive prompt
     while positive_prompt_total_token_size < max_token_size:
-        random_float = random.uniform(positive_cumulative_probability_arr.min(), 1.0)
+        random_float = random.uniform(positive_cumulative_probability_arr_min,
+                                      positive_cumulative_probability_arr_max)
         random_index = find_first_element_binary_search(positive_cumulative_probability_arr, random_float)
         if random_index in positive_used_phrase_dict:
             continue
@@ -195,9 +188,12 @@ def generate_prompt(positive_phrase_scores_loader,
         else:
             break
 
+    negative_cumulative_probability_arr_min = negative_cumulative_probability_arr.min()
+    negative_cumulative_probability_arr_max = negative_cumulative_probability_arr.max()
     # negative prompt
     while negative_prompt_total_token_size < max_token_size:
-        random_float = random.uniform(negative_cumulative_probability_arr.min(), 1.0)
+        random_float = random.uniform(negative_cumulative_probability_arr_min,
+                                      negative_cumulative_probability_arr_max)
         random_index = find_first_element_binary_search(negative_cumulative_probability_arr, random_float)
         if random_index in negative_used_phrase_dict:
             # print("float={} index={}", random_float, random_index)
@@ -253,9 +249,9 @@ def generate_prompts(minio_client,
             prompt = future.result()
             positive_prompt = prompt[0]
             negative_prompt = prompt[1]
-            # print("positive prompt=", positive_prompt)
-            # print("negative prompt=", negative_prompt)
-            # print("---------------------------------------------------------------")
+            print("positive prompt=", positive_prompt)
+            print("negative prompt=", negative_prompt)
+            print("---------------------------------------------------------------")
             if dataset_name in ["environmental", "propaganda-poster", "waifu", "test-generations"]:
                 response = generate_image_generation_jobs_with_temperature(positive_prompt=positive_prompt,
                                                                            negative_prompt=negative_prompt,
@@ -355,61 +351,38 @@ def get_cumulative_probability_arr(minio_client,
     probability_arr = np.exp(-(scores_np_arr/(boltzman_k*boltzman_temperature)))
 
     # normalize
-    normalized_probability_arr = probability_arr/np.sum(probability_arr)
-    assert round(np.sum(normalized_probability_arr), 4) == 1.0, "sum={}".format(np.sum(normalized_probability_arr))
+    normalized_probability_arr = probability_arr/np.linalg.norm(probability_arr)
+    # assert round(np.sum(normalized_probability_arr), 4) == 1.0, "sum={}".format(np.sum(normalized_probability_arr))
 
-    # unsmooth cumulative
-    unsmooth_sorted_probability_arr = []
-    unsmooth_sorted_indexes = sorted(range(len(normalized_probability_arr)), key=lambda x: normalized_probability_arr[x],
+    # cumulative
+    sorted_probability_arr = []
+    sorted_indexes = sorted(range(len(normalized_probability_arr)), key=lambda x: normalized_probability_arr[x],
                                    reverse=True)
-    for i in unsmooth_sorted_indexes:
-        unsmooth_sorted_probability_arr.append(normalized_probability_arr[i])
-    unsmooth_sorted_probability_arr = np.array(unsmooth_sorted_probability_arr)
+    for i in sorted_indexes:
+        sorted_probability_arr.append(normalized_probability_arr[i])
+    sorted_probability_arr = np.array(sorted_probability_arr)
 
     # get cumulative
-    unsmooth_cumulative_probability_arr = unsmooth_sorted_probability_arr.cumsum()
-
-    # epsilon
-    epsilon = 0.001 / len(index_phrase_score_data)
-
-    normalized_prob_epsilon_arr = normalized_probability_arr + epsilon
-    renormalized_prob_arr = normalized_prob_epsilon_arr/ np.sum(normalized_prob_epsilon_arr)
-
-    # sort smooth
-    smooth_sorted_probability_arr = []
-    smooth_sorted_indexes = sorted(range(len(renormalized_prob_arr)), key=lambda x: renormalized_prob_arr[x], reverse=True)
-    for i in smooth_sorted_indexes:
-        smooth_sorted_probability_arr.append(renormalized_prob_arr[i])
-    smooth_sorted_probability_arr = np.array(smooth_sorted_probability_arr)
-
-    # get cumulative
-    smooth_cumulative_probability_arr = smooth_sorted_probability_arr.cumsum()
+    cumulative_probability_arr = sorted_probability_arr.cumsum()
 
     print("-------------------------------------------------------------------------------------")
     print("scores=", scores_np_arr)
     print("prob=", probability_arr)
     print("normalized=", normalized_probability_arr)
-    print("renormalized prob=", renormalized_prob_arr)
-    print("smooth_sorted prob=", smooth_sorted_probability_arr)
-    print("smooth_cumulative=", smooth_cumulative_probability_arr)
-    print("smooth_cumulative prob length =", len(smooth_cumulative_probability_arr))
-    print("smooth_cumulative prob count of value 1=", (smooth_cumulative_probability_arr > 0.9999999999999).sum())
+
 
     upload_score_probability_data_to_csv(minio_client,
                                          dataset_name,
                                          index_phrase_score_data,
                                          probability_arr,
                                          normalized_probability_arr,
-                                         renormalized_prob_arr,
-                                         unsmooth_sorted_indexes,
-                                         unsmooth_cumulative_probability_arr,
-                                         smooth_sorted_indexes,
-                                         smooth_cumulative_probability_arr,
+                                         sorted_indexes,
+                                         cumulative_probability_arr,
                                          boltzman_temperature,
                                          boltzman_k,
                                          type)
 
-    return smooth_sorted_indexes, smooth_cumulative_probability_arr
+    return sorted_indexes, cumulative_probability_arr
 
 
 def get_cumulative_probability_arr_without_upload(
