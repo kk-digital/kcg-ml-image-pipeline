@@ -187,7 +187,8 @@ class PromptSubstitutionGenerator:
     # get the clip text embedding of a prompt or a phrase
     def get_prompt_embedding(self, prompt):
         with torch.autocast(device_type="cuda"):
-            embedding= self.embedder(prompt)
+            with torch.no_grad():
+                embedding= self.embedder(prompt)
 
         embedding= embedding.unsqueeze(0)
         embedding=embedding.to(self.device)
@@ -197,7 +198,8 @@ class PromptSubstitutionGenerator:
     # get linear or elm score of an embedding
     def get_prompt_score(self, embedding):
         with torch.autocast(device_type="cuda"):
-            prompt_score=self.positive_scorer.predict_positive_or_negative_only(embedding)
+            with torch.no_grad():
+                prompt_score=self.positive_scorer.predict_positive_or_negative_only(embedding)
         
         return prompt_score.item()
 
