@@ -45,6 +45,7 @@ def parse_args():
     parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=100)
     parser.add_argument('--self-training', action='store_true', default=False)
     parser.add_argument('--store-embeddings', action='store_true', default=False)
+    parser.add_argument('--save-csv', action='store_true', default=False)
 
     return parser.parse_args()
 
@@ -64,7 +65,8 @@ class PromptSubstitutionGenerator:
         update_prompts,
         store_embeddings,
         self_training,
-        send_job
+        send_job,
+        save_csv
     ):
         start=time.time()
 
@@ -89,6 +91,8 @@ class PromptSubstitutionGenerator:
         self.self_training=self_training
         # whether to send jobs to server or not
         self.send_job=send_job
+        # whether to save csv of prompts or not
+        self.save_csv=save_csv
         # substitution model (binary of sigma score)
         self.substitution_model= None
 
@@ -531,7 +535,7 @@ class PromptSubstitutionGenerator:
         current_date=datetime.now().strftime("%Y-%m-%d-%H:%M")
         generation_path=DATA_MINIO_DIRECTORY + f"/generated-images/{current_date}-generated-data"
         # save generated prompts in csv
-        if self.send_job:
+        if self.save_csv:
             self.store_prompts_in_csv_file(df_data, generation_path)
         
         # save a histogram of score distribution before and after mutation for comparison
@@ -880,7 +884,8 @@ def main():
                                   update_prompts=args.update_prompts,
                                   store_embeddings=args.store_embeddings,
                                   self_training=args.self_training,
-                                  send_job=args.send_job)
+                                  send_job=args.send_job,
+                                  save_csv=args.save_csv)
     
     # generate n number of images
     prompt_mutator.generate_images(num_images=args.n_data)
