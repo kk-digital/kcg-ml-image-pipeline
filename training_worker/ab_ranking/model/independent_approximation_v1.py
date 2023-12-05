@@ -21,29 +21,36 @@ from utility.minio import cmd
 
 
 class IndependentApproximationV1Model(nn.Module):
-    def __init__(self, inputs_shape):
+    def __init__(self,
+                 inputs_shape,
+                 token_length_vector):
         super(IndependentApproximationV1Model, self).__init__()
         self.inputs_shape = inputs_shape
-        initial_score_vector = torch.rand((1, inputs_shape), dtype=torch.float32)
-        self.score_vector = nn.Parameter(data=initial_score_vector, requires_grad=True)
+        self.token_length_vector = token_length_vector
+
+        initial_energy_vector = torch.rand((1, inputs_shape), dtype=torch.float32)
+        self.energy_vector = nn.Parameter(data=initial_energy_vector, requires_grad=True)
+
         initial_prompt_phrase_average_weight = torch.zeros(1, dtype=torch.float32)
         self.prompt_phrase_average_weight = nn.Parameter(data=initial_prompt_phrase_average_weight, requires_grad=True)
+
         self.l1_loss = nn.L1Loss()
 
     # for score
     def forward(self, input):
-        assert input.shape == (1, self.inputs_shape)
+        assert input.shape == (1, self.inputs_shape), "{} != {}".format(input.shape, (1, self.inputs_shape))
 
         # phrase average weight param
         average_weight_param_product = torch.sum(input, dim=1) * self.prompt_phrase_average_weight
 
         # phrase score
-        product = torch.mul(input, self.score_vector)
-        score_sum = torch.sum(product, dim=1)
+        energy_per_token = torch.mul(input, self.energy_vector)
+        energy_per_phrase = torch.mul(self.token_length_vector, energy_per_token)
+        prompt_energy = torch.sum(energy_per_phrase, dim=1)
 
-        sum = score_sum + average_weight_param_product
+        prompt_energy = prompt_energy + average_weight_param_product
 
-        output = sum.unsqueeze(1)
+        output = prompt_energy.unsqueeze(1)
 
         assert output.shape == (1, 1)
         return output
@@ -52,6 +59,7 @@ class IndependentApproximationV1Model(nn.Module):
 class ABRankingIndependentApproximationV1Model:
     def __init__(self, inputs_shape,
                  dataset_loader: IndependentApproximationDatasetLoader,
+                 token_length_vector,
                  input_type="positive"):
         if torch.cuda.is_available():
             device = 'cuda'
@@ -62,7 +70,8 @@ class ABRankingIndependentApproximationV1Model:
         self.dataset_loader = dataset_loader
         self.input_type = input_type
 
-        self.model = IndependentApproximationV1Model(inputs_shape).to(self._device)
+        self.model = IndependentApproximationV1Model(inputs_shape,
+                                                     token_length_vector.to(self._device)).to(self._device)
         self.model_type = 'ab-ranking-independent-approximation-v1'
         self.loss_func_name = ''
         self.file_path = ''
@@ -160,15 +169,15 @@ class ABRankingIndependentApproximationV1Model:
 
         csv_buffer = StringIO()
         writer = csv.writer(csv_buffer)
-        writer.writerow((["index", "phrase", "occurrences", "token length", "score", "prompt_phrase_average_weight"]))
+        writer.writerow((["index", "phrase", "occurrences", "token length", "prompt_phrase_average_weight", "energy_per_token", "energy_per_phrase"]))
         average_weight = None
         for name, param in self.model.named_parameters():
             if name == "prompt_phrase_average_weight":
                 average_weight = param.cpu().detach().squeeze().numpy()
 
         for name, param in self.model.named_parameters():
-            if name == "score_vector":
-                score_vector = param.cpu().detach().squeeze().numpy()
+            if name == "energy_vector":
+                energy_vector = param.cpu().detach().squeeze().numpy()
                 if self.input_type == "positive":
                     index_phrase_dict = self.dataset_loader.phrase_vector_loader.index_positive_phrases_dict
                     index_phrase_info = self.dataset_loader.phrase_vector_loader.index_positive_prompt_phrase_info
@@ -179,7 +188,7 @@ class ABRankingIndependentApproximationV1Model:
                 has_negative_index = False
                 if -1 in index_phrase_dict:
                     has_negative_index = True
-                for i in range(len(score_vector)):
+                for i in range(len(energy_vector)):
                     if has_negative_index:
                         i -= 1
                     index = i
@@ -187,8 +196,9 @@ class ABRankingIndependentApproximationV1Model:
                     phrase_info = index_phrase_info[index]
                     occurrences = phrase_info.occurrences
                     token_length = phrase_info.token_length
-                    score = "{:f}".format(score_vector[i])
-                    writer.writerow([index, phrase, occurrences, token_length, score, average_weight])
+                    energy_per_token = "{:f}".format(energy_vector[i])
+                    energy_per_phrase = "{:f}".format(energy_vector[i] * float(token_length))
+                    writer.writerow([index, phrase, occurrences, token_length, average_weight, energy_per_token, energy_per_phrase])
 
                 bytes_buffer = BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
                 # upload the csv
