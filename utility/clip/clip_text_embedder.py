@@ -1,15 +1,9 @@
 import torch
-
 import numpy as np
-
 from typing import List
 
-from stable_diffusion.model.clip_text_embedder import CLIPTextEmbedder as SDCLIPTextEmbedder
-
-from data_loader.clip_text_embedder_output import CLIPTextEmbedderOutput
 
 # pooling functions
-
 def tensor_average_pooling(text_embedding):
     pooled_embedding = text_embedding.mean(dim=-2)
     return pooled_embedding
@@ -144,26 +138,3 @@ class CLIPTextPooler:
             return tensor_clip_pooling(text_embedding, attention_mask)
             
         raise(f'ERROR! Unknown pooling strateg: {pooling_strategy}')
-
-# text embedder class
-
-class CLIPTextEmbedder(SDCLIPTextEmbedder):
-    """
-    Preprocesses given prompts.
-
-    Args:
-    - prompts (List[str]): The input prompts.
-
-    Returns:
-    - embedding (torch.tensor): last_hidden_state of CLIPTextTransformer output, 77*768.
-    - attention_mask (torch.tensor): attention_mask of CLIPTokenizer output, 1 for valid tokens, 0 for padding tokens, 77. 
-    """
-
-    #TODO: add "inference_with_grad" 
-
-    def forward(self, prompts: List[str]):
-
-        with torch.no_grad():
-            last_hidden_state, pooler_output, attention_mask = self.forward_return_all(prompts)
-
-        return last_hidden_state, attention_mask

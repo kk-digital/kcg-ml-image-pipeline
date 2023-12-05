@@ -256,5 +256,19 @@ class PhraseVectorLoader:
 
         return phrase_vector
 
+    def get_positive_phrases_arr(self):
+        positive_phrases_arr = []
+        for _, phrase in self.index_positive_phrases_dict.items():
+            positive_phrases_arr.append(phrase)
+
+        return positive_phrases_arr
+
+    def get_negative_phrases_arr(self):
+        negative_phrases_arr = []
+        for _, phrase in self.index_negative_phrases_dict.items():
+            negative_phrases_arr.append(phrase)
+
+        return negative_phrases_arr
+
 
 

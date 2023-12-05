@@ -294,27 +294,8 @@ def train_ranking(dataset_name: str,
 
     ab_model.upload_phrases_score_csv()
 
-
     # add model card
-    # model_id = score_residual.add_model_card(model_card)
-
-    # # upload score and residual
-    # score_residual.upload_score_residual(model_id,
-    #                                      training_predicted_probabilities,
-    #                                      training_target_probabilities,
-    #                                      validation_predicted_probabilities,
-    #                                      validation_target_probabilities,
-    #                                      training_predicted_score_images_x,
-    #                                      validation_predicted_score_images_x,
-    #                                      dataset_loader.training_image_hashes,
-    #                                      dataset_loader.validation_image_hashes,
-    #                                      training_shuffled_indices_origin,
-    #                                      validation_shuffled_indices_origin)
-    #
-    # # upload sigma scores
-    # sigma_score.upload_sigma_score(model_id,
-    #                                x_chronological_sigma_scores,
-    #                                x_chronological_image_hashes)
+    model_id = score_residual.add_model_card(model_card)
 
     return model_output_path, report_output_path, graph_output_path
 

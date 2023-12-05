@@ -216,18 +216,22 @@ def http_get_completed_job_by_image_hash(image_hash):
 
 
 def http_add_score_attributes(img_hash,
-                              clip_score,
-                              clip_sigma_score,
-                              embedding_score,
-                              embedding_sigma_score,
-                              delta_score):
-    endpoint = "/job/add-attributes?image_hash={}&clip_score={}&clip_sigma_score={}&embedding_score={}&embedding_sigma_score={}&delta_score={}".format(
+                              image_clip_score,
+                              image_clip_percentile,
+                              image_clip_sigma_score,
+                              text_embedding_score,
+                              text_embedding_percentile,
+                              text_embedding_sigma_score,
+                              delta_sigma_score):
+    endpoint = "/job/add-attributes?image_hash={}&image_clip_score={}&image_clip_percentile={}&image_clip_sigma_score={}&text_embedding_score={}&text_embedding_percentile={}&text_embedding_sigma_score={}&delta_sigma_score={}".format(
         img_hash,
-        clip_score,
-        clip_sigma_score,
-        embedding_score,
-        embedding_sigma_score,
-        delta_score)
+        image_clip_score,
+        image_clip_percentile,
+        image_clip_sigma_score,
+        text_embedding_score,
+        text_embedding_percentile,
+        text_embedding_sigma_score,
+        delta_sigma_score)
     url = SERVER_ADRESS + endpoint
 
     try:

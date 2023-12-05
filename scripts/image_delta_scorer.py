@@ -33,25 +33,33 @@ def upload_scores_attributes_to_completed_jobs(clip_hash_score_dict,
                                                clip_hash_sigma_score_dict,
                                                embedding_hash_score_dict,
                                                embedding_hash_sigma_score_dict,
-                                               hash_delta_score_dict):
+                                               hash_delta_score_dict,
+                                               clip_hash_percentile_dict,
+                                               embedding_hash_percentile_dict
+                                               ):
     print("Uploading scores, sigma scores, and delta scores to mongodb...")
     with ThreadPoolExecutor(max_workers=50) as executor:
         futures = []
         for img_hash, clip_score in clip_hash_score_dict.items():
+            clip_percentile = clip_hash_percentile_dict[img_hash]
             clip_sigma_score = clip_hash_sigma_score_dict[img_hash]
 
             embedding_score = embedding_hash_score_dict[img_hash]
+            embedding_percentile = embedding_hash_percentile_dict[img_hash]
             embedding_sigma_score = embedding_hash_sigma_score_dict[img_hash]
 
             delta_score = hash_delta_score_dict[img_hash]
 
+
             futures.append(executor.submit(request.http_add_score_attributes,
                                            img_hash=img_hash,
-                                           clip_score=clip_score,
-                                           clip_sigma_score=clip_sigma_score,
-                                           embedding_score=embedding_score,
-                                           embedding_sigma_score=embedding_sigma_score,
-                                           delta_score=delta_score))
+                                           image_clip_score=clip_score,
+                                           image_clip_percentile=clip_percentile,
+                                           image_clip_sigma_score=clip_sigma_score,
+                                           text_embedding_score=embedding_score,
+                                           text_embedding_percentile=embedding_percentile,
+                                           text_embedding_sigma_score=embedding_sigma_score,
+                                           delta_sigma_score=delta_score,))
 
         for _ in tqdm(as_completed(futures), total=len(futures)):
             continue
@@ -70,6 +78,8 @@ def get_csv_row_data(index,
                      embedding_hash_score_dict,
                      clip_hash_sigma_score_dict,
                      embedding_hash_sigma_score_dict,
+                     clip_hash_percentile_dict,
+                     embedding_hash_percentile_dict,
                      hash_delta_score_dict):
     # get job
     job = request.http_get_completed_job_by_image_hash(img_hash)
@@ -93,17 +103,21 @@ def get_csv_row_data(index,
     clip_sigma_score = clip_hash_sigma_score_dict[img_hash]
     embedding_sigma_score = embedding_hash_sigma_score_dict[img_hash]
     delta_score = hash_delta_score_dict[img_hash]
-    row = [job_uuid, clip_score, embedding_score, clip_sigma_score, embedding_sigma_score, delta_score,
+    clip_percentile = clip_hash_percentile_dict[img_hash]
+    embedding_percentile = embedding_hash_percentile_dict[img_hash]
+    row = [job_uuid, clip_score, clip_percentile, embedding_score, embedding_percentile, clip_sigma_score, embedding_sigma_score, delta_score,
            prompt_generation_policy, positive_prompt, negative_prompt]
 
     return row, index
 
 
 def get_delta_score_csv_data(clip_hash_score_dict,
-                              clip_hash_sigma_score_dict,
-                              embedding_hash_score_dict,
-                              embedding_hash_sigma_score_dict,
-                              hash_delta_score_dict):
+                             clip_hash_sigma_score_dict,
+                             clip_hash_percentile_dict,
+                             embedding_hash_score_dict,
+                             embedding_hash_sigma_score_dict,
+                             embedding_hash_percentile_dict,
+                             hash_delta_score_dict):
     print("Processing delta score csv data...")
     csv_data = [None] * len(clip_hash_score_dict)
 
@@ -118,6 +132,8 @@ def get_delta_score_csv_data(clip_hash_score_dict,
                                            embedding_hash_score_dict=embedding_hash_score_dict,
                                            clip_hash_sigma_score_dict=clip_hash_sigma_score_dict,
                                            embedding_hash_sigma_score_dict=embedding_hash_sigma_score_dict,
+                                           clip_hash_percentile_dict=clip_hash_percentile_dict,
+                                           embedding_hash_percentile_dict=embedding_hash_percentile_dict,
                                            hash_delta_score_dict=hash_delta_score_dict))
             count += 1
 
@@ -141,10 +157,9 @@ def upload_delta_score_to_csv(minio_client,
     print("Saving delta score data to csv...")
     csv_buffer = io.StringIO()
     writer = csv.writer(csv_buffer)
-    writer.writerow((["job_uuid", "clip_score", "embedding_score", "clip_sigma_score" , "embedding_sigma_score", "delta_score", "prompt_generation_policy", "positive_prompt", "negative_prompt"]))
+    writer.writerow((["job_uuid", "clip_score", "clip_percentile", "embedding_score", "embedding_percentile","clip_sigma_score" , "embedding_sigma_score", "delta_score", "prompt_generation_policy", "positive_prompt", "negative_prompt"]))
 
     for row in delta_score_csv_data:
-        # writer.writerow([score, hash_percentile_dict[image_hash], image_hash, image_paths[count]])
         writer.writerow(row)
 
     bytes_buffer = io.BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
@@ -313,6 +328,7 @@ def run_image_delta_scorer(minio_client,
     clip_scorer.load_model()
     clip_paths = clip_scorer.get_paths()
     clip_hash_score_pairs, image_paths = clip_scorer.get_scores(clip_paths)
+    clip_hash_percentile_dict = clip_scorer.get_percentiles(clip_hash_score_pairs)
     clip_hash_sigma_score_dict = clip_scorer.get_sigma_scores(clip_hash_score_pairs)
 
     # embedding
@@ -323,6 +339,8 @@ def run_image_delta_scorer(minio_client,
     embedding_scorer.load_model()
     embedding_paths = embedding_scorer.get_paths()
     embedding_hash_score_pairs, image_paths = embedding_scorer.get_scores(embedding_paths)
+    embedding_hash_percentile_dict = embedding_scorer.get_percentiles(embedding_hash_score_pairs)
+
     embedding_hash_sigma_score_dict = embedding_scorer.get_sigma_scores(embedding_hash_score_pairs)
 
     hash_delta_score_dict = get_delta_score(clip_hash_sigma_score_dict=clip_hash_sigma_score_dict,
@@ -332,10 +350,13 @@ def run_image_delta_scorer(minio_client,
     embedding_hash_score_dict = convert_pairs_to_dict(embedding_hash_score_pairs)
 
     delta_score_csv_data = get_delta_score_csv_data(clip_hash_score_dict=clip_hash_score_dict,
-                                               clip_hash_sigma_score_dict=clip_hash_sigma_score_dict,
-                                               embedding_hash_score_dict=embedding_hash_score_dict,
-                                               embedding_hash_sigma_score_dict=embedding_hash_sigma_score_dict,
-                                               hash_delta_score_dict=hash_delta_score_dict)
+                                                    clip_hash_sigma_score_dict=clip_hash_sigma_score_dict,
+                                                    clip_hash_percentile_dict=clip_hash_percentile_dict,
+                                                    embedding_hash_score_dict=embedding_hash_score_dict,
+                                                    embedding_hash_sigma_score_dict=embedding_hash_sigma_score_dict,
+                                                    embedding_hash_percentile_dict=embedding_hash_percentile_dict,
+                                                    hash_delta_score_dict=hash_delta_score_dict,
+                                                    )
 
     upload_delta_score_to_csv(minio_client=minio_client,
                               dataset=dataset_name,
@@ -357,7 +378,9 @@ def run_image_delta_scorer(minio_client,
                                                clip_hash_sigma_score_dict=clip_hash_sigma_score_dict,
                                                embedding_hash_score_dict=embedding_hash_score_dict,
                                                embedding_hash_sigma_score_dict=embedding_hash_sigma_score_dict,
-                                               hash_delta_score_dict=hash_delta_score_dict)
+                                               hash_delta_score_dict=hash_delta_score_dict,
+                                               clip_hash_percentile_dict=clip_hash_percentile_dict,
+                                               embedding_hash_percentile_dict=embedding_hash_percentile_dict)
 
     time_elapsed = time.time() - start_time
     print("Dataset: {}: Total Time elapsed: {}s".format(dataset_name, format(time_elapsed, ".2f")))
