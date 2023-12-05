@@ -316,7 +316,7 @@ class PromptSubstitutionGenerator:
                     prompt_str,
                     prompt_embedding, 
                     prompt_score,
-                    max_iterations=50):
+                    max_iterations=100):
 
         # calculate mean pooled embedding of each phrase in the prompt 
         phrase_embeddings= [self.get_mean_pooled_embedding(self.get_prompt_embedding(phrase)) for phrase in prompt_str.split(', ')]
