@@ -152,7 +152,7 @@ def get_relevance_policy(request: Request, dataset: str):
             "generation_policy": generation_policy
         }
     else:
-        raise HTTPException(status_code=404, detail="Dataset not found.")
+        print("dataset not found")
 
 @router.get("/dataset/settings/get-options-list-generation-policies")
 def list_generation_policies():

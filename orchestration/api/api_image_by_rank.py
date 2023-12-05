@@ -61,7 +61,7 @@ def image_list_sorted_by_score(
     elif end_date:
         imgs_query['task_creation_time'] = {'$lte': end_date}
     elif threshold_time:
-        imgs_query['task_creation_time'] = {'$gte': threshold_time}
+        imgs_query['task_creation_time'] = {'$gte': threshold_time.strftime("%Y-%m-%dT%H:%M:%S")}
 
     # Loop to get filtered list of images and their scores
     for data in scores_data:

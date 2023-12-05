@@ -4,11 +4,14 @@ import sys
 import time
 import threading
 import os
+import re
+from datetime import datetime
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from prompt_job_generator_state import PromptJobGeneratorState
+from utility.minio.cmd import get_list_of_objects_with_prefix
 from prompt_job_generator_functions import (generate_icon_generation_jobs, generate_character_generation_jobs, generate_mechs_image_generation_jobs,
 generate_propaganda_posters_image_generation_jobs, generate_environmental_image_generation_jobs, generate_waifu_image_generation_jobs)
 from prompt_job_generator.http_requests.request import (http_get_in_progress_jobs_count, http_get_pending_jobs_count, http_get_dataset_list,
@@ -27,7 +30,7 @@ def parse_args():
     parser.add_argument("--device", type=str, default='cuda')
     parser.add_argument("--minio_access_key", type=str, default='v048BpXpWrsVIHUfdAix')
     parser.add_argument("--minio_secret_key", type=str, default='4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu')
-    parser.add_argument("--csv_dataset_path", type=str, default='input/midjourney_data_phrase_count_v1.csv')
+    parser.add_argument("--csv_dataset_path", type=str, default='input/civitai_phrases_database_v7_no_nsfw.csv')
 
     return parser.parse_args()
 
@@ -92,19 +95,73 @@ def update_dataset_latest_ranking_model(prompt_job_generator_state, list_dataset
     for dataset in list_datasets:
         latest_ranking_model = http_get_dataset_latest_ranking_model(dataset)
 
-        print('latest ranking model : ', latest_ranking_model)
         if latest_ranking_model is None:
             continue
 
         model_file_hash = latest_ranking_model['model_file_hash']
         model_id = http_get_model_id(model_file_hash)
+        model_name = latest_ranking_model['model_name']
 
         if model_id is None:
             continue
 
         model_id = int(model_id)
         latest_ranking_model['model_id'] = model_id
-        http_set_dataset_ranking_model(dataset, latest_ranking_model)
+        if model_name == 'latest':
+            dataset_latest_model = http_get_dataset_latest_ranking_model(dataset)
+            if dataset_latest_model is not None:
+                model_name = dataset_latest_model['model_name']
+
+        if model_name == 'latest':
+            print('Could not find latest model for some reason !')
+
+
+        http_set_dataset_ranking_model(dataset, model_name)
+
+
+def extract_dates_from_strings(string_list):
+    date_pattern = r'\b\d{4}-\d{2}-\d{2}\b'  # Regular expression for the date pattern
+
+    date_list = []
+    for text in string_list:
+        matches = re.findall(date_pattern, text)
+        date_list.extend(matches)
+
+    return date_list
+
+
+# should only be used if we are using independent approx v1 to generate prompts
+def load_dataset_prompt_gen_approx_v1(prompt_job_generator_state, dataset):
+    minio_client = prompt_job_generator_state.minio_client
+
+    # get the list of all csv files
+    # in the minio directory
+    # the goal is to filter by date
+    # we are interested in the latest csv files
+    csv_list = get_list_of_objects_with_prefix(minio_client, 'datasets',
+                                               f'{dataset}/output/phrases-score-csv/')
+
+    date_string_list = extract_dates_from_strings(csv_list)
+
+    date_objects = []
+
+    # go through date strings and
+    # convert to date class to compare them easily
+    for date_string in date_string_list:
+        date = datetime.strptime(date_string, "%Y-%m-%d")
+        date_objects.append(date)
+
+    # Find the latest date using the max function
+    latest_date = max(date_objects)
+    # Format the latest date as a string
+    latest_date_str = latest_date.strftime("%Y-%m-%d")
+
+    positive_phrase_scores_csv = f'{latest_date_str}-positive-phrases-score.csv'
+    negative_phrase_scores_csv = f'{latest_date_str}-negative-phrases-score.csv'
+    prompt_job_generator_state.prompt_queue.load_prompt_approx_v1(dataset,
+                                                                  minio_client,
+                                                                  positive_phrase_scores_csv,
+                                                                  negative_phrase_scores_csv)
 
 
 def update_dataset_config_data(prompt_job_generator_state, list_datasets):
@@ -148,6 +205,20 @@ def update_dataset_config_data(prompt_job_generator_state, list_datasets):
             dataset_top_k = DEFAULT_TOP_K_VALUE
 
         total_rate += dataset_rate
+
+        if 'ranking_model' in dataset_data:
+            model_name = dataset_data['ranking_model']
+            if model_name is not None and model_name == 'latest':
+                model_info = http_get_dataset_latest_ranking_model(dataset)
+
+                if model_info is not None:
+                    new_model_name = model_info['model_name']
+
+                    dataset_data['ranking_model'] = new_model_name
+
+        if 'generation_policy' in dataset_data:
+            if dataset_data['generation_policy'] == 'independent-approx-v1-top-k':
+                load_dataset_prompt_gen_approx_v1(prompt_job_generator_state, dataset)
 
         prompt_job_generator_state.set_dataset_data(dataset, dataset_data)
 
@@ -213,7 +284,12 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
         return
 
     for dataset in dataset_list:
-        model_info = prompt_job_generator_state.get_dataset_ranking_model(dataset)
+        model_name = prompt_job_generator_state.get_dataset_ranking_model(dataset)
+
+        if model_name is None:
+            continue
+
+        model_info = prompt_job_generator_state.get_dataset_model_info(dataset, model_name)
 
         if model_info is None:
             continue
@@ -221,11 +297,10 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
         if not isinstance(model_info, dict):
             continue
 
-        print(model_info['model_path'])
-
         model_type = model_info['model_type']
 
         model_path = model_info['model_path']
+
 
         bucket_name, file_path = separate_bucket_and_file_path(model_path)
 
@@ -242,9 +317,7 @@ def load_dataset_models(prompt_job_generator_state, dataset_list):
         elif model_type == 'image-pair-ranking-elm-v1':
             prompt_job_generator_state.load_elm_v1_model(bucket_name, 'datasets', model_path)
 
-        print(f'Loaded {model_type}, {model_path} for dataset {dataset}')
         scoring_model = prompt_job_generator_state.get_dataset_scoring_model(dataset)
-        print('scoring_model loaded ', scoring_model, ' for dataset ', dataset)
 
 def update_dataset_prompt_queue_background_thread(prompt_job_generator_state):
 
@@ -375,6 +448,9 @@ def main():
         dataset_number_jobs_to_add = {}
 
         for dataset in list_datasets:
+            if dataset == 'test-generations':
+                continue
+
             dataset_number_jobs_to_add[dataset] = 0
 
             dataset_rate = prompt_job_generator_state.get_dataset_rate(dataset)
@@ -383,15 +459,15 @@ def main():
 
             # if dataset_rate is not found just move on
             if dataset_rate == None:
-                # print("dataset rate not found for dataset ", dataset)
+                print("dataset rate not found for dataset ", dataset)
                 continue
 
             if dataset_job_queue_size is None:
-                # print("dataset job queue size is not found for dataset : ", dataset)
+                print("dataset job queue size is not found for dataset : ", dataset)
                 continue
 
             if dataset_job_queue_target is None:
-                # print("dataset job queue target is not found for dataset : ", dataset)
+                print("dataset job queue target is not found for dataset : ", dataset)
                 continue
 
             number_of_jobs_to_add = 0

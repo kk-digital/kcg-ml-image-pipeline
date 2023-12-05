@@ -47,6 +47,8 @@ class PromptMutatorDatasetGenerator:
         self.csv_base_prompts = csv_base_prompts
         self.df_phrase = pd.read_csv(csv_phrase)
         self.scorer = self.load_model(768, device=DEVICE)
+        self.mean = self.scorer.mean
+        self.std = self.scorer.standard_deviation
         self.clip_model, self.tokenizer = self.load_clip()
 
         # create list to store dataset
@@ -223,9 +225,10 @@ class PromptMutatorDatasetGenerator:
         mutation_rounds = np.random.choice(n_mutation)
         print(f'Mutating prompt for {mutation_rounds} iterations')
         for i in tqdm.tqdm(range(mutation_rounds)):
+            length = self.get_token_length(modified_prompt)
             # prevention for generating empty prompt
-            # if prompt has less than 3 phrases, don't run removal op
-            if len(modified_prompt.split(', ')) > 3:
+            # if prompt has less than 65 tokens, don't run removal op
+            if length > 65:
                 remove_data = self.remove_mutation(modified_prompt)
                 # keep prompt with higher score
                 modified_prompt = remove_data['original_prompt'] \
@@ -234,7 +237,7 @@ class PromptMutatorDatasetGenerator:
                     if remove_data['original_score'] > remove_data['removed_score'] else remove_data['removed_score']
             
             # only add phrases if there are less than or equal 65 tokens
-            if self.get_token_length(modified_prompt) <= 65:
+            if length <= 65:
                 add_data = self.add_mutation(modified_prompt, self.df_phrase)
                 # keep prompt with higher score
                 modified_prompt = add_data['original_prompt'] \
@@ -334,7 +337,6 @@ def main(
                 task_time = -1
 
         # data to include to output csv file
-        # first 4 fields are standard
         # scores are computed using linear model
         # sigma score is relative to linear model
         df_data.append({

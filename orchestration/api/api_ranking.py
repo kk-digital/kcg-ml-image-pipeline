@@ -5,6 +5,8 @@ import os
 import json
 from io import BytesIO
 from orchestration.api.mongo_schemas import Selection, RelevanceSelection
+from .api_utils import PrettyJSONResponse
+import random
 
 router = APIRouter()
 
@@ -108,7 +110,7 @@ def get_image_rank_use_count(request: Request, image_hash: str):
 
     item = request.app.image_rank_use_count_collection.find_one(query)
     if item is None:
-        raise HTTPException(status_code=404, detail="Image rank use count data not found")
+        return 0
 
     return item["count"]
 
@@ -132,4 +134,3 @@ def add_relevancy_selection_datapoint(request: Request, relevance_selection: Rel
     cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
 
     return True
-
