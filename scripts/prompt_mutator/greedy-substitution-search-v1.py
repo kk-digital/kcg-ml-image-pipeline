@@ -212,26 +212,36 @@ class PromptSubstitutionGenerator:
         tokens=[]
         sigma_scores=[]
 
-        # looping through each phrase in prompt and predicting score increase in each position
-        for token in range(token_number):
-            # Get substituted phrase embedding
-            substituted_embedding=phrase_embeddings[token]
-            # choose a random substitute phrase
-            substitute_phrase=self.phrase_list.sample(1).iloc[0]
-            substitute_phrase_str=str(substitute_phrase['phrase str'])
-            # get substitute phrase embedding
-            substitute_embedding= self.phrase_embeddings[substitute_phrase['index']]
+        # Create a batch of substitution inputs
+        batch_substitution_inputs = []
+        sampled_phrases = []
+        sampled_embeddings = []
 
-            # make inference of sigma score with the substitution xgboost model
-            substitution_input= np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
-            sigma_score=self.substitution_model.predict([substitution_input])[0]
-            # only take substitutions that increase score by a certain threshold
+        # Create a batch of substitution inputs
+        batch_substitution_inputs = []
+        for token in range(token_number):
+            substituted_embedding = phrase_embeddings[token]
+            random_index=random.randrange(0, len(self.phrase_list))
+            substitute_phrase = self.phrase_list[random_index]
+            substitute_embedding = self.phrase_embeddings[random_index]
+
+            substitution_input = np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
+            batch_substitution_inputs.append(substitution_input)
+            sampled_phrases.append(substitute_phrase)
+            sampled_embeddings.append(substitute_embedding)
+
+        # Make a single inference for the entire batch
+        batch_preds = self.substitution_model.predict_probs(batch_substitution_inputs)
+
+        # Process the batch predictions
+        for token, sigma_score in enumerate(batch_preds):
+            # only take substitutions that have more than 66% chance to increase score
             if sigma_score > prompt_score + threshold:
                 sigma_scores.append(-sigma_score)
                 tokens.append(token)
-                sub_phrases.append(substitute_phrase_str)
-                sub_embeddings.append(substitute_embedding)
-                original_embeddings.append(substituted_embedding)
+                sub_phrases.append(sampled_phrases[token])
+                sub_embeddings.append(sampled_embeddings[token])
+                original_embeddings.append(phrase_embeddings[token])
             
         # substitutions are sorted from highest sigma score to lowest
         token_order= np.argsort(sigma_scores)
@@ -260,7 +270,7 @@ class PromptSubstitutionGenerator:
         tokens=[]
         increase_probs=[]
         
-         # Create a batch of substitution inputs
+        # Create a batch of substitution inputs
         batch_substitution_inputs = []
         sampled_phrases = []
         sampled_embeddings = []
