@@ -200,7 +200,7 @@ class PromptSubstitutionGenerator:
                                     prompt_score, 
                                     prompt_embedding, 
                                     phrase_embeddings,
-                                    threshold=0.15):
+                                    threshold=0.0):
 
         # get number of tokens
         prompt_list = prompt_str.split(', ')
