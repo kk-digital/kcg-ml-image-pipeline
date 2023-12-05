@@ -54,6 +54,40 @@ def add_selection_datapoint(
 
     return True
 
+#not implemented
+@router.post("/rank/add-ranking-data-point-v1")
+def add_selection_datapoint(
+    request: Request, 
+    selection: Selection,
+    dataset: str = Query(...),  # dataset as a query parameter
+    json_file_name: str = Query(...)  # json file name to be deleted
+):
+    time = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+    selection.datetime = time
+
+    # Prepare path for saving the selection
+    file_name = "{}-{}.json".format(time, selection.username)
+    path = "data/ranking/aggregate"
+    full_path = os.path.join(dataset, path, file_name)
+
+    # Convert to bytes and upload
+    dict_data = selection.to_dict()
+    json_data = json.dumps(dict_data, indent=4).encode('utf-8')
+    data = BytesIO(json_data)
+    cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
+
+    # Update rank count for the images
+    image_1_hash = selection.image_1_metadata.file_hash
+    image_2_hash = selection.image_2_metadata.file_hash
+    for img_hash in [image_1_hash, image_2_hash]:
+        update_image_rank_use_count(request, img_hash)
+
+    # Delete the JSON file associated with the image pair
+    json_file_path = os.path.join(dataset, "path/to/json/files", json_file_name)  # Adjust the path as needed
+    cmd.remove_file(request.app.minio_client, "datasets", json_file_path)
+
+    return {"message": "Selection added and JSON file deleted successfully"}
+
 
 @router.post("/rank/update-image-rank-use-count", description="Update image rank use count")
 def update_image_rank_use_count(request: Request, image_hash):
