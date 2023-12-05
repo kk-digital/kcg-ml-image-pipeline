@@ -235,7 +235,7 @@ class PromptSubstitutionGenerator:
 
         # Process the batch predictions
         for token, sigma_score in enumerate(batch_preds):
-            # only take substitutions that have more than 66% chance to increase score
+            # only take substitutions that increase score by more then a set threshold
             if sigma_score > prompt_score + threshold:
                 sigma_scores.append(-sigma_score)
                 tokens.append(token)
@@ -245,6 +245,8 @@ class PromptSubstitutionGenerator:
             
         # substitutions are sorted from highest sigma score to lowest
         token_order= np.argsort(sigma_scores)
+        sigma_scores=[sigma_scores[token_pos] for token_pos in token_order]
+        print(sigma_scores)
         tokens=[tokens[token_pos] for token_pos in token_order]
         sub_phrases=[sub_phrases[token_pos] for token_pos in token_order]
         sub_embeddings=[sub_embeddings[token_pos] for token_pos in token_order]
