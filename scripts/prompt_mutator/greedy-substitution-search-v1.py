@@ -42,7 +42,7 @@ def parse_args():
     parser.add_argument('--rejection-policy', help="by probability or sigma_score", default="sigma_score")
     parser.add_argument('--probability-threshold', type=float, help="threshold of rejection policy for probability of increase", default=0.66)
     parser.add_argument('--sigma-threshold', type=float, help="threshold of rejection policy for increase of sigma score", default=0.1)
-    parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=100)
+    parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=80)
     parser.add_argument('--self-training', action='store_true', default=False)
     parser.add_argument('--store-embeddings', action='store_true', default=False)
     parser.add_argument('--save-csv', action='store_true', default=False)
@@ -266,7 +266,7 @@ class PromptSubstitutionGenerator:
                 original_embeddings.append(phrase_embeddings[token])
             
         # substitutions are sorted from highest sigma score to lowest
-        token_order= np.argsort(np.flip(sigma_scores))
+        token_order= np.flip(np.argsort(sigma_scores))
         tokens=[tokens[token_pos] for token_pos in token_order]
         sub_phrases=[sub_phrases[token_pos] for token_pos in token_order]
         sub_embeddings=[sub_embeddings[token_pos] for token_pos in token_order]
@@ -330,7 +330,7 @@ class PromptSubstitutionGenerator:
                 original_embeddings.append(phrase_embeddings[token])
 
         # substitutions are sorted from highest increase probability to lowest
-        token_order = np.argsort(np.flip(increase_probs))
+        token_order = np.flip(np.argsort(increase_probs))
         tokens = [tokens[token_pos] for token_pos in token_order]
         sub_phrases = [sub_phrases[token_pos] for token_pos in token_order]
         sub_embeddings = [sub_embeddings[token_pos] for token_pos in token_order]
@@ -532,12 +532,13 @@ class PromptSubstitutionGenerator:
         # logging speed of generation
         generation_speed= num_images/(end - start)
 
+        # save generated prompts in csv
+        if self.save_csv:
+            self.store_prompts_in_csv_file(df_data)
+
         # creating path to save generation data
         current_date=datetime.now().strftime("%Y-%m-%d-%H:%M")
         generation_path=DATA_MINIO_DIRECTORY + f"/generated-images/{current_date}-generated-data"
-        # save generated prompts in csv
-        if self.save_csv:
-            self.store_prompts_in_csv_file(df_data, generation_path)
         
         # save a histogram of score distribution before and after mutation for comparison
         self.compare_distributions(generation_path, original_scores, mutated_scores)
@@ -568,7 +569,8 @@ class PromptSubstitutionGenerator:
             return embedding_files
 
     # store list of initial prompts in a csv to use for prompt mutation
-    def store_prompts_in_csv_file(self, data, minio_path):
+    def store_prompts_in_csv_file(self, data):
+        minio_path="environmental/output/generated-prompts-csv"
         local_path="output/generated_prompts.csv"
         pd.DataFrame(data).to_csv(local_path, index=False)
         # Read the contents of the CSV file
@@ -579,7 +581,8 @@ class PromptSubstitutionGenerator:
         buffer = io.BytesIO(csv_content)
         buffer.seek(0)
 
-        minio_path= minio_path + "/generated_prompts.csv"
+        current_date=datetime.now().strftime("%Y-%m-%d-%H:%M")
+        minio_path= minio_path + f"/{current_date}-{GENERATION_POLICY}-environmental.csv"
         cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
         # Remove the temporary file
         os.remove(local_path)
@@ -763,7 +766,7 @@ class PromptSubstitutionGenerator:
             return None
 
     def store_self_training_data(self, training_data):
-        batch_size = 10
+        batch_size = 10000
         dataset_path = DATA_MINIO_DIRECTORY + "/self_training/"
         dataset_files = self.minio_client.list_objects('datasets', prefix=dataset_path, recursive=True)
         dataset_files = [file.object_name for file in dataset_files]
