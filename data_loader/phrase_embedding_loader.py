@@ -112,6 +112,7 @@ class PhraseEmbeddingLoader:
         text_embedder.load_submodels()
 
         print("Updating phrase embeddings data...")
+        count_added = 0
         for phrase in tqdm(phrases_arr):
             if phrase not in self.phrase_index_dict:
                 # get embedding of phrase
@@ -128,6 +129,10 @@ class PhraseEmbeddingLoader:
                     if self.phrase_embedding_arr.shape == (768,):
                         self.phrase_embedding_arr = np.expand_dims(self.phrase_embedding_arr, axis=0)
                     self.phrase_embedding_arr = np.append(self.phrase_embedding_arr, phrase_average_pooled, axis=0)
+                count_added += 1
+                # update every 30k data are newly added
+                if count_added % 30000 == 0:
+                    self.upload_phrases_embedding_npz()
 
         # save after update
         self.upload_phrases_embedding_npz()
