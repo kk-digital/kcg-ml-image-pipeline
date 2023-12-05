@@ -247,7 +247,6 @@ class PromptGenerationPromptQueue:
                                                      positive_attention_mask,
                                                      negative_attention_mask).item()
 
-                print(prompt_score)
             scored_prompt = ScoredPrompt(prompt_score,
                                          positive_text_prompt,
                                          negative_text_prompt,
