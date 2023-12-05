@@ -454,6 +454,30 @@ def add_attributes_job_completed(request: Request,
 
     return True
 
+@router.put("/job/add-attributes-v1", description="Adds the attributes to a completed job.")
+def add_attributes_job_completed(request: Request,
+                                 image_hash,
+                                 image_clip_score,
+                                 image_clip_sigma_score,
+                                 text_embedding_score,
+                                 text_embedding_sigma_score,
+                                 delta_sigma_score,
+                                 image_clip_percentile,
+                                 text_embedding_percentile):
+    query = {"task_output_file_dict.output_file_hash": image_hash}
+
+    update_query = {"$set": {"task_attributes_dict.image_clip_score": image_clip_score,
+                             "task_attributes_dict.image_clip_sigma_score": image_clip_sigma_score,
+                             "task_attributes_dict.text_embedding_score": text_embedding_score,
+                             "task_attributes_dict.text_embedding_sigma_score": text_embedding_sigma_score,
+                             "task_attributes_dict.delta_sigma_score": delta_sigma_score,
+                             "task_attributes_dict.image_clip_percentile":image_clip_percentile,
+                             "task_attibutes_dict.text_embedding_percentile":text_embedding_percentile}}
+
+    request.app.completed_jobs_collection.update_one(query, update_query)
+
+    return True
+
 
 @router.get("/worker-stats", response_class=PrettyJSONResponse)
 def get_worker_stats(server_address: str = Query(...), ssh_port: int = Query(22), ssh_key_path: str = Query(...)):
