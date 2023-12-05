@@ -43,6 +43,15 @@ def clip_vector_from_image_path(request: Request,
 
     return similarity
 
+@router.get("/cosine-similarity-list")
+def clip_vector_from_image_path(request: Request,
+             image_path : list,
+             phrase : str):
+    clip_server = request.app.clip_server
+
+    similarity = clip_server.compute_cosine_match_value_list(phrase, image_path, 'datasets')
+
+    return similarity
 
 @router.get("/image-clip")
 def clip_vector_from_image_path(request: Request,
