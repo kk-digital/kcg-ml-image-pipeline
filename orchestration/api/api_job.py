@@ -261,8 +261,8 @@ def update_job_completed(request: Request, task: Task):
     # check if exist
     job = request.app.in_progress_jobs_collection.find_one({"uuid": task.uuid})
     if job is None:
-        raise HTTPException(status_code=404)
-
+        print(f"Job not found.")
+    
     # add to completed
     request.app.completed_jobs_collection.insert_one(task.to_dict())
 
@@ -277,7 +277,7 @@ def update_job_failed(request: Request, task: Task):
     # check if exist
     job = request.app.in_progress_jobs_collection.find_one({"uuid": task.uuid})
     if job is None:
-        raise HTTPException(status_code=404)
+        print(f"Job not found.")
 
     # add to failed
     request.app.failed_jobs_collection.insert_one(task.to_dict())
@@ -350,7 +350,7 @@ def get_completed_job_by_hash(request: Request, image_hash):
     job = request.app.completed_jobs_collection.find_one(query)
 
     if job is None:
-        raise HTTPException(status_code=404)
+        print(f"Job not found.")
 
     job.pop('_id', None)
 
@@ -363,7 +363,7 @@ def get_job_by_uuid(request: Request, uuid: str):
     job = request.app.completed_jobs_collection.find_one(query)
 
     if job is None:
-        raise HTTPException(status_code=404, detail="Job not found")
+        print(f"Job not found.")
 
     # Remove the '_id' field to avoid issues with JSON serialization
     job.pop('_id', None)
@@ -437,18 +437,22 @@ def get_job_by_job_id(request: Request, job_id: str, fields: List[str] = Query(N
 @router.put("/job/add-attributes", description="Adds the attributes to a completed job.")
 def add_attributes_job_completed(request: Request,
                                  image_hash,
-                                 clip_score,
-                                 clip_sigma_score,
-                                 embedding_score,
-                                 embedding_sigma_score,
-                                 delta_score):
+                                 image_clip_score,
+                                 image_clip_percentile,
+                                 image_clip_sigma_score,
+                                 text_embedding_score,
+                                 text_embedding_percentile,
+                                 text_embedding_sigma_score,
+                                 delta_sigma_score):
     query = {"task_output_file_dict.output_file_hash": image_hash}
 
-    update_query = {"$set": {"task_attributes_dict.clip_score": clip_score,
-                             "task_attributes_dict.clip_sigma_score": clip_sigma_score,
-                             "task_attributes_dict.embedding_score": embedding_score,
-                             "task_attributes_dict.embedding_sigma_score": embedding_sigma_score,
-                             "task_attributes_dict.delta_score": delta_score}}
+    update_query = {"$set": {"task_attributes_dict.image_clip_score": image_clip_score,
+                             "task_attributes_dict.image_clip_percentile": image_clip_percentile,
+                             "task_attributes_dict.image_clip_sigma_score": image_clip_sigma_score,
+                             "task_attributes_dict.text_embedding_score": text_embedding_score,
+                             "task_attributes_dict.text_embedding_percentile": text_embedding_percentile,
+                             "task_attributes_dict.text_embedding_sigma_score": text_embedding_sigma_score,
+                             "task_attributes_dict.delta_sigma_score": delta_sigma_score}}
 
     request.app.completed_jobs_collection.update_one(query, update_query)
 
@@ -462,7 +466,7 @@ def get_worker_stats(server_address: str = Query(...), ssh_port: int = Query(22)
     ssh.connect(server_address, port=ssh_port, username='root', key_filename=ssh_key_path)
 
     command = '''
-    python -c "import json; import socket; import GPUtil; print(json.dumps([{\'temperature\': gpu.temperature, \'load\': gpu.load, \'total_memory\': gpu.memoryTotal, \'used_memory\': gpu.memoryUsed, \'worker_name\': socket.gethostname()} for gpu in GPUtil.getGPUs()]))"
+    python -c "import json; import socket; import GPUtil; print(json.dumps([{\'id\': gpu.id, \'temperature\': gpu.temperature, \'load\': gpu.load, \'total_memory\': gpu.memoryTotal, \'used_memory\': gpu.memoryUsed, \'worker_name\': socket.gethostname()} for gpu in GPUtil.getGPUs()]))"
     '''
     stdin, stdout, stderr = ssh.exec_command(command)
 
@@ -479,4 +483,5 @@ def get_worker_stats(server_address: str = Query(...), ssh_port: int = Query(22)
 
     ssh.close()
     return gpu_stats
+
 

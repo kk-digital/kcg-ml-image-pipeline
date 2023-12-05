@@ -17,49 +17,70 @@ base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
 from data_loader.independent_approximation_dataset_loader import IndependentApproximationDatasetLoader
+from data_loader.phrase_vector_loader import PhraseVectorLoader
+from data_loader.phrase_embedding_loader import PhraseEmbeddingLoader
 from utility.minio import cmd
 
 
-class IndependentApproximationV1Model(nn.Module):
+class PhraseSmoothingModel(nn.Module):
     def __init__(self,
                  inputs_shape,
-                 token_length_vector):
-        super(IndependentApproximationV1Model, self).__init__()
+                 phrase_vector_loader: PhraseVectorLoader,
+                 phrase_embedding_loader: PhraseEmbeddingLoader,
+                 input_type,
+                 device):
+        super(PhraseSmoothingModel, self).__init__()
         self.inputs_shape = inputs_shape
-        self.token_length_vector = token_length_vector
+        self._device = device
+        initial_score_vector = torch.rand((1, inputs_shape), dtype=torch.float32)
+        self.prompt_phrase_trainable_score = nn.Parameter(data=initial_score_vector, requires_grad=True)
+        self.l1_loss = nn.L1Loss()
 
-        initial_energy_vector = torch.rand((1, inputs_shape), dtype=torch.float32)
-        self.energy_vector = nn.Parameter(data=initial_energy_vector, requires_grad=True)
-
-        initial_prompt_phrase_average_weight = torch.zeros(1, dtype=torch.float32)
-        self.prompt_phrase_average_weight = nn.Parameter(data=initial_prompt_phrase_average_weight, requires_grad=True)
+        # smoothing
+        # input is phrase embedding
+        self.linear = nn.Linear(768, 1)
+        initial_score_offset = torch.zeros(1, dtype=torch.float32)
+        self.score_offset = nn.Parameter(data=initial_score_offset, requires_grad=True)
 
         self.l1_loss = nn.L1Loss()
 
-    # for score
-    def forward(self, input):
-        assert input.shape == (1, self.inputs_shape), "{} != {}".format(input.shape, (1, self.inputs_shape))
+        # data loaders
+        self.phrase_vector_loader = phrase_vector_loader
+        self.phrase_embedding_loader = phrase_embedding_loader
+        self.input_type = input_type
 
-        # phrase average weight param
-        average_weight_param_product = torch.sum(input, dim=1) * self.prompt_phrase_average_weight
+    # for score
+    def forward(self, phrase_vector):
+        assert phrase_vector.shape == (1, self.inputs_shape)
 
         # phrase score
-        energy_per_token = torch.mul(input, self.energy_vector)
-        energy_per_phrase = torch.mul(self.token_length_vector, energy_per_token)
-        prompt_energy = torch.sum(energy_per_phrase, dim=1)
+        product = torch.mul(phrase_vector, self.prompt_phrase_trainable_score)
 
-        prompt_energy = prompt_energy + average_weight_param_product
+        # smoothing
+        for i in range(len(phrase_vector)):
+            if phrase_vector[0][i] == True:
+                if self.input_type == "positive":
+                    phrase = self.phrase_vector_loader.index_positive_phrases_dict[i]
+                else:
+                    phrase = self.phrase_vector_loader.index_negative_phrases_dict[i]
 
-        output = prompt_energy.unsqueeze(1)
+                # get embedding
+                phrase_embedding = self.phrase_embedding_loader.get_embedding(phrase)
+                phrase_embedding = torch.from_numpy(phrase_embedding).to(self._device)
+                phrase_base_score = self.linear(phrase_embedding)
+                product[0][i] = product[0][i] + phrase_base_score + self.score_offset
 
-        assert output.shape == (1, 1)
-        return output
+        prompt_score = torch.sum(product, dim=1)
+        prompt_score = prompt_score.unsqueeze(0)
+        assert prompt_score.shape == (1, 1), "shape={}".format(prompt_score.shape)
+        return prompt_score
 
 
-class ABRankingIndependentApproximationV1Model:
+class ScorePhraseSmoothingModel:
     def __init__(self, inputs_shape,
                  dataset_loader: IndependentApproximationDatasetLoader,
-                 token_length_vector,
+                 phrase_vector_loader: PhraseVectorLoader,
+                 phrase_embedding_loader: PhraseEmbeddingLoader,
                  input_type="positive"):
         if torch.cuda.is_available():
             device = 'cuda'
@@ -70,9 +91,12 @@ class ABRankingIndependentApproximationV1Model:
         self.dataset_loader = dataset_loader
         self.input_type = input_type
 
-        self.model = IndependentApproximationV1Model(inputs_shape,
-                                                     token_length_vector.to(self._device)).to(self._device)
-        self.model_type = 'ab-ranking-independent-approximation-v1'
+        self.model = PhraseSmoothingModel(inputs_shape,
+                                          phrase_vector_loader,
+                                          phrase_embedding_loader,
+                                          input_type,
+                                          self._device).to(self._device)
+        self.model_type = 'score-phrase-smoothing'
         self.loss_func_name = ''
         self.file_path = ''
         self.model_hash = ''
@@ -164,20 +188,21 @@ class ABRankingIndependentApproximationV1Model:
         # upload the model
         cmd.upload_data(minio_client, datasets_bucket, model_output_path, buffer)
 
+
     def upload_phrases_score_csv(self):
         print("Saving phrases score csv...")
 
         csv_buffer = StringIO()
         writer = csv.writer(csv_buffer)
-        writer.writerow((["index", "phrase", "occurrences", "token length", "prompt_phrase_average_weight", "energy_per_token", "energy_per_phrase"]))
-        average_weight = None
+        writer.writerow((["index", "phrase", "occurrences", "token length", "score", "score offset"]))
+        score_offset = None
         for name, param in self.model.named_parameters():
-            if name == "prompt_phrase_average_weight":
-                average_weight = param.cpu().detach().squeeze().numpy()
+            if name == "score_offset":
+                score_offset = param.cpu().detach().squeeze().numpy()
 
         for name, param in self.model.named_parameters():
-            if name == "energy_vector":
-                energy_vector = param.cpu().detach().squeeze().numpy()
+            if name == "prompt_phrase_trainable_score":
+                score_vector = param.cpu().detach().squeeze().numpy()
                 if self.input_type == "positive":
                     index_phrase_dict = self.dataset_loader.phrase_vector_loader.index_positive_phrases_dict
                     index_phrase_info = self.dataset_loader.phrase_vector_loader.index_positive_prompt_phrase_info
@@ -188,7 +213,7 @@ class ABRankingIndependentApproximationV1Model:
                 has_negative_index = False
                 if -1 in index_phrase_dict:
                     has_negative_index = True
-                for i in range(len(energy_vector)):
+                for i in range(len(score_vector)):
                     if has_negative_index:
                         i -= 1
                     index = i
@@ -196,14 +221,13 @@ class ABRankingIndependentApproximationV1Model:
                     phrase_info = index_phrase_info[index]
                     occurrences = phrase_info.occurrences
                     token_length = phrase_info.token_length
-                    energy_per_token = "{:f}".format(energy_vector[i])
-                    energy_per_phrase = "{:f}".format(energy_vector[i] * float(token_length))
-                    writer.writerow([index, phrase, occurrences, token_length, average_weight, energy_per_token, energy_per_phrase])
+                    score = "{:f}".format(score_vector[i])
+                    writer.writerow([index, phrase, occurrences, token_length, score, score_offset])
 
                 bytes_buffer = BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
                 # upload the csv
                 date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
-                filename = "{}-{}-phrases-score.csv".format(date_now, self.input_type)
+                filename = "{}-{}-phrases-score-smoothing.csv".format(date_now, self.input_type)
                 csv_path = os.path.join(self.dataset_loader.dataset_name, "output/phrases-score-csv", filename)
                 cmd.upload_data(self.dataset_loader.minio_client, 'datasets', csv_path, bytes_buffer)
 

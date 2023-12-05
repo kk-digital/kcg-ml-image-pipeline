@@ -179,16 +179,28 @@ class PhraseVectorLoader:
             if line_count == 0:
                 print(f'Column names are {", ".join(row)}')
             else:
-                positive_index = int(row[0])
-                phrase = row[1]
-                num_occurrences = int(row[2])
-                token_length = int(row[3])
-                self.positive_phrases_index_dict[phrase] = positive_index
-                self.index_positive_phrases_dict[positive_index] = phrase
-                prompt_info = PromptPhraseInformation(phrase,
-                                                      num_occurrences,
-                                                      token_length)
-                self.index_positive_prompt_phrase_info[positive_index] = prompt_info
+                if "positive" in csv_filename:
+                    positive_index = int(row[0])
+                    phrase = row[1]
+                    num_occurrences = int(row[2])
+                    token_length = int(row[3])
+                    self.positive_phrases_index_dict[phrase] = positive_index
+                    self.index_positive_phrases_dict[positive_index] = phrase
+                    prompt_info = PromptPhraseInformation(phrase,
+                                                          num_occurrences,
+                                                          token_length)
+                    self.index_positive_prompt_phrase_info[positive_index] = prompt_info
+                else:
+                    negative_index = int(row[0])
+                    phrase = row[1]
+                    num_occurrences = int(row[2])
+                    token_length = int(row[3])
+                    self.negative_phrases_index_dict[phrase] = negative_index
+                    self.index_negative_phrases_dict[negative_index] = phrase
+                    prompt_info = PromptPhraseInformation(phrase,
+                                                          num_occurrences,
+                                                          token_length)
+                    self.index_negative_prompt_phrase_info[negative_index] = prompt_info
 
             line_count += 1
 
@@ -238,8 +250,12 @@ class PhraseVectorLoader:
     def get_phrase_vector(self, prompt, input_type="positive"):
         if input_type == "positive":
             len_vector = len(self.positive_phrases_index_dict)
+            if self.index_positive_phrases_dict.get(-1) is not None:
+                len_vector -= 1
         else:
             len_vector = len(self.negative_phrases_index_dict)
+            if self.index_negative_phrases_dict.get(-1) is not None:
+                len_vector -= 1
 
         phrase_vector = [False] * len_vector
         phrases = get_phrases_from_prompt(prompt)
@@ -252,9 +268,43 @@ class PhraseVectorLoader:
             else:
                 index = self.negative_phrases_index_dict[phrase]
 
+            if index == -1:
+                continue
             phrase_vector[index] = True
 
         return phrase_vector
+
+    def get_token_length_vector(self, input_type="positive"):
+        token_length_vector = []
+
+        if input_type == "positive":
+            for index, data in self.index_positive_prompt_phrase_info.items():
+                if index == -1:
+                    continue
+                token_length = data.token_length
+                token_length_vector.append(token_length)
+        else:
+            for index, data in self.index_negative_prompt_phrase_info.items():
+                if index == -1:
+                    continue
+                token_length = data.token_length
+                token_length_vector.append(token_length)
+
+        return token_length_vector
+
+    def get_positive_phrases_arr(self):
+        positive_phrases_arr = []
+        for _, phrase in self.index_positive_phrases_dict.items():
+            positive_phrases_arr.append(phrase)
+
+        return positive_phrases_arr
+
+    def get_negative_phrases_arr(self):
+        negative_phrases_arr = []
+        for _, phrase in self.index_negative_phrases_dict.items():
+            negative_phrases_arr.append(phrase)
+
+        return negative_phrases_arr
 
 
 

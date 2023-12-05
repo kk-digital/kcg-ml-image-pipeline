@@ -9,15 +9,15 @@ sys.path.insert(0, base_directory)
 
 from utility.regression_utils import torchinfo_summary
 from training_worker.ab_ranking.model.reports.ab_ranking_train_report import get_train_report
-from training_worker.ab_ranking.model.reports.graph_report_ab_ranking import *
+from training_worker.ab_ranking.model.reports.graph_report_phrase_smoothing import *
 from training_worker.ab_ranking.model.reports.get_model_card import get_model_card_buf
 from utility.minio import cmd
 from training_worker.ab_ranking.model import constants
 from training_worker.ab_ranking.model.reports import score_residual, sigma_score
-from training_worker.ab_ranking.model.independent_approximation_v1 import ABRankingIndependentApproximationV1Model
+from training_worker.ab_ranking.model.phrase_smoothing import ScorePhraseSmoothingModel
 from data_loader.independent_approximation_dataset_loader import IndependentApproximationDatasetLoader
 from data_loader.phrase_vector_loader import PhraseVectorLoader
-
+from data_loader.phrase_embedding_loader import PhraseEmbeddingLoader
 
 def train_ranking(dataset_name: str,
                   input_type="positive",
@@ -38,6 +38,7 @@ def train_ranking(dataset_name: str,
                   duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL,
                   randomize_data_per_epoch=True
                   ):
+
     # load phrase
     phrase_loader = PhraseVectorLoader(dataset_name=dataset_name,
                                        minio_ip_addr=minio_ip_addr,
@@ -50,25 +51,29 @@ def train_ranking(dataset_name: str,
         phrase_loader.load_dataset_phrases()
         phrase_loader.upload_csv()
 
+    # load phrase embeddings
+    phrase_embedding_loader = PhraseEmbeddingLoader(dataset_name=dataset_name,
+                                                    minio_ip_addr=minio_ip_addr,
+                                                    minio_access_key=minio_access_key,
+                                                    minio_secret_key=minio_secret_key)
+    phrase_embedding_loader.load_dataset_phrases()
+
+    # update phrase embeddings
+    phrase_embedding_loader.update_dataset_phrases(phrase_loader.get_positive_phrases_arr())
+
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
-    network_type = "independent-approximation-v1"
+    network_type = "phrase-smoothing"
     input_type_str = "{}-phrase-vector".format(input_type)
     output_type = "score"
     output_path = "{}/models/ranking".format(dataset_name)
 
     if input_type == "positive":
-        input_shape = len(phrase_loader.index_positive_phrases_dict)
-        if phrase_loader.index_positive_phrases_dict.get(-1) is not None:
-            input_shape -=1
-            print("exists")
-            print("val=", phrase_loader.index_positive_phrases_dict.get(-1))
+        input_shape = len(phrase_loader.positive_phrases_index_dict)
     else:
-        input_shape = len(phrase_loader.index_negative_phrases_dict)
-        if phrase_loader.index_negative_phrases_dict.get(-1) is not None:
-            input_shape -=1
+        input_shape = len(phrase_loader.negative_phrases_index_dict)
 
     print("input shape=", input_shape)
     # load dataset
@@ -96,13 +101,12 @@ def train_ranking(dataset_name: str,
     training_total_size = dataset_loader.get_len_training_ab_data()
     validation_total_size = dataset_loader.get_len_validation_ab_data()
 
-    # get token length vector
-    token_length_vector = phrase_loader.get_token_length_vector(input_type)
-    token_length_vector = torch.tensor(token_length_vector)
-    ab_model = ABRankingIndependentApproximationV1Model(inputs_shape=input_shape,
-                                                        dataset_loader=dataset_loader,
-                                                        token_length_vector=token_length_vector,
-                                                        input_type=input_type)
+    ab_model = ScorePhraseSmoothingModel(inputs_shape=input_shape,
+                                         dataset_loader=dataset_loader,
+                                         phrase_vector_loader=phrase_loader,
+                                         phrase_embedding_loader=phrase_embedding_loader,
+                                         input_type=input_type)
+
     training_predicted_score_images_x, \
         training_predicted_score_images_y, \
         training_predicted_probabilities, \
@@ -241,6 +245,18 @@ def train_ranking(dataset_name: str,
     # upload the txt report
     cmd.upload_data(dataset_loader.minio_client, bucket_name, report_output_path, report_buffer)
 
+    # get score offset
+    score_offset = -1
+    for name, param in ab_model.model.named_parameters():
+        if name == "score_offset":
+            score_offset = param.cpu().detach().squeeze().numpy()
+
+    # get phrase scores vector
+    phrase_scores_vector = None
+    for name, param in ab_model.model.named_parameters():
+        if name == "prompt_phrase_trainable_score":
+            phrase_scores_vector = param.cpu().detach().squeeze().numpy()
+
     # show and save graph
     graph_name = "{}.png".format(filename)
     graph_output_path = os.path.join(output_path, graph_name)
@@ -255,6 +271,8 @@ def train_ranking(dataset_name: str,
                                     training_pred_scores_img_y=training_predicted_score_images_y,
                                     validation_pred_scores_img_x=validation_predicted_score_images_x,
                                     validation_pred_scores_img_y=validation_predicted_score_images_y,
+                                    phrase_scores=phrase_scores_vector,
+                                    score_offset=score_offset,
                                     training_total_size=training_total_size,
                                     validation_total_size=validation_total_size,
                                     training_losses=training_loss_per_epoch,
@@ -304,20 +322,6 @@ def train_ranking(dataset_name: str,
 
     ab_model.upload_phrases_score_csv()
 
-    # add model card
-    model_id = score_residual.add_model_card(model_card)
-
-    return model_output_path, report_output_path, graph_output_path
 
 
-def test_run():
-    train_ranking(dataset_name="propaganda-poster",
-                  minio_ip_addr=None,  # will use defualt if none is given
-                  minio_access_key="nkjYl5jO4QnpxQU0k0M1",
-                  minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
-                  phrases_csv_name=None,
-                  train_percent=0.9)
 
-
-# if __name__ == '__main__':
-#     test_run()
