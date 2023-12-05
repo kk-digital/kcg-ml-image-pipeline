@@ -762,7 +762,7 @@ class PromptSubstitutionGenerator:
             return None
 
     def store_self_training_data(self, training_data):
-        batch_size = 100
+        batch_size = 10
         dataset_path = DATA_MINIO_DIRECTORY + "/self_training/"
         dataset_files = self.minio_client.list_objects('datasets', prefix=dataset_path, recursive=True)
         dataset_files = [file.object_name for file in dataset_files]
