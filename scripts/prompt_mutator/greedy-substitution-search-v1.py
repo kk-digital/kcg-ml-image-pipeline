@@ -257,6 +257,7 @@ class PromptSubstitutionGenerator:
         original_embeddings=[]
         tokens=[]
         increase_probs=[]
+        inference_time=0
 
         # looping through each phrase in prompt and predicting probability of score increase in each position
         for token in range(token_number):
@@ -270,7 +271,10 @@ class PromptSubstitutionGenerator:
 
             # make inference of probability of increase with the substitution xgboost model
             substitution_input= np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
+            start=time.time()
             pred=self.substitution_model.predict_probs([substitution_input])[0]
+            end=time.time()
+            inference_time+= end - start
             # only take substitutions that have more then 66% chance to increase score
             if pred["increase"]>0.66:
                 increase_probs.append(-pred["increase"])
@@ -285,6 +289,8 @@ class PromptSubstitutionGenerator:
         sub_phrases=[sub_phrases[token_pos] for token_pos in token_order]
         sub_embeddings=[sub_embeddings[token_pos] for token_pos in token_order]
         original_embeddings=[original_embeddings[token_pos] for token_pos in token_order]
+
+        print(f"time for inference of {token_number} is {inference_time}")
         
         return tokens, sub_phrases, original_embeddings, sub_embeddings
 
