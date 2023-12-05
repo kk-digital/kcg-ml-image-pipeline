@@ -796,7 +796,7 @@ class PromptSubstitutionGenerator:
 
     def store_batch_in_msgpack_file(self, batch, index, incomplete=False):
         if incomplete:
-            file_path=f"{self.scoring_model}/{str(index).zfill(4)}_substitution_unfinished.msgpack"
+            file_path=f"{self.scoring_model}/{str(index).zfill(4)}_substitution_incomplete.msgpack"
         else:
             file_path=f"{self.scoring_model}/{str(index).zfill(4)}_substitution.msgpack"
         packed_data = msgpack.packb(batch, use_single_float=True)
