@@ -259,39 +259,41 @@ class PromptSubstitutionGenerator:
         increase_probs=[]
         inference_time=0
 
-        # looping through each phrase in prompt and predicting probability of score increase in each position
+        # Create a batch of substitution inputs
+        batch_substitution_inputs = []
         for token in range(token_number):
-            # Get substituted phrase embedding
-            substituted_embedding=phrase_embeddings[token]
-            # choose a random substitute phrase
-            substitute_phrase=self.phrase_list.sample(1).iloc[0]
-            substitute_phrase_str=str(substitute_phrase['phrase str'])
-            # get substitute phrase embedding
-            substitute_embedding= self.phrase_embeddings[substitute_phrase['index']]
+            substituted_embedding = phrase_embeddings[token]
+            substitute_phrase = self.phrase_list.sample(1).iloc[0]
+            substitute_embedding = self.phrase_embeddings[substitute_phrase['index']]
 
-            # make inference of probability of increase with the substitution xgboost model
-            substitution_input= np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
-            start=time.time()
-            pred=self.substitution_model.predict_probs([substitution_input])[0]
-            end=time.time()
-            inference_time+= end - start
-            # only take substitutions that have more then 66% chance to increase score
-            if pred["increase"]>0.66:
+            substitution_input = np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
+            batch_substitution_inputs.append(substitution_input)
+
+        # Make a single inference for the entire batch
+        start = time.time()
+        batch_preds = self.substitution_model.predict_probs(batch_substitution_inputs)
+        end = time.time()
+        inference_time += end - start
+
+        # Process the batch predictions
+        for token, pred in enumerate(batch_preds):
+            # only take substitutions that have more than 66% chance to increase score
+            if pred["increase"] > 0.66:
                 increase_probs.append(-pred["increase"])
                 tokens.append(token)
-                sub_phrases.append(substitute_phrase_str)
-                sub_embeddings.append(substitute_embedding)
-                original_embeddings.append(substituted_embedding)
-        
+                sub_phrases.append(self.phrase_list.sample(1).iloc[0]['phrase str'])
+                sub_embeddings.append(self.phrase_embeddings[self.phrase_list.sample(1).iloc[0]['index']])
+                original_embeddings.append(phrase_embeddings[token])
+
         # substitutions are sorted from highest increase probability to lowest
-        token_order= np.argsort(increase_probs)
-        tokens=[tokens[token_pos] for token_pos in token_order]
-        sub_phrases=[sub_phrases[token_pos] for token_pos in token_order]
-        sub_embeddings=[sub_embeddings[token_pos] for token_pos in token_order]
-        original_embeddings=[original_embeddings[token_pos] for token_pos in token_order]
+        token_order = np.argsort(increase_probs)
+        tokens = [tokens[token_pos] for token_pos in token_order]
+        sub_phrases = [sub_phrases[token_pos] for token_pos in token_order]
+        sub_embeddings = [sub_embeddings[token_pos] for token_pos in token_order]
+        original_embeddings = [original_embeddings[token_pos] for token_pos in token_order]
 
         print(f"time for inference of {token_number} is {inference_time}")
-        
+
         return tokens, sub_phrases, original_embeddings, sub_embeddings
 
     # function mutating a prompt
