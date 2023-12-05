@@ -8,6 +8,8 @@ sys.path.insert(0, base_directory)
 
 from utility.clip.clip import ClipModel
 from utility.minio.cmd import get_file_from_minio, is_object_exists
+from clip_cache import ClipCache
+from clip_constants import CLIP_CACHE_DIRECTORY
 
 
 class Phrase:
@@ -29,6 +31,7 @@ class ClipServer:
         self.image_clip_vector_cache = {}
         self.clip_model = ClipModel(device=device)
         self.device = device
+        self.clip_cache = ClipCache(device, minio_client, CLIP_CACHE_DIRECTORY)
 
     def load_clip_model(self):
         self.clip_model.load_clip()
@@ -119,6 +122,8 @@ class ClipServer:
 
     def compute_cosine_match_value(self, phrase, image_path, bucket_name):
         print('computing cosine match value for ', phrase, ' and ', image_path)
+
+        clip_cache = self.clip_cache
 
         phrase_cip_vector_struct = self.get_clip_vector(phrase)
         # the score is zero if we cant find the phrase clip vector
