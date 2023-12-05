@@ -179,16 +179,28 @@ class PhraseVectorLoader:
             if line_count == 0:
                 print(f'Column names are {", ".join(row)}')
             else:
-                positive_index = int(row[0])
-                phrase = row[1]
-                num_occurrences = int(row[2])
-                token_length = int(row[3])
-                self.positive_phrases_index_dict[phrase] = positive_index
-                self.index_positive_phrases_dict[positive_index] = phrase
-                prompt_info = PromptPhraseInformation(phrase,
-                                                      num_occurrences,
-                                                      token_length)
-                self.index_positive_prompt_phrase_info[positive_index] = prompt_info
+                if "positive" in csv_filename:
+                    positive_index = int(row[0])
+                    phrase = row[1]
+                    num_occurrences = int(row[2])
+                    token_length = int(row[3])
+                    self.positive_phrases_index_dict[phrase] = positive_index
+                    self.index_positive_phrases_dict[positive_index] = phrase
+                    prompt_info = PromptPhraseInformation(phrase,
+                                                          num_occurrences,
+                                                          token_length)
+                    self.index_positive_prompt_phrase_info[positive_index] = prompt_info
+                else:
+                    negative_index = int(row[0])
+                    phrase = row[1]
+                    num_occurrences = int(row[2])
+                    token_length = int(row[3])
+                    self.negative_phrases_index_dict[phrase] = negative_index
+                    self.index_negative_phrases_dict[negative_index] = phrase
+                    prompt_info = PromptPhraseInformation(phrase,
+                                                          num_occurrences,
+                                                          token_length)
+                    self.index_negative_prompt_phrase_info[negative_index] = prompt_info
 
             line_count += 1
 
