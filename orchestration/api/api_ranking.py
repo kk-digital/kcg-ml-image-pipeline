@@ -60,7 +60,7 @@ def add_selection_datapoint(
     request: Request, 
     selection: Selection,
     dataset: str = Query(...),  # dataset as a query parameter
-    json_file_name: str = Query(...)  # json file name to be deleted
+    json_file_path: str = Query(...)  # json file name to be deleted
 ):
     time = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     selection.datetime = time
@@ -83,7 +83,7 @@ def add_selection_datapoint(
         update_image_rank_use_count(request, img_hash)
 
     # Delete the JSON file associated with the image pair
-    json_file_path = os.path.join(dataset, "path/to/json/files", json_file_name)  # Adjust the path as needed
+    json_file_path = os.path.join("datasets", json_file_path )  # Adjust the path as needed
     cmd.remove_file(request.app.minio_client, "datasets", json_file_path)
 
     return {"message": "Selection added and JSON file deleted successfully"}

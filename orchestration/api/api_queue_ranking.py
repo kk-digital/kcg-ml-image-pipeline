@@ -234,8 +234,7 @@ def get_random_image_pair(request: Request, dataset: str = Query(...), size: int
     results = []
     for file_path in selected_files:
         # Get just the filename without the path
-        json_file_name = os.path.basename(file_path)
-
+        print(file_path)
         # Get the file content from MinIO
         data = cmd.get_file_from_minio(minio_client, bucket_name, file_path)
         if data is None:
@@ -249,7 +248,7 @@ def get_random_image_pair(request: Request, dataset: str = Query(...), size: int
             pair_data = []
             for item in json_data:
                 item_with_filename = {
-                    'json_file_name': json_file_name
+                    'json_file_path': file_path
                 }
                 item_with_filename.update(item)
                 pair_data.append(item_with_filename)
