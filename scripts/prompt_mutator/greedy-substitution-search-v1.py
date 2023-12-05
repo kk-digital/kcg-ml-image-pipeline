@@ -306,19 +306,26 @@ class PromptSubstitutionGenerator:
 
         # self training datapoints
         self_training_data=[]
+        rejection_policy_time=0
+        substitution_time=0
 
         # run mutation process for a set number of iterations
         for i in range(max_iterations):
             # get pooled embedding of the prompt
             pooled_prompt_embedding=self.get_mean_pooled_embedding(prompt_embedding)
-
+            
+            start= time.time()
             # return a list of potential substitution choices, filtered by the rejection policy
             tokens, sub_phrases, original_embeddings, sub_embeddings=rejection_func(
                                                 prompt_str,
                                                 prompt_score,
                                                 pooled_prompt_embedding, 
                                                 phrase_embeddings)
+            end= time.time()
+
+            rejection_policy_time+= start - end
             
+            start= time.time()
             # test every choice and take the first choice that increases score
             for token, sub_phrase, original_embedding, sub_embedding in zip(tokens,sub_phrases, original_embeddings, sub_embeddings):
                 #Create a modified prompt with the substitution
@@ -338,8 +345,8 @@ class PromptSubstitutionGenerator:
                     prompt_data={
                         'input': data[0],
                         'position_encoding': token,
-                        'linear_score_encoding': prompt_score,
-                        'linear_output': modified_prompt_score
+                        'score_encoding': prompt_score,
+                        'output': modified_prompt_score
                     }
                     self_training_data.append(prompt_data)
 
@@ -351,6 +358,12 @@ class PromptSubstitutionGenerator:
                     phrase_embeddings[token]= sub_embedding
                     prompt_score= modified_prompt_score
                     break
+            
+            end= time.time()
+            substitution_time+= start - end
+        
+        print(f"time for rejection policy {rejection_policy_time}")
+        print(f"time for substitutions {substitution_time}")
         
         return prompt_str, prompt_embedding, self_training_data
 
@@ -665,46 +678,62 @@ class PromptSubstitutionGenerator:
             print(f"Error: {err}")
             return None
 
-    # store self training datapoints
     def store_self_training_data(self, training_data):
-        # get minio paths for existing self training data
-        dataset_path=DATA_MINIO_DIRECTORY + f"/self_training/"
-        dataset_files=self.minio_client.list_objects('datasets', prefix=dataset_path, recursive=True)
-        dataset_files= [file.object_name for file in dataset_files]
-        index= len(dataset_files) + 1
+        batch_size = 10000
+        dataset_path = DATA_MINIO_DIRECTORY + "/self_training/"
+        dataset_files = self.minio_client.list_objects('datasets', prefix=dataset_path, recursive=True)
+        dataset_files = [file.object_name for file in dataset_files]
 
-        # store data in msgpack files
+        batch = []  # Accumulate training data points until the batch size is reached
+
+        if(len(dataset_files)==0):
+            index=1
+        else:
+            last_file_path=dataset_files[len(dataset_files)-1]
+            # Read the content of the last unfinished file
+            if last_file_path.endswith("_incomplete.msgpack"):
+                with open(last_file_path, 'rb') as file:
+                    content = file.read()
+                    batch = msgpack.unpackb(content, raw=False)
+                index = len(dataset_files)
+            else:
+                index= len(dataset_files) + 1
+
         for data in training_data:
-            self.store_in_msgpack_file(data, index)
-            index+=1
+            batch.append(data)
 
-    # store one training datapoint in a msgpack file
-    def store_in_msgpack_file(self, prompt_data, index):
-        packed_data = msgpack.packb(prompt_data, use_single_float=True)
+            if len(batch) == batch_size:
+                self.store_batch_in_msgpack_file(batch, index)
+                index += 1
+                batch = []  # Reset the batch for the next file
 
-        # Define the local directory path for embedding
+        # If there are remaining data points not reaching the batch size, store them
+        if batch:
+            self.store_batch_in_msgpack_file(batch, index, incomplete=True)
+
+    def store_batch_in_msgpack_file(self, batch, index, incomplete=False):
+        if incomplete:
+            file_path=f"{self.scoring_model}/{str(index).zfill(4)}_substitution_unfinished.msgpack"
+        else:
+            file_path=f"{self.scoring_model}/{str(index).zfill(4)}_substitution.msgpack"
+        packed_data = msgpack.packb(batch, use_single_float=True)
+
         local_directory = 'output/prompt_mutator/data/'
-
-        # Ensure the local directory exists, create it if necessary
         os.makedirs(local_directory, exist_ok=True)
 
-        # Create a local file with the packed data
-        local_file_path = local_directory + f"{str(index).zfill(6)}_substitution.msgpack"
+        local_file_path = local_directory + file_path
         with open(local_file_path, 'wb') as local_file:
             local_file.write(packed_data)
-        
-        # Read the contents of the CSV file
+
         with open(local_file_path, 'rb') as file:
             content = file.read()
 
-        # Upload the local file to MinIO
         buffer = io.BytesIO(content)
         buffer.seek(0)
 
-        minio_path=DATA_MINIO_DIRECTORY + f"/self_training/{str(index).zfill(6)}_substitution.msgpack"
-        cmd.upload_data(self.minio_client, 'datasets',minio_path, buffer)
+        minio_path = DATA_MINIO_DIRECTORY + f"/self_training/{file_path}"
+        cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
 
-        # Remove the temporary file
         os.remove(local_file_path)
 
     # store embeddings of all phrases in civitai in a file in minIO
