@@ -186,7 +186,7 @@ class PromptSubstitutionGenerator:
 
     # get the clip text embedding of a prompt or a phrase
     def get_prompt_embedding(self, prompt):
-        with torch.no_grad():
+        with torch.autocast(device_type="cuda"):
             embedding= self.embedder(prompt)
 
         embedding= embedding.unsqueeze(0)
@@ -196,7 +196,7 @@ class PromptSubstitutionGenerator:
 
     # get linear or elm score of an embedding
     def get_prompt_score(self, embedding):
-        with torch.no_grad():
+        with torch.autocast(device_type="cuda"):
             prompt_score=self.positive_scorer.predict_positive_or_negative_only(embedding)
         
         return prompt_score.item()
@@ -225,28 +225,33 @@ class PromptSubstitutionGenerator:
         tokens=[]
         sigma_scores=[]
 
-        # Create a batch of substitution inputs
+        # Create a batch of substitution inputs for every position in the prompt
         batch_substitution_inputs = []
         sampled_phrases = []
         sampled_embeddings = []
 
-        # Create a batch of substitution inputs
         batch_substitution_inputs = []
+        # create a substitution for each position in the prompt
         for token in range(token_number):
+            # get the substituted phrase
             substituted_embedding = phrase_embeddings[token]
+            # get a random phrase from civitai to substitute with
             random_index=random.randrange(0, len(self.phrase_list))
+            # get phrase string
             substitute_phrase = self.phrase_list[random_index]
+            # get phrase embedding by its index
             substitute_embedding = self.phrase_embeddings[random_index]
-
+            # concatenate input in one array to use for inference
             substitution_input = np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
+            # save data in an array to use for inference and rejection sampling
             batch_substitution_inputs.append(substitution_input)
             sampled_phrases.append(substitute_phrase)
             sampled_embeddings.append(substitute_embedding)
 
-        # Make a single inference for the entire batch
+        # Predict sigma score for every substitution
         batch_preds = self.substitution_model.predict(batch_substitution_inputs)
 
-        # Process the batch predictions
+        # Filter with rejection sampling
         for token, sigma_score in enumerate(batch_preds):
             # only take substitutions that increase score by more then a set threshold
             if sigma_score > prompt_score + self.sigma_threshold:
@@ -288,24 +293,29 @@ class PromptSubstitutionGenerator:
         sampled_phrases = []
         sampled_embeddings = []
 
-        # Create a batch of substitution inputs
         batch_substitution_inputs = []
+        # create a substitution for each position in the prompt
         for token in range(token_number):
+            # get the substituted phrase
             substituted_embedding = phrase_embeddings[token]
+            # get a random phrase from civitai to substitute with
             random_index=random.randrange(0, len(self.phrase_list))
+            # get phrase string
             substitute_phrase = self.phrase_list[random_index]
+            # get phrase embedding by its index
             substitute_embedding = self.phrase_embeddings[random_index]
-
+            # concatenate input in one array to use for inference
             substitution_input = np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
+            # save data in an array to use for inference and rejection sampling
             batch_substitution_inputs.append(substitution_input)
             sampled_phrases.append(substitute_phrase)
             sampled_embeddings.append(substitute_embedding)
         
 
-        # Make a single inference for the entire batch
+        # Predict probabilities of increase and decrease for every substitution
         batch_preds = self.substitution_model.predict_probs(batch_substitution_inputs)
 
-        # Process the batch predictions
+        # filter with rejection sampling
         for token, pred in enumerate(batch_preds):
             # only take substitutions that have more than 66% chance to increase score
             if pred["increase"] > self.probability_threshold:
