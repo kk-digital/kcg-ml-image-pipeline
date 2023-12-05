@@ -272,7 +272,7 @@ class PromptSubstitutionGenerator:
             substitute_phrase_str = str(substitute_phrase['phrase str'])
             substitute_embedding = self.phrase_embeddings[substitute_phrase['index']]
 
-            substitution_input = np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
+            substitution_input = prompt_embedding + substituted_embedding + substitute_embedding + [token] + [prompt_score]])
             batch_substitution_inputs.append(substitution_input)
             sampled_phrases.append(substitute_phrase_str)
             sampled_embeddings.append(substitute_embedding)
