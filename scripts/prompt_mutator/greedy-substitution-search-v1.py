@@ -266,7 +266,7 @@ class PromptSubstitutionGenerator:
                 original_embeddings.append(phrase_embeddings[token])
             
         # substitutions are sorted from highest sigma score to lowest
-        token_order= np.argsort(-1 * sigma_scores)
+        token_order= np.argsort(np.flip(sigma_scores))
         tokens=[tokens[token_pos] for token_pos in token_order]
         sub_phrases=[sub_phrases[token_pos] for token_pos in token_order]
         sub_embeddings=[sub_embeddings[token_pos] for token_pos in token_order]
@@ -323,14 +323,14 @@ class PromptSubstitutionGenerator:
         for token, pred in enumerate(batch_preds):
             # only take substitutions that have more than 66% chance to increase score
             if pred["increase"] > self.probability_threshold:
-                increase_probs.append(-pred["increase"])
+                increase_probs.append(pred["increase"])
                 tokens.append(token)
                 sub_phrases.append(sampled_phrases[token])
                 sub_embeddings.append(sampled_embeddings[token])
                 original_embeddings.append(phrase_embeddings[token])
 
         # substitutions are sorted from highest increase probability to lowest
-        token_order = np.argsort(increase_probs)
+        token_order = np.argsort(np.flip(increase_probs))
         tokens = [tokens[token_pos] for token_pos in token_order]
         sub_phrases = [sub_phrases[token_pos] for token_pos in token_order]
         sub_embeddings = [sub_embeddings[token_pos] for token_pos in token_order]
