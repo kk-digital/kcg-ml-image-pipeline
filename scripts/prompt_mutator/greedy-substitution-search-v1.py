@@ -231,7 +231,7 @@ class PromptSubstitutionGenerator:
             sampled_embeddings.append(substitute_embedding)
 
         # Make a single inference for the entire batch
-        batch_preds = self.substitution_model.predict_probs(batch_substitution_inputs)
+        batch_preds = self.substitution_model.predict(batch_substitution_inputs)
 
         # Process the batch predictions
         for token, sigma_score in enumerate(batch_preds):
