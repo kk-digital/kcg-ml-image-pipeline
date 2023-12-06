@@ -410,7 +410,7 @@ def load_dataset(minio_client, embedding_type, output_type, scoring_model, opera
         if operation=="substitution":
             input=np.concatenate([msgpack_data['input'],
                                             [msgpack_data['position_encoding']],
-                                        [msgpack_data['elm_score_encoding']]])
+                                        [msgpack_data[f'{scoring_model}_score_encoding']]])
         elif operation=="permutation":
             input=np.concatenate([msgpack_data['input'],
                                             [msgpack_data['first_position']],
