@@ -33,6 +33,7 @@ def parse_args():
     parser.add_argument('--create-dataset', help='whether to create a new dataset or load existing one', default=False)
     parser.add_argument('--operation', help='operation to train mutator on (substitution, permutation..)', default="substitution")
     parser.add_argument('--output-type', help='type of output for the prompt mutator model', default="sigma_score")
+    parser.add_argument('--scoring-model', help="scoring model to do self training on (elm,linear etc..)", default="linear")
     args = parser.parse_args()
     return args
 
@@ -268,76 +269,6 @@ def create_permutation_dataset(minio_client, device, embedding_type):
 
     store_in_csv_file(csv_data, minio_client, embedding_type, "permutation")  
 
-def load_permutation_dataset(minio_client, embedding_type):
-    dataset_path=DATA_MINIO_DIRECTORY + f"permutation/{embedding_type}_prompts/"
-    dataset_files=minio_client.list_objects('datasets', prefix=dataset_path, recursive=True)
-    dataset_files= [file.object_name for file in dataset_files]
-    print(len(dataset_files))
-
-    self_training_data= get_self_training_paths(minio_client, 'permutation')
-    print(len(self_training_data))
-
-    dataset_files= dataset_files + self_training_data
-    
-    elm_inputs=[]
-    linear_inputs=[]
-    
-    elm_sigma_outputs=[]
-    elm_binary_outputs=[]
-
-    linear_sigma_outputs=[]
-    linear_binary_outputs=[]
-
-    for file in dataset_files:
-        print(file)
-        # get prompt embedding
-        data = minio_client.get_object('datasets', file)
-        # Read the content of the msgpack file
-        content = data.read()
-
-        # Deserialize the content using msgpack
-        msgpack_data = msgpack.loads(content)
-
-        if(msgpack_data["elm_output"]!=""):
-            # get elm input
-            elm_inputs.append(np.concatenate([msgpack_data['input'],
-                                            [msgpack_data['first_position']],
-                                            [msgpack_data['second_position']],
-                                        [msgpack_data['elm_score_encoding']]]))
-            
-            # get sigma output
-            elm_sigma_outputs.append(msgpack_data['elm_output'])
-
-            # get binary input
-            if msgpack_data['elm_score_encoding']> msgpack_data['elm_output'] :
-                binary_elm_output="decrease"
-            else:
-                binary_elm_output="increase"
-
-            elm_binary_outputs.append(binary_elm_output)
-
-        if(msgpack_data["linear_output"]!=""):
-            # get linear input
-            linear_inputs.append(np.concatenate([msgpack_data['input'],
-                                                [msgpack_data['first_position']],
-                                                [msgpack_data['second_position']],
-                                        [msgpack_data['linear_score_encoding']]]))
-            
-            # get sigma output
-            delta_score= msgpack_data['linear_output'] - msgpack_data['linear_score_encoding']
-            linear_sigma_outputs.append(delta_score)
-
-            # get binary input
-            if msgpack_data['linear_score_encoding']> msgpack_data['linear_output'] :
-                binary_linear_output="decrease"
-            else:
-                binary_linear_output="increase"
-
-            linear_binary_outputs.append(binary_linear_output)
-        
-
-    return elm_inputs, linear_inputs, elm_sigma_outputs, elm_binary_outputs, linear_sigma_outputs, linear_binary_outputs   
-
 def create_substitution_dataset(minio_client, device, csv_path, embedding_type):
     # Load the CLIP model
     clip=CLIPTextEmbedder(device=device)
@@ -455,27 +386,15 @@ def create_substitution_dataset(minio_client, device, csv_path, embedding_type):
         store_in_msgpack_file(prompt_data, prompt_index, minio_client, embedding_type, "substitution")
         prompt_index+=1
 
-    store_in_csv_file(csv_data, minio_client, embedding_type, "substitution")
+    store_in_csv_file(csv_data, minio_client, embedding_type, "substitution")  
 
-def load_substitution_dataset(minio_client, embedding_type):
-    dataset_path=DATA_MINIO_DIRECTORY + f"substitution/{embedding_type}_prompts/"
+def load_dataset(minio_client, embedding_type, output_type, scoring_model, operation):
+    dataset_path=DATA_MINIO_DIRECTORY + f"{operation}/{embedding_type}_prompts/"
     dataset_files=minio_client.list_objects('datasets', prefix=dataset_path, recursive=True)
     dataset_files= [file.object_name for file in dataset_files]
-    print(len(dataset_files))
-
-    self_training_data= get_self_training_paths(minio_client, "substitution")
-    print(len(self_training_data))
-
-    dataset_files= dataset_files + self_training_data
     
-    elm_inputs=[]
-    linear_inputs=[]
-    
-    elm_sigma_outputs=[]
-    elm_binary_outputs=[]
-
-    linear_sigma_outputs=[]
-    linear_binary_outputs=[]
+    inputs=[]
+    outputs=[]
 
     for file in dataset_files:
         print(file)
@@ -487,42 +406,30 @@ def load_substitution_dataset(minio_client, embedding_type):
         # Deserialize the content using msgpack
         msgpack_data = msgpack.loads(content)
 
-        if(msgpack_data["elm_output"]!=""):
-            # get elm input
-            elm_inputs.append(np.concatenate([msgpack_data['input'],
-                                            [msgpack_data['position_encoding']],
-                                        [msgpack_data['elm_score_encoding']]]))
-            
-            # get sigma output
-            elm_sigma_outputs.append(msgpack_data['elm_output'])
-
-            # get binary input
-            if msgpack_data['elm_score_encoding']> msgpack_data['elm_output'] :
-                binary_elm_output="decrease"
-            else:
-                binary_elm_output="increase"
-
-            elm_binary_outputs.append(binary_elm_output)
-
-        if(msgpack_data["linear_output"]!=""):
-            # get linear input
-            linear_inputs.append(np.concatenate([msgpack_data['input'],
-                                                [msgpack_data['position_encoding']],
-                                        [msgpack_data['linear_score_encoding']]]))
-            
-            # get sigma output
-            linear_sigma_outputs.append(msgpack_data['linear_output'])
-
+        # get linear input
+        inputs.append(np.concatenate([msgpack_data['input'],
+                                            [msgpack_data['first_position']],
+                                            [msgpack_data['second_position']],
+                                    [msgpack_data[f'{scoring_model}_score_encoding']]]))
+        
+        if(output_type=="bianry"):
             # get binary input
             if msgpack_data['linear_score_encoding']> msgpack_data['linear_output'] :
                 binary_linear_output="decrease"
             else:
                 binary_linear_output="increase"
 
-            linear_binary_outputs.append(binary_linear_output)
+            outputs.append(binary_linear_output)
         
-
-    return elm_inputs, linear_inputs, elm_sigma_outputs, elm_binary_outputs, linear_sigma_outputs, linear_binary_outputs     
+        elif(output_type=="sigma_score"):
+            sigma_score=msgpack_data['linear_output']
+            outputs.append(sigma_score)
+        elif(output_type=="delta_score"):
+            # get sigma output
+            delta_score= msgpack_data['linear_output'] - msgpack_data['linear_score_encoding']
+            outputs.append(delta_score)
+        
+    return inputs, outputs 
 
 def main():
     args = parse_args()
@@ -546,28 +453,20 @@ def main():
         elif args.operation=="permutation":
             create_permutation_dataset(minio_client, device, args.embedding_type)
 
-    if args.operation=="substitution":
-        elm_inputs, linear_inputs, elm_sigma_outputs, elm_binary_outputs, linear_sigma_outputs, linear_binary_outputs =load_substitution_dataset(minio_client, args.embedding_type)
-    elif args.operation=="permutation":
-        elm_inputs, linear_inputs, elm_sigma_outputs, elm_binary_outputs, linear_sigma_outputs, linear_binary_outputs =load_permutation_dataset(minio_client, args.embedding_type)
+    inputs, outputs= load_dataset(minio_client=minio_client, 
+                                  embedding_type=args.embedding_type, 
+                                  output_type=args.output_type,
+                                  scoring_model=args.scoring_model,
+                                  operation=args.operation)
 
-    # prompt mutator for predicting binary classes (increase, decrease) wth elm scores and linear scores
-    elm_binary_mutator= BinaryPromptMutator(minio_client=minio_client, operation=args.operation)
-    elm_binary_mutator.train(elm_inputs, elm_binary_outputs)
-    elm_binary_mutator.save_model()
-    
-    linear_binary_mutator= BinaryPromptMutator(minio_client=minio_client, ranking_model="linear", operation=args.operation)
-    linear_binary_mutator.train(linear_inputs, linear_binary_outputs)
-    linear_binary_mutator.save_model()
+    # load the xgboost model depending on what rejection policy is being used
+    if(args.output_type=="binary"):
+        model= BinaryPromptMutator(minio_client=minio_client, ranking_model=args.scoring_model, operation=args.operation, prompt_type=args.embedding_type)
+    else:
+        model= PromptMutator(minio_client=minio_client, output_type=args.output_type, ranking_model=args.scoring_model, operation=args.operation, prompt_type=args.embedding_type)
 
-    #prompt mutator for predicting sigma scores for elm and linear scores
-    elm_sigma_mutator= PromptMutator(minio_client=minio_client, operation=args.operation, output_type=args.output_type)
-    elm_sigma_mutator.train(elm_inputs, elm_sigma_outputs)
-    elm_sigma_mutator.save_model()
-    
-    linear_sigma_mutator= PromptMutator(minio_client=minio_client, ranking_model="linear", operation=args.operation,  output_type=args.output_type)
-    linear_sigma_mutator.train(linear_inputs, linear_sigma_outputs)
-    linear_sigma_mutator.save_model()
+    model.train(inputs, outputs)
+    model.save_model()
 
 if __name__ == "__main__":
     main()
