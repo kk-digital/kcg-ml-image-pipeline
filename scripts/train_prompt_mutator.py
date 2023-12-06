@@ -419,7 +419,7 @@ def load_dataset(minio_client, embedding_type, output_type, scoring_model, opera
             
         inputs.append(input)
         
-        if(output_type=="bianry"):
+        if(output_type=="binary"):
             # get binary output
             if msgpack_data[f'{scoring_model}_score_encoding']> msgpack_data[f'{scoring_model}_output'] :
                 binary_linear_output="decrease"
