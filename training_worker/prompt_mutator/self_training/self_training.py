@@ -179,17 +179,20 @@ class SelfTrainingPromptMutator:
         # Clear the current figure
         plt.clf()
     
-    def main():
-        args = parse_args()
+def main():
+    args = parse_args()
 
-        model_trainer=SelfTrainingPromptMutator(minio_access_key=args.minio_access_key,
-                                  minio_secret_key=args.minio_secret_key,
-                                  minio_ip_addr=args.minio_addr,
-                                  scoring_model=args.scoring_model,
-                                  operation=args.operation,
-                                  embedding_type=args.embedding_type,
-                                  output_type=args.output_type,
-                                  scaling_graph=args.scaling_graph)
-        
-        # do self training
-        model_trainer.self_training()
+    model_trainer=SelfTrainingPromptMutator(minio_access_key=args.minio_access_key,
+                                minio_secret_key=args.minio_secret_key,
+                                minio_ip_addr=args.minio_addr,
+                                scoring_model=args.scoring_model,
+                                operation=args.operation,
+                                embedding_type=args.embedding_type,
+                                output_type=args.output_type,
+                                scaling_graph=args.scaling_graph)
+    
+    # do self training
+    model_trainer.self_training()
+
+if __name__ == "__main__":
+    main()
