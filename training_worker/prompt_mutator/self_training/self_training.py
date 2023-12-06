@@ -124,7 +124,7 @@ class SelfTrainingPromptMutator:
             print(file)
             # save loss to track performance by data
             if(self.scaling_graph):
-                loss_by_data.append(self.model.train(input=inputs, output= outputs))
+                loss_by_data.append(self.model.train(inputs, outputs))
 
             # get prompt embedding
             data = self.minio_client.get_object('datasets', file)
