@@ -406,14 +406,21 @@ def load_dataset(minio_client, embedding_type, output_type, scoring_model, opera
         # Deserialize the content using msgpack
         msgpack_data = msgpack.loads(content)
 
-        # get linear input
-        inputs.append(np.concatenate([msgpack_data['input'],
+        # get input
+        if operation=="substitution":
+            input=np.concatenate([msgpack_data['input'],
+                                            [msgpack_data['position_encoding']],
+                                        [msgpack_data['elm_score_encoding']]])
+        elif operation=="permutation":
+            input=np.concatenate([msgpack_data['input'],
                                             [msgpack_data['first_position']],
                                             [msgpack_data['second_position']],
-                                    [msgpack_data[f'{scoring_model}_score_encoding']]]))
+                                    [msgpack_data[f'{scoring_model}_score_encoding']]])
+            
+        inputs.append(input)
         
         if(output_type=="bianry"):
-            # get binary input
+            # get binary output
             if msgpack_data['linear_score_encoding']> msgpack_data['linear_output'] :
                 binary_linear_output="decrease"
             else:
@@ -425,7 +432,7 @@ def load_dataset(minio_client, embedding_type, output_type, scoring_model, opera
             sigma_score=msgpack_data['linear_output']
             outputs.append(sigma_score)
         elif(output_type=="delta_score"):
-            # get sigma output
+            # get delta output
             delta_score= msgpack_data['linear_output'] - msgpack_data['linear_score_encoding']
             outputs.append(delta_score)
         
