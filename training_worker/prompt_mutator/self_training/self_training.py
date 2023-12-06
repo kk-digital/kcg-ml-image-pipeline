@@ -148,7 +148,7 @@ class SelfTrainingPromptMutator:
             loss_by_data.append(loss)
             self.scaling_graph(loss_by_data=loss_by_data, num_datapoints=len(self_training_files))
     
-    def load_self_training_data(data):
+    def load_self_training_data(self, data):
         inputs=[]
         outputs=[]
         for d in data:
