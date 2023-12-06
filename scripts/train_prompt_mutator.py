@@ -421,7 +421,7 @@ def load_dataset(minio_client, embedding_type, output_type, scoring_model, opera
         
         if(output_type=="bianry"):
             # get binary output
-            if msgpack_data['linear_score_encoding']> msgpack_data['linear_output'] :
+            if msgpack_data[f'{scoring_model}_score_encoding']> msgpack_data[f'{scoring_model}_output'] :
                 binary_linear_output="decrease"
             else:
                 binary_linear_output="increase"
@@ -429,11 +429,11 @@ def load_dataset(minio_client, embedding_type, output_type, scoring_model, opera
             outputs.append(binary_linear_output)
         
         elif(output_type=="sigma_score"):
-            sigma_score=msgpack_data['linear_output']
+            sigma_score=msgpack_data[f'{scoring_model}_output']
             outputs.append(sigma_score)
         elif(output_type=="delta_score"):
             # get delta output
-            delta_score= msgpack_data['linear_output'] - msgpack_data['linear_score_encoding']
+            delta_score= msgpack_data[f'{scoring_model}_output'] - msgpack_data[f'{scoring_model}_score_encoding']
             outputs.append(delta_score)
         
     return inputs, outputs 
