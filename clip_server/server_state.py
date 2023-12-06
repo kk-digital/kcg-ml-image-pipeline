@@ -2,6 +2,7 @@ import sys
 import msgpack
 import torch
 from io import BytesIO
+import math
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -60,6 +61,9 @@ class ClipServer:
             return self.clip_vector_dictionary[phrase]
 
         return None
+
+    def get_image_clip_vector(self, image_path):
+        return self.clip_cache.get_clip_vector(image_path)
 
     def get_phrase_list(self, offset, limit):
         result = []
@@ -120,10 +124,8 @@ class ClipServer:
         return None
 
 
-    def compute_cosine_match_value(self, phrase, image_path, bucket_name):
+    def compute_cosine_match_value(self, phrase, image_path):
         print('computing cosine match value for ', phrase, ' and ', image_path)
-
-        clip_cache = self.clip_cache
 
         phrase_cip_vector_struct = self.get_clip_vector(phrase)
         # the score is zero if we cant find the phrase clip vector
@@ -133,7 +135,87 @@ class ClipServer:
 
         phrase_clip_vector_numpy = phrase_cip_vector_struct.clip_vector
 
-        image_clip_vector_numpy = self.get_image_clip_from_minio(image_path, bucket_name)
+        image_clip_vector_numpy = self.get_image_clip_vector(image_path)
+
+        # the score is zero if we cant find the image clip vector
+        if image_clip_vector_numpy is None:
+            print(f'image clip {image_path} not found')
+            return 0
+
+        # convert numpy array to tensors
+        phrase_clip_vector = torch.tensor(phrase_clip_vector_numpy, dtype=torch.float32, device=self.device)
+        image_clip_vector = torch.tensor(image_clip_vector_numpy, dtype=torch.float32, device=self.device)
+
+        # removing the extra dimension
+        # from shape (1, 768) => (768)
+        phrase_clip_vector = phrase_clip_vector.squeeze(0)
+        image_clip_vector = image_clip_vector.squeeze(0)
+
+        # Normalizing the tensor
+        normalized_phrase_clip_vector = torch.nn.functional.normalize(phrase_clip_vector.unsqueeze(0), p=2, dim=1)
+        normalized_image_clip_vector = torch.nn.functional.normalize(image_clip_vector.unsqueeze(0), p=2, dim=1)
+
+        # removing the extra dimension
+        # from shape (1, 768) => (768)
+        normalized_phrase_clip_vector = normalized_phrase_clip_vector.squeeze(0)
+        normalized_image_clip_vector = normalized_image_clip_vector.squeeze(0)
+
+        # cosine similarity
+        similarity = torch.dot(normalized_phrase_clip_vector, normalized_image_clip_vector)
+
+        # cleanup
+        del phrase_clip_vector
+        del image_clip_vector
+        del normalized_phrase_clip_vector
+        del normalized_image_clip_vector
+
+        return similarity.item()
+
+
+    def compute_cosine_match_value_list(self, phrase, image_path_list, batch_size):
+        phrase_cip_vector_struct = self.get_clip_vector(phrase)
+        # the score is zero if we cant find the phrase clip vector
+        if phrase_cip_vector_struct is None:
+            print(f'phrase {phrase} not found ')
+            return 0
+
+        phrase_clip_vector_numpy = phrase_cip_vector_struct.clip_vector
+
+        # convert numpy array to tensors
+        phrase_clip_vector = torch.tensor(phrase_clip_vector_numpy, dtype=torch.float32, device=self.device)
+
+        num_images = len(image_path_list)
+
+        # the number of batches
+        num_batches = math.ceil(num_images / batch_size)
+
+        # for each batch do
+        for batch_index in range(0, num_batches):
+            first_image_index = batch_index * batch_size
+            images_remaining = num_images - first_image_index
+            this_batch_size = min(batch_size, images_remaining)
+
+            # first, collect the list of image clip vectors
+            # for the purpose of processing them in batches
+            image_clip_vector_list_numpy = []
+            for i in range(0, this_batch_size):
+                image_index = first_image_index + i
+                image_path = image_path_list[image_index]
+                image_clip_vector = self.get_image_clip_vector(image_path)
+                # if the clip_vector was not found
+                # or couldn't load for some network reason
+                # we must provide an empty vector as replacement
+                if image_clip_vector is None:
+                    # this syntax is weird but its just list full of zeros
+                    image_clip_vector = [0] * 768
+
+                image_clip_vector_list_numpy.append(image_clip_vector)
+
+            # now that we have the clip vectors we need to construct our tensors
+            image_clip_vector = torch.tensor(image_clip_vector_list_numpy, dtype=torch.float32, device=self.device)
+
+        image_clip_vector_list_numpy = []
+        image_clip_vector_list_numpy = self.get_image_clip_vector(image_path)
 
         # the score is zero if we cant find the image clip vector
         if image_clip_vector_numpy is None:

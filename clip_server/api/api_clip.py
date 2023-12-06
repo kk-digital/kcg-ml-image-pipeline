@@ -39,7 +39,7 @@ def clip_vector_from_image_path(request: Request,
              phrase : str):
     clip_server = request.app.clip_server
 
-    similarity = clip_server.compute_cosine_match_value(phrase, image_path, 'datasets')
+    similarity = clip_server.compute_cosine_match_value(phrase, image_path)
 
     return similarity
 
@@ -49,7 +49,7 @@ def clip_vector_from_image_path(request: Request,
              phrase : str):
     clip_server = request.app.clip_server
 
-    similarity = clip_server.compute_cosine_match_value_list(phrase, image_path, 'datasets')
+    similarity = clip_server.compute_cosine_match_value_list(phrase, image_path)
 
     return similarity
 
