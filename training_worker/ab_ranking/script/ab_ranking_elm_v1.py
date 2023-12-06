@@ -175,7 +175,7 @@ def train_ranking(dataset_name: str,
                                         elm_sparsity=elm_sparsity)
 
     # Upload model to minio
-    model_name = "{}.pth".format(filename)
+    model_name = "{}.msgpack".format(filename)
     model_output_path = os.path.join(output_path, model_name)
     ab_model.save(dataset_loader.minio_client, bucket_name, model_output_path)
 

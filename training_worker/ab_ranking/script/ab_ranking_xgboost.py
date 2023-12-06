@@ -162,7 +162,7 @@ def train_xgboost(dataset_name: str,
         validation_shuffled_indices_origin.append(index)
 
     # Upload model to minio
-    model_name = "{}.pth".format(filename)
+    model_name = "{}.json".format(filename)
     model_output_path = os.path.join(output_path, model_name)
     xgboost_model_buf = xgboost_model.save_raw(raw_format='json')
     buffer = BytesIO(xgboost_model_buf)
