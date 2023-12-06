@@ -25,7 +25,7 @@ def parse_args():
     parser.add_argument('--operation', help="operation to do self training for (substitution, permutation etc...)", default="substitution")
     parser.add_argument('--embedding-type', help='type of embedding, positive or negative', default='positive')
     parser.add_argument('--output-type', help='type of output for the prompt mutator model', default="sigma_score")
-    parser.add_argument('--scaling-law', action='store_true', default=False)
+    parser.add_argument('--scaling-graph', action='store_true', default=False)
     args = parser.parse_args()
     return args
 
