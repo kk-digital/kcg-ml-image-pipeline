@@ -8,6 +8,7 @@ import copy
 from datetime import datetime
 import math
 import threading
+import msgpack
 from io import BytesIO
 from tqdm import tqdm
 base_directory = os.getcwd()
@@ -131,7 +132,8 @@ class ABRankingModel:
 
         # Saving the model to minio
         buffer = BytesIO()
-        torch.save(model_dict, buffer)
+        msgpack_serialized = msgpack.packb(model_dict, use_single_float=True)
+        buffer.write(msgpack_serialized)
         buffer.seek(0)
         
         # upload the model

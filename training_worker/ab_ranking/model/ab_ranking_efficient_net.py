@@ -10,6 +10,7 @@ import math
 from tqdm import tqdm
 from datetime import datetime
 import threading
+import msgpack
 
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
@@ -74,8 +75,10 @@ class ABRankingEfficientNetModel:
 
         # Saving the model to minio
         buffer = BytesIO()
-        torch.save(model, buffer)
+        msgpack_serialized = msgpack.packb(model, use_single_float=True)
+        buffer.write(msgpack_serialized)
         buffer.seek(0)
+
         # upload the model
         cmd.upload_data(minio_client, datasets_bucket, model_output_path, buffer)
 

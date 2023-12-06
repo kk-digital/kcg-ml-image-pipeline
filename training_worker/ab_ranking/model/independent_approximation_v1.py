@@ -13,6 +13,7 @@ from tqdm import tqdm
 import csv
 from datetime import datetime
 from pytz import timezone
+import msgpack
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
@@ -158,7 +159,8 @@ class ABRankingIndependentApproximationV1Model:
 
         # Saving the model to minio
         buffer = BytesIO()
-        torch.save(model_dict, buffer)
+        msgpack_serialized = msgpack.packb(model_dict, use_single_float=True)
+        buffer.write(msgpack_serialized)
         buffer.seek(0)
 
         # upload the model
