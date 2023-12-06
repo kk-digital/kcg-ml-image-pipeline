@@ -8,7 +8,7 @@ import copy
 from datetime import datetime
 import math
 import threading
-import msgpack
+from safetensors.torch import save as safetensors_save
 from io import BytesIO
 from tqdm import tqdm
 from random import sample
@@ -171,8 +171,8 @@ class ABRankingELMModel:
 
         # Saving the model to minio
         buffer = BytesIO()
-        msgpack_serialized = msgpack.packb(model_dict, use_single_float=True)
-        buffer.write(msgpack_serialized)
+        safetensors_buffer = safetensors_save(model_dict)
+        buffer.write(safetensors_buffer)
         buffer.seek(0)
         
         # upload the model

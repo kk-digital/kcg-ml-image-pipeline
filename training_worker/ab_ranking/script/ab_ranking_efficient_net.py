@@ -79,7 +79,7 @@ def train_ranking(dataset_name: str,
                                                    debug_asserts=debug_asserts)
 
     # Upload model to minio
-    model_name = "{}.msgpack".format(date_now)
+    model_name = "{}.safetensors".format(date_now)
     model_output_path = os.path.join(output_path, model_name)
     ab_model.save(dataset_loader.minio_client, bucket_name, model_output_path)
 
