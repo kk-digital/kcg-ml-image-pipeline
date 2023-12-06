@@ -60,9 +60,15 @@ def train_ranking(dataset_name: str,
     output_path = "{}/models/ranking".format(dataset_name)
 
     if input_type == "positive":
-        input_shape = len(phrase_loader.positive_phrases_index_dict)
+        input_shape = len(phrase_loader.index_positive_phrases_dict)
+        if phrase_loader.index_positive_phrases_dict.get(-1) is not None:
+            input_shape -=1
+            print("exists")
+            print("val=", phrase_loader.index_positive_phrases_dict.get(-1))
     else:
-        input_shape = len(phrase_loader.negative_phrases_index_dict)
+        input_shape = len(phrase_loader.index_negative_phrases_dict)
+        if phrase_loader.index_negative_phrases_dict.get(-1) is not None:
+            input_shape -=1
 
     print("input shape=", input_shape)
     # load dataset
@@ -90,8 +96,12 @@ def train_ranking(dataset_name: str,
     training_total_size = dataset_loader.get_len_training_ab_data()
     validation_total_size = dataset_loader.get_len_validation_ab_data()
 
+    # get token length vector
+    token_length_vector = phrase_loader.get_token_length_vector(input_type)
+    token_length_vector = torch.tensor(token_length_vector)
     ab_model = ABRankingIndependentApproximationV1Model(inputs_shape=input_shape,
                                                         dataset_loader=dataset_loader,
+                                                        token_length_vector=token_length_vector,
                                                         input_type=input_type)
     training_predicted_score_images_x, \
         training_predicted_score_images_y, \
