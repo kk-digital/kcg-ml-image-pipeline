@@ -104,7 +104,6 @@ class PromptMutator:
     
     def save_model_report(self,num_training,
                               num_validation,
-                              data_loading_time,
                               training_time, 
                               train_loss, 
                               val_loss, 
