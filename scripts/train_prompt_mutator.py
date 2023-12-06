@@ -32,6 +32,7 @@ def parse_args():
     parser.add_argument('--embedding-type', help='type of embedding, positive or negative', default='positive')
     parser.add_argument('--create-dataset', help='whether to create a new dataset or load existing one', default=False)
     parser.add_argument('--operation', help='operation to train mutator on (substitution, permutation..)', default="substitution")
+    parser.add_argument('--output_type', help='type of output for the prompt mutator model', default="sigma_score")
     args = parser.parse_args()
     return args
 
@@ -560,11 +561,11 @@ def main():
     linear_binary_mutator.save_model()
 
     #prompt mutator for predicting sigma scores for elm and linear scores
-    elm_sigma_mutator= PromptMutator(minio_client=minio_client, operation=args.operation)
+    elm_sigma_mutator= PromptMutator(minio_client=minio_client, operation=args.operation, output_type=args.output_type)
     elm_sigma_mutator.train(elm_inputs, elm_sigma_outputs)
     elm_sigma_mutator.save_model()
     
-    linear_sigma_mutator= PromptMutator(minio_client=minio_client, ranking_model="linear", operation=args.operation)
+    linear_sigma_mutator= PromptMutator(minio_client=minio_client, ranking_model="linear", operation=args.operation,  output_type=args.output_type)
     linear_sigma_mutator.train(linear_inputs, linear_sigma_outputs)
     linear_sigma_mutator.save_model()
 
