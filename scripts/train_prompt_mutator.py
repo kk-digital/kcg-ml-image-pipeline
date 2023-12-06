@@ -323,7 +323,8 @@ def load_permutation_dataset(minio_client, embedding_type):
                                         [msgpack_data['linear_score_encoding']]]))
             
             # get sigma output
-            linear_sigma_outputs.append(msgpack_data['linear_output'])
+            delta_score= msgpack_data['linear_output'] - msgpack_data['linear_score_encoding']
+            linear_sigma_outputs.append(delta_score)
 
             # get binary input
             if msgpack_data['linear_score_encoding']> msgpack_data['linear_output'] :
