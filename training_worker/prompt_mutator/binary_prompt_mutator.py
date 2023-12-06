@@ -100,6 +100,8 @@ class BinaryPromptMutator:
                               val_loss=val_logloss, 
                               inference_speed= inference_speed,
                               model_params=params)
+        
+        return val_logloss[-1]
     
     def save_model_report(self,num_training,
                               num_validation,

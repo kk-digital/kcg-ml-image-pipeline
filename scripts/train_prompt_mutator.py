@@ -429,6 +429,7 @@ def load_dataset(minio_client, embedding_type, output_type, scoring_model, opera
             outputs.append(binary_linear_output)
         
         elif(output_type=="sigma_score"):
+            # get sigma output
             sigma_score=msgpack_data[f'{scoring_model}_output']
             outputs.append(sigma_score)
         elif(output_type=="delta_score"):
@@ -466,7 +467,6 @@ def main():
                                   scoring_model=args.scoring_model,
                                   operation=args.operation)
 
-    # load the xgboost model depending on what rejection policy is being used
     if(args.output_type=="binary"):
         model= BinaryPromptMutator(minio_client=minio_client, ranking_model=args.scoring_model, operation=args.operation, prompt_type=args.embedding_type)
     else:

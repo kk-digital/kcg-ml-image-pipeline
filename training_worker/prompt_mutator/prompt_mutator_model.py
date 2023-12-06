@@ -101,6 +101,8 @@ class PromptMutator:
                               val_loss=val_mae, 
                               inference_speed= inference_speed,
                               model_params=params)
+        
+        return val_mae[-1]
     
     def save_model_report(self,num_training,
                               num_validation,
