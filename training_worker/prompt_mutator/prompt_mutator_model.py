@@ -115,8 +115,8 @@ class PromptMutator:
             f"Number of validation datapoints: {num_validation} \n"
             f"Total training Time: {training_time:.2f} seconds\n"
             "Loss Function: L1 \n"
-            f"Training Loss: {train_loss} \n"
-            f"Validation Loss: {val_loss} \n"
+            f"Training Loss: {train_loss[-1]} \n"
+            f"Validation Loss: {val_loss[-1]} \n"
             f"Inference Speed: {inference_speed:.2f} predictions per second\n\n"
             "================ Parameters ==================\n"
         )

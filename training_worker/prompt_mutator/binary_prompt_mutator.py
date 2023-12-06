@@ -114,8 +114,8 @@ class BinaryPromptMutator:
             f"Number of validation datapoints: {num_validation} \n"
             f"Total training Time: {training_time:.2f} seconds\n"
             "Loss Function: Log Loss \n"
-            f"Training Loss: {train_loss} \n"
-            f"Validation Loss: {val_loss} \n"
+            f"Training Loss: {train_loss[-1]} \n"
+            f"Validation Loss: {val_loss[-1]} \n"
             f"Inference Speed: {inference_speed:.2f} predictions per second\n\n"
             "================ Parameters ==================\n"
         )
