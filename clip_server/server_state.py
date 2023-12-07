@@ -203,7 +203,8 @@ class ClipServer:
             # we must provide an empty vector as replacement
             if image_clip_vector is None:
                 # this syntax is weird but its just list full of zeros
-                image_clip_vector = [0] * 768
+                cosine_match_list[image_index] = 0
+                continue
 
             # now that we have the clip vectors we need to construct our tensors
             image_clip_vector = torch.tensor(image_clip_vector, dtype=torch.float32, device=self.device)

@@ -53,7 +53,6 @@ def clip_vector_from_image_path(request: Request,
 
     similarity_list = clip_server.compute_cosine_match_value_list(phrase, image_path)
 
-    print(f'\n\n\nsimilarity list {similarity_list}')
     return {
         "similarity_list" : similarity_list
     }
