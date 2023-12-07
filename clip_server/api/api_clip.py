@@ -51,9 +51,12 @@ def clip_vector_from_image_path(request: Request,
                                 phrase : str):
     clip_server = request.app.clip_server
 
-    similarity = clip_server.compute_cosine_match_value_list(phrase, image_path)
+    similarity_list = clip_server.compute_cosine_match_value_list(phrase, image_path)
 
-    return similarity
+    print(f'\n\n\nsimilarity list {similarity_list}')
+    return {
+        "similarity_list", similarity_list
+    }
 
 @router.get("/image-clip")
 def clip_vector_from_image_path(request: Request,

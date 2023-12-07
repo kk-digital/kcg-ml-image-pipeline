@@ -175,7 +175,7 @@ class ClipServer:
     def compute_cosine_match_value_list(self, phrase, image_path_list):
         num_images = len(image_path_list)
 
-        cosine_match_list = np.zeros(num_images)
+        cosine_match_list = [0] * num_images
 
         phrase_cip_vector_struct = self.get_clip_vector(phrase)
         # the score is zero if we cant find the phrase clip vector
@@ -190,6 +190,10 @@ class ClipServer:
         # Normalizing the tensor
         normalized_phrase_clip_vector = torch.nn.functional.normalize(phrase_clip_vector, p=2, dim=1)
 
+        # removing the extra dimension
+        # from shape (1, 768) => (768)
+        normalized_phrase_clip_vector = normalized_phrase_clip_vector.squeeze(0)
+
         # for each batch do
         for image_index in range(0, num_images):
             image_path = image_path_list[image_index]
@@ -201,16 +205,20 @@ class ClipServer:
                 # this syntax is weird but its just list full of zeros
                 image_clip_vector = [0] * 768
 
+            print(image_clip_vector)
             # now that we have the clip vectors we need to construct our tensors
             image_clip_vector = torch.tensor(image_clip_vector, dtype=torch.float32, device=self.device)
             normalized_image_clip_vector = torch.nn.functional.normalize(image_clip_vector, p=2, dim=1)
-
+            # removing the extra dimension
+            # from shape (1, 768) => (768)
+            normalized_image_clip_vector = normalized_image_clip_vector.squeeze(0)
 
             # cosine similarity
             similarity = torch.dot(normalized_phrase_clip_vector, normalized_image_clip_vector)
             similarity_value = similarity.item()
             cosine_match_list[image_index] = similarity_value
 
+            print(f'\n\nsimilarity {similarity_value}\n\n')
             # cleanup
             del image_clip_vector
             del normalized_image_clip_vector
@@ -218,11 +226,13 @@ class ClipServer:
             # After your GPU-related operations, clean up the GPU memory
             torch.cuda.empty_cache()
 
+        print('end \n\n\n')
         del phrase_clip_vector
         del normalized_phrase_clip_vector
         # After your GPU-related operations, clean up the GPU memory
         torch.cuda.empty_cache()
 
+        print(cosine_match_list)
         return cosine_match_list
 
 

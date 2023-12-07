@@ -94,6 +94,8 @@ class ClipCache:
         # the image clip vector was loaded correctly
         self.cache_clip_vector(image_path, image_clip_vector_numpy)
 
+        return image_clip_vector_numpy
+
     def create_cache_directory_if_not_exists(self):
         clip_cache_directory = self.clip_cache_directory
 
