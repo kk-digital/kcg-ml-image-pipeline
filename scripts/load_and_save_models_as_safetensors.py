@@ -38,11 +38,11 @@ def process_linear(minio_client, paths):
         for data in model_file_data.stream(amt=8192):
             byte_buffer.write(data)
         byte_buffer.seek(0)
-        linear_model.load(byte_buffer)
+        linear_model.load_pth(byte_buffer)
 
         # save as msgpack
         # new save fn are saving as msgpack
-        linear_model.save(minio_client, 'datasets', path)
+        linear_model.save(minio_client, 'datasets', path.replace(".pth", ".safetensors"))
 
 def process_elm_v1(minio_client, paths):
     print("Processing elm v1 models...")
@@ -62,11 +62,11 @@ def process_elm_v1(minio_client, paths):
         for data in model_file_data.stream(amt=8192):
             byte_buffer.write(data)
         byte_buffer.seek(0)
-        elm_model.load(byte_buffer)
+        elm_model.load_pth(byte_buffer)
 
         # save as msgpack
         # new save fn are saving as msgpack
-        elm_model.save(minio_client, 'datasets', path)
+        elm_model.save(minio_client, 'datasets', path.replace(".pth", ".safetensors"))
 
 def process_independent_approx_v1(minio_client, paths):
     print("Processing independent approx v1 models...")
@@ -87,11 +87,11 @@ def process_independent_approx_v1(minio_client, paths):
         for data in model_file_data.stream(amt=8192):
             byte_buffer.write(data)
         byte_buffer.seek(0)
-        independent_approx_model.load(byte_buffer)
+        independent_approx_model.load_pth(byte_buffer)
 
         # save as msgpack
         # new save fn are saving as msgpack
-        independent_approx_model.save(minio_client, 'datasets', path)
+        independent_approx_model.save(minio_client, 'datasets', path.replace(".pth", ".safetensors"))
 
 def load_all_models_and_save_as_msgpack(minio_client,
                                         dataset_name):
@@ -111,8 +111,8 @@ def load_all_models_and_save_as_msgpack(minio_client,
     independent_approx_v1_model_pth_paths = [path for path in model_pth_paths if "independent-approximation-v1" in path]
 
     process_linear(minio_client, linear_model_pth_paths)
-    # process_elm_v1(minio_client, elm_v1_model_pth_paths)
-    # process_independent_approx_v1(minio_client, independent_approx_v1_model_pth_paths)
+    process_elm_v1(minio_client, elm_v1_model_pth_paths)
+    process_independent_approx_v1(minio_client, independent_approx_v1_model_pth_paths)
 
     time_elapsed = time.time() - start_time
     print("Dataset: {}: Total Time elapsed: {}s".format(dataset_name, format(time_elapsed, ".2f")))
