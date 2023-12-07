@@ -159,7 +159,7 @@ class SelfTrainingPromptMutator:
         return inputs, outputs
     
     def save_scaling_graph(self, loss_by_data, num_datapoints):
-        plt.plot([i*10000 for i in num_datapoints], loss_by_data)
+        plt.plot([i*10000 for i in range(num_datapoints)], loss_by_data)
         plt.xlabel('Data')
         plt.ylabel('L1 Loss')
         plt.title('Loss of model by number of self training datapoints')
