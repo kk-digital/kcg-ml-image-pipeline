@@ -1,9 +1,7 @@
 import sys
 import msgpack
-import numpy as np
+import time
 import torch
-from io import BytesIO
-import math
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -173,7 +171,12 @@ class ClipServer:
         return similarity.item()
 
     def compute_cosine_match_value_list(self, phrase, image_path_list):
+
         num_images = len(image_path_list)
+
+        print(f'computing cosine match value for {num_images} images')
+        # Record the start time
+        start_time = time.time()
 
         cosine_match_list = [0] * num_images
 
@@ -229,6 +232,14 @@ class ClipServer:
         del normalized_phrase_clip_vector
         # After your GPU-related operations, clean up the GPU memory
         torch.cuda.empty_cache()
+
+        # Record the end time
+        end_time = time.time()
+
+        # Calculate the elapsed time
+        elapsed_time = end_time - start_time
+
+        print(f"Function execution time: {elapsed_time:.4f} seconds")
 
         return cosine_match_list
 
