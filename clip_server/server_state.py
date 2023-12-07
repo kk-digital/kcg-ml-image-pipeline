@@ -1,5 +1,6 @@
 import sys
 import msgpack
+import numpy as np
 import torch
 from io import BytesIO
 import math
@@ -171,23 +172,26 @@ class ClipServer:
 
         return similarity.item()
 
-
     def compute_cosine_match_value_list(self, phrase, image_path_list, batch_size):
+        num_images = len(image_path_list)
+
+        cosine_match_list = np.zeros(num_images)
+
         phrase_cip_vector_struct = self.get_clip_vector(phrase)
         # the score is zero if we cant find the phrase clip vector
         if phrase_cip_vector_struct is None:
             print(f'phrase {phrase} not found ')
-            return 0
+            return cosine_match_list
 
         phrase_clip_vector_numpy = phrase_cip_vector_struct.clip_vector
 
-        # convert numpy array to tensors
-        phrase_clip_vector = torch.tensor(phrase_clip_vector_numpy, dtype=torch.float32, device=self.device)
-
-        num_images = len(image_path_list)
-
         # the number of batches
         num_batches = math.ceil(num_images / batch_size)
+
+        # convert numpy array to tensors
+        phrase_clip_vector = torch.tensor(phrase_clip_vector_numpy, dtype=torch.float32, device=self.device)
+        # Normalizing the tensor
+        normalized_phrase_clip_vector = torch.nn.functional.normalize(phrase_clip_vector, p=2, dim=1)
 
         # for each batch do
         for batch_index in range(0, num_batches):
@@ -213,43 +217,31 @@ class ClipServer:
 
             # now that we have the clip vectors we need to construct our tensors
             image_clip_vector = torch.tensor(image_clip_vector_list_numpy, dtype=torch.float32, device=self.device)
+            normalized_image_clip_vector = torch.nn.functional.normalize(image_clip_vector.unsqueeze(0), p=2, dim=1)
 
-        image_clip_vector_list_numpy = []
-        image_clip_vector_list_numpy = self.get_image_clip_vector(image_path)
+            # cosine similarity
+            similarity_vector = torch.dot(normalized_phrase_clip_vector, normalized_image_clip_vector)
+            similarity_numpy_list = similarity_vector.cpu().detach().tolist()
 
-        # the score is zero if we cant find the image clip vector
-        if image_clip_vector_numpy is None:
-            print(f'image clip {image_path} not found')
-            return 0
+            for i in range(0, this_batch_size):
+                image_index = first_image_index + i
+                image_similarity_score = similarity_numpy_list[i]
+                cosine_match_list[image_index] = image_similarity_score
 
-        # convert numpy array to tensors
-        phrase_clip_vector = torch.tensor(phrase_clip_vector_numpy, dtype=torch.float32, device=self.device)
-        image_clip_vector = torch.tensor(image_clip_vector_numpy, dtype=torch.float32, device=self.device)
+            # cleanup
+            del image_clip_vector
+            del normalized_image_clip_vector
+            del similarity_vector
+            # After your GPU-related operations, clean up the GPU memory
+            torch.cuda.empty_cache()
 
-        # removing the extra dimension
-        # from shape (1, 768) => (768)
-        phrase_clip_vector = phrase_clip_vector.squeeze(0)
-        image_clip_vector = image_clip_vector.squeeze(0)
-
-        # Normalizing the tensor
-        normalized_phrase_clip_vector = torch.nn.functional.normalize(phrase_clip_vector.unsqueeze(0), p=2, dim=1)
-        normalized_image_clip_vector = torch.nn.functional.normalize(image_clip_vector.unsqueeze(0), p=2, dim=1)
-
-        # removing the extra dimension
-        # from shape (1, 768) => (768)
-        normalized_phrase_clip_vector = normalized_phrase_clip_vector.squeeze(0)
-        normalized_image_clip_vector = normalized_image_clip_vector.squeeze(0)
-
-        # cosine similarity
-        similarity = torch.dot(normalized_phrase_clip_vector, normalized_image_clip_vector)
-
-        # cleanup
         del phrase_clip_vector
-        del image_clip_vector
         del normalized_phrase_clip_vector
-        del normalized_image_clip_vector
+        # After your GPU-related operations, clean up the GPU memory
+        torch.cuda.empty_cache()
 
-        return similarity.item()
+        return cosine_match_list
+
 
     def compute_clip_vector(self, text):
         clip_vector_gpu = self.clip_model.get_text_features(text)
