@@ -17,18 +17,19 @@ sys.path.insert(0, base_directory)
 from utility.minio import cmd
 
 class BinaryPromptMutator:
-    def __init__(self, minio_client, prompt_type="positive", ranking_model="elm"):
+    def __init__(self, minio_client, prompt_type="positive", ranking_model="elm", operation="substitution"):
         self.model = None
         self.minio_client= minio_client
         self.prompt_type= prompt_type
         self.ranking_model=ranking_model
+        self.operation=operation
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path=self.get_model_path()
         self.accuracy=0
 
     def get_model_path(self):    
         local_path=f"output/binary_prompt_mutator.json"
-        minio_path=f"environmental/models/prompt-generator/substitution/{self.prompt_type}_prompts_only/{self.date}_binary_{self.ranking_model}_model.json"
+        minio_path=f"environmental/models/prompt-generator/{self.operation}/{self.prompt_type}_prompts_only/{self.date}_binary_{self.ranking_model}_model.json"
 
         return local_path, minio_path
 
@@ -84,6 +85,7 @@ class BinaryPromptMutator:
 
         self.save_graph_report(train_logloss, val_logloss, y_val, y_pred, len(X_train), len(X_val))
     
+    
     def save_graph_report(self, train_logloss_per_round, val_logloss_per_round,
                           y_true, y_pred,  
                           training_size, validation_size):
@@ -102,7 +104,7 @@ class BinaryPromptMutator:
                             "Validation size = {}\n"
                             "Accuracy ={:.4f}".format(self.date,
                                                             'environmental',
-                                                            'Prompt Substitution',
+                                                            f'Prompt {self.operation}',
                                                             'XGBoost',
                                                             f'{self.prompt_type}_clip_text_embedding',
                                                             '2306',
@@ -156,22 +158,26 @@ class BinaryPromptMutator:
         ]
 
         return predictions_with_probabilities
-
-    def predict(self, X):
-        class_labels=['decrease', 'increase']
-        dtest = xgb.DMatrix(X)
-        y_pred=self.model.get_booster().predict(dtest)
-        predictions_with_probabilities = [
-            {class_labels[i]: prob for i, prob in enumerate(row)} for row in y_pred
-        ]
-
-        return predictions_with_probabilities
         
 
     def load_model(self):
-        print(self.minio_path)
+        minio_path=f"environmental/models/prompt-generator/{self.operation}/{self.prompt_type}_prompts_only/"
+        file_name=f"_binary_{self.ranking_model}_model.json"
         # get model file data from MinIO
-        model_file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', self.minio_path)
+        model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', minio_path)
+        most_recent_model = None
+
+        for model_file in model_files:
+            if model_file.endswith(file_name):
+                most_recent_model = model_file
+
+        if most_recent_model:
+            model_file_data =cmd.get_file_from_minio(self.minio_client, 'datasets', most_recent_model)
+        else:
+            print("No .pth files found in the list.")
+            return
+        
+        print(most_recent_model)
 
         # Create a temporary file and write the downloaded content into it
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
@@ -179,7 +185,7 @@ class BinaryPromptMutator:
                 temp_file.write(data)
 
         # Load the model from the temporary file into XGBClassifier
-        self.model = xgb.XGBClassifier({"device":"cuda"})
+        self.model = xgb.XGBClassifier(device="cuda", tree_method='gpu_hist')
         self.model.load_model(temp_file.name)
 
         # Remove the temporary file

@@ -26,7 +26,7 @@ def get_image_rank_sigma_score_by_hash(request: Request, image_hash: str, model_
 
     item = request.app.image_sigma_scores_collection.find_one(query)
     if item is None:
-        raise HTTPException(status_code=404, detail="Image rank sigma_score data not found")
+        print("Image rank sigma_score data not found")
 
     # remove the auto generated field
     item.pop('_id', None)
@@ -41,7 +41,7 @@ def get_image_rank_sigma_scores_by_model_id(request: Request, model_id: int):
     query = {"model_id": model_id}
     items = request.app.image_sigma_scores_collection.find(query).sort("sigma_score", -1)
     if items is None:
-        raise HTTPException(status_code=404, detail="Image rank sigma_scores data not found")
+        print("Image rank sigma_scores data not found")
 
     sigma_score_data = []
     for item in items:

@@ -1,9 +1,11 @@
+import json
 import sys
 sys.path.append('.')
 
 import argparse
 import time
 import tqdm
+import traceback
 import torch
 
 import pandas as pd
@@ -35,7 +37,7 @@ def sample_prompt(df):
     prompt = []
     token_length = 0
     for idx, row in df_shuffle.iterrows():
-        if token_length >= 75:
+        if token_length >= 60:
             break
         prompt.append(row['phrase str'])
         token_length += row['token size']
@@ -81,26 +83,44 @@ def main(
     # sort prompts
     df_generated_prompts = df_generated_prompts.sort_values(by='score', ascending=False)
     df_top = df_generated_prompts.head(int(top_k * df_generated_prompts.shape[0]))
+    if save_path:
+        df_top.to_csv(save_path, index=False)
 
     # send prompts to generation job
     print('Sending prompts to image generation job')
     pbar = tqdm.tqdm(df_top.iterrows(), total=df_top.shape[0])
+    task_uuid = []
+    task_time = []
     for idx, row in pbar:
-        generate_image_generation_jobs(
-            positive_prompt=row['prompt'],
-            negative_prompt='',
-            prompt_scoring_model=scorer.model_type,
-            prompt_score=row['score'],
-            prompt_generation_policy='top-k',
-            top_k=top_k,
-            dataset_name=dataset_name,
-        )
-        pbar.update(1)
+        try:
+            response = generate_image_generation_jobs(
+                positive_prompt=row['prompt'],
+                negative_prompt='',
+                prompt_scoring_model=scorer.model_type,
+                prompt_score=row['score'],
+                prompt_generation_policy='top-k',
+                top_k=top_k,
+                dataset_name=dataset_name,
+            )
+            response = json.loads(response)
+            task_uuid.append(response['uuid'])
+            task_time.append(response['creation_time'])
+            pbar.update(1)
+        except:
+            print('Error occured:')
+            print(traceback.format_exc())
 
+    # add null values to task_uuid list if not all jobs were successfully sent
+    not_sent = df_top.shape[0] - len(task_uuid)
+    if not_sent > 0:
+        task_uuid += [None] * not_sent
+        task_time += [None] * not_sent
+    df_top.loc[:, 'uuid'] = task_uuid
+    df_top.loc[:, 'creation_time'] = task_time
     if save_path:
         df_top.to_csv(save_path, index=False)
 
-    print(f'\n{df_top.shape[0]} prompt jobs sent')
+    print(f'\n{len(task_uuid)} prompt jobs sent')
 
 
 if __name__ == '__main__':

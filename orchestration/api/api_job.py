@@ -8,6 +8,8 @@ from orchestration.api.api_dataset import get_sequential_id
 import pymongo
 from .api_utils import PrettyJSONResponse
 from typing import List
+import json
+import paramiko
 
 
 router = APIRouter()
@@ -259,8 +261,8 @@ def update_job_completed(request: Request, task: Task):
     # check if exist
     job = request.app.in_progress_jobs_collection.find_one({"uuid": task.uuid})
     if job is None:
-        raise HTTPException(status_code=404)
-
+        print(f"Job not found.")
+    
     # add to completed
     request.app.completed_jobs_collection.insert_one(task.to_dict())
 
@@ -275,7 +277,7 @@ def update_job_failed(request: Request, task: Task):
     # check if exist
     job = request.app.in_progress_jobs_collection.find_one({"uuid": task.uuid})
     if job is None:
-        raise HTTPException(status_code=404)
+        print(f"Job not found.")
 
     # add to failed
     request.app.failed_jobs_collection.insert_one(task.to_dict())
@@ -348,7 +350,7 @@ def get_completed_job_by_hash(request: Request, image_hash):
     job = request.app.completed_jobs_collection.find_one(query)
 
     if job is None:
-        raise HTTPException(status_code=404)
+        print(f"Job not found.")
 
     job.pop('_id', None)
 
@@ -361,7 +363,7 @@ def get_job_by_uuid(request: Request, uuid: str):
     job = request.app.completed_jobs_collection.find_one(query)
 
     if job is None:
-        raise HTTPException(status_code=404, detail="Job not found")
+        print(f"Job not found.")
 
     # Remove the '_id' field to avoid issues with JSON serialization
     job.pop('_id', None)
@@ -455,3 +457,33 @@ def add_attributes_job_completed(request: Request,
     request.app.completed_jobs_collection.update_one(query, update_query)
 
     return True
+
+@router.get("/worker-stats", response_class=PrettyJSONResponse)
+def get_worker_stats(server_address: str = Query(...), ssh_port: int = Query(22), ssh_key_path: str = Query(...)):
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        ssh.connect(server_address, port=ssh_port, username='root', key_filename=ssh_key_path)
+
+        command = '''
+        python -c "import json; import socket; import GPUtil; print(json.dumps([{\'id\': gpu.id, \'temperature\': gpu.temperature, \'load\': gpu.load, \'total_memory\': gpu.memoryTotal, \'used_memory\': gpu.memoryUsed, \'worker_name\': socket.gethostname()} for gpu in GPUtil.getGPUs()]))"
+        '''
+        stdin, stdout, stderr = ssh.exec_command(command)
+
+        stderr_output = stderr.read().decode('utf-8')
+        if stderr_output:
+            print("Error executing remote command:", stderr_output)
+            raise HTTPException(status_code=500, detail="Failed to execute remote command")
+
+        try:
+            gpu_stats = json.loads(stdout.read().decode('utf-8'))
+        except json.JSONDecodeError as e:
+            print("Failed to decode JSON:", e)
+            raise HTTPException(status_code=500, detail="Failed to decode JSON")
+
+        ssh.close()
+        return gpu_stats
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+

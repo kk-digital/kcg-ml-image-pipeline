@@ -1,11 +1,15 @@
 import sys
 import queue
 import math
+import random
+import threading
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from worker.prompt_generation.prompt_generator import generate_prompts_proportional_selection, generate_base_prompts, load_base_prompts
+from scripts.prompt_job_generator.prompt_generator_using_independent_approx_v1_csv import PhraseScoresLoader, get_cumulative_probability_arr
+from independent_approx_v1.independent_approx_v1 import IndependentApproxV1
 
 class PromptGenerationPromptQueue:
     def __init__(self, queue_size):
@@ -17,6 +21,31 @@ class PromptGenerationPromptQueue:
         # dataset dictionary for base prompts
         # maps dataset => csv base prompt path
         self.dataset_base_prompt_dictionary = {}
+        # independent approx v1
+        # prompt generator for each dataset
+        self.dataset_independent_prompt_gen_dictionary = {}
+        self.dataset_independent_prompt_gen_dictionary_lock = threading.Lock()
+
+    def load_prompt_approx_v1(self, dataset, minio_client, positive_phrase_scores_csv, negative_phrase_scores_csv):
+        if minio_client is None:
+            print('Failed to load independent approx v1 prompt generator for dataset ', dataset)
+            return
+
+        boltzman_temperature = 8
+        boltzman_k = 1
+        prompt_generator = IndependentApproxV1(dataset, boltzman_temperature, boltzman_k)
+        prompt_generator.load_csv(minio_client, positive_phrase_scores_csv, negative_phrase_scores_csv)
+        with self.dataset_independent_prompt_gen_dictionary_lock:
+            self.dataset_independent_prompt_gen_dictionary[dataset] = prompt_generator
+
+    def generate_prompts_independent_approx_v1(self, dataset, prompt_count):
+        prompt_list = []
+        with self.dataset_independent_prompt_gen_dictionary_lock:
+            if dataset in self.dataset_independent_prompt_gen_dictionary:
+                prompt_generator = self.dataset_independent_prompt_gen_dictionary[dataset]
+                prompt_list = prompt_generator.generate_prompts(prompt_count)
+
+        return prompt_list
 
     def set_dataset_base_prompt(self, dataset, base_prompt_path):
         self.dataset_base_prompt_dictionary[dataset] = base_prompt_path
@@ -73,7 +102,7 @@ class PromptGenerationPromptQueue:
         top_k = prompt_job_generator_state.get_dataset_top_k(dataset)
 
         # number of total prompts to generate before choosing n prompts
-        if generation_policy == 'top-k':
+        if generation_policy == 'top-k' or generation_policy == 'independent-approx-top-k':
             # if the generation policy is top-k we generate
             # more prompts so that the top-k are allways equal to prompt_count
             # example:  if top-k is 0.1 and we need 1 prompt, we generate 10 and choose best one
@@ -83,6 +112,7 @@ class PromptGenerationPromptQueue:
 
         total_prompt_count = int(total_prompt_count)
 
+        model_name = prompt_job_generator_state.get_dataset_ranking_model(dataset)
         scoring_model = prompt_job_generator_state.get_dataset_scoring_model(dataset)
 
         base_prompt_population = load_base_prompts(base_prompts_csv_path)
@@ -125,6 +155,18 @@ class PromptGenerationPromptQueue:
 
             prompts = prompt_list
 
+        elif generation_policy == 'independent-approx-v1-top-k':
+            prompts = self.generate_prompts_independent_approx_v1(dataset, total_prompt_count)
+            prompt_list = []
+            for prompt in prompts:
+                prompt_list.append(ScoredPrompt(0,
+                                                prompt['positive_prompt'],
+                                                prompt['negative_prompt'],
+                                                'N/A',
+                                                'N/A',
+                                                0))
+            prompts = prompt_list
+
         elif generation_policy == 'combined-top-k':
             number_of_positive_prompts_to_generate = int(math.sqrt(total_prompt_count) + 1.0)
 
@@ -157,15 +199,35 @@ class PromptGenerationPromptQueue:
                 positive_prompts.append(positive_text_prompt)
                 negative_prompts.append(negative_text_prompt)
 
-            # Create a list of all possible combinations
-            prompts = [ScoredPrompt(0, positive, negative, 'N/A', 'N/A', 0) for positive in positive_prompts for negative in
-                                negative_prompts]
+            # shuffle the positive & negative prompts to ensure randomness
+            random.shuffle(positive_prompts)
+            random.shuffle(negative_prompts)
+
+            prompts = []
+
+            # for each positive prompt, choose a random negative prompt
+            # each negative & positive prompt can only be used once
+            for i in range(len(positive_prompts)):
+
+                positive_prompt = positive_prompts[i]
+                negative_prompt = negative_prompts[i]
+
+                scored_prompt = ScoredPrompt(0, positive_prompt, negative_prompt, 'N/A', 'N/A', 0)
+                prompts.append(scored_prompt)
 
             # remove excess prompts, will only remove a tiny bit of prompts
             # so no one cares
             prompts = prompts[:total_prompt_count]
 
         scored_prompts = []
+        if dataset != 'test-generations':
+            print('--------------')
+            print('dataset  : ', dataset)
+            print('model_name : ', model_name)
+            print(scoring_model)
+            if scoring_model != None:
+                print(scoring_model.model_type)
+            print('---------------')
         for prompt in prompts:
 
             positive_text_prompt = prompt.positive_prompt
@@ -178,7 +240,7 @@ class PromptGenerationPromptQueue:
                 positive_prompt_embeddings = clip_text_embedder(positive_text_prompt)
                 negative_prompt_embeddings = clip_text_embedder(negative_text_prompt)
 
-                model_type = scoring_model.model_type
+                model_type = model_name
                 prompt_score = scoring_model.predict(positive_prompt_embeddings,
                                                                negative_prompt_embeddings).item()
 
