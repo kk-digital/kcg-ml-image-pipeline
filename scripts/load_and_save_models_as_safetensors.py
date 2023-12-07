@@ -112,7 +112,7 @@ def load_all_models_and_save_as_msgpack(minio_client,
 
     process_linear(minio_client, linear_model_pth_paths)
     process_elm_v1(minio_client, elm_v1_model_pth_paths)
-    process_independent_approx_v1(minio_client, independent_approx_v1_model_pth_paths)
+    # process_independent_approx_v1(minio_client, independent_approx_v1_model_pth_paths)
 
     time_elapsed = time.time() - start_time
     print("Dataset: {}: Total Time elapsed: {}s".format(dataset_name, format(time_elapsed, ".2f")))

@@ -19,7 +19,7 @@ def load_models(tokenizer_path, model_path, scorer_path):
     tokenizer = CLIPTokenizer.from_pretrained(tokenizer_path)
     model = CLIPTextModel.from_pretrained(model_path)
     scorer = ABRankingELMModel(768)
-    scorer.load(scorer_path)
+    scorer.load_pth(scorer_path)
 
     return tokenizer, model, scorer
 
