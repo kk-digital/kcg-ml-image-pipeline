@@ -84,7 +84,7 @@ class PromptMutatorDatasetGenerator:
         # Reset the buffer's position to the beginning
         byte_buffer.seek(0)
 
-        scoring_model.load(byte_buffer)
+        scoring_model.load_pth(byte_buffer)
         scoring_model.model = scoring_model.model.to(device)
 
         return scoring_model

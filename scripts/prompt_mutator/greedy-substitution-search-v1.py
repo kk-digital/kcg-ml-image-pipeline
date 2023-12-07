@@ -95,7 +95,7 @@ def load_model(minio_client, device, embedding_type, scoring_model="linear", inp
     # Reset the buffer's position to the beginning
     byte_buffer.seek(0)
 
-    embedding_model.load(byte_buffer)
+    embedding_model.load_pth(byte_buffer)
     embedding_model.model=embedding_model.model.to(device)
 
     return embedding_model
