@@ -66,12 +66,9 @@ class PromptMutator:
         evals_result = {}
         
         start = time.time()
-        if self.model:
-            self.model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval,'eval'), (dtrain,'train')], 
-                                early_stopping_rounds=early_stopping, evals_result=evals_result, xgb_model=self.model)
-        else:
-            self.model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval,'eval'), (dtrain,'train')], 
+        self.model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval,'eval'), (dtrain,'train')], 
                                 early_stopping_rounds=early_stopping, evals_result=evals_result)
+
         end = time.time()
 
         training_time= end - start
@@ -233,7 +230,10 @@ class PromptMutator:
         buf.seek(0)
 
         # upload the graph report
-        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.json', '.png'), buf)             
+        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.json', '.png'), buf)  
+
+        # Clear the current figure
+        plt.clf()           
     
     def grid_search(self, X_train, y_train, param_grid, cv=5, scoring='neg_mean_squared_error'):
         kfold = KFold(n_splits=cv, shuffle=True, random_state=42)

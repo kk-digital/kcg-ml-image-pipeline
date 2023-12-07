@@ -208,6 +208,9 @@ class BinaryPromptMutator:
 
         # upload the graph report
         cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.json', '.png'), buf)
+
+        # Clear the current figure
+        plt.clf()  
         
     def predict_probs(self, X):
         class_labels=['decrease', 'increase']
