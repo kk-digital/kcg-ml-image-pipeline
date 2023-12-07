@@ -146,7 +146,7 @@ class SelfTrainingPromptMutator:
         # out put a graph for scaling law
         if(self.scaling_graph):
             loss_by_data.append(loss)
-            self.scaling_graph(loss_by_data=loss_by_data, num_datapoints=len(self_training_files))
+            self.save_scaling_graph(loss_by_data=loss_by_data, num_datapoints=len(self_training_files))
     
     def load_self_training_data(self, data):
         inputs=[]
@@ -158,7 +158,7 @@ class SelfTrainingPromptMutator:
         
         return inputs, outputs
     
-    def scaling_graph(self, loss_by_data, num_datapoints):
+    def save_scaling_graph(self, loss_by_data, num_datapoints):
         plt.plot([i*10000 for i in num_datapoints], loss_by_data)
         plt.xlabel('Data')
         plt.ylabel('L1 Loss')
