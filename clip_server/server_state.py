@@ -172,7 +172,7 @@ class ClipServer:
 
         return similarity.item()
 
-    def compute_cosine_match_value_list(self, phrase, image_path_list, batch_size):
+    def compute_cosine_match_value_list(self, phrase, image_path_list):
         num_images = len(image_path_list)
 
         cosine_match_list = np.zeros(num_images)
@@ -185,53 +185,36 @@ class ClipServer:
 
         phrase_clip_vector_numpy = phrase_cip_vector_struct.clip_vector
 
-        # the number of batches
-        num_batches = math.ceil(num_images / batch_size)
-
         # convert numpy array to tensors
         phrase_clip_vector = torch.tensor(phrase_clip_vector_numpy, dtype=torch.float32, device=self.device)
         # Normalizing the tensor
         normalized_phrase_clip_vector = torch.nn.functional.normalize(phrase_clip_vector, p=2, dim=1)
 
         # for each batch do
-        for batch_index in range(0, num_batches):
-            first_image_index = batch_index * batch_size
-            images_remaining = num_images - first_image_index
-            this_batch_size = min(batch_size, images_remaining)
-
-            # first, collect the list of image clip vectors
-            # for the purpose of processing them in batches
-            image_clip_vector_list_numpy = []
-            for i in range(0, this_batch_size):
-                image_index = first_image_index + i
-                image_path = image_path_list[image_index]
-                image_clip_vector = self.get_image_clip_vector(image_path)
-                # if the clip_vector was not found
-                # or couldn't load for some network reason
-                # we must provide an empty vector as replacement
-                if image_clip_vector is None:
-                    # this syntax is weird but its just list full of zeros
-                    image_clip_vector = [0] * 768
-
-                image_clip_vector_list_numpy.append(image_clip_vector)
+        for image_index in range(0, num_images):
+            image_path = image_path_list[image_index]
+            image_clip_vector = self.get_image_clip_vector(image_path)
+            # if the clip_vector was not found
+            # or couldn't load for some network reason
+            # we must provide an empty vector as replacement
+            if image_clip_vector is None:
+                # this syntax is weird but its just list full of zeros
+                image_clip_vector = [0] * 768
 
             # now that we have the clip vectors we need to construct our tensors
-            image_clip_vector = torch.tensor(image_clip_vector_list_numpy, dtype=torch.float32, device=self.device)
-            normalized_image_clip_vector = torch.nn.functional.normalize(image_clip_vector.unsqueeze(0), p=2, dim=1)
+            image_clip_vector = torch.tensor(image_clip_vector, dtype=torch.float32, device=self.device)
+            normalized_image_clip_vector = torch.nn.functional.normalize(image_clip_vector, p=2, dim=1)
+
 
             # cosine similarity
-            similarity_vector = torch.dot(normalized_phrase_clip_vector, normalized_image_clip_vector)
-            similarity_numpy_list = similarity_vector.cpu().detach().tolist()
-
-            for i in range(0, this_batch_size):
-                image_index = first_image_index + i
-                image_similarity_score = similarity_numpy_list[i]
-                cosine_match_list[image_index] = image_similarity_score
+            similarity = torch.dot(normalized_phrase_clip_vector, normalized_image_clip_vector)
+            similarity_value = similarity.item()
+            cosine_match_list[image_index] = similarity_value
 
             # cleanup
             del image_clip_vector
             del normalized_image_clip_vector
-            del similarity_vector
+            del similarity
             # After your GPU-related operations, clean up the GPU memory
             torch.cuda.empty_cache()
 

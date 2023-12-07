@@ -74,7 +74,7 @@ class ClipCache:
         # TODO(): implement ssh cache
         # TODO(): memory mapped clip vector caching
         if image_path not in self.clip_vector_dictionary:
-            self.clip_cache_directory[image_path] = clip_vector
+            self.clip_vector_dictionary[image_path] = clip_vector
 
     def get_clip_vector(self, image_path):
         # if its already in the cache just return it
