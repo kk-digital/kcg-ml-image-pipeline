@@ -2,6 +2,8 @@ from fastapi import Request, APIRouter, HTTPException
 import requests
 from .api_utils import PrettyJSONResponse
 from typing import Optional
+from typing import List
+import json
 
 CLIP_SERVER_ADRESS = 'http://192.168.83.135:8002'
 
@@ -47,6 +49,25 @@ def http_clip_server_get_cosine_similarity(image_path: str,
 
     try:
         response = requests.get(url)
+
+        if response.status_code == 200:
+            result_json = response.json()
+            return result_json
+
+    except Exception as e:
+        print('request exception ', e)
+
+    return None
+
+def http_clip_server_get_cosine_similarity_list(image_path_list: List[str],
+                                           phrase: str):
+    url = f'{CLIP_SERVER_ADRESS}/cosine-similarity-list?phrase={phrase}'
+
+    # Use json.dumps to convert the list to a JSON-formatted string
+    json_string = json.dumps(image_path_list)
+
+    try:
+        response = requests.post(url, json=json_string)
 
         if response.status_code == 200:
             result_json = response.json()
@@ -192,8 +213,8 @@ def random_image_list_similarity_threshold(request: Request,
 
     return result_jobs
 
-@router.get("/image/get_random_image_by_date_range", response_class=PrettyJSONResponse)
-def get_random_image_date_range(
+@router.get("/image/get_random_image_similarity_by_date_range", response_class=PrettyJSONResponse)
+def get_random_image_similarity_date_range(
     request: Request,
     dataset: str = None,
     phrase: str = "",
@@ -206,12 +227,20 @@ def get_random_image_date_range(
     query = {
         'task_input_dict.dataset': dataset
     }
+
     if start_date and end_date:
-        query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
+        query['task_creation_time'] = {
+            '$gte': start_date,
+            '$lte': end_date
+        }
     elif start_date:
-        query['task_creation_time'] = {'$gte': start_date}
+        query['task_creation_time'] = {
+            '$gte': start_date
+        }
     elif end_date:
-        query['task_creation_time'] = {'$lte': end_date}
+        query['task_creation_time'] = {
+            '$lte': end_date
+        }
 
     # Include prompt_generation_policy in the query if provided
     if prompt_generation_policy:
@@ -232,28 +261,43 @@ def get_random_image_date_range(
         output_file_dictionary = this_job["task_output_file_dict"]
         image_path = output_file_dictionary['output_file_path']
 
-        image_path_list.append(image_path)
-
-    for image_path in image_path_list:
-
         # remove the datasets/ prefix
         image_path = image_path.replace("datasets/", "")
 
-        similarity_score = http_clip_server_get_cosine_similarity(image_path, phrase)
+        image_path_list.append(image_path)
 
-        if similarity_score is None:
-            continue
+    similarity_score_list = http_clip_server_get_cosine_similarity_list(image_path_list, phrase)
 
-        if similarity_score >= similarity_threshold:
+    if similarity_score_list is None:
+        return {
+            "images" : []
+        }
 
-            result = {
-                'image': this_job,
-                'similarity_score': similarity_score
-            }
-            result_jobs.append(result)
+    # make sure the similarity list is the correct format
+    if 'similarity_list' not in similarity_score_list:
+        return {
+            "images": []
+        }
 
-    # Return the jobs as a list in the response
+    similarity_score_list = similarity_score_list['similarity_list']
 
-    return result_jobs
+    num_images = len(jobs)
 
-    return
+    # make sure the list returned
+    if num_images != len(similarity_score_list):
+        return {
+            "images": []
+        }
+
+    # filter the images by similarity threshold
+    filtered_images = []
+    for i in range(0, num_images):
+        image_similarity_score = similarity_score_list[i]
+        job = jobs[i]
+
+        if image_similarity_score >= similarity_threshold:
+            filtered_images.append(job)
+
+    return {
+        "images": filtered_images
+    }
