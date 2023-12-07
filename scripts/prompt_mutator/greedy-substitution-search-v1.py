@@ -251,12 +251,9 @@ class PromptSubstitutionGenerator:
             batch_substitution_inputs.append(substitution_input)
             sampled_phrases.append(substitute_phrase)
             sampled_embeddings.append(substitute_embedding)
-
-        start=time.time()        
+     
         # Predict sigma score for every substitution
         batch_preds = self.substitution_model.predict(batch_substitution_inputs)
-        end=time.time()
-        print(f"inference time:{end-start}")
 
         # Filter with rejection sampling
         for token, sigma_score in enumerate(batch_preds):

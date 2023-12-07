@@ -256,8 +256,7 @@ class PromptMutator:
         return best_params, best_score
 
     def predict(self, X):
-        dtest = xgb.DMatrix(X)
-        return self.model.predict(dtest)
+        return self.model.predict(X)
 
     def load_model(self):
         minio_path=f"environmental/models/prompt-generator/{self.operation}/{self.prompt_type}_prompts_only/"
