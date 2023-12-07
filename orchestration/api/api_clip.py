@@ -1,6 +1,7 @@
 from fastapi import Request, APIRouter, HTTPException
 import requests
 from .api_utils import PrettyJSONResponse
+from typing import Optional
 
 CLIP_SERVER_ADRESS = 'http://192.168.83.135:8002'
 
@@ -190,3 +191,69 @@ def random_image_list_similarity_threshold(request: Request,
     # Return the jobs as a list in the response
 
     return result_jobs
+
+@router.get("/image/get_random_image_by_date_range", response_class=PrettyJSONResponse)
+def get_random_image_date_range(
+    request: Request,
+    dataset: str = None,
+    phrase: str = "",
+    similarity_threshold: float = 0,
+    start_date: str = None,
+    end_date: str = None,
+    size: int = None,
+    prompt_generation_policy: Optional[str] = None  # Optional query parameter
+):
+    query = {
+        'task_input_dict.dataset': dataset
+    }
+    if start_date and end_date:
+        query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
+    elif start_date:
+        query['task_creation_time'] = {'$gte': start_date}
+    elif end_date:
+        query['task_creation_time'] = {'$lte': end_date}
+
+    # Include prompt_generation_policy in the query if provided
+    if prompt_generation_policy:
+        query['task_input_dict.prompt_generation_policy'] = prompt_generation_policy
+
+    aggregation_pipeline = [{"$match": query}]
+    if size:
+        aggregation_pipeline.append({"$sample": {"size": size}})
+
+    jobs = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
+    jobs = list(jobs)
+
+    image_path_list = []
+    for job in jobs:
+        job.pop('_id', None)  # Remove the auto-generated field
+
+        this_job = job
+        output_file_dictionary = this_job["task_output_file_dict"]
+        image_path = output_file_dictionary['output_file_path']
+
+        image_path_list.append(image_path)
+
+    for image_path in image_path_list:
+
+        # remove the datasets/ prefix
+        image_path = image_path.replace("datasets/", "")
+
+        similarity_score = http_clip_server_get_cosine_similarity(image_path, phrase)
+
+        if similarity_score is None:
+            continue
+
+        if similarity_score >= similarity_threshold:
+
+            result = {
+                'image': this_job,
+                'similarity_score': similarity_score
+            }
+            result_jobs.append(result)
+
+    # Return the jobs as a list in the response
+
+    return result_jobs
+
+    return
