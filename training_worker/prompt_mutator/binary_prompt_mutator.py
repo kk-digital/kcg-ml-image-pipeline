@@ -27,6 +27,7 @@ class BinaryPromptMutator:
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path=self.get_model_path()
         self.accuracy=0
+        self.input_size=0
 
     def get_model_path(self):    
         local_path=f"output/binary_prompt_mutator.json"
@@ -42,6 +43,8 @@ class BinaryPromptMutator:
               colsample_bytree=1, 
               eta=0.1,
               early_stopping=100):
+        
+        self.input_size=len(X_train[0])
         
         # Label encode the target variable
         label_encoder = LabelEncoder()
@@ -110,15 +113,26 @@ class BinaryPromptMutator:
                               val_loss, 
                               inference_speed,
                               model_params):
+        if self.operation=="substitution":
+            input_type="[prompt_embeding[768], substituted_embeding[768], substitute_embedding[768], position_encoding[1], score_encoding[1]]"
+        elif self.operation=="addition":
+            input_type="[prompt_embeding[768], added_embedding[768], position_encoding[1]]"
+        elif self.operation=="permutation":
+            input_type="[prompt_embeding[768], first_embedding[768], second_embedding[768], first_position[1], second_position[1], score_encoding[1]]"
+
         report_text = (
             "================ Model Report ==================\n"
             f"Number of training datapoints: {num_training} \n"
             f"Number of validation datapoints: {num_validation} \n"
             f"Total training Time: {training_time:.2f} seconds\n"
-            "Loss Function: Log Loss \n"
+            "Loss Function: L1 \n"
             f"Training Loss: {train_loss[-1]} \n"
             f"Validation Loss: {val_loss[-1]} \n"
             f"Inference Speed: {inference_speed:.2f} predictions per second\n\n"
+            "================ Input and output ==================\n"
+            f"Input: {input_type} \n"
+            f"Input Size: {self.input_size} \n" 
+            "Output: binary \n\n"
             "================ Parameters ==================\n"
         )
 

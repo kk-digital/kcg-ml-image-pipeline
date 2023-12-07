@@ -104,6 +104,10 @@ def store_in_csv_file(csv_data, minio_client, embedding_type, operation):
             writer.writerow(['Prompt', 'First Phrase', 'Second Phrase', 
                          'First Position', 'Second Position', 'Original_elm_score', 'New_elm_score',
                          'Original_linear_score', 'New_linear_score'])
+        elif(operation=="addition"):
+            writer.writerow(['Prompt', 'Added Phrase','Addition Position', 
+                            'Original_elm_score', 'New_elm_score',
+                            'Original_linear_score', 'New_linear_score'])
         # Write the data
         writer.writerows(csv_data)
     
@@ -386,7 +390,115 @@ def create_substitution_dataset(minio_client, device, csv_path, embedding_type):
         store_in_msgpack_file(prompt_data, prompt_index, minio_client, embedding_type, "substitution")
         prompt_index+=1
 
-    store_in_csv_file(csv_data, minio_client, embedding_type, "substitution")  
+    store_in_csv_file(csv_data, minio_client, embedding_type, "substitution")
+
+def create_addition_dataset(minio_client, device, csv_path, embedding_type):
+    # Load the CLIP model
+    clip=CLIPTextEmbedder(device=device)
+    clip.load_submodels()
+
+    # get dataset of phrases
+    phrases_df = pd.read_csv(csv_path)
+    # get ranking mondel
+    elm_model= load_model(768,minio_client, device, 'elm-v1', embedding_type)
+    linear_model= load_model(768,minio_client, device, 'linear', embedding_type)
+    # get mean and std values
+    elm_mean, elm_std= elm_model.mean, elm_model.standard_deviation
+    linear_mean, linear_std= linear_model.mean, linear_model.standard_deviation
+
+    print(f"elm mean: {elm_mean}, elm std {elm_std}")
+    print(f"linear mean: {linear_mean}, linear std {linear_std}")
+
+    # get minio paths for embeddings
+    embedding_paths = get_embedding_paths(minio_client, "environmental")
+
+    prompt_index=1
+    csv_data = []
+
+    for embedding in embedding_paths:
+        print(f"prompt {prompt_index}")
+
+        # get prompt embedding
+        data = minio_client.get_object('datasets', embedding)
+        # Read the content of the msgpack file
+        content = data.read()
+
+        # Deserialize the content using msgpack
+        msgpack_data = msgpack.loads(content)
+
+        # get prompt embedding 
+        prompt_str=msgpack_data[f'{embedding_type}_prompt']
+        prompt_embedding= list(msgpack_data[f'{embedding_type}_embedding'].values())
+        prompt_embedding = torch.tensor(np.array(prompt_embedding)).float()
+        prompt_embedding=prompt_embedding.to(device)
+
+        #Randomly select a phrase from the dataset and get an embedding
+        added_phrase = random.choice(phrases_df['phrase str'].tolist())
+        with torch.no_grad():
+                added_embedding= clip.forward(added_phrase).unsqueeze(0)
+        
+        prompt_list = prompt_str.split(', ')
+        # Choose a random position to add to the prompt
+        addition_position = random.randint(0, len(prompt_list))
+
+        prompt_list.insert(addition_position, added_phrase)
+        modified_prompt = ", ".join(prompt_list)
+
+        # Get embedding of mutated prompt
+        with torch.no_grad():
+            modified_embedding= clip.forward(modified_prompt)
+            modified_embedding= modified_embedding.unsqueeze(0)
+            modified_embedding=modified_embedding.to(device)
+
+        # get score before and after addition
+        with torch.no_grad():
+            elm_prompt_score=elm_model.predict_positive_or_negative_only(prompt_embedding).item()
+            elm_modified_pormpt_score= elm_model.predict_positive_or_negative_only(modified_embedding).item()
+            
+            linear_prompt_score=linear_model.predict_positive_or_negative_only(prompt_embedding).item()
+            linear_modified_pormpt_score= linear_model.predict_positive_or_negative_only(modified_embedding).item()
+        
+        # mean pooling
+        pooled_prompt_embedding=torch.mean(prompt_embedding, dim=2)
+        #flattening embedding
+        pooled_prompt_embedding = pooled_prompt_embedding.reshape(len(pooled_prompt_embedding), -1).squeeze(0)
+        
+        # mean pooling
+        pooled_added_embedding=torch.mean(added_embedding, dim=2)
+        #flattening embedding
+        pooled_added_embedding = pooled_added_embedding.reshape(len(pooled_added_embedding), -1).squeeze(0)
+
+        # calculate sigma scores
+        sigma_elm_score=(elm_prompt_score - elm_mean) / elm_std
+        modified_sigma_elm_score= (elm_modified_pormpt_score - elm_mean) / elm_std
+        sigma_linear_score= (linear_prompt_score - linear_mean) / linear_std
+        modified_sigma_linear_score= (linear_modified_pormpt_score - linear_mean) / linear_std 
+
+        # Append to the CSV data list
+        csv_data.append([
+            prompt_str,  # Prompt string
+            added_phrase,        # added phrase string
+            addition_position,   # addition position
+            sigma_elm_score, # elm score before addition
+            modified_sigma_elm_score, # elm score after addition
+            sigma_linear_score, # linear score before addition
+            modified_sigma_linear_score # linear score after addition
+        ])
+
+        # Append to the msgpack data list
+        prompt_data={
+        'input': torch.cat([pooled_prompt_embedding, pooled_added_embedding], dim=0).tolist(),
+        'position_encoding': addition_position/len(prompt_list),
+        'elm_score_encoding': sigma_elm_score,
+        'elm_output': modified_sigma_elm_score,
+        'linear_score_encoding': sigma_linear_score,
+        'linear_output': modified_sigma_linear_score
+        }
+
+        store_in_msgpack_file(prompt_data, prompt_index, minio_client, embedding_type, "addition")
+        prompt_index+=1
+
+    store_in_csv_file(csv_data, minio_client, embedding_type, "addition")    
 
 def load_dataset(minio_client, embedding_type, output_type, scoring_model, operation):
     dataset_path=DATA_MINIO_DIRECTORY + f"{operation}/{embedding_type}_prompts/"
@@ -411,6 +523,8 @@ def load_dataset(minio_client, embedding_type, output_type, scoring_model, opera
             input=np.concatenate([msgpack_data['input'],
                                             [msgpack_data['position_encoding']],
                                         [msgpack_data[f'{scoring_model}_score_encoding']]])
+        elif operation=="addition":
+            input=np.concatenate([msgpack_data['input'], [msgpack_data['position_encoding']]])
         elif operation=="permutation":
             input=np.concatenate([msgpack_data['input'],
                                             [msgpack_data['first_position']],
@@ -460,6 +574,8 @@ def main():
             create_substitution_dataset(minio_client, device, args.csv_phrase, args.embedding_type)
         elif args.operation=="permutation":
             create_permutation_dataset(minio_client, device, args.embedding_type)
+        elif args.operation=="addition":
+            create_addition_dataset(minio_client, device, args.csv_phrase, args.embedding_type)
 
     inputs, outputs= load_dataset(minio_client=minio_client, 
                                   embedding_type=args.embedding_type, 

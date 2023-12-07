@@ -25,6 +25,7 @@ class PromptMutator:
         self.operation=operation
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path=self.get_model_path()
+        self.input_size=0
 
     def get_model_path(self):
         
@@ -44,7 +45,8 @@ class PromptMutator:
               eta=0.1,
               early_stopping=50):
         
-        
+        self.input_size=len(X_train[0])
+
         X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, shuffle=True)
 
         dtrain = xgb.DMatrix(X_train, label=y_train)
@@ -114,6 +116,13 @@ class PromptMutator:
                               val_loss, 
                               inference_speed,
                               model_params):
+        if self.operation=="substitution":
+            input_type="[prompt_embeding[768], substituted_embeding[768], substitute_embedding[768], position_encoding[1], score_encoding[1]]"
+        elif self.operation=="addition":
+            input_type="[prompt_embeding[768], added_embedding[768], position_encoding[1]]"
+        elif self.operation=="permutation":
+            input_type="[prompt_embeding[768], first_embedding[768], second_embedding[768], first_position[1], second_position[1], score_encoding[1]]"
+
         report_text = (
             "================ Model Report ==================\n"
             f"Number of training datapoints: {num_training} \n"
@@ -123,6 +132,10 @@ class PromptMutator:
             f"Training Loss: {train_loss[-1]} \n"
             f"Validation Loss: {val_loss[-1]} \n"
             f"Inference Speed: {inference_speed:.2f} predictions per second\n\n"
+            "================ Input and output ==================\n"
+            f"Input: {input_type} \n"
+            f"Input Size: {self.input_size} \n" 
+            f"Output: {self.output_type} \n\n"
             "================ Parameters ==================\n"
         )
 
