@@ -256,14 +256,8 @@ class PromptMutator:
         return best_params, best_score
 
     def predict(self, X):
-        start=time.time()
         dtest = xgb.DMatrix(X)
-        end=time.time()
-        print(f"making dmatrix {end-start}")
-        start=time.time()
         predictions=self.model.predict(dtest)
-        end=time.time()
-        print(f"inference {end-start}")
         return predictions
 
     def load_model(self):
