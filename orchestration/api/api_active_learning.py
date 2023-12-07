@@ -16,7 +16,7 @@ router = APIRouter()
 @router.get("/active-learning/uncertainty-sampling-pair-v1", response_class=PrettyJSONResponse)
 def get_ranking_comparison(
     request: Request,
-    dataset: str,  # Added dataset parameter
+    dataset: str,  
     score_type: str,  # Added score_type parameter to choose between clip_sigma_score and embedding_sigma_score
     min_score: float,
     max_score: float,
@@ -102,7 +102,7 @@ def get_ranking_comparison(
     max_score: float,
     threshold: float
 ):
-    if score_type not in ["clip_sigma_score", "embedding_sigma_score"]:
+    if score_type not in ["image_clip_sigma_score", "text_embedding_sigma_score"]:
         print("Invalid score_type parameter")
     
     completed_jobs_collection: Collection = request.app.completed_jobs_collection

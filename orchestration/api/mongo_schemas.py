@@ -238,6 +238,10 @@ class User(BaseModel):
             "role": self.role
         }
     
+class LoginRequest(BaseModel):
+    username: str = Field(...)
+    password: str = Field(...)
+
 class TokenPayload(BaseModel):
     sub: str = None
     exp: int = None

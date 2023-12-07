@@ -28,7 +28,7 @@ class PhraseScoreData:
         self.score = score
 
 
-class PhraseScoresLoader:
+class BoltzmanPhraseScoresLoader:
     def __init__(self,
                  dataset_name,
                  phrase_scores_csv,
