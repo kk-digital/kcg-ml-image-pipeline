@@ -63,11 +63,13 @@ def http_clip_server_get_cosine_similarity_list(image_path_list: List[str],
                                            phrase: str):
     url = f'{CLIP_SERVER_ADRESS}/cosine-similarity-list?phrase={phrase}'
 
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+
     # Use json.dumps to convert the list to a JSON-formatted string
     json_string = json.dumps(image_path_list)
 
     try:
-        response = requests.post(url, json=json_string)
+        response = requests.post(url, json=json_string, headers=headers)
 
         if response.status_code == 200:
             result_json = response.json()
