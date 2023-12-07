@@ -76,7 +76,7 @@ def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: 
     job_details_2 = extract_job_details(job_uuid_2, "2")
 
     if not job_details_1 or not job_details_2:
-        return {"error": "Job details extraction failed"}
+        return False
 
     combined_job_details = {
         "active_learning_policy": policy,
@@ -311,7 +311,6 @@ def get_directory_names(request: Request, dataset: str, type: str):
     bucket_name = "datasets"
     prefix = f"{dataset}/{type}"
 
-
     # List all objects with the prefix
     objects = cmd.get_list_of_objects_with_prefix(minio_client, bucket_name, prefix)
 
@@ -322,10 +321,8 @@ def get_directory_names(request: Request, dataset: str, type: str):
         if len(path_parts) > 2:  # Ensure there's a sub-directory
             directories.add(path_parts[2])
 
-    if not directories:
-        return {"message": "No directories found for the given dataset and type"}
-
     return list(directories)
+
 
 
 @router.get("/ranking-queue/count-single-images")
