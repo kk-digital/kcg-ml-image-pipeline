@@ -68,8 +68,10 @@ def http_clip_server_get_cosine_similarity_list(image_path_list: List[str],
     # Use json.dumps to convert the list to a JSON-formatted string
     json_string = json.dumps(image_path_list)
 
+    print(json_string)
+
     try:
-        response = requests.post(url, json=json_string, headers=headers)
+        response = requests.post(url, json=image_path_list, headers=headers)
 
         if response.status_code == 200:
             result_json = response.json()
