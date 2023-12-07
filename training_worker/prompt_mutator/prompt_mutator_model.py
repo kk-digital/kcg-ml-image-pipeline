@@ -50,6 +50,7 @@ class PromptMutator:
         dtrain = xgb.DMatrix(X_train, label=y_train)
         dval = xgb.DMatrix(X_val, label=y_val)
 
+        
         params = {
             'objective': 'reg:absoluteerror',
             "device": "cuda",
@@ -63,12 +64,17 @@ class PromptMutator:
         }
 
         evals_result = {}
+        
         start = time.time()
-        self.model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval,'eval'), (dtrain,'train')], 
-                               early_stopping_rounds=early_stopping, evals_result=evals_result)
+        if self.model:
+            self.model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval,'eval'), (dtrain,'train')], 
+                                early_stopping_rounds=early_stopping, evals_result=evals_result, xgb_model=self.model)
+        else:
+            self.model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval,'eval'), (dtrain,'train')], 
+                                early_stopping_rounds=early_stopping, evals_result=evals_result)
         end = time.time()
 
-        training_time=end - start
+        training_time= end - start
  
         #Extract MAE values and residuals
         val_mae = evals_result['eval']['mae']
