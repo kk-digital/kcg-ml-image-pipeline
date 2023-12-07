@@ -222,12 +222,8 @@ class PromptSubstitutionGenerator:
         # get number of tokens
         prompt_list = prompt_str.split(', ')
         token_number= len(prompt_list)
-        # list of original and substitute phrases, embeddings ,position and sigma score for each substitution
-        sub_phrases=[]
-        sub_embeddings=[]
-        original_embeddings=[]
-        tokens=[]
-        sigma_scores=[]
+        # list of potential substitution choices for current iteration
+        substitution_choices=[]
 
         # Create a batch of substitution inputs for every position in the prompt
         batch_substitution_inputs = []
@@ -259,20 +255,19 @@ class PromptSubstitutionGenerator:
         for token, sigma_score in enumerate(batch_preds):
             # only take substitutions that increase score by more then a set threshold
             if sigma_score > prompt_score + self.sigma_threshold:
-                sigma_scores.append(sigma_score)
-                tokens.append(token)
-                sub_phrases.append(sampled_phrases[token])
-                sub_embeddings.append(sampled_embeddings[token])
-                original_embeddings.append(phrase_embeddings[token])
+                substitution_data={
+                    'position':token,
+                    'substitute_phrase':sampled_phrases[token],
+                    'substitute_embedding':sampled_embeddings[token],
+                    'substituted_embedding':phrase_embeddings[token],
+                    'score':sigma_score
+                }
+                substitution_choices.append(substitution_data)
             
         # substitutions are sorted from highest sigma score to lowest
-        token_order= np.flip(np.argsort(sigma_scores))
-        tokens=[tokens[token_pos] for token_pos in token_order]
-        sub_phrases=[sub_phrases[token_pos] for token_pos in token_order]
-        sub_embeddings=[sub_embeddings[token_pos] for token_pos in token_order]
-        original_embeddings=[original_embeddings[token_pos] for token_pos in token_order]
+        substitution_choices= sorted(substitution_choices, key=lambda s: s['score'], reverse=True) 
         
-        return tokens, sub_phrases, original_embeddings, sub_embeddings, sigma_scores
+        return substitution_choices
 
     # function for rejection sampling with score increase probability
     def rejection_sampling_by_probability(self, 
@@ -285,12 +280,8 @@ class PromptSubstitutionGenerator:
         # get list of phrases
         prompt_list = prompt_str.split(', ')
         token_number= len(prompt_list)
-        # list of original and substitute phrases, embeddings ,position and increase probability for each substitution
-        sub_phrases=[]
-        sub_embeddings=[]
-        original_embeddings=[]
-        tokens=[]
-        increase_probs=[]
+        # list of potential substitution choices for current iteration
+        substitution_choices=[]
         
         # Create a batch of substitution inputs
         batch_substitution_inputs = []
@@ -323,20 +314,19 @@ class PromptSubstitutionGenerator:
         for token, pred in enumerate(batch_preds):
             # only take substitutions that have more than 66% chance to increase score
             if pred["increase"] > self.probability_threshold:
-                increase_probs.append(pred["increase"])
-                tokens.append(token)
-                sub_phrases.append(sampled_phrases[token])
-                sub_embeddings.append(sampled_embeddings[token])
-                original_embeddings.append(phrase_embeddings[token])
+                substitution_data={
+                    'position':token,
+                    'substitute_phrase':sampled_phrases[token],
+                    'substitute_embedding':sampled_embeddings[token],
+                    'substituted_embedding':phrase_embeddings[token],
+                    'increase_prob':pred["increase"]
+                }
+                substitution_choices.append(substitution_data)
 
         # substitutions are sorted from highest increase probability to lowest
-        token_order = np.flip(np.argsort(increase_probs))
-        tokens = [tokens[token_pos] for token_pos in token_order]
-        sub_phrases = [sub_phrases[token_pos] for token_pos in token_order]
-        sub_embeddings = [sub_embeddings[token_pos] for token_pos in token_order]
-        original_embeddings = [original_embeddings[token_pos] for token_pos in token_order]
+        substitution_choices= sorted(substitution_choices, key=lambda s: s['increase_prob'], reverse=True) 
         
-        return tokens, sub_phrases, original_embeddings, sub_embeddings
+        return substitution_choices
 
     # function mutating a prompt
     def mutate_prompt(self,
@@ -367,7 +357,7 @@ class PromptSubstitutionGenerator:
             
             start= time.time()
             # return a list of potential substitution choices, filtered by the rejection policy
-            tokens, sub_phrases, original_embeddings, sub_embeddings, predicted_scores=rejection_func(
+            substitution_choices=rejection_func(
                                                 prompt_str,
                                                 prompt_score,
                                                 pooled_prompt_embedding, 
@@ -378,10 +368,17 @@ class PromptSubstitutionGenerator:
             
             start= time.time()
             # test every choice and take the first choice that increases score
-            for token, sub_phrase, original_embedding, sub_embedding, pred_score in zip(tokens,sub_phrases, original_embeddings, sub_embeddings, predicted_scores):
+            for substitution in substitution_choices:
+                # get substitution data
+                position=substitution['position'],
+                substitute_phrase=substitution['substitute_phrase'],
+                substitute_embedding=substitution['substitute_embedding'],
+                substituted_embedding=substitution['substituted_embedding'],
+                predicted_score=substitution['score']
+
                 #Create a modified prompt with the substitution
                 prompt_list = prompt_str.split(', ')
-                prompt_list[token] = sub_phrase
+                prompt_list[position] = substitute_phrase
                 modified_prompt_str = ", ".join(prompt_list)
 
                 #calculate modified prompt embedding and sigma score
@@ -390,15 +387,16 @@ class PromptSubstitutionGenerator:
                 modified_prompt_score= (modified_prompt_score - self.positive_mean) / self.positive_std
 
                 # collect self training data
-                data=np.concatenate((pooled_prompt_embedding, original_embedding, sub_embedding)).tolist(),
-                prompt_data={
-                    'input': data[0],
-                    'position_encoding': token,
-                    'score_encoding': prompt_score,
-                    'output': modified_prompt_score,
-                    'delta': abs(modified_prompt_score - pred_score)
-                }
-                self_training_data.append(prompt_data)
+                if(self.rejection_policy=="sigma_score"):
+                    data=np.concatenate((pooled_prompt_embedding, substituted_embedding, substitute_embedding)).tolist(),
+                    prompt_data={
+                        'input': data[0],
+                        'position_encoding': position,
+                        'score_encoding': prompt_score,
+                        'output': modified_prompt_score,
+                        'delta': abs(modified_prompt_score - predicted_score)
+                    }
+                    self_training_data.append(prompt_data)
 
                 num_attempts+=1
                 # check if score improves
@@ -406,7 +404,7 @@ class PromptSubstitutionGenerator:
                     # if it does improve, the new prompt is saved and it jumps to the next iteration
                     prompt_str= modified_prompt_str
                     prompt_embedding= modified_prompt_embedding
-                    phrase_embeddings[token]= sub_embedding
+                    phrase_embeddings[position]= substitute_embedding
                     prompt_score= modified_prompt_score
                     num_success+=1
                     break
