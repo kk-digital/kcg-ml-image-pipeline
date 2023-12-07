@@ -205,7 +205,6 @@ class ClipServer:
                 # this syntax is weird but its just list full of zeros
                 image_clip_vector = [0] * 768
 
-            print(image_clip_vector)
             # now that we have the clip vectors we need to construct our tensors
             image_clip_vector = torch.tensor(image_clip_vector, dtype=torch.float32, device=self.device)
             normalized_image_clip_vector = torch.nn.functional.normalize(image_clip_vector, p=2, dim=1)
@@ -218,7 +217,6 @@ class ClipServer:
             similarity_value = similarity.item()
             cosine_match_list[image_index] = similarity_value
 
-            print(f'\n\nsimilarity {similarity_value}\n\n')
             # cleanup
             del image_clip_vector
             del normalized_image_clip_vector
@@ -226,13 +224,11 @@ class ClipServer:
             # After your GPU-related operations, clean up the GPU memory
             torch.cuda.empty_cache()
 
-        print('end \n\n\n')
         del phrase_clip_vector
         del normalized_phrase_clip_vector
         # After your GPU-related operations, clean up the GPU memory
         torch.cuda.empty_cache()
 
-        print(cosine_match_list)
         return cosine_match_list
 
 

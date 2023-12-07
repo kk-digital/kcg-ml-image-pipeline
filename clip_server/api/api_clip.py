@@ -55,7 +55,7 @@ def clip_vector_from_image_path(request: Request,
 
     print(f'\n\n\nsimilarity list {similarity_list}')
     return {
-        "similarity_list", similarity_list
+        "similarity_list" : similarity_list
     }
 
 @router.get("/image-clip")
