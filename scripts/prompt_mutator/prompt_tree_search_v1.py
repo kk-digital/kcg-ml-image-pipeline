@@ -382,11 +382,7 @@ class PromptTreeSearchGenerator:
         return addition_choices
 
     # function mutating a prompt
-    def generate_prompt(self,
-                    prompt_str,
-                    prompt_embedding, 
-                    prompt_score):
-        
+    def generate_prompt(self):
         # get base prompt
         base_prompt_population = load_base_prompts(self.csv_base_prompts)
         prompt_str=random.choice(base_prompt_population)
