@@ -458,30 +458,32 @@ def add_attributes_job_completed(request: Request,
 
     return True
 
-
 @router.get("/worker-stats", response_class=PrettyJSONResponse)
 def get_worker_stats(server_address: str = Query(...), ssh_port: int = Query(22), ssh_key_path: str = Query(...)):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(server_address, port=ssh_port, username='root', key_filename=ssh_key_path)
-
-    command = '''
-    python -c "import json; import socket; import GPUtil; print(json.dumps([{\'id\': gpu.id, \'temperature\': gpu.temperature, \'load\': gpu.load, \'total_memory\': gpu.memoryTotal, \'used_memory\': gpu.memoryUsed, \'worker_name\': socket.gethostname()} for gpu in GPUtil.getGPUs()]))"
-    '''
-    stdin, stdout, stderr = ssh.exec_command(command)
-
-    stderr_output = stderr.read().decode('utf-8')
-    if stderr_output:
-        print("Error executing remote command:", stderr_output)
-        return {"error": "Failed to execute remote command"}
-
     try:
-        gpu_stats = json.loads(stdout.read().decode('utf-8'))
-    except json.JSONDecodeError as e:
-        print("Failed to decode JSON:", e)
-        return {"error": "Failed to decode JSON"}
+        ssh.connect(server_address, port=ssh_port, username='root', key_filename=ssh_key_path)
 
-    ssh.close()
-    return gpu_stats
+        command = '''
+        python -c "import json; import socket; import GPUtil; print(json.dumps([{\'id\': gpu.id, \'temperature\': gpu.temperature, \'load\': gpu.load, \'total_memory\': gpu.memoryTotal, \'used_memory\': gpu.memoryUsed, \'worker_name\': socket.gethostname()} for gpu in GPUtil.getGPUs()]))"
+        '''
+        stdin, stdout, stderr = ssh.exec_command(command)
+
+        stderr_output = stderr.read().decode('utf-8')
+        if stderr_output:
+            print("Error executing remote command:", stderr_output)
+            raise HTTPException(status_code=500, detail="Failed to execute remote command")
+
+        try:
+            gpu_stats = json.loads(stdout.read().decode('utf-8'))
+        except json.JSONDecodeError as e:
+            print("Failed to decode JSON:", e)
+            raise HTTPException(status_code=500, detail="Failed to decode JSON")
+
+        ssh.close()
+        return gpu_stats
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 

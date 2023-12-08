@@ -19,7 +19,7 @@ sys.path.insert(0, base_directory)
 from scripts.image_scorer import ImageScorer
 from training_worker.http import request
 from utility.minio import cmd
-from data_loader.phrase_scores_loader import PhraseScoresLoader
+from utility.boltzman.boltzman_phrase_scores_loader import BoltzmanPhraseScoresLoader
 from worker.prompt_generation.prompt_generator import generate_image_generation_jobs_with_temperature, generate_inpainting_job_with_temperature
 
 def all_same(items):
@@ -437,7 +437,7 @@ def run_prompt_generator(minio_client,
                          boltzman_temperature,
                          boltzman_k,
                          ):
-    positive_phrase_scores_loader = PhraseScoresLoader(dataset_name=dataset_name,
+    positive_phrase_scores_loader = BoltzmanPhraseScoresLoader(dataset_name=dataset_name,
                                                        phrase_scores_csv=positive_phrase_scores_csv,
                                                        minio_client=minio_client,
                                                        )
@@ -449,7 +449,7 @@ def run_prompt_generator(minio_client,
                                                                                                          boltzman_k=boltzman_k,
                                                                                                          type="positive")
 
-    negative_phrase_scores_loader = PhraseScoresLoader(dataset_name=dataset_name,
+    negative_phrase_scores_loader = BoltzmanPhraseScoresLoader(dataset_name=dataset_name,
                                                        phrase_scores_csv=negative_phrase_scores_csv,
                                                        minio_client=minio_client,
                                                        )
