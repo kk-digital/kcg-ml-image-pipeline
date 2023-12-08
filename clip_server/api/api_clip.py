@@ -1,4 +1,6 @@
 from fastapi import Request, HTTPException, APIRouter, Response, Query
+from typing import List
+
 router = APIRouter()
 
 
@@ -39,10 +41,21 @@ def clip_vector_from_image_path(request: Request,
              phrase : str):
     clip_server = request.app.clip_server
 
-    similarity = clip_server.compute_cosine_match_value(phrase, image_path, 'datasets')
+    similarity = clip_server.compute_cosine_match_value(phrase, image_path)
 
     return similarity
 
+@router.post("/cosine-similarity-list")
+def clip_vector_from_image_path(request: Request,
+                                image_path : List[str],
+                                phrase : str):
+    clip_server = request.app.clip_server
+
+    similarity_list = clip_server.compute_cosine_match_value_list(phrase, image_path)
+
+    return {
+        "similarity_list" : similarity_list
+    }
 
 @router.get("/image-clip")
 def clip_vector_from_image_path(request: Request,
