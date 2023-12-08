@@ -236,13 +236,16 @@ class PromptGenerationPromptQueue:
             prompt_score = 0
             model_type = 'N/A'
             if scoring_model is not None and clip_text_embedder is not None:
-                # get prompt embeddings
-                positive_prompt_embeddings = clip_text_embedder(positive_text_prompt)
-                negative_prompt_embeddings = clip_text_embedder(negative_text_prompt)
+
+                # calculate new embeddings
+                positive_embedding, _, positive_attention_mask = clip_text_embedder.forward_return_all(positive_text_prompt)
+                negative_embedding, _, negative_attention_mask = clip_text_embedder.forward_return_all(negative_text_prompt)
 
                 model_type = model_name
-                prompt_score = scoring_model.predict(positive_prompt_embeddings,
-                                                               negative_prompt_embeddings).item()
+                prompt_score = scoring_model.predict_average_pooling(positive_embedding,
+                                                               negative_embedding,
+                                                     positive_attention_mask,
+                                                     negative_attention_mask).item()
 
             scored_prompt = ScoredPrompt(prompt_score,
                                          positive_text_prompt,

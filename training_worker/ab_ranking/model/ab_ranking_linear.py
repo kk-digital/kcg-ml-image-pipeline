@@ -20,7 +20,7 @@ sys.path.insert(0, base_directory)
 
 from data_loader.ab_ranking_dataset_loader import ABRankingDatasetLoader
 from utility.minio import cmd
-# from utility.clip.clip_text_embedder import tensor_attention_pooling
+from utility.clip.clip_text_embedder import tensor_attention_pooling
 
 class ABRankingLinearModel(nn.Module):
     def __init__(self, inputs_shape):

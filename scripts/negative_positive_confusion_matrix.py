@@ -73,7 +73,7 @@ class EmbeddingConfusionMatrix:
         # Reset the buffer's position to the beginning
         byte_buffer.seek(0)
 
-        embedding_model.load(byte_buffer)
+        embedding_model.load_pth(byte_buffer)
 
         return embedding_model
     

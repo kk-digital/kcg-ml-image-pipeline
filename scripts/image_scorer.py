@@ -72,7 +72,7 @@ class ImageScorer:
         for data in model_file_data.stream(amt=8192):
             byte_buffer.write(data)
         byte_buffer.seek(0)
-        model.load(byte_buffer)
+        model.load_pth(byte_buffer)
 
         # assign
         self.model = model
