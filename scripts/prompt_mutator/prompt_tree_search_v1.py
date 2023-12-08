@@ -350,7 +350,7 @@ class PromptTreeSearchGenerator:
             # get phrase embedding by its index
             added_embedding = self.phrase_embeddings[random_index]
             # choose a random position to add into
-            addition_position=random.randrange(0,token_number+1) / token_number
+            addition_position=random.randrange(0,token_number+1)
             position_encoding=addition_position / token_number
             # concatenate input in one array to use for inference
             addition_input = np.concatenate([prompt_embedding, added_embedding, [position_encoding]])
@@ -387,8 +387,8 @@ class PromptTreeSearchGenerator:
     # function mutating a prompt
     def generate_prompt(self):
         # get base prompt
-        #base_prompt_population = load_base_prompts(self.csv_base_prompts)
-        prompt_str=random.choice(self.phrase_list)
+        base_prompt_population = load_base_prompts(self.csv_base_prompts)
+        #prompt_str=random.choice(self.phrase_list)
         prompt_embedding=self.get_prompt_embedding(prompt_str)
         prompt_score=self.get_prompt_score(prompt_embedding)
         prompt_score= (prompt_score - self.positive_mean)/self.std
@@ -424,7 +424,6 @@ class PromptTreeSearchGenerator:
                 added_embedding=addition['added_embedding'],
                 predicted_score=prompt_score
 
-                print(position)
 
                 #Create a modified prompt with the addition
                 prompt_list = prompt_str.split(', ')
