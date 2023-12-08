@@ -385,9 +385,10 @@ class PromptTreeSearchGenerator:
     def generate_prompt(self):
         # get base prompt
         base_prompt_population = load_base_prompts(self.csv_base_prompts)
-        prompt_str=random.choice(self.phrase_list)
+        prompt_str=random.choice(base_prompt_population)
         prompt_embedding=self.get_prompt_embedding(prompt_str)
         prompt_score=self.get_prompt_score(prompt_embedding)
+        prompt_score= prompt_score- self.positive_mean / self.std
 
         # self training datapoints
         self_training_data=[]
