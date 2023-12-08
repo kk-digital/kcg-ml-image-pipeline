@@ -364,6 +364,9 @@ class PromptTreeSearchGenerator:
         # Predict probabilities of increase and decrease for every addition
         batch_preds = self.addition_model.predict(batch_addition_inputs)
 
+        print(prompt_score)
+        print(f"predicted scores: {batch_preds}")
+
         # filter with rejection sampling
         for choice, sigma_score in enumerate(batch_preds):
             # only take substitutions that have more than 66% chance to increase score
