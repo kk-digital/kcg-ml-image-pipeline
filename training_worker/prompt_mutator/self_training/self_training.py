@@ -159,12 +159,13 @@ class SelfTrainingPromptMutator:
         return inputs, outputs
     
     def save_scaling_graph(self, loss_by_data, num_datapoints):
-        plt.plot([i*10000 for i in range(num_datapoints+1)], loss_by_data)
-        plt.xlabel('Data')
-        plt.ylabel('L1 Loss')
-        plt.title('L1 Loss by number of self training datapoints')
+        plt.plot([i * 10000 for i in range(num_datapoints + 1)], loss_by_data)
+        plt.xlabel('Self Training Data', fontsize=14)
+        plt.ylabel('L1 Loss', fontsize=14)
+        plt.title('L1 Loss by Number of Self Training Datapoints', fontsize=16)
 
-        plt.savefig("output/scaling_graph.png")
+        # Set y-axis limits to start from 0 and end at the max value in loss_by_data
+        plt.ylim(0, max(loss_by_data))
 
         # Save the figure to a file
         buf = io.BytesIO()

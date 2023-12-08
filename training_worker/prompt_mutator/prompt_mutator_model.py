@@ -186,7 +186,7 @@ class PromptMutator:
                                                             f'Prompt {self.operation}',
                                                             'XGBoost',
                                                             f'{self.prompt_type}_clip_text_embedding',
-                                                            '2306',
+                                                            f'{self.input_size}',
                                                             self.output_type,
                                                             training_size,
                                                             validation_size,

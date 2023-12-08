@@ -763,6 +763,7 @@ class PromptSubstitutionGenerator:
             print(f"Error: {err}")
             return None
 
+    # store self training data
     def store_self_training_data(self, training_data):
         batch_size = 10000
         dataset_path = DATA_MINIO_DIRECTORY + "/self_training/"
@@ -797,6 +798,7 @@ class PromptSubstitutionGenerator:
         if batch:
             self.store_batch_in_msgpack_file(batch, index, incomplete=True)
 
+    # function for storing self training data in a msgpack file
     def store_batch_in_msgpack_file(self, batch, index, incomplete=False):
         if incomplete:
             file_path=f"{self.scoring_model}/{str(index).zfill(4)}_substitution_incomplete.msgpack"
