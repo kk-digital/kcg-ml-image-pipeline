@@ -284,7 +284,6 @@ class PromptSubstitutionGenerator:
         substitution_choices=[]
         
         # Create a batch of substitution inputs
-        batch_substitution_inputs = []
         sampled_phrases = []
         sampled_embeddings = []
 
