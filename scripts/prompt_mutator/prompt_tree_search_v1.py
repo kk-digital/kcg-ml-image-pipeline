@@ -366,6 +366,7 @@ class PromptTreeSearchGenerator:
 
         print(prompt_score)
         print(f"predicted scores: {batch_preds}")
+        print(f"positions: {positions}")
 
         # filter with rejection sampling
         for choice, sigma_score in enumerate(batch_preds):
@@ -422,8 +423,7 @@ class PromptTreeSearchGenerator:
                 position=addition['position'],
                 added_phrase=addition['added_phrase'],
                 added_embedding=addition['added_embedding'],
-                predicted_score=prompt_score
-
+                predicted_score=addition['score'],
 
                 #Create a modified prompt with the addition
                 prompt_list = prompt_str.split(', ')
