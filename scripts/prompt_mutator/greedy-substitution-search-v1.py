@@ -373,6 +373,7 @@ class PromptSubstitutionGenerator:
             # test every choice and take the first choice that increases score
             for substitution in substitution_choices:
                 # get substitution data
+                print(substitution)
                 position=substitution['position'],
                 substitute_phrase=substitution['substitute_phrase'],
                 substitute_embedding=substitution['substitute_embedding'],
