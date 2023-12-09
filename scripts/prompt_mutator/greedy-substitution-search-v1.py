@@ -141,7 +141,7 @@ class PromptSubstitutionGenerator:
         self.phrase_list=phrase_df['phrase str'].tolist()
         # Calculate phrase weights based on positive counts
         total_positive_count = phrase_df['positive count'].sum()
-        self.weights = phrase_df['positive count'] / total_positive_count
+        self.weights = (phrase_df['positive count'] / total_positive_count).tolist()
         # get embeddings
         self.phrase_embeddings= self.load_phrase_embeddings()
 
@@ -240,7 +240,7 @@ class PromptSubstitutionGenerator:
             # get the substituted phrase
             substituted_embedding = phrase_embeddings[token]
             # get a random phrase from civitai to substitute with
-            random_index=random.choices([i for i in range(len(self.phrase_list))], self.weights)[0]
+            random_index=np.random.choice([i for i in range(len(self.phrase_list))], p=self.weights)[0]
             # get phrase string
             substitute_phrase = self.phrase_list[random_index]
             # get phrase embedding by its index
