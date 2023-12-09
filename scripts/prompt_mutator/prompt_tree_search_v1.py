@@ -90,7 +90,7 @@ class PromptTreeSearchGenerator:
         # addition model (binary of sigma score)
         self.addition_model= None
         # number of choices per iteration
-        self.choices_per_iteration= 64
+        self.choices_per_iteration= 100
         # get list of base prompts
         self.csv_base_prompts=csv_base_prompts
 
@@ -364,14 +364,10 @@ class PromptTreeSearchGenerator:
         # Predict probabilities of increase and decrease for every addition
         batch_preds = self.addition_model.predict(batch_addition_inputs)
 
-        print(prompt_score)
-        print(f"predicted scores: {batch_preds}")
-
         # filter with rejection sampling
         for choice, sigma_score in enumerate(batch_preds):
             # only take substitutions that have more than 66% chance to increase score
             if sigma_score > prompt_score:
-                print(positions[choice])
                 addition_data={
                     'position':positions[choice],
                     'added_phrase':sampled_phrases[choice],
