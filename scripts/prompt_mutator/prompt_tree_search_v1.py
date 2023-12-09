@@ -367,7 +367,7 @@ class PromptTreeSearchGenerator:
         # filter with rejection sampling
         for choice, sigma_score in enumerate(batch_preds):
             # only take substitutions that have more than 66% chance to increase score
-            if sigma_score > prompt_score:
+            if sigma_score + self.sigma_threshold > prompt_score:
                 addition_data={
                     'position':positions[choice],
                     'added_phrase':sampled_phrases[choice],
