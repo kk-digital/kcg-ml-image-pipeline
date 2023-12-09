@@ -419,12 +419,11 @@ class PromptTreeSearchGenerator:
             start= time.time()
             # test every choice and take the first choice that increases score
             for addition in addition_choices:
-                print(addition)
                 # get addition data
-                position=addition['position'],
-                added_phrase=addition['added_phrase'],
-                added_embedding=addition['added_embedding'],
-                predicted_score=addition['score'],
+                position=addition['position']
+                added_phrase=addition['added_phrase']
+                added_embedding=addition['added_embedding']
+                predicted_score=addition['score']
 
                 #Create a modified prompt with the addition
                 prompt_list = prompt_str.split(', ')
