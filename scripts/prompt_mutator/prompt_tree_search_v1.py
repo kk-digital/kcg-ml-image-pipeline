@@ -22,7 +22,7 @@ from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from utility.minio import cmd
-from worker.prompt_generation.prompt_generator import load_base_prompts, generate_image_generation_jobs
+from worker.prompt_generation.prompt_generator import generate_prompts_from_csv_proportional_selection, load_base_prompts, generate_image_generation_jobs
 
 GENERATION_POLICY="prompt-tree-search-v1"
 DATA_MINIO_DIRECTORY="environmental/data/prompt-generator/addition"
@@ -37,8 +37,9 @@ def parse_args():
     parser.add_argument('--send-job', action='store_true', default=False)
     parser.add_argument('--dataset-name', default='test-generations')
     parser.add_argument('--scoring-model', help="elm or linear", default="linear")
+    parser.add_argument('--rejection-policy', help="by probability or sigma_score", default="sigma_score")
     parser.add_argument('--sigma-threshold', type=float, help="threshold of rejection policy for increase of sigma score", default=0.1)
-    parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=100)
+    parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=80)
     parser.add_argument('--self-training', action='store_true', default=False)
     parser.add_argument('--store-embeddings', action='store_true', default=False)
     parser.add_argument('--save-csv', action='store_true', default=False)
@@ -58,6 +59,7 @@ class PromptTreeSearchGenerator:
         csv_phrase,
         csv_base_prompts,
         scoring_model,
+        rejection_policy,
         max_iterations,
         sigma_threshold,
         dataset_name,
@@ -77,6 +79,8 @@ class PromptTreeSearchGenerator:
         self.max_iterations= max_iterations
         # average score by iteration to track score improvement
         self.average_score_by_iteration=np.zeros(self.max_iterations)
+        # rejection policy (by probability of increasing score or sigma score)
+        self.rejection_policy= rejection_policy
         # rejection threshold for increase in sigma score
         self.sigma_threshold= sigma_threshold
         # name of dataset
@@ -87,10 +91,8 @@ class PromptTreeSearchGenerator:
         self.send_job=send_job
         # whether to save csv of prompts or not
         self.save_csv=save_csv
-        # addition model (binary of sigma score)
-        self.addition_model= None
-        # number of choices per iteration
-        self.choices_per_iteration= 100
+        # substitution model (binary of sigma score)
+        self.substitution_model= None
         # get list of base prompts
         self.csv_base_prompts=csv_base_prompts
 
@@ -118,9 +120,13 @@ class PromptTreeSearchGenerator:
         self.mean, self.std= self.scorer.mean, self.scorer.standard_deviation
         self.positive_mean, self.positive_std= self.positive_scorer.mean, self.positive_scorer.standard_deviation
         
-        # load the xgboost model
-        self.addition_model= PromptMutator(minio_client=self.minio_client, ranking_model=self.scoring_model, operation="addition")
-        self.addition_model.load_model()
+        # load the xgboost model depending on what rejection policy is being used
+        if(self.rejection_policy=="sigma_score"):
+            self.substitution_model= PromptMutator(minio_client=self.minio_client, ranking_model=self.scoring_model)
+        else:
+            self.substitution_model= BinaryPromptMutator(minio_client=self.minio_client, ranking_model=self.scoring_model)
+
+        self.substitution_model.load_model()
 
         # store phrase embeddings in a file in minio 
         if(store_embeddings):
@@ -322,78 +328,140 @@ class PromptTreeSearchGenerator:
 
         return phrase_embeddings
 
-    # function for rejection sampling with score
-    def rejection_sampling_by_score(self, 
+    # function for rejection sampling with sigma scores
+    def rejection_sampling_by_sigma_score(self,
                                     prompt_str, 
                                     prompt_score, 
-                                    prompt_embedding
+                                    prompt_embedding, 
+                                    phrase_embeddings):
+
+        # get number of tokens
+        prompt_list = prompt_str.split(', ')
+        token_number= len(prompt_list)
+        # list of potential substitution choices for current iteration
+        substitution_choices=[]
+
+        # Create a batch of substitution inputs for every position in the prompt
+        batch_substitution_inputs = []
+        sampled_phrases = []
+        sampled_embeddings = []
+
+        batch_substitution_inputs = []
+        # create a substitution for each position in the prompt
+        for token in range(token_number):
+            # get the substituted phrase
+            substituted_embedding = phrase_embeddings[token]
+            # get a random phrase from civitai to substitute with
+            random_index=random.randrange(0, len(self.phrase_list))
+            # get phrase string
+            substitute_phrase = self.phrase_list[random_index]
+            # get phrase embedding by its index
+            substitute_embedding = self.phrase_embeddings[random_index]
+            # concatenate input in one array to use for inference
+            substitution_input = np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
+            # save data in an array to use for inference and rejection sampling
+            batch_substitution_inputs.append(substitution_input)
+            sampled_phrases.append(substitute_phrase)
+            sampled_embeddings.append(substitute_embedding)
+     
+        # Predict sigma score for every substitution
+        batch_preds = self.substitution_model.predict(batch_substitution_inputs)
+
+        # Filter with rejection sampling
+        for token, sigma_score in enumerate(batch_preds):
+            # only take substitutions that increase score by more then a set threshold
+            if sigma_score > prompt_score + self.sigma_threshold:
+                substitution_data={
+                    'position':token,
+                    'substitute_phrase':sampled_phrases[token],
+                    'substitute_embedding':sampled_embeddings[token],
+                    'substituted_embedding':phrase_embeddings[token],
+                    'score':sigma_score
+                }
+                substitution_choices.append(substitution_data)
+            
+        # substitutions are sorted from highest sigma score to lowest
+        substitution_choices= sorted(substitution_choices, key=lambda s: s['score'], reverse=True) 
+        
+        return substitution_choices
+
+    # function for rejection sampling with score increase probability
+    def rejection_sampling_by_probability(self, 
+                                    prompt_str, 
+                                    prompt_score, 
+                                    prompt_embedding, 
+                                    phrase_embeddings,
                                     ):
 
         # get list of phrases
         prompt_list = prompt_str.split(', ')
         token_number= len(prompt_list)
-        # list of potential addition choices for current iteration
-        addition_choices=[]
+        # list of potential substitution choices for current iteration
+        substitution_choices=[]
         
-        # Create a batch of addition inputs
-        batch_addition_inputs = []
+        # Create a batch of substitution inputs
         sampled_phrases = []
         sampled_embeddings = []
-        positions=[]
 
+        batch_substitution_inputs = []
         # create a substitution for each position in the prompt
-        for i in range(self.choices_per_iteration):
-            # get a random phrase from civitai to add
+        for token in range(token_number):
+            # get the substituted phrase
+            substituted_embedding = phrase_embeddings[token]
+            # get a random phrase from civitai to substitute with
             random_index=random.randrange(0, len(self.phrase_list))
             # get phrase string
-            added_phrase = self.phrase_list[random_index]
+            substitute_phrase = self.phrase_list[random_index]
             # get phrase embedding by its index
-            added_embedding = self.phrase_embeddings[random_index]
-            # choose a random position to add into
-            addition_position=random.randrange(0,token_number+1)
-            position_encoding=addition_position / token_number
+            substitute_embedding = self.phrase_embeddings[random_index]
             # concatenate input in one array to use for inference
-            addition_input = np.concatenate([prompt_embedding, added_embedding, [position_encoding]])
+            substitution_input = np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
             # save data in an array to use for inference and rejection sampling
-            batch_addition_inputs.append(addition_input)
-            sampled_phrases.append(added_phrase)
-            sampled_embeddings.append(added_embedding)
-            positions.append(addition_position)
+            batch_substitution_inputs.append(substitution_input)
+            sampled_phrases.append(substitute_phrase)
+            sampled_embeddings.append(substitute_embedding)
         
 
-        # Predict probabilities of increase and decrease for every addition
-        batch_preds = self.addition_model.predict(batch_addition_inputs)
+        # Predict probabilities of increase and decrease for every substitution
+        batch_preds = self.substitution_model.predict_probs(batch_substitution_inputs)
 
         # filter with rejection sampling
-        for choice, sigma_score in enumerate(batch_preds):
+        for token, pred in enumerate(batch_preds):
             # only take substitutions that have more than 66% chance to increase score
-            if sigma_score + self.sigma_threshold > prompt_score:
-                addition_data={
-                    'position':positions[choice],
-                    'added_phrase':sampled_phrases[choice],
-                    'added_embedding':sampled_embeddings[choice],
-                    'score':sigma_score
+            if pred["increase"] > self.probability_threshold:
+                substitution_data={
+                    'position':token,
+                    'substitute_phrase':sampled_phrases[token],
+                    'substitute_embedding':sampled_embeddings[token],
+                    'substituted_embedding':phrase_embeddings[token],
+                    'increase_prob':pred["increase"]
                 }
-                addition_choices.append(addition_data)
+                substitution_choices.append(substitution_data)
 
-        # additions are sorted from highest predicted score to lowest
-        addition_choices= sorted(addition_choices, key=lambda s: s['score'], reverse=True) 
+        # substitutions are sorted from highest increase probability to lowest
+        substitution_choices= sorted(substitution_choices, key=lambda s: s['increase_prob'], reverse=True) 
         
-        return addition_choices
+        return substitution_choices
 
     # function mutating a prompt
-    def generate_prompt(self):
-        # get base prompt
-        prompt_str=random.choice(self.phrase_list)
-        prompt_embedding=self.get_prompt_embedding(prompt_str)
-        prompt_score=self.get_prompt_score(prompt_embedding)
-        prompt_score= (prompt_score - self.positive_mean)/self.std
-        print(prompt_score)
+    def mutate_prompt(self,
+                    prompt_str,
+                    prompt_embedding, 
+                    prompt_score):
+
+        # calculate mean pooled embedding of each phrase in the prompt 
+        phrase_embeddings= [self.get_mean_pooled_embedding(self.get_prompt_embedding(phrase)) for phrase in prompt_str.split(', ')]
+
+        # get rejection policy function
+        if(self.rejection_policy=="sigma_score"):
+            rejection_func=self.rejection_sampling_by_sigma_score
+        else:
+            rejection_func=self.rejection_sampling_by_probability
 
         # self training datapoints
         self_training_data=[]
         rejection_policy_time=0
-        addition_time=0
+        substitution_time=0
         num_attempts=0
         num_success=0
         
@@ -404,26 +472,28 @@ class PromptTreeSearchGenerator:
             
             start= time.time()
             # return a list of potential substitution choices, filtered by the rejection policy
-            addition_choices=self.rejection_sampling_by_score(
+            substitution_choices=rejection_func(
                                                 prompt_str,
                                                 prompt_score,
-                                                pooled_prompt_embedding)
+                                                pooled_prompt_embedding, 
+                                                phrase_embeddings)
             end= time.time()
 
             rejection_policy_time+= end - start
             
             start= time.time()
             # test every choice and take the first choice that increases score
-            for addition in addition_choices:
-                # get addition data
-                position=addition['position']
-                added_phrase=addition['added_phrase']
-                added_embedding=addition['added_embedding']
-                predicted_score=addition['score']
+            for substitution in substitution_choices:
+                # get substitution data
+                position=substitution['position']
+                substitute_phrase=substitution['substitute_phrase']
+                substitute_embedding=substitution['substitute_embedding']
+                substituted_embedding=substitution['substituted_embedding']
+                predicted_score=substitution['score']
 
-                #Create a modified prompt with the addition
+                #Create a modified prompt with the substitution
                 prompt_list = prompt_str.split(', ')
-                prompt_list.insert(position, added_phrase)
+                prompt_list[position] = substitute_phrase
                 modified_prompt_str = ", ".join(prompt_list)
 
                 #calculate modified prompt embedding and sigma score
@@ -432,14 +502,16 @@ class PromptTreeSearchGenerator:
                 modified_prompt_score= (modified_prompt_score - self.positive_mean) / self.positive_std
 
                 # collect self training data
-                data=np.concatenate((pooled_prompt_embedding, added_embedding)).tolist(),
-                prompt_data={
-                    'input': data[0],
-                    'position_encoding': position/len(prompt_str),
-                    'output': modified_prompt_score,
-                    'delta': abs(modified_prompt_score - predicted_score)
-                }
-                self_training_data.append(prompt_data)
+                if(self.rejection_policy=="sigma_score"):
+                    data=np.concatenate((pooled_prompt_embedding, substituted_embedding, substitute_embedding)).tolist(),
+                    prompt_data={
+                        'input': data[0],
+                        'position_encoding': position,
+                        'score_encoding': prompt_score,
+                        'output': modified_prompt_score,
+                        'delta': abs(modified_prompt_score - predicted_score)
+                    }
+                    self_training_data.append(prompt_data)
 
                 num_attempts+=1
                 # check if score improves
@@ -447,21 +519,104 @@ class PromptTreeSearchGenerator:
                     # if it does improve, the new prompt is saved and it jumps to the next iteration
                     prompt_str= modified_prompt_str
                     prompt_embedding= modified_prompt_embedding
+                    phrase_embeddings[position]= substitute_embedding
                     prompt_score= modified_prompt_score
                     num_success+=1
                     break
             
             self.average_score_by_iteration[i]+=prompt_score
             end= time.time()
-            addition_time+= end - start
+            substitution_time+= end - start
         
         print(f"time for rejection policy {rejection_policy_time}")
-        print(f"time for additions {addition_time}")
+        print(f"time for substitutions {substitution_time}")
         print(f"success rate: {num_success}/{num_attempts}")
 
         # taking top 10 training datapoints with highest delta
         self_training_data = sorted(self_training_data, key=lambda d: d['delta'], reverse=True)[:10]  
-        return prompt_str, prompt_score
+        return prompt_str, prompt_embedding, self_training_data
+    
+    # function to generate n images
+    def generate_images(self, num_images):
+        # dataframe for saving csv of generated prompts
+        df_data=[]
+        # collected self training data
+        training_data=[]
+        index=0
+        
+        prompts = generate_prompts_from_csv_proportional_selection(self.csv_phrase,
+                                                               num_images)
+
+        start=time.time()
+        # mutate prompts one by one
+        for prompt in prompts:
+            # get positive and negative prompt
+            positive_prompt=prompt.positive_prompt_str,
+            negative_prompt=prompt.negative_prompt_str,
+
+            # get positive and negative embeddings
+            positive_embedding=self.get_prompt_embedding(positive_prompt)
+            negative_embedding=self.get_prompt_embedding(negative_prompt)
+           
+            # calculating combined score and positive score of prompt before mutation
+            seed_score=self.scorer.predict(positive_embedding, negative_embedding).item()
+            positive_score=self.positive_scorer.predict_positive_or_negative_only(positive_embedding).item()
+            # substract mean and divide by std to get sigma scores
+            positive_score= (positive_score - self.positive_mean) / self.positive_std
+
+            #mutate positive prompt
+            mutated_positive_prompt, mutated_positive_embedding, collected_data= self.mutate_prompt(
+                            prompt_str=positive_prompt, 
+                            prompt_embedding=positive_embedding,
+                            prompt_score=positive_score)
+            
+            # store the collected self training data for this prompt
+            training_data.extend(collected_data)
+
+            # calculating new score with the mutated positive prompt
+            score=self.scorer.predict(mutated_positive_embedding, negative_embedding).item()
+            sigma_score=(score - self.mean) / self.std
+
+            print(f"prompt {index} mutated.")
+            print(f"----initial score: {seed_score}.")
+            print(f"----final score: {score}.")
+
+            # sending a job to generate an image with the mutated prompt
+            if self.send_job:
+                try:
+                    response = generate_image_generation_jobs(
+                        positive_prompt=mutated_positive_prompt,
+                        negative_prompt=negative_prompt,
+                        prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
+                        prompt_score=score,
+                        prompt_generation_policy=GENERATION_POLICY,
+                        top_k='',
+                        dataset_name=self.dataset_name
+                    )
+                    task_uuid = response['uuid']
+                    task_time = response['creation_time']
+                except:
+                    print('Error occured:')
+                    print(traceback.format_exc())
+                    task_uuid = -1
+                    task_time = -1
+                
+                # storing job data to put in csv file later
+                df_data.append({
+                    'score': score,
+                    'sigma_score': sigma_score,
+                    'positive_prompt': mutated_positive_prompt,
+                    'negative_prompt': negative_prompt,
+                    'generation_policy_string': GENERATION_POLICY,
+                    'task_uuid': task_uuid,
+                    'time': task_time
+                })
+            
+            index+=1
+
+        end=time.time()
+
+        print(f"time taken for {num_images} prompts is {end - start:.2f} seconds")
 
 def main():
     args = parse_args()
@@ -472,6 +627,7 @@ def main():
                                   csv_base_prompts=args.csv_base_prompts,
                                   scoring_model=args.scoring_model,
                                   max_iterations=args.max_iterations,
+                                  rejection_policy=args.rejection_policy,
                                   sigma_threshold=args.sigma_threshold,
                                   dataset_name=args.dataset_name,
                                   store_embeddings=args.store_embeddings,
@@ -479,11 +635,8 @@ def main():
                                   send_job=args.send_job,
                                   save_csv=args.save_csv)
     
-    
-    generated_prompt_str, score=prompt_generator.generate_prompt()
-    
-    print(f"mutated_prompt:{generated_prompt_str}")
-    print(f"mutated_prompt:{score}")
+    # generate n number of images
+    prompt_generator.generate_images(num_images=args.n_data)
     
     
 if __name__ == "__main__":
