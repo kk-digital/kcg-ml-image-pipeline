@@ -22,7 +22,7 @@ from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from utility.minio import cmd
-from worker.prompt_generation.prompt_generator import generate_prompts_from_csv_proportional_selection, load_base_prompts, generate_image_generation_jobs
+from worker.prompt_generation.prompt_generator import generate_base_prompts, generate_prompts_from_csv_proportional_selection, load_base_prompts, generate_image_generation_jobs
 
 GENERATION_POLICY="greedy-substitution-search-v1"
 DATA_MINIO_DIRECTORY="environmental/data/prompt-generator/substitution"
@@ -543,16 +543,27 @@ class PromptTreeSearchGenerator:
         # collected self training data
         training_data=[]
         index=0
-        
+
+        # get base prompts and generate initial prompts before mutation
+        base_prompt_population = load_base_prompts(self.csv_base_prompts)
         prompts = generate_prompts_from_csv_proportional_selection(self.csv_phrase,
                                                                num_images)
-
         start=time.time()
         # mutate prompts one by one
         for prompt in prompts:
+            prompt = prompts[index]
+            # N Base Prompt Phrases
+            choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+            base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
+
+            base_prompts = ''
+
+            for base_prompt in base_prompt_list:
+                base_prompts = base_prompts + base_prompt + ', '
+
             # get positive and negative prompt
-            positive_prompt=prompt.positive_prompt_str
-            negative_prompt=prompt.negative_prompt_str
+            positive_prompt = base_prompts + prompt.positive_prompt_str
+            negative_prompt = prompt.negative_prompt_str
 
             # get positive and negative embeddings
             positive_embedding=self.get_prompt_embedding(positive_prompt)
