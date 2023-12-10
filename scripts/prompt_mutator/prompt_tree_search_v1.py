@@ -24,8 +24,8 @@ from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTex
 from utility.minio import cmd
 from worker.prompt_generation.prompt_generator import generate_prompts_from_csv_proportional_selection, load_base_prompts, generate_image_generation_jobs
 
-GENERATION_POLICY="prompt-tree-search-v1"
-DATA_MINIO_DIRECTORY="environmental/data/prompt-generator/addition"
+GENERATION_POLICY="greedy-substitution-search-v1"
+DATA_MINIO_DIRECTORY="environmental/data/prompt-generator/substitution"
 
 def parse_args():
     parser = argparse.ArgumentParser()
