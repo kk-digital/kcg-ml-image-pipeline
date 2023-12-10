@@ -551,8 +551,8 @@ class PromptTreeSearchGenerator:
         # mutate prompts one by one
         for prompt in prompts:
             # get positive and negative prompt
-            positive_prompt=prompt.positive_prompt_str,
-            negative_prompt=prompt.negative_prompt_str,
+            positive_prompt=prompt.positive_prompt_str
+            negative_prompt=prompt.negative_prompt_str
 
             # get positive and negative embeddings
             positive_embedding=self.get_prompt_embedding(positive_prompt)
