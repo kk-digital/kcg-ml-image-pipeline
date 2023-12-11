@@ -581,8 +581,9 @@ class PromptSubstitutionGenerator:
             negative_embedding=self.get_prompt_embedding(negative_prompt)
            
             # calculating combined score and positive score of prompt
-            prompt_score=self.scorer.predict(positive_embedding, negative_embedding).item()
-            positive_score=self.positive_scorer.predict_positive_or_negative_only(positive_embedding).item()
+            with torch.no_grad:
+                prompt_score=self.scorer.predict(positive_embedding, negative_embedding).item()
+                positive_score=self.positive_scorer.predict_positive_or_negative_only(positive_embedding).item()
 
             # storing prompt data
             prompt_data.append({
