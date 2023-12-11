@@ -66,7 +66,7 @@ def load_linear_model(minio_client, dataset_bucket, model_path):
     # Reset the buffer's position to the beginning
     byte_buffer.seek(0)
 
-    linear_model.load(byte_buffer)
+    linear_model.load_pth(byte_buffer)
 
     return linear_model
 
@@ -87,7 +87,7 @@ def load_elm_v1_model(minio_client, dataset_bucket, model_path):
     # Reset the buffer's position to the beginning
     byte_buffer.seek(0)
 
-    elm_model.load(byte_buffer)
+    elm_model.load_pth(byte_buffer)
 
     return elm_model
 

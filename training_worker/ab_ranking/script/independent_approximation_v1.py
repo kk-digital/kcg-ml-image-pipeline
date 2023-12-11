@@ -188,7 +188,7 @@ def train_ranking(dataset_name: str,
                                         randomize_data_per_epoch=randomize_data_per_epoch)
 
     # Upload model to minio
-    model_name = "{}.pth".format(filename)
+    model_name = "{}.safetensors".format(filename)
     model_output_path = os.path.join(output_path, model_name)
     ab_model.save(dataset_loader.minio_client, bucket_name, model_output_path)
 
