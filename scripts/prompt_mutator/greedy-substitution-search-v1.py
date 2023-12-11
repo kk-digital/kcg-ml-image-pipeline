@@ -52,7 +52,7 @@ def parse_args():
         '--csv_base_prompts', help='CSV containing base prompts', 
         default='input/dataset-config/environmental/base-prompts-environmental.csv'
     )
-    
+
     return parser.parse_args()
 
 class PromptSubstitutionGenerator:
@@ -557,7 +557,7 @@ class PromptSubstitutionGenerator:
         # get base prompts and generate initial prompts before mutation
         base_prompt_population = load_base_prompts(self.csv_base_prompts)
         prompts = generate_prompts_from_csv_proportional_selection(self.csv_phrase,
-                                                               num_prompts / self.top_k)
+                                                               int(num_prompts / self.top_k))
         prompt_data=[]
         # add base prompts and calculate scores
         for prompt in prompts:
