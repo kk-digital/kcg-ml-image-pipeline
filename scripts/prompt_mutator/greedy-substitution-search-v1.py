@@ -23,7 +23,7 @@ from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from utility.minio import cmd
 
-from worker.prompt_generation.prompt_generator import generate_image_generation_jobs
+from worker.prompt_generation.prompt_generator import generate_base_prompts, generate_image_generation_jobs, generate_prompts_from_csv_proportional_selection, load_base_prompts
 
 GENERATION_POLICY="greedy-substitution-search-v1"
 DATA_MINIO_DIRECTORY="environmental/data/prompt-generator/substitution"
@@ -46,7 +46,13 @@ def parse_args():
     parser.add_argument('--self-training', action='store_true', default=False)
     parser.add_argument('--store-embeddings', action='store_true', default=False)
     parser.add_argument('--save-csv', action='store_true', default=False)
-
+    parser.add_argument('--generate-initial-prompts', action='store_true', default=True)
+    parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
+    parser.add_argument(
+        '--csv_base_prompts', help='CSV containing base prompts', 
+        default='input/dataset-config/environmental/base-prompts-environmental.csv'
+    )
+    
     return parser.parse_args()
 
 class PromptSubstitutionGenerator:
@@ -56,17 +62,18 @@ class PromptSubstitutionGenerator:
         minio_secret_key,
         minio_ip_addr,
         csv_phrase,
+        csv_base_prompts,
         scoring_model,
         max_iterations,
         rejection_policy,
         probability_threshold,
         sigma_threshold,
         dataset_name,
-        update_prompts,
         store_embeddings,
         self_training,
         send_job,
-        save_csv
+        save_csv,
+        top_k
     ):
         start=time.time()
 
@@ -95,6 +102,10 @@ class PromptSubstitutionGenerator:
         self.save_csv=save_csv
         # substitution model (binary of sigma score)
         self.substitution_model= None
+        # top k value for generating initial prompts
+        self.top_k=top_k
+        # get list of base prompts
+        self.csv_base_prompts=csv_base_prompts
 
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key,
@@ -127,10 +138,6 @@ class PromptSubstitutionGenerator:
             self.substitution_model= BinaryPromptMutator(minio_client=self.minio_client, ranking_model=self.scoring_model)
 
         self.substitution_model.load_model()
-
-        # update list of initial prompts if necessary
-        if(update_prompts):
-            self.update_prompt_list()
 
         # store phrase embeddings in a file in minio 
         if(store_embeddings):
@@ -434,34 +441,23 @@ class PromptSubstitutionGenerator:
         index=0
 
         # get initial prompts
-        prompt_list = self.get_initial_prompts(num_prompts=num_images)
+        prompt_list = self.generate_initial_prompts(num_images)
     
         start=time.time()
         # mutate prompts one by one
-        for i, prompt in prompt_list.iterrows():
+        for prompt in prompt_list:
 
             #getting negative and positive prompts
             positive_prompt=prompt['positive_prompt'] 
             negative_prompt=prompt['negative_prompt']
             
-            # get prompt embedding
-            data = self.minio_client.get_object('datasets', prompt['file_path'])
-            # Read the content of the msgpack file
-            content = data.read()
-
-            # Deserialize the content using msgpack to get positive and negative embedding
-            msgpack_data = msgpack.loads(content)
-            positive_embedding= list(msgpack_data['positive_embedding'].values())
-            positive_embedding = torch.tensor(np.array(positive_embedding)).float()
-            positive_embedding=positive_embedding.to(self.device)
-            
-            negative_embedding= list(msgpack_data['negative_embedding'].values())
-            negative_embedding = torch.tensor(np.array(negative_embedding)).float()
-            negative_embedding=negative_embedding.to(self.device)
+            #getting prompt embeddings
+            positive_embedding=prompt['positive_embedding'] 
+            negative_embedding=prompt['negative_embedding']
 
             # calculating combined score and positive score of prompt before mutation
-            seed_score=self.scorer.predict(positive_embedding, negative_embedding).item()
-            positive_score=self.positive_scorer.predict_positive_or_negative_only(positive_embedding).item()
+            seed_score=prompt['score'] 
+            positive_score=prompt['positive_score'] 
             # substract mean and divide by std to get sigma scores
             positive_score= (positive_score - self.positive_mean) / self.positive_std
             seed_sigma_score=(seed_score - self.mean) / self.std
@@ -555,6 +551,53 @@ class PromptSubstitutionGenerator:
         # save self training data
         if self.self_training:
             self.store_self_training_data(training_data)
+
+    # function to generate initial prompts
+    def generate_initial_prompts(self, num_prompts):
+        # get base prompts and generate initial prompts before mutation
+        base_prompt_population = load_base_prompts(self.csv_base_prompts)
+        prompts = generate_prompts_from_csv_proportional_selection(self.csv_phrase,
+                                                               num_prompts / self.top_k)
+        prompt_data=[]
+        # add base prompts and calculate scores
+        for prompt in prompts:
+            prompt = prompts
+            # N Base Prompt Phrases
+            choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+            base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
+
+            base_prompts = ''
+
+            for base_prompt in base_prompt_list:
+                base_prompts = base_prompts + base_prompt + ', '
+
+            # get positive and negative prompt
+            positive_prompt = base_prompts + prompt.positive_prompt_str
+            negative_prompt = prompt.negative_prompt_str
+
+            # get positive and negative embeddings
+            positive_embedding=self.get_prompt_embedding(positive_prompt)
+            negative_embedding=self.get_prompt_embedding(negative_prompt)
+           
+            # calculating combined score and positive score of prompt
+            prompt_score=self.scorer.predict(positive_embedding, negative_embedding).item()
+            positive_score=self.positive_scorer.predict_positive_or_negative_only(positive_embedding).item()
+
+            # storing prompt data
+            prompt_data.append({
+                "positive_prompt": positive_prompt,
+                "negative_prompt": negative_prompt,
+                "positive_embedding": positive_embedding,
+                "negative_embedding" : negative_embedding,
+                "score": prompt_score,
+                "positive_score": positive_score
+            })
+        
+        # Sort the list based on the maximize_int1 function
+        sorted_scored_prompts = sorted(prompt_data, key=lambda s: s['score'], reverse=True)
+        chosen_scored_prompts = sorted_scored_prompts[:num_prompts]
+
+        return chosen_scored_prompts
 
     # get paths for embeddings of all prompts in a dataset
     def get_embedding_paths(self, dataset):
@@ -880,17 +923,18 @@ def main():
                                   minio_secret_key=args.minio_secret_key,
                                   minio_ip_addr=args.minio_addr,
                                   csv_phrase=args.csv_phrase,
+                                  csv_base_prompts=args.csv_base_prompts,
                                   scoring_model=args.scoring_model,
                                   max_iterations=args.max_iterations,
                                   rejection_policy=args.rejection_policy,
                                   probability_threshold=args.probability_threshold,
                                   sigma_threshold=args.sigma_threshold,
                                   dataset_name=args.dataset_name,
-                                  update_prompts=args.update_prompts,
                                   store_embeddings=args.store_embeddings,
                                   self_training=args.self_training,
                                   send_job=args.send_job,
-                                  save_csv=args.save_csv)
+                                  save_csv=args.save_csv,
+                                  top_k=args.top_k)
     
     # generate n number of images
     prompt_mutator.generate_images(num_images=args.n_data)
