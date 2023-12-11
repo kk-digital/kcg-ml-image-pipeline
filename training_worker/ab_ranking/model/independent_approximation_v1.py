@@ -13,6 +13,7 @@ from tqdm import tqdm
 import csv
 from datetime import datetime
 from pytz import timezone
+from safetensors.torch import save as safetensors_save
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
@@ -21,29 +22,36 @@ from utility.minio import cmd
 
 
 class IndependentApproximationV1Model(nn.Module):
-    def __init__(self, inputs_shape):
+    def __init__(self,
+                 inputs_shape,
+                 token_length_vector):
         super(IndependentApproximationV1Model, self).__init__()
         self.inputs_shape = inputs_shape
-        initial_score_vector = torch.rand((1, inputs_shape), dtype=torch.float32)
-        self.score_vector = nn.Parameter(data=initial_score_vector, requires_grad=True)
+        self.token_length_vector = token_length_vector
+
+        initial_energy_vector = torch.rand((1, inputs_shape), dtype=torch.float32)
+        self.energy_vector = nn.Parameter(data=initial_energy_vector, requires_grad=True)
+
         initial_prompt_phrase_average_weight = torch.zeros(1, dtype=torch.float32)
         self.prompt_phrase_average_weight = nn.Parameter(data=initial_prompt_phrase_average_weight, requires_grad=True)
+
         self.l1_loss = nn.L1Loss()
 
     # for score
     def forward(self, input):
-        assert input.shape == (1, self.inputs_shape)
+        assert input.shape == (1, self.inputs_shape), "{} != {}".format(input.shape, (1, self.inputs_shape))
 
         # phrase average weight param
         average_weight_param_product = torch.sum(input, dim=1) * self.prompt_phrase_average_weight
 
         # phrase score
-        product = torch.mul(input, self.score_vector)
-        score_sum = torch.sum(product, dim=1)
+        energy_per_token = torch.mul(input, self.energy_vector)
+        energy_per_phrase = torch.mul(self.token_length_vector, energy_per_token)
+        prompt_energy = torch.sum(energy_per_phrase, dim=1)
 
-        sum = score_sum + average_weight_param_product
+        prompt_energy = prompt_energy + average_weight_param_product
 
-        output = sum.unsqueeze(1)
+        output = prompt_energy.unsqueeze(1)
 
         assert output.shape == (1, 1)
         return output
@@ -51,7 +59,8 @@ class IndependentApproximationV1Model(nn.Module):
 
 class ABRankingIndependentApproximationV1Model:
     def __init__(self, inputs_shape,
-                 dataset_loader: IndependentApproximationDatasetLoader,
+                 dataset_loader: IndependentApproximationDatasetLoader = None,
+                 token_length_vector = None,
                  input_type="positive"):
         if torch.cuda.is_available():
             device = 'cuda'
@@ -62,7 +71,10 @@ class ABRankingIndependentApproximationV1Model:
         self.dataset_loader = dataset_loader
         self.input_type = input_type
 
-        self.model = IndependentApproximationV1Model(inputs_shape).to(self._device)
+        if token_length_vector != None:
+            token_length_vector = token_length_vector.to(self._device)
+        self.model = IndependentApproximationV1Model(inputs_shape,
+                                                     token_length_vector).to(self._device)
         self.model_type = 'ab-ranking-independent-approximation-v1'
         self.loss_func_name = ''
         self.file_path = ''
@@ -116,28 +128,30 @@ class ABRankingIndependentApproximationV1Model:
         self.duplicate_flip_option = duplicate_flip_option
         self.randomize_data_per_epoch = randomize_data_per_epoch
 
-    def to_dict(self):
-        return {
-            "model_dict": self.model.state_dict(),
+    def to_safetensors(self):
+        metadata = {
             "model-type": self.model_type,
             "file-path": self.file_path,
             "model-hash": self.model_hash,
             "date": self.date,
-            "training-loss": self.training_loss,
-            "validation-loss": self.validation_loss,
-            "mean": self.mean,
-            "standard-deviation": self.standard_deviation,
-            "epochs": self.epochs,
-            "learning-rate": self.learning_rate,
-            "train-percent": self.train_percent,
-            "training-batch-size": self.training_batch_size,
-            "weight-decay": self.weight_decay,
-            "pooling-strategy": self.pooling_strategy,
-            "add-loss-penalty": self.add_loss_penalty,
-            "target-option": self.target_option,
-            "duplicate-flip-option": self.duplicate_flip_option,
-            "randomize-data-per-epoch": self.randomize_data_per_epoch,
+            "training-loss": "{}".format(self.training_loss),
+            "validation-loss": "{}".format(self.validation_loss),
+            "mean": "{}".format(self.mean),
+            "standard-deviation": "{}".format(self.standard_deviation),
+            "epochs": "{}".format(self.epochs),
+            "learning-rate": "{}".format(self.learning_rate),
+            "train-percent": "{}".format(self.train_percent),
+            "training-batch-size": "{}".format(self.training_batch_size),
+            "weight-decay": "{}".format(self.weight_decay),
+            "pooling-strategy": "{}".format(self.pooling_strategy),
+            "add-loss-penalty": "{}".format(self.add_loss_penalty),
+            "target-option": "{}".format(self.target_option),
+            "duplicate-flip-option": "{}".format(self.duplicate_flip_option),
+            "randomize-data-per-epoch": "{}".format(self.randomize_data_per_epoch),
         }
+
+        model = self.model.state_dict()
+        return model, metadata
 
     def save(self, minio_client, datasets_bucket, model_output_path):
         # Hashing the model with its current configuration
@@ -145,11 +159,13 @@ class ABRankingIndependentApproximationV1Model:
         self.file_path = model_output_path
 
         # Preparing the model to be saved
-        model_dict = self.to_dict()
+        model, metadata = self.to_safetensors()
 
         # Saving the model to minio
         buffer = BytesIO()
-        torch.save(model_dict, buffer)
+        safetensors_buffer = safetensors_save(tensors=model,
+                                              metadata=metadata)
+        buffer.write(safetensors_buffer)
         buffer.seek(0)
 
         # upload the model
@@ -160,15 +176,15 @@ class ABRankingIndependentApproximationV1Model:
 
         csv_buffer = StringIO()
         writer = csv.writer(csv_buffer)
-        writer.writerow((["index", "phrase", "occurrences", "token length", "score", "prompt_phrase_average_weight"]))
+        writer.writerow((["index", "phrase", "occurrences", "token length", "prompt_phrase_average_weight", "energy_per_token", "energy_per_phrase"]))
         average_weight = None
         for name, param in self.model.named_parameters():
             if name == "prompt_phrase_average_weight":
                 average_weight = param.cpu().detach().squeeze().numpy()
 
         for name, param in self.model.named_parameters():
-            if name == "score_vector":
-                score_vector = param.cpu().detach().squeeze().numpy()
+            if name == "energy_vector":
+                energy_vector = param.cpu().detach().squeeze().numpy()
                 if self.input_type == "positive":
                     index_phrase_dict = self.dataset_loader.phrase_vector_loader.index_positive_phrases_dict
                     index_phrase_info = self.dataset_loader.phrase_vector_loader.index_positive_prompt_phrase_info
@@ -179,7 +195,7 @@ class ABRankingIndependentApproximationV1Model:
                 has_negative_index = False
                 if -1 in index_phrase_dict:
                     has_negative_index = True
-                for i in range(len(score_vector)):
+                for i in range(len(energy_vector)):
                     if has_negative_index:
                         i -= 1
                     index = i
@@ -187,8 +203,9 @@ class ABRankingIndependentApproximationV1Model:
                     phrase_info = index_phrase_info[index]
                     occurrences = phrase_info.occurrences
                     token_length = phrase_info.token_length
-                    score = "{:f}".format(score_vector[i])
-                    writer.writerow([index, phrase, occurrences, token_length, score, average_weight])
+                    energy_per_token = "{:f}".format(energy_vector[i])
+                    energy_per_phrase = "{:f}".format(energy_vector[i] * float(token_length))
+                    writer.writerow([index, phrase, occurrences, token_length, average_weight, energy_per_token, energy_per_phrase])
 
                 bytes_buffer = BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
                 # upload the csv
@@ -197,7 +214,7 @@ class ABRankingIndependentApproximationV1Model:
                 csv_path = os.path.join(self.dataset_loader.dataset_name, "output/phrases-score-csv", filename)
                 cmd.upload_data(self.dataset_loader.minio_client, 'datasets', csv_path, bytes_buffer)
 
-    def load(self, model_buffer):
+    def load_pth(self, model_buffer):
         # Loading state dictionary
         model = torch.load(model_buffer)
         # Restoring model metadata
@@ -206,6 +223,47 @@ class ABRankingIndependentApproximationV1Model:
         self.model_hash = model['model-hash']
         self.date = model['date']
         self.model.load_state_dict(model['model_dict'])
+
+        # new added fields not in past models
+        # so check first
+        if "training-loss" in model:
+            self.training_loss = model['training-loss']
+            self.validation_loss = model['validation-loss']
+
+        if "mean" in model:
+            self.mean = model['mean']
+            self.standard_deviation = model['standard-deviation']
+
+        if "epochs" in model:
+            self.epochs = model['epochs']
+            self.learning_rate = model['learning-rate']
+            self.train_percent = model['train-percent']
+            self.training_batch_size = model['training-batch-size']
+            self.weight_decay = model['weight-decay']
+            self.pooling_strategy = model['pooling-strategy']
+            self.add_loss_penalty = model['add-loss-penalty']
+            self.target_option = model['target-option']
+            self.duplicate_flip_option = model['duplicate-flip-option']
+            self.randomize_data_per_epoch = model['randomize-data-per-epoch']
+
+    def load_safetensors(self, model_buffer):
+        data = model_buffer.read()
+
+        # Loading state dictionary
+        self.model.load_state_dict(safetensors_load(data))
+
+        # load metadata
+        n_header = data[:8]
+        n = int.from_bytes(n_header, "little")
+        metadata_bytes = data[8: 8 + n]
+        header = json.loads(metadata_bytes)
+        model = header.get("__metadata__", {})
+
+        # Restoring model metadata
+        self.model_type = model['model-type']
+        self.file_path = model['file-path']
+        self.model_hash = model['model-hash']
+        self.date = model['date']
 
         # new added fields not in past models
         # so check first

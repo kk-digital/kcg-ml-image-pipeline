@@ -10,12 +10,17 @@ import math
 import threading
 from io import BytesIO
 from tqdm import tqdm
+from safetensors.torch import save as safetensors_save
+from safetensors.torch import load as safetensors_load
+from safetensors import safe_open
+from safetensors import deserialize as safetensors_deserialize
+import json
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
 from data_loader.ab_ranking_dataset_loader import ABRankingDatasetLoader
 from utility.minio import cmd
-# from utility.clip.clip_text_embedder import tensor_attention_pooling
+from utility.clip.clip_text_embedder import tensor_attention_pooling
 
 class ABRankingLinearModel(nn.Module):
     def __init__(self, inputs_shape):
@@ -98,28 +103,30 @@ class ABRankingModel:
         self.duplicate_flip_option = duplicate_flip_option
         self.randomize_data_per_epoch = randomize_data_per_epoch
 
-    def to_dict(self):
-        return {
-            "model_dict": self.model.state_dict(),
+    def to_safetensors(self):
+        metadata = {
             "model-type": self.model_type,
             "file-path": self.file_path,
             "model-hash": self.model_hash,
             "date": self.date,
-            "training-loss": self.training_loss,
-            "validation-loss": self.validation_loss,
-            "mean": self.mean,
-            "standard-deviation": self.standard_deviation,
-            "epochs": self.epochs,
-            "learning-rate": self.learning_rate,
-            "train-percent": self.train_percent,
-            "training-batch-size": self.training_batch_size,
-            "weight-decay": self.weight_decay,
-            "pooling-strategy": self.pooling_strategy,
-            "add-loss-penalty": self.add_loss_penalty,
-            "target-option": self.target_option,
-            "duplicate-flip-option": self.duplicate_flip_option,
-            "randomize-data-per-epoch": self.randomize_data_per_epoch,
+            "training-loss": "{}".format(self.training_loss),
+            "validation-loss": "{}".format(self.validation_loss),
+            "mean": "{}".format(self.mean),
+            "standard-deviation": "{}".format(self.standard_deviation),
+            "epochs": "{}".format(self.epochs),
+            "learning-rate": "{}".format(self.learning_rate),
+            "train-percent": "{}".format(self.train_percent),
+            "training-batch-size": "{}".format(self.training_batch_size),
+            "weight-decay": "{}".format( self.weight_decay),
+            "pooling-strategy": "{}".format(self.pooling_strategy),
+            "add-loss-penalty": "{}".format(self.add_loss_penalty),
+            "target-option": "{}".format(self.target_option),
+            "duplicate-flip-option": "{}".format(self.duplicate_flip_option),
+            "randomize-data-per-epoch": "{}".format(self.randomize_data_per_epoch),
         }
+
+        model = self.model.state_dict()
+        return model, metadata
 
     def save(self, minio_client, datasets_bucket, model_output_path):
         # Hashing the model with its current configuration
@@ -127,17 +134,19 @@ class ABRankingModel:
         self.file_path = model_output_path
 
         # Preparing the model to be saved
-        model_dict = self.to_dict()
+        model, metadata = self.to_safetensors()
 
         # Saving the model to minio
         buffer = BytesIO()
-        torch.save(model_dict, buffer)
+        safetensors_buffer = safetensors_save(tensors=model,
+                                              metadata=metadata)
+        buffer.write(safetensors_buffer)
         buffer.seek(0)
         
         # upload the model
         cmd.upload_data(minio_client, datasets_bucket, model_output_path, buffer)
 
-    def load(self, model_buffer):
+    def load_pth(self, model_buffer):
         # Loading state dictionary
         model = torch.load(model_buffer)
         # Restoring model metadata
@@ -146,6 +155,47 @@ class ABRankingModel:
         self.model_hash = model['model-hash']
         self.date = model['date']
         self.model.load_state_dict(model['model_dict'])
+
+        # new added fields not in past models
+        # so check first
+        if "training-loss" in model:
+            self.training_loss = model['training-loss']
+            self.validation_loss = model['validation-loss']
+
+        if "mean" in model:
+            self.mean = model['mean']
+            self.standard_deviation = model['standard-deviation']
+
+        if "epochs" in model:
+            self.epochs = model['epochs']
+            self.learning_rate = model['learning-rate']
+            self.train_percent = model['train-percent']
+            self.training_batch_size = model['training-batch-size']
+            self.weight_decay = model['weight-decay']
+            self.pooling_strategy = model['pooling-strategy']
+            self.add_loss_penalty = model['add-loss-penalty']
+            self.target_option = model['target-option']
+            self.duplicate_flip_option = model['duplicate-flip-option']
+            self.randomize_data_per_epoch = model['randomize-data-per-epoch']
+
+    def load_safetensors(self, model_buffer):
+        data = model_buffer.read()
+
+        # Loading state dictionary
+        self.model.load_state_dict(safetensors_load(data))
+
+        # load metadata
+        n_header = data[:8]
+        n = int.from_bytes(n_header, "little")
+        metadata_bytes = data[8: 8 + n]
+        header = json.loads(metadata_bytes)
+        model = header.get("__metadata__", {})
+
+        # Restoring model metadata
+        self.model_type = model['model-type']
+        self.file_path = model['file-path']
+        self.model_hash = model['model-hash']
+        self.date = model['date']
 
         # new added fields not in past models
         # so check first

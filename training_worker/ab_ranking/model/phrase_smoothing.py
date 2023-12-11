@@ -13,6 +13,7 @@ from tqdm import tqdm
 import csv
 from datetime import datetime
 from pytz import timezone
+from safetensors.torch import save as safetensors_save
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
@@ -182,7 +183,8 @@ class ScorePhraseSmoothingModel:
 
         # Saving the model to minio
         buffer = BytesIO()
-        torch.save(model_dict, buffer)
+        safetensors_buffer = safetensors_save(model_dict)
+        buffer.write(safetensors_buffer)
         buffer.seek(0)
 
         # upload the model
