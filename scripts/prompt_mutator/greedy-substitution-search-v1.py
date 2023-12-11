@@ -560,7 +560,9 @@ class PromptSubstitutionGenerator:
                                                                int(num_prompts / self.top_k))
         prompt_data=[]
         # add base prompts and calculate scores
-        for prompt in prompts:
+        print("---------scoring prompts")
+        for i, prompt in enumerate(prompts):
+            print(f"prompt {i}")
             # N Base Prompt Phrases
             choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
             base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
