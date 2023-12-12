@@ -133,7 +133,6 @@ class PromptEntropy:
         
 
     def get_prompt_entropy(self, positive_prompt, negative_prompt):
-        print(positive_prompt, negative_prompt)
         positive_embedding= self.get_prompt_embedding(positive_prompt)
         negative_embedding= self.get_prompt_embedding(negative_prompt)
         sigma_scores=self.get_ensemble_sigma_scores(positive_embedding, negative_embedding)
@@ -159,6 +158,9 @@ class PromptEntropy:
             print(path)
             data = self.minio_client.get_object('datasets', path)
             csv_data = io.BytesIO(data.read())
+
+            # Filter out rows where 'negative_prompt' is missing or empty
+            df = df[df['negative_prompt'].notna() & (df['negative_prompt'] != '')]
 
             # Read the CSV into a DataFrame
             df = pd.read_csv(csv_data)
