@@ -124,8 +124,13 @@ class CLIPTextEmbedder(nn.Module):
         :param prompts: are the list of prompts to embed
         """
         # Tokenize the prompts
-        batch_encoding = self.tokenizer(prompts, truncation=True, max_length=self.max_length, return_length=True,
+        batch_encoding = self.tokenizer(prompts, truncation=False, max_length=self.max_length, return_length=True,
                                         return_overflowing_tokens=False, padding="max_length", return_tensors="pt")
+        
+        # Check if any tokenized input exceeds the maximum length
+        if any(len(input_ids) > self.max_length for input_ids in batch_encoding['input_ids']):
+            raise ValueError("Token length exceeds the maximum limit")
+
         # Get token ids
         tokens = batch_encoding["input_ids"].to(self.device)
 
@@ -139,10 +144,14 @@ class CLIPTextEmbedder(nn.Module):
         :param prompts: are the list of prompts to embed
         """
         # Tokenize the prompts
-        batch_encoding = self.tokenizer(prompts, truncation=True, max_length=self.max_length, return_length=True,
+        batch_encoding = self.tokenizer(prompts, truncation=False, max_length=self.max_length, return_length=True,
                                         return_overflowing_tokens=False, padding="max_length", return_tensors="pt")
 
-        # Get token ids
+        # Check if any tokenized input exceeds the maximum length
+        if any(len(input_ids) > self.max_length for input_ids in batch_encoding['input_ids']):
+            raise ValueError("Token length exceeds the maximum limit")
+
+        # Get token ids and move to device
         tokens = batch_encoding["input_ids"].to(self.device)
 
         self.transformer = self.transformer.to(self.device)
@@ -151,4 +160,3 @@ class CLIPTextEmbedder(nn.Module):
         clip_output = self.transformer(input_ids=tokens)
         
         return clip_output.last_hidden_state, clip_output.pooler_output, batch_encoding['attention_mask'].to(self.device)
-        

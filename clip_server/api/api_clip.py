@@ -73,3 +73,23 @@ def add_job(request: Request, phrase : str):
     clip_server.add_phrase(phrase)
 
     return True
+
+# Hardcoded URL for the clip server (not recommended for production)
+CLIP_SERVER_ADRESS = 'http://192.168.83.180:8002'
+
+@router.get("/check-clip-server-status")
+def check_clip_server_status(request: Request):
+    try:
+        # Send a simple GET request to the clip server
+        response = request.get(CLIP_SERVER_ADRESS + "/ping")
+
+        # Check if the response status code is 200 (OK)
+        if response.status_code == 200:
+            return {"status": "online", "message": "Clip server is online."}
+        else:
+            return {"status": "offline", "message": "Clip server is offline. Received unexpected response."}
+
+    except request.exceptions.RequestException as e:
+        # Handle any exceptions that occur during the request
+        print(f"Error checking clip server status: {e}")
+        return {"status": "offline", "message": "Clip server is offline or unreachable."}
