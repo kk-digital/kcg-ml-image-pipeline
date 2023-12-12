@@ -4,6 +4,7 @@ import json
 from orchestration.api.mongo_schemas import RankingModel
 from .api_utils import PrettyJSONResponse
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 router = APIRouter()
 
@@ -112,6 +113,42 @@ def get_ranking_models(request: Request, dataset: str = Query(...)):
     models_list.sort(key=lambda x: not x["model_name"].endswith('.pth'))
     
     # Further refine the sorting based on the model name
+    models_list.sort(key=lambda x: x["model_name"].split('_')[0] if x["model_name"].endswith('.pth') else x["model_name"], reverse=True)
+
+    return models_list
+
+
+@router.get("/models/rank-embedding/list-models-v2", response_class=PrettyJSONResponse)
+def get_ranking_models(request: Request, dataset: str = Query(...)):
+    bucket_name = "datasets"
+    base_path = f"{dataset}/models/ranking"
+
+    objects = request.app.minio_client.list_objects(bucket_name, prefix=base_path, recursive=True)
+    model_objects = [obj.object_name for obj in objects if obj.object_name.endswith('.json')]
+
+    def fetch_model_content(obj_name):
+        data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, obj_name)
+        return json.loads(data.read().decode('utf-8'))
+
+    models_list = []
+    with ThreadPoolExecutor() as executor:
+        future_to_obj = {executor.submit(fetch_model_content, obj): obj for obj in model_objects}
+        for future in as_completed(future_to_obj):
+            obj_name = future_to_obj[future]
+            try:
+                model_content = future.result()
+                model_name = model_content['model_path'].split('/')[-1].split('.')[0]
+                model_architecture = obj_name.split('/')[-2]
+                arranged_content = {
+                    'model_name': model_name,
+                    'model_architecture': model_architecture,
+                    **model_content
+                }
+                models_list.append(arranged_content)
+            except Exception as exc:
+                print(f'{obj_name} generated an exception: {exc}')
+
+    models_list.sort(key=lambda x: not x["model_name"].endswith('.pth'))
     models_list.sort(key=lambda x: x["model_name"].split('_')[0] if x["model_name"].endswith('.pth') else x["model_name"], reverse=True)
 
     return models_list
