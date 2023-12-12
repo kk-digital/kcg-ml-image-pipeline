@@ -155,6 +155,7 @@ class PromptEntropy:
         csv_paths = self.get_csv_paths()
 
         for path in csv_paths:
+            print(path)
             data = self.minio_client.get_object('datasets', path)
             csv_data = io.BytesIO(data.read())
 
