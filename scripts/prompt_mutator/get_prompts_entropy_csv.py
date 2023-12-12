@@ -129,7 +129,8 @@ class PromptEntropy:
             
             sigma_scores.append(score)
         
-        return sigma_scores
+        return np.array(sigma_scores)
+        
         
 
     def get_prompt_entropy(self, positive_prompt, negative_prompt):
