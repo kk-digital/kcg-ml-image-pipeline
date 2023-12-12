@@ -17,7 +17,7 @@ sys.path.insert(0, base_directory)
 
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel as ABRankingLinearModel
-from training_worker.http import request
+from utility.http import request
 from utility.minio import cmd
 
 

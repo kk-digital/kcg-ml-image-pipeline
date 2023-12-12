@@ -17,7 +17,7 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from scripts.image_scorer import ImageScorer
-from training_worker.http import request
+from utility.http import request
 from utility.minio import cmd
 from utility.boltzman.boltzman_phrase_scores_loader import BoltzmanPhraseScoresLoader
 from worker.prompt_generation.prompt_generator import generate_image_generation_jobs_with_temperature, generate_inpainting_job_with_temperature

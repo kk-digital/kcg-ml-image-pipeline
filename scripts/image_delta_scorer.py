@@ -14,7 +14,7 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from scripts.image_scorer import ImageScorer
-from training_worker.http import request
+from utility.http import request
 from utility.minio import cmd
 
 
