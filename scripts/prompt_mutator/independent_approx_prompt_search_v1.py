@@ -334,7 +334,6 @@ class BoltzmanPromptSubstitutionGenerator:
             #mutate positive prompt
             mutated_positive_prompt, mutated_positive_embedding= self.mutate_prompt(
                             prompt_str=positive_prompt, 
-                            prompt_embedding=positive_embedding,
                             prompt_score=positive_score)
 
             # calculating new score with the mutated positive prompt
