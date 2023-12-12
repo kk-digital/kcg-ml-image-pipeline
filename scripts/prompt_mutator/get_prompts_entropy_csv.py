@@ -138,7 +138,7 @@ class PromptEntropy:
         sigma_scores=self.get_ensemble_sigma_scores(positive_embedding, negative_embedding)
 
         # get entropy classes
-        binning= Binning(start=min(sigma_scores),count=self.bins,step=self.step)
+        binning= Binning(start=-2,count=self.bins,step=self.step)
         entropy_data=SigmaScoresWithEntropy(sigma_scores, binning)
 
         # get entropy, variance and average
