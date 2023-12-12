@@ -58,6 +58,7 @@ class PromptEntropy:
             device = 'cuda'
         else:
             device = 'cpu'
+            
         self.device = torch.device(device)
 
         # Load the clip embedder model
