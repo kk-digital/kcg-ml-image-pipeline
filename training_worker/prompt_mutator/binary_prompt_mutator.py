@@ -1,4 +1,5 @@
 from datetime import datetime
+import time
 from io import BytesIO
 import os
 import sys
@@ -26,6 +27,7 @@ class BinaryPromptMutator:
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path=self.get_model_path()
         self.accuracy=0
+        self.input_size=0
 
     def get_model_path(self):    
         local_path=f"output/binary_prompt_mutator.json"
@@ -41,6 +43,8 @@ class BinaryPromptMutator:
               colsample_bytree=1, 
               eta=0.1,
               early_stopping=100):
+        
+        self.input_size=len(X_train[0])
         
         # Label encode the target variable
         label_encoder = LabelEncoder()
@@ -66,7 +70,11 @@ class BinaryPromptMutator:
 
         # Train the XGBoost model
         evals_result={}
+        start = time.time()
         self.model.fit(X_train, y_train, eval_set=[(X_train, y_train),(X_val, y_val)])
+        end = time.time()
+
+        training_time=end - start
         # Extract the log loss values for each round
         evals_result = self.model.evals_result()
 
@@ -74,8 +82,11 @@ class BinaryPromptMutator:
         train_logloss = evals_result["validation_0"]["logloss"]
         val_logloss = evals_result["validation_1"]["logloss"]
 
+        start = time.time()
         # Make predictions on the test set
         y_pred = self.model.predict(X_val)
+        end = time.time()
+        inference_speed=len(X_val)/(end - start)
 
         y_pred=label_encoder.inverse_transform(y_pred.astype(int))
         y_val=label_encoder.inverse_transform(y_val)
@@ -84,8 +95,71 @@ class BinaryPromptMutator:
         self.accuracy = sum(y_pred == y_val) / len(y_val)
 
         self.save_graph_report(train_logloss, val_logloss, y_val, y_pred, len(X_train), len(X_val))
+
+        self.save_model_report(num_training=len(X_train),
+                              num_validation=len(X_val),
+                              training_time=training_time, 
+                              train_loss=train_logloss, 
+                              val_loss=val_logloss, 
+                              inference_speed= inference_speed,
+                              model_params=params)
+        
+        return val_logloss[-1]
     
-    
+    def save_model_report(self,num_training,
+                              num_validation,
+                              training_time, 
+                              train_loss, 
+                              val_loss, 
+                              inference_speed,
+                              model_params):
+        if self.operation=="substitution":
+            input_type="[prompt_embeding[768], substituted_embeding[768], substitute_embedding[768], position_encoding[1], score_encoding[1]]"
+        elif self.operation=="addition":
+            input_type="[prompt_embeding[768], added_embedding[768], position_encoding[1]]"
+        elif self.operation=="permutation":
+            input_type="[prompt_embeding[768], first_embedding[768], second_embedding[768], first_position[1], second_position[1], score_encoding[1]]"
+
+        report_text = (
+            "================ Model Report ==================\n"
+            f"Number of training datapoints: {num_training} \n"
+            f"Number of validation datapoints: {num_validation} \n"
+            f"Total training Time: {training_time:.2f} seconds\n"
+            "Loss Function: L1 \n"
+            f"Training Loss: {train_loss[-1]} \n"
+            f"Validation Loss: {val_loss[-1]} \n"
+            f"Inference Speed: {inference_speed:.2f} predictions per second\n\n"
+            "================ Input and output ==================\n"
+            f"Input: {input_type} \n"
+            f"Input Size: {self.input_size} \n" 
+            "Output: binary \n\n"
+            "================ Parameters ==================\n"
+        )
+
+        # Add model parameters to the report
+        for param, value in model_params.items():
+            report_text += f"{param}: {value}\n"
+
+        # Define the local file path for the report
+        local_report_path = 'output/model_report.txt'
+
+        # Save the report to a local file
+        with open(local_report_path, 'w') as report_file:
+            report_file.write(report_text)
+
+        # Read the contents of the local file
+        with open(local_report_path, 'rb') as file:
+            content = file.read()
+
+        # Upload the local file to MinIO
+        buffer = BytesIO(content)
+        buffer.seek(0)
+
+        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.json', '.txt'), buffer)
+
+        # Remove the temporary file
+        os.remove(local_report_path)
+
     def save_graph_report(self, train_logloss_per_round, val_logloss_per_round,
                           y_true, y_pred,  
                           training_size, validation_size):
@@ -107,7 +181,7 @@ class BinaryPromptMutator:
                                                             f'Prompt {self.operation}',
                                                             'XGBoost',
                                                             f'{self.prompt_type}_clip_text_embedding',
-                                                            '2306',
+                                                            f'{self.input_size}',
                                                             "binary",
                                                             training_size,
                                                             validation_size,
@@ -148,6 +222,9 @@ class BinaryPromptMutator:
 
         # upload the graph report
         cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.json', '.png'), buf)
+
+        # Clear the current figure
+        plt.clf()  
         
     def predict_probs(self, X):
         class_labels=['decrease', 'increase']
