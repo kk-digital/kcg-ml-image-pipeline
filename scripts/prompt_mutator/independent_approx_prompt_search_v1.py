@@ -121,6 +121,8 @@ class BoltzmanPromptSubstitutionGenerator:
         # get dictionarry of indexes by phrase to make lookup faster
         self.phrase_dictionarry={self.phrase_score_data[index].phrase:index for index in range(len(self.phrase_score_data))}
 
+        print(self.phrase_dictionarry)
+
         end=time.time()
         # log the loading time
         self.loading_time= end-start
@@ -319,7 +321,6 @@ class BoltzmanPromptSubstitutionGenerator:
             negative_prompt=prompt['negative_prompt']
             
             #getting prompt embeddings
-            positive_embedding=prompt['positive_embedding'] 
             negative_embedding=prompt['negative_embedding']
 
             # calculating combined score and positive score of prompt before mutation
