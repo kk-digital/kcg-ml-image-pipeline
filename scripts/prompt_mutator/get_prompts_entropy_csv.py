@@ -131,9 +131,9 @@ class PromptEntropy:
         
         return np.array(sigma_scores)
         
-        
 
     def get_prompt_entropy(self, positive_prompt, negative_prompt):
+        print(positive_prompt, negative_prompt)
         positive_embedding= self.get_prompt_embedding(positive_prompt)
         negative_embedding= self.get_prompt_embedding(negative_prompt)
         sigma_scores=self.get_ensemble_sigma_scores(positive_embedding, negative_embedding)
