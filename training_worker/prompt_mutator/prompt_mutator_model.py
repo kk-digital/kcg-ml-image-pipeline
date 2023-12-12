@@ -25,6 +25,7 @@ class PromptMutator:
         self.operation=operation
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path=self.get_model_path()
+        self.input_size=0
 
     def get_model_path(self):
         
@@ -44,12 +45,14 @@ class PromptMutator:
               eta=0.1,
               early_stopping=50):
         
-        
+        self.input_size=len(X_train[0])
+
         X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, shuffle=True)
 
         dtrain = xgb.DMatrix(X_train, label=y_train)
         dval = xgb.DMatrix(X_val, label=y_val)
 
+        
         params = {
             'objective': 'reg:absoluteerror',
             "device": "cuda",
@@ -63,9 +66,14 @@ class PromptMutator:
         }
 
         evals_result = {}
+        
+        start = time.time()
         self.model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval,'eval'), (dtrain,'train')], 
-                               early_stopping_rounds=early_stopping, evals_result=evals_result)
+                                early_stopping_rounds=early_stopping, evals_result=evals_result)
 
+        end = time.time()
+
+        training_time= end - start
  
         #Extract MAE values and residuals
         val_mae = evals_result['eval']['mae']
@@ -79,6 +87,7 @@ class PromptMutator:
         # Get predictions for training set
         train_preds = self.model.predict(dtrain)
         end = time.time()
+        inference_speed=(len(X_train) + len(X_val))/(end - start)
         print(f'Time taken for inference of {len(X_train) + len(X_val)} data points is: {end - start:.2f} seconds')
 
         # Now you can calculate residuals using the predicted values
@@ -89,7 +98,71 @@ class PromptMutator:
                                val_residuals, train_residuals, 
                                val_preds, y_val,
                                len(X_train), len(X_val))
+        
+        self.save_model_report(num_training=len(X_train),
+                              num_validation=len(X_val),
+                              training_time=training_time, 
+                              train_loss=train_mae, 
+                              val_loss=val_mae, 
+                              inference_speed= inference_speed,
+                              model_params=params)
+        
+        return val_mae[-1]
     
+    def save_model_report(self,num_training,
+                              num_validation,
+                              training_time, 
+                              train_loss, 
+                              val_loss, 
+                              inference_speed,
+                              model_params):
+        if self.operation=="substitution":
+            input_type="[prompt_embeding[768], substituted_embeding[768], substitute_embedding[768], position_encoding[1], score_encoding[1]]"
+        elif self.operation=="addition":
+            input_type="[prompt_embeding[768], added_embedding[768], position_encoding[1]]"
+        elif self.operation=="permutation":
+            input_type="[prompt_embeding[768], first_embedding[768], second_embedding[768], first_position[1], second_position[1], score_encoding[1]]"
+
+        report_text = (
+            "================ Model Report ==================\n"
+            f"Number of training datapoints: {num_training} \n"
+            f"Number of validation datapoints: {num_validation} \n"
+            f"Total training Time: {training_time:.2f} seconds\n"
+            "Loss Function: L1 \n"
+            f"Training Loss: {train_loss[-1]} \n"
+            f"Validation Loss: {val_loss[-1]} \n"
+            f"Inference Speed: {inference_speed:.2f} predictions per second\n\n"
+            "================ Input and output ==================\n"
+            f"Input: {input_type} \n"
+            f"Input Size: {self.input_size} \n" 
+            f"Output: {self.output_type} \n\n"
+            "================ Parameters ==================\n"
+        )
+
+        # Add model parameters to the report
+        for param, value in model_params.items():
+            report_text += f"{param}: {value}\n"
+
+        # Define the local file path for the report
+        local_report_path = 'output/model_report.txt'
+
+        # Save the report to a local file
+        with open(local_report_path, 'w') as report_file:
+            report_file.write(report_text)
+
+        # Read the contents of the local file
+        with open(local_report_path, 'rb') as file:
+            content = file.read()
+
+        # Upload the local file to MinIO
+        buffer = BytesIO(content)
+        buffer.seek(0)
+
+        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.json', '.txt'), buffer)
+
+        # Remove the temporary file
+        os.remove(local_report_path)
+
     def save_graph_report(self, train_mae_per_round, val_mae_per_round, 
                           val_residuals, train_residuals, 
                           predicted_values, actual_values,
@@ -113,7 +186,7 @@ class PromptMutator:
                                                             f'Prompt {self.operation}',
                                                             'XGBoost',
                                                             f'{self.prompt_type}_clip_text_embedding',
-                                                            '2306',
+                                                            f'{self.input_size}',
                                                             self.output_type,
                                                             training_size,
                                                             validation_size,
@@ -170,7 +243,10 @@ class PromptMutator:
         buf.seek(0)
 
         # upload the graph report
-        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.json', '.png'), buf)             
+        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.json', '.png'), buf)  
+
+        # Clear the current figure
+        plt.clf()           
     
     def grid_search(self, X_train, y_train, param_grid, cv=5, scoring='neg_mean_squared_error'):
         kfold = KFold(n_splits=cv, shuffle=True, random_state=42)
@@ -194,7 +270,8 @@ class PromptMutator:
 
     def predict(self, X):
         dtest = xgb.DMatrix(X)
-        return self.model.predict(dtest)
+        predictions=self.model.predict(dtest)
+        return predictions
 
     def load_model(self):
         minio_path=f"environmental/models/prompt-generator/{self.operation}/{self.prompt_type}_prompts_only/"
