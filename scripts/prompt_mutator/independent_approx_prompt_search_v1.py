@@ -11,14 +11,13 @@ import numpy as np
 import pandas as pd
 import torch
 
-from utility.boltzman.boltzman_phrase_scores_loader import BoltzmanPhraseScoresLoader
-
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
+from utility.boltzman.boltzman_phrase_scores_loader import BoltzmanPhraseScoresLoader
 from utility.minio import cmd
 
 from worker.prompt_generation.prompt_generator import generate_base_prompts, generate_image_generation_jobs, generate_prompts_from_csv_proportional_selection, load_base_prompts
