@@ -122,7 +122,7 @@ class PromptEntropy:
         sigma_scores=[]
         for model in self.ensemble_models:
             mean=model.mean
-            std=model.std
+            std=model.standard_deviation
             with torch.no_grad():
                 score=model.predict(positive_embedding,negative_embedding).item()
                 score=(score - mean)/std
