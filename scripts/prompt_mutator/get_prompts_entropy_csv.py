@@ -21,7 +21,7 @@ def parse_args():
     parser.add_argument('--dataset', default="environmental")
     parser.add_argument('--policy', default="greedy-substitution-search-v1")
     parser.add_argument('--bins', help="number of bins", default=8)
-    parser.add_argument('--csv-path', help="directory where csv files are stored", default="datasets/environmental/output/generated-prompts-csv/")
+    parser.add_argument('--csv-path', help="directory where csv files are stored", default="environmental/output/generated-prompts-csv/")
     parser.add_argument('--output-path', help="directory where csv files are stored", default="environmental/data/prompt-generator/substitution/")
 
     return parser.parse_args()
@@ -136,7 +136,7 @@ class PromptEntropy:
     def get_generated_prompts_csv_data(self):
         prompt_data=[]
         # get minio paths for csv files
-        csv_paths = self.get_csv_paths(self.csv_path)
+        csv_paths = self.get_csv_paths()
 
         for path in csv_paths:
             data = self.minio_client.get_object('datasets', path)
@@ -154,8 +154,8 @@ class PromptEntropy:
 
         return combined_df
 
-    def get_csv_paths(self, minio_path):
-        objects=self.minio_client.list_objects('datasets', minio_path, recursive=True)
+    def get_csv_paths(self):
+        objects=self.minio_client.list_objects('datasets', self.csv_path, recursive=True)
         csv_files = []
         for obj in objects: 
             if obj.object_name.endswith(f"-{self.policy}-{self.dataset}.csv"):
