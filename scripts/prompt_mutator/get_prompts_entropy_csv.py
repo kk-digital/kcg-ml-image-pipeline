@@ -11,6 +11,7 @@ sys.path.insert(0, base_directory)
 
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from utility.ensemble.ensemble_helpers import Binning, SigmaScoresWithEntropy
+from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from utility.minio import cmd
 
 def parse_args():
@@ -51,6 +52,17 @@ class PromptEntropy:
 
         self.csv_path=csv_path
         self.output_path=output_path
+
+        # get device
+        if torch.cuda.is_available():
+            device = 'cuda'
+        else:
+            device = 'cpu'
+        self.device = torch.device(device)
+
+        # Load the clip embedder model
+        self.embedder=CLIPTextEmbedder(device=device)
+        self.embedder.load_submodels()
     
     def get_ensemble_models(self):
         input_path = "environmental/models/ranking/"
@@ -87,6 +99,7 @@ class PromptEntropy:
             # Load the model
             embedding_model = model_class(768*2)
             embedding_model.load_pth(byte_buffer)
+            embedding_model.model=embedding_model.model.to(self.device)
 
             loaded_models.append(embedding_model)
 
