@@ -48,7 +48,6 @@ class PromptEntropy:
         self.policy=policy
         self.bins=bins
         self.step=1
-        self.ensemble_models=self.get_ensemble_models()
 
         self.csv_path=csv_path
         self.output_path=output_path
@@ -58,12 +57,15 @@ class PromptEntropy:
             device = 'cuda'
         else:
             device = 'cpu'
-            
+
         self.device = torch.device(device)
 
         # Load the clip embedder model
         self.embedder=CLIPTextEmbedder(device=device)
         self.embedder.load_submodels()
+
+        # get ensemble elm models
+        self.ensemble_models=self.get_ensemble_models()
     
     def get_ensemble_models(self):
         input_path = "environmental/models/ranking/"
