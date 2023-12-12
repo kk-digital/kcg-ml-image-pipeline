@@ -51,16 +51,6 @@ def train_ranking(dataset_name: str,
         phrase_loader.load_dataset_phrases()
         phrase_loader.upload_csv()
 
-    # load phrase embeddings
-    phrase_embedding_loader = PhraseEmbeddingLoader(dataset_name=dataset_name,
-                                                    minio_ip_addr=minio_ip_addr,
-                                                    minio_access_key=minio_access_key,
-                                                    minio_secret_key=minio_secret_key)
-    phrase_embedding_loader.load_dataset_phrases()
-
-    # update phrase embeddings
-    phrase_embedding_loader.update_dataset_phrases(phrase_loader.get_positive_phrases_arr())
-
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
@@ -71,9 +61,15 @@ def train_ranking(dataset_name: str,
     output_path = "{}/models/ranking".format(dataset_name)
 
     if input_type == "positive":
-        input_shape = len(phrase_loader.positive_phrases_index_dict)
+        input_shape = len(phrase_loader.index_positive_phrases_dict)
+        if phrase_loader.index_positive_phrases_dict.get(-1) is not None:
+            input_shape -= 1
+            print("exists")
+            print("val=", phrase_loader.index_positive_phrases_dict.get(-1))
     else:
-        input_shape = len(phrase_loader.negative_phrases_index_dict)
+        input_shape = len(phrase_loader.index_negative_phrases_dict)
+        if phrase_loader.index_negative_phrases_dict.get(-1) is not None:
+            input_shape -= 1
 
     print("input shape=", input_shape)
     # load dataset
@@ -100,6 +96,16 @@ def train_ranking(dataset_name: str,
 
     training_total_size = dataset_loader.get_len_training_ab_data()
     validation_total_size = dataset_loader.get_len_validation_ab_data()
+
+    # load phrase embeddings
+    phrase_embedding_loader = PhraseEmbeddingLoader(dataset_name=dataset_name,
+                                                    minio_ip_addr=minio_ip_addr,
+                                                    minio_access_key=minio_access_key,
+                                                    minio_secret_key=minio_secret_key)
+    phrase_embedding_loader.load_dataset_phrases()
+
+    # update phrase embeddings
+    phrase_embedding_loader.update_dataset_phrases(phrase_loader.get_positive_phrases_arr())
 
     ab_model = ScorePhraseSmoothingModel(inputs_shape=input_shape,
                                          dataset_loader=dataset_loader,
