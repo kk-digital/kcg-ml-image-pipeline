@@ -159,11 +159,10 @@ class PromptEntropy:
             data = self.minio_client.get_object('datasets', path)
             csv_data = io.BytesIO(data.read())
 
-            # Filter out rows where 'negative_prompt' is missing or empty
-            df = df[df['negative_prompt'].notna() & (df['negative_prompt'] != '')]
-
             # Read the CSV into a DataFrame
             df = pd.read_csv(csv_data)
+            # Filter out rows where 'negative_prompt' is missing or empty
+            df = df[df['negative_prompt'].notna() & (df['negative_prompt'] != '')]
             # get entropy fields
             df['entropy'], df['variance'], df['mean'] = zip(*df.apply(lambda row: self.get_prompt_entropy(row['positive_prompt'], row['negative_prompt']), axis=1))
             # Append the DataFrame to the list
