@@ -117,14 +117,9 @@ class BoltzmanPromptSubstitutionGenerator:
                                                  minio_client=self.minio_client)
         phrase_loader.load_dataset()
         self.phrase_score_data= phrase_loader.index_phrase_score_data
-
-        print(self.phrase_score_data[0].phrase)
- 
-        for index, phrase_data in enumerate(self.phrase_score_data):
-            print(f"Element {index}: {phrase_data}")
  
         # get dictionarry of indexes by phrase to make lookup faster
-        self.phrase_dictionarry={phrase_data.phrase: index for index, phrase_data in enumerate(self.phrase_score_data)}
+        self.phrase_dictionarry={self.phrase_score_data[i].phrase:i for i in range(len(self.phrase_score_data))}
 
         end=time.time()
         # log the loading time
