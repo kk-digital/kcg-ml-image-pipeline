@@ -23,7 +23,7 @@ from utility.minio import cmd
 
 from worker.prompt_generation.prompt_generator import generate_base_prompts, generate_image_generation_jobs, generate_prompts_from_csv_proportional_selection, load_base_prompts
 
-GENERATION_POLICY="independent_approx_prompt_search_v1"
+GENERATION_POLICY="independent-approx-prompt-search-v1"
 DATA_MINIO_DIRECTORY="environmental/data/prompt-generator/substitution"
 
 def parse_args():
