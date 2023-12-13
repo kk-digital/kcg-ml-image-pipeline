@@ -21,7 +21,7 @@ from utility.boltzman.boltzman_phrase_scores_loader import BoltzmanPhraseScoresL
 from utility.minio import cmd
 
 from prompt_job_generator.independent_approx_v1.independent_approx_v1 import IndependentApproxV1
-from worker.prompt_generation.prompt_generator import generate_base_prompts, generate_image_generation_jobs, load_base_prompts
+from worker.prompt_generation.prompt_generator import generate_image_generation_jobs
 
 GENERATION_POLICY="independent-approx-substitution-search-v1"
 DATA_MINIO_DIRECTORY="environmental/data/prompt-generator/substitution"
@@ -36,7 +36,7 @@ def parse_args():
     parser.add_argument('--send-job', action='store_true', default=False)
     parser.add_argument('--dataset-name', default='test-generations')
     parser.add_argument('--scoring-model', help="elm or linear", default="linear")
-    parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=80)
+    parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=100)
     parser.add_argument('--save-csv', action='store_true', default=False)
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
     parser.add_argument(
@@ -223,7 +223,7 @@ class BoltzmanPromptSubstitutionGenerator:
         # create a substitution for each position in the prompt
         for token in range(token_number):
             # get a random phrase from civitai to substitute with
-            random_index=random.randrange(0, len(self.index))
+            random_index=random.randrange(0, len(self.phrase_score_data))
             # get phrase string
             substitute_phrase = self.phrase_score_data[random_index].phrase
             # get phrase score by its index
