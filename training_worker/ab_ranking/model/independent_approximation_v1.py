@@ -21,6 +21,15 @@ from data_loader.independent_approximation_dataset_loader import IndependentAppr
 from utility.minio import cmd
 
 
+def get_zero_mean_unit_variance(energy_vector):
+    mean = torch.mean(energy_vector)
+    std = torch.std(energy_vector)
+    zero_mean = energy_vector - mean
+    unit_variance = zero_mean / std
+
+    return unit_variance
+
+
 class IndependentApproximationV1Model(nn.Module):
     def __init__(self,
                  inputs_shape,
@@ -45,7 +54,8 @@ class IndependentApproximationV1Model(nn.Module):
         average_weight_param_product = torch.sum(input, dim=1) * self.prompt_phrase_average_weight
 
         # phrase score
-        energy_per_token = torch.mul(input, self.energy_vector)
+        sigma_energy_vector = get_zero_mean_unit_variance(self.energy_vector)
+        energy_per_token = torch.mul(input, sigma_energy_vector)
         energy_per_phrase = torch.mul(self.token_length_vector, energy_per_token)
         prompt_energy = torch.sum(energy_per_phrase, dim=1)
 
@@ -176,7 +186,7 @@ class ABRankingIndependentApproximationV1Model:
 
         csv_buffer = StringIO()
         writer = csv.writer(csv_buffer)
-        writer.writerow((["index", "phrase", "occurrences", "token length", "prompt_phrase_average_weight", "energy_per_token", "energy_per_phrase"]))
+        writer.writerow((["index", "phrase", "occurrences", "token length", "prompt_phrase_average_weight", "energy_per_token", "sigma_energy_per_token", "energy_per_phrase"]))
         average_weight = None
         for name, param in self.model.named_parameters():
             if name == "prompt_phrase_average_weight":
@@ -195,6 +205,10 @@ class ABRankingIndependentApproximationV1Model:
                 has_negative_index = False
                 if -1 in index_phrase_dict:
                     has_negative_index = True
+
+                sigma_energy_vector = get_zero_mean_unit_variance(param.cpu().detach().squeeze())
+                sigma_energy_vector = sigma_energy_vector.numpy()
+
                 for i in range(len(energy_vector)):
                     if has_negative_index:
                         i -= 1
@@ -204,8 +218,9 @@ class ABRankingIndependentApproximationV1Model:
                     occurrences = phrase_info.occurrences
                     token_length = phrase_info.token_length
                     energy_per_token = "{:f}".format(energy_vector[i])
-                    energy_per_phrase = "{:f}".format(energy_vector[i] * float(token_length))
-                    writer.writerow([index, phrase, occurrences, token_length, average_weight, energy_per_token, energy_per_phrase])
+                    sigma_energy_per_token = "{:f}".format(sigma_energy_vector[i])
+                    energy_per_phrase = "{:f}".format(sigma_energy_vector[i] * float(token_length))
+                    writer.writerow([index, phrase, occurrences, token_length, average_weight, energy_per_token, sigma_energy_per_token, energy_per_phrase])
 
                 bytes_buffer = BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
                 # upload the csv

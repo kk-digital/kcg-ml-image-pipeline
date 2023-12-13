@@ -6,7 +6,8 @@ base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
 from training_worker.ab_ranking.script.phrase_smoothing import train_ranking
-from worker.http import request
+from utility.http import generation_request
+from utility.http import request
 
 def parse_arguments():
     parser = argparse.ArgumentParser(

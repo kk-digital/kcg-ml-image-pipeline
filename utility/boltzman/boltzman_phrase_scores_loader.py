@@ -21,12 +21,18 @@ class PhraseScoreData:
                  phrase: str,
                  occurrences: int,
                  token_length: int,
-                 score: float):
+                 prompt_phrase_average_weight: float,
+                 energy_per_token: float,
+                 sigma_energy_per_token: float,
+                 energy_per_phrase: float):
         self.phrase = phrase
         self.occurrences = occurrences
         self.token_length = token_length
-        self.score = score
-
+        self.prompt_phrase_average_weight = prompt_phrase_average_weight
+        self.energy_per_token = energy_per_token
+        self.sigma_energy_per_token = sigma_energy_per_token
+        self.energy_per_phrase = energy_per_phrase
+        
 
 class BoltzmanPhraseScoresLoader:
     def __init__(self,
@@ -61,21 +67,42 @@ class BoltzmanPhraseScoresLoader:
             if line_count == 0:
                 print(f'Column names are {", ".join(row)}')
             else:
+                # index
                 index = int(row[0])
 
                 # skip -1
                 if index == -1:
                     continue
 
+                # phrase
                 phrase = row[1]
+
+                # occurrences
                 occurrences = int(row[2])
+
+                # token length
                 token_length = int(row[3])
-                score = float(row[4])
+
+                # prompt_phrase_average_weight
+                prompt_phrase_average_weight = float(row[4])
+
+                # energy_per_token
+                energy_per_token = float(row[5])
+
+                # sigma energy per token
+                sigma_energy_per_token = float(row[6])
+
+                # energy_per_phrase
+                energy_per_phrase = float(row[7])
 
                 phrase_data = PhraseScoreData(phrase=phrase,
                                               occurrences=occurrences,
                                               token_length=token_length,
-                                              score=score)
+                                              prompt_phrase_average_weight=prompt_phrase_average_weight,
+                                              energy_per_token=energy_per_token,
+                                              sigma_energy_per_token=sigma_energy_per_token,
+                                              energy_per_phrase=energy_per_phrase,
+                                              )
                 self.index_phrase_score_data[index_count] = phrase_data
                 index_count += 1
 

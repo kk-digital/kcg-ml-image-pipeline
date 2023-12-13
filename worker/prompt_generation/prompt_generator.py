@@ -10,7 +10,8 @@ from tqdm import tqdm
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from worker.http import request
+from utility.http import generation_request
+from utility.http import request
 from worker.generation_task.generation_task import GenerationTask
 
 
@@ -492,7 +493,7 @@ def generate_image_generation_jobs_using_generated_prompts(csv_dataset_path,
         generation_task_json = generation_task.to_dict()
 
         # add job
-        request.http_add_job(generation_task_json)
+        generation_request.http_add_job(generation_task_json)
 
         count += 1
 
@@ -554,7 +555,7 @@ def generate_inpainting_generation_jobs_using_generated_prompts(csv_dataset_path
         generation_task_json = generation_task.to_dict()
 
         # add job
-        request.http_add_job(generation_task_json)
+        generation_request.http_add_job(generation_task_json)
 
         count += 1
 
@@ -625,7 +626,7 @@ def generate_image_generation_jobs(positive_prompt,
     generation_task_json = generation_task.to_dict()
 
     # add job
-    response = request.http_add_job(generation_task_json)
+    response = generation_request.http_add_job(generation_task_json)
 
     return response
 
@@ -679,7 +680,7 @@ def generate_image_generation_jobs_with_temperature(positive_prompt,
     generation_task_json = generation_task.to_dict()
 
     # add job
-    response = request.http_add_job(generation_task_json)
+    response = generation_request.http_add_job(generation_task_json)
 
     return response
 
@@ -740,7 +741,7 @@ def generate_inpainting_job(positive_prompt,
     generation_task_json = generation_task.to_dict()
 
     # add job
-    response = request.http_add_job(generation_task_json)
+    response = generation_request.http_add_job(generation_task_json)
 
     return response
 
@@ -803,7 +804,7 @@ def generate_inpainting_job_with_temperature(positive_prompt,
     generation_task_json = generation_task.to_dict()
 
     # add job
-    response = request.http_add_job(generation_task_json)
+    response = generation_request.http_add_job(generation_task_json)
 
     return response
 

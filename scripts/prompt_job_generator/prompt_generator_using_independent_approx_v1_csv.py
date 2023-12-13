@@ -17,7 +17,8 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from scripts.image_scorer import ImageScorer
-from training_worker.http import request
+from utility.http import model_training_request
+from utility.http import request
 from utility.minio import cmd
 from utility.boltzman.boltzman_phrase_scores_loader import BoltzmanPhraseScoresLoader
 from worker.prompt_generation.prompt_generator import generate_image_generation_jobs_with_temperature, generate_inpainting_job_with_temperature
@@ -116,17 +117,17 @@ def upload_score_probability_data_to_csv(minio_client,
 
     csv_buffer = io.StringIO()
     writer = csv.writer(csv_buffer)
-    writer.writerow((["index", "phrase", "occurrences", "token length", "boltzman_temperature", "boltzman k", "score", "boltzman probability", "normalized probability", "cumulative probability"]))
+    writer.writerow((["index", "phrase", "occurrences", "token length", "boltzman_temperature", "boltzman k", "energy_per_phrase", "boltzman probability", "normalized probability", "cumulative probability"]))
 
     for index, data in index_phrase_score_data.items():
         phrase = data.phrase
-        score = "{:f}".format(data.score)
+        energy_per_phrase = "{:f}".format(data.energy_per_phrase)
         occurrences = data.occurrences
         token_length = data.token_length
         boltzman_prob = probability_arr[index]
         normalized_prob = normalized_probability_arr[index]
         cumulative_prob = sorted_cumulative_prob[index]
-        writer.writerow([index, phrase, occurrences, token_length, boltzman_temperature, boltzman_k, score, boltzman_prob, normalized_prob, cumulative_prob])
+        writer.writerow([index, phrase, occurrences, token_length, boltzman_temperature, boltzman_k, energy_per_phrase, boltzman_prob, normalized_prob, cumulative_prob])
 
     bytes_buffer = io.BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
 
@@ -190,6 +191,7 @@ def generate_prompt(positive_phrase_scores_loader,
 
     negative_cumulative_probability_arr_min = negative_cumulative_probability_arr.min()
     negative_cumulative_probability_arr_max = negative_cumulative_probability_arr.max()
+    print("Getting negative prompt...")
     # negative prompt
     while negative_prompt_total_token_size < max_token_size:
         random_float = random.uniform(negative_cumulative_probability_arr_min,
@@ -334,6 +336,7 @@ def generate_prompts_array(positive_phrase_scores_loader,
 
         return generated_prompts
 
+
 def get_cumulative_probability_arr(minio_client,
                                    dataset_name,
                                    index_phrase_score_data,
@@ -341,35 +344,35 @@ def get_cumulative_probability_arr(minio_client,
                                    boltzman_k,
                                    type="positive"
                                    ):
-    scores_arr = []
+    energy_arr = []
     for index, data in index_phrase_score_data.items():
-        score = data.score
-        scores_arr.append(score)
+        score = data.energy_per_phrase
+        energy_arr.append(score)
 
-    scores_np_arr = np.array(scores_arr)
+    energy_np_arr = np.array(energy_arr)
+    # negate the energy
+    energy_np_arr = -1.0 * energy_np_arr
 
-    probability_arr = np.exp(-(scores_np_arr/(boltzman_k*boltzman_temperature)))
+    probability_arr = np.exp(-(energy_np_arr / (boltzman_k * boltzman_temperature)))
 
     # normalize
-    normalized_probability_arr = probability_arr/np.linalg.norm(probability_arr)
-    # assert round(np.sum(normalized_probability_arr), 4) == 1.0, "sum={}".format(np.sum(normalized_probability_arr))
+    normalized_probability_arr = probability_arr / np.sum(probability_arr)
+    assert round(np.sum(normalized_probability_arr), 4) == 1.0, "sum={}".format(np.sum(normalized_probability_arr))
 
     # cumulative
     sorted_probability_arr = []
     sorted_indexes = sorted(range(len(normalized_probability_arr)), key=lambda x: normalized_probability_arr[x],
-                                   reverse=True)
+                            reverse=True)
     for i in sorted_indexes:
         sorted_probability_arr.append(normalized_probability_arr[i])
     sorted_probability_arr = np.array(sorted_probability_arr)
 
-    # get cumulative
     cumulative_probability_arr = sorted_probability_arr.cumsum()
 
     print("-------------------------------------------------------------------------------------")
-    print("scores=", scores_np_arr)
+    print("energies=", energy_np_arr)
     print("prob=", probability_arr)
     print("normalized=", normalized_probability_arr)
-
 
     upload_score_probability_data_to_csv(minio_client,
                                          dataset_name,
@@ -390,44 +393,31 @@ def get_cumulative_probability_arr_without_upload(
                                    boltzman_temperature,
                                    boltzman_k
                                    ):
-    scores_arr = []
+    energy_arr = []
     for index, data in index_phrase_score_data.items():
-        score = data.score
-        scores_arr.append(score)
+        score = data.energy_per_phrase
+        energy_arr.append(score)
 
-    scores_np_arr = np.array(scores_arr)
+    energy_np_arr = np.array(energy_arr)
+    # negate the energy
+    energy_np_arr = -1.0 * energy_np_arr
 
-    probability_arr = np.exp(-(scores_np_arr/(boltzman_k*boltzman_temperature)))
+    probability_arr = np.exp(-(energy_np_arr/(boltzman_k*boltzman_temperature)))
 
     # normalize
     normalized_probability_arr = probability_arr/np.sum(probability_arr)
     assert round(np.sum(normalized_probability_arr), 4) == 1.0, "sum={}".format(np.sum(normalized_probability_arr))
 
-    # unsmooth cumulative
-    unsmooth_sorted_probability_arr = []
-    unsmooth_sorted_indexes = sorted(range(len(normalized_probability_arr)), key=lambda x: normalized_probability_arr[x],
+    # cumulative
+    sorted_probability_arr = []
+    sorted_indexes = sorted(range(len(normalized_probability_arr)), key=lambda x: normalized_probability_arr[x],
                                    reverse=True)
-    for i in unsmooth_sorted_indexes:
-        unsmooth_sorted_probability_arr.append(normalized_probability_arr[i])
-    unsmooth_sorted_probability_arr = np.array(unsmooth_sorted_probability_arr)
+    for i in sorted_indexes:
+        sorted_probability_arr.append(normalized_probability_arr[i])
+    sorted_probability_arr = np.array(sorted_probability_arr)
 
-    # epsilon
-    epsilon = 0.001 / len(index_phrase_score_data)
-
-    normalized_prob_epsilon_arr = normalized_probability_arr + epsilon
-    renormalized_prob_arr = normalized_prob_epsilon_arr/ np.sum(normalized_prob_epsilon_arr)
-
-    # sort smooth
-    smooth_sorted_probability_arr = []
-    smooth_sorted_indexes = sorted(range(len(renormalized_prob_arr)), key=lambda x: renormalized_prob_arr[x], reverse=True)
-    for i in smooth_sorted_indexes:
-        smooth_sorted_probability_arr.append(renormalized_prob_arr[i])
-    smooth_sorted_probability_arr = np.array(smooth_sorted_probability_arr)
-
-    # get cumulative
-    smooth_cumulative_probability_arr = smooth_sorted_probability_arr.cumsum()
-
-    return smooth_sorted_indexes, smooth_cumulative_probability_arr
+    cumulative_probability_arr = sorted_probability_arr.cumsum()
+    return sorted_indexes, cumulative_probability_arr
 
 def run_prompt_generator(minio_client,
                          dataset_name,
@@ -459,7 +449,7 @@ def run_prompt_generator(minio_client,
                                                                                                          dataset_name=dataset_name,
                                                                                                          index_phrase_score_data=negative_phrase_scores_loader.index_phrase_score_data,
                                                                                                          boltzman_temperature=boltzman_temperature,
-                                                                                                         boltzman_k=boltzman_k,
+                                                                                                         boltzman_k=boltzman_k+10,
                                                                                                          type="negative")
 
     generate_prompts(minio_client,

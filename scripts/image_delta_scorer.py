@@ -14,7 +14,8 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from scripts.image_scorer import ImageScorer
-from training_worker.http import request
+from utility.http import model_training_request
+from utility.http import request
 from utility.minio import cmd
 
 
@@ -23,6 +24,8 @@ def get_delta_score(clip_hash_sigma_score_dict,
                     embedding_hash_sigma_score_dict):
     hash_delta_score_dict = {}
     for img_hash, clip_sigma_score in clip_hash_sigma_score_dict.items():
+        if img_hash not in embedding_hash_sigma_score_dict:
+            continue
         delta_score = embedding_hash_sigma_score_dict[img_hash] - clip_sigma_score
         hash_delta_score_dict[img_hash] = delta_score
 
@@ -43,10 +46,14 @@ def upload_scores_attributes_to_completed_jobs(clip_hash_score_dict,
         for img_hash, clip_score in clip_hash_score_dict.items():
             clip_percentile = clip_hash_percentile_dict[img_hash]
             clip_sigma_score = clip_hash_sigma_score_dict[img_hash]
-
+            if img_hash not in embedding_hash_score_dict:
+                continue
             embedding_score = embedding_hash_score_dict[img_hash]
             embedding_percentile = embedding_hash_percentile_dict[img_hash]
             embedding_sigma_score = embedding_hash_sigma_score_dict[img_hash]
+
+            if img_hash not in hash_delta_score_dict:
+                continue
 
             delta_score = hash_delta_score_dict[img_hash]
 
@@ -193,9 +200,9 @@ def generate_delta_scores_graph(minio_client,
 
     clip_scores_data = []
     embedding_scores_data = []
-    for img_hash, clip_score in clip_hash_score_dict.items():
-        clip_scores_data.append(clip_score)
-        embedding_scores_data.append(embedding_hash_score_dict[img_hash])
+    for img_hash, embedding_score in embedding_hash_score_dict.items():
+        embedding_scores_data.append(embedding_score)
+        clip_scores_data.append(clip_hash_score_dict[img_hash])
 
     # clip scores hist
     clip_scores_hist.set_xlabel("Clip Score")
@@ -358,6 +365,14 @@ def run_image_delta_scorer(minio_client,
                                                     hash_delta_score_dict=hash_delta_score_dict,
                                                     )
 
+    upload_scores_attributes_to_completed_jobs(clip_hash_score_dict=clip_hash_score_dict,
+                                               clip_hash_sigma_score_dict=clip_hash_sigma_score_dict,
+                                               embedding_hash_score_dict=embedding_hash_score_dict,
+                                               embedding_hash_sigma_score_dict=embedding_hash_sigma_score_dict,
+                                               hash_delta_score_dict=hash_delta_score_dict,
+                                               clip_hash_percentile_dict=clip_hash_percentile_dict,
+                                               embedding_hash_percentile_dict=embedding_hash_percentile_dict)
+
     upload_delta_score_to_csv(minio_client=minio_client,
                               dataset=dataset_name,
                               clip_model_name=clip_model_filename,
@@ -373,14 +388,6 @@ def run_image_delta_scorer(minio_client,
                                 embedding_hash_score_dict=embedding_hash_score_dict,
                                 embedding_hash_sigma_score_dict=embedding_hash_sigma_score_dict,
                                 hash_delta_score_dict=hash_delta_score_dict)
-
-    upload_scores_attributes_to_completed_jobs(clip_hash_score_dict=clip_hash_score_dict,
-                                               clip_hash_sigma_score_dict=clip_hash_sigma_score_dict,
-                                               embedding_hash_score_dict=embedding_hash_score_dict,
-                                               embedding_hash_sigma_score_dict=embedding_hash_sigma_score_dict,
-                                               hash_delta_score_dict=hash_delta_score_dict,
-                                               clip_hash_percentile_dict=clip_hash_percentile_dict,
-                                               embedding_hash_percentile_dict=embedding_hash_percentile_dict)
 
     time_elapsed = time.time() - start_time
     print("Dataset: {}: Total Time elapsed: {}s".format(dataset_name, format(time_elapsed, ".2f")))

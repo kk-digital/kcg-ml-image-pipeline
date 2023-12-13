@@ -26,7 +26,7 @@ def get_image_rank_percentile_by_hash(request: Request, image_hash: str, model_i
 
     item = request.app.image_percentiles_collection.find_one(query)
     if item is None:
-        print("Image rank percentile data not found")
+        return None
 
     # remove the auto generated field
     item.pop('_id', None)
