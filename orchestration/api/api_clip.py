@@ -5,14 +5,14 @@ from typing import Optional
 from typing import List
 import json
 
-CLIP_SERVER_ADRESS = 'http://192.168.83.180:8002'
-#CLIP_SERVER_ADRESS = 'http://127.0.0.1:8002'
+CLIP_SERVER_ADDRESS = 'http://192.168.83.180:8002'
+#CLIP_SERVER_ADDRESS = 'http://127.0.0.1:8002'
 router = APIRouter()
 
 
 # --------- Http requests -------------
 def http_clip_server_add_phrase(phrase: str):
-    url = CLIP_SERVER_ADRESS + "/add-phrase?phrase=" + phrase
+    url = CLIP_SERVER_ADDRESS + "/add-phrase?phrase=" + phrase
 
     try:
         response = requests.put(url)
@@ -28,7 +28,7 @@ def http_clip_server_add_phrase(phrase: str):
 
 
 def http_clip_server_clip_vector_from_phrase(phrase: str):
-    url = CLIP_SERVER_ADRESS + "/clip-vector?phrase=" + phrase
+    url = CLIP_SERVER_ADDRESS + "/clip-vector?phrase=" + phrase
 
     try:
         response = requests.get(url)
@@ -45,7 +45,7 @@ def http_clip_server_clip_vector_from_phrase(phrase: str):
 
 def http_clip_server_get_cosine_similarity(image_path: str,
                                            phrase: str):
-    url = f'{CLIP_SERVER_ADRESS}/cosine-similarity?image_path={image_path}&phrase={phrase}'
+    url = f'{CLIP_SERVER_ADDRESS}/cosine-similarity?image_path={image_path}&phrase={phrase}'
 
     try:
         response = requests.get(url)
@@ -61,7 +61,7 @@ def http_clip_server_get_cosine_similarity(image_path: str,
 
 def http_clip_server_get_cosine_similarity_list(image_path_list: List[str],
                                            phrase: str):
-    url = f'{CLIP_SERVER_ADRESS}/cosine-similarity-list?phrase={phrase}'
+    url = f'{CLIP_SERVER_ADDRESS}/cosine-similarity-list?phrase={phrase}'
 
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
 
@@ -308,3 +308,20 @@ def get_random_image_similarity_date_range(
     return {
         "images": filtered_images
     }
+
+@router.get("/check-clip-server-status")
+def check_clip_server_status():
+    try:
+        # Send a simple GET request to the clip server
+        response = requests.get(CLIP_SERVER_ADDRESS )
+
+        # Check if the response status code is 200 (OK)
+        if response.status_code == 200:
+            return {"status": "online", "message": "Clip server is online."}
+        else:
+            return {"status": "offline", "message": "Clip server is offline. Received unexpected response."}
+
+    except requests.exceptions.RequestException as e:
+        # Handle any exceptions that occur during the request
+        print(f"Error checking clip server status: {e}")
+        return {"status": "offline", "message": "Clip server is offline or unreachable."}
