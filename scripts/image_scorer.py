@@ -18,6 +18,7 @@ sys.path.insert(0, base_directory)
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel as ABRankingLinearModel
 from utility.http import model_training_request
+from utility.http import request
 from utility.minio import cmd
 
 
@@ -79,7 +80,7 @@ class ImageScorer:
         self.model.model = model.model.to(self.device)
 
         # get model id
-        self.model_id = model_training_request.http_get_model_id(self.model.model_hash)
+        self.model_id = request.http_get_model_id(self.model.model_hash)
         print("model_hash=", self.model.model_hash)
         print("model_id=", self.model_id)
 
@@ -278,7 +279,7 @@ class ImageScorer:
                     "score": pair[1],
                 }
 
-                futures.append(executor.submit(model_training_request.http_add_score, score_data=score_data))
+                futures.append(executor.submit(request.http_add_score, score_data=score_data))
 
             for _ in tqdm(as_completed(futures), total=len(hash_score_pairs)):
                 continue
@@ -295,7 +296,7 @@ class ImageScorer:
                     "sigma_score": val,
                 }
 
-                futures.append(executor.submit(model_training_request.http_add_sigma_score, sigma_score_data=sigma_score_data))
+                futures.append(executor.submit(request.http_add_sigma_score, sigma_score_data=sigma_score_data))
 
             for _ in tqdm(as_completed(futures), total=len(futures)):
                 continue
@@ -312,7 +313,7 @@ class ImageScorer:
                     "percentile": percentile,
                 }
 
-                futures.append(executor.submit(model_training_request.http_add_percentile, percentile_data=percentile_data))
+                futures.append(executor.submit(request.http_add_percentile, percentile_data=percentile_data))
 
             for _ in tqdm(as_completed(futures), total=len(hash_percentile_dict)):
                 continue
@@ -431,7 +432,7 @@ def main():
     else:
         # if all, train models for all existing datasets
         # get dataset name list
-        dataset_names = model_training_request.http_get_dataset_names()
+        dataset_names = request.http_get_dataset_names()
         print("dataset names=", dataset_names)
         for dataset in dataset_names:
             try:

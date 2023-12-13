@@ -15,6 +15,7 @@ sys.path.insert(0, base_directory)
 
 from scripts.image_scorer import ImageScorer
 from utility.http import model_training_request
+from utility.http import request
 from utility.minio import cmd
 
 
@@ -57,7 +58,7 @@ def upload_scores_attributes_to_completed_jobs(clip_hash_score_dict,
             delta_score = hash_delta_score_dict[img_hash]
 
 
-            futures.append(executor.submit(model_training_request.http_add_score_attributes,
+            futures.append(executor.submit(request.http_add_score_attributes,
                                            img_hash=img_hash,
                                            image_clip_score=clip_score,
                                            image_clip_percentile=clip_percentile,
@@ -88,7 +89,7 @@ def get_csv_row_data(index,
                      embedding_hash_percentile_dict,
                      hash_delta_score_dict):
     # get job
-    job = model_training_request.http_get_completed_job_by_image_hash(img_hash)
+    job = request.http_get_completed_job_by_image_hash(img_hash)
     if job is None:
         return None, index
 
@@ -419,7 +420,7 @@ def main():
     else:
         # if all, train models for all existing datasets
         # get dataset name list
-        dataset_names = model_training_request.http_get_dataset_names()
+        dataset_names = request.http_get_dataset_names()
         print("dataset names=", dataset_names)
         for dataset in dataset_names:
             try:

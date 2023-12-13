@@ -7,6 +7,7 @@ base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
 from utility.http import generation_request
+from utility.http import request
 from utility.minio import cmd
 
 
@@ -71,7 +72,7 @@ if __name__ == '__main__':
     else:
         # if all, train models for all existing datasets
         # get dataset name list
-        dataset_names = generation_request.http_get_dataset_names()
+        dataset_names = request.http_get_dataset_names()
         print("dataset names=", dataset_names)
         for dataset in dataset_names:
             try:

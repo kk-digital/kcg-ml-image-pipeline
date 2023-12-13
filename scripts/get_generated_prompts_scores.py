@@ -19,7 +19,7 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from scripts.image_scorer import ImageScorer
-from utility.http.model_training_request import http_get_completed_job_by_uuid
+from utility.http.request import http_get_completed_job_by_uuid
 from utility.minio import cmd
 from data_loader.generated_prompts_loader import GeneratedPromptsLoader
 

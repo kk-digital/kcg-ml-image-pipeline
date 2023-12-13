@@ -7,6 +7,7 @@ sys.path.insert(0, base_directory)
 
 from training_worker.ab_ranking.script.ab_ranking_elm_v1 import train_ranking
 from utility.http import generation_request
+from utility.http import request
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -65,7 +66,7 @@ if __name__ == '__main__':
     else:
         # if all, train models for all existing datasets
         # get dataset name list
-        dataset_names = generation_request.http_get_dataset_names()
+        dataset_names = request.http_get_dataset_names()
         print("dataset names=", dataset_names)
         for dataset in dataset_names:
             try:

@@ -26,22 +26,6 @@ def http_get_job(worker_type: str = None):
     return None
 
 
-# Get request to get sequential id of a dataset
-def http_get_sequential_id(dataset_name: str, limit: int):
-    url = SERVER_ADDRESS + "/dataset/sequential-id/{0}?limit={1}".format(dataset_name, limit)
-
-    try:
-        response = requests.get(url)
-    except Exception as e:
-        print('request exception ', e)
-
-    if response.status_code == 200:
-        job_json = response.json()
-        return job_json
-
-    return None
-
-
 def http_add_job(job):
     url = SERVER_ADDRESS + "/queue/image-generation/add"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
@@ -83,19 +67,3 @@ def http_update_job_failed(job):
 
     if response.status_code != 200:
         print(f"request failed with status code: {response.status_code}")
-
-
-# Get list of all dataset names
-def http_get_dataset_names():
-    url = SERVER_ADDRESS + "/dataset/list"
-    try:
-        response = requests.get(url)
-
-        if response.status_code == 200:
-            data_json = response.json()
-            return data_json
-
-    except Exception as e:
-        print('request exception ', e)
-
-    return None

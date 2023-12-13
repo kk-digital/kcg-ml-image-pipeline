@@ -11,6 +11,7 @@ base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
 from utility.http import generation_request
+from utility.http import request
 from worker.generation_task.generation_task import GenerationTask
 
 
@@ -458,7 +459,7 @@ def generate_image_generation_jobs_using_generated_prompts(csv_dataset_path,
                                                                positive_prefix)
 
     # get sequential ids
-    sequential_ids = generation_request.http_get_sequential_id(dataset_name, prompt_count)
+    sequential_ids = request.http_get_sequential_id(dataset_name, prompt_count)
 
     count = 0
     # generate jobs
@@ -511,7 +512,7 @@ def generate_inpainting_generation_jobs_using_generated_prompts(csv_dataset_path
                                                                positive_prefix)
 
     # get sequential ids
-    sequential_ids = generation_request.http_get_sequential_id(dataset_name, prompt_count)
+    sequential_ids = request.http_get_sequential_id(dataset_name, prompt_count)
 
     count = 0
     # generate jobs
@@ -589,7 +590,7 @@ def generate_image_generation_jobs(positive_prompt,
                                    dataset_name):
 
     # get sequential ids
-    sequential_ids = generation_request.http_get_sequential_id(dataset_name, 1)
+    sequential_ids = request.http_get_sequential_id(dataset_name, 1)
 
     count = 0
     # generate UUID
@@ -641,7 +642,7 @@ def generate_image_generation_jobs_with_temperature(positive_prompt,
                                                     boltzman_k):
 
     # get sequential ids
-    sequential_ids = generation_request.http_get_sequential_id(dataset_name, 1)
+    sequential_ids = request.http_get_sequential_id(dataset_name, 1)
 
     count = 0
     # generate UUID
@@ -696,7 +697,7 @@ def generate_inpainting_job(positive_prompt,
                             mask_path="./test/test_inpainting/icon_mask.png"):
 
     # get sequential ids
-    sequential_ids = generation_request.http_get_sequential_id(dataset_name, 1)
+    sequential_ids = request.http_get_sequential_id(dataset_name, 1)
 
     task_uuid = str(uuid.uuid4())
     task_type = "inpainting_generation_task"
@@ -758,7 +759,7 @@ def generate_inpainting_job_with_temperature(positive_prompt,
                                              mask_path="./test/test_inpainting/icon_mask.png"):
 
     # get sequential ids
-    sequential_ids = generation_request.http_get_sequential_id(dataset_name, 1)
+    sequential_ids = request.http_get_sequential_id(dataset_name, 1)
 
     task_uuid = str(uuid.uuid4())
     task_type = "inpainting_generation_task"

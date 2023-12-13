@@ -6,10 +6,11 @@ base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
 from utility.http import model_training_request
+from utility.http import request
 
 
 def add_model_card(model_card):
-    model_id = model_training_request.http_add_model(model_card)
+    model_id = request.http_add_model(model_card)
 
     return int(model_id)
 
@@ -78,8 +79,8 @@ def upload_score_residual(model_id: int,
                     "residual": img_residual,
                 }
 
-                futures.append(executor.submit(model_training_request.http_add_score, score_data=score_data))
-                futures.append(executor.submit(model_training_request.http_add_residual, residual_data=residual_data))
+                futures.append(executor.submit(request.http_add_score, score_data=score_data))
+                futures.append(executor.submit(request.http_add_residual, residual_data=residual_data))
             count += 1
 
         for _ in tqdm(as_completed(futures), total=len(futures)):
@@ -115,8 +116,8 @@ def upload_score_residual(model_id: int,
                     "residual": img_residual,
                 }
 
-                futures.append(executor.submit(model_training_request.http_add_score, score_data=score_data))
-                futures.append(executor.submit(model_training_request.http_add_residual, residual_data=residual_data))
+                futures.append(executor.submit(request.http_add_score, score_data=score_data))
+                futures.append(executor.submit(request.http_add_residual, residual_data=residual_data))
             count += 1
 
         for _ in tqdm(as_completed(futures), total=len(futures)):
@@ -148,7 +149,7 @@ def upload_score_residual(model_id: int,
                 "residual_percentile": residual_percentile,
             }
 
-            futures.append(executor.submit(model_training_request.http_add_residual_percentile, residual_percentile_data=residual_percentile_data))
+            futures.append(executor.submit(request.http_add_residual_percentile, residual_percentile_data=residual_percentile_data))
 
         for _ in tqdm(as_completed(futures), total=len(futures)):
             continue
