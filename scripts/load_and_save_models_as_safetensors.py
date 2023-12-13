@@ -14,7 +14,7 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from scripts.image_scorer import ImageScorer
-from utility.http import request
+from utility.http import model_training_request
 from utility.minio import cmd
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
@@ -141,7 +141,7 @@ def main():
     else:
         # if all, train models for all existing datasets
         # get dataset name list
-        dataset_names = request.http_get_dataset_names()
+        dataset_names = model_training_request.http_get_dataset_names()
         print("dataset names=", dataset_names)
         for dataset in dataset_names:
             try:

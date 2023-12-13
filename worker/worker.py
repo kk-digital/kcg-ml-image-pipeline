@@ -19,7 +19,7 @@ from worker.prompt_generation.prompt_generator import run_generate_inpainting_ge
 from worker.image_generation.scripts.inpaint_A1111 import img2img
 from worker.image_generation.scripts.generate_image_from_text import generate_image_from_text
 from worker.worker_state import WorkerState
-from worker.http import request
+from utility.http import generation_request
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 from stable_diffusion.utils_image import save_images_to_minio, save_image_data_to_minio, save_image_embedding_to_minio, \
@@ -156,9 +156,9 @@ def get_job_if_exist(worker_type_list):
     job = None
     for worker_type in worker_type_list:
         if worker_type == "":
-            job = request.http_get_job()
+            job = generation_request.http_get_job()
         else:
-            job = request.http_get_job(worker_type)
+            job = generation_request.http_get_job(worker_type)
 
         if job is not None:
             break
@@ -186,7 +186,7 @@ def upload_data_and_update_job_status(job, output_file_path, output_file_hash, d
     info_v2("job completed: " + job["uuid"])
 
     # update status
-    request.http_update_job_completed(job)
+    generation_request.http_update_job_completed(job)
 
 
 def upload_image_data_and_update_job_status(worker_state,
@@ -265,7 +265,7 @@ def upload_image_data_and_update_job_status(worker_state,
     info_v2("job completed: " + generation_task.uuid)
 
     # update status
-    request.http_update_job_completed(job)
+    generation_request.http_update_job_completed(job)
 
     # add clip calculation task
     clip_calculation_job = {"uuid": "",
@@ -276,7 +276,7 @@ def upload_image_data_and_update_job_status(worker_state,
                             },
                             }
 
-    request.http_add_job(clip_calculation_job)
+    generation_request.http_add_job(clip_calculation_job)
 
 
 def process_jobs(worker_state):
@@ -367,23 +367,23 @@ def process_jobs(worker_state):
                     run_generate_image_generation_task(generation_task)
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     info(thread_state, "job completed: " + job["uuid"])
-                    request.http_update_job_completed(job)
+                    generation_request.http_update_job_completed(job)
 
                 elif task_type == "generate_inpainting_generation_task":
                     # run generate inpainting generation task
                     run_generate_inpainting_generation_task(generation_task)
                     job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     info(thread_state, "job completed: " + job["uuid"])
-                    request.http_update_job_completed(job)
+                    generation_request.http_update_job_completed(job)
                 else:
                     e = "job with task type '" + task_type + "' is not supported"
                     error(thread_state, e)
                     job['task_error_str'] = e
-                    request.http_update_job_failed(job)
+                    generation_request.http_update_job_failed(job)
             except Exception as e:
                 error(thread_state, f"generation task failed: {traceback.format_exc()}")
                 job['task_error_str'] = str(e)
-                request.http_update_job_failed(job)
+                generation_request.http_update_job_failed(job)
 
             job_end_time = time.time()
             last_job_time = job_end_time

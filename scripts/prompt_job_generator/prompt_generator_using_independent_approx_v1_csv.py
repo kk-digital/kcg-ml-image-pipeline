@@ -17,7 +17,7 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from scripts.image_scorer import ImageScorer
-from utility.http import request
+from utility.http import model_training_request
 from utility.minio import cmd
 from utility.boltzman.boltzman_phrase_scores_loader import BoltzmanPhraseScoresLoader
 from worker.prompt_generation.prompt_generator import generate_image_generation_jobs_with_temperature, generate_inpainting_job_with_temperature
@@ -508,7 +508,7 @@ def main():
     else:
         # if all, do for all existing datasets
         # get dataset name list
-        dataset_names = request.http_get_dataset_names()
+        dataset_names = model_training_request.http_get_dataset_names()
         print("dataset names=", dataset_names)
         for dataset in dataset_names:
             try:

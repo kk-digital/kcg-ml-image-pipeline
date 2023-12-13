@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from worker.http import request
+from utility.http import generation_request
 from utility.minio import cmd
 
 
@@ -27,7 +27,7 @@ def check_clip_and_create(minio_client, object_path):
                                         },
                                         }
 
-                request.http_add_job(clip_calculation_job)
+                generation_request.http_add_job(clip_calculation_job)
 
 
 def run_concurrent_check(minio_client, dataset_name):
@@ -71,7 +71,7 @@ if __name__ == '__main__':
     else:
         # if all, train models for all existing datasets
         # get dataset name list
-        dataset_names = request.http_get_dataset_names()
+        dataset_names = generation_request.http_get_dataset_names()
         print("dataset names=", dataset_names)
         for dataset in dataset_names:
             try:

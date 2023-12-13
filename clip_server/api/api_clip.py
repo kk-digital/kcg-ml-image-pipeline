@@ -4,7 +4,8 @@ from typing import List
 router = APIRouter()
 
 
-
+# Hardcoded URL for the clip server (not recommended for production)
+CLIP_SERVER_ADRESS = 'http://192.168.83.180:8002'
 
 @router.get("/list-phrase")
 def get_rate(request: Request,
@@ -73,9 +74,6 @@ def add_job(request: Request, phrase : str):
     clip_server.add_phrase(phrase)
 
     return True
-
-# Hardcoded URL for the clip server (not recommended for production)
-CLIP_SERVER_ADRESS = 'http://192.168.83.180:8002'
 
 @router.get("/check-clip-server-status")
 def check_clip_server_status(request: Request):

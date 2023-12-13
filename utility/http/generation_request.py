@@ -3,13 +3,13 @@
 import requests
 import json
 
-SERVER_ADRESS = 'http://192.168.3.1:8111'
-#SERVER_ADRESS = 'http://127.0.0.1:8000'
+SERVER_ADDRESS = 'http://192.168.3.1:8111'
+#SERVER_ADDRESS = 'http://127.0.0.1:8000'
 
 
 # Get request to get an available job
 def http_get_job(worker_type: str = None):
-    url = SERVER_ADRESS + "/queue/image-generation/get-job"
+    url = SERVER_ADDRESS + "/queue/image-generation/get-job"
     if worker_type is not None:
         url = url + "?task_type={}".format(worker_type)
 
@@ -28,7 +28,7 @@ def http_get_job(worker_type: str = None):
 
 # Get request to get sequential id of a dataset
 def http_get_sequential_id(dataset_name: str, limit: int):
-    url = SERVER_ADRESS + "/dataset/sequential-id/{0}?limit={1}".format(dataset_name, limit)
+    url = SERVER_ADDRESS + "/dataset/sequential-id/{0}?limit={1}".format(dataset_name, limit)
 
     try:
         response = requests.get(url)
@@ -43,7 +43,7 @@ def http_get_sequential_id(dataset_name: str, limit: int):
 
 
 def http_add_job(job):
-    url = SERVER_ADRESS + "/queue/image-generation/add"
+    url = SERVER_ADDRESS + "/queue/image-generation/add"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
 
     try:
@@ -60,7 +60,7 @@ def http_add_job(job):
 
 
 def http_update_job_completed(job):
-    url = SERVER_ADRESS + "/queue/image-generation/update-completed"
+    url = SERVER_ADDRESS + "/queue/image-generation/update-completed"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
 
     try:
@@ -73,7 +73,7 @@ def http_update_job_completed(job):
 
 
 def http_update_job_failed(job):
-    url = SERVER_ADRESS + "/queue/image-generation/update-failed"
+    url = SERVER_ADDRESS + "/queue/image-generation/update-failed"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
 
     try:
@@ -87,7 +87,7 @@ def http_update_job_failed(job):
 
 # Get list of all dataset names
 def http_get_dataset_names():
-    url = SERVER_ADRESS + "/dataset/list"
+    url = SERVER_ADDRESS + "/dataset/list"
     try:
         response = requests.get(url)
 

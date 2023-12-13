@@ -7,7 +7,7 @@ import math
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from utility.http import request
+from utility.http import model_training_request
 
 
 def get_mean_and_count(training_targets,
@@ -182,7 +182,7 @@ def upload_sigma_score(model_id: int,
                 "sigma_score": chronological_sigma_scores[i],
             }
 
-            futures.append(executor.submit(request.http_add_sigma_score, sigma_score_data=sigma_score_data))
+            futures.append(executor.submit(model_training_request.http_add_sigma_score, sigma_score_data=sigma_score_data))
 
         for _ in tqdm(as_completed(futures), total=len(futures)):
             continue

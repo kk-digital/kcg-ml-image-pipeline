@@ -9,7 +9,7 @@ from PIL import Image
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from worker.http import request
+from utility.http import generation_request
 from utility.minio import cmd
 from data_loader.utils import DATASETS_BUCKET, get_object
 
@@ -205,7 +205,7 @@ if __name__ == '__main__':
     else:
         # if all, run script for all existing datasets
         # get dataset name list
-        dataset_names = request.http_get_dataset_names()
+        dataset_names = generation_request.http_get_dataset_names()
         print("dataset names=", dataset_names)
         for dataset in dataset_names:
             try:
