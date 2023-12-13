@@ -429,7 +429,7 @@ class BoltzmanPromptSubstitutionGenerator:
     # function to generate initial prompts
     def generate_initial_prompts(self, num_prompts):
         # generate initial prompts before mutation
-        boltzman_temperature = 16
+        boltzman_temperature = 64
         boltzman_k = 1
         prompt_generator = IndependentApproxV1("environmental", boltzman_temperature, boltzman_k)
         prompt_generator.load_csv(self.minio_client, self.positive_phrase_scores_csv, self.negative_phrase_scores_csv)
