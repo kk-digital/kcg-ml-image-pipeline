@@ -215,26 +215,29 @@ class BoltzmanPromptSubstitutionGenerator:
                                     prompt_str,
                                     phrases_energy):
 
+        allowed_phrases = [phrase_data for phrase_data in self.phrase_score_data if phrase_data.token_length + current_length <75]
         # get number of tokens
+        current_length= len(prompt_str)
+        # get number of phrases
         prompt_list = prompt_str.split(', ')
-        token_number= len(prompt_list)
+        num_phrases= len(prompt_list)
         # list of potential substitution choices for current iteration
         substitution_choices=[]
 
         # create a substitution for each position in the prompt
-        for token in range(token_number):
+        for phrase_index in range(num_phrases):
             # get a random phrase from civitai to substitute with
-            random_index=random.randrange(0, len(self.phrase_score_data))
+            random_index=random.randrange(0, len(allowed_phrases))
             # get phrase string
             substitute_phrase = self.phrase_score_data[random_index].phrase
             # get phrase score by its index
             substitute_energy = self.phrase_score_data[random_index].energy_per_token
             # get the substituted phrase energy
-            substituted_energy = phrases_energy[token]
+            substituted_energy = phrases_energy[phrase_index]
 
-            if substitute_energy > substituted_energy:
+            if substitute_energy > substituted_energy and substitute_energy>0:
                 substitution_data={
-                    'position':token,
+                    'position':phrase_index,
                     'substitute_phrase':substitute_phrase,
                     'increase':substitute_energy - substituted_energy,
                 }
@@ -429,7 +432,7 @@ class BoltzmanPromptSubstitutionGenerator:
     # function to generate initial prompts
     def generate_initial_prompts(self, num_prompts):
         # generate initial prompts before mutation
-        boltzman_temperature = 64
+        boltzman_temperature = 16
         boltzman_k = 1
         prompt_generator = IndependentApproxV1("environmental", boltzman_temperature, boltzman_k)
         prompt_generator.load_csv(self.minio_client, self.positive_phrase_scores_csv, self.negative_phrase_scores_csv)
