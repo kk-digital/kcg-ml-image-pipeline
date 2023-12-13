@@ -358,6 +358,8 @@ class BoltzmanPromptSubstitutionGenerator:
             print(f"----initial score: {seed_score}.")
             print(f"----final score: {score}.")
 
+            task_uuid=-1
+            task_time = -1
             # sending a job to generate an image with the mutated prompt
             if self.send_job:
                 try:
