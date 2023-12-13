@@ -378,19 +378,19 @@ class BoltzmanPromptSubstitutionGenerator:
                     task_uuid = -1
                     task_time = -1
                 
-                # storing job data to put in csv file later
-                df_data.append({
-                    'seed_score': seed_score,
-                    'seed_sigma_score': seed_sigma_score,
-                    'score': score,
-                    'sigma_score': sigma_score,
-                    'positive_prompt': mutated_positive_prompt,
-                    'negative_prompt': negative_prompt,
-                    'seed_prompt': positive_prompt,
-                    'generation_policy_string': GENERATION_POLICY,
-                    'task_uuid': task_uuid,
-                    'time': task_time
-                })
+            # storing job data to put in csv file later
+            df_data.append({
+                'seed_score': seed_score,
+                'seed_sigma_score': seed_sigma_score,
+                'score': score,
+                'sigma_score': sigma_score,
+                'positive_prompt': mutated_positive_prompt,
+                'negative_prompt': negative_prompt,
+                'seed_prompt': positive_prompt,
+                'generation_policy_string': GENERATION_POLICY,
+                'task_uuid': task_uuid,
+                'time': task_time
+            })
             
             index+=1
 
