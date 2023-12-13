@@ -211,12 +211,14 @@ class BoltzmanPromptSubstitutionGenerator:
         return embedding.detach().cpu().numpy()
     
     def choose_random_phrase(self, max_token_length):
-        eligible_phrases = [self.phrase_score_data[index] for index in range(len(self.phrase_score_data)) if self.phrase_score_data[index].token_length < max_token_length]
+        random_index=random.randrange(0, len(self.phrase_score_data))
+        phrase_data= self.phrase_score_data[random_index]
 
-        if eligible_phrases:
-            return random.choice(eligible_phrases)
-        else:
-            return None
+        while(phrase_data.token_length> max_token_length):
+            random_index=random.randrange(0, len(self.phrase_score_data))
+            phrase_data= self.phrase_score_data[random_index]
+        
+        return phrase_data
 
     # function for rejection sampling with sigma scores
     def rejection_sampling_by_boltzman_score(self,
