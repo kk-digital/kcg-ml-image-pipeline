@@ -111,8 +111,9 @@ class BoltzmanPromptSubstitutionGenerator:
         
 
         # get list of boltzman phrase score
-        self.positive_phrase_scores_csv=self.get_boltzman_scores_csv(type='positive')
-        self.negative_phrase_scores_csv=self.get_boltzman_scores_csv(type='negative')
+        self.positive_phrase_scores_csv,self.negative_phrase_scores_csv=self.get_boltzman_scores_csv()
+        print(self.positive_phrase_scores_csv)
+        print(self.negative_phrase_scores_csv)
 
         # loading positive phrase scores to use for rejection sampling
         phrase_loader=BoltzmanPhraseScoresLoader(dataset_name="environmental",
@@ -171,15 +172,18 @@ class BoltzmanPromptSubstitutionGenerator:
 
         return embedding_model
 
-    def get_boltzman_scores_csv(self, type):
+    def get_boltzman_scores_csv(self):
         score_csvs=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', 'environmental/output/phrases-score-csv')
-        most_recent_file = None
+        positive_score_csv = None
+        negative_score_csv = None
 
         for csv_file in score_csvs:
-            if csv_file.endswith(f'{type}-phrases-score.csv'):
-                most_recent_file = csv_file.split("/")[-1]
+            if csv_file.endswith('positive-phrases-score.csv'):
+                positive_score_csv = csv_file.split("/")[-1]
+            if csv_file.endswith('negative-phrases-score.csv'):
+                negative_score_csv = csv_file.split("/")[-1]
         
-        return most_recent_file
+        return positive_score_csv, negative_score_csv
 
     # get the clip text embedding of a prompt or a phrase
     def get_prompt_embedding(self, prompt):
