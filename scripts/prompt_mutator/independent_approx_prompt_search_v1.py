@@ -226,11 +226,11 @@ class BoltzmanPromptSubstitutionGenerator:
                                     phrases_energy,
                                     phrase_token_lengths):
 
-        # get number of tokens
-        current_length= sum(phrase_token_lengths)
         # get number of phrases
         prompt_list = prompt_str.split(', ')
         num_phrases= len(prompt_list)
+        # get number of tokens
+        current_length= sum(phrase_token_lengths) + num_phrases - 1
         # list of potential substitution choices for current iteration
         substitution_choices=[]
 
