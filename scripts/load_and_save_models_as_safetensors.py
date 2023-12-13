@@ -14,7 +14,8 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from scripts.image_scorer import ImageScorer
-from training_worker.http import request
+from utility.http import model_training_request
+from utility.http import request
 from utility.minio import cmd
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel

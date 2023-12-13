@@ -5,7 +5,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from training_worker.http import request
+from utility.http import model_training_request
+from utility.http import request
 
 
 def add_model_card(model_card):

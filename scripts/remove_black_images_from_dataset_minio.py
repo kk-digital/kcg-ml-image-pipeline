@@ -9,7 +9,8 @@ from PIL import Image
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from worker.http import request
+from utility.http import generation_request
+from utility.http import request
 from utility.minio import cmd
 from data_loader.utils import DATASETS_BUCKET, get_object
 
