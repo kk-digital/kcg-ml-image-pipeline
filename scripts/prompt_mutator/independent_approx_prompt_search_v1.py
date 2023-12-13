@@ -247,6 +247,7 @@ class BoltzmanPromptSubstitutionGenerator:
     # function mutating a prompt
     def mutate_prompt(self,
                     prompt_str,
+                    prompt_embedding,
                     prompt_score):
         
         phrase_scores=[]
@@ -329,6 +330,7 @@ class BoltzmanPromptSubstitutionGenerator:
             negative_prompt=prompt['negative_prompt']
             
             #getting prompt embeddings
+            positive_embedding=prompt['positive_embedding']
             negative_embedding=prompt['negative_embedding']
 
             # calculating combined score and positive score of prompt before mutation
@@ -343,6 +345,7 @@ class BoltzmanPromptSubstitutionGenerator:
             #mutate positive prompt
             mutated_positive_prompt, mutated_positive_embedding= self.mutate_prompt(
                             prompt_str=positive_prompt, 
+                            prompt_embedding=positive_embedding,
                             prompt_score=positive_score)
 
             # calculating new score with the mutated positive prompt
