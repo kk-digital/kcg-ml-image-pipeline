@@ -20,6 +20,7 @@ from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTex
 from utility.boltzman.boltzman_phrase_scores_loader import BoltzmanPhraseScoresLoader
 from utility.minio import cmd
 
+from prompt_job_generator.independent_approx_v1.independent_approx_v1 import IndependentApproxV1
 from worker.prompt_generation.prompt_generator import generate_base_prompts, generate_image_generation_jobs, generate_prompts_from_csv_proportional_selection, load_base_prompts
 
 GENERATION_POLICY="independent-approx-prompt-search-v1"
@@ -110,10 +111,12 @@ class BoltzmanPromptSubstitutionGenerator:
         
 
         # get list of boltzman phrase score
-        latest_scores_csv=self.get_boltzman_scores_csv()
-        print(latest_scores_csv)
+        self.positive_phrase_scores_csv=self.get_boltzman_scores_csv(type='positive')
+        self.negative_phrase_scores_csv=self.get_boltzman_scores_csv(type='negative')
+
+        # loading positive phrase scores to use for rejection sampling
         phrase_loader=BoltzmanPhraseScoresLoader(dataset_name="environmental",
-                                                 phrase_scores_csv=latest_scores_csv,
+                                                 phrase_scores_csv=self.positive_phrase_scores_csv,
                                                  minio_client=self.minio_client)
         phrase_loader.load_dataset()
         self.phrase_score_data= phrase_loader.index_phrase_score_data
@@ -168,12 +171,12 @@ class BoltzmanPromptSubstitutionGenerator:
 
         return embedding_model
 
-    def get_boltzman_scores_csv(self):
+    def get_boltzman_scores_csv(self, type):
         score_csvs=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', 'environmental/output/phrases-score-csv')
         most_recent_file = None
 
         for csv_file in score_csvs:
-            if csv_file.endswith('positive-phrases-score.csv'):
+            if csv_file.endswith(f'{type}-phrases-score.csv'):
                 most_recent_file = csv_file.split("/")[-1]
         
         return most_recent_file
@@ -417,8 +420,12 @@ class BoltzmanPromptSubstitutionGenerator:
     def generate_initial_prompts(self, num_prompts):
         # get base prompts and generate initial prompts before mutation
         base_prompt_population = load_base_prompts(self.csv_base_prompts)
-        prompts = generate_prompts_from_csv_proportional_selection(self.csv_phrase,
-                                                               int(num_prompts / self.top_k))
+        boltzman_temperature = 8
+        boltzman_k = 1
+        prompt_generator = IndependentApproxV1("environmental", boltzman_temperature, boltzman_k)
+        prompt_generator.load_csv(self.minio_client, self.positive_phrase_scores_csv, self.negative_phrase_scores_csv)
+        prompts =  prompt_generator.generate_prompts(prompt_count=int(num_prompts/self.top_k))
+        
         prompt_data=[]
         # add base prompts and calculate scores
         print("---------scoring prompts")
@@ -430,6 +437,7 @@ class BoltzmanPromptSubstitutionGenerator:
 
             base_prompts = ''
 
+            # adding base prompts
             for base_prompt in base_prompt_list:
                 base_prompts = base_prompts + base_prompt + ', '
 
