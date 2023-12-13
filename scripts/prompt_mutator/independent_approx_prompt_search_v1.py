@@ -242,6 +242,7 @@ class BoltzmanPromptSubstitutionGenerator:
                     prompt_str,
                     prompt_score):
         
+        print(prompt_str.split(', '))
         phrase_scores=[self.phrase_score_data[self.phrase_dictionarry.get(phrase, -1)] for phrase in prompt_str.split(', ')]
 
         rejection_policy_time=0
