@@ -30,7 +30,7 @@ def parse_args():
     parser.add_argument('--minio-addr', required=False, help='Minio server address', default="192.168.3.5:9000")
     parser.add_argument('--minio-access-key', required=False, help='Minio access key')
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
-    parser.add_argument('--csv-phrase', help='CSV containing phrases, must have "phrase str" column', default='input/civitai_phrases_database_v6.csv')
+    parser.add_argument('--csv-phrase', help='CSV containing phrases, must have "phrase str" column', default='input\civitai_phrases_database_v7_no_nsfw.csv')
     parser.add_argument('--n-data', type=int, help='Number of data samples to generate', default=20)
     parser.add_argument('--send-job', action='store_true', default=False)
     parser.add_argument('--dataset-name', default='test-generations')
@@ -242,8 +242,10 @@ class BoltzmanPromptSubstitutionGenerator:
                     prompt_str,
                     prompt_score):
         
-        print(prompt_str.split(', '))
-        phrase_scores=[self.phrase_score_data[self.phrase_dictionarry.get(phrase, -1)] for phrase in prompt_str.split(', ')]
+        phrase_scores=[]
+        for phrase in prompt_str.split(', '):
+            print(phrase)
+            phrase_scores.append(self.phrase_score_data[self.phrase_dictionarry[phrase]])
 
         rejection_policy_time=0
         substitution_time=0
