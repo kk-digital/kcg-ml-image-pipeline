@@ -157,7 +157,7 @@ def generate_prompt(positive_phrase_scores_loader,
                     negative_cumulative_probability_arr,
                     ):
     max_token_size = 75
-    comma_token_size = 2
+    comma_token_size = 1
 
     positive_prompt_total_token_size = 0
     negative_prompt_total_token_size = 0
