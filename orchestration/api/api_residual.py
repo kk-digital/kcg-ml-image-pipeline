@@ -26,7 +26,7 @@ def get_image_rank_residual_by_hash(request: Request, image_hash: str, model_id:
 
     item = request.app.image_residuals_collection.find_one(query)
     if item is None:
-        print("Image rank residual data not found")
+        return None
 
     # remove the auto generated field
     item.pop('_id', None)

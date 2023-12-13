@@ -26,7 +26,7 @@ def get_image_rank_residual_percentile_by_hash(request: Request, image_hash: str
 
     item = request.app.image_residual_percentiles_collection.find_one(query)
     if item is None:
-        print("Image rank residual percentile data not found")
+        return None
 
     # remove the auto generated field
     item.pop('_id', None)
