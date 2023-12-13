@@ -39,6 +39,8 @@ def parse_args():
     parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=100)
     parser.add_argument('--save-csv', action='store_true', default=False)
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
+    parser.add_argument('--boltzman-temperature', type=int, default=64)
+    parser.add_argument('--boltzman-k', type=float, default=1.0)
     parser.add_argument(
         '--csv_base_prompts', help='CSV containing base prompts', 
         default='input/dataset-config/environmental/base-prompts-environmental.csv'
@@ -59,7 +61,9 @@ class BoltzmanPromptSubstitutionGenerator:
         dataset_name,
         send_job,
         save_csv,
-        top_k
+        top_k,
+        boltzman_temperature,
+        boltzman_k
     ):
         start=time.time()
 
@@ -84,6 +88,9 @@ class BoltzmanPromptSubstitutionGenerator:
         self.top_k=top_k
         # get list of base prompts
         self.csv_base_prompts=csv_base_prompts
+        # boltzman temperature and k value
+        self.boltzman_temperature = boltzman_temperature
+        self.boltzman_k = boltzman_k
 
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key,
@@ -449,9 +456,7 @@ class BoltzmanPromptSubstitutionGenerator:
     # function to generate initial prompts
     def generate_initial_prompts(self, num_prompts):
         # generate initial prompts before mutation
-        boltzman_temperature = 16
-        boltzman_k = 1
-        prompt_generator = IndependentApproxV1("environmental", boltzman_temperature, boltzman_k)
+        prompt_generator = IndependentApproxV1("environmental", self.boltzman_temperature, self.boltzman_k)
         prompt_generator.load_csv(self.minio_client, self.positive_phrase_scores_csv, self.negative_phrase_scores_csv)
         
         prompts =  prompt_generator.generate_prompts(prompt_count=int(num_prompts/self.top_k))
@@ -629,7 +634,9 @@ def main():
                                   dataset_name=args.dataset_name,
                                   send_job=args.send_job,
                                   save_csv=args.save_csv,
-                                  top_k=args.top_k)
+                                  top_k=args.top_k,
+                                  boltzman_temperature=args.boltzman_temperature,
+                                  boltzman_k=args.boltzman_k)
     
     # generate n number of images
     prompt_mutator.generate_images(num_images=args.n_data)
