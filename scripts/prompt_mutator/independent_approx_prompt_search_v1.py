@@ -121,6 +121,7 @@ class BoltzmanPromptSubstitutionGenerator:
                                                  minio_client=self.minio_client)
         phrase_loader.load_dataset()
         self.phrase_score_data= phrase_loader.index_phrase_score_data
+        print(f"number of positive phrase scores {len(self.phrase_score_data)}")
  
         # get dictionarry of indexes by phrase to make lookup faster
         self.phrase_dictionarry={self.phrase_score_data[index].phrase:index for index in range(len(self.phrase_score_data))}
