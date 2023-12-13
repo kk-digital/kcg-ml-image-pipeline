@@ -422,8 +422,7 @@ class BoltzmanPromptSubstitutionGenerator:
 
     # function to generate initial prompts
     def generate_initial_prompts(self, num_prompts):
-        # get base prompts and generate initial prompts before mutation
-        base_prompt_population = load_base_prompts(self.csv_base_prompts)
+        # generate initial prompts before mutation
         boltzman_temperature = 8
         boltzman_k = 1
         prompt_generator = IndependentApproxV1("environmental", boltzman_temperature, boltzman_k)
@@ -435,18 +434,9 @@ class BoltzmanPromptSubstitutionGenerator:
         print("---------scoring prompts")
         for i, prompt in enumerate(prompts):
             print(f"prompt {i}")
-            # N Base Prompt Phrases
-            choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-            base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
-
-            base_prompts = ''
-
-            # adding base prompts
-            for base_prompt in base_prompt_list:
-                base_prompts = base_prompts + base_prompt + ', '
 
             # get positive and negative prompt
-            positive_prompt = base_prompts + prompt['positive_prompt']
+            positive_prompt = prompt['positive_prompt']
             negative_prompt = prompt['negative_prompt']
 
             # get positive and negative embeddings
