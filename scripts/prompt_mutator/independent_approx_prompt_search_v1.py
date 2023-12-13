@@ -209,15 +209,23 @@ class BoltzmanPromptSubstitutionGenerator:
         embedding = embedding.reshape(len(embedding), -1).squeeze(0)
 
         return embedding.detach().cpu().numpy()
+    
+    def choose_random_phrase(self, max_token_length):
+        eligible_phrases = [self.phrase_score_data[index] for index in range(len(self.phrase_score_data)) if self.phrase_score_data[index].token_length < max_token_length]
+
+        if eligible_phrases:
+            return random.choice(eligible_phrases)
+        else:
+            return None
 
     # function for rejection sampling with sigma scores
     def rejection_sampling_by_boltzman_score(self,
                                     prompt_str,
-                                    phrases_energy):
+                                    phrases_energy,
+                                    phrase_token_lengths):
 
-        allowed_phrases = [phrase_data for phrase_data in self.phrase_score_data if phrase_data.token_length + current_length <75]
         # get number of tokens
-        current_length= len(prompt_str)
+        current_length= sum(phrase_token_lengths)
         # get number of phrases
         prompt_list = prompt_str.split(', ')
         num_phrases= len(prompt_list)
@@ -226,12 +234,13 @@ class BoltzmanPromptSubstitutionGenerator:
 
         # create a substitution for each position in the prompt
         for phrase_index in range(num_phrases):
+            max_token_length= 75 - (current_length - phrase_token_lengths[phrase_index]) 
             # get a random phrase from civitai to substitute with
-            random_index=random.randrange(0, len(allowed_phrases))
+            random_phrase=self.choose_random_phrase(max_token_length)
             # get phrase string
-            substitute_phrase = self.phrase_score_data[random_index].phrase
+            substitute_phrase = random_phrase.phrase
             # get phrase score by its index
-            substitute_energy = self.phrase_score_data[random_index].energy_per_token
+            substitute_energy = random_phrase.energy_per_token
             # get the substituted phrase energy
             substituted_energy = phrases_energy[phrase_index]
 
@@ -239,6 +248,8 @@ class BoltzmanPromptSubstitutionGenerator:
                 substitution_data={
                     'position':phrase_index,
                     'substitute_phrase':substitute_phrase,
+                    'substitute_energy': substitute_energy,
+                    'substitute_token_length': random_phrase.token_length,
                     'increase':substitute_energy - substituted_energy,
                 }
                 substitution_choices.append(substitution_data)
@@ -255,9 +266,11 @@ class BoltzmanPromptSubstitutionGenerator:
                     prompt_score):
         
         phrase_scores=[]
+        phrase_token_lengths=[]
         for phrase in prompt_str.split(', '):
             print(phrase)
             phrase_scores.append(self.phrase_score_data[self.phrase_dictionarry[phrase]].energy_per_token)
+            phrase_token_lengths.append(self.phrase_score_data[self.phrase_dictionarry[phrase]].token_length)
 
         rejection_policy_time=0
         substitution_time=0
@@ -269,7 +282,7 @@ class BoltzmanPromptSubstitutionGenerator:
             
             start= time.time()
             # return a list of potential substitution choices, filtered by the rejection policy
-            substitution_choices=self.rejection_sampling_by_boltzman_score(prompt_str, phrase_scores)
+            substitution_choices=self.rejection_sampling_by_boltzman_score(prompt_str, phrase_scores, phrase_token_lengths)
             end= time.time()
 
             rejection_policy_time+= end - start
@@ -298,6 +311,8 @@ class BoltzmanPromptSubstitutionGenerator:
                     prompt_str= modified_prompt_str
                     prompt_embedding= modified_prompt_embedding
                     prompt_score= modified_prompt_score
+                    phrase_scores[position]=substitution['substitute_energy']
+                    phrase_token_lengths[position]=substitution['substitute_token_length']
                     num_success+=1
                     break
             
