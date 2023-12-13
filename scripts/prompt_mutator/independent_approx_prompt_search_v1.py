@@ -21,9 +21,9 @@ from utility.boltzman.boltzman_phrase_scores_loader import BoltzmanPhraseScoresL
 from utility.minio import cmd
 
 from prompt_job_generator.independent_approx_v1.independent_approx_v1 import IndependentApproxV1
-from worker.prompt_generation.prompt_generator import generate_base_prompts, generate_image_generation_jobs, generate_prompts_from_csv_proportional_selection, load_base_prompts
+from worker.prompt_generation.prompt_generator import generate_base_prompts, generate_image_generation_jobs, load_base_prompts
 
-GENERATION_POLICY="independent-approx-prompt-search-v1"
+GENERATION_POLICY="independent-approx-substitution-search-v1"
 DATA_MINIO_DIRECTORY="environmental/data/prompt-generator/substitution"
 
 def parse_args():
