@@ -92,7 +92,7 @@ class BoltzmanPhraseScoresLoader:
                 # sigma_energy_per_token = float(row[6])
 
                 # energy_per_phrase
-                energy_per_phrase = float(row[7])
+                energy_per_phrase = float(row[6])
 
                 phrase_data = PhraseScoreData(phrase=phrase,
                                               occurrences=occurrences,
