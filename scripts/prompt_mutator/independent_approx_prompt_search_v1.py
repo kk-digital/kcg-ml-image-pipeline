@@ -446,8 +446,8 @@ class BoltzmanPromptSubstitutionGenerator:
                 base_prompts = base_prompts + base_prompt + ', '
 
             # get positive and negative prompt
-            positive_prompt = base_prompts + prompt.positive_prompt_str
-            negative_prompt = prompt.negative_prompt_str
+            positive_prompt = base_prompts + prompt.positive_prompt
+            negative_prompt = prompt.negative_prompt
 
             # get positive and negative embeddings
             positive_embedding=self.get_prompt_embedding(positive_prompt)
