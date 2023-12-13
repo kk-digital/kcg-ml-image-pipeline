@@ -26,7 +26,7 @@ def get_image_rank_score_by_hash(request: Request, image_hash: str, model_id: in
 
     item = request.app.image_scores_collection.find_one(query)
     if item is None:
-        print("Image rank score data not found")
+        return None
 
     # remove the auto generated field
     item.pop('_id', None)
