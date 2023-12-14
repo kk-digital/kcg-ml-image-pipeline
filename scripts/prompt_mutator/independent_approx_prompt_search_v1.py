@@ -251,7 +251,7 @@ class BoltzmanPromptSubstitutionGenerator:
             # get phrase string
             substitute_phrase = random_phrase.phrase
             # get phrase score by its index
-            substitute_energy = random_phrase.energy_per_token
+            substitute_energy = random_phrase.energy_per_phrase
             # get the substituted phrase energy
             substituted_energy = phrases_energy[phrase_index]
 
@@ -280,7 +280,7 @@ class BoltzmanPromptSubstitutionGenerator:
         phrase_token_lengths=[]
         for phrase in prompt_str.split(', '):
             print(phrase)
-            phrase_scores.append(self.phrase_score_data[self.phrase_dictionarry[phrase]].energy_per_token)
+            phrase_scores.append(self.phrase_score_data[self.phrase_dictionarry[phrase]].energy_per_phrase)
             phrase_token_lengths.append(self.phrase_score_data[self.phrase_dictionarry[phrase]].token_length)
 
         rejection_policy_time=0
