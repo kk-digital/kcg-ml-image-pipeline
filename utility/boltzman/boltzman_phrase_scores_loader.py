@@ -23,12 +23,14 @@ class PhraseScoreData:
                  token_length: int,
                  prompt_phrase_average_weight: float,
                  energy_per_token: float,
+                 sigma_energy_per_token: float,
                  energy_per_phrase: float):
         self.phrase = phrase
         self.occurrences = occurrences
         self.token_length = token_length
         self.prompt_phrase_average_weight = prompt_phrase_average_weight
         self.energy_per_token = energy_per_token
+        self.sigma_energy_per_token = sigma_energy_per_token
         self.energy_per_phrase = energy_per_phrase
         
 
@@ -87,14 +89,18 @@ class BoltzmanPhraseScoresLoader:
                 # energy_per_token
                 energy_per_token = float(row[5])
 
+                # sigma energy per token
+                sigma_energy_per_token = float(row[6])
+
                 # energy_per_phrase
-                energy_per_phrase = float(row[6])
+                energy_per_phrase = float(row[7])
 
                 phrase_data = PhraseScoreData(phrase=phrase,
                                               occurrences=occurrences,
                                               token_length=token_length,
                                               prompt_phrase_average_weight=prompt_phrase_average_weight,
                                               energy_per_token=energy_per_token,
+                                              sigma_energy_per_token=sigma_energy_per_token,
                                               energy_per_phrase=energy_per_phrase,
                                               )
                 self.index_phrase_score_data[index_count] = phrase_data
@@ -109,7 +115,13 @@ class BoltzmanPhraseScoresLoader:
     def get_phrase(self, index):
         return self.index_phrase_score_data[index].phrase
 
+    def get_phrase_energy(self, index):
+        return self.index_phrase_score_data[index].energy_per_phrase
+
     def get_token_size(self, index):
         return self.index_phrase_score_data[index].token_length
+
+    def get_phrase_data_total_size(self):
+        return len(self.index_phrase_score_data)
 
 

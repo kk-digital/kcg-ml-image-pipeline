@@ -9,7 +9,6 @@ COPY ./scripts/ab_ranking_xgboost_pairwise.py /training_worker/scripts/ab_rankin
 COPY ./scripts/independent_approximation_v1.py /training_worker/scripts/independent_approximation_v1.py
 
 COPY ./utility /training_worker/utility
-COPY ./worker/http/request.py /training_worker/worker/http/request.py
 COPY ./data_loader /training_worker/data_loader
 COPY ./stable_diffusion /training_worker/stable_diffusion
 COPY ./requirements.txt /training_worker/requirements.txt
