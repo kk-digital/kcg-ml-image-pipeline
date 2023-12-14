@@ -129,7 +129,7 @@ class BoltzmanPromptSubstitutionGenerator:
         phrase_loader.load_dataset()
         phrase_scores= phrase_loader.index_phrase_score_data
         # filtering for long phrases
-        self.phrase_score_data=[phrase_scores[index] for index in range(len(phrase_scores)) if phrase_scores["token_length"]<=5]
+        self.phrase_score_data=[phrase_scores[index] for index in range(len(phrase_scores)) if phrase_scores[index].token_length<=5]
         print(f"number of positive phrase scores {len(self.phrase_score_data)}")
  
         # get dictionarry of indexes by phrase to make lookup faster
