@@ -39,7 +39,7 @@ def get_ranking_comparison(
         first_image_score = next(first_image_cursor, None)
 
         if not first_image_score:
-            print("No images found within the provided score range and dataset")
+            return []
 
         # Calculate the score range for the second image using the selected score_type
         base_score = first_image_score[score_type]  # Use dynamic score_type
@@ -62,7 +62,7 @@ def get_ranking_comparison(
 
         # Select the second image based on computed probabilities
         if total_probability == 0:
-            print("No second image found within the threshold range for the specified dataset")
+            return []
 
         random_choice = random.uniform(0, total_probability)
         cumulative = 0
@@ -103,7 +103,7 @@ def get_ranking_comparison(
     threshold: float
 ):
     if score_type not in ["image_clip_sigma_score", "text_embedding_sigma_score"]:
-        print("Invalid score_type parameter")
+        raise HTTPException(status_code=422, detail="Invalid score_type parameter")
     
     completed_jobs_collection: Collection = request.app.completed_jobs_collection
 
@@ -121,7 +121,7 @@ def get_ranking_comparison(
 
         first_image_score = next(first_image_cursor, None)
         if not first_image_score:
-            print("No images found within the provided score range and dataset")
+            return []
 
         if 'task_attributes_dict' not in first_image_score or score_type not in first_image_score['task_attributes_dict']:
             print("task_attributes_dict not found in the fetched document")
@@ -140,7 +140,7 @@ def get_ranking_comparison(
         candidates = list(candidates_cursor)
 
         if not candidates:
-            print("No suitable second image found within the score range")
+            return[]
 
         second_image_score = random.choice(candidates)
 
