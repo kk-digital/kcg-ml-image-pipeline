@@ -36,7 +36,7 @@ def parse_args():
     parser.add_argument('--send-job', action='store_true', default=False)
     parser.add_argument('--dataset-name', default='test-generations')
     parser.add_argument('--scoring-model', help="elm or linear", default="linear")
-    parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=100)
+    parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=150)
     parser.add_argument('--save-csv', action='store_true', default=False)
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
     parser.add_argument('--boltzman-temperature', type=int, default=16)
@@ -129,7 +129,7 @@ class BoltzmanPromptSubstitutionGenerator:
         phrase_loader.load_dataset()
         phrase_scores= phrase_loader.index_phrase_score_data
         # filtering for long phrases
-        self.phrase_score_data=[phrase_scores[index] for index in range(len(phrase_scores)) if phrase_scores.token_length<=5]
+        self.phrase_score_data=[phrase_scores[index] for index in range(len(phrase_scores)) if phrase_scores["token_length"]<=5]
         print(f"number of positive phrase scores {len(self.phrase_score_data)}")
  
         # get dictionarry of indexes by phrase to make lookup faster
