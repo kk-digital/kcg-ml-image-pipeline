@@ -66,7 +66,7 @@ class BoltzmanPhraseScoresLoader:
         for row in csv_reader:
             if line_count == 0:
                 print(f'Column names are {", ".join(row)}')
-            else:
+            elif(int(row[3])<=5):
                 # index
                 index = int(row[0])
 
