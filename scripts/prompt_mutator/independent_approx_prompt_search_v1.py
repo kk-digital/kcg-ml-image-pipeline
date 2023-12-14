@@ -39,7 +39,7 @@ def parse_args():
     parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=100)
     parser.add_argument('--save-csv', action='store_true', default=False)
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
-    parser.add_argument('--boltzman-temperature', type=int, default=64)
+    parser.add_argument('--boltzman-temperature', type=int, default=16)
     parser.add_argument('--boltzman-k', type=float, default=1.0)
     parser.add_argument(
         '--csv_base_prompts', help='CSV containing base prompts', 
@@ -127,7 +127,9 @@ class BoltzmanPromptSubstitutionGenerator:
                                                  phrase_scores_csv=self.positive_phrase_scores_csv,
                                                  minio_client=self.minio_client)
         phrase_loader.load_dataset()
-        self.phrase_score_data= phrase_loader.index_phrase_score_data
+        phrase_scores= phrase_loader.index_phrase_score_data
+        # filtering for long phrases
+        self.phrase_score_data=[phrase_scores[index] for index in range(len(phrase_scores)) if phrase_scores.token_length<=5]
         print(f"number of positive phrase scores {len(self.phrase_score_data)}")
  
         # get dictionarry of indexes by phrase to make lookup faster
@@ -223,7 +225,7 @@ class BoltzmanPromptSubstitutionGenerator:
         random_index=random.randrange(0, len(self.phrase_score_data))
         phrase_data= self.phrase_score_data[random_index]
 
-        while(phrase_data.token_length> max_token_length):
+        while(phrase_data.token_length >= max_token_length):
             random_index=random.randrange(0, len(self.phrase_score_data))
             phrase_data= self.phrase_score_data[random_index]
         
