@@ -6,9 +6,9 @@ import random
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from scripts.prompt_job_generator.prompt_generator_using_independent_approx_v1_csv import (PhraseScoresLoader,
-                                                                                           get_cumulative_probability_arr_without_upload,
+from scripts.prompt_job_generator.prompt_generator_using_independent_approx_v1_csv import (get_cumulative_probability_arr_without_upload,
                                                                                            generate_prompts_array)
+from utility.boltzman.boltzman_phrase_scores_loader import BoltzmanPhraseScoresLoader
 
 
 # Helper class that generates prompts using
@@ -42,7 +42,7 @@ class IndependentApproxV1:
         self.positive_phrase_scores_csv = positive_phrase_scores_csv
         self.negative_phrase_scores_csv = negative_phrase_scores_csv
 
-        positive_phrase_scores_loader = PhraseScoresLoader(dataset_name=dataset_name,
+        positive_phrase_scores_loader = BoltzmanPhraseScoresLoader(dataset_name=dataset_name,
                                                            phrase_scores_csv=positive_phrase_scores_csv,
                                                            minio_client=minio_client,
                                                            )
@@ -52,7 +52,7 @@ class IndependentApproxV1:
             boltzman_temperature=boltzman_temperature,
             boltzman_k=boltzman_k)
 
-        negative_phrase_scores_loader = PhraseScoresLoader(dataset_name=dataset_name,
+        negative_phrase_scores_loader = BoltzmanPhraseScoresLoader(dataset_name=dataset_name,
                                                            phrase_scores_csv=negative_phrase_scores_csv,
                                                            minio_client=minio_client,
                                                            )
