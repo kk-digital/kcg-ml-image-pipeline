@@ -300,7 +300,7 @@ def get_cumulative_probability_arr_without_upload(
                                    ):
     energy_arr = []
     for index, data in index_phrase_score_data.items():
-        score = data.energy_per_token
+        score = data.energy_per_phrase
         energy_arr.append(score)
 
     energy_np_arr = np.array(energy_arr)
