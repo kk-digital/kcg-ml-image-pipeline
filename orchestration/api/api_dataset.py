@@ -159,7 +159,7 @@ def get_all_dataset_config(request: Request):
     # find
     items = request.app.dataset_config_collection.find({})
     if items is None:
-        print("Dataset not found")
+        return None
 
     for item in items:
         # remove the auto generated field
@@ -177,7 +177,7 @@ def set_relevance_model(request: Request, dataset: str, relevance_model: str):
     item = request.app.dataset_config_collection.find_one(query)
     
     if item is None:
-        print("Dataset not found")
+        raise HTTPException(status_code=422, detail="Dataset not found")
     
     # update the relevance model
     new_values = {
@@ -198,7 +198,7 @@ def set_ranking_model(request: Request, dataset: str, ranking_model: str):
     item = request.app.dataset_config_collection.find_one(query)
     
     if item is None:
-        print("Dataset not found")
+        raise HTTPException(status_code=422, detail="Dataset not found")
     
     # update the ranking model
     new_values = {
@@ -223,7 +223,8 @@ def list_ranking_files(request: Request, dataset: str):
     json_files = [obj for obj in objects if obj.endswith('.json')]
 
     if not json_files:
-        print(f"No JSON files found in {path_prefix}.")
+        return []
+    
     return json_files
     
 
@@ -273,7 +274,7 @@ def list_ranking_files(
     filtered_json_files = filtered_json_files[:list_size]
 
     if not filtered_json_files:
-        print(f"No JSON files found in {path_prefix} between {start_date} and {end_date}.")
+        return []
 
     return filtered_json_files
 
@@ -303,7 +304,7 @@ def list_ranking_files_sort_by_residual(request: Request, dataset: str,
     json_files = [obj for obj in objects if obj.endswith('.json')]
 
     if not json_files:
-        print(f"No JSON files found in {path_prefix}.")
+        return []
     # get all model id residuals
     query = {"model_id": model_id}
     sort_order = -1 if order == "desc" else 1
@@ -348,7 +349,7 @@ def list_relevancy_files(request: Request, dataset: str):
     json_files = [obj for obj in objects if obj.endswith('.json')]
 
     if not json_files:
-        print(f"No JSON files found in {path_prefix}.")
+        return []
 
     return json_files
 
@@ -363,7 +364,7 @@ def read_ranking_file(request: Request, dataset: str,
     data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
 
     if data is None:
-        print(f"File {filename} not found.")
+        raise HTTPException(status_code=410, detail=f"File {filename} not found.")
 
     file_content = ""
     for chunk in data.stream(32 * 1024):
@@ -383,7 +384,7 @@ def read_relevancy_file(request: Request, dataset: str,
     data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
 
     if data is None:
-        print(f"File {filename} not found.")
+        raise HTTPException(status_code=410, detail=f"File {filename} not found.")
 
     file_content = ""
     for chunk in data.stream(32 * 1024):
@@ -402,7 +403,7 @@ def update_ranking_file(request: Request, dataset: str, filename: str, update_da
     data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
 
     if data is None:
-        print(f"File {filename} not found.")
+        raise HTTPException(status_code=410, detail=f"File {filename} not found.")
         
     file_content = ""
     for chunk in data.stream(32 * 1024):

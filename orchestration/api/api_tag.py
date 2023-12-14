@@ -56,13 +56,13 @@ def rename_tag_definition(request: Request, tag_id: int, new_tag_string: str):
         request.app.tag_definitions_collection.update_one(query, new_values)
         return {"status": "success", "message": "Tag definition renamed successfully."}
     else:
-        print("Tag definition not found")
+        return {"status": "fail", "message": "Tag definition not found."}
 
 
 @router.delete("/tags/delete_tag_definition")
 def delete_tag_definition(request: Request, tag_id: int):
     # Immediately raise an error without any other implementation
-    print("Tag deletion is not supported")
+    raise HTTPException(status_code=501, detail="Tag deletion is not supported.")
 
 @router.get("/tags/list_tag_definition", response_class=PrettyJSONResponse)
 def list_tag_definitions(request: Request):
@@ -91,13 +91,13 @@ def set_tag_vector_index(request: Request, tag_id: int, vector_index: int):
     tag = request.app.tag_definitions_collection.find_one(query)
 
     if not tag:
-        print("Tag definition not found")
+        return {"status": "fail", "message": "Tag definition not found."}
        
 
     # Check if any other tag has the same vector index
     existing_tag = request.app.tag_definitions_collection.find_one({"tag_vector_index": vector_index})
     if existing_tag and existing_tag["tag_id"] != tag_id:
-        print("Another tag already has the same vector index")
+        raise HTTPException(status_code=400, detail="Another tag already has the same vector index.")
 
     # Update the tag vector index
     update_query = {"$set": {"tag_vector_index": vector_index}}
@@ -113,7 +113,7 @@ def get_tag_vector_index(request: Request, tag_id: int):
     tag = request.app.tag_definitions_collection.find_one(query)
 
     if not tag:
-        print("Tag definition not found")
+        return None
 
 
     vector_index = tag.get("tag_vector_index", -1)
@@ -128,7 +128,7 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_cre
     # Check if the tag exists by tag_id in the tag_definitions_collection
     existing_tag = request.app.tag_definitions_collection.find_one({"tag_id": tag_id})
     if not existing_tag:
-        print("Tag does not exist!")
+        raise HTTPException(status_code=400, detail="Tag does not exist!")
 
     # Get the image from completed_jobs_collection using file_hash
     image = request.app.completed_jobs_collection.find_one({
@@ -136,7 +136,7 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_cre
     })
 
     if not image:
-        print("No image found with the given hash")
+        raise HTTPException(status_code=400, detail="No image found with the given hash")
 
     # Extract the file_path from the image
     file_path = image.get("task_output_file_dict", {}).get("output_file_path", "")
@@ -246,6 +246,6 @@ def get_all_tagged_images(request: Request):
 
     # If no tagged image details found, raise an exception
     if not image_info_list:
-        print("No tagged images found!")
+        return []
 
     return image_info_list
