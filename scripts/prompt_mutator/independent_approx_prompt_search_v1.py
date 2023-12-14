@@ -180,6 +180,7 @@ class BoltzmanPromptSubstitutionGenerator:
 
         return embedding_model
 
+    # get path for phrase score csv files
     def get_boltzman_scores_csv(self):
         score_csvs=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', 'environmental/output/phrases-score-csv')
         positive_score_csv = None
@@ -217,6 +218,7 @@ class BoltzmanPromptSubstitutionGenerator:
 
         return embedding.detach().cpu().numpy()
     
+    # function to choose a random phrase under the max token length
     def choose_random_phrase(self, max_token_length):
         random_index=random.randrange(0, len(self.phrase_score_data))
         phrase_data= self.phrase_score_data[random_index]
@@ -268,7 +270,7 @@ class BoltzmanPromptSubstitutionGenerator:
         
         return substitution_choices
 
-    # function mutating a prompt
+    # function for mutating a prompt
     def mutate_prompt(self,
                     prompt_str,
                     prompt_embedding,
@@ -471,9 +473,14 @@ class BoltzmanPromptSubstitutionGenerator:
             positive_prompt = prompt['positive_prompt']
             negative_prompt = prompt['negative_prompt']
 
-            # get positive and negative embeddings
-            positive_embedding=self.get_prompt_embedding(positive_prompt)
-            negative_embedding=self.get_prompt_embedding(negative_prompt)
+            try:
+                # get positive and negative embeddings
+                positive_embedding=self.get_prompt_embedding(positive_prompt)
+                negative_embedding=self.get_prompt_embedding(negative_prompt)
+            except:
+                print(positive_prompt)
+                print(negative_prompt)
+
            
             # calculating combined score and positive score of prompt
             with torch.no_grad():
