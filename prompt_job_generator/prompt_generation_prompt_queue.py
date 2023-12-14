@@ -8,7 +8,6 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from worker.prompt_generation.prompt_generator import generate_prompts_proportional_selection, generate_base_prompts, load_base_prompts
-from scripts.prompt_job_generator.prompt_generator_using_independent_approx_v1_csv import PhraseScoresLoader, get_cumulative_probability_arr
 from independent_approx_v1.independent_approx_v1 import IndependentApproxV1
 
 class PromptGenerationPromptQueue:
