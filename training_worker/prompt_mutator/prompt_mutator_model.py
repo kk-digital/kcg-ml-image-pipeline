@@ -82,10 +82,10 @@ class PromptMutator:
 
         start = time.time()
         # Get predictions for validation set
-        val_preds = self.predict_in_batches(dval)
+        val_preds = self.predict_in_batches(y_val)
 
         # Get predictions for training set
-        train_preds = self.predict_in_batches(dtrain)
+        train_preds = self.predict_in_batches(y_train)
         end = time.time()
         inference_speed=(len(X_train) + len(X_val))/(end - start)
         print(f'Time taken for inference of {len(X_train) + len(X_val)} data points is: {end - start:.2f} seconds')
@@ -274,7 +274,7 @@ class PromptMutator:
         return predictions
     
     def predict_in_batches(self, data, batch_size=10000):
-        num_samples = data.shape[0]
+        num_samples = len(data)
         num_batches = int(np.ceil(num_samples / batch_size))
 
         predictions = []
@@ -286,7 +286,7 @@ class PromptMutator:
             batch_data = data[start_idx:end_idx]
 
             # Get predictions for the current batch
-            batch_preds = self.model.predict(batch_data)
+            batch_preds = self.model.predict(xgb.DMatrix(batch_data))
 
             predictions.extend(batch_preds)
 
