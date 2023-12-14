@@ -26,7 +26,7 @@ def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the
 
     # Ensure the list isn't empty (this is just a safety check)
     if not documents:
-        print("No image found for the given dataset")
+        return None
 
     # Remove the auto generated _id field from the document
     documents[0].pop('_id', None)
@@ -42,7 +42,7 @@ def get_image_details(request: Request, image_path: str = Query(...)):
     )
 
     if document is None:
-        print("Image not found")
+        return None
         
     # Remove the auto-generated _id field from the document
     document.pop('_id', None)
@@ -377,12 +377,12 @@ def get_image_by_job_uuid(request: Request, job_uuid: str):
     # Fetch the job from the completed_jobs_collection using the UUID
     job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
     if not job:
-        print("Job not found")
+        raise HTTPException(status_code=404, detail="Job not found")
 
     # Extract the output file path from the job data
     output_file_path = job.get("task_output_file_dict", {}).get("output_file_path")
     if not output_file_path:
-        print("Output file path not found in job data")
+        return None
 
     original_filename = os.path.basename(output_file_path)
 

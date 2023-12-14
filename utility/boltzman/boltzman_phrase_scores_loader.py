@@ -115,7 +115,13 @@ class BoltzmanPhraseScoresLoader:
     def get_phrase(self, index):
         return self.index_phrase_score_data[index].phrase
 
+    def get_phrase_energy(self, index):
+        return self.index_phrase_score_data[index].energy_per_phrase
+
     def get_token_size(self, index):
         return self.index_phrase_score_data[index].token_length
+
+    def get_phrase_data_total_size(self):
+        return len(self.index_phrase_score_data)
 
 
