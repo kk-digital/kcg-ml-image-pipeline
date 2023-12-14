@@ -41,7 +41,7 @@ def get_image_rank_scores_by_model_id(request: Request, model_id: int):
     query = {"model_id": model_id}
     items = request.app.image_scores_collection.find(query).sort("score", -1)
     if items is None:
-        print("Image rank scores data not found")
+        return []
     
     score_data = []
     for item in items:

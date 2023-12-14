@@ -41,7 +41,7 @@ def get_image_rank_percentiles_by_model_id(request: Request, model_id: int):
     query = {"model_id": model_id}
     items = request.app.image_percentiles_collection.find(query).sort("percentile", -1)
     if items is None:
-         print("Image rank percentile data not found")
+        return []
 
     percentile_data = []
     for item in items:

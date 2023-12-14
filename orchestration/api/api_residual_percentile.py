@@ -41,7 +41,7 @@ def get_image_rank_residual_percentiles_by_model_id(request: Request, model_id: 
     query = {"model_id": model_id}
     items = request.app.image_residual_percentiles_collection.find(query).sort("residual_percentile", -1)
     if items is None:
-        print("Image rank residual_percentiles data not found")
+        return []
 
     residual_percentile_data = []
     for item in items:
