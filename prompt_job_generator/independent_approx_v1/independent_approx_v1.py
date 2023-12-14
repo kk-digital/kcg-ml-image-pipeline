@@ -7,8 +7,8 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from utility.boltzman.boltzman_phrase_scores_loader import BoltzmanPhraseScoresLoader
-from scripts.prompt_job_generator.prompt_generator_using_independent_approx_v1_csv import (get_cumulative_probability_arr_without_upload,
-                                                                                           generate_prompts_array)
+from utility.boltzman.boltzman import (get_cumulative_probability_arr_without_upload,
+                                        generate_prompts_array)
 
 
 # Helper class that generates prompts using
