@@ -5,7 +5,7 @@ from typing import Optional
 from typing import List
 import json
 
-CLIP_SERVER_ADDRESS = 'http://192.168.3.1:8002'
+CLIP_SERVER_ADDRESS = 'http://192.168.3.31:8002'
 #CLIP_SERVER_ADDRESS = 'http://127.0.0.1:8002'
 router = APIRouter()
 
