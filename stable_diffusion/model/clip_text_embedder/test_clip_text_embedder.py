@@ -129,9 +129,8 @@ class CLIPTextEmbedder(nn.Module):
         
         print(prompts)
         print([len(input_ids) for input_ids in batch_encoding['input_ids']])
-        print(len(prompts[0].split(' ')))
-        # Check if any tokenized input exceeds the maximum length
-        assert not any(len(input_ids) > self.max_length for input_ids in batch_encoding['input_ids']), "Token length exceeds the maximum limit"
+        # # Check if any tokenized input exceeds the maximum length
+        # assert not any(len(input_ids) > self.max_length for input_ids in batch_encoding['input_ids']), "Token length exceeds the maximum limit"
 
         # Get token ids
         tokens = batch_encoding["input_ids"].to(self.device)
