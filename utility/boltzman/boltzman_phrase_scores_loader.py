@@ -66,7 +66,7 @@ class BoltzmanPhraseScoresLoader:
         for row in csv_reader:
             if line_count == 0:
                 print(f'Column names are {", ".join(row)}')
-            elif(int(row[3])<=5):
+            else:
                 # index
                 index = int(row[0])
 
@@ -123,6 +123,8 @@ class BoltzmanPhraseScoresLoader:
 
     def get_phrase_data_total_size(self):
         return len(self.index_phrase_score_data)
+
+
 
 
 
