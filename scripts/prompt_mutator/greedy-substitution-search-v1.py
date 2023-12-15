@@ -20,7 +20,7 @@ from training_worker.prompt_mutator.prompt_mutator_model import PromptMutator
 from training_worker.prompt_mutator.binary_prompt_mutator import BinaryPromptMutator
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
-from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
+from stable_diffusion.model.clip_text_embedder.test_clip_text_embedder import CLIPTextEmbedder
 from utility.minio import cmd
 
 from worker.prompt_generation.prompt_generator import generate_base_prompts, generate_image_generation_jobs, generate_prompts_from_csv_proportional_selection, load_base_prompts
