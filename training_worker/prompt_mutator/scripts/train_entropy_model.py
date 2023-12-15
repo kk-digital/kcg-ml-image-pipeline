@@ -111,7 +111,7 @@ class EntropyDatasetLoader:
             byte_buffer.seek(0)
 
             # Load the model
-            embedding_model = model_class(768*2)
+            embedding_model = model_class(768)
             embedding_model.load_pth(byte_buffer)
             embedding_model.model=embedding_model.model.to(self.device)
 
