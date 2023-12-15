@@ -226,10 +226,12 @@ def generate_delta_scores_graph(minio_client,
     embedding_scores_hist.ticklabel_format(useOffset=False)
 
     # scores
-    x_axis_values = [i for i in range(len(clip_hash_score_dict))]
+    x_axis_values = [i for i in range(len(clip_scores_data))]
     scores_graph.plot(x_axis_values, clip_scores_data,
                         label="Clip Scores",
                         c="#281ad9")
+
+    x_axis_values = [i for i in range(len(embedding_scores_data))]
     scores_graph.plot(x_axis_values, embedding_scores_data,
                           label="Embedding Scores",
                           c="#D95319")
@@ -267,10 +269,11 @@ def generate_delta_scores_graph(minio_client,
     embedding_sigma_scores_hist.ticklabel_format(useOffset=False)
 
     # sigma scores
-    x_axis_values = [i for i in range(len(clip_hash_sigma_score_dict))]
+    x_axis_values = [i for i in range(len(clip_sigma_scores_data))]
     sigma_scores_graph.plot(x_axis_values, clip_sigma_scores_data,
                       label="Clip Sigma Scores",
                       c="#281ad9")
+    x_axis_values = [i for i in range(len(embedding_sigma_scores_data))]
     sigma_scores_graph.plot(x_axis_values, embedding_sigma_scores_data,
                       label="Embedding Sigma Scores",
                       c="#D95319")
