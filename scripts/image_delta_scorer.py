@@ -171,8 +171,8 @@ def upload_delta_score_to_csv(minio_client,
 
     bytes_buffer = io.BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
     # upload the csv
-    clip_model_name = clip_model_name.replace(".pth","")
-    embedding_model_name = embedding_model_name.replace(".pth","")
+    clip_model_name = clip_model_name.replace(".safetensors","")
+    embedding_model_name = embedding_model_name.replace(".safetensors","")
     filename = "{}-{}-delta-scores.csv".format(clip_model_name, embedding_model_name)
     csv_path = os.path.join(dataset, "output/delta-scores-csv", filename)
     cmd.upload_data(minio_client, 'datasets', csv_path, bytes_buffer)
@@ -202,7 +202,8 @@ def generate_delta_scores_graph(minio_client,
     embedding_scores_data = []
     for img_hash, embedding_score in embedding_hash_score_dict.items():
         embedding_scores_data.append(embedding_score)
-        clip_scores_data.append(clip_hash_score_dict[img_hash])
+        if img_hash in clip_hash_score_dict:
+            clip_scores_data.append(clip_hash_score_dict[img_hash])
 
     # clip scores hist
     clip_scores_hist.set_xlabel("Clip Score")
@@ -399,8 +400,8 @@ def parse_args():
     parser.add_argument('--minio-access-key', required=False, help='Minio access key')
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
     parser.add_argument('--dataset-name', required=True, help='Name of the dataset for embeddings')
-    parser.add_argument('--clip-model-filename', required=True, help='Filename of the clip model (e.g., "XXX.pth")')
-    parser.add_argument('--embedding-model-filename', required=True, help='Filename of the embedding model (e.g., "XXX.pth")')
+    parser.add_argument('--clip-model-filename', required=True, help='Filename of the clip model (e.g., "XXX.safetensors")')
+    parser.add_argument('--embedding-model-filename', required=True, help='Filename of the embedding model (e.g., "XXX.safetensors")')
     args = parser.parse_args()
     return args
 
