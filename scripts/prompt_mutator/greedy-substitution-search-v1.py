@@ -165,9 +165,9 @@ class PromptSubstitutionGenerator:
             file_name=f"score-linear-embedding"
         
         if(embedding_type=="positive" or embedding_type=="negative"):
-            file_name+=f"-{embedding_type}.pth"
+            file_name+=f"-{embedding_type}.safetensors"
         else:
-            file_name+=".pth"
+            file_name+=".safetensors"
 
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
         most_recent_model = None
@@ -179,14 +179,14 @@ class PromptSubstitutionGenerator:
         if most_recent_model:
             model_file_data =cmd.get_file_from_minio(self.minio_client, 'datasets', most_recent_model)
         else:
-            print("No .pth files found in the list.")
+            print("No .safetensors files found in the list.")
             return
         
         print(most_recent_model)
 
         # Create a BytesIO object and write the downloaded content into it
         byte_buffer = io.BytesIO()
-        for data in model_file_data.iter_content(chunk_size=8192):
+        for data in model_file_data.stream(amt=8192):
             byte_buffer.write(data)
         # Reset the buffer's position to the beginning
         byte_buffer.seek(0)
