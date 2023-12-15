@@ -128,8 +128,8 @@ class PromptSubstitutionGenerator:
         self.scorer= self.load_model(embedding_type='combined', scoring_model=self.scoring_model, input_size=768*2)
 
         # get mean and std values
-        self.mean, self.std= self.scorer.mean, self.scorer.standard_deviation
-        self.positive_mean, self.positive_std= self.positive_scorer.mean, self.positive_scorer.standard_deviation
+        self.mean, self.std= float(self.scorer.mean), float(self.scorer.standard_deviation)
+        self.positive_mean, self.positive_std= float(self.positive_scorer.mean), float(self.positive_scorer.standard_deviation)
         
         # load the xgboost model depending on what rejection policy is being used
         if(self.rejection_policy=="sigma_score"):
