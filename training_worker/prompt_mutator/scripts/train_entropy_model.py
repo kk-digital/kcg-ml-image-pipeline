@@ -29,9 +29,9 @@ def parse_args():
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
     parser.add_argument('--csv-phrase', help='CSV containing phrases, must have "phrase str" column', default='input/civitai_phrases_database_v7_no_nsfw.csv')
     parser.add_argument('--embedding-type', help='type of embedding, positive or negative', default='positive')
-    parser.add_argument('--create-dataset', help='whether to create a new dataset or load existing one', default=False)
+    parser.add_argument('--create-dataset', action='store_true', help='whether to create a new dataset or load existing one', default=False)
     parser.add_argument('--operation', help='operation to train mutator on (substitution, permutation..)', default="substitution")
-    parser.add_argument('--output-type', help='type of output for the prompt mutator model', default="sigma_score")
+    parser.add_argument('--output-type', help='type of output for the prompt mutator model', default="entropy")
     args = parser.parse_args()
     return args
 
