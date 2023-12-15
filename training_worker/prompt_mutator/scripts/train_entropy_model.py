@@ -339,3 +339,6 @@ def main():
 
     model.train(inputs, outputs)
     model.save_model()
+
+if __name__ == "__main__":
+    main()
