@@ -186,7 +186,7 @@ class PromptSubstitutionGenerator:
 
         # Create a BytesIO object and write the downloaded content into it
         byte_buffer = io.BytesIO()
-        for data in model_file_data.stream(amt=8192):
+        for data in model_file_data.iter_content(chunk_size=8192):
             byte_buffer.write(data)
         # Reset the buffer's position to the beginning
         byte_buffer.seek(0)
