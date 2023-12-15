@@ -68,6 +68,7 @@ class PhraseSmoothingModel(nn.Module):
                 # get embedding
                 phrase_embedding = self.phrase_embedding_loader.get_embedding(phrase)
                 phrase_embedding = torch.from_numpy(phrase_embedding).to(self._device)
+                print("phrase embedding type=", phrase_embedding.type())
                 phrase_base_score = self.linear(phrase_embedding)
                 product[0][i] = product[0][i] + phrase_base_score + self.score_offset
 
@@ -150,28 +151,30 @@ class ScorePhraseSmoothingModel:
         self.duplicate_flip_option = duplicate_flip_option
         self.randomize_data_per_epoch = randomize_data_per_epoch
 
-    def to_dict(self):
-        return {
-            "model_dict": self.model.state_dict(),
+    def to_safetensors(self):
+        metadata = {
             "model-type": self.model_type,
             "file-path": self.file_path,
             "model-hash": self.model_hash,
             "date": self.date,
-            "training-loss": self.training_loss,
-            "validation-loss": self.validation_loss,
-            "mean": self.mean,
-            "standard-deviation": self.standard_deviation,
-            "epochs": self.epochs,
-            "learning-rate": self.learning_rate,
-            "train-percent": self.train_percent,
-            "training-batch-size": self.training_batch_size,
-            "weight-decay": self.weight_decay,
-            "pooling-strategy": self.pooling_strategy,
-            "add-loss-penalty": self.add_loss_penalty,
-            "target-option": self.target_option,
-            "duplicate-flip-option": self.duplicate_flip_option,
-            "randomize-data-per-epoch": self.randomize_data_per_epoch,
+            "training-loss": "{}".format(self.training_loss),
+            "validation-loss": "{}".format(self.validation_loss),
+            "mean": "{}".format(self.mean),
+            "standard-deviation": "{}".format(self.standard_deviation),
+            "epochs": "{}".format(self.epochs),
+            "learning-rate": "{}".format(self.learning_rate),
+            "train-percent": "{}".format(self.train_percent),
+            "training-batch-size": "{}".format(self.training_batch_size),
+            "weight-decay": "{}".format( self.weight_decay),
+            "pooling-strategy": "{}".format(self.pooling_strategy),
+            "add-loss-penalty": "{}".format(self.add_loss_penalty),
+            "target-option": "{}".format(self.target_option),
+            "duplicate-flip-option": "{}".format(self.duplicate_flip_option),
+            "randomize-data-per-epoch": "{}".format(self.randomize_data_per_epoch),
         }
+
+        model = self.model.state_dict()
+        return model, metadata
 
     def save(self, minio_client, datasets_bucket, model_output_path):
         # Hashing the model with its current configuration
@@ -179,11 +182,12 @@ class ScorePhraseSmoothingModel:
         self.file_path = model_output_path
 
         # Preparing the model to be saved
-        model_dict = self.to_dict()
+        model, metadata = self.to_safetensors()
 
         # Saving the model to minio
         buffer = BytesIO()
-        safetensors_buffer = safetensors_save(model_dict)
+        safetensors_buffer = safetensors_save(tensors=model,
+                                              metadata=metadata)
         buffer.write(safetensors_buffer)
         buffer.seek(0)
 
