@@ -195,7 +195,7 @@ class PromptEntropy:
         buffer = io.BytesIO(csv_content)
         buffer.seek(0)
 
-        minio_path=self.csv_path + f"{self.policy}-environmental-entropy.csv"
+        minio_path=self.output_path + f"{self.policy}-environmental-entropy.csv"
         cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
         # Remove the temporary file
         os.remove(local_path)
