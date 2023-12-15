@@ -382,7 +382,9 @@ def get_image_by_job_uuid(request: Request, job_uuid: str):
     # Extract the output file path from the job data
     output_file_path = job.get("task_output_file_dict", {}).get("output_file_path")
     if not output_file_path:
-        return None
+        raise HTTPException(
+            status_code=500,
+            detail="Image with this path doesn't exist") 
 
     original_filename = os.path.basename(output_file_path)
 
