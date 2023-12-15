@@ -573,7 +573,7 @@ class PromptSubstitutionGenerator:
                 base_prompts = base_prompts + base_prompt + ', '
 
             # get positive and negative prompt
-            positive_prompt = base_prompts + prompt.positive_prompt_str
+            positive_prompt = prompt.positive_prompt_str
             negative_prompt = prompt.negative_prompt_str
 
             # get positive and negative embeddings
