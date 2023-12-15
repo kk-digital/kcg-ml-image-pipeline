@@ -82,10 +82,10 @@ class PromptMutator:
 
         start = time.time()
         # Get predictions for validation set
-        val_preds = self.model.predict(dval)
+        val_preds = self.predict_in_batches(X_val)
 
         # Get predictions for training set
-        train_preds = self.model.predict(dtrain)
+        train_preds = self.predict_in_batches(X_train)
         end = time.time()
         inference_speed=(len(X_train) + len(X_val))/(end - start)
         print(f'Time taken for inference of {len(X_train) + len(X_val)} data points is: {end - start:.2f} seconds')
@@ -108,7 +108,7 @@ class PromptMutator:
                               model_params=params)
         
         return val_mae[-1]
-    
+        
     def save_model_report(self,num_training,
                               num_validation,
                               training_time, 
@@ -272,6 +272,25 @@ class PromptMutator:
         dtest = xgb.DMatrix(X)
         predictions=self.model.predict(dtest)
         return predictions
+    
+    def predict_in_batches(self, data, batch_size=10000):
+        num_samples = len(data)
+        num_batches = int(np.ceil(num_samples / batch_size))
+
+        predictions = []
+
+        for i in range(num_batches):
+            start_idx = i * batch_size
+            end_idx = min((i + 1) * batch_size, num_samples)
+
+            batch_data = data[start_idx:end_idx]
+
+            # Get predictions for the current batch
+            batch_preds = self.model.predict(xgb.DMatrix(batch_data))
+
+            predictions.extend(batch_preds)
+
+        return np.array(predictions)
 
     def load_model(self):
         minio_path=f"environmental/models/prompt-generator/{self.operation}/{self.prompt_type}_prompts_only/"
