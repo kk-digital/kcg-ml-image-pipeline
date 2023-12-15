@@ -34,7 +34,7 @@ class CLIPTextEmbedder(nn.Module):
     ## CLIP Text Embedder
     """
 
-    def __init__(self, path_tree=None, device=None, max_length: int = 77, tokenizer=None, transformer=None):
+    def __init__(self, path_tree=None, device=None, max_length: int = 75, tokenizer=None, transformer=None):
         """
         :param version: is the model version
         :param device: is the device
