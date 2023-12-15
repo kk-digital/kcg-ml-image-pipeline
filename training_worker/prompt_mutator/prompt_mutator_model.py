@@ -82,10 +82,10 @@ class PromptMutator:
 
         start = time.time()
         # Get predictions for validation set
-        val_preds = self.predict_in_batches(y_val)
+        val_preds = self.predict_in_batches(X_val)
 
         # Get predictions for training set
-        train_preds = self.predict_in_batches(y_train)
+        train_preds = self.predict_in_batches(X_train)
         end = time.time()
         inference_speed=(len(X_train) + len(X_val))/(end - start)
         print(f'Time taken for inference of {len(X_train) + len(X_val)} data points is: {end - start:.2f} seconds')
