@@ -67,13 +67,13 @@ class ImageScorer:
 
         model_file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', model_path)
         if not model_file_data:
-            raise Exception("No .pth file found at path: ", model_path)
+            raise Exception("No .safetensors file found at path: ", model_path)
 
         byte_buffer = io.BytesIO()
         for data in model_file_data.stream(amt=8192):
             byte_buffer.write(data)
         byte_buffer.seek(0)
-        model.load_pth(byte_buffer)
+        model.load_safetensors(byte_buffer)
 
         # assign
         self.model = model
@@ -264,7 +264,7 @@ class ImageScorer:
 
         bytes_buffer = io.BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
         # upload the csv
-        csv_path = os.path.join(self.dataset, "output/scores-csv", self.model_name.replace(".pth", ".csv"))
+        csv_path = os.path.join(self.dataset, "output/scores-csv", self.model_name.replace(".safetensors", ".csv"))
         cmd.upload_data(self.minio_client, 'datasets', csv_path, bytes_buffer)
 
     def upload_scores(self, hash_score_pairs):
@@ -374,14 +374,14 @@ class ImageScorer:
 
         # Save figure
         # plt.subplots_adjust(left=0.15, hspace=0.5)
-        # plt.savefig("./output/{}-{}-scores.jpg".format(self.model_name.replace(".pth", ""), self.dataset))
+        # plt.savefig("./output/{}-{}-scores.jpg".format(self.model_name.replace(".safetensors", ""), self.dataset))
         plt.show()
         buf = BytesIO()
         plt.savefig(buf, format='png')
         buf.seek(0)
 
         # upload the graph report
-        graph_output = os.path.join(self.dataset, "output/scores-percentiles-graph", self.model_name.replace(".pth", ".png"))
+        graph_output = os.path.join(self.dataset, "output/scores-percentiles-graph", self.model_name.replace(".safetensors", ".png"))
         cmd.upload_data(self.minio_client, 'datasets', graph_output, buf)
 
 
@@ -391,7 +391,7 @@ def parse_args():
     parser.add_argument('--minio-access-key', required=False, help='Minio access key')
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
     parser.add_argument('--dataset-name', required=True, help='Name of the dataset for embeddings')
-    parser.add_argument('--model-filename', required=True, help='Filename of the main model (e.g., "XXX.pth")')
+    parser.add_argument('--model-filename', required=True, help='Filename of the main model (e.g., "XXX..safetensors")')
     args = parser.parse_args()
     return args
 

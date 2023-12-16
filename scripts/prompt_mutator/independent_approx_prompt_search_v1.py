@@ -6,26 +6,24 @@ import random
 import sys
 import time
 import traceback
-from xmlrpc.client import ResponseError
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
-import msgpack
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from training_worker.prompt_mutator.prompt_mutator_model import PromptMutator
-from training_worker.prompt_mutator.binary_prompt_mutator import BinaryPromptMutator
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
+from utility.boltzman.boltzman_phrase_scores_loader import BoltzmanPhraseScoresLoader
 from utility.minio import cmd
 
-from worker.prompt_generation.prompt_generator import generate_base_prompts, generate_image_generation_jobs, generate_prompts_from_csv_proportional_selection, load_base_prompts
+from prompt_job_generator.independent_approx_v1.independent_approx_v1 import IndependentApproxV1
+from worker.prompt_generation.prompt_generator import generate_image_generation_jobs
 
-GENERATION_POLICY="greedy-substitution-search-v1"
+GENERATION_POLICY="independent-approx-substitution-search-v1"
 DATA_MINIO_DIRECTORY="environmental/data/prompt-generator/substitution"
 
 def parse_args():
@@ -36,18 +34,13 @@ def parse_args():
     parser.add_argument('--csv-phrase', help='CSV containing phrases, must have "phrase str" column', default='input/civitai_phrases_database_v7_no_nsfw.csv')
     parser.add_argument('--n-data', type=int, help='Number of data samples to generate', default=20)
     parser.add_argument('--send-job', action='store_true', default=False)
-    parser.add_argument('--update-prompts', action='store_true', default=False)
     parser.add_argument('--dataset-name', default='test-generations')
     parser.add_argument('--scoring-model', help="elm or linear", default="linear")
-    parser.add_argument('--rejection-policy', help="by probability or sigma_score", default="sigma_score")
-    parser.add_argument('--probability-threshold', type=float, help="threshold of rejection policy for probability of increase", default=0.66)
-    parser.add_argument('--sigma-threshold', type=float, help="threshold of rejection policy for increase of sigma score", default=0.1)
-    parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=80)
-    parser.add_argument('--self-training', action='store_true', default=False)
-    parser.add_argument('--store-embeddings', action='store_true', default=False)
+    parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=150)
     parser.add_argument('--save-csv', action='store_true', default=False)
-    parser.add_argument('--generate-initial-prompts', action='store_true', default=True)
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
+    parser.add_argument('--boltzman-temperature', type=int, default=64)
+    parser.add_argument('--boltzman-k', type=float, default=1.0)
     parser.add_argument(
         '--csv_base_prompts', help='CSV containing base prompts', 
         default='input/dataset-config/environmental/base-prompts-environmental.csv'
@@ -55,7 +48,7 @@ def parse_args():
 
     return parser.parse_args()
 
-class PromptSubstitutionGenerator:
+class BoltzmanPromptSubstitutionGenerator:
     def __init__(
         self,
         minio_access_key,
@@ -65,15 +58,12 @@ class PromptSubstitutionGenerator:
         csv_base_prompts,
         scoring_model,
         max_iterations,
-        rejection_policy,
-        probability_threshold,
-        sigma_threshold,
         dataset_name,
-        store_embeddings,
-        self_training,
         send_job,
         save_csv,
-        top_k
+        top_k,
+        boltzman_temperature,
+        boltzman_k
     ):
         start=time.time()
 
@@ -86,16 +76,8 @@ class PromptSubstitutionGenerator:
         self.max_iterations= max_iterations
         # average score by iteration to track score improvement
         self.average_score_by_iteration=np.zeros(self.max_iterations)
-        # rejection policy (by probability of increasing score or sigma score)
-        self.rejection_policy= rejection_policy
-        # rejection threshold for increase probability
-        self.probability_threshold= probability_threshold
-        # rejection threshold for increase in sigma score
-        self.sigma_threshold= sigma_threshold
         # name of dataset
         self.dataset_name=dataset_name
-        # wheher to self training or not
-        self.self_training=self_training
         # whether to send jobs to server or not
         self.send_job=send_job
         # whether to save csv of prompts or not
@@ -106,6 +88,9 @@ class PromptSubstitutionGenerator:
         self.top_k=top_k
         # get list of base prompts
         self.csv_base_prompts=csv_base_prompts
+        # boltzman temperature and k value
+        self.boltzman_temperature = boltzman_temperature
+        self.boltzman_k = boltzman_k
 
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key,
@@ -131,23 +116,22 @@ class PromptSubstitutionGenerator:
         self.mean, self.std= self.scorer.mean, self.scorer.standard_deviation
         self.positive_mean, self.positive_std= self.positive_scorer.mean, self.positive_scorer.standard_deviation
         
-        # load the xgboost model depending on what rejection policy is being used
-        if(self.rejection_policy=="sigma_score"):
-            self.substitution_model= PromptMutator(minio_client=self.minio_client, ranking_model=self.scoring_model)
-        else:
-            self.substitution_model= BinaryPromptMutator(minio_client=self.minio_client, ranking_model=self.scoring_model)
 
-        self.substitution_model.load_model()
+        # get list of boltzman phrase score
+        self.positive_phrase_scores_csv,self.negative_phrase_scores_csv=self.get_boltzman_scores_csv()
+        print(self.positive_phrase_scores_csv)
+        print(self.negative_phrase_scores_csv)
 
-        # store phrase embeddings in a file in minio 
-        if(store_embeddings):
-            self.store_phrase_embeddings()
-        
-        # get list of phrases
-        phrase_df=pd.read_csv(csv_phrase).sort_values(by="index")
-        self.phrase_list=phrase_df['phrase str'].tolist()
-        # get embeddings
-        self.phrase_embeddings= self.load_phrase_embeddings()
+        # loading positive phrase scores to use for rejection sampling
+        phrase_loader=BoltzmanPhraseScoresLoader(dataset_name="environmental",
+                                                 phrase_scores_csv=self.positive_phrase_scores_csv,
+                                                 minio_client=self.minio_client)
+        phrase_loader.load_dataset()
+        self.phrase_score_data= phrase_loader.index_phrase_score_data
+        print(f"number of positive phrase scores {len(self.phrase_score_data)}")
+ 
+        # get dictionarry of indexes by phrase to make lookup faster
+        self.phrase_dictionarry={self.phrase_score_data[index].phrase:index for index in range(len(self.phrase_score_data))}
 
         end=time.time()
         # log the loading time
@@ -196,6 +180,20 @@ class PromptSubstitutionGenerator:
 
         return embedding_model
 
+    # get path for phrase score csv files
+    def get_boltzman_scores_csv(self):
+        score_csvs=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', 'environmental/output/phrases-score-csv')
+        positive_score_csv = None
+        negative_score_csv = None
+
+        for csv_file in score_csvs:
+            if csv_file.endswith('positive-phrases-score.csv'):
+                positive_score_csv = csv_file.split("/")[-1]
+            if csv_file.endswith('negative-phrases-score.csv'):
+                negative_score_csv = csv_file.split("/")[-1]
+        
+        return positive_score_csv, negative_score_csv
+
     # get the clip text embedding of a prompt or a phrase
     def get_prompt_embedding(self, prompt):
         with torch.no_grad():
@@ -219,139 +217,72 @@ class PromptSubstitutionGenerator:
         embedding = embedding.reshape(len(embedding), -1).squeeze(0)
 
         return embedding.detach().cpu().numpy()
+    
+    # function to choose a random phrase under the max token length
+    def choose_random_phrase(self, max_token_length):
+        random_index=random.randrange(0, len(self.phrase_score_data))
+        phrase_data= self.phrase_score_data[random_index]
+
+        while(phrase_data.token_length> max_token_length):
+            random_index=random.randrange(0, len(self.phrase_score_data))
+            phrase_data= self.phrase_score_data[random_index]
+        
+        return phrase_data
 
     # function for rejection sampling with sigma scores
-    def rejection_sampling_by_sigma_score(self,
-                                    prompt_str, 
-                                    prompt_score, 
-                                    prompt_embedding, 
-                                    phrase_embeddings):
+    def rejection_sampling_by_boltzman_score(self,
+                                    prompt_str,
+                                    phrases_energy,
+                                    phrase_token_lengths):
 
-        # get number of tokens
+        # get number of phrases
         prompt_list = prompt_str.split(', ')
-        token_number= len(prompt_list)
+        num_phrases= len(prompt_list)
+        # get number of tokens
+        current_length= sum(phrase_token_lengths) + num_phrases - 1
         # list of potential substitution choices for current iteration
         substitution_choices=[]
 
-        # Create a batch of substitution inputs for every position in the prompt
-        batch_substitution_inputs = []
-        sampled_phrases = []
-        sampled_embeddings = []
-
-        batch_substitution_inputs = []
         # create a substitution for each position in the prompt
-        for token in range(token_number):
-            # get the substituted phrase
-            substituted_embedding = phrase_embeddings[token]
+        for phrase_index in range(num_phrases):
+            max_token_length= 75 - (current_length - phrase_token_lengths[phrase_index]) 
             # get a random phrase from civitai to substitute with
-            random_index=random.randrange(0, len(self.phrase_list))
+            random_phrase=self.choose_random_phrase(max_token_length)
             # get phrase string
-            substitute_phrase = self.phrase_list[random_index]
-            # get phrase embedding by its index
-            substitute_embedding = self.phrase_embeddings[random_index]
-            # concatenate input in one array to use for inference
-            substitution_input = np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
-            # save data in an array to use for inference and rejection sampling
-            batch_substitution_inputs.append(substitution_input)
-            sampled_phrases.append(substitute_phrase)
-            sampled_embeddings.append(substitute_embedding)
-     
-        # Predict sigma score for every substitution
-        batch_preds = self.substitution_model.predict(batch_substitution_inputs)
+            substitute_phrase = random_phrase.phrase
+            # get phrase score by its index
+            substitute_energy = random_phrase.energy_per_phrase
+            # get the substituted phrase energy
+            substituted_energy = phrases_energy[phrase_index]
 
-        # Filter with rejection sampling
-        for token, sigma_score in enumerate(batch_preds):
-            # only take substitutions that increase score by more then a set threshold
-            if sigma_score > prompt_score + self.sigma_threshold:
+            if substitute_energy > substituted_energy and substitute_energy>0:
                 substitution_data={
-                    'position':token,
-                    'substitute_phrase':sampled_phrases[token],
-                    'substitute_embedding':sampled_embeddings[token],
-                    'substituted_embedding':phrase_embeddings[token],
-                    'score':sigma_score
+                    'position':phrase_index,
+                    'substitute_phrase':substitute_phrase,
+                    'substitute_energy': substitute_energy,
+                    'substitute_token_length': random_phrase.token_length,
+                    'increase':substitute_energy - substituted_energy,
                 }
                 substitution_choices.append(substitution_data)
             
         # substitutions are sorted from highest sigma score to lowest
-        substitution_choices= sorted(substitution_choices, key=lambda s: s['score'], reverse=True) 
+        substitution_choices= sorted(substitution_choices, key=lambda s: s['increase'], reverse=True) 
         
         return substitution_choices
 
-    # function for rejection sampling with score increase probability
-    def rejection_sampling_by_probability(self, 
-                                    prompt_str, 
-                                    prompt_score, 
-                                    prompt_embedding, 
-                                    phrase_embeddings,
-                                    ):
-
-        # get list of phrases
-        prompt_list = prompt_str.split(', ')
-        token_number= len(prompt_list)
-        # list of potential substitution choices for current iteration
-        substitution_choices=[]
-        
-        # Create a batch of substitution inputs
-        sampled_phrases = []
-        sampled_embeddings = []
-
-        batch_substitution_inputs = []
-        # create a substitution for each position in the prompt
-        for token in range(token_number):
-            # get the substituted phrase
-            substituted_embedding = phrase_embeddings[token]
-            # get a random phrase from civitai to substitute with
-            random_index=random.randrange(0, len(self.phrase_list))
-            # get phrase string
-            substitute_phrase = self.phrase_list[random_index]
-            # get phrase embedding by its index
-            substitute_embedding = self.phrase_embeddings[random_index]
-            # concatenate input in one array to use for inference
-            substitution_input = np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
-            # save data in an array to use for inference and rejection sampling
-            batch_substitution_inputs.append(substitution_input)
-            sampled_phrases.append(substitute_phrase)
-            sampled_embeddings.append(substitute_embedding)
-        
-
-        # Predict probabilities of increase and decrease for every substitution
-        batch_preds = self.substitution_model.predict_probs(batch_substitution_inputs)
-
-        # filter with rejection sampling
-        for token, pred in enumerate(batch_preds):
-            # only take substitutions that have more than 66% chance to increase score
-            if pred["increase"] > self.probability_threshold:
-                substitution_data={
-                    'position':token,
-                    'substitute_phrase':sampled_phrases[token],
-                    'substitute_embedding':sampled_embeddings[token],
-                    'substituted_embedding':phrase_embeddings[token],
-                    'increase_prob':pred["increase"]
-                }
-                substitution_choices.append(substitution_data)
-
-        # substitutions are sorted from highest increase probability to lowest
-        substitution_choices= sorted(substitution_choices, key=lambda s: s['increase_prob'], reverse=True) 
-        
-        return substitution_choices
-
-    # function mutating a prompt
+    # function for mutating a prompt
     def mutate_prompt(self,
                     prompt_str,
-                    prompt_embedding, 
+                    prompt_embedding,
                     prompt_score):
+        
+        phrase_scores=[]
+        phrase_token_lengths=[]
+        for phrase in prompt_str.split(', '):
+            print(phrase)
+            phrase_scores.append(self.phrase_score_data[self.phrase_dictionarry[phrase]].energy_per_phrase)
+            phrase_token_lengths.append(self.phrase_score_data[self.phrase_dictionarry[phrase]].token_length)
 
-        # calculate mean pooled embedding of each phrase in the prompt 
-        phrase_embeddings= [self.get_mean_pooled_embedding(self.get_prompt_embedding(phrase)) for phrase in prompt_str.split(', ')]
-
-        # get rejection policy function
-        if(self.rejection_policy=="sigma_score"):
-            rejection_func=self.rejection_sampling_by_sigma_score
-        else:
-            rejection_func=self.rejection_sampling_by_probability
-
-        # self training datapoints
-        self_training_data=[]
         rejection_policy_time=0
         substitution_time=0
         num_attempts=0
@@ -359,16 +290,10 @@ class PromptSubstitutionGenerator:
         
         # run mutation process for a set number of iterations
         for i in range(self.max_iterations):
-            # get pooled embedding of the prompt
-            pooled_prompt_embedding=self.get_mean_pooled_embedding(prompt_embedding)
             
             start= time.time()
             # return a list of potential substitution choices, filtered by the rejection policy
-            substitution_choices=rejection_func(
-                                                prompt_str,
-                                                prompt_score,
-                                                pooled_prompt_embedding, 
-                                                phrase_embeddings)
+            substitution_choices=self.rejection_sampling_by_boltzman_score(prompt_str, phrase_scores, phrase_token_lengths)
             end= time.time()
 
             rejection_policy_time+= end - start
@@ -379,9 +304,6 @@ class PromptSubstitutionGenerator:
                 # get substitution data
                 position=substitution['position']
                 substitute_phrase=substitution['substitute_phrase']
-                substitute_embedding=substitution['substitute_embedding']
-                substituted_embedding=substitution['substituted_embedding']
-                predicted_score=substitution['score']
 
                 #Create a modified prompt with the substitution
                 prompt_list = prompt_str.split(', ')
@@ -393,26 +315,15 @@ class PromptSubstitutionGenerator:
                 modified_prompt_score= self.get_prompt_score(modified_prompt_embedding)
                 modified_prompt_score= (modified_prompt_score - self.positive_mean) / self.positive_std
 
-                # collect self training data
-                if(self.rejection_policy=="sigma_score"):
-                    data=np.concatenate((pooled_prompt_embedding, substituted_embedding, substitute_embedding)).tolist(),
-                    prompt_data={
-                        'input': data[0],
-                        'position_encoding': position,
-                        'score_encoding': prompt_score,
-                        'output': modified_prompt_score,
-                        'delta': abs(modified_prompt_score - predicted_score)
-                    }
-                    self_training_data.append(prompt_data)
-
                 num_attempts+=1
                 # check if score improves
                 if(prompt_score < modified_prompt_score):
                     # if it does improve, the new prompt is saved and it jumps to the next iteration
                     prompt_str= modified_prompt_str
                     prompt_embedding= modified_prompt_embedding
-                    phrase_embeddings[position]= substitute_embedding
                     prompt_score= modified_prompt_score
+                    phrase_scores[position]=substitution['substitute_energy']
+                    phrase_token_lengths[position]=substitution['substitute_token_length']
                     num_success+=1
                     break
             
@@ -423,10 +334,8 @@ class PromptSubstitutionGenerator:
         print(f"time for rejection policy {rejection_policy_time}")
         print(f"time for substitutions {substitution_time}")
         print(f"success rate: {num_success}/{num_attempts}")
-
-        # taking top 10 training datapoints with highest delta
-        self_training_data = sorted(self_training_data, key=lambda d: d['delta'], reverse=True)[:10]  
-        return prompt_str, prompt_embedding, self_training_data
+ 
+        return prompt_str, prompt_embedding
 
     # function to generate n images
     def generate_images(self, num_images):
@@ -436,8 +345,7 @@ class PromptSubstitutionGenerator:
         original_scores=[]
         # scores after mutation
         mutated_scores=[]
-        # collected self training data
-        training_data=[]
+
         index=0
 
         # get initial prompts
@@ -452,7 +360,7 @@ class PromptSubstitutionGenerator:
             negative_prompt=prompt['negative_prompt']
             
             #getting prompt embeddings
-            positive_embedding=prompt['positive_embedding'] 
+            positive_embedding=prompt['positive_embedding']
             negative_embedding=prompt['negative_embedding']
 
             # calculating combined score and positive score of prompt before mutation
@@ -465,13 +373,10 @@ class PromptSubstitutionGenerator:
             original_scores.append(seed_sigma_score)
 
             #mutate positive prompt
-            mutated_positive_prompt, mutated_positive_embedding, collected_data= self.mutate_prompt(
+            mutated_positive_prompt, mutated_positive_embedding= self.mutate_prompt(
                             prompt_str=positive_prompt, 
                             prompt_embedding=positive_embedding,
                             prompt_score=positive_score)
-            
-            # store the collected self training data for this prompt
-            training_data.extend(collected_data)
 
             # calculating new score with the mutated positive prompt
             score=self.scorer.predict(mutated_positive_embedding, negative_embedding).item()
@@ -483,6 +388,8 @@ class PromptSubstitutionGenerator:
             print(f"----initial score: {seed_score}.")
             print(f"----final score: {score}.")
 
+            task_uuid=-1
+            task_time = -1
             # sending a job to generate an image with the mutated prompt
             if self.send_job:
                 try:
@@ -503,19 +410,19 @@ class PromptSubstitutionGenerator:
                     task_uuid = -1
                     task_time = -1
                 
-                # storing job data to put in csv file later
-                df_data.append({
-                    'seed_score': seed_score,
-                    'seed_sigma_score': seed_sigma_score,
-                    'score': score,
-                    'sigma_score': sigma_score,
-                    'positive_prompt': mutated_positive_prompt,
-                    'negative_prompt': negative_prompt,
-                    'seed_prompt': positive_prompt,
-                    'generation_policy_string': GENERATION_POLICY,
-                    'task_uuid': task_uuid,
-                    'time': task_time
-                })
+            # storing job data to put in csv file later
+            df_data.append({
+                'seed_score': seed_score,
+                'seed_sigma_score': seed_sigma_score,
+                'score': score,
+                'sigma_score': sigma_score,
+                'positive_prompt': mutated_positive_prompt,
+                'negative_prompt': negative_prompt,
+                'seed_prompt': positive_prompt,
+                'generation_policy_string': GENERATION_POLICY,
+                'task_uuid': task_uuid,
+                'time': task_time
+            })
             
             index+=1
 
@@ -548,37 +455,32 @@ class PromptSubstitutionGenerator:
         self.average_score_by_iteration= np.divide(self.average_score_by_iteration, num_images)
         self.score_improvement_graph(minio_path=generation_path)
 
-        # save self training data
-        if self.self_training:
-            self.store_self_training_data(training_data)
-
     # function to generate initial prompts
     def generate_initial_prompts(self, num_prompts):
-        # get base prompts and generate initial prompts before mutation
-        base_prompt_population = load_base_prompts(self.csv_base_prompts)
-        prompts = generate_prompts_from_csv_proportional_selection(self.csv_phrase,
-                                                               int(num_prompts / self.top_k))
+        # generate initial prompts before mutation
+        prompt_generator = IndependentApproxV1("environmental", self.boltzman_temperature, self.boltzman_k)
+        prompt_generator.load_csv(self.minio_client, self.positive_phrase_scores_csv, self.negative_phrase_scores_csv)
+        
+        prompts =  prompt_generator.generate_prompts(prompt_count=int(num_prompts/self.top_k))
+        
         prompt_data=[]
         # add base prompts and calculate scores
         print("---------scoring prompts")
         for i, prompt in enumerate(prompts):
             print(f"prompt {i}")
-            # N Base Prompt Phrases
-            choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-            base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
-
-            base_prompts = ''
-
-            for base_prompt in base_prompt_list:
-                base_prompts = base_prompts + base_prompt + ', '
 
             # get positive and negative prompt
-            positive_prompt = base_prompts + prompt.positive_prompt_str
-            negative_prompt = prompt.negative_prompt_str
+            positive_prompt = prompt['positive_prompt']
+            negative_prompt = prompt['negative_prompt']
 
-            # get positive and negative embeddings
-            positive_embedding=self.get_prompt_embedding(positive_prompt)
-            negative_embedding=self.get_prompt_embedding(negative_prompt)
+            try:
+                # get positive and negative embeddings
+                positive_embedding=self.get_prompt_embedding(positive_prompt)
+                negative_embedding=self.get_prompt_embedding(negative_prompt)
+            except:
+                print(positive_prompt)
+                print(negative_prompt)
+
            
             # calculating combined score and positive score of prompt
             with torch.no_grad():
@@ -595,21 +497,11 @@ class PromptSubstitutionGenerator:
                 "positive_score": positive_score
             })
         
-        # Sort the list based on the maximize_int1 function
+        # Sort the list based on score
         sorted_scored_prompts = sorted(prompt_data, key=lambda s: s['score'], reverse=True)
         chosen_scored_prompts = sorted_scored_prompts[:num_prompts]
 
         return chosen_scored_prompts
-
-    # get paths for embeddings of all prompts in a dataset
-    def get_embedding_paths(self, dataset):
-            objects=self.minio_client.list_objects('datasets', dataset, recursive=True)
-            embedding_files = []
-            for obj in objects: 
-                if obj.object_name.endswith("_embedding.msgpack"):
-                    embedding_files.append(obj.object_name)
-                    
-            return embedding_files
 
     # store list of initial prompts in a csv to use for prompt mutation
     def store_prompts_in_csv_file(self, data):
@@ -736,207 +628,22 @@ class PromptSubstitutionGenerator:
         # Remove the temporary file
         os.remove(file_path)
 
-    # function to update the initial list of prompts in minIO
-    def update_prompt_list(self):
-        embedding_paths = self.get_embedding_paths("environmental")
-        df_data=[]
-
-        for embedding in embedding_paths:
-            print(f"updated {embedding}")
-            # get prompt embedding
-            data = self.minio_client.get_object('datasets', embedding)
-            # Read the content of the msgpack file
-            content = data.read()
-
-            # Deserialize the content using msgpack
-            msgpack_data = msgpack.loads(content)
-
-            # get positive prompt  
-            positive_prompt=msgpack_data['positive_prompt']
-        
-            # get negative prompt  
-            negative_prompt=msgpack_data['negative_prompt']
-
-            # save data 
-            df_data.append({
-                    'job_uuid':msgpack_data['job_uuid'],
-                    'creation_time':msgpack_data['creation_time'],
-                    'dataset':msgpack_data['dataset'],
-                    'file_path':embedding,
-                    'positive_prompt':positive_prompt,
-                    'negative_prompt':negative_prompt
-                })
-        
-        # save data locally
-        pd.DataFrame(df_data).to_csv('output/initial_prompts.csv', index=False)
-
-        # Read the contents of the CSV file
-        with open('output/initial_prompts.csv', 'rb') as file:
-            csv_content = file.read()
-
-        #Upload the CSV file to Minio
-        buffer = io.BytesIO(csv_content)
-        buffer.seek(0)
-
-        minio_path = DATA_MINIO_DIRECTORY + "/input/initial_prompts.csv"
-        cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
-
-        # Remove the temporary file
-        os.remove('output/initial_prompts.csv')
-
-    # get list of initial prompts from minIO
-    def get_initial_prompts(self, num_prompts):
-        try:
-            # Get the CSV file as BytesIO object
-            minio_path = DATA_MINIO_DIRECTORY + "/input/initial_prompts.csv"
-            data = self.minio_client.get_object('datasets', minio_path)
-            csv_data = io.BytesIO(data.read())
-
-            # Read the CSV into a DataFrame
-            df = pd.read_csv(csv_data)
-
-            # Filter the DataFrame based on the condition
-            filtered_df = df[df['positive_prompt'].str.split(', ').apply(len)>=10]
-
-    
-            # get sample prompts
-            sampled_df = filtered_df.sample(n=num_prompts)
-
-            return sampled_df
-
-        except ResponseError as err:
-            print(f"Error: {err}")
-            return None
-
-    # store self training data
-    def store_self_training_data(self, training_data):
-        batch_size = 10000
-        dataset_path = DATA_MINIO_DIRECTORY + "/self_training/"
-        dataset_files = self.minio_client.list_objects('datasets', prefix=dataset_path, recursive=True)
-        dataset_files = [file.object_name for file in dataset_files]
-
-        batch = []  # Accumulate training data points until the batch size is reached
-
-        if(len(dataset_files)==0):
-            index=1
-        else:
-            last_file_path=dataset_files[len(dataset_files)-1]
-            # Read the content of the last unfinished file
-            if last_file_path.endswith("_incomplete.msgpack"):
-                data = self.minio_client.get_object('datasets', last_file_path)
-                content = data.read()
-                batch = msgpack.loads(content)
-                index = len(dataset_files)
-                self.minio_client.remove_object('datasets', last_file_path)
-            else:
-                index= len(dataset_files) + 1
-
-        for data in training_data:
-            batch.append(data)
-
-            if len(batch) == batch_size:
-                self.store_batch_in_msgpack_file(batch, index)
-                index += 1
-                batch = []  # Reset the batch for the next file
-
-        # If there are remaining data points not reaching the batch size, store them
-        if batch:
-            self.store_batch_in_msgpack_file(batch, index, incomplete=True)
-
-    # function for storing self training data in a msgpack file
-    def store_batch_in_msgpack_file(self, batch, index, incomplete=False):
-        if incomplete:
-            file_path=f"{self.scoring_model}/{str(index).zfill(4)}_substitution_incomplete.msgpack"
-        else:
-            file_path=f"{self.scoring_model}/{str(index).zfill(4)}_substitution.msgpack"
-        packed_data = msgpack.packb(batch, use_single_float=True)
-
-        local_file_path = f"output/temporary_file.msgpack"
-        with open(local_file_path, 'wb') as local_file:
-            local_file.write(packed_data)
-
-        with open(local_file_path, 'rb') as file:
-            content = file.read()
-
-        buffer = io.BytesIO(content)
-        buffer.seek(0)
-
-        minio_path = DATA_MINIO_DIRECTORY + f"/self_training/{file_path}"
-        cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
-
-        os.remove(local_file_path)
-
-    # store embeddings of all phrases in civitai in a file in minIO
-    def store_phrase_embeddings(self):
-        phrase_list=pd.read_csv(self.csv_phrase)
-        phrase_list= phrase_list.sort_values(by="index")
-        phrase_embeddings_list=[]
-        
-        for index, row in phrase_list.iterrows():
-            print(f"storing phrase {row['index']}")
-            embedding= self.get_prompt_embedding(row['phrase str'])
-            mean_pooled_embedding= self.get_mean_pooled_embedding(embedding)
-            phrase_embeddings_list.append(mean_pooled_embedding)
-        
-        # Convert the list of numpy arrays to a 2D numpy array
-        phrase_embeddings = np.array(phrase_embeddings_list)
-
-        # Save the numpy array to an .npz file
-        local_file_path='phrase_embeddings.npz'
-        np.savez_compressed(local_file_path, phrase_embeddings)
-
-        # Read the contents of the .npz file
-        with open(local_file_path, 'rb') as file:
-            content = file.read()
-
-        # Upload the local file to MinIO
-        buffer = io.BytesIO(content)
-        buffer.seek(0)
-
-        minio_path=DATA_MINIO_DIRECTORY + f"/input/phrase_embeddings.npz"
-        cmd.upload_data(self.minio_client, 'datasets',minio_path, buffer)
-
-        # Remove the temporary file
-        os.remove(local_file_path)
-
-    # get civitai phrase embeddings from minIO
-    def load_phrase_embeddings(self):
-        # Get the file data from MinIO
-        minio_path = DATA_MINIO_DIRECTORY + f"/input/phrase_embeddings.npz"
-        file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', minio_path)
-
-        # Create a BytesIO object and write the downloaded content into it
-        byte_buffer = io.BytesIO()
-        for data in file_data.stream(amt=8192):
-            byte_buffer.write(data)
-        # Reset the buffer's position to the beginning
-        byte_buffer.seek(0)
-
-        # Load the compressed numpy array from the BytesIO object
-        with np.load(byte_buffer) as data:
-            phrase_embeddings = data['arr_0']
-
-        return phrase_embeddings
-
 
 def main():
     args = parse_args()
-    prompt_mutator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
+    prompt_mutator= BoltzmanPromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
                                   minio_secret_key=args.minio_secret_key,
                                   minio_ip_addr=args.minio_addr,
                                   csv_phrase=args.csv_phrase,
                                   csv_base_prompts=args.csv_base_prompts,
                                   scoring_model=args.scoring_model,
                                   max_iterations=args.max_iterations,
-                                  rejection_policy=args.rejection_policy,
-                                  probability_threshold=args.probability_threshold,
-                                  sigma_threshold=args.sigma_threshold,
                                   dataset_name=args.dataset_name,
-                                  store_embeddings=args.store_embeddings,
-                                  self_training=args.self_training,
                                   send_job=args.send_job,
                                   save_csv=args.save_csv,
-                                  top_k=args.top_k)
+                                  top_k=args.top_k,
+                                  boltzman_temperature=args.boltzman_temperature,
+                                  boltzman_k=args.boltzman_k)
     
     # generate n number of images
     prompt_mutator.generate_images(num_images=args.n_data)
