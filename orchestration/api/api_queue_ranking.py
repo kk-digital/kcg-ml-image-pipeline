@@ -409,11 +409,28 @@ def count_image_pairs(
         print(f"Error occurred: {str(e)}")  
         
 
-@router.get("/ranking-queue/count", response_class=PrettyJSONResponse)
+@router.get("/ranking-queue/pair-count", response_class=PrettyJSONResponse)
 def get_image_pair_count(request: Request, dataset: str = Query(...), policy: str = Query(...)):
     minio_client = request.app.minio_client
     bucket_name = "datasets"
     prefix = f"{dataset}/ranking-queue-pair/{policy}"
+
+    # List all json files in the ranking-queue-pair directory
+    json_files = cmd.get_list_of_objects_with_prefix(minio_client, bucket_name, prefix)
+    json_files = [name for name in json_files if name.endswith('.json') and prefix in name]
+
+    if not json_files:
+        return {"count": 0, "message": "No image pair JSON files found for the given dataset and policy"}
+
+    # Return the count of json files
+    return len(json_files)
+
+
+@router.get("/ranking-queue/single-count", response_class=PrettyJSONResponse)
+def get_image_pair_count(request: Request, dataset: str = Query(...), policy: str = Query(...)):
+    minio_client = request.app.minio_client
+    bucket_name = "datasets"
+    prefix = f"{dataset}/ranking-queue-image/{policy}"
 
     # List all json files in the ranking-queue-pair directory
     json_files = cmd.get_list_of_objects_with_prefix(minio_client, bucket_name, prefix)
