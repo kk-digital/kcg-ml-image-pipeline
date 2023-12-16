@@ -227,9 +227,9 @@ class PromptSubstitutionGenerator:
                                     prompt_embedding, 
                                     phrase_embeddings):
 
-        # get number of tokens
+        # get number of phrases
         prompt_list = prompt_str.split(', ')
-        token_number= len(prompt_list)
+        num_phrases= len(prompt_list)
         # list of potential substitution choices for current iteration
         substitution_choices=[]
 
@@ -240,9 +240,9 @@ class PromptSubstitutionGenerator:
 
         batch_substitution_inputs = []
         # create a substitution for each position in the prompt
-        for token in range(token_number):
+        for phrase_position in range(num_phrases):
             # get the substituted phrase
-            substituted_embedding = phrase_embeddings[token]
+            substituted_embedding = phrase_embeddings[phrase_position]
             # get a random phrase from civitai to substitute with
             random_index=random.randrange(0, len(self.phrase_list))
             # get phrase string
@@ -250,7 +250,7 @@ class PromptSubstitutionGenerator:
             # get phrase embedding by its index
             substitute_embedding = self.phrase_embeddings[random_index]
             # concatenate input in one array to use for inference
-            substitution_input = np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
+            substitution_input = np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [phrase_position], [prompt_score]])
             # save data in an array to use for inference and rejection sampling
             batch_substitution_inputs.append(substitution_input)
             sampled_phrases.append(substitute_phrase)
@@ -260,14 +260,14 @@ class PromptSubstitutionGenerator:
         batch_preds = self.substitution_model.predict(batch_substitution_inputs)
 
         # Filter with rejection sampling
-        for token, sigma_score in enumerate(batch_preds):
+        for position, sigma_score in enumerate(batch_preds):
             # only take substitutions that increase score by more then a set threshold
             if sigma_score > prompt_score + self.sigma_threshold:
                 substitution_data={
-                    'position':token,
-                    'substitute_phrase':sampled_phrases[token],
-                    'substitute_embedding':sampled_embeddings[token],
-                    'substituted_embedding':phrase_embeddings[token],
+                    'position':position,
+                    'substitute_phrase':sampled_phrases[position],
+                    'substitute_embedding':sampled_embeddings[position],
+                    'substituted_embedding':phrase_embeddings[position],
                     'score':sigma_score
                 }
                 substitution_choices.append(substitution_data)
@@ -287,7 +287,7 @@ class PromptSubstitutionGenerator:
 
         # get list of phrases
         prompt_list = prompt_str.split(', ')
-        token_number= len(prompt_list)
+        num_phrases= len(prompt_list)
         # list of potential substitution choices for current iteration
         substitution_choices=[]
         
@@ -297,9 +297,9 @@ class PromptSubstitutionGenerator:
 
         batch_substitution_inputs = []
         # create a substitution for each position in the prompt
-        for token in range(token_number):
+        for phrase_position in range(num_phrases):
             # get the substituted phrase
-            substituted_embedding = phrase_embeddings[token]
+            substituted_embedding = phrase_embeddings[phrase_position]
             # get a random phrase from civitai to substitute with
             random_index=random.randrange(0, len(self.phrase_list))
             # get phrase string
@@ -307,7 +307,7 @@ class PromptSubstitutionGenerator:
             # get phrase embedding by its index
             substitute_embedding = self.phrase_embeddings[random_index]
             # concatenate input in one array to use for inference
-            substitution_input = np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [token], [prompt_score]])
+            substitution_input = np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [phrase_position], [prompt_score]])
             # save data in an array to use for inference and rejection sampling
             batch_substitution_inputs.append(substitution_input)
             sampled_phrases.append(substitute_phrase)
