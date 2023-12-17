@@ -291,8 +291,8 @@ def generate_prompts_from_csv_proportional_selection(csv_dataset_path,
 
             prompt_index = random_index
             random_prompt = positive_phrases[prompt_index]
-            print(random_prompt)
-            chosen_phrase_size = enc.encode(random_prompt)
+
+            chosen_phrase_size = enc.encode(random_prompt.Phrase)
             sum_token_size = positive_prompt_total_token_size + chosen_phrase_size + comma_token_size
             if sum_token_size < max_token_size:
                 # update used array
@@ -313,7 +313,7 @@ def generate_prompts_from_csv_proportional_selection(csv_dataset_path,
             prompt_index = random_index
             random_prompt = negative_phrases[prompt_index]
 
-            chosen_phrase_size = enc.encode(random_prompt)
+            chosen_phrase_size = enc.encode(random_prompt.Phrase)
             sum_token_size = negative_prompt_total_token_size + chosen_phrase_size + comma_token_size
             if sum_token_size < max_token_size:
                 # update used array
