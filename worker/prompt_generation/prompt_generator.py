@@ -231,6 +231,16 @@ def find_first_element_binary_search(cumulative_total_arr, random_num):
     # If we reach here, then the element was not present
     return -1
 
+def get_current_token_size(current_prompt, added_phrase):
+    # get prompt str after adding a new phrase
+    new_prompt= current_prompt.append(added_phrase)
+    prompt_str = ', '.join([prompt.Phrase for prompt in new_prompt])
+    # get token size with tiktoken    
+    enc = tiktoken.get_encoding("cl100k_base")
+    prompt_tokens=enc.encode(prompt_str)
+
+    return len(prompt_tokens)
+
 
 def generate_prompts_from_csv_proportional_selection(csv_dataset_path,
                                                      prompt_count,
@@ -267,10 +277,10 @@ def generate_prompts_from_csv_proportional_selection(csv_dataset_path,
     del positive_count_list
     del negative_count_list
 
-    enc = tiktoken.get_encoding("cl100k_base")
     positive_prefix_token_size = 0
     if positive_prefix != "":
         # get token size for prefix
+        enc = tiktoken.get_encoding("cl100k_base")
         positive_prefix_prompt_tokens = enc.encode(positive_prefix)
         positive_prefix_token_size = len(positive_prefix_prompt_tokens)
 
@@ -292,8 +302,7 @@ def generate_prompts_from_csv_proportional_selection(csv_dataset_path,
             prompt_index = random_index
             random_prompt = positive_phrases[prompt_index]
 
-            chosen_phrase_size = len(enc.encode(random_prompt.Phrase))
-            sum_token_size = positive_prompt_total_token_size + chosen_phrase_size + comma_token_size
+            sum_token_size = get_current_token_size(positive_prompt, random_prompt)
             if sum_token_size < max_token_size:
                 # update used array
                 prompt_vector[prompt_index] = 1
@@ -313,8 +322,7 @@ def generate_prompts_from_csv_proportional_selection(csv_dataset_path,
             prompt_index = random_index
             random_prompt = negative_phrases[prompt_index]
 
-            chosen_phrase_size = len(enc.encode(random_prompt.Phrase))
-            sum_token_size = negative_prompt_total_token_size + chosen_phrase_size + comma_token_size
+            sum_token_size = get_current_token_size(negative_prompt, random_prompt)
             if sum_token_size < max_token_size:
                 # update used array
                 prompt_vector[prompt_index] = -1
