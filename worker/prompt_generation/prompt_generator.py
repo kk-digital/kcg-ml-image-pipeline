@@ -267,10 +267,10 @@ def generate_prompts_from_csv_proportional_selection(csv_dataset_path,
     del positive_count_list
     del negative_count_list
 
+    enc = tiktoken.get_encoding("cl100k_base")
     positive_prefix_token_size = 0
     if positive_prefix != "":
         # get token size for prefix
-        enc = tiktoken.get_encoding("cl100k_base")
         positive_prefix_prompt_tokens = enc.encode(positive_prefix)
         positive_prefix_token_size = len(positive_prefix_prompt_tokens)
 
@@ -292,7 +292,7 @@ def generate_prompts_from_csv_proportional_selection(csv_dataset_path,
             prompt_index = random_index
             random_prompt = positive_phrases[prompt_index]
 
-            chosen_phrase_size = positive_token_size[prompt_index]
+            chosen_phrase_size = enc.encode(random_prompt)
             sum_token_size = positive_prompt_total_token_size + chosen_phrase_size + comma_token_size
             if sum_token_size < max_token_size:
                 # update used array
@@ -313,7 +313,7 @@ def generate_prompts_from_csv_proportional_selection(csv_dataset_path,
             prompt_index = random_index
             random_prompt = negative_phrases[prompt_index]
 
-            chosen_phrase_size = negative_token_size[prompt_index]
+            chosen_phrase_size = enc.encode(random_prompt)
             sum_token_size = negative_prompt_total_token_size + chosen_phrase_size + comma_token_size
             if sum_token_size < max_token_size:
                 # update used array
