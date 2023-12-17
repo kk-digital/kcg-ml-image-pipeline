@@ -1,4 +1,5 @@
 import argparse
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 import io
 import os
@@ -258,9 +259,8 @@ class PromptSubstitutionGenerator:
             sampled_embeddings.append(substitute_embedding)
      
         # Predict sigma score for every substitution
-        batch_preds = Parallel(n_jobs=16)(
-            delayed(self.substitution_model.predict)(input) for input in batch_substitution_inputs
-        )
+        with ProcessPoolExecutor(max_workers=16) as executor:
+            batch_preds = list(executor.map(self.substitution_model.predict, batch_substitution_inputs))
         #batch_preds = self.substitution_model.predict(batch_substitution_inputs)
 
         # Filter with rejection sampling
