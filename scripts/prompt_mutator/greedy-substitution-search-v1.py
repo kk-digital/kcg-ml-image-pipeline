@@ -259,7 +259,7 @@ class PromptSubstitutionGenerator:
      
         # Predict sigma score for every substitution
         batch_preds = Parallel(n_jobs=16)(
-            delayed(self.substitution_model.predict)(self.substitution_model, input) for input in batch_substitution_inputs
+            delayed(self.substitution_model.predict)(input) for input in batch_substitution_inputs
         )
         #batch_preds = self.substitution_model.predict(batch_substitution_inputs)
 
