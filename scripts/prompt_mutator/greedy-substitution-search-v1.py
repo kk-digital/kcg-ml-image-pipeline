@@ -7,6 +7,7 @@ import sys
 import time
 import traceback
 from xmlrpc.client import ResponseError
+from joblib import Parallel, delayed
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
@@ -257,7 +258,10 @@ class PromptSubstitutionGenerator:
             sampled_embeddings.append(substitute_embedding)
      
         # Predict sigma score for every substitution
-        batch_preds = self.substitution_model.predict(batch_substitution_inputs)
+        batch_preds = Parallel(n_jobs=16)(
+            delayed(self.substitution_model.predict)(self.substitution_model, input) for input in batch_substitution_inputs
+        )
+        #batch_preds = self.substitution_model.predict(batch_substitution_inputs)
 
         # Filter with rejection sampling
         for position, sigma_score in enumerate(batch_preds):
