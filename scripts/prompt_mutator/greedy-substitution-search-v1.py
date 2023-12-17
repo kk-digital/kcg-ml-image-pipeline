@@ -1,5 +1,4 @@
 import argparse
-from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 import io
 import os
@@ -8,7 +7,6 @@ import sys
 import time
 import traceback
 from xmlrpc.client import ResponseError
-from joblib import Parallel, delayed
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
@@ -259,9 +257,7 @@ class PromptSubstitutionGenerator:
             sampled_embeddings.append(substitute_embedding)
      
         # Predict sigma score for every substitution
-        with ProcessPoolExecutor(max_workers=16) as executor:
-            batch_preds = list(executor.map(self.substitution_model.predict, batch_substitution_inputs))
-        #batch_preds = self.substitution_model.predict(batch_substitution_inputs)
+        batch_preds = self.substitution_model.predict(batch_substitution_inputs)
 
         # Filter with rejection sampling
         for position, sigma_score in enumerate(batch_preds):
