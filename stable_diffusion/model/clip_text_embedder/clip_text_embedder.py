@@ -128,7 +128,7 @@ class CLIPTextEmbedder(nn.Module):
                                         return_overflowing_tokens=False, padding="max_length", return_tensors="pt")
         
         # Check if any tokenized input exceeds the maximum length
-        # assert not any(len(input_ids) > self.max_length for input_ids in batch_encoding['input_ids']), "Token length exceeds the maximum limit"
+        assert not any(len(input_ids) > self.max_length for input_ids in batch_encoding['input_ids']), "Token length exceeds the maximum limit"
 
         # Get token ids
         tokens = batch_encoding["input_ids"].to(self.device)
@@ -146,7 +146,7 @@ class CLIPTextEmbedder(nn.Module):
         batch_encoding = self.tokenizer(prompts, truncation=False, max_length=self.max_length, return_length=True,
                                         return_overflowing_tokens=False, padding="max_length", return_tensors="pt")
         # Check if any tokenized input exceeds the maximum length
-        # assert not any(len(input_ids) > self.max_length for input_ids in batch_encoding['input_ids']), "Token length exceeds the maximum limit"
+        assert not any(len(input_ids) > self.max_length for input_ids in batch_encoding['input_ids']), "Token length exceeds the maximum limit"
 
         # Get token ids and move to device
         tokens = batch_encoding["input_ids"].to(self.device)
