@@ -233,8 +233,9 @@ def find_first_element_binary_search(cumulative_total_arr, random_num):
 
 def get_current_token_size(current_prompt, added_phrase):
     # get prompt str after adding a new phrase
-    current_prompt.append(added_phrase)
-    prompt_str = ', '.join([prompt.Phrase for prompt in current_prompt])
+    new_prompt=current_prompt.copy()
+    new_prompt.append(added_phrase)
+    prompt_str = ', '.join([prompt.Phrase for prompt in new_prompt])
     # get token size with tiktoken    
     enc = tiktoken.get_encoding("cl100k_base")
     prompt_tokens=enc.encode(prompt_str)
