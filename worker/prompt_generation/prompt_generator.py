@@ -237,7 +237,7 @@ def generate_prompts_from_csv_proportional_selection(csv_dataset_path,
                                                      csv_phrase_limit=0,
                                                      positive_prefix=""):
     generated_prompts = []
-    max_token_size = 65
+    max_token_size = 75
     comma_token_size = 1
 
     phrases, \
