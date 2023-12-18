@@ -28,13 +28,14 @@ from stable_diffusion.utils_backend import get_device
 from utility.labml.monit import section
 from utility.utils_logger import logger
 
+MAX_LENGTH = 77
 
 class CLIPTextEmbedder(nn.Module):
     """
     ## CLIP Text Embedder
     """
 
-    def __init__(self, path_tree=None, device=None, max_length: int = 77, tokenizer=None, transformer=None):
+    def __init__(self, path_tree=None, device=None, max_length: int = MAX_LENGTH, tokenizer=None, transformer=None):
         """
         :param version: is the model version
         :param device: is the device
@@ -175,7 +176,7 @@ class CLIPTextEmbedder(nn.Module):
 
         return clip_output.last_hidden_state, clip_output.pooler_output, batch_encoding['attention_mask'].to(self.device)
 
-    def forward_return_all(self, prompts: List[str], max_token_length : int):
+    def forward_return_all(self, prompts: List[str], max_token_length : int = MAX_LENGTH):
         """
         :param prompts: are the list of prompts to embed
         """
@@ -187,6 +188,7 @@ class CLIPTextEmbedder(nn.Module):
         input_ids =  batch_encoding['input_ids']
         # Numer of elements in array
         num_tokens = input_ids.numel()
+
 
         assert num_tokens <= max_token_length, f"Token length {num_tokens} exceeds maximum {max_token_length}\nprompt : {prompts}"
 
