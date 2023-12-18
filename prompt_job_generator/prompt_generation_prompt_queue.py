@@ -236,12 +236,6 @@ class PromptGenerationPromptQueue:
             model_type = 'N/A'
             if scoring_model is not None and clip_text_embedder is not None:
 
-                print('positive')
-                print(positive_text_prompt)
-                print('-------------')
-                print('negative')
-                print(negative_text_prompt)
-                print('##################')
                 positive_prompt_length = clip_text_embedder.compute_token_length(positive_text_prompt)
                 negative_prompt_length = clip_text_embedder.compute_token_length(negative_text_prompt)
 
