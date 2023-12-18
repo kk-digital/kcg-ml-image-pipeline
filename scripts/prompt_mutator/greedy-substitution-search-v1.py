@@ -230,7 +230,7 @@ class PromptSubstitutionGenerator:
         while(phrase_token_length > max_token_length):
             random_index=random.randrange(0, len(self.phrase_list))
             phrase= self.phrase_list[random_index]
-            phrase_token_length=self.phrase_token_lengths[random_index]
+            phrase_token_length=self.embedder.compute_token_length(phrase)
         
         return random_index, phrase
 
