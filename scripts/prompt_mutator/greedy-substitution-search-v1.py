@@ -224,6 +224,7 @@ class PromptSubstitutionGenerator:
 
         return embedding.detach().cpu().numpy()
 
+    # function to get a random phrase from civitai with a max token size for substitutions
     def choose_random_phrase(self, max_token_length):
         phrase_token_length=max_token_length + 1
 
@@ -569,21 +570,9 @@ class PromptSubstitutionGenerator:
             self.store_self_training_data(training_data)
 
     # function to generate initial prompts
-    def generate_initial_prompts(self, num_prompts):
-        # get base prompts and generate initial prompts before mutation
-        base_prompt_population = load_base_prompts(self.csv_base_prompts)
-        # N Base Prompt Phrases
-        choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-        base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
-
-        base_prompts = ''
-
-        for base_prompt in base_prompt_list:    
-            base_prompts = base_prompts + base_prompt + ', '
-            
+    def generate_initial_prompts(self, num_prompts): 
         prompts = generate_prompts_from_csv_proportional_selection(csv_dataset_path=self.csv_phrase,
-                                                               prompt_count=int(num_prompts / self.top_k),
-                                                               positive_prefix=base_prompts)
+                                                               prompt_count=int(num_prompts / self.top_k))
         prompt_data=[]
         # add base prompts and calculate scores
         print("---------scoring prompts")
@@ -760,78 +749,6 @@ class PromptSubstitutionGenerator:
         cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
         # Remove the temporary file
         os.remove(file_path)
-
-    # function to update the initial list of prompts in minIO
-    def update_prompt_list(self):
-        embedding_paths = self.get_embedding_paths("environmental")
-        df_data=[]
-
-        for embedding in embedding_paths:
-            print(f"updated {embedding}")
-            # get prompt embedding
-            data = self.minio_client.get_object('datasets', embedding)
-            # Read the content of the msgpack file
-            content = data.read()
-
-            # Deserialize the content using msgpack
-            msgpack_data = msgpack.loads(content)
-
-            # get positive prompt  
-            positive_prompt=msgpack_data['positive_prompt']
-        
-            # get negative prompt  
-            negative_prompt=msgpack_data['negative_prompt']
-
-            # save data 
-            df_data.append({
-                    'job_uuid':msgpack_data['job_uuid'],
-                    'creation_time':msgpack_data['creation_time'],
-                    'dataset':msgpack_data['dataset'],
-                    'file_path':embedding,
-                    'positive_prompt':positive_prompt,
-                    'negative_prompt':negative_prompt
-                })
-        
-        # save data locally
-        pd.DataFrame(df_data).to_csv('output/initial_prompts.csv', index=False)
-
-        # Read the contents of the CSV file
-        with open('output/initial_prompts.csv', 'rb') as file:
-            csv_content = file.read()
-
-        #Upload the CSV file to Minio
-        buffer = io.BytesIO(csv_content)
-        buffer.seek(0)
-
-        minio_path = DATA_MINIO_DIRECTORY + "/input/initial_prompts.csv"
-        cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
-
-        # Remove the temporary file
-        os.remove('output/initial_prompts.csv')
-
-    # get list of initial prompts from minIO
-    def get_initial_prompts(self, num_prompts):
-        try:
-            # Get the CSV file as BytesIO object
-            minio_path = DATA_MINIO_DIRECTORY + "/input/initial_prompts.csv"
-            data = self.minio_client.get_object('datasets', minio_path)
-            csv_data = io.BytesIO(data.read())
-
-            # Read the CSV into a DataFrame
-            df = pd.read_csv(csv_data)
-
-            # Filter the DataFrame based on the condition
-            filtered_df = df[df['positive_prompt'].str.split(', ').apply(len)>=10]
-
-    
-            # get sample prompts
-            sampled_df = filtered_df.sample(n=num_prompts)
-
-            return sampled_df
-
-        except ResponseError as err:
-            print(f"Error: {err}")
-            return None
 
     # store self training data
     def store_self_training_data(self, training_data):
