@@ -113,7 +113,7 @@ def get_tag_vector_index(request: Request, tag_id: int):
     tag = request.app.tag_definitions_collection.find_one(query)
 
     if not tag:
-        return None
+        return {"tag_vector_index": None}
 
 
     vector_index = tag.get("tag_vector_index", -1)

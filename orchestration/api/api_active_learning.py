@@ -39,7 +39,7 @@ def get_ranking_comparison(
         first_image_score = next(first_image_cursor, None)
 
         if not first_image_score:
-            return []
+            {"images": []}
 
         # Calculate the score range for the second image using the selected score_type
         base_score = first_image_score[score_type]  # Use dynamic score_type
@@ -62,7 +62,7 @@ def get_ranking_comparison(
 
         # Select the second image based on computed probabilities
         if total_probability == 0:
-            return []
+            {"images": []}
 
         random_choice = random.uniform(0, total_probability)
         cumulative = 0
@@ -121,7 +121,7 @@ def get_ranking_comparison(
 
         first_image_score = next(first_image_cursor, None)
         if not first_image_score:
-            return []
+            {"images": []}
 
         if 'task_attributes_dict' not in first_image_score or score_type not in first_image_score['task_attributes_dict']:
             print("task_attributes_dict not found in the fetched document")
@@ -140,7 +140,7 @@ def get_ranking_comparison(
         candidates = list(candidates_cursor)
 
         if not candidates:
-            return[]
+            {"images": []}
 
         second_image_score = random.choice(candidates)
 
