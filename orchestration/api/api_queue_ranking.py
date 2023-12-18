@@ -408,6 +408,3 @@ def count_image_pairs(
     except Exception as e:
         print(f"Error occurred: {str(e)}")  
         
-
-
-
