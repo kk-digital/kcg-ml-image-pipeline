@@ -256,7 +256,7 @@ class PromptSubstitutionGenerator:
         # create a substitution for each position in the prompt
         for phrase_position in range(num_phrases):
             # get the substituted phrase token length
-            max_token_length=self.phrase_token_dictionarry[prompt_list[phrase_position]]
+            max_token_length=self.embedder.compute_token_length(prompt_list[phrase_position])
             # get the substituted phrase embedding
             substituted_embedding = phrase_embeddings[phrase_position]
             # get a random phrase from civitai to substitute with
