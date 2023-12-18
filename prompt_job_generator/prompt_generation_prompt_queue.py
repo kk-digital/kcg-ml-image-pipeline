@@ -242,15 +242,19 @@ class PromptGenerationPromptQueue:
                 print('negative')
                 print(negative_text_prompt)
                 print('##################')
-                # calculate new embeddings
-                positive_embedding, _, positive_attention_mask = clip_text_embedder.forward_return_all(positive_text_prompt)
-                negative_embedding, _, negative_attention_mask = clip_text_embedder.forward_return_all(negative_text_prompt)
+                positive_prompt_length = clip_text_embedder.compute_token_length(positive_text_prompt)
+                negative_prompt_length = clip_text_embedder.compute_token_length(negative_text_prompt)
 
-                model_type = model_name
-                prompt_score = scoring_model.predict_average_pooling(positive_embedding,
-                                                               negative_embedding,
-                                                     positive_attention_mask,
-                                                     negative_attention_mask).item()
+                if positive_prompt_length <= clip_text_embedder.max_length and negative_prompt_length <= clip_text_embedder.max_length:
+                    # calculate new embeddings
+                    positive_embedding, _, positive_attention_mask = clip_text_embedder.forward_return_all(positive_text_prompt)
+                    negative_embedding, _, negative_attention_mask = clip_text_embedder.forward_return_all(negative_text_prompt)
+
+                    model_type = model_name
+                    prompt_score = scoring_model.predict_average_pooling(positive_embedding,
+                                                                   negative_embedding,
+                                                         positive_attention_mask,
+                                                         negative_attention_mask).item()
 
             scored_prompt = ScoredPrompt(prompt_score,
                                          positive_text_prompt,
