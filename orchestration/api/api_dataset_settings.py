@@ -141,7 +141,7 @@ def get_relevance_threshold(request: Request, dataset: str):
     if dataset_config is not None and "relevance_threshold" in dataset_config:
         return {"relevance_threshold": dataset_config["relevance_threshold"]}
     else:
-        return {"relevance_threshold": ""}
+        return {"relevance_threshold": None}
 
 @router.get("/dataset/settings/get-relevance-policy")
 def get_relevance_policy(request: Request, dataset: str):
@@ -152,7 +152,7 @@ def get_relevance_policy(request: Request, dataset: str):
             "generation_policy": generation_policy
         }
     else:
-        return None
+        return {"generation_policy": None }
 
 @router.get("/dataset/settings/get-options-list-generation-policies")
 def list_generation_policies():
