@@ -255,7 +255,7 @@ def remove_single_image_from_queue(request: Request, dataset: str = Query(...), 
         cmd.remove_an_object(minio_client, bucket_name, object_to_remove)
         return {"status": "success", "message": "Image removed from queue"}
     else:
-        return {"status": "fail"}
+        return {"status": "success", "message": "Image removed from queue"}
 
 @router.delete("/ranking-queue/remove-ranking-queue-pair")
 def remove_image_pair_from_queue(request: Request, dataset: str = Query(...), policy: str = Query(...), filename: str = Query(...)):
@@ -279,7 +279,7 @@ def remove_image_pair_from_queue(request: Request, dataset: str = Query(...), po
         cmd.remove_an_object(minio_client, bucket_name, object_to_remove)
         return {"status": "success", "message": "Image pair removed from queue"}
     else:
-        return {"status": "fail"}
+        return {"status": "success", "message": "Image pair removed from queue"}
 
 
 @router.delete("/ranking-queue/remove-ranking-queue-pair-v1")
