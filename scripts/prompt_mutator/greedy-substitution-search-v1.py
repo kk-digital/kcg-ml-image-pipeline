@@ -564,17 +564,24 @@ class PromptSubstitutionGenerator:
         for i, prompt in enumerate(prompts):
             print(f"prompt {i}")
             # N Base Prompt Phrases
-            choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-            base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
+            # choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+            # base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
 
-            base_prompts = ''
+            # base_prompts = ''
 
-            for base_prompt in base_prompt_list:
-                base_prompts = base_prompts + base_prompt + ', '
+            # for base_prompt in base_prompt_list:
+            #     base_prompts = base_prompts + base_prompt + ', '
 
             # get positive and negative prompt
             positive_prompt = prompt.positive_prompt_str
             negative_prompt = prompt.negative_prompt_str
+
+            # check token_length
+            positive_token_length=self.embedder.compute_token_length(positive_prompt)
+            negative_token_length=self.embedder.compute_token_length(negative_prompt)
+
+            if positive_token_length>77 or negative_token_length>77:
+                continue
 
             # get positive and negative embeddings
             positive_embedding=self.get_prompt_embedding(positive_prompt)
