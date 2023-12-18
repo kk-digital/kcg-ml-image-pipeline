@@ -225,17 +225,14 @@ class PromptSubstitutionGenerator:
         return embedding.detach().cpu().numpy()
 
     def choose_random_phrase(self, max_token_length):
-        # Enumerate to get both the phrase and its index
-        eligible_phrases = [(index, phrase) for index, phrase in enumerate(self.phrase_list) if self.phrase_token_lengths[index] <= max_token_length]
+        phrase_token_length=max_token_length + 1
 
-        # Check if there are eligible phrases
-        if not eligible_phrases:
-            return None  # No eligible phrases within the specified length
-
-        # Randomly select a tuple (index, phrase) from the eligible ones
-        selected_index, selected_phrase = random.choice(eligible_phrases)
-
-        return selected_index, selected_phrase
+        while(phrase_token_length > max_token_length):
+            random_index=random.randrange(0, len(self.phrase_list))
+            phrase= self.phrase_list[random_index]
+            phrase_token_length=self.phrase_token_lengths[random_index]
+        
+        return random_index, phrase
 
     # function for rejection sampling with sigma scores
     def rejection_sampling_by_sigma_score(self,
@@ -265,7 +262,7 @@ class PromptSubstitutionGenerator:
             # get a random phrase from civitai to substitute with
             phrase_index, random_phrase= self.choose_random_phrase(max_token_length) 
             # get phrase string
-            substitute_phrase = self.phrase_list[phrase_index]
+            substitute_phrase = random_phrase
             # get phrase embedding by its index
             substitute_embedding = self.phrase_embeddings[phrase_index]
             # concatenate input in one array to use for inference
