@@ -225,7 +225,7 @@ class PromptSubstitutionGenerator:
         return embedding.detach().cpu().numpy()
 
     # function to get a random phrase from civitai with a max token size for substitutions
-    def choose_random_phrase(self, prompt, phrase, position, max_token_length=77):
+    def choose_random_phrase(self, prompt, position, max_token_length=77):
         prompt_token_length = max_token_length + 1 
         while(prompt_token_length > max_token_length):
             random_index=random.randrange(0, len(self.phrase_list))
@@ -261,7 +261,7 @@ class PromptSubstitutionGenerator:
             # get the substituted phrase embedding
             substituted_embedding = phrase_embeddings[phrase_position]
             # get a random phrase from civitai to substitute with
-            phrase_index, random_phrase= self.choose_random_phrase(prompt_list, substituted_phrase, phrase_position)
+            phrase_index, random_phrase= self.choose_random_phrase(prompt_list, phrase_position)
             # get phrase string
             substitute_phrase = random_phrase
             # get phrase embedding by its index
