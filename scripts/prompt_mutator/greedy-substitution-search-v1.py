@@ -146,8 +146,12 @@ class PromptSubstitutionGenerator:
         # get list of phrases
         phrase_df=pd.read_csv(csv_phrase).sort_values(by="index")
         self.phrase_list=phrase_df['phrase str'].tolist()
+        self.phrase_token_lengths=phrase_df['token size'].tolist()
         # get embeddings
         self.phrase_embeddings= self.load_phrase_embeddings()
+
+        # get dictionarry of token length by phrase to make lookup faster
+        self.phrase_token_dictionarry={phrase:self.phrase_token_lengths[index] for index, phrase in self.phrase_list}
 
         end=time.time()
         # log the loading time
@@ -220,6 +224,19 @@ class PromptSubstitutionGenerator:
 
         return embedding.detach().cpu().numpy()
 
+    def choose_random_phrase(self, max_token_length):
+        # Enumerate to get both the phrase and its index
+        eligible_phrases = [(index, phrase) for index, phrase in enumerate(self.phrase_list) if self.phrase_token_lengths[index] <= max_token_length]
+
+        # Check if there are eligible phrases
+        if not eligible_phrases:
+            return None  # No eligible phrases within the specified length
+
+        # Randomly select a tuple (index, phrase) from the eligible ones
+        selected_index, selected_phrase = random.choice(eligible_phrases)
+
+        return selected_index, selected_phrase
+
     # function for rejection sampling with sigma scores
     def rejection_sampling_by_sigma_score(self,
                                     prompt_str, 
@@ -241,14 +258,16 @@ class PromptSubstitutionGenerator:
         batch_substitution_inputs = []
         # create a substitution for each position in the prompt
         for phrase_position in range(num_phrases):
-            # get the substituted phrase
+            # get the substituted phrase token length
+            max_token_length=self.phrase_token_dictionarry[prompt_list[phrase_position]]
+            # get the substituted phrase embedding
             substituted_embedding = phrase_embeddings[phrase_position]
             # get a random phrase from civitai to substitute with
-            random_index=random.randrange(0, len(self.phrase_list))
+            phrase_index, random_phrase= self.choose_random_phrase(max_token_length) 
             # get phrase string
-            substitute_phrase = self.phrase_list[random_index]
+            substitute_phrase = self.phrase_list[phrase_index]
             # get phrase embedding by its index
-            substitute_embedding = self.phrase_embeddings[random_index]
+            substitute_embedding = self.phrase_embeddings[phrase_index]
             # concatenate input in one array to use for inference
             substitution_input = np.concatenate([prompt_embedding, substituted_embedding, substitute_embedding, [phrase_position], [prompt_score]])
             # save data in an array to use for inference and rejection sampling
