@@ -138,9 +138,44 @@ class CLIPTextEmbedder(nn.Module):
         # Get CLIP embeddings
         return self.transformer(input_ids=tokens).last_hidden_state
 
-    def forward_return_all(self, prompts: List[str], max_token_length : int):
+    def compute_token_length(self, prompts: List[str]):
+        # Tokenize the prompts
+        batch_encoding = self.tokenizer(prompts, truncation=False, max_length=self.max_length, return_length=True,
+                                        return_overflowing_tokens=False, padding="max_length", return_tensors="pt")
 
-        exceeded_token_length = False
+        # Check if any tokenized input exceeds the maximum length
+        input_ids = batch_encoding['input_ids']
+        # Numer of elements in array
+        num_tokens = input_ids.numel()
+
+        return num_tokens
+
+    def tokenize(self, prompts: List[str], max_token_length : int):
+        # Tokenize the prompts
+        batch_encoding = self.tokenizer(prompts, truncation=False, max_length=self.max_length, return_length=True,
+                                        return_overflowing_tokens=False, padding="max_length", return_tensors="pt")
+
+        # Check if any tokenized input exceeds the maximum length
+        input_ids = batch_encoding['input_ids']
+        # Numer of elements in array
+        num_tokens = input_ids.numel()
+
+        assert num_tokens <= max_token_length, f"Token length {num_tokens} exceeds maximum {max_token_length}\nprompt : {prompts}"
+
+        return batch_encoding
+
+    def compute_embeddings(self, batch_encoding):
+        # Get token ids and move to device
+        tokens = batch_encoding["input_ids"].to(self.device)
+
+        self.transformer = self.transformer.to(self.device)
+
+        # Get CLIP embeddings
+        clip_output = self.transformer(input_ids=tokens)
+
+        return clip_output.last_hidden_state, clip_output.pooler_output, batch_encoding['attention_mask'].to(self.device)
+
+    def forward_return_all(self, prompts: List[str], max_token_length : int):
         """
         :param prompts: are the list of prompts to embed
         """
@@ -153,8 +188,7 @@ class CLIPTextEmbedder(nn.Module):
         # Numer of elements in array
         num_tokens = input_ids.numel()
 
-        if num_tokens > max_token_length:
-            exceeded_token_length = True
+        assert num_tokens <= max_token_length, f"Token length {num_tokens} exceeds maximum {max_token_length}\nprompt : {prompts}"
 
         # Get token ids and move to device
         tokens = batch_encoding["input_ids"].to(self.device)
@@ -164,4 +198,4 @@ class CLIPTextEmbedder(nn.Module):
         # Get CLIP embeddings
         clip_output = self.transformer(input_ids=tokens)
         
-        return clip_output.last_hidden_state, clip_output.pooler_output, batch_encoding['attention_mask'].to(self.device), exceeded_token_length
+        return clip_output.last_hidden_state, clip_output.pooler_output, batch_encoding['attention_mask'].to(self.device)
