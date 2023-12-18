@@ -263,7 +263,8 @@ class PromptSubstitutionGenerator:
             # get the substituted phrase embedding
             substituted_embedding = phrase_embeddings[phrase_position]
             # get a random phrase from civitai to substitute with
-            phrase_index, random_phrase= self.choose_random_phrase(max_token_length) 
+            phrase_index, random_phrase= self.choose_random_phrase(max_token_length)
+            print(substitute_phrase, random_phrase) 
             # get phrase string
             substitute_phrase = random_phrase
             # get phrase embedding by its index
