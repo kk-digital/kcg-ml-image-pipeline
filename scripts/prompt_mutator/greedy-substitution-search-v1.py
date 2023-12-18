@@ -143,15 +143,15 @@ class PromptSubstitutionGenerator:
         if(store_embeddings):
             self.store_phrase_embeddings()
         
-        # get list of phrases
+        # get list of phrases and their token lengths
         phrase_df=pd.read_csv(csv_phrase).sort_values(by="index")
         self.phrase_list=phrase_df['phrase str'].tolist()
         self.phrase_token_lengths=phrase_df['token size'].tolist()
         # get embeddings
         self.phrase_embeddings= self.load_phrase_embeddings()
 
-        # get dictionarry of token length by phrase to make lookup faster
-        self.phrase_token_dictionarry={phrase:self.phrase_token_lengths[index] for index, phrase in self.phrase_list}
+        # get dictionarry of token length by phrase to get token length from a phrase
+        self.phrase_token_dictionarry={phrase:self.phrase_token_lengths[index] for index, phrase in enumerate(self.phrase_list)}
 
         end=time.time()
         # log the loading time
