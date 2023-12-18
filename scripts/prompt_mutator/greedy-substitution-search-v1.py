@@ -571,23 +571,24 @@ class PromptSubstitutionGenerator:
     # function to generate initial prompts
     def generate_initial_prompts(self, num_prompts):
         # get base prompts and generate initial prompts before mutation
-        # base_prompt_population = load_base_prompts(self.csv_base_prompts)
-        prompts = generate_prompts_from_csv_proportional_selection(self.csv_phrase,
-                                                               int(num_prompts / self.top_k))
+        base_prompt_population = load_base_prompts(self.csv_base_prompts)
+        # N Base Prompt Phrases
+        choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+        base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
+
+        base_prompts = ''
+
+        for base_prompt in base_prompt_list:    
+            base_prompts = base_prompts + base_prompt + ', '
+            
+        prompts = generate_prompts_from_csv_proportional_selection(csv_dataset_path=self.csv_phrase,
+                                                               prompt_count=int(num_prompts / self.top_k),
+                                                               positive_prefix=base_prompts)
         prompt_data=[]
         # add base prompts and calculate scores
         print("---------scoring prompts")
         for i, prompt in enumerate(prompts):
             print(f"prompt {i}")
-            # N Base Prompt Phrases
-            # choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-            # base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
-
-            # base_prompts = ''
-
-            # # for base_prompt in base_prompt_list:
-            # for base_prompt in base_prompt_list:    
-            #     base_prompts = base_prompts + base_prompt + ', '
 
             # get positive and negative prompt
             positive_prompt = prompt.positive_prompt_str
