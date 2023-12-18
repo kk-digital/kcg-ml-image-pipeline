@@ -312,7 +312,7 @@ def list_ranking_files_sort_by_residual(request: Request, dataset: str,
     model_residuals = list(model_residuals)
 
     if len(model_residuals) == 0:
-        print("Image rank residuals data not found")
+        raise HTTPException(status_code=404, detail="Image rank residuals data not found")
     # use concurrency
     # read json files and put selected hash in a dict
     json_files_selected_hash_dict = {}
