@@ -254,7 +254,8 @@ def generate_delta_scores_graph(minio_client,
     embedding_sigma_scores_data = []
     for img_hash, clip_sigma_score in clip_hash_sigma_score_dict.items():
         clip_sigma_scores_data.append(clip_sigma_score)
-        embedding_sigma_scores_data.append(embedding_hash_sigma_score_dict[img_hash])
+        if img_hash in embedding_hash_sigma_score_dict:
+            embedding_sigma_scores_data.append(embedding_hash_sigma_score_dict[img_hash])
 
     # clip sigma scores hist
     clip_sigma_scores_hist.set_xlabel("Clip Sigma Score")
@@ -326,8 +327,8 @@ def generate_delta_scores_graph(minio_client,
     buf.seek(0)
 
     # upload the graph report
-    clip_model_name = clip_model_name.replace(".pth", "")
-    embedding_model_name = embedding_model_name.replace(".pth", "")
+    clip_model_name = clip_model_name.replace(".safetensors", "")
+    embedding_model_name = embedding_model_name.replace(".safetensors", "")
     filename = "{}-{}-delta-scores.png".format(clip_model_name, embedding_model_name)
     graph_output = os.path.join(dataset, "output/delta-scores-graph", filename)
     cmd.upload_data(minio_client, 'datasets', graph_output, buf)
