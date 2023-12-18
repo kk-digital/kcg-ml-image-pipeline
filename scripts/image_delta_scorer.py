@@ -106,6 +106,11 @@ def get_csv_row_data(index,
     if "negative_prompt" in job["task_input_dict"]:
         negative_prompt = job["task_input_dict"]["negative_prompt"]
 
+    if img_hash not in embedding_hash_score_dict:
+        return None, index
+    if img_hash not in clip_hash_sigma_score_dict:
+        return None, index
+
     embedding_score = embedding_hash_score_dict[img_hash]
     clip_sigma_score = clip_hash_sigma_score_dict[img_hash]
     embedding_sigma_score = embedding_hash_sigma_score_dict[img_hash]
@@ -146,6 +151,9 @@ def get_delta_score_csv_data(clip_hash_score_dict,
 
         for future in tqdm(as_completed(futures), total=len(futures)):
             row, index = future.result()
+            if row is None:
+                continue
+
             csv_data[index] = row
 
     cleaned_csv_data = []
