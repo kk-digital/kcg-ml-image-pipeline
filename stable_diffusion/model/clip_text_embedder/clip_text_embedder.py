@@ -176,6 +176,8 @@ class CLIPTextEmbedder(nn.Module):
 
         return clip_output.last_hidden_state, clip_output.pooler_output, batch_encoding['attention_mask'].to(self.device)
 
+    # NOTE(): deprecated
+    # TODO(): Remove this
     def forward_return_all(self, prompts: List[str], max_token_length : int = MAX_LENGTH):
         """
         :param prompts: are the list of prompts to embed
@@ -188,7 +190,6 @@ class CLIPTextEmbedder(nn.Module):
         input_ids =  batch_encoding['input_ids']
         # Numer of elements in array
         num_tokens = input_ids.numel()
-
 
         assert num_tokens <= max_token_length, f"Token length {num_tokens} exceeds maximum {max_token_length}\nprompt : {prompts}"
 
