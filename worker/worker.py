@@ -60,6 +60,8 @@ def run_image_generation_task(worker_state, generation_task):
     random.seed(time.time())
     seed = random.randint(0, 2 ** 24 - 1)
 
+    generation_task.task_input_dict["seed"] = seed
+
     output_file_path, output_file_hash, img_data = generate_image_from_text(
         worker_state.minio_client,
         worker_state.txt2img,
