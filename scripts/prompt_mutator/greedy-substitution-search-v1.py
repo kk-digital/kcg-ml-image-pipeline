@@ -247,7 +247,6 @@ class PromptSubstitutionGenerator:
                                     phrase_embeddings):
 
         # get number of phrases
-        print(prompt_str)
         prompt_list = prompt_str.split(', ')
         num_phrases= len(prompt_list)
         # list of potential substitution choices for current iteration
@@ -265,7 +264,6 @@ class PromptSubstitutionGenerator:
             substituted_phrase=prompt_list[phrase_position]
             # get the substituted phrase token length
             max_token_length= len(self.token_encoder.encode(substituted_phrase))
-            print(substituted_phrase, max_token_length)
             # get the substituted phrase embedding
             substituted_embedding = phrase_embeddings[phrase_position]
             # get a random phrase from civitai to substitute with
@@ -505,6 +503,8 @@ class PromptSubstitutionGenerator:
             mutated_scores.append(sigma_score)
 
             print(f"prompt {index} mutated.")
+            print(f"prompt str before mutation: {positive_prompt}")
+            print(f"prompt str after mutation: {mutated_positive_prompt}")
             print(f"----initial score: {seed_score}.")
             print(f"----final score: {score}.")
 
@@ -584,7 +584,7 @@ class PromptSubstitutionGenerator:
         choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
         base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
 
-        base_prompts = (", ").join(base_prompt_list)
+        base_prompts = ", ".join(base_prompt_list)
 
         prompts = generate_prompts_from_csv_proportional_selection(csv_dataset_path=self.csv_phrase,
                                                                prompt_count=int(num_prompts / self.top_k),
