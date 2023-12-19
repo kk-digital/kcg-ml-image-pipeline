@@ -258,6 +258,7 @@ class PromptSubstitutionGenerator:
         for phrase_position in range(num_phrases):
             # get the substituted phrase
             substituted_phrase=prompt_list[phrase_position]
+            print(substituted_phrase)
             # get the substituted phrase token length
             max_token_length=self.phrase_token_dictionarry[substituted_phrase]
             # get the substituted phrase embedding
