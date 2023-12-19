@@ -141,6 +141,7 @@ def startup_db_client():
 
     # active learning
     app.active_learning_policies_collection = app.mongodb_db["active-learning-policies"]
+    app.active_learning_queue_pairs_collection = app.mongodb_db["queue-pairs"]
 
     scores_index=[
     ('model_id', pymongo.ASCENDING), 
