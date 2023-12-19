@@ -343,6 +343,7 @@ def generate_prompts_from_csv_proportional_selection(csv_dataset_path,
 
 
 def generate_prompts_from_csv_with_base_prompt_prefix(csv_dataset_path,
+                                                     csv_base_prompts_path,
                                                      prompt_count,
                                                      csv_phrase_limit=0):
     generated_prompts = []
@@ -379,7 +380,7 @@ def generate_prompts_from_csv_with_base_prompt_prefix(csv_dataset_path,
     print("Generating {} prompts...".format(prompt_count))
     for i in tqdm(range(0, prompt_count)):
         # generating base prompts to add as prefix to the generated prompt
-        base_prompt_population = load_base_prompts(csv_dataset_path)
+        base_prompt_population = load_base_prompts(csv_base_prompts_path)
         choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
         base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
         base_prompts = ", ".join(base_prompt_list)
