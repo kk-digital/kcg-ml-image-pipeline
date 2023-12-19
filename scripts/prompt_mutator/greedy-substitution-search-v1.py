@@ -51,7 +51,7 @@ def parse_args():
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
     parser.add_argument(
         '--csv_base_prompts', help='CSV containing base prompts', 
-        default='input/base-prompts/environmental.csv'
+        default='input/dataset-config/environmental/base-prompts-environmental.csv'
     )
 
     return parser.parse_args()
