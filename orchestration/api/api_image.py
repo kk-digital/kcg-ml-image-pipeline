@@ -26,7 +26,7 @@ def get_random_image(request: Request, dataset: str = Query(...)):  # Remove the
 
     # Ensure the list isn't empty (this is just a safety check)
     if not documents:
-        return None
+        return {"image": None}
 
     # Remove the auto generated _id field from the document
     documents[0].pop('_id', None)
@@ -42,7 +42,7 @@ def get_image_details(request: Request, image_path: str = Query(...)):
     )
 
     if document is None:
-        return None
+        return {"image_details": None}
         
     # Remove the auto-generated _id field from the document
     document.pop('_id', None)
@@ -413,4 +413,5 @@ def list_prompt_generation_policies():
             "top-k", 
             "proportional-sampling-top-k", 
             "independent_approx_v1", 
-            "independent-approx-v1-top-k"]
+            "independent-approx-v1-top-k",
+            "independent-approx-substitution-search-v1"]
