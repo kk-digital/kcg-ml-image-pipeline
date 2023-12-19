@@ -16,12 +16,9 @@ import json
 
 router = APIRouter()
 
-
-
-@router.post("/active-learning-queue/add-queue-pair")
+@router.post("/active-learning-queue/add-queue-pair-mongo")
 def add_queue_pair(request: Request, queue_pair: ActiveLearningQueuePair):
-    # Extract job details for both UUIDs
-    def extract_job_details(job_uuid):
+    def extract_job_details(job_uuid, suffix):
         job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
         if not job:
             raise HTTPException(status_code=422, detail=f"Job {job_uuid} not found")
@@ -33,26 +30,108 @@ def add_queue_pair(request: Request, queue_pair: ActiveLearningQueuePair):
             raise HTTPException(status_code=500, detail="Invalid output file path format")
 
         return {
-            "job_uuid": job_uuid,
-            "file_name": path_parts[-1],
-            "image_path": output_file_path,
-            "image_hash": job["task_output_file_dict"]["output_file_hash"],
-            "job_creation_time": task_creation_time,
+            f"job_uuid_{suffix}": job_uuid,
+            f"file_name_{suffix}": path_parts[-1],
+            f"image_path_{suffix}": output_file_path,
+            f"image_hash_{suffix}": job["task_output_file_dict"]["output_file_hash"],
+            f"job_creation_time_{suffix}": task_creation_time,
         }
 
-    job_details_1 = extract_job_details(queue_pair.image1_job_uuid)
-    job_details_2 = extract_job_details(queue_pair.image2_job_uuid)
-
-    if not job_details_1 or not job_details_2:
-        return False
-    
-    creation_date_1 = datetime.fromisoformat(job_details_1["job_creation_time"]).strftime("%Y-%m-%d")
-    creation_date_2 = datetime.fromisoformat(job_details_2["job_creation_time"]).strftime("%Y-%m-%d")
+    job_details_1 = extract_job_details(queue_pair.image1_job_uuid, "1")
+    job_details_2 = extract_job_details(queue_pair.image2_job_uuid, "2")
 
     combined_job_details = {
         "active_learning_policy_id": queue_pair.active_learning_policy_id,
         "active_learning_policy": queue_pair.active_learning_policy,
-        "dataset_name": job_details_1['image_path'].split('/')[1],
+        "dataset_name": job_details_1['image_path_1'].split('/')[1],
+        "metadata": queue_pair.metadata,
+        "generator_string": queue_pair.generator_string,
+        "creation_time": datetime.utcnow().isoformat() if not queue_pair.creation_time else queue_pair.creation_time,
+        "images": [
+            {
+                "job_uuid_1": job_details_1["job_uuid_1"],
+                "file_name_1": job_details_1["file_name_1"],
+                "image_path_1": job_details_1["image_path_1"],
+                "image_hash_1": job_details_1["image_hash_1"],
+                "job_creation_time_1": job_details_1["job_creation_time_1"],
+            },
+            {
+                "job_uuid_2": job_details_2["job_uuid_2"],
+                "file_name_2": job_details_2["file_name_2"],
+                "image_path_2": job_details_2["image_path_2"],
+                "image_hash_2": job_details_2["image_hash_2"],
+                "job_creation_time_2": job_details_2["job_creation_time_2"],
+            }
+        ]
+    }
+
+    # Insert the combined job details into MongoDB collection
+    request.app.active_learning_queue_pairs_collection.insert_one(combined_job_details)
+
+    return {"status": "success", "message": "Queue pair added successfully to MongoDB"}
+
+@router.get("/active-learning-queue/list-queue-pairs", response_class=PrettyJSONResponse)
+def list_queue_pairs(request: Request, limit: int = 10, offset: int = 0) -> List[dict]:
+    queue_pairs_cursor = request.app.active_learning_queue_pairs_collection.find().skip(offset).limit(limit)
+    
+    # Convert the cursor to a list of dictionaries and drop the _id field
+    queue_pairs = []
+    for pair in queue_pairs_cursor:
+        # Drop the _id field from the response
+        pair.pop('_id', None)
+        queue_pairs.append(pair)
+
+    # Directly return the list of modified dictionaries
+    return queue_pairs
+
+@router.delete("/active-learning-queue/delete-all-queue-pairs")
+def delete_all_queue_pairs(request: Request):
+    # Delete all documents in the collection
+    result = request.app.active_learning_queue_pairs_collection.delete_many({})
+
+    # Check if documents were deleted
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="No documents found to delete")
+
+    return {"status": "success", "message": f"Deleted {result.deleted_count} queue pair(s) from MongoDB"}
+
+
+
+@router.post("/active-learning-queue/add-queue-pair")
+def add_queue_pair(request: Request, queue_pair: ActiveLearningQueuePair):
+    # Extract job details for both UUIDs
+    def extract_job_details(job_uuid, suffix):
+        job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
+        if not job:
+            raise HTTPException(status_code=422, detail=f"Job {job_uuid} not found")
+
+        output_file_path = job["task_output_file_dict"]["output_file_path"]
+        task_creation_time = job["task_creation_time"]
+        path_parts = output_file_path.split('/')
+        if len(path_parts) < 4:
+            raise HTTPException(status_code=500, detail="Invalid output file path format")
+
+        return {
+            f"job_uuid_{suffix}": job_uuid,
+            f"file_name_{suffix}": path_parts[-1],
+            f"image_path_{suffix}": output_file_path,
+            f"image_hash_{suffix}": job["task_output_file_dict"]["output_file_hash"],
+            f"job_creation_time_{suffix}": task_creation_time,
+        }
+
+    job_details_1 = extract_job_details(queue_pair.image1_job_uuid, "1")
+    job_details_2 = extract_job_details(queue_pair.image2_job_uuid, "2")
+
+    if not job_details_1 or not job_details_2:
+        return False
+    
+    creation_date_1 = datetime.fromisoformat(job_details_1["job_creation_time_1"]).strftime("%Y-%m-%d")
+    creation_date_2 = datetime.fromisoformat(job_details_2["job_creation_time_2"]).strftime("%Y-%m-%d")
+
+    combined_job_details = {
+        "active_learning_policy_id": queue_pair.active_learning_policy_id,
+        "active_learning_policy": queue_pair.active_learning_policy,
+        "dataset_name": job_details_1['image_path_1'].split('/')[1],
         "metadata": queue_pair.metadata,
         "generator_string": queue_pair.generator_string,
         "creation_time": datetime.utcnow().isoformat() if not queue_pair.creation_time else queue_pair.creation_time,
@@ -63,8 +142,8 @@ def add_queue_pair(request: Request, queue_pair: ActiveLearningQueuePair):
     data = BytesIO(json_data)
 
     # Define the path for the JSON file
-    base_file_name_1 = job_details_1['file_name'].split('.')[0]
-    base_file_name_2 = job_details_2['file_name'].split('.')[0]
+    base_file_name_1 = job_details_1['file_name_1'].split('.')[0]
+    base_file_name_2 = job_details_2['file_name_2'].split('.')[0]
     json_file_name = f"{creation_date_1}_{base_file_name_1}_and_{creation_date_2}_{base_file_name_2}.json"
     full_path = f"{combined_job_details['dataset_name']}/ranking-queue-pair/{queue_pair.active_learning_policy}/{json_file_name}"
 
