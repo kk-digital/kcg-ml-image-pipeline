@@ -587,7 +587,7 @@ class PromptSubstitutionGenerator:
     def generate_initial_prompts(self, num_prompts): 
         # N Base Prompt Phrases
         base_prompt_population = load_base_prompts(self.csv_base_prompts)
-        choose_probability = [0.1 for i in range(7)]
+        choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
         base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
 
         base_prompts = ", ".join(base_prompt_list)
