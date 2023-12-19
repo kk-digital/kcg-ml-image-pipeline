@@ -237,7 +237,7 @@ class PromptSubstitutionGenerator:
             phrase= self.phrase_list[random_index]
             phrase_token_length=self.phrase_token_lengths[random_index]
         
-        return random_index, phrase, phrase_token_length
+        return random_index, phrase
 
     # function for rejection sampling with sigma scores
     def rejection_sampling_by_sigma_score(self,
