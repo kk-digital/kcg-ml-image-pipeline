@@ -151,6 +151,9 @@ class PromptSubstitutionGenerator:
         # get embeddings
         self.phrase_embeddings= self.load_phrase_embeddings()
 
+        # tiktoken encoder for checking token length
+        self.token_encoder = tiktoken.get_encoding("cl100k_base")
+
         # get dictionarry of token length by phrase to get token length from a phrase
         self.phrase_token_dictionarry={phrase:self.phrase_token_lengths[index] for index, phrase in enumerate(self.phrase_list)}
 
@@ -254,16 +257,13 @@ class PromptSubstitutionGenerator:
         sampled_phrases = []
         sampled_embeddings = []
 
-        # tiktoken encoder for checking token length
-        enc = tiktoken.get_encoding("cl100k_base")
-
         batch_substitution_inputs = []
         # create a substitution for each position in the prompt
         for phrase_position in range(num_phrases):
             # get the substituted phrase
             substituted_phrase=prompt_list[phrase_position]
             # get the substituted phrase token length
-            max_token_length= len(enc.encode(substituted_phrase))
+            max_token_length= len(self.token_encoder.encode(substituted_phrase))
             # get the substituted phrase embedding
             substituted_embedding = phrase_embeddings[phrase_position]
             # get a random phrase from civitai to substitute with
