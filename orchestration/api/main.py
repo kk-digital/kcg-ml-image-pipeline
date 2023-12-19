@@ -139,6 +139,9 @@ def startup_db_client():
     # scores
     app.image_scores_collection = app.mongodb_db["image-scores"]
 
+    # active learning
+    app.active_learning_policies_collection = app.mongodb_db["active-learning-policies"]
+
     scores_index=[
     ('model_id', pymongo.ASCENDING), 
     ('score', pymongo.ASCENDING)
