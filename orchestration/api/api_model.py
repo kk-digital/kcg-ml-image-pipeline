@@ -304,7 +304,7 @@ def get_model_id(request: Request, model_hash: str):
     query = {"model_file_hash": model_hash}
     item = request.app.models_collection.find_one(query)
     if item is None:
-        print("Model not found")
+        return None
 
     return item["model_id"]
 
