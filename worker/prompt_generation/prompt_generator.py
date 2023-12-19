@@ -347,7 +347,7 @@ def generate_prompts_from_csv_with_base_prompt_prefix(csv_dataset_path,
                                                      prompt_count,
                                                      csv_phrase_limit=0):
     generated_prompts = []
-    max_token_size = 77
+    max_token_size = 75
     comma_token_size = 1
 
     phrases, \
