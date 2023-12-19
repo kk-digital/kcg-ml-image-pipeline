@@ -10,6 +10,7 @@ from xmlrpc.client import ResponseError
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
+import tiktoken
 import torch
 import msgpack
 
@@ -253,14 +254,16 @@ class PromptSubstitutionGenerator:
         sampled_phrases = []
         sampled_embeddings = []
 
+        # tiktoken encoder for checking token length
+        enc = tiktoken.get_encoding("cl100k_base")
+
         batch_substitution_inputs = []
         # create a substitution for each position in the prompt
         for phrase_position in range(num_phrases):
             # get the substituted phrase
             substituted_phrase=prompt_list[phrase_position]
-            print(substituted_phrase)
             # get the substituted phrase token length
-            max_token_length=self.phrase_token_dictionarry[substituted_phrase]
+            max_token_length= len(enc.encode(substituted_phrase))
             # get the substituted phrase embedding
             substituted_embedding = phrase_embeddings[phrase_position]
             # get a random phrase from civitai to substitute with
@@ -575,14 +578,14 @@ class PromptSubstitutionGenerator:
     # function to generate initial prompts
     def generate_initial_prompts(self, num_prompts): 
         # N Base Prompt Phrases
-        base_prompt_population = load_base_prompts(self.csv_base_prompts)
-        choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-        base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
+        # base_prompt_population = load_base_prompts(self.csv_base_prompts)
+        # choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+        # base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
 
-        base_prompts = ''
+        # base_prompts = ''
 
-        for base_prompt in base_prompt_list:
-            base_prompts = base_prompts + base_prompt + ', '
+        # for base_prompt in base_prompt_list:
+        #     base_prompts = base_prompts + base_prompt + ', '
 
         prompts = generate_prompts_from_csv_proportional_selection(csv_dataset_path=self.csv_phrase,
                                                                prompt_count=int(num_prompts / self.top_k),
