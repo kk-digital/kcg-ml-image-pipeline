@@ -237,11 +237,12 @@ class PromptSubstitutionGenerator:
             phrase= self.phrase_list[random_index]
             phrase_token_length=self.phrase_token_lengths[random_index]
         
-        return random_index, phrase
+        return random_index, phrase, phrase_token_length
 
     # function for rejection sampling with sigma scores
     def rejection_sampling_by_sigma_score(self,
-                                    prompt_str, 
+                                    prompt_str,
+                                    prompt_token_length, 
                                     prompt_score, 
                                     prompt_embedding, 
                                     phrase_embeddings):
@@ -263,7 +264,9 @@ class PromptSubstitutionGenerator:
             # get the substituted phrase
             substituted_phrase=prompt_list[phrase_position]
             # get the substituted phrase token length
-            max_token_length= len(self.token_encoder.encode(substituted_phrase))
+            substituted_phrase_length=len(self.token_encoder.encode(substituted_phrase))
+            # get the substituted phrase token length
+            max_token_length= 77 - (prompt_token_length - substituted_phrase_length)
             # get the substituted phrase embedding
             substituted_embedding = phrase_embeddings[phrase_position]
             # get a random phrase from civitai to substitute with
@@ -382,13 +385,16 @@ class PromptSubstitutionGenerator:
         
         # run mutation process for a set number of iterations
         for i in range(self.max_iterations):
-            # get pooled embedding of the prompt
+            # get pooled embedding of the current prompt
             pooled_prompt_embedding=self.get_mean_pooled_embedding(prompt_embedding)
-            
+            # get token length of the current prompt
+            prompt_token_length=self.embedder.compute_token_length(prompt_str)
+
             start= time.time()
             # return a list of potential substitution choices, filtered by the rejection policy
             substitution_choices=rejection_func(
                                                 prompt_str,
+                                                prompt_token_length,
                                                 prompt_score,
                                                 pooled_prompt_embedding, 
                                                 phrase_embeddings)
