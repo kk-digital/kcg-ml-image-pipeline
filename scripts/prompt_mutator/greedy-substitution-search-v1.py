@@ -578,14 +578,14 @@ class PromptSubstitutionGenerator:
     # function to generate initial prompts
     def generate_initial_prompts(self, num_prompts): 
         # N Base Prompt Phrases
-        # base_prompt_population = load_base_prompts(self.csv_base_prompts)
-        # choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-        # base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
+        base_prompt_population = load_base_prompts(self.csv_base_prompts)
+        choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+        base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
 
-        # base_prompts = ''
+        base_prompts = ''
 
-        # for base_prompt in base_prompt_list:
-        #     base_prompts = base_prompts + base_prompt + ', '
+        for base_prompt in base_prompt_list:
+            base_prompts = base_prompts + base_prompt + ', '
 
         prompts = generate_prompts_from_csv_proportional_selection(csv_dataset_path=self.csv_phrase,
                                                                prompt_count=int(num_prompts / self.top_k),
