@@ -247,7 +247,7 @@ class PromptSubstitutionGenerator:
                                     phrase_embeddings):
 
         # get number of phrases
-        print(prompt_list)
+        print(prompt_str)
         prompt_list = prompt_str.split(', ')
         num_phrases= len(prompt_list)
         # list of potential substitution choices for current iteration
