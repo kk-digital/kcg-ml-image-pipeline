@@ -584,10 +584,7 @@ class PromptSubstitutionGenerator:
         choose_probability = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
         base_prompt_list = generate_base_prompts(base_prompt_population, choose_probability)
 
-        base_prompts = ''
-
-        for base_prompt in base_prompt_list:
-            base_prompts = base_prompts + base_prompt + ', '
+        base_prompts = (", ").join(base_prompt_list)
 
         prompts = generate_prompts_from_csv_proportional_selection(csv_dataset_path=self.csv_phrase,
                                                                prompt_count=int(num_prompts / self.top_k),
