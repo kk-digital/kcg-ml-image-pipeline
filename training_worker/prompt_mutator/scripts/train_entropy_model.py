@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import random
 import msgpack
+import tiktoken
 import torch
 
 base_directory = "./"
@@ -77,6 +78,14 @@ class EntropyDatasetLoader:
 
         # get ensemble elm models
         self.ensemble_models=self.get_ensemble_models()
+
+        # get list of phrases and their token lengths
+        phrase_df=pd.read_csv(csv_phrase).sort_values(by="index")
+        self.phrase_list=phrase_df['phrase str'].tolist()
+        self.phrase_token_lengths=phrase_df['token size'].tolist()
+
+        # tiktoken encoder for checking token length
+        self.token_encoder = tiktoken.get_encoding("cl100k_base")
 
     def get_ensemble_models(self):
         input_path = "environmental/models/ranking/"
@@ -199,9 +208,18 @@ class EntropyDatasetLoader:
 
         return entropy, variance, mean
 
+    # function to get a random phrase from civitai with a max token size for substitutions
+    def choose_random_phrase(self, max_token_length):
+        phrase_token_length=max_token_length + 1
+
+        while(phrase_token_length > max_token_length):
+            random_index=random.randrange(0, len(self.phrase_list))
+            phrase= self.phrase_list[random_index]
+            phrase_token_length=self.phrase_token_lengths[random_index]
+        
+        return phrase
+
     def create_substitution_dataset(self):
-        # get dataset of phrases
-        phrases_df = pd.read_csv(self.csv_phrase)
         # get minio paths for embedding
         embedding_paths = self.get_embedding_paths("environmental")
 
@@ -222,22 +240,32 @@ class EntropyDatasetLoader:
 
             # get prompt embedding 
             prompt_str=msgpack_data[f'{self.embedding_type}_prompt']
+            token_length=self.embedder.compute_token_length(prompt_str)
+
+            if token_length > 77:
+                continue
+
             prompt_embedding= list(msgpack_data[f'{self.embedding_type}_embedding'].values())
             prompt_embedding = torch.tensor(np.array(prompt_embedding)).float()
             prompt_embedding=prompt_embedding.to(self.device)
-
-            #Randomly select a phrase from the dataset and get an embedding
-            substitute_phrase = random.choice(phrases_df['phrase str'].tolist())
-            substitute_embedding= self.get_prompt_embedding(substitute_phrase)
             
             prompt_list = prompt_str.split(', ')
+
             # Choose a random position to substitute in the prompt
             position_to_substitute = random.randint(0, len(prompt_list) - 1)
+            # get the substituted phrase
+            substituted_phrase=prompt_list[position_to_substitute]
+            # gezt the embedding of the substituted phrase
+            substituted_embedding= self.get_prompt_embedding(substituted_phrase)
+            # get the substituted phrase token length
+            substituted_phrase_length=len(self.token_encoder.encode(substituted_phrase))
+            # get the max accepted phrase token length for substitute phrase
+            max_token_length= 77 - (token_length - substituted_phrase_length)
+            # get a random phrase from civitai to substitute with
+            substitute_phrase= self.choose_random_phrase(max_token_length) 
+            substitute_embedding= self.get_prompt_embedding(substitute_phrase)
 
             # Create a modified prompt with the substitution and get embedding of substituted phrase
-            substituted_phrase=prompt_list[position_to_substitute]
-            substituted_embedding= self.get_prompt_embedding(substituted_phrase)
-
             prompt_list[position_to_substitute] = substitute_phrase
             modified_prompt = ", ".join(prompt_list)
 
