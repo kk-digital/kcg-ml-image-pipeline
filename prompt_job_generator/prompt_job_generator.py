@@ -382,8 +382,10 @@ def main():
     prompt_job_generator_state.load_prompt_list_from_csv(csv_dataset_path, csv_phrase_limit)
 
     # Adding dataset masks
-    prompt_job_generator_state.add_dataset_mask("icons", "./test/test_inpainting/white_512x512.jpg", "./test/test_inpainting/icon_mask.png")
-    prompt_job_generator_state.add_dataset_mask("character", "./test/test_inpainting/white_512x512.jpg", "./test/test_inpainting/character_mask.png")
+    prompt_job_generator_state.add_dataset_mask("icons", "./test/test_inpainting/white_512x512.jpg",
+                                                "./test/test_inpainting/icon_mask.png")
+    prompt_job_generator_state.add_dataset_mask("character", "./test/test_inpainting/white_512x512.jpg",
+                                                "./test/test_inpainting/character_mask.png")
 
     mech_masks = find_png_files('./input/mask/mech')
     for mask in mech_masks:
