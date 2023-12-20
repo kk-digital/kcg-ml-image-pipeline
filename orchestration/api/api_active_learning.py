@@ -121,6 +121,13 @@ def delete_queue_pair(request: Request, id: str):
     return {"status": "success", "message": f"Deleted queue pair with _id: {id} from MongoDB"}
 
 
+@router.get("/active-learning-queue/count-queue-pairs")
+def count_queue_pairs(request: Request):
+    # Count the documents in the collection
+    count = request.app.active_learning_queue_pairs_collection.count_documents({})
+
+    # Return the count in a JSON response
+    return count
 
 
 # API's for Minio
