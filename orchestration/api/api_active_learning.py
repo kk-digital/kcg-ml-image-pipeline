@@ -12,11 +12,12 @@ from pymongo.collection import Collection
 from datetime import datetime, timezone
 from typing import List
 from io import BytesIO
+from bson import ObjectId
 import json
 
 router = APIRouter()
 
-@router.post("/active-learning-queue/add-queue-pair-in-mongo")
+@router.post("/active-learning-queue/add-queue-pair-to-mongo")
 def add_queue_pair(request: Request, queue_pair: ActiveLearningQueuePair):
     def extract_job_details(job_uuid, suffix):
         job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
@@ -91,26 +92,35 @@ def random_queue_pair(request: Request, size: int = 1) -> List[dict]:
         {"$sample": {"size": size}}
     ])
 
-    # Convert the cursor to a list of dictionaries and drop the _id field
+    # Convert the cursor to a list of dictionaries
     random_pairs = []
     for pair in random_pairs_cursor:
-        # Drop the _id field from the response
-        pair.pop('_id', None)
+        # Convert _id ObjectId to string
+        pair['_id'] = str(pair['_id'])
         random_pairs.append(pair)
 
     # Directly return the list of modified dictionaries
     return random_pairs
 
-@router.delete("/active-learning-queue/delete-all-queue-pairs-from-mongo")
-def delete_all_queue_pairs(request: Request):
-    # Delete all documents in the collection
-    result = request.app.active_learning_queue_pairs_collection.delete_many({})
 
-    # Check if documents were deleted
+@router.delete("/active-learning-queue/delete-queue-pair-from-mongo")
+def delete_queue_pair(request: Request, id: str):
+    # Convert the string ID to ObjectId
+    try:
+        obj_id = ObjectId(id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid ObjectId format")
+
+    # Delete the document with the specified _id
+    result = request.app.active_learning_queue_pairs_collection.delete_one({"_id": obj_id})
+
+    # Check if a document was deleted
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="No documents found to delete")
+        raise HTTPException(status_code=404, detail="Document not found")
 
-    return {"status": "success", "message": f"Deleted {result.deleted_count} queue pair(s) from MongoDB"}
+    return {"status": "success", "message": f"Deleted queue pair with _id: {id} from MongoDB"}
+
+
 
 
 # API's for Minio
