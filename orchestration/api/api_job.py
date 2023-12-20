@@ -262,7 +262,7 @@ def update_job_completed(request: Request, task: Task):
     # check if exist
     job = request.app.in_progress_jobs_collection.find_one({"uuid": task.uuid})
     if job is None:
-        print(f"Job not found.")
+        return False
     
     # add to completed
     request.app.completed_jobs_collection.insert_one(task.to_dict())
@@ -278,7 +278,7 @@ def update_job_failed(request: Request, task: Task):
     # check if exist
     job = request.app.in_progress_jobs_collection.find_one({"uuid": task.uuid})
     if job is None:
-        print(f"Job not found.")
+        return False
 
     # add to failed
     request.app.failed_jobs_collection.insert_one(task.to_dict())
@@ -351,7 +351,7 @@ def get_completed_job_by_hash(request: Request, image_hash):
     job = request.app.completed_jobs_collection.find_one(query)
 
     if job is None:
-        print(f"Job not found.")
+        return None
 
     job.pop('_id', None)
 
@@ -364,7 +364,7 @@ def get_job_by_uuid(request: Request, uuid: str):
     job = request.app.completed_jobs_collection.find_one(query)
 
     if job is None:
-        print(f"Job not found.")
+        raise HTTPException(status_code=404, detail="Job not found")
 
     # Remove the '_id' field to avoid issues with JSON serialization
     job.pop('_id', None)

@@ -4,8 +4,6 @@ from typing import List
 router = APIRouter()
 
 
-
-
 @router.get("/list-phrase")
 def get_rate(request: Request,
              limit: int = 20,

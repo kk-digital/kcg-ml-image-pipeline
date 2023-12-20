@@ -134,8 +134,9 @@ class PhraseEmbeddingLoader:
                             self.phrase_index_dict[phrase] = curr_len
                             self.phrase_arr = np.append(self.phrase_arr, phrase)
 
-                    if len(self.phrase_embedding_arr)==0:
-                        self.phrase_embedding_arr = np.append(self.phrase_embedding_arr, phrase_average_pooled_results)
+                    if len(self.phrase_embedding_arr) == 0:
+                        self.phrase_embedding_arr = phrase_average_pooled_results
+
                     else:
                         if self.phrase_embedding_arr.shape == (768,):
                             self.phrase_embedding_arr = np.expand_dims(self.phrase_embedding_arr, axis=0)

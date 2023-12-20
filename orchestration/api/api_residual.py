@@ -41,7 +41,7 @@ def get_image_rank_residuals_by_model_id(request: Request, model_id: int):
     query = {"model_id": model_id}
     items = request.app.image_residuals_collection.find(query).sort("residual", -1)
     if items is None:
-        print("Image rank residuals data not found")
+        return []
     residual_data = []
     for item in items:
         # remove the auto generated field

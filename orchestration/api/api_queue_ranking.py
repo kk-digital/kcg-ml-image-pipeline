@@ -55,7 +55,7 @@ def get_job_details(request: Request, job_uuid_1: str = Query(...), job_uuid_2: 
     def extract_job_details(job_uuid, suffix):
         job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
         if not job:
-            print(f"Job {job_uuid} not found")
+            raise HTTPException(status_code=422, detail=f"Job {job_uuid} not found")
            
 
         output_file_path = job["task_output_file_dict"]["output_file_path"]
@@ -255,7 +255,7 @@ def remove_single_image_from_queue(request: Request, dataset: str = Query(...), 
         cmd.remove_an_object(minio_client, bucket_name, object_to_remove)
         return {"status": "success", "message": "Image removed from queue"}
     else:
-        print("File not found")
+        return {"status": "success", "message": "Image removed from queue"}
 
 @router.delete("/ranking-queue/remove-ranking-queue-pair")
 def remove_image_pair_from_queue(request: Request, dataset: str = Query(...), policy: str = Query(...), filename: str = Query(...)):
@@ -279,7 +279,7 @@ def remove_image_pair_from_queue(request: Request, dataset: str = Query(...), po
         cmd.remove_an_object(minio_client, bucket_name, object_to_remove)
         return {"status": "success", "message": "Image pair removed from queue"}
     else:
-        print("File not found")
+        return {"status": "success", "message": "Image pair removed from queue"}
 
 
 @router.delete("/ranking-queue/remove-ranking-queue-pair-v1")
@@ -408,6 +408,3 @@ def count_image_pairs(
     except Exception as e:
         print(f"Error occurred: {str(e)}")  
         
-
-
-

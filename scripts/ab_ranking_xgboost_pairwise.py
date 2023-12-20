@@ -6,7 +6,8 @@ base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
 from training_worker.ab_ranking.script.ab_ranking_xgboost_ranking_pairwise import train_xgboost
-from worker.http import request
+from utility.http import generation_request
+from utility.http import request
 
 
 def parse_arguments():

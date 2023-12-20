@@ -7,7 +7,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from worker.http import request
+from utility.http import generation_request
+from utility.http import request
 from utility.minio import cmd
 from stable_diffusion.model.clip_text_embedder import CLIPTextEmbedder
 from data_loader.prompt_embedding import PromptEmbedding

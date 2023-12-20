@@ -656,7 +656,7 @@ def process_images(p: StableDiffusionProcessingImg2Img):
             del x_samples_ddim
             torch_gc()
 
-    return output_file_path, output_file_hash, img_byte_arr
+    return output_file_path, output_file_hash, img_byte_arr, seed, subseed
 
 
 def create_binary_mask(image):
@@ -713,6 +713,6 @@ def img2img(prompt: str, negative_prompt: str, sampler_name: str, batch_size: in
     )
 
     with closing(p):
-        output_file_path, output_file_hash, img_byte_arr = process_images(p)
+        output_file_path, output_file_hash, img_byte_arr, seed, subseed = process_images(p)
 
-    return output_file_path, output_file_hash, img_byte_arr
+    return output_file_path, output_file_hash, img_byte_arr, seed, subseed
