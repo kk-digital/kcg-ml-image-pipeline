@@ -22,6 +22,7 @@ from orchestration.api.api_residual_percentile import router as residual_percent
 from orchestration.api.api_image_by_rank import router as image_by_rank_router
 from orchestration.api.api_queue_ranking import router as queue_ranking
 from orchestration.api.api_active_learning import router as active_learning 
+from orchestration.api.api_active_learning_policy import router as active_learning_policy
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -54,6 +55,7 @@ app.include_router(percentile_router)
 app.include_router(residual_percentile_router)
 app.include_router(queue_ranking)
 app.include_router(active_learning)
+app.include_router(active_learning_policy)
 
 
 def get_minio_client(minio_access_key, minio_secret_key):
