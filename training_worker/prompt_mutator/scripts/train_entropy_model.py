@@ -223,6 +223,7 @@ class EntropyDatasetLoader:
         # get minio paths for embedding
         embedding_paths = self.get_embedding_paths("environmental")
 
+        file_index=1
         prompt_index=1
         csv_data = []
         batch=[]
@@ -240,9 +241,9 @@ class EntropyDatasetLoader:
 
             # get prompt embedding 
             prompt_str=msgpack_data[f'{self.embedding_type}_prompt']
-            token_length=self.embedder.compute_token_length(prompt_str)
+            prompt_token_length=self.embedder.compute_token_length(prompt_str)
 
-            if token_length > 77:
+            if prompt_token_length > 77:
                 continue
 
             prompt_embedding= list(msgpack_data[f'{self.embedding_type}_embedding'].values())
@@ -260,7 +261,7 @@ class EntropyDatasetLoader:
             # get the substituted phrase token length
             substituted_phrase_length=len(self.token_encoder.encode(substituted_phrase))
             # get the max accepted phrase token length for substitute phrase
-            max_token_length= 77 - (token_length - substituted_phrase_length)
+            max_token_length= 77 - (prompt_token_length - substituted_phrase_length)
             # get a random phrase from civitai to substitute with
             substitute_phrase= self.choose_random_phrase(max_token_length) 
             substitute_embedding= self.get_prompt_embedding(substitute_phrase)
@@ -309,9 +310,11 @@ class EntropyDatasetLoader:
             'output':modified_entropy,
             })
             
+            prompt_index+=1
+
             if len(batch) == 10000:
-                self.store_batch_in_msgpack_file(batch, prompt_index)
-                prompt_index+=1
+                self.store_batch_in_msgpack_file(batch, file_index)
+                file_index+=1
                 batch = []  # Reset the batch for the next file
 
         self.store_in_csv_file(csv_data)
