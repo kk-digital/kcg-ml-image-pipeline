@@ -159,7 +159,7 @@ def get_all_dataset_config(request: Request):
     # find
     items = request.app.dataset_config_collection.find({})
     if items is None:
-        return {"dataset config": []}
+        return []
 
     for item in items:
         # remove the auto generated field
