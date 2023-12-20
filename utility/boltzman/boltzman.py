@@ -96,7 +96,6 @@ def generate_prompt(positive_phrase_scores_loader,
 
     negative_cumulative_probability_arr_min = negative_cumulative_probability_arr.min()
     negative_cumulative_probability_arr_max = negative_cumulative_probability_arr.max()
-    print("Getting negative prompt...")
     # negative prompt
     while negative_prompt_total_token_size < max_token_size:
         random_float = random.uniform(negative_cumulative_probability_arr_min,

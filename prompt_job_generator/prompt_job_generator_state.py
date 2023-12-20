@@ -116,7 +116,7 @@ class PromptJobGeneratorState:
         # Reset the buffer's position to the beginning
         byte_buffer.seek(0)
 
-        linear_model.load(byte_buffer)
+        linear_model.load_safetensors(byte_buffer)
 
         with self.dataset_model_lock:
             self.prompt_linear_model_dictionary[dataset] = linear_model
@@ -139,7 +139,7 @@ class PromptJobGeneratorState:
         # Reset the buffer's position to the beginning
         byte_buffer.seek(0)
 
-        elm_model.load(byte_buffer)
+        elm_model.load_safetensors(byte_buffer)
 
         with self.dataset_model_lock:
             self.prompt_elm_v1_model_dictionary[dataset] = elm_model
