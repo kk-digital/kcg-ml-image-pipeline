@@ -5,6 +5,7 @@ from orchestration.api.mongo_schemas import RankingModel
 from .api_utils import PrettyJSONResponse
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import re
 
 router = APIRouter()
 
@@ -307,6 +308,40 @@ def get_model_id(request: Request, model_hash: str):
         return None
 
     return item["model_id"]
+
+
+@router.get("/static/models/get-latest-graph")
+async def get_latest_graph(request: Request, dataset: str = Query(...), model_type: str = Query(...)):
+    bucket_name = "datasets"
+    base_path = f"{dataset}/output/scores-graph"
+
+    # List all files in the directory
+    try:
+        # Assuming that the list_objects method returns a list of objects with an 'object_name' attribute
+        objects = request.app.minio_client.list_objects(bucket_name, prefix=base_path, recursive=True)
+        files = [obj.object_name for obj in objects]  # Replace 'object_name' with the correct attribute
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+    # Filter files by model_type and sort them to get the latest one
+    filtered_files = [filename for filename in files if re.match(rf".*{model_type}.*\.png", filename)]
+    filtered_files.sort(reverse=True)
+    
+    if not filtered_files:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    latest_file_path = filtered_files[0]
+    
+    # Get the latest graph image data
+    try:
+        # Replace 'cmd.get_file_from_minio' with your actual method to get the file as binary
+        image_data = request.app.minio_client.get_object(bucket_name, latest_file_path)
+        content = image_data.read()
+        content_type = "image/png"
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return Response(content=content, media_type=content_type)
 
 
 
