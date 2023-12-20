@@ -71,12 +71,10 @@ def generate_prompt(positive_phrase_scores_loader,
     positive_used_phrase_dict = {}
     negative_used_phrase_dict = {}
 
-    print('stage 1 : positives')
     positive_cumulative_probability_arr_min = positive_cumulative_probability_arr.min()
     positive_cumulative_probability_arr_max = positive_cumulative_probability_arr.max()
     # positive prompt
     while positive_prompt_total_token_size < max_token_size:
-        print("total token size : ", positive_prompt_total_token_size)
         random_float = random.uniform(positive_cumulative_probability_arr_min,
                                       positive_cumulative_probability_arr_max)
         random_index = find_first_element_binary_search(positive_cumulative_probability_arr, random_float)
@@ -95,9 +93,6 @@ def generate_prompt(positive_phrase_scores_loader,
             positive_prompt_total_token_size = sum_token_size
         else:
             break
-
-
-    print('stage 2: negatives')
 
     negative_cumulative_probability_arr_min = negative_cumulative_probability_arr.min()
     negative_cumulative_probability_arr_max = negative_cumulative_probability_arr.max()
@@ -122,8 +117,6 @@ def generate_prompt(positive_phrase_scores_loader,
             negative_prompt_total_token_size = sum_token_size
         else:
             break
-
-    print("end")
 
     positive_prompt_str = ', '.join([prompt for prompt in positive_prompt])
     negative_prompt_str = ', '.join([prompt for prompt in negative_prompt])

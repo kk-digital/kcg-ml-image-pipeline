@@ -155,9 +155,7 @@ class PromptGenerationPromptQueue:
             prompts = prompt_list
 
         elif generation_policy == 'independent-approx-v1-top-k':
-            print('begin generating boltman prompts')
             prompts = self.generate_prompts_independent_approx_v1(dataset, total_prompt_count)
-            print('finished generation')
             prompt_list = []
             for prompt in prompts:
                 prompt_list.append(ScoredPrompt(0,
