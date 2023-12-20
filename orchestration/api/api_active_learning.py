@@ -43,7 +43,7 @@ def add_queue_pair(request: Request, queue_pair: ActiveLearningQueuePair):
     combined_job_details = {
         "active_learning_policy_id": queue_pair.active_learning_policy_id,
         "active_learning_policy": queue_pair.active_learning_policy,
-        "dataset_name": job_details_1['image_path_1'].split('/')[1],
+        "dataset": job_details_1['image_path_1'].split('/')[1],
         "metadata": queue_pair.metadata,
         "generator_string": queue_pair.generator_string,
         "creation_time": datetime.utcnow().isoformat() if not queue_pair.creation_time else queue_pair.creation_time,
@@ -149,7 +149,7 @@ def add_queue_pair(request: Request, queue_pair: ActiveLearningQueuePair):
     combined_job_details = {
         "active_learning_policy_id": queue_pair.active_learning_policy_id,
         "active_learning_policy": queue_pair.active_learning_policy,
-        "dataset_name": job_details_1['image_path_1'].split('/')[1],
+        "dataset": job_details_1['image_path_1'].split('/')[1],
         "metadata": queue_pair.metadata,
         "generator_string": queue_pair.generator_string,
         "creation_time": datetime.utcnow().isoformat() if not queue_pair.creation_time else queue_pair.creation_time,
@@ -163,7 +163,7 @@ def add_queue_pair(request: Request, queue_pair: ActiveLearningQueuePair):
     base_file_name_1 = job_details_1['file_name_1'].split('.')[0]
     base_file_name_2 = job_details_2['file_name_2'].split('.')[0]
     json_file_name = f"{creation_date_1}_{base_file_name_1}_and_{creation_date_2}_{base_file_name_2}.json"
-    full_path = f"{combined_job_details['dataset_name']}/ranking-queue-pair/{queue_pair.active_learning_policy}/{json_file_name}"
+    full_path = f"{combined_job_details['dataset']}/ranking-queue-pair/{queue_pair.active_learning_policy}/{json_file_name}"
 
     # Upload the data to MinIO (or other storage as per your implementation)
     cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
