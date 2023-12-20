@@ -181,7 +181,7 @@ def upload_delta_score_to_csv(minio_client,
     # upload the csv
     clip_model_name = clip_model_name.replace(".safetensors","")
     embedding_model_name = embedding_model_name.replace(".safetensors","")
-    filename = "{}-{}-delta-scores.csv".format(clip_model_name, embedding_model_name)
+    filename = "{}-{}-delta-scores-{}.csv".format(clip_model_name, embedding_model_name, dataset)
     csv_path = os.path.join(dataset, "output/delta-scores-csv", filename)
     cmd.upload_data(minio_client, 'datasets', csv_path, bytes_buffer)
 
@@ -320,6 +320,7 @@ def generate_delta_scores_graph(minio_client,
     delta_scores_graph.autoscale(enable=True, axis='y')
 
     # Save figure
+    plt.suptitle('Dataset: {}'.format(dataset), fontsize=20)
     plt.subplots_adjust(hspace=0.5)
     plt.show()
     buf = io.BytesIO()
@@ -329,7 +330,7 @@ def generate_delta_scores_graph(minio_client,
     # upload the graph report
     clip_model_name = clip_model_name.replace(".safetensors", "")
     embedding_model_name = embedding_model_name.replace(".safetensors", "")
-    filename = "{}-{}-delta-scores.png".format(clip_model_name, embedding_model_name)
+    filename = "{}-{}-delta-scores-{}.png".format(clip_model_name, embedding_model_name, dataset)
     graph_output = os.path.join(dataset, "output/delta-scores-graph", filename)
     cmd.upload_data(minio_client, 'datasets', graph_output, buf)
 
@@ -347,7 +348,7 @@ def run_image_delta_scorer(minio_client,
 
     clip_scorer.load_model()
     clip_paths = clip_scorer.get_paths()
-    clip_hash_score_pairs, image_paths = clip_scorer.get_scores(clip_paths)
+    clip_hash_score_pairs, image_paths, _ = clip_scorer.get_scores(clip_paths)
     clip_hash_percentile_dict = clip_scorer.get_percentiles(clip_hash_score_pairs)
     clip_hash_sigma_score_dict = clip_scorer.get_sigma_scores(clip_hash_score_pairs)
 
@@ -358,7 +359,7 @@ def run_image_delta_scorer(minio_client,
 
     embedding_scorer.load_model()
     embedding_paths = embedding_scorer.get_paths()
-    embedding_hash_score_pairs, image_paths = embedding_scorer.get_scores(embedding_paths)
+    embedding_hash_score_pairs, image_paths, _ = embedding_scorer.get_scores(embedding_paths)
     embedding_hash_percentile_dict = embedding_scorer.get_percentiles(embedding_hash_score_pairs)
 
     embedding_hash_sigma_score_dict = embedding_scorer.get_sigma_scores(embedding_hash_score_pairs)
