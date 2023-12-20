@@ -60,6 +60,8 @@ def run_image_generation_task(worker_state, generation_task):
     random.seed(time.time())
     seed = random.randint(0, 2 ** 24 - 1)
 
+    generation_task.task_input_dict["seed"] = seed
+
     output_file_path, output_file_hash, img_data = generate_image_from_text(
         worker_state.minio_client,
         worker_state.txt2img,
@@ -105,7 +107,7 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
     prompt_generation_policy = generation_task.task_input_dict["prompt_generation_policy"]
     top_k = generation_task.task_input_dict["top_k"]
 
-    output_file_path, output_file_hash, img_byte_arr = img2img(
+    output_file_path, output_file_hash, img_byte_arr, seed, subseed = img2img(
         prompt=positive_prompts,
         negative_prompt=negative_prompts,
         sampler_name=sampler,
@@ -132,6 +134,9 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
         clip_text_embedder=worker_state.clip_text_embedder,
         device=worker_state.device
     )
+
+    generation_task.task_input_dict["seed"] = seed
+    generation_task.task_input_dict["subseed"] = subseed
 
     return output_file_path, output_file_hash, img_byte_arr
 
