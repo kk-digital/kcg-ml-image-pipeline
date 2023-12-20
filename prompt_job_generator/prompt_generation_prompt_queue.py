@@ -8,7 +8,6 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from worker.prompt_generation.prompt_generator import generate_prompts_proportional_selection, generate_base_prompts, load_base_prompts
-from scripts.prompt_job_generator.prompt_generator_using_independent_approx_v1_csv import PhraseScoresLoader, get_cumulative_probability_arr
 from independent_approx_v1.independent_approx_v1 import IndependentApproxV1
 
 class PromptGenerationPromptQueue:
@@ -237,15 +236,19 @@ class PromptGenerationPromptQueue:
             model_type = 'N/A'
             if scoring_model is not None and clip_text_embedder is not None:
 
-                # calculate new embeddings
-                positive_embedding, _, positive_attention_mask = clip_text_embedder.forward_return_all(positive_text_prompt)
-                negative_embedding, _, negative_attention_mask = clip_text_embedder.forward_return_all(negative_text_prompt)
+                positive_prompt_length = clip_text_embedder.compute_token_length(positive_text_prompt)
+                negative_prompt_length = clip_text_embedder.compute_token_length(negative_text_prompt)
 
-                model_type = model_name
-                prompt_score = scoring_model.predict_average_pooling(positive_embedding,
-                                                               negative_embedding,
-                                                     positive_attention_mask,
-                                                     negative_attention_mask).item()
+                if positive_prompt_length <= clip_text_embedder.max_length and negative_prompt_length <= clip_text_embedder.max_length:
+                    # calculate new embeddings
+                    positive_embedding, _, positive_attention_mask = clip_text_embedder.forward_return_all(positive_text_prompt)
+                    negative_embedding, _, negative_attention_mask = clip_text_embedder.forward_return_all(negative_text_prompt)
+
+                    model_type = model_name
+                    prompt_score = scoring_model.predict_average_pooling(positive_embedding,
+                                                                   negative_embedding,
+                                                         positive_attention_mask,
+                                                         negative_attention_mask).item()
 
             scored_prompt = ScoredPrompt(prompt_score,
                                          positive_text_prompt,
