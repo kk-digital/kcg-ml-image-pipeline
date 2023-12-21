@@ -343,10 +343,10 @@ class RankingResidualPercentile(BaseModel):
 
 
 class ActiveLearningPolicy(BaseModel):
-    active_learning_policy_id: int = Field(default=None)
+    active_learning_policy_id: Union[str, None] = None 
     active_learning_policy: str
     active_learning_policy_description: str
-    creation_time: Optional[str]
+    creation_time: Union[str, None] = None 
 
     def to_dict(self):
         return{
