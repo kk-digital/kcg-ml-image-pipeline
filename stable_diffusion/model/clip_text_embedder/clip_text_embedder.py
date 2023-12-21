@@ -138,19 +138,6 @@ class CLIPTextEmbedder(nn.Module):
 
         # Get CLIP embeddings
         return self.transformer(input_ids=tokens).last_hidden_state
-    
-
-    def compute_token_length(self, prompts: List[str]):
-        # Tokenize the prompts
-        batch_encoding = self.tokenizer(prompts, truncation=False, max_length=self.max_length, return_length=True,
-                                        return_overflowing_tokens=False, padding="max_length", return_tensors="pt")
-
-        # Check if any tokenized input exceeds the maximum length
-        input_ids = batch_encoding['input_ids']
-        # Numer of elements in array
-        num_tokens = input_ids.numel()
-
-        return num_tokens
 
     def compute_token_length(self, prompts: List[str]):
         # Tokenize the prompts
