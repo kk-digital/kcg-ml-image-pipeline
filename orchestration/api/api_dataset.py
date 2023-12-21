@@ -159,7 +159,7 @@ def get_all_dataset_config(request: Request):
     # find
     items = request.app.dataset_config_collection.find({})
     if items is None:
-        return {"dataset config": []}
+        return []
 
     for item in items:
         # remove the auto generated field
@@ -234,8 +234,9 @@ def list_ranking_files(
     dataset: str, 
     start_date: str = None, 
     end_date: str = None, 
-    list_size: int = Query(100),  # New parameter for list size
-    order: str = Query("desc")  # New parameter for ordering
+    list_size: int = Query(100),  # Parameter for list size
+    offset: int = Query(0, description="Offset for pagination"),  # New parameter for pagination
+    order: str = Query("desc")  # Parameter for ordering
 ):
     # Convert start_date and end_date strings to datetime objects
     start_date_obj = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
@@ -270,13 +271,16 @@ def list_ranking_files(
     else:
         filtered_json_files.sort()
 
-    # Apply list size limit
-    filtered_json_files = filtered_json_files[:list_size]
+    # Apply offset and list size limit
+    start_index = offset
+    end_index = offset + list_size
+    filtered_json_files = filtered_json_files[start_index:end_index]
 
     if not filtered_json_files:
         return []
 
     return filtered_json_files
+
 
 
 def read_json_data(request, json_file):
@@ -289,11 +293,21 @@ def read_json_data(request, json_file):
     return selected_image_hash, json_file
 
 
-@router.get("/datasets/rank/list-sort-by-residual", response_class=PrettyJSONResponse)
-def list_ranking_files_sort_by_residual(request: Request, dataset: str,
-                                        model_id: int,
-                                        order: str = Query("desc",
-                                                           description="Order in which the data should be returned")):
+@router.get("/datasets/rank/list-sort-by-score", response_class=PrettyJSONResponse)
+def list_ranking_files_sort_by_score(
+    request: Request, 
+    dataset: str,
+    model_id: int,
+    start_date: str = None, 
+    end_date: str = None, 
+    list_size: int = Query(100, description="Number of results to return"),
+    offset: int = Query(0, description="Offset for pagination"),
+    order: str = Query("desc", description="Order in which the data should be returned")
+):
+    # Convert start_date and end_date strings to datetime objects
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
+
     # Construct the path prefix for ranking
     path_prefix = f"{dataset}/data/ranking/aggregate"
 
@@ -305,7 +319,80 @@ def list_ranking_files_sort_by_residual(request: Request, dataset: str,
 
     if not json_files:
         return []
-    # get all model id residuals
+
+    # Query for model sigma scores
+    query = {"model_id": model_id}
+    sort_order = -1 if order == "desc" else 1
+    model_scores = request.app.image_scores_collection.find(query).sort("score", sort_order)
+    model_scores = list(model_scores)
+
+    if len(model_scores) == 0:
+        raise HTTPException(status_code=404, detail="Image rank scores data not found")
+
+    # Read json files and filter based on date range and pagination
+    json_files_selected_hash_dict = {}
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = []
+        for json_file in json_files:
+            file_date_str = json_file.split('/')[-1].split('-')[0:3]
+            file_date_str = '-'.join(file_date_str)
+            file_date_obj = datetime.strptime(file_date_str, "%Y-%m-%d")
+
+            # Apply date filtering
+            if start_date_obj and file_date_obj < start_date_obj:
+                continue
+            if end_date_obj and file_date_obj > end_date_obj:
+                continue
+
+            futures.append(executor.submit(read_json_data, request=request, json_file=json_file))
+
+        for future in as_completed(futures):
+            selected_image_hash, json_file = future.result()
+            json_files_selected_hash_dict[selected_image_hash] = json_file
+
+    # Sort and paginate the results
+    sorted_json_files = []
+    for score_data in model_scores:
+        if score_data["image_hash"] in json_files_selected_hash_dict:
+            json_file = json_files_selected_hash_dict[score_data["image_hash"]]
+            sorted_json_files.append(json_file)
+
+    # Apply offset and list size limit
+    start_index = offset
+    end_index = offset + list_size
+    sorted_json_files = sorted_json_files[start_index:end_index]
+
+    return sorted_json_files
+
+
+@router.get("/datasets/rank/list-sort-by-residual", response_class=PrettyJSONResponse)
+def list_ranking_files_sort_by_residual(
+    request: Request, 
+    dataset: str,
+    model_id: int,
+    start_date: str = None, 
+    end_date: str = None, 
+    list_size: int = Query(100, description="Number of results to return"),
+    offset: int = Query(0, description="Offset for pagination"),
+    order: str = Query("desc", description="Order in which the data should be returned")
+):
+    # Convert start_date and end_date strings to datetime objects
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
+
+    # Construct the path prefix for ranking
+    path_prefix = f"{dataset}/data/ranking/aggregate"
+
+    # Fetch the list of objects with the given prefix
+    objects = cmd.get_list_of_objects_with_prefix(request.app.minio_client, "datasets", path_prefix)
+
+    # Filter out non-JSON files
+    json_files = [obj for obj in objects if obj.endswith('.json')]
+
+    if not json_files:
+        return []
+
+    # Query for model residuals
     query = {"model_id": model_id}
     sort_order = -1 if order == "desc" else 1
     model_residuals = request.app.image_residuals_collection.find(query).sort("residual", sort_order)
@@ -313,28 +400,42 @@ def list_ranking_files_sort_by_residual(request: Request, dataset: str,
 
     if len(model_residuals) == 0:
         raise HTTPException(status_code=404, detail="Image rank residuals data not found")
-    # use concurrency
-    # read json files and put selected hash in a dict
+
+    # Read json files and filter based on date range and pagination
     json_files_selected_hash_dict = {}
     with ThreadPoolExecutor(max_workers=10) as executor:
         futures = []
-        count = 0
         for json_file in json_files:
+            file_date_str = json_file.split('/')[-1].split('-')[0:3]
+            file_date_str = '-'.join(file_date_str)
+            file_date_obj = datetime.strptime(file_date_str, "%Y-%m-%d")
+
+            # Apply date filtering
+            if start_date_obj and file_date_obj < start_date_obj:
+                continue
+            if end_date_obj and file_date_obj > end_date_obj:
+                continue
+
             futures.append(executor.submit(read_json_data, request=request, json_file=json_file))
-            count += 1
 
         for future in as_completed(futures):
             selected_image_hash, json_file = future.result()
             json_files_selected_hash_dict[selected_image_hash] = json_file
 
-    # get json file list
+    # Sort and paginate the results
     sorted_json_files = []
     for residual_data in model_residuals:
         if residual_data["image_hash"] in json_files_selected_hash_dict:
             json_file = json_files_selected_hash_dict[residual_data["image_hash"]]
             sorted_json_files.append(json_file)
 
+    # Apply offset and list size limit
+    start_index = offset
+    end_index = offset + list_size
+    sorted_json_files = sorted_json_files[start_index:end_index]
+
     return sorted_json_files
+
 
 
 @router.get("/datasets/relevancy/list", response_class=PrettyJSONResponse)

@@ -493,15 +493,15 @@ def get_graph_report(training_loss,
                          "randomize_data_per_epoch = {}\n"
                          "elm_sparsity = {}\n\n"
                          ""
-                         "Training loss = {:03.04}\n"
-                         "Validation loss = {:03.04}\n"
+                         "Training loss = {:03.04f}\n"
+                         "Validation loss = {:03.04f}\n"
                          "Mean = {:03.04}\n"
-                         "Standard Deviation = {:03.04}\n"
+                         "Standard Deviation = {:03.04f}\n"
                          "Train Correct Predictions \n"
                          "= {}({:02.02f}%)\n"
                          "Validation Correct \n"
                          "Predictions = {}({:02.02f}%)\n\n"
-                         "Score Offset={:03.04}\n\n".format(date,
+                         "Score Offset={:03.04f}\n\n".format(date,
                                                        dataset_name,
                                                        network_type,
                                                        input_type,
