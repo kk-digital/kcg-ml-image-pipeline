@@ -68,13 +68,13 @@ class PromptData:
                  positive_phrase_embeddings,
                  positive_token_length):
         
-        self.positive_prompt=positive_prompt,
-        self.negative_prompt=negative_prompt,
-        self.positive_embedding= positive_embedding,
-        self.negative_embedding= negative_embedding,
-        self.positive_score= positive_score,
-        self.prompt_score= prompt_score,
-        self.positive_phrase_embeddings= positive_phrase_embeddings,
+        self.positive_prompt=positive_prompt
+        self.negative_prompt=negative_prompt
+        self.positive_embedding= positive_embedding
+        self.negative_embedding= negative_embedding
+        self.positive_score= positive_score
+        self.prompt_score= prompt_score
+        self.positive_phrase_embeddings= positive_phrase_embeddings
         self.positive_token_length= positive_token_length
 
 class PromptSubstitutionGenerator:
