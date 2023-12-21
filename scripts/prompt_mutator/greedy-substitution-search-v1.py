@@ -534,6 +534,7 @@ class PromptSubstitutionGenerator:
                 # substitutions are sorted from highest sigma score to lowest
                 current_prompt_substitution_choices= sorted(current_prompt_substitution_choices, key=lambda s: s['score'], reverse=True) 
                 prompts_substitution_choices.append(current_prompt_substitution_choices)
+                current_prompt_substitution_choices=[]
             
             # only take substitutions that increase score by more then a set threshold
             if sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold:
