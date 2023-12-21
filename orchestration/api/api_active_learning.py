@@ -13,12 +13,21 @@ from datetime import datetime, timezone
 from typing import List
 from io import BytesIO
 from bson import ObjectId
+from typing import Optional
 import json
 
 router = APIRouter()
 
 @router.post("/active-learning-queue/add-queue-pair-to-mongo")
 def add_queue_pair(request: Request, queue_pair: ActiveLearningQueuePair):
+    # Validate and retrieve the active learning policy using the active_learning_policy_id
+    policy = request.app.active_learning_policies_collection.find_one(
+        {"active_learning_policy_id": queue_pair.active_learning_policy_id}
+    )
+    if not policy:
+        raise HTTPException(status_code=404, detail=f"Active learning policy with ID {queue_pair.active_learning_policy_id} not found")
+
+    # Function to extract job details
     def extract_job_details(job_uuid, suffix):
         job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
         if not job:
@@ -38,16 +47,18 @@ def add_queue_pair(request: Request, queue_pair: ActiveLearningQueuePair):
             f"job_creation_time_{suffix}": task_creation_time,
         }
 
+    # Extract job details for both jobs
     job_details_1 = extract_job_details(queue_pair.image1_job_uuid, "1")
     job_details_2 = extract_job_details(queue_pair.image2_job_uuid, "2")
 
+    # Prepare the document to insert into the active learning queue pairs collection
     combined_job_details = {
         "active_learning_policy_id": queue_pair.active_learning_policy_id,
-        "active_learning_policy": queue_pair.active_learning_policy,
+        "active_learning_policy": policy["active_learning_policy"],  # Retrieved from the policies collection
         "dataset": job_details_1['image_path_1'].split('/')[1],
         "metadata": queue_pair.metadata,
         "generator_string": queue_pair.generator_string,
-        "creation_time": datetime.utcnow().isoformat() if not queue_pair.creation_time else queue_pair.creation_time,
+        "creation_date": datetime.utcnow().isoformat(),
         "images": [
             {
                 "job_uuid_1": job_details_1["job_uuid_1"],
@@ -71,9 +82,15 @@ def add_queue_pair(request: Request, queue_pair: ActiveLearningQueuePair):
 
     return {"status": "success", "message": "Queue pair added successfully to MongoDB"}
 
+
+
 @router.get("/active-learning-queue/list-queue-pairs-from-mongo", response_class=PrettyJSONResponse)
-def list_queue_pairs(request: Request, limit: int = 10, offset: int = 0) -> List[dict]:
-    queue_pairs_cursor = request.app.active_learning_queue_pairs_collection.find().skip(offset).limit(limit)
+def list_queue_pairs(request: Request, dataset: Optional[str] = None, limit: int = 10, offset: int = 0):
+    # Build the query based on whether a dataset is provided
+    query = {"dataset": dataset} if dataset else {}
+    
+    # Execute the query with the filter if dataset is provided
+    queue_pairs_cursor = request.app.active_learning_queue_pairs_collection.find(query).skip(offset).limit(limit)
     
     # Convert the cursor to a list of dictionaries and drop the _id field
     queue_pairs = []
@@ -84,6 +101,7 @@ def list_queue_pairs(request: Request, limit: int = 10, offset: int = 0) -> List
 
     # Directly return the list of modified dictionaries
     return queue_pairs
+
 
 @router.get("/active-learning-queue/get-random-queue-pair-from-mongo", response_class=PrettyJSONResponse)
 def random_queue_pair(request: Request, size: int = 1) -> List[dict]:
