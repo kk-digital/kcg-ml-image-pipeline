@@ -1,6 +1,7 @@
 import os
 import sys
 import hashlib
+import numpy
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -23,57 +24,85 @@ from data_loader.phrase_embedding_loader import PhraseEmbeddingLoader
 from utility.minio import cmd
 
 
+def get_phrase_str_arr(index_phrase_dict, phrase_vector_indices):
+    phrase_str_arr = []
+    for index in phrase_vector_indices:
+        phrase = index_phrase_dict[index.item()]
+        phrase_str_arr.append(phrase)
+
+    return phrase_str_arr
+
+
+def get_phrase_token_length_arr(token_length_vector, phrase_vector_indices):
+    phrase_token_length_arr = []
+    for index in phrase_vector_indices:
+        token_length = token_length_vector[index]
+        phrase_token_length_arr.append(token_length)
+    return phrase_token_length_arr
+
+
 class PhraseSmoothingModel(nn.Module):
     def __init__(self,
                  inputs_shape,
-                 phrase_vector_loader: PhraseVectorLoader,
+                 index_phrases_dict,
                  phrase_embedding_loader: PhraseEmbeddingLoader,
-                 input_type,
+                 token_length_vector,
                  device):
         super(PhraseSmoothingModel, self).__init__()
         self.inputs_shape = inputs_shape
         self._device = device
-        initial_score_vector = torch.rand((1, inputs_shape), dtype=torch.float32)
-        self.prompt_phrase_trainable_score = nn.Parameter(data=initial_score_vector, requires_grad=True)
+        self.token_length_vector = token_length_vector
+
+        # initial_score_vector = torch.rand((1, inputs_shape), dtype=torch.float32)
+        # self.prompt_phrase_trainable_scores = nn.Parameter(data=initial_score_vector, requires_grad=True)
         self.l1_loss = nn.L1Loss()
 
         # smoothing
         # input is phrase embedding
         self.linear = nn.Linear(768, 1)
-        initial_score_offset = torch.zeros(1, dtype=torch.float32)
-        self.score_offset = nn.Parameter(data=initial_score_offset, requires_grad=True)
+        initial_energy_offset = torch.zeros(1, dtype=torch.float32)
+        self.energy_offset = nn.Parameter(data=initial_energy_offset, requires_grad=False)
 
         self.l1_loss = nn.L1Loss()
 
         # data loaders
-        self.phrase_vector_loader = phrase_vector_loader
+        self.index_phrases_dict = index_phrases_dict
         self.phrase_embedding_loader = phrase_embedding_loader
-        self.input_type = input_type
 
     # for score
     def forward(self, phrase_vector):
         assert phrase_vector.shape == (1, self.inputs_shape)
 
-        # phrase score
-        product = torch.mul(phrase_vector, self.prompt_phrase_trainable_score)
+        # construct list of non-zero indexes
+        phrase_vector_indices = phrase_vector.squeeze().nonzero()
 
-        # smoothing
-        for i in range(len(phrase_vector)):
-            if phrase_vector[0][i] == True:
-                if self.input_type == "positive":
-                    phrase = self.phrase_vector_loader.index_positive_phrases_dict[i]
-                else:
-                    phrase = self.phrase_vector_loader.index_negative_phrases_dict[i]
+        # get phrase str array
+        phrase_str_arr = get_phrase_str_arr(self.index_phrases_dict, phrase_vector_indices)
 
-                # get embedding
-                phrase_embedding = self.phrase_embedding_loader.get_embedding(phrase)
-                phrase_embedding = torch.from_numpy(phrase_embedding).to(self._device)
-                print("phrase embedding type=", phrase_embedding.type())
-                phrase_base_score = self.linear(phrase_embedding)
-                product[0][i] = product[0][i] + phrase_base_score + self.score_offset
+        # get phrase token length arr
+        phrase_token_length_arr = get_phrase_token_length_arr(self.token_length_vector, phrase_vector_indices)
+        phrase_token_length_arr = torch.tensor(phrase_token_length_arr).to(self._device)
 
-        prompt_score = torch.sum(product, dim=1)
-        prompt_score = prompt_score.unsqueeze(0)
+        # get phrase embeddings array
+        phrase_embeddings = self.phrase_embedding_loader.get_embeddings(phrase_str_arr)
+        phrase_embeddings = numpy.array(phrase_embeddings)
+        phrase_embeddings = torch.from_numpy(phrase_embeddings).to(self._device)
+
+        # input phrase embedding to linear network
+        phrases_energy_per_token = self.linear(phrase_embeddings)
+        phrases_energy_per_token = phrases_energy_per_token.squeeze()
+
+        # multiply energy per token by token length
+        phrases_energy_per_phrase = phrases_energy_per_token * phrase_token_length_arr
+
+        # add linear network output and score offset to phrase score
+        phrase_scores = phrases_energy_per_phrase + self.energy_offset
+
+        # sum phrase scores to get prompt score
+        prompt_score = torch.sum(phrase_scores)
+
+        # unsqueeze so output shape will become (1, 1) from (1)
+        prompt_score = prompt_score.unsqueeze(0).unsqueeze(0)
         assert prompt_score.shape == (1, 1), "shape={}".format(prompt_score.shape)
         return prompt_score
 
@@ -83,6 +112,7 @@ class ScorePhraseSmoothingModel:
                  dataset_loader: IndependentApproximationDatasetLoader,
                  phrase_vector_loader: PhraseVectorLoader,
                  phrase_embedding_loader: PhraseEmbeddingLoader,
+                 token_length_vector=None,
                  input_type="positive"):
         if torch.cuda.is_available():
             device = 'cuda'
@@ -91,12 +121,19 @@ class ScorePhraseSmoothingModel:
         self._device = torch.device(device)
 
         self.dataset_loader = dataset_loader
+        self.phrase_embedding_loader = phrase_embedding_loader
         self.input_type = input_type
 
+        index_phrases_dict = phrase_vector_loader.index_positive_phrases_dict
+        if self.input_type == "negative":
+            index_phrases_dict = phrase_vector_loader.index_negative_phrases_dict
+
+        if token_length_vector != None:
+            token_length_vector = token_length_vector.to(self._device)
         self.model = PhraseSmoothingModel(inputs_shape,
-                                          phrase_vector_loader,
+                                          index_phrases_dict,
                                           phrase_embedding_loader,
-                                          input_type,
+                                          token_length_vector,
                                           self._device).to(self._device)
         self.model_type = 'score-phrase-smoothing'
         self.loss_func_name = ''
@@ -196,46 +233,61 @@ class ScorePhraseSmoothingModel:
 
 
     def upload_phrases_score_csv(self):
+        phrase_scores_vector = []
         print("Saving phrases score csv...")
 
         csv_buffer = StringIO()
         writer = csv.writer(csv_buffer)
-        writer.writerow((["index", "phrase", "occurrences", "token length", "score", "score offset"]))
-        score_offset = None
+        writer.writerow((["index", "phrase", "occurrences", "token length", "energy per token", "energy per phrase", "energy offset"]))
+        energy_offset = None
         for name, param in self.model.named_parameters():
-            if name == "score_offset":
-                score_offset = param.cpu().detach().squeeze().numpy()
+            if name == "energy_offset":
+                energy_offset = param.cpu().detach().squeeze().numpy()
 
-        for name, param in self.model.named_parameters():
-            if name == "prompt_phrase_trainable_score":
-                score_vector = param.cpu().detach().squeeze().numpy()
-                if self.input_type == "positive":
-                    index_phrase_dict = self.dataset_loader.phrase_vector_loader.index_positive_phrases_dict
-                    index_phrase_info = self.dataset_loader.phrase_vector_loader.index_positive_prompt_phrase_info
-                else:
-                    index_phrase_dict = self.dataset_loader.phrase_vector_loader.index_negative_phrases_dict
-                    index_phrase_info = self.dataset_loader.phrase_vector_loader.index_negative_prompt_phrase_info
+        with torch.no_grad():
+            # for name, param in self.model.named_parameters():
+            #     if name == "prompt_phrase_trainable_score":
+            #         score_vector = param.cpu().detach().squeeze().numpy()
+            if self.input_type == "positive":
+                index_phrase_dict = self.dataset_loader.phrase_vector_loader.index_positive_phrases_dict
+                index_phrase_info = self.dataset_loader.phrase_vector_loader.index_positive_prompt_phrase_info
+            else:
+                index_phrase_dict = self.dataset_loader.phrase_vector_loader.index_negative_phrases_dict
+                index_phrase_info = self.dataset_loader.phrase_vector_loader.index_negative_prompt_phrase_info
 
-                has_negative_index = False
-                if -1 in index_phrase_dict:
-                    has_negative_index = True
-                for i in range(len(score_vector)):
-                    if has_negative_index:
-                        i -= 1
-                    index = i
-                    phrase = index_phrase_dict[i]
-                    phrase_info = index_phrase_info[index]
-                    occurrences = phrase_info.occurrences
-                    token_length = phrase_info.token_length
-                    score = "{:f}".format(score_vector[i])
-                    writer.writerow([index, phrase, occurrences, token_length, score, score_offset])
+            has_negative_index = False
+            if -1 in index_phrase_dict:
+                has_negative_index = True
+            for i in range(len(index_phrase_dict)):
+                if has_negative_index:
+                    i -= 1
 
-                bytes_buffer = BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
-                # upload the csv
-                date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
-                filename = "{}-{}-phrases-score-smoothing.csv".format(date_now, self.input_type)
-                csv_path = os.path.join(self.dataset_loader.dataset_name, "output/phrases-score-csv", filename)
-                cmd.upload_data(self.dataset_loader.minio_client, 'datasets', csv_path, bytes_buffer)
+                index = i
+                phrase = index_phrase_dict[i]
+                phrase_info = index_phrase_info[index]
+                occurrences = phrase_info.occurrences
+                token_length = phrase_info.token_length
+                phrase_embedding = self.phrase_embedding_loader.get_embedding(phrase)
+                phrase_embedding = torch.tensor(phrase_embedding).to(self._device)
+                energy_per_token = self.model.linear(phrase_embedding).item()
+                energy_per_phrase = energy_per_token * token_length
+                phrase_scores_vector.append(energy_per_phrase)
+                writer.writerow([index,
+                                 phrase,
+                                 occurrences,
+                                 token_length,
+                                 "{:f}".format(energy_per_token),
+                                 "{:f}".format(energy_per_phrase),
+                                 energy_offset])
+
+            bytes_buffer = BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
+            # upload the csv
+            date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
+            filename = "{}-{}-phrases-score-smoothing.csv".format(date_now, self.input_type)
+            csv_path = os.path.join(self.dataset_loader.dataset_name, "output/phrases-score-csv", filename)
+            cmd.upload_data(self.dataset_loader.minio_client, 'datasets', csv_path, bytes_buffer)
+
+        return phrase_scores_vector
 
     def load(self, model_buffer):
         # Loading state dictionary
