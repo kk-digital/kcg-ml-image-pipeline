@@ -538,7 +538,7 @@ class PromptSubstitutionGenerator:
             # only take substitutions that increase score by more then a set threshold
             if sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold:
                 substitution_data={
-                    'position':position,
+                    'position':current_position,
                     'substitute_phrase':sampled_phrases[position],
                     'substitute_embedding':sampled_embeddings[position],
                     'substituted_embedding':prompts[prompt_index].positive_phrase_embeddings[current_position],
