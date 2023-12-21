@@ -194,30 +194,38 @@ class EntropyDatasetLoader:
         
         return np.array(sigma_scores)
         
-    def get_prompt_entropy(self, embedding):
+    def get_prompt_variance(self, embedding):
         sigma_scores=self.get_ensemble_sigma_scores(embedding)
 
         # get entropy classes
         binning= Binning(start=-6,count=self.bins,step=self.step)
         entropy_data=SigmaScoresWithEntropy(sigma_scores, binning)
 
-        # get entropy, variance and average
-        entropy= entropy_data.entropy
+        # get variance
         variance= entropy_data.variance
-        mean= entropy_data.mean
 
-        return entropy, variance, mean
+        return variance
 
     # function to get a random phrase from civitai with a max token size for substitutions
-    def choose_random_phrase(self, max_token_length):
-        phrase_token_length=max_token_length + 1
-
-        while(phrase_token_length > max_token_length):
+    def choose_random_substitution(self, prompt_list, position_to_substitute, max_token_length=77):
+        prompt_token_length=max_token_length + 1
+        
+        while(prompt_token_length > max_token_length):
             random_index=random.randrange(0, len(self.phrase_list))
             phrase= self.phrase_list[random_index]
-            phrase_token_length=self.phrase_token_lengths[random_index]
+
+            prompt_list[position_to_substitute] = phrase
+            modified_prompt = ", ".join(prompt_list)
+            prompt_token_length=self.embedder.compute_token_length(modified_prompt)
         
-        return phrase
+        # phrase_token_length=max_token_length + 1
+
+        # while(phrase_token_length > max_token_length):
+        #     random_index=random.randrange(0, len(self.phrase_list))
+        #     phrase= self.phrase_list[random_index]
+        #     phrase_token_length=self.phrase_token_lengths[random_index]
+        
+        return phrase, modified_prompt
 
     def create_substitution_dataset(self):
         # get minio paths for embedding
@@ -259,23 +267,23 @@ class EntropyDatasetLoader:
             # gezt the embedding of the substituted phrase
             substituted_embedding= self.get_prompt_embedding(substituted_phrase)
             # get the substituted phrase token length
-            substituted_phrase_length=len(self.token_encoder.encode(substituted_phrase))
-            # get the max accepted phrase token length for substitute phrase
-            max_token_length= 77 - (prompt_token_length - substituted_phrase_length)
+            # substituted_phrase_length=len(self.token_encoder.encode(substituted_phrase))
+            # # get the max accepted phrase token length for substitute phrase
+            # max_token_length= 77 - (prompt_token_length - substituted_phrase_length)
             # get a random phrase from civitai to substitute with
-            substitute_phrase= self.choose_random_phrase(max_token_length) 
+            substitute_phrase, modified_prompt= self.choose_random_substitution(prompt_list, position_to_substitute) 
             substitute_embedding= self.get_prompt_embedding(substitute_phrase)
 
             # Create a modified prompt with the substitution and get embedding of substituted phrase
-            prompt_list[position_to_substitute] = substitute_phrase
-            modified_prompt = ", ".join(prompt_list)
+            # prompt_list[position_to_substitute] = substitute_phrase
+            # modified_prompt = ", ".join(prompt_list)
 
             # Get embedding of mutated prompt
             modified_embedding= self.get_prompt_embedding(modified_prompt)
 
             # get entropy before and after substitution
-            entropy= self.get_prompt_entropy(prompt_embedding)
-            modified_entropy= self.get_prompt_entropy(modified_embedding)
+            variance= self.get_prompt_variance(prompt_embedding)
+            modified_variance= self.get_prompt_variance(modified_embedding)
             
             # mean pooling
             pooled_prompt_embedding=torch.mean(prompt_embedding, dim=2)
@@ -298,16 +306,16 @@ class EntropyDatasetLoader:
                 'substitute phrase': substitute_phrase,        # Substitute phrase string
                 'substituted phrase':substituted_phrase,  # Substituted phrase string
                 'position':position_to_substitute,   # Substitution position
-                'entropy': entropy,
-                'new entropy': modified_entropy
+                'entropy': variance,
+                'new entropy': modified_variance
             })
 
             # Append to the msgpack data list
             batch.append({
             'input': torch.cat([pooled_prompt_embedding, pooled_substituted_embedding, pooled_substitute_embedding], dim=0).tolist(),
             'position_encoding': position_to_substitute,
-            'initial_entropy':entropy,
-            'output':modified_entropy,
+            'initial_variance':variance,
+            'output':modified_variance,
             })
             
             prompt_index+=1
@@ -338,7 +346,7 @@ class EntropyDatasetLoader:
             entropy_data = msgpack.loads(content)
     
             for d in entropy_data:
-                input=np.concatenate([d['input'], [d['position_encoding']], [d['initial_entropy']]])
+                input=np.concatenate([d['input'], [d['position_encoding']], [d['initial_variance']]])
                 inputs.append(input)
                 outputs.append(d['output'])
         
