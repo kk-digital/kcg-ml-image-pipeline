@@ -46,6 +46,14 @@ class PromptGenerationPromptQueue:
 
         return prompt_list
 
+    def get_independent_approx_v1_generator(self, dataset):
+        with self.dataset_independent_prompt_gen_dictionary_lock:
+            if dataset in self.dataset_independent_prompt_gen_dictionary:
+                prompt_generator = self.dataset_independent_prompt_gen_dictionary[dataset]
+                return prompt_generator
+
+        return None
+
     def set_dataset_base_prompt(self, dataset, base_prompt_path):
         self.dataset_base_prompt_dictionary[dataset] = base_prompt_path
 
@@ -155,15 +163,25 @@ class PromptGenerationPromptQueue:
             prompts = prompt_list
 
         elif generation_policy == 'independent-approx-v1-top-k':
+            prompt_generator = self.get_independent_approx_v1_generator(dataset)
             prompts = self.generate_prompts_independent_approx_v1(dataset, total_prompt_count)
             prompt_list = []
+
+            boltzman_temperature = 0
+            boltzman_k = 0
+
+            if prompt_generator is not None:
+                boltzman_temperature = prompt_generator.boltzman_temperature
+                boltzman_k = prompt_generator.boltzman_k
             for prompt in prompts:
                 prompt_list.append(ScoredPrompt(0,
                                                 prompt['positive_prompt'],
                                                 prompt['negative_prompt'],
                                                 'N/A',
                                                 'N/A',
-                                                0))
+                                                0,
+                                                boltzman_temperature=boltzman_temperature,
+                                                boltzman_k=boltzman_k))
             prompts = prompt_list
 
         elif generation_policy == 'combined-top-k':
@@ -255,7 +273,9 @@ class PromptGenerationPromptQueue:
                                          negative_text_prompt,
                                          model_type,
                                          generation_policy,
-                                         top_k)
+                                         top_k,
+                                         prompt.boltzman_temperature,
+                                         prompt.boltzman_k)
             scored_prompts.append(scored_prompt)
 
         # Sort the list based on the maximize_int1 function
@@ -271,7 +291,11 @@ class ScoredPrompt:
                  negative_prompt,
                  scoring_model,
                  generation_policy,
-                 top_k):
+                 top_k,
+                 boltzman_k=0,
+                 boltzman_temperature=0):
+        self.boltzman_k = boltzman_k
+        self.boltzman_temperature = boltzman_temperature
         self.score = score
         self.scoring_model = scoring_model
         self.generation_policy = generation_policy
