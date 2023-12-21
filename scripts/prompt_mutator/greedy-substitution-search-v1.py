@@ -565,7 +565,8 @@ class PromptSubstitutionGenerator:
             prompt_substitutions=self.rejection_sampling(prompts)
 
             print("Mutating prompts")
-            for index, substitution_choices in tqdm(enumerate(prompt_substitutions)):
+            index=0
+            for substitution_choices in tqdm(prompt_substitutions):
                 for substitution in substitution_choices:
                     # get substitution data
                     position=substitution['position']
@@ -605,8 +606,9 @@ class PromptSubstitutionGenerator:
                         prompts[index].positive_score= modified_prompt_score
                         prompts[index].positive_token_length= token_length
                         break
-
+                
                 self.average_score_by_iteration[i]+=prompts[index].positive_score
+                index+=1
             
             # save average score for current iteration
             self.average_score_by_iteration[i]=self.average_score_by_iteration[i] / num_prompts
