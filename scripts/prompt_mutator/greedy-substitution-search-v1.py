@@ -489,7 +489,6 @@ class PromptSubstitutionGenerator:
 
         for prompt in prompts:
             # get number of phrases
-            print(prompt.positive_prompt)
             prompt_list = prompt.positive_prompt.split(', ')
             num_phrases= len(prompt_list)
 
