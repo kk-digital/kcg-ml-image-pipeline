@@ -13,7 +13,7 @@ import pandas as pd
 import tiktoken
 import torch
 import msgpack
-import tqdm
+from tqdm import tqdm
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
