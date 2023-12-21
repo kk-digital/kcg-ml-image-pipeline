@@ -736,6 +736,10 @@ class PromptSubstitutionGenerator:
                 prompt_score=self.scorer.predict(positive_embedding, negative_embedding).item()
                 positive_score=self.positive_scorer.predict_positive_or_negative_only(positive_embedding).item()
             
+            # calculate mean pooled embeddings
+            positive_embedding=self.get_mean_pooled_embedding(positive_prompt)
+            negative_embedding=self.get_mean_pooled_embedding(negative_prompt)
+
             # convert scores to sigma scores
             positive_score= (positive_score - self.positive_mean) / self.positive_std
             prompt_score=(prompt_score - self.mean) / self.std
