@@ -4,7 +4,7 @@ from utility.minio import cmd
 import os
 import json
 from io import BytesIO
-from orchestration.api.mongo_schemas import Selection, RelevanceSelection
+from orchestration.api.mongo_schemas import Selection, RelevanceSelection, NewSelection
 from .api_utils import PrettyJSONResponse
 import random
 
@@ -132,5 +132,78 @@ def add_relevancy_selection_datapoint(request: Request, relevance_selection: Rel
 
     # upload
     cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
+
+    return True
+
+
+@router.post("/rank/add-ranking-data-point-to-mongo")
+def add_selection_datapoint(
+    request: Request, 
+    selection: NewSelection
+):
+    # Check if file_name and dataset are provided, otherwise compute them
+    if not selection.file_name or not selection.dataset:
+        current_time = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
+        selection.file_name = f"{current_time}-{selection.Selection.username}.json"
+        selection.dataset = selection.Selection.image_1_metadata.file_path.split('/')[1]
+
+    # Convert selection data to dict
+    dict_data = selection.to_dict()
+
+    # Insert the data into MongoDB
+    result = request.app.image_pair_ranking_collection.insert_one(dict_data)
+    inserted_id = result.inserted_id
+
+    return {"status": "success", "message": "Data point added successfully", "inserted_id": str(inserted_id)}
+
+
+@router.get("/rank/list-ranking-data", response_class=PrettyJSONResponse)
+def list_ranking_data(
+    request: Request,
+    start_date: str = Query(None),
+    end_date: str = Query(None),
+    skip: int = Query(0, alias="offset"),
+    limit: int = Query(10, alias="limit"),
+    order: str = Query("desc", regex="^(desc|asc)$")
+):
+    # Convert start_date and end_date strings to datetime objects, if provided
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
+
+    # Build the query filter based on dates
+    query_filter = {}
+    if start_date_obj or end_date_obj:
+        date_filter = {}
+        if start_date_obj:
+            date_filter["$gte"] = start_date_obj.strftime("%Y-%m-%d")
+        if end_date_obj:
+            date_filter["$lte"] = end_date_obj.strftime("%Y-%m-%d")
+        query_filter["file_name"] = date_filter
+
+    # Fetch data from MongoDB with pagination and ordering
+    cursor = request.app.image_pair_ranking_collection.find(query_filter).sort("file_name", -1 if order == "desc" else 1).skip(skip).limit(limit)
+
+    # Convert cursor to list of dictionaries
+    try:
+        ranking_data = []
+        for doc in cursor:
+            doc['_id'] = str(doc['_id'])  # Convert ObjectId to string
+            ranking_data.append(doc)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return ranking_data
+
+@router.delete("/rank/delete-ranking-data-point")
+def delete_ranking_data_point(
+    request: Request, 
+    file_name: str = Query(...)
+):
+    # Attempt to delete the document with the specified file_name
+    result = request.app.image_pair_ranking_collection.delete_one({"file_name": file_name})
+
+    # Check if a document was deleted
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Document with the given file name not found")
 
     return True
