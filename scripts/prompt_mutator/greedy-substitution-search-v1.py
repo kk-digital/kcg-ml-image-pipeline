@@ -260,10 +260,10 @@ class PromptSubstitutionGenerator:
         substitution_inputs=[]
         sampled_phrases=[]
         sampled_embeddings=[]
+        substitution_positions=[]
         
-        # arrays to save number of substitutions per prompt 
-        prompt_num_phrases=[]
-        num_choices=0
+        # number of choices per iteration
+        num_choices=128
 
         for prompt in prompts:
             # get number of phrases
@@ -271,7 +271,8 @@ class PromptSubstitutionGenerator:
             num_phrases= len(prompt_list)
 
             # create a substitution for each position in the prompt
-            for phrase_position in range(num_phrases):
+            for i in range(num_choices):
+                phrase_position= random.randint(0, num_phrases - 1)
                 # get the substituted phrase
                 substituted_phrase=prompt_list[phrase_position]
                 # get the substituted phrase token length
@@ -290,22 +291,18 @@ class PromptSubstitutionGenerator:
                 substitution_inputs.append(substitution_input)
                 sampled_phrases.append(substitute_phrase)
                 sampled_embeddings.append(substitute_embedding)
-            
-            num_choices+=num_phrases
-            prompt_num_phrases.append(num_choices)
+                substitution_positions.append(phrase_position)
         
         # Predict sigma score for every substitution
         predictions = self.substitution_model.predict(substitution_inputs)
 
         prompt_index=0
-        current_position=0
         current_prompt_substitution_choices=[]
         prompts_substitution_choices=[]
         # Filter with rejection sampling
         for position, sigma_score in enumerate(predictions):
-            if(position >= prompt_num_phrases[prompt_index]):
+            if(position % num_choices == 0):
                 prompt_index+=1
-                current_position=0
                 # substitutions are sorted from highest sigma score to lowest
                 current_prompt_substitution_choices= sorted(current_prompt_substitution_choices, key=lambda s: s['score'], reverse=True) 
                 prompts_substitution_choices.append(current_prompt_substitution_choices)
@@ -314,15 +311,13 @@ class PromptSubstitutionGenerator:
             # only take substitutions that increase score by more then a set threshold
             if sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold:
                 substitution_data={
-                    'position':current_position,
+                    'position':substitution_positions[position],
                     'substitute_phrase':sampled_phrases[position],
                     'substitute_embedding':sampled_embeddings[position],
-                    'substituted_embedding':prompts[prompt_index].positive_phrase_embeddings[current_position],
+                    'substituted_embedding':prompts[prompt_index].positive_phrase_embeddings[substitution_positions[position]],
                     'score':sigma_score
                 }
                 current_prompt_substitution_choices.append(substitution_data)
-            
-            current_position+=1
         
         return prompts_substitution_choices
 
