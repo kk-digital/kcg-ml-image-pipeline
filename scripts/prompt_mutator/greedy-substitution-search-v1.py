@@ -706,9 +706,7 @@ class PromptSubstitutionGenerator:
         prompt_data=[]
         # add base prompts and calculate scores
         print("---------scoring prompts")
-        for i, prompt in enumerate(prompts):
-            print(f"prompt {i}")
-
+        for prompt in tqdm(prompts):
             # get positive and negative prompt
             positive_prompt = prompt.positive_prompt_str
             negative_prompt = prompt.negative_prompt_str
@@ -737,9 +735,6 @@ class PromptSubstitutionGenerator:
             positive_score= (positive_score - self.positive_mean) / self.positive_std
             prompt_score=(prompt_score - self.mean) / self.std
 
-            # caclualte embeddings for each phrase in the prompt
-            phrase_embeddings= [self.get_mean_pooled_embedding(self.get_prompt_embedding(phrase)) for phrase in positive_prompt.split(', ')]
-
             # storing prompt data
             prompt= PromptData(positive_prompt= positive_prompt,
                 negative_prompt= negative_prompt,
@@ -747,7 +742,6 @@ class PromptSubstitutionGenerator:
                 negative_embedding= negative_embedding,
                 prompt_score= prompt_score,
                 positive_score= positive_score,
-                positive_phrase_embeddings=phrase_embeddings,
                 positive_token_length=positive_token_length)
             
             prompt_data.append(prompt)
@@ -755,6 +749,11 @@ class PromptSubstitutionGenerator:
         # Sort the list based on the maximize_int1 function
         sorted_scored_prompts = sorted(prompt_data, key=lambda data: data.prompt_score, reverse=True)
         chosen_scored_prompts = sorted_scored_prompts[:num_prompts]
+
+        print("Calculating phrase embeddings for each prompt")
+        for prompt in tqdm(chosen_scored_prompts):
+            # caclualte embeddings for each phrase in the prompt
+            prompt.positive_phrase_embeddings= [self.get_mean_pooled_embedding(self.get_prompt_embedding(phrase)) for phrase in prompt.positive_prompt.split(', ')]
 
         return chosen_scored_prompts
 
