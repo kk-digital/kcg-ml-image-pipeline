@@ -294,31 +294,35 @@ class PromptSubstitutionGenerator:
                 substitution_positions.append(phrase_position)
         
         # Predict sigma score for every substitution
-        predictions = self.substitution_model.predict(substitution_inputs)
+        predictions = self.substitution_model.predict(data=substitution_inputs)
 
         prompt_index=0
+        choices_count=1
         current_prompt_substitution_choices=[]
         prompts_substitution_choices=[]
         # Filter with rejection sampling
-        for position, sigma_score in enumerate(predictions):
+        for index, sigma_score in enumerate(predictions):
             # only take substitutions that increase score by more then a set threshold
             if sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold:
-                phrase_position=substitution_positions[position]
+                phrase_position=substitution_positions[index]
                 substitution_data={
                     'position':phrase_position,
-                    'substitute_phrase':sampled_phrases[position],
-                    'substitute_embedding':sampled_embeddings[position],
+                    'substitute_phrase':sampled_phrases[index],
+                    'substitute_embedding':sampled_embeddings[index],
                     'substituted_embedding':prompts[prompt_index].positive_phrase_embeddings[phrase_position],
                     'score':sigma_score
                 }
                 current_prompt_substitution_choices.append(substitution_data)
-
-            if(position % num_choices == 0):
+            
+            if(choices_count == num_choices):
                 prompt_index+=1
+                choices_count=1
                 # substitutions are sorted from highest sigma score to lowest
                 current_prompt_substitution_choices= sorted(current_prompt_substitution_choices, key=lambda s: s['score'], reverse=True) 
                 prompts_substitution_choices.append(current_prompt_substitution_choices)
                 current_prompt_substitution_choices=[]
+            
+            choices_count+=1
         
         return prompts_substitution_choices
 
