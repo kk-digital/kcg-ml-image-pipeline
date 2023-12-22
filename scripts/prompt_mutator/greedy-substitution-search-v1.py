@@ -258,7 +258,7 @@ class PromptSubstitutionGenerator:
             modified_prompt = ", ".join(prompt_list)
             prompt_token_length=self.embedder.compute_token_length(modified_prompt)
         
-        return random_index, phrase
+        return random_index, phrase, prompt_token_length
 
     # function for rejection sampling with sigma scores
     def rejection_sampling_by_sigma_score(self,
@@ -495,12 +495,10 @@ class PromptSubstitutionGenerator:
 
             # create a substitution for each position in the prompt
             for phrase_position in range(num_phrases):
-                # get the substituted phrase
-                substituted_phrase=prompt_list[phrase_position]
                 # get the substituted phrase embedding
                 substituted_embedding = prompt.positive_phrase_embeddings[phrase_position]
                 # get a random phrase from civitai to substitute with
-                phrase_index, random_phrase= self.choose_random_phrase(prompt_list, phrase_position)  
+                phrase_index, random_phrase, new_token_length= self.choose_random_phrase(prompt_list, phrase_position)  
                 # get phrase string
                 substitute_phrase = random_phrase
                 # get phrase embedding by its index
