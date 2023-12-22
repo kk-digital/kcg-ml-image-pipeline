@@ -136,6 +136,7 @@ def add_relevancy_selection_datapoint(request: Request, relevance_selection: Rel
     return True
 
 
+
 @router.post("/rank/add-ranking-data-point-to-mongo")
 def add_selection_datapoint(
     request: Request, 
@@ -150,11 +151,33 @@ def add_selection_datapoint(
     # Convert selection data to dict
     dict_data = selection.to_dict()
 
-    # Insert the data into MongoDB
-    result = request.app.image_pair_ranking_collection.insert_one(dict_data)
-    inserted_id = result.inserted_id
+    # Add a datetime field to dict_data if it doesn't exist
+    #dict_data['datetime'] = dict_data.get('datetime', datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S'))
 
+    # Insert the data into MongoDB without the '_id'
+    mongo_data = dict_data.copy()
+    mongo_result = request.app.image_pair_ranking_collection.insert_one(mongo_data)
+    inserted_id = mongo_result.inserted_id
+
+    # Prepare data for MinIO upload, excluding the '_id'
+    path = "data/ranking/aggregate"
+    full_path = os.path.join(selection.dataset, path, selection.file_name)
+    json_data = json.dumps(dict_data, indent=4).encode('utf-8')  # dict_data does not include '_id'
+    data = BytesIO(json_data)
+
+    # Upload to MinIO
+    request.app.minio_client.put_object(
+        "datasets",  # Assuming 'datasets' is the bucket name
+        full_path,   # The full path where the file will be stored in MinIO
+        data,
+        length=len(json_data),  # The length of the data to be uploaded
+        content_type='application/json'
+    )
+
+    # Return the response
     return {"status": "success", "message": "Data point added successfully", "inserted_id": str(inserted_id)}
+
+
 
 
 @router.get("/rank/list-ranking-data", response_class=PrettyJSONResponse)
@@ -207,3 +230,15 @@ def delete_ranking_data_point(
         raise HTTPException(status_code=404, detail="Document with the given file name not found")
 
     return True
+
+
+@router.delete("/rank/delete-all-ranking-data-points")
+def delete_all_ranking_data_points(request: Request):
+    # Attempt to delete all documents from the collection
+    result = request.app.image_pair_ranking_collection.delete_many({})
+
+    # Check if any documents were deleted
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="No documents found in the collection")
+
+    return {"message": "All documents deleted successfully"}
