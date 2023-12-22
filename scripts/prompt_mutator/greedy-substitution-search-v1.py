@@ -65,8 +65,8 @@ class PromptData:
                  negative_embedding,
                  prompt_score,
                  positive_score,
-                 positive_phrase_embeddings,
-                 positive_token_length):
+                 positive_token_length,
+                 positive_phrase_embeddings=None):
         
         self.positive_prompt=positive_prompt
         self.negative_prompt=negative_prompt
