@@ -6,7 +6,6 @@ import random
 import sys
 import time
 import traceback
-from xmlrpc.client import ResponseError
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
@@ -65,7 +64,6 @@ class PromptData:
                  negative_embedding,
                  prompt_score,
                  positive_score,
-                 positive_token_length,
                  positive_phrase_embeddings=None):
         
         self.positive_prompt=positive_prompt
@@ -75,7 +73,6 @@ class PromptData:
         self.positive_score= positive_score
         self.prompt_score= prompt_score
         self.positive_phrase_embeddings= positive_phrase_embeddings
-        self.positive_token_length= positive_token_length
 
 class PromptSubstitutionGenerator:
     def __init__(
@@ -169,9 +166,9 @@ class PromptSubstitutionGenerator:
         phrase_df=pd.read_csv(csv_phrase).sort_values(by="index")
         self.phrase_list=phrase_df['phrase str'].tolist()
         self.phrase_token_lengths=phrase_df['token size'].tolist()
-        # get embeddings
+        # get phrase embeddings
         self.phrase_embeddings= self.load_phrase_embeddings()
-
+        
         # tiktoken encoder for checking token length
         self.token_encoder = tiktoken.get_encoding("cl100k_base")
 
@@ -247,18 +244,15 @@ class PromptSubstitutionGenerator:
         return embedding.detach().cpu().numpy()
 
     # function to get a random phrase from civitai with a max token size for substitutions
-    def choose_random_phrase(self, prompt_list, position_to_substitute, max_token_length=77):
-        prompt_token_length=max_token_length + 1
-        
-        while(prompt_token_length > max_token_length):
+    def choose_random_phrase(self, max_token_length):
+        phrase_token_length=max_token_length + 1
+
+        while(phrase_token_length > max_token_length):
             random_index=random.randrange(0, len(self.phrase_list))
             phrase= self.phrase_list[random_index]
+            phrase_token_length=self.phrase_token_lengths[random_index]
 
-            prompt_list[position_to_substitute] = phrase
-            modified_prompt = ", ".join(prompt_list)
-            prompt_token_length=self.embedder.compute_token_length(modified_prompt)
-        
-        return random_index, phrase, prompt_token_length
+        return random_index, phrase
 
     # function for rejection sampling with sigma scores
     def rejection_sampling_by_sigma_score(self,
@@ -482,7 +476,6 @@ class PromptSubstitutionGenerator:
         substitution_inputs=[]
         sampled_phrases=[]
         sampled_embeddings=[]
-        modified_token_lengths=[]
         
         # arrays to save number of substitutions per prompt 
         prompt_num_phrases=[]
@@ -495,10 +488,14 @@ class PromptSubstitutionGenerator:
 
             # create a substitution for each position in the prompt
             for phrase_position in range(num_phrases):
+                # get the substituted phrase
+                substituted_phrase=prompt_list[phrase_position]
+                # get the substituted phrase token length
+                substituted_phrase_length=len(self.token_encoder.encode(substituted_phrase))
                 # get the substituted phrase embedding
                 substituted_embedding = prompt.positive_phrase_embeddings[phrase_position]
                 # get a random phrase from civitai to substitute with
-                phrase_index, random_phrase, new_token_length= self.choose_random_phrase(prompt_list, phrase_position)  
+                phrase_index, random_phrase= self.choose_random_phrase(max_token_length=substituted_phrase_length)   
                 # get phrase string
                 substitute_phrase = random_phrase
                 # get phrase embedding by its index
@@ -509,7 +506,6 @@ class PromptSubstitutionGenerator:
                 substitution_inputs.append(substitution_input)
                 sampled_phrases.append(substitute_phrase)
                 sampled_embeddings.append(substitute_embedding)
-                modified_token_lengths.append(new_token_length)
             
             num_choices+=num_phrases
             prompt_num_phrases.append(num_choices)
@@ -538,7 +534,6 @@ class PromptSubstitutionGenerator:
                     'substitute_phrase':sampled_phrases[position],
                     'substitute_embedding':sampled_embeddings[position],
                     'substituted_embedding':prompts[prompt_index].positive_phrase_embeddings[current_position],
-                    'token_length': modified_token_lengths[position],
                     'score':sigma_score
                 }
                 current_prompt_substitution_choices.append(substitution_data)
@@ -568,7 +563,6 @@ class PromptSubstitutionGenerator:
                     substitute_phrase=substitution['substitute_phrase']
                     substitute_embedding=substitution['substitute_embedding']
                     substituted_embedding=substitution['substituted_embedding']
-                    token_length= substitution['token_length']
                     predicted_score=substitution['score']
 
                     #Create a modified prompt with the substitution
@@ -599,7 +593,6 @@ class PromptSubstitutionGenerator:
                         prompts[index].positive_embedding= self.get_mean_pooled_embedding(modified_prompt_embedding)
                         prompts[index].positive_phrase_embeddings[position]= substitute_embedding
                         prompts[index].positive_score= modified_prompt_score
-                        prompts[index].positive_token_length= token_length
                         break
                 
                 self.average_score_by_iteration[i]+=prompts[index].positive_score
@@ -736,8 +729,7 @@ class PromptSubstitutionGenerator:
                 positive_embedding= positive_embedding,
                 negative_embedding= negative_embedding,
                 prompt_score= prompt_score,
-                positive_score= positive_score,
-                positive_token_length=positive_token_length)
+                positive_score= positive_score)
             
             prompt_data.append(prompt)
         
