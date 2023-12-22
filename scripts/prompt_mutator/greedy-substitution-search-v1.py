@@ -623,25 +623,18 @@ class PromptSubstitutionGenerator:
     def generate_images(self, num_images):
         # dataframe for saving csv of generated prompts
         df_data=[]
-        # scores before mutation
-        original_scores=[]
-        # scores after mutation
-        mutated_scores=[]
         index=0
 
+        start=time.time()
         # get initial prompts
         prompt_list = self.generate_initial_prompts(num_images)
 
         #mutate positive prompts
-        start=time.time()
         prompts, self_training_data= self.mutate_prompts(prompt_list)
         end=time.time()
 
         # mutate prompts one by one
         for prompt in prompts:
-            # append to the list of scores before mutation
-            original_scores.append(prompt.prompt_score)
-            mutated_scores.append(prompt.prompt_score)
 
             # sending a job to generate an image with the mutated prompt
             if self.send_job:
@@ -689,20 +682,17 @@ class PromptSubstitutionGenerator:
         current_date=datetime.now().strftime("%Y-%m-%d-%H:%M")
         generation_path=DATA_MINIO_DIRECTORY + f"/generated-images/{current_date}-generated-data"
         
-        # save a histogram of score distribution before and after mutation for comparison
-        self.compare_distributions(generation_path, original_scores, mutated_scores)
+        # save a graph for score improvement by number of iterations
+        self.score_improvement_graph(minio_path=generation_path)
+
         # save a txt file containing generation stats
         self.generation_stats(minio_path=generation_path,
                         generation_speed=generation_speed,
                         num_prompts=num_images,
-                        avg_score_before_mutation= np.mean(original_scores),
-                        avg_score_after_mutation= np.mean(mutated_scores),
+                        avg_score_before_mutation= self.average_score_by_iteration[0],
+                        avg_score_after_mutation= self.average_score_by_iteration[-1],
                         )
         
-        # save a graph for score improvement by number of iterations
-        self.average_score_by_iteration= np.divide(self.average_score_by_iteration, num_images)
-        self.score_improvement_graph(minio_path=generation_path)
-
         # save self training data
         if self.self_training:
             self.store_self_training_data(self_training_data)
