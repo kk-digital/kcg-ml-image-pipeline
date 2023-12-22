@@ -247,17 +247,18 @@ class PromptSubstitutionGenerator:
         return embedding.detach().cpu().numpy()
 
     # function to get a random phrase from civitai with a max token size for substitutions
-    def choose_random_phrase(self, max_token_length):
-        phrase_token_length=max_token_length + 1
-
-        while(phrase_token_length > max_token_length):
+    def choose_random_phrase(self, prompt_list, position_to_substitute, max_token_length=77):
+        prompt_token_length=max_token_length + 1
+        
+        while(prompt_token_length > max_token_length):
             random_index=random.randrange(0, len(self.phrase_list))
             phrase= self.phrase_list[random_index]
-            phrase_token_length=self.phrase_token_lengths[random_index]
-        
-        new_token_length= 77 - max_token_length + phrase_token_length
 
-        return random_index, phrase, new_token_length
+            prompt_list[position_to_substitute] = phrase
+            modified_prompt = ", ".join(prompt_list)
+            prompt_token_length=self.embedder.compute_token_length(modified_prompt)
+        
+        return random_index, phrase
 
     # function for rejection sampling with sigma scores
     def rejection_sampling_by_sigma_score(self,
@@ -496,14 +497,10 @@ class PromptSubstitutionGenerator:
             for phrase_position in range(num_phrases):
                 # get the substituted phrase
                 substituted_phrase=prompt_list[phrase_position]
-                # get the substituted phrase token length
-                substituted_phrase_length=len(self.token_encoder.encode(substituted_phrase))
-                # get the substituted phrase token length
-                max_token_length= 77 - (prompt.positive_token_length - substituted_phrase_length)
                 # get the substituted phrase embedding
                 substituted_embedding = prompt.positive_phrase_embeddings[phrase_position]
                 # get a random phrase from civitai to substitute with
-                phrase_index, random_phrase, new_token_length= self.choose_random_phrase(max_token_length) 
+                phrase_index, random_phrase= self.choose_random_phrase(prompt_list, phrase_position)  
                 # get phrase string
                 substitute_phrase = random_phrase
                 # get phrase embedding by its index

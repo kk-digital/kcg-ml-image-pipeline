@@ -218,13 +218,6 @@ class EntropyDatasetLoader:
             modified_prompt = ", ".join(prompt_list)
             prompt_token_length=self.embedder.compute_token_length(modified_prompt)
         
-        # phrase_token_length=max_token_length + 1
-
-        # while(phrase_token_length > max_token_length):
-        #     random_index=random.randrange(0, len(self.phrase_list))
-        #     phrase= self.phrase_list[random_index]
-        #     phrase_token_length=self.phrase_token_lengths[random_index]
-        
         return phrase, modified_prompt
 
     def create_substitution_dataset(self):
@@ -266,17 +259,9 @@ class EntropyDatasetLoader:
             substituted_phrase=prompt_list[position_to_substitute]
             # gezt the embedding of the substituted phrase
             substituted_embedding= self.get_prompt_embedding(substituted_phrase)
-            # get the substituted phrase token length
-            # substituted_phrase_length=len(self.token_encoder.encode(substituted_phrase))
-            # # get the max accepted phrase token length for substitute phrase
-            # max_token_length= 77 - (prompt_token_length - substituted_phrase_length)
             # get a random phrase from civitai to substitute with
             substitute_phrase, modified_prompt= self.choose_random_substitution(prompt_list, position_to_substitute) 
             substitute_embedding= self.get_prompt_embedding(substitute_phrase)
-
-            # Create a modified prompt with the substitution and get embedding of substituted phrase
-            # prompt_list[position_to_substitute] = substitute_phrase
-            # modified_prompt = ", ".join(prompt_list)
 
             # Get embedding of mutated prompt
             modified_embedding= self.get_prompt_embedding(modified_prompt)
