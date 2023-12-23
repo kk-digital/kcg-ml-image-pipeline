@@ -29,7 +29,7 @@ def parse_args():
     return parser.parse_args()
  
 # load elm or linear scoring models
-def load_model(self, embedding_type="positive", scoring_model="linear", input_size=768):
+def load_model(minio_client, device, embedding_type="positive", scoring_model="linear", input_size=768):
     input_path="environmental/models/ranking/"
 
     if(scoring_model=="elm"):
@@ -44,7 +44,7 @@ def load_model(self, embedding_type="positive", scoring_model="linear", input_si
     else:
         file_name+=".safetensors"
 
-    model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
+    model_files=cmd.get_list_of_objects_with_prefix(minio_client, 'datasets', input_path)
     most_recent_model = None
 
     for model_file in model_files:
@@ -52,7 +52,7 @@ def load_model(self, embedding_type="positive", scoring_model="linear", input_si
             most_recent_model = model_file
 
     if most_recent_model:
-        model_file_data =cmd.get_file_from_minio(self.minio_client, 'datasets', most_recent_model)
+        model_file_data =cmd.get_file_from_minio(minio_client, 'datasets', most_recent_model)
     else:
         print("No .safetensors files found in the list.")
         return
@@ -67,7 +67,7 @@ def load_model(self, embedding_type="positive", scoring_model="linear", input_si
     byte_buffer.seek(0)
 
     embedding_model.load_safetensors(byte_buffer)
-    embedding_model.model=embedding_model.model.to(self.device)
+    embedding_model.model=embedding_model.model.to(device)
 
     return embedding_model
 
@@ -132,7 +132,7 @@ def main():
     embedder.load_submodels()
 
     # Load scoring model
-    positive_scorer= load_model()
+    positive_scorer= load_model(minio_client, device)
     # get mean and std values
     mean, std= float(positive_scorer.mean), float(positive_scorer.standard_deviation)
 
