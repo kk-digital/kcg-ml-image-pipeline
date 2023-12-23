@@ -30,3 +30,4 @@ bayesian-optimization==1.4.3
 python-dateutil
 scikit-learn
 xgboost
+clip-interrogator
