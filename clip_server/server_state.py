@@ -10,7 +10,7 @@ from utility.clip.clip import ClipModel
 from utility.minio.cmd import get_file_from_minio, is_object_exists
 from clip_cache import ClipCache
 from clip_constants import CLIP_CACHE_DIRECTORY
-
+from utility.http.request import http_get_list_completed_jobs
 
 class Phrase:
     def __init__(self, id, phrase):
@@ -182,6 +182,7 @@ class ClipServer:
         # Record the start time
         start_time = time.time()
 
+        # vector full of zeroes of size=num_images
         cosine_match_list = [0] * num_images
 
         phrase_cip_vector_struct = self.get_clip_vector(phrase)
@@ -265,7 +266,37 @@ class ClipServer:
         clip_vector = clip_vector_cpu.tolist()
         return clip_vector
 
+    def download_all_clip_vectors(self):
 
+        completed_jobs = http_get_list_completed_jobs()
+
+        if completed_jobs is None:
+            print('Could not get list of completed jobs')
+            return None
+
+        for job in completed_jobs:
+            input_dict = job['task_input_dict']
+
+            # Jobs must have input dictionary
+            if input_dict is None:
+                continue
+
+            # Jobs must have target dataset
+            if 'dataset' not in input_dict:
+                continue
+
+            # Jobs must have output image path
+            if 'file_path' not in input_dict:
+                continue
+
+            dataset = input_dict['dataset']
+            file_path = input_dict['file_path']
+
+            image_path = f'{dataset}/{file_path}'
+
+            # this will download the clip vector from minio
+            # and will also add it to clip cache
+            self.clip_cache.get_clip_vector_from_minio(image_path)
 
 
 
