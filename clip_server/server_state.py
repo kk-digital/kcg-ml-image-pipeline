@@ -268,13 +268,22 @@ class ClipServer:
 
     def download_all_clip_vectors(self):
 
+        print('Starting to download all clip vectors')
+
+        print('Getting list of completed jobs')
         completed_jobs = http_get_list_completed_jobs()
+        print('Finished getting list of completed jobs')
 
         if completed_jobs is None:
             print('Could not get list of completed jobs')
             return None
 
+        num_jobs = len(completed_jobs)
+        job_index = 0
         for job in completed_jobs:
+            print(f'processing job {job_index} our of {num_jobs}')
+
+            job_index = job_index + 1
             input_dict = job['task_input_dict']
 
             # Jobs must have input dictionary
