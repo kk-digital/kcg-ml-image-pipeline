@@ -39,10 +39,12 @@ class ImageScorer:
     def __init__(self,
                  minio_client,
                  dataset_name="characters",
-                 model_name=""):
+                 model_name="",
+                 generation_policy="all"):
         self.minio_client = minio_client
         self.model = None
         self.dataset = dataset_name
+        self.generation_policy = generation_policy
         self.model_name = model_name
         self.model_input_type, self.input_size = determine_model_input_type_size(model_name)
         self.model_id = None
@@ -86,6 +88,7 @@ class ImageScorer:
 
     def get_paths(self):
         print("Getting paths for dataset: {}...".format(self.dataset))
+
         all_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', self.dataset)
 
         # Depending on the model type, choose the appropriate msgpack files
@@ -96,6 +99,34 @@ class ImageScorer:
 
         print("Total paths found=", len(type_paths))
         return type_paths
+
+    def get_feature_data(self, job_uuid, index):
+        # get generation policy and task completion time
+        completed_job = request.http_get_completed_job_by_uuid(job_uuid)
+        generation_policy = "n/a"
+        if "prompt_generation_policy" in completed_job["task_input_dict"]:
+            generation_policy = completed_job["task_input_dict"]["prompt_generation_policy"]
+
+        completion_time = completed_job["task_completion_time"]
+
+        return (job_uuid, generation_policy, completion_time), index
+
+    def get_all_feature_data(self, job_uuids):
+        print('Getting features data...')
+
+        features_data = [None] * len(job_uuids)
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = []
+            count = 0
+            for job_uuid in job_uuids:
+                futures.append(executor.submit(self.get_feature_data, job_uuid=job_uuid, index=count))
+                count += 1
+
+            for future in tqdm(as_completed(futures), total=len(job_uuids)):
+                feature_data, index= future.result()
+                features_data[index] = feature_data
+
+        return features_data
 
     def get_feature_pair(self, path, index):
         # Updated bucket name to 'datasets'
@@ -140,19 +171,21 @@ class ImageScorer:
             data = msgpack.unpackb(data_msgpack.data)
 
         image_hash = data['file_hash']
+        job_uuid = data['job_uuid']
+
         if self.model_input_type == "clip":
             image_path = data['file_path'].replace("_data.msgpack", ".jpg")
         else:
             image_path = data['file_path'].replace("_embedding.msgpack", ".jpg")
 
-        return image_hash, image_path, first_feature, second_feature, index
+        return image_hash, image_path, first_feature, second_feature, index, job_uuid
 
     def get_all_feature_pairs(self, msgpack_paths):
         print('Getting dataset features...')
 
         features_data = [None] * len(msgpack_paths)
         image_paths = [None] * len(msgpack_paths)
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        with ThreadPoolExecutor(max_workers=10) as executor:
             futures = []
             count = 0
             for path in msgpack_paths:
@@ -160,21 +193,27 @@ class ImageScorer:
                 count += 1
 
             for future in tqdm(as_completed(futures), total=len(msgpack_paths)):
-                image_hash, image_path, first_feature, second_feature, index = future.result()
-                features_data[index] = (image_hash, first_feature, second_feature)
+                image_hash, image_path, first_feature, second_feature, index, job_uuid= future.result()
+                features_data[index] = (image_hash,
+                                        first_feature,
+                                        second_feature,
+                                        job_uuid)
                 image_paths[index] = image_path
 
         return features_data, image_paths
 
     def get_scores(self, msgpack_paths):
         hash_score_pairs = []
-
+        job_uuids = []
         features_data, image_paths = self.get_all_feature_pairs(msgpack_paths)
         print('Predicting dataset scores...')
         with torch.no_grad():
             count=0
             weird_count = 0
             for data in tqdm(features_data):
+                # add job uuids to array
+                job_uuids.append(data[3])
+
                 if self.model_input_type == "embedding":
                     positive_embedding_array = data[1].to(self.device)
                     negative_embedding_array = data[2].to(self.device)
@@ -208,7 +247,7 @@ class ImageScorer:
 
         print("Weird scores count = ", weird_count)
 
-        return hash_score_pairs, image_paths
+        return hash_score_pairs, image_paths, job_uuids
 
     def get_percentiles(self, hash_score_pairs):
         hash_percentile_dict = {}
@@ -251,21 +290,35 @@ class ImageScorer:
 
         return hash_sigma_score_dict
 
-    def upload_csv(self, hash_score_pairs, hash_percentile_dict, image_paths):
+    def upload_csv(self,
+                   hash_score_pairs,
+                   hash_percentile_dict,
+                   hash_sigma_score_dict,
+                   image_paths,
+                   features_data):
         print("Saving data to csv...")
+        csv_data = []
         csv_buffer = io.StringIO()
         writer = csv.writer(csv_buffer)
-        writer.writerow((["Score", "Percentile", "Image Hash", "Image Path"]))
+        writer.writerow((["Job UUID", "Image Hash", "Image Path", "Completed Time", "Generation Policy", "Score", "Percentile", "Sigma Score"]))
 
         count = 0
         for image_hash, score in hash_score_pairs:
-            writer.writerow([score, hash_percentile_dict[image_hash], image_hash, image_paths[count]])
+            job_uuid = features_data[0]
+            generation_policy = features_data[1]
+            completed_time = features_data[2]
+
+            row = [job_uuid, image_hash, image_paths[count], completed_time, generation_policy, score, hash_percentile_dict[image_hash], hash_sigma_score_dict[image_hash]]
+            writer.writerow(row)
+            csv_data.append(row)
             count += 1
 
         bytes_buffer = io.BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
         # upload the csv
         csv_path = os.path.join(self.dataset, "output/scores-csv", self.model_name.replace(".safetensors", ".csv"))
         cmd.upload_data(self.minio_client, 'datasets', csv_path, bytes_buffer)
+
+        return csv_data
 
     def upload_scores(self, hash_score_pairs):
         print("Uploading scores to mongodb...")
@@ -373,6 +426,8 @@ class ImageScorer:
         sigma_score_graph.autoscale(enable=True, axis='y')
 
         # Save figure
+        plt.suptitle('Dataset: {}\nModel: {}'.format(self.dataset, self.model_name), fontsize=20)
+
         # plt.subplots_adjust(left=0.15, hspace=0.5)
         # plt.savefig("./output/{}-{}-scores.jpg".format(self.model_name.replace(".safetensors", ""), self.dataset))
         plt.show()
@@ -381,9 +436,85 @@ class ImageScorer:
         buf.seek(0)
 
         # upload the graph report
-        graph_output = os.path.join(self.dataset, "output/scores-percentiles-graph", self.model_name.replace(".safetensors", ".png"))
+        graph_name = "{}-{}.png".format(self.model_name.replace(".safetensors", ""), self.dataset)
+        graph_output = os.path.join(self.dataset, "output/scores-graph", graph_name)
         cmd.upload_data(self.minio_client, 'datasets', graph_output, buf)
 
+    def generate_graphs_by_policy(self,
+                                  csv_data,
+                                  policy="top-k"):
+        # get scores for policy
+        scores = []
+        percentiles = []
+        sigma_scores = []
+        for row in csv_data:
+            row_policy = row[4]
+            if  row_policy == policy:
+                score = row[5]
+                scores.append(score)
+
+                percentile = row[6]
+                percentiles.append(percentile)
+
+                sigma_score = row[7]
+                sigma_scores.append(sigma_score)
+
+        # Initialize all graphs/subplots
+        plt.figure(figsize=(22, 20))
+        figure_shape = (3, 1)
+        percentile_graph = plt.subplot2grid(figure_shape, (0, 0), rowspan=1, colspan=1)
+        score_graph = plt.subplot2grid(figure_shape, (1, 0), rowspan=1, colspan=1)
+        sigma_score_graph = plt.subplot2grid(figure_shape, (2, 0), rowspan=1, colspan=1)
+
+        # percentiles
+        x_axis_values = [i for i in range(len(percentiles))]
+        percentile_graph.scatter(x_axis_values, percentiles,
+                            label="Image Percentiles over time",
+                            c="#281ad9", s=15)
+
+        percentile_graph.set_xlabel("Time")
+        percentile_graph.set_ylabel("Percentile")
+        percentile_graph.set_title("Percentile vs Time")
+        percentile_graph.legend()
+        percentile_graph.autoscale(enable=True, axis='y')
+
+        # scores
+        score_graph.scatter(x_axis_values, scores,
+                                 label="Image Scores over time",
+                                 c="#281ad9", s=15)
+
+        score_graph.set_xlabel("Time")
+        score_graph.set_ylabel("Score")
+        score_graph.set_title("Score vs Time")
+        score_graph.legend()
+        score_graph.autoscale(enable=True, axis='y')
+
+        # sigma scores
+
+        sigma_score_graph.scatter(x_axis_values, sigma_scores,
+                            label="Image Sigma Scores over time",
+                            c="#281ad9", s=15)
+
+        sigma_score_graph.set_xlabel("Time")
+        sigma_score_graph.set_ylabel("Sigma Score")
+        sigma_score_graph.set_title("Sigma Score vs Time")
+        sigma_score_graph.legend()
+        sigma_score_graph.autoscale(enable=True, axis='y')
+
+        # Save figure
+        plt.suptitle('Dataset: {}\nModel: {}\nPolicy: {}'.format(self.dataset, self.model_name, policy), fontsize=20)
+
+        # plt.subplots_adjust(left=0.15, hspace=0.5)
+        # plt.savefig("./output/{}-{}-scores.jpg".format(self.model_name.replace(".safetensors", ""), self.dataset))
+        plt.show()
+        buf = BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+
+        # upload the graph report
+        graph_name = "{}-{}.png".format(self.model_name.replace(".safetensors", ""), self.dataset)
+        graph_output = os.path.join(self.dataset, "output/scores-graph", graph_name)
+        cmd.upload_data(self.minio_client, 'datasets', graph_output, buf)
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Embedding Scorer")
@@ -391,30 +522,39 @@ def parse_args():
     parser.add_argument('--minio-access-key', required=False, help='Minio access key')
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
     parser.add_argument('--dataset-name', required=True, help='Name of the dataset for embeddings')
+    parser.add_argument('--generation-policy', required=False, default="all", help='Name of generation policy to get, default is all')
     parser.add_argument('--model-filename', required=True, help='Filename of the main model (e.g., "XXX..safetensors")')
     args = parser.parse_args()
     return args
 
 
-def run_image_scorer(minio_client, dataset_name, model_filename):
+def run_image_scorer(minio_client,
+                     dataset_name,
+                     model_filename,
+                     generation_policy):
     start_time = time.time()
 
     scorer = ImageScorer(minio_client=minio_client,
                          dataset_name=dataset_name,
-                         model_name=model_filename)
+                         model_name=model_filename,
+                         generation_policy=generation_policy)
 
     scorer.load_model()
     paths = scorer.get_paths()
-    hash_score_pairs, image_paths = scorer.get_scores(paths)
+    hash_score_pairs, image_paths, job_uuids = scorer.get_scores(paths)
+    features_data = scorer.get_all_feature_data(job_uuids)
     hash_percentile_dict = scorer.get_percentiles(hash_score_pairs)
-    scorer.upload_csv(hash_score_pairs=hash_score_pairs,
-                      hash_percentile_dict=hash_percentile_dict,
-                      image_paths=image_paths)
+
+    csv_data = scorer.upload_csv(hash_score_pairs=hash_score_pairs,
+                                  hash_percentile_dict=hash_percentile_dict,
+                                  hash_sigma_score_dict=hash_sigma_score_dict,
+                                  image_paths=image_paths,
+                                  features_data=features_data)
     hash_sigma_score_dict = scorer.get_sigma_scores(hash_score_pairs)
     scorer.generate_graphs(hash_score_pairs, hash_percentile_dict, hash_sigma_score_dict)
-    scorer.upload_scores(hash_score_pairs)
-    scorer.upload_percentile(hash_percentile_dict)
-    scorer.upload_sigma_scores(hash_sigma_score_dict)
+    # scorer.upload_scores(hash_score_pairs)
+    # scorer.upload_percentile(hash_percentile_dict)
+    # scorer.upload_sigma_scores(hash_sigma_score_dict)
 
     time_elapsed = time.time() - start_time
     print("Dataset: {}: Total Time elapsed: {}s".format(dataset_name, format(time_elapsed, ".2f")))
@@ -428,7 +568,10 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     if dataset_name != "all":
-        run_image_scorer(minio_client, args.dataset_name, args.model_filename)
+        run_image_scorer(minio_client,
+                         args.dataset_name,
+                         args.model_filename,
+                         args.generation_policy)
     else:
         # if all, train models for all existing datasets
         # get dataset name list
@@ -436,7 +579,10 @@ def main():
         print("dataset names=", dataset_names)
         for dataset in dataset_names:
             try:
-                run_image_scorer(minio_client, dataset, args.model_filename)
+                run_image_scorer(minio_client,
+                                 dataset,
+                                 args.model_filename,
+                                 args.generation_policy)
             except Exception as e:
                 print("Error running image scorer for {}: {}".format(dataset, e))
 

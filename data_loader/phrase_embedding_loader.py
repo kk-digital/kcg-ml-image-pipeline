@@ -157,6 +157,15 @@ class PhraseEmbeddingLoader:
         index = self.phrase_index_dict[phrase]
         return self.phrase_embedding_arr[index]
 
+    def get_embeddings(self, phrases):
+        phrase_embeddings = []
+        for phrase in phrases:
+            index = self.phrase_index_dict[phrase]
+            embedding = self.phrase_embedding_arr[index]
+            phrase_embeddings.append(embedding)
+
+        return phrase_embeddings
+
 
 
 

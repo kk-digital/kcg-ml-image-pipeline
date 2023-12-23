@@ -4,79 +4,148 @@ import math
 import random
 import pymongo
 from utility.minio import cmd
-from orchestration.api.mongo_schemas import  ActiveLearningPolicy
+from orchestration.api.mongo_schemas import  ActiveLearningPolicy, ActiveLearningQueuePair
 from .api_utils import PrettyJSONResponse
 import os
 from fastapi.responses import JSONResponse
 from pymongo.collection import Collection
 from datetime import datetime, timezone
 from typing import List
+from io import BytesIO
+from bson import ObjectId
+from typing import Optional
+import json
 
 router = APIRouter()
 
+@router.post("/active-learning-queue/add-queue-pair-to-mongo")
+def add_queue_pair(request: Request, queue_pair: ActiveLearningQueuePair):
+    # Validate and retrieve the active learning policy using the active_learning_policy_id
+    policy = request.app.active_learning_policies_collection.find_one(
+        {"active_learning_policy_id": queue_pair.active_learning_policy_id}
+    )
+    if not policy:
+        raise HTTPException(status_code=404, detail=f"Active learning policy with ID {queue_pair.active_learning_policy_id} not found")
 
-@router.put("/active-learning-policy/add-new-policy")
-def add_or_update_active_learning_policy(request: Request, policy_data: ActiveLearningPolicy):
+    # Function to extract job details
+    def extract_job_details(job_uuid, suffix):
+        job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
+        if not job:
+            raise HTTPException(status_code=422, detail=f"Job {job_uuid} not found")
 
-    # Find the maximum active_learning_policy_id in the collection
-    last_entry = request.app.active_learning_policies_collection.find_one({}, sort=[("active_learning_policy_id", -1)])
+        output_file_path = job["task_output_file_dict"]["output_file_path"]
+        task_creation_time = job["task_creation_time"]
+        path_parts = output_file_path.split('/')
+        if len(path_parts) < 4:
+            raise HTTPException(status_code=500, detail="Invalid output file path format")
 
-    if last_entry and "active_learning_policy_id" in last_entry:
-        new_policy_id = last_entry["active_learning_policy_id"] + 1
-    else:
-        new_policy_id = 0
-
-    # Check if the active learning policy exists
-    query = {"active_learning_policy": policy_data.active_learning_policy}
-    existing_policy = request.app.active_learning_policies_collection.find_one(query)
-
-    if existing_policy is None:
-        # If policy doesn't exist, add it
-        policy_data.active_learning_policy_id = new_policy_id
-        policy_data.creation_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
-        request.app.active_learning_policies_collection.insert_one(policy_data.to_dict())
-        return {"status": "success", "message": "Active learning policy added successfully.", "active_learning_policy_id": new_policy_id}
-    else:
-        # If policy already exists, update its details
-        new_values = {
-            "$set": {
-                "active_learning_policy_description": policy_data.active_learning_policy_description,
-                "creation_time": policy_data.creation_time
-            }
+        return {
+            f"job_uuid_{suffix}": job_uuid,
+            f"file_name_{suffix}": path_parts[-1],
+            f"image_path_{suffix}": output_file_path,
+            f"image_hash_{suffix}": job["task_output_file_dict"]["output_file_hash"],
+            f"job_creation_time_{suffix}": task_creation_time,
         }
-        request.app.active_learning_policies_collection.update_one(query, new_values)
-        return {"status": "success", "message": "Active learning policy updated successfully.", "active_learning_policy_id": existing_policy["active_learning_policy_id"]}
+
+    # Extract job details for both jobs
+    job_details_1 = extract_job_details(queue_pair.image1_job_uuid, "1")
+    job_details_2 = extract_job_details(queue_pair.image2_job_uuid, "2")
+
+    # Prepare the document to insert into the active learning queue pairs collection
+    combined_job_details = {
+        "active_learning_policy_id": queue_pair.active_learning_policy_id,
+        "active_learning_policy": policy["active_learning_policy"],  # Retrieved from the policies collection
+        "dataset": job_details_1['image_path_1'].split('/')[1],
+        "metadata": queue_pair.metadata,
+        "generator_string": queue_pair.generator_string,
+        "creation_date": datetime.utcnow().isoformat(),
+        "images": [
+            {
+                "job_uuid_1": job_details_1["job_uuid_1"],
+                "file_name_1": job_details_1["file_name_1"],
+                "image_path_1": job_details_1["image_path_1"],
+                "image_hash_1": job_details_1["image_hash_1"],
+                "job_creation_time_1": job_details_1["job_creation_time_1"],
+            },
+            {
+                "job_uuid_2": job_details_2["job_uuid_2"],
+                "file_name_2": job_details_2["file_name_2"],
+                "image_path_2": job_details_2["image_path_2"],
+                "image_hash_2": job_details_2["image_hash_2"],
+                "job_creation_time_2": job_details_2["job_creation_time_2"],
+            }
+        ]
+    }
+
+    # Insert the combined job details into MongoDB collection
+    request.app.active_learning_queue_pairs_collection.insert_one(combined_job_details)
+
+    return {"status": "success", "message": "Queue pair added successfully to MongoDB"}
 
 
-@router.get("/active-learning-policy/list-policies", response_class=PrettyJSONResponse)
-def list_active_learning_policies(request: Request) -> List[ActiveLearningPolicy]:
-    # Retrieve all active learning policies from the collection
-    policies_cursor = request.app.active_learning_policies_collection.find({})
 
-    # Convert the cursor to a list of ActiveLearningPolicy objects
-    policies = [ActiveLearningPolicy(**policy) for policy in policies_cursor]
+@router.get("/active-learning-queue/list-queue-pairs-from-mongo", response_class=PrettyJSONResponse)
+def list_queue_pairs(request: Request, dataset: Optional[str] = None, limit: int = 10, offset: int = 0):
+    # Build the query based on whether a dataset is provided
+    query = {"dataset": dataset} if dataset else {}
+    
+    # Execute the query with the filter if dataset is provided
+    queue_pairs_cursor = request.app.active_learning_queue_pairs_collection.find(query).skip(offset).limit(limit)
+    
+    # Convert the cursor to a list of dictionaries and drop the _id field
+    queue_pairs = []
+    for pair in queue_pairs_cursor:
+        # Drop the _id field from the response
+        pair.pop('_id', None)
+        queue_pairs.append(pair)
 
-    return policies
+    # Directly return the list of modified dictionaries
+    return queue_pairs
 
 
-@router.delete("/active-learning-policy/remove-policies")
-def delete_active_learning_policy(request: Request, active_learning_policy_id: int = None):
-    if active_learning_policy_id is not None:
-        # Delete a specific policy
-        query = {"active_learning_policy_id": active_learning_policy_id}
-        policy = request.app.active_learning_policies_collection.find_one(query)
+@router.get("/active-learning-queue/get-random-queue-pair-from-mongo", response_class=PrettyJSONResponse)
+def random_queue_pair(request: Request, size: int = 1) -> List[dict]:
+    # Use MongoDB's aggregation framework to randomly select documents
+    random_pairs_cursor = request.app.active_learning_queue_pairs_collection.aggregate([
+        {"$sample": {"size": size}}
+    ])
 
-        if not policy:
-            # If the policy does not exist, return a 404 error
-            raise HTTPException(status_code=404, detail="Policy not found")
+    # Convert the cursor to a list of dictionaries
+    random_pairs = []
+    for pair in random_pairs_cursor:
+        # Convert _id ObjectId to string
+        pair['_id'] = str(pair['_id'])
+        random_pairs.append(pair)
 
-        # Delete the specific policy
-        request.app.active_learning_policies_collection.delete_one(query)
-        return {"status": "success", "message": f"Policy with ID {active_learning_policy_id} deleted successfully."}
-    else:
-        # If no ID is provided, delete all policies
-        request.app.active_learning_policies_collection.delete_many({})
-        return {"status": "success", "message": "All policies deleted successfully."}
+    # Directly return the list of modified dictionaries
+    return random_pairs
+
+
+@router.delete("/active-learning-queue/delete-queue-pair-from-mongo")
+def delete_queue_pair(request: Request, id: str):
+    # Convert the string ID to ObjectId
+    try:
+        obj_id = ObjectId(id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid ObjectId format")
+
+    # Delete the document with the specified _id
+    result = request.app.active_learning_queue_pairs_collection.delete_one({"_id": obj_id})
+
+    # Check if a document was deleted
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    return {"status": "success", "message": f"Deleted queue pair with _id: {id} from MongoDB"}
+
+
+@router.get("/active-learning-queue/count-queue-pairs")
+def count_queue_pairs(request: Request):
+    # Count the documents in the collection
+    count = request.app.active_learning_queue_pairs_collection.count_documents({})
+
+    # Return the count in a JSON response
+    return count
 
 
 @router.get("/active-learning/uncertainty-sampling-pair-v1", response_class=PrettyJSONResponse)

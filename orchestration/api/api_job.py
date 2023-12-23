@@ -175,6 +175,12 @@ def clear_all_completed_jobs(request: Request):
     return True
 
 
+@router.delete("/queue/image-generation/delete-completed")
+def delete_completed_job(request: Request, uuid):
+    query = {"uuid": uuid}
+    request.app.completed_jobs_collection.delete_one(query)
+
+    return True
 
  # --------------------- List ----------------------
 

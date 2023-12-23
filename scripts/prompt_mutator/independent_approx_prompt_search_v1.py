@@ -245,17 +245,19 @@ class BoltzmanPromptSubstitutionGenerator:
 
         # create a substitution for each position in the prompt
         for phrase_index in range(num_phrases):
+            # get max accepted token length for substitute phrase
             max_token_length= 75 - (current_length - phrase_token_lengths[phrase_index]) 
             # get a random phrase from civitai to substitute with
             random_phrase=self.choose_random_phrase(max_token_length)
             # get phrase string
             substitute_phrase = random_phrase.phrase
             # get phrase score by its index
-            substitute_energy = random_phrase.energy_per_phrase
+            substitute_energy = random_phrase.energy_per_token
             # get the substituted phrase energy
             substituted_energy = phrases_energy[phrase_index]
 
-            if substitute_energy > substituted_energy and substitute_energy>0:
+            # compare the energy of substitute and substituted phrase
+            if substitute_energy > substituted_energy:
                 substitution_data={
                     'position':phrase_index,
                     'substitute_phrase':substitute_phrase,
@@ -279,8 +281,7 @@ class BoltzmanPromptSubstitutionGenerator:
         phrase_scores=[]
         phrase_token_lengths=[]
         for phrase in prompt_str.split(', '):
-            print(phrase)
-            phrase_scores.append(self.phrase_score_data[self.phrase_dictionarry[phrase]].energy_per_phrase)
+            phrase_scores.append(self.phrase_score_data[self.phrase_dictionarry[phrase]].energy_per_token)
             phrase_token_lengths.append(self.phrase_score_data[self.phrase_dictionarry[phrase]].token_length)
 
         rejection_policy_time=0

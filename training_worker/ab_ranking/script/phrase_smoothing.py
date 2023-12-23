@@ -107,10 +107,15 @@ def train_ranking(dataset_name: str,
     # update phrase embeddings
     phrase_embedding_loader.update_dataset_phrases(phrase_loader.get_positive_phrases_arr())
 
+    # get token length vector
+    token_length_vector = phrase_loader.get_token_length_vector(input_type)
+    token_length_vector = torch.tensor(token_length_vector)
+
     ab_model = ScorePhraseSmoothingModel(inputs_shape=input_shape,
                                          dataset_loader=dataset_loader,
                                          phrase_vector_loader=phrase_loader,
                                          phrase_embedding_loader=phrase_embedding_loader,
+                                         token_length_vector=token_length_vector,
                                          input_type=input_type)
 
     training_predicted_score_images_x, \
@@ -259,9 +264,11 @@ def train_ranking(dataset_name: str,
 
     # get phrase scores vector
     phrase_scores_vector = None
-    for name, param in ab_model.model.named_parameters():
-        if name == "prompt_phrase_trainable_score":
-            phrase_scores_vector = param.cpu().detach().squeeze().numpy()
+    # for name, param in ab_model.model.named_parameters():
+    #     if name == "prompt_phrase_trainable_score":
+    #         phrase_scores_vector = param.cpu().detach().squeeze().numpy()
+
+    phrase_scores_vector = ab_model.upload_phrases_score_csv()
 
     # show and save graph
     graph_name = "{}.png".format(filename)
@@ -326,7 +333,6 @@ def train_ranking(dataset_name: str,
                                                     output_type)
     cmd.upload_data(dataset_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
 
-    ab_model.upload_phrases_score_csv()
 
 
 
