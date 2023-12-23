@@ -2,6 +2,7 @@ import argparse
 import io
 import json
 import os
+import sys
 import requests
 from PIL import Image
 from io import BytesIO
@@ -9,10 +10,13 @@ from clip_interrogator import Config, Interrogator
 import pandas as pd
 import torch
 from tqdm import tqdm
+
+base_directory = "./"
+sys.path.insert(0, base_directory)
+
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
-
 from utility.minio import cmd
 
 def parse_args():
