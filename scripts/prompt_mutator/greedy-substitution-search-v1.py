@@ -294,7 +294,7 @@ class PromptSubstitutionGenerator:
                 substitution_positions.append(phrase_position)
         
         # Predict sigma score for every substitution
-        predictions = self.substitution_model.predict(data=substitution_inputs)
+        predictions = self.substitution_model.predict(substitution_inputs)
 
         prompt_index=0
         choices_count=1
