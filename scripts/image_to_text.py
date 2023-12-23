@@ -118,7 +118,7 @@ def main():
     # get minio client
     minio_client = cmd.get_minio_client(args.minio_access_key,
                                         args.minio_secret_key,
-                                        args.minio_ip_addr)
+                                        args.minio_addr)
     
     # get device
     if torch.cuda.is_available():
