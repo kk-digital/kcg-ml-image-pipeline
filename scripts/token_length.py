@@ -5,7 +5,6 @@ import msgpack
 from tqdm import tqdm
 
 MAX_LENGTH = 77
-MODEL_NAME = 'openai/clip-vit-large-patch14'
 
 def connect_to_minio_client(minio_ip_addr, access_key, secret_key):
     print("Connecting to minio client...")
@@ -32,9 +31,9 @@ def process_msgpack_file(client, bucket_name, object_name, tokenizer):
 
 def main():
 
-    tokenizer = CLIPTokenizer.from_pretrained(MODEL_NAME)
+    openai_tokenizer = CLIPTokenizer.from_pretrained('./input/openai-vit-large-patch14-tokenizer')
 
-    minio_client = connect_to_minio_client("192.168.3.5:9000", "v048BpXpWrsVIHUfdAix", "4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu")
+    minio_client = connect_to_minio_client("123.176.98.90:9000", "3lUCPCfLMgQoxrYaxgoz", "MXszqU6KFV6X95Lo5jhMeuu5Xm85R79YImgI3Xmp")
 
     bucket_name = 'datasets'
     data = {'prompt': [], 'token_length': [], 'label': []}
@@ -43,7 +42,7 @@ def main():
 
     for obj in tqdm(objects, desc="Processing msgpack files"):
         if obj.object_name.endswith('_data.msgpack'):
-            positive_prompt, positive_length, negative_prompt, negative_length = process_msgpack_file(minio_client, bucket_name, obj.object_name, tokenizer)
+            positive_prompt, positive_length, negative_prompt, negative_length = process_msgpack_file(minio_client, bucket_name, obj.object_name, openai_tokenizer)
             
             data['prompt'].extend([positive_prompt, negative_prompt])
             data['token_length'].extend([positive_length, negative_length])
