@@ -292,8 +292,8 @@ class ScoredPrompt:
                  scoring_model,
                  generation_policy,
                  top_k,
-                 boltzman_k=0,
-                 boltzman_temperature=0):
+                 boltzman_temperature=0,
+                 boltzman_k=0):
         self.boltzman_k = boltzman_k
         self.boltzman_temperature = boltzman_temperature
         self.score = score
