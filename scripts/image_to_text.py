@@ -156,6 +156,7 @@ def main():
                 print(f"Error processing image {image_url}: {e}")
                 continue
 
+            print(prompt) 
             # get text embedding of the prompt
             prompt_embedding=get_prompt_embedding(embedder, device, prompt)
             
