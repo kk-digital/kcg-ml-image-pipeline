@@ -30,7 +30,7 @@ class PromptGenerationPromptQueue:
             print('Failed to load independent approx v1 prompt generator for dataset ', dataset)
             return
 
-        boltzman_temperature = 16
+        boltzman_temperature = 24
         boltzman_k = 1
         prompt_generator = IndependentApproxV1(dataset, boltzman_temperature, boltzman_k)
         prompt_generator.load_csv(minio_client, positive_phrase_scores_csv, negative_phrase_scores_csv)
