@@ -73,6 +73,16 @@ def representative_sample_selection(samples: np.ndarray, threshold: float, exist
 
             distance_matrix = np.concatenate([existed_distance_matrix, distance_matrix], axis=1)
 
+    elif distance_type == 'euclidean':
+
+        distance_matrix = np.dot(samples, samples.T)
+        
+        if existed_samples is not None:
+
+            existed_distance_matrix = np.dot(samples, existed_samples.T)
+
+            distance_matrix = np.concatenate([existed_distance_matrix, distance_matrix], axis=1)
+
     else:
         raise f'ERROR! unknown distance_type: {distance_type}'    
 
