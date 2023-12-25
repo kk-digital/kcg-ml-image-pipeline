@@ -195,11 +195,11 @@ def optimize_prompt_loop(model, tokenizer, token_embedding, all_target_features,
         text_features = model.encode_text(nn_indices)
 
         # Normalize the features
-        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+        normalised_text_features = text_features / text_features.norm(dim=-1, keepdim=True)
         target_features = target_features / target_features.norm(dim=-1, keepdim=True)
 
         # Compute cosine similarity
-        cosim_scores = torch.mm(text_features, target_features.t())
+        cosim_scores = torch.mm(normalised_text_features, target_features.t())
         loss = 1 - cosim_scores.mean()
         loss = loss * args.loss_weight
         
