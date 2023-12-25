@@ -119,7 +119,7 @@ def initialize_prompt(tokenizer, token_embedding, args, device):
 
     # Decode the dummy_ids to get the dummy text
     # Replace -1 with a known token ID if necessary
-    readable_dummy_ids = [id if id != -1 else tokenizer.eos_token_id for id in dummy_ids[0]]
+    readable_dummy_ids = [id if id != -1 else tokenizer.eos_token_id for id in dummy_ids]
     dummy_text = tokenizer.decode(readable_dummy_ids)
 
     # -1 for optimized tokens
