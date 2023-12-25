@@ -8,40 +8,45 @@ from .api_utils import PrettyJSONResponse
 
 router = APIRouter()
 
-@router.put("/tags/add_new_tag_definition")
+@router.post("/tags/add_new_tag_definition")
 def add_new_tag_definition(request: Request, tag_data: TagDefinition):
-    date_now = datetime.now()
-    
+
     # Find the maximum tag_id in the collection
     last_entry = request.app.tag_definitions_collection.find_one({}, sort=[("tag_id", -1)])
-    
-    if last_entry and "tag_id" in last_entry:
-        new_tag_id = last_entry["tag_id"] + 1
-    else:
-        new_tag_id = 0
+    new_tag_id = last_entry["tag_id"] + 1 if last_entry and "tag_id" in last_entry else 0
 
     # Check if the tag definition exists
     query = {"tag_string": tag_data.tag_string}
     existing_tag = request.app.tag_definitions_collection.find_one(query)
 
+    if existing_tag is not None:
+        raise HTTPException(status_code=400, detail="Tag definition already exists.")
+
+    # Add new tag definition
+    tag_data.tag_id = new_tag_id
+    tag_data.creation_time = datetime.utcnow().isoformat()
+    request.app.tag_definitions_collection.insert_one(tag_data.to_dict())
+    return {"status": "success", "message": "Tag definition added successfully.", "tag_id": new_tag_id}
+
+@router.put("/tags/update_tag_definition")
+def update_tag_definition(request: Request, tag_id: int, update_data: TagDefinition):
+    query = {"tag_id": tag_id}
+    existing_tag = request.app.tag_definitions_collection.find_one(query)
+
     if existing_tag is None:
-        # If tag definition doesn't exist, add it
-        tag_data.tag_id = new_tag_id
-        tag_data.creation_time = date_now.strftime('%Y-%m-%d %H:%M:%S')
-        request.app.tag_definitions_collection.insert_one(tag_data.to_dict())
-        return {"status": "success", "message": "Tag definition added successfully.", "tag_id": new_tag_id}
-    else:
-        # If tag definition already exists, update its details 
-        new_values = {
-            "$set": {
-                "tag_category": tag_data.tag_category,
-                "tag_description": tag_data.tag_description,
-                "creation_time": date_now.strftime('%Y-%m-%d %H:%M:%S'),
-                "user_who_created": tag_data.user_who_created
-            }
-        }
-        request.app.tag_definitions_collection.update_one(query, new_values)
-        return {"status": "success", "message": "Tag definition updated successfully.", "tag_id": existing_tag["tag_id"]}
+        raise HTTPException(status_code=404, detail="Tag not found.")
+
+    # Prepare update data
+    update_fields = {k: v for k, v in update_data.dict().items() if v is not None}
+    if not update_fields:
+        raise HTTPException(status_code=400, detail="No fields to update.")
+
+    update_fields["modification_time"] = datetime.utcnow().isoformat()
+
+    # Update the tag definition
+    request.app.tag_definitions_collection.update_one(query, {"$set": update_fields})
+    return {"status": "success", "message": "Tag definition updated successfully.", "tag_id": tag_id}
+
 
 
 @router.put("/tags/rename_tag_definition")
@@ -59,10 +64,26 @@ def rename_tag_definition(request: Request, tag_id: int, new_tag_string: str):
         return {"status": "fail", "message": "Tag definition not found."}
 
 
-@router.delete("/tags/delete_tag_definition")
-def delete_tag_definition(request: Request, tag_id: int):
-    # Immediately raise an error without any other implementation
-    raise HTTPException(status_code=501, detail="Tag deletion is not supported.")
+@router.delete("/tags/remove_tag")
+def remove_test_tag(request: Request, tag_id: int):
+    # Check if the tag exists
+    tag_query = {"tag_id": tag_id}
+    tag = request.app.tag_definitions_collection.find_one(tag_query)
+
+    if tag is None:
+        raise HTTPException(status_code=404, detail="Tag not found.")
+
+    # Check if the tag is used in any images
+    image_query = {"tags": tag_id}
+    image_with_tag = request.app.image_tags_collection.find_one(image_query)
+
+    if image_with_tag is not None:
+        raise HTTPException(status_code=400, detail="Cannot remove tag, it is already used in images.")
+
+    # Remove the tag
+    request.app.tag_definitions_collection.delete_one(tag_query)
+    return {"status": "success", "message": "Test tag removed successfully."}
+
 
 @router.get("/tags/list_tag_definition", response_class=PrettyJSONResponse)
 def list_tag_definitions(request: Request):
@@ -77,7 +98,8 @@ def list_tag_definitions(request: Request):
             "tag_category": tag["tag_category"],
             "tag_vector_index": tag.get("tag_vector_index", -1),  # Use default value if tag_vector_index is absent
             "tag_description": tag["tag_description"],
-            "user_who_created": tag["user_who_created"]
+            "user_who_created": tag["user_who_created"],
+            "creation_time": tag["creation_time"]
         }
         result.append(tag_data)
 

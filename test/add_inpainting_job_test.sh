@@ -1,5 +1,5 @@
 #!/bin/bash
-
+nting_generation_task
 curl -X 'POST' http://192.168.3.1:8111/queue/image-generation/add -H 'Content-Type: application/json' -d '{
         "uuid": "1234567",
         "task_type": "inpainting_generation_task_test",
