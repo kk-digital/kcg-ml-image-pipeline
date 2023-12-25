@@ -140,6 +140,7 @@ def main():
 
     # load CLIP pez model
     model_config=read_json(args.config_path)
+    print(model_config)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model, _, preprocess = open_clip.create_model_and_transforms(model_config.clip_model, pretrained=model_config.clip_pretrain, device=device)
     # Initialize CLIP Interrogator
