@@ -170,7 +170,7 @@ def main():
                 image = download_image(image_url)
                 #prompt = ci.interrogate(image)
                 # optimize prompt
-                learned_prompt = optimize_prompt(model, preprocess, args, device, target_images=image)
+                learned_prompt = optimize_prompt(model, preprocess, args, device, target_images=[image])[0]
             except Exception as e:
                 print(f"Error processing image {image_url}: {e}")
                 continue
