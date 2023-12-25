@@ -200,6 +200,7 @@ def optimize_prompt_loop(model, tokenizer, token_embedding, all_target_features,
 
         # Compute cosine similarity
         cosim_scores = torch.mm(text_features, target_features.t())
+        print(cosim_scores)
         loss = 1 - cosim_scores.mean()
         loss = loss * args.loss_weight
         
