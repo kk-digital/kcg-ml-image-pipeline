@@ -8,40 +8,44 @@ from .api_utils import PrettyJSONResponse
 
 router = APIRouter()
 
-@router.put("/tags/add_new_tag_definition")
+@router.post("/tags/add_new_tag_definition")
 def add_new_tag_definition(request: Request, tag_data: TagDefinition):
-    date_now = datetime.now()
 
     # Find the maximum tag_id in the collection
     last_entry = request.app.tag_definitions_collection.find_one({}, sort=[("tag_id", -1)])
-    
-    if last_entry and "tag_id" in last_entry:
-        new_tag_id = last_entry["tag_id"] + 1
-    else:
-        new_tag_id = 0
+    new_tag_id = last_entry["tag_id"] + 1 if last_entry and "tag_id" in last_entry else 0
 
     # Check if the tag definition exists
     query = {"tag_string": tag_data.tag_string}
     existing_tag = request.app.tag_definitions_collection.find_one(query)
 
+    if existing_tag is not None:
+        raise HTTPException(status_code=400, detail="Tag definition already exists.")
+
+    # Add new tag definition
+    tag_data.tag_id = new_tag_id
+    tag_data.creation_time = datetime.utcnow().isoformat()
+    request.app.tag_definitions_collection.insert_one(tag_data.to_dict())
+    return {"status": "success", "message": "Tag definition added successfully.", "tag_id": new_tag_id}
+
+@router.put("/tags/update_tag_definition")
+def update_tag_definition(request: Request, tag_id: int, update_data: TagDefinition):
+    query = {"tag_id": tag_id}
+    existing_tag = request.app.tag_definitions_collection.find_one(query)
+
     if existing_tag is None:
-        # If tag definition doesn't exist, add it
-        tag_data.tag_id = new_tag_id
-        tag_data.creation_time = datetime.utcnow().isoformat()
-        request.app.tag_definitions_collection.insert_one(tag_data.to_dict())
-        return {"status": "success", "message": "Tag definition added successfully.", "tag_id": new_tag_id}
-    else:
-        # If tag definition already exists, update its details 
-        new_values = {
-            "$set": {
-                "tag_category": tag_data.tag_category,
-                "tag_description": tag_data.tag_description,
-                "user_who_created": tag_data.user_who_created,
-                "creation_time": datetime.utcnow().isoformat()
-            }
-        }
-        request.app.tag_definitions_collection.update_one(query, new_values)
-        return {"status": "success", "message": "Tag definition updated successfully.", "tag_id": existing_tag["tag_id"]}
+        raise HTTPException(status_code=404, detail="Tag not found.")
+
+    # Prepare update data
+    update_fields = {k: v for k, v in update_data.dict().items() if v is not None}
+    if not update_fields:
+        raise HTTPException(status_code=400, detail="No fields to update.")
+
+    update_fields["modification_time"] = datetime.utcnow().isoformat()
+
+    # Update the tag definition
+    request.app.tag_definitions_collection.update_one(query, {"$set": update_fields})
+    return {"status": "success", "message": "Tag definition updated successfully.", "tag_id": tag_id}
 
 
 

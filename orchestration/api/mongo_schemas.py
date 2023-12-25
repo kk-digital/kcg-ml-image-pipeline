@@ -183,7 +183,7 @@ class TagDefinition(BaseModel):
     tag_description: str = Field(..., description="Description of the tag")
     tag_vector_index: Optional[int] = Field(-1, description="Tag definition vector index")
     user_who_created: str = Field(..., description="User who created the tag")
-    creation_time: Optional[str] = None 
+    creation_time: Union[str, None] = None 
 
     def to_dict(self):
         return {
@@ -229,7 +229,7 @@ class FlaggedDataUpdate(BaseModel):
 class User(BaseModel):
     username: str = Field(...)
     password: str = Field(...)
-    role: constr(pattern='^(admin|user)$') = Field(...)
+    "role: constr(pattern='^(admin|user)$') = Field(...)"
 
     def to_dict(self):
         return {
