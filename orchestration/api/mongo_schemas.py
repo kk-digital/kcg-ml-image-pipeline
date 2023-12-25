@@ -183,7 +183,7 @@ class TagDefinition(BaseModel):
     tag_description: str = Field(..., description="Description of the tag")
     tag_vector_index: Optional[int] = Field(-1, description="Tag definition vector index")
     user_who_created: str = Field(..., description="User who created the tag")
-    creation_time: Optional[str] = None 
+    creation_time: Union[str, None] = None 
 
     def to_dict(self):
         return {
@@ -229,7 +229,7 @@ class FlaggedDataUpdate(BaseModel):
 class User(BaseModel):
     username: str = Field(...)
     password: str = Field(...)
-    role: constr(pattern='^(admin|user)$') = Field(...)
+    "role: constr(pattern='^(admin|user)$') = Field(...)"
 
     def to_dict(self):
         return {
@@ -373,4 +373,22 @@ class ActiveLearningQueuePair(BaseModel):
             "metadata": self.metadata,
             "generator_string":self.generator_string,
             "creation_time": self.creation_time
+        }
+
+
+class NewSelection(BaseModel):
+    file_name: Union[str, None] = None
+    dataset: Union[str, None] = None
+    Selection: Selection
+    selected_residual: Union[selected_residual, None] = None 
+
+
+    def to_dict(self):
+        # If ResidualDict is not provided, create a new instance with default values (None)
+        selected_residual_data = self.selected_residual.to_dict() if self.selected_residual else {}
+        return {
+            "file_name": self.file_name,
+            "dataset": self.dataset,
+            "ranking_image_pair": self.Selection.to_dict(),
+            "selected_residual":selected_residual_data
         }

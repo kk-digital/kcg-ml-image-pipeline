@@ -198,6 +198,8 @@ def startup_db_client():
     # image rank use count - the count the image is used in selection datapoint
     app.image_rank_use_count_collection = app.mongodb_db["image-rank-use-count"]
 
+    app.image_pair_ranking_collection = app.mongodb_db["image_pair_ranking"]
+
     print("Connected to the MongoDB database!")
 
     # get minio client
