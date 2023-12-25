@@ -11,7 +11,7 @@ router = APIRouter()
 @router.put("/tags/add_new_tag_definition")
 def add_new_tag_definition(request: Request, tag_data: TagDefinition):
     date_now = datetime.now()
-    
+
     # Find the maximum tag_id in the collection
     last_entry = request.app.tag_definitions_collection.find_one({}, sort=[("tag_id", -1)])
     
@@ -27,7 +27,7 @@ def add_new_tag_definition(request: Request, tag_data: TagDefinition):
     if existing_tag is None:
         # If tag definition doesn't exist, add it
         tag_data.tag_id = new_tag_id
-        tag_data.creation_time = date_now.strftime('%Y-%m-%d %H:%M:%S')
+        tag_data.creation_time = datetime.utcnow().isoformat()
         request.app.tag_definitions_collection.insert_one(tag_data.to_dict())
         return {"status": "success", "message": "Tag definition added successfully.", "tag_id": new_tag_id}
     else:
@@ -36,12 +36,13 @@ def add_new_tag_definition(request: Request, tag_data: TagDefinition):
             "$set": {
                 "tag_category": tag_data.tag_category,
                 "tag_description": tag_data.tag_description,
-                "creation_time": date_now.strftime('%Y-%m-%d %H:%M:%S'),
-                "user_who_created": tag_data.user_who_created
+                "user_who_created": tag_data.user_who_created,
+                "creation_time": datetime.utcnow().isoformat()
             }
         }
         request.app.tag_definitions_collection.update_one(query, new_values)
         return {"status": "success", "message": "Tag definition updated successfully.", "tag_id": existing_tag["tag_id"]}
+
 
 
 @router.put("/tags/rename_tag_definition")
@@ -93,7 +94,8 @@ def list_tag_definitions(request: Request):
             "tag_category": tag["tag_category"],
             "tag_vector_index": tag.get("tag_vector_index", -1),  # Use default value if tag_vector_index is absent
             "tag_description": tag["tag_description"],
-            "user_who_created": tag["user_who_created"]
+            "user_who_created": tag["user_who_created"],
+            "creation_time": tag["creation_time"]
         }
         result.append(tag_data)
 
