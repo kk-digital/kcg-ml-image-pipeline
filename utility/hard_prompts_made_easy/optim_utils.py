@@ -170,14 +170,13 @@ def optimize_prompt_loop(model, tokenizer, token_embedding, all_target_features,
             padded_embeds[dummy_ids == -1] = projected_embeds.reshape(-1, p_dim)
             # Get text features from the model
             text_features = model.encode_text(nn_indices)
-            logits_per_image, logits_per_text = model(target_features, text_features)
 
             # Normalize the features
-            # text_features = text_features / text_features.norm(dim=-1, keepdim=True)
-            # universal_target_features = universal_target_features / universal_target_features.norm(dim=-1, keepdim=True)
+            text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+            universal_target_features = universal_target_features / universal_target_features.norm(dim=-1, keepdim=True)
 
             # Compute cosine similarity
-            cosine_similarity = logits_per_image
+            cosine_similarity = torch.mm(text_features, universal_target_features.t())
             scores_per_prompt = cosine_similarity.mean(dim=0)
             universal_cosim_score = scores_per_prompt.max().item()
             best_indx = scores_per_prompt.argmax().item()
@@ -194,18 +193,18 @@ def optimize_prompt_loop(model, tokenizer, token_embedding, all_target_features,
 
         # Get text features from the model
         text_features = model.encode_text(nn_indices)
-        logits_per_image, logits_per_text = model(target_features, text_features)
 
         # Normalize the features
-        # text_features = text_features / text_features.norm(dim=-1, keepdim=True)
-        # target_features = target_features / target_features.norm(dim=-1, keepdim=True)
+        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+        target_features = target_features / target_features.norm(dim=-1, keepdim=True)
 
         # Compute cosine similarity
-        cosim_scores = logits_per_image
+        cosim_scores = torch.mm(text_features, target_features.t())
         loss = 1 - cosim_scores.mean()
         loss = loss * args.loss_weight
         
         prompt_embeds.grad, = torch.autograd.grad(loss, [tmp_embeds])
+        print(prompt_embeds.grad)
         
         input_optimizer.step()
         input_optimizer.zero_grad()
