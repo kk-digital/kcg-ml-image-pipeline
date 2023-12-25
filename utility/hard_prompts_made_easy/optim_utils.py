@@ -117,11 +117,6 @@ def initialize_prompt(tokenizer, token_embedding, args, device):
     padded_template_text = template_text.format(" ".join(["<start_of_text>"] * prompt_len))
     dummy_ids = tokenizer.encode(padded_template_text)
 
-    # Decode the dummy_ids to get the dummy text
-    # Replace -1 with a known token ID if necessary
-    readable_dummy_ids = [id if id != -1 else tokenizer.eos_token_id for id in dummy_ids]
-    dummy_text = tokenizer.decode(readable_dummy_ids)
-
     # -1 for optimized tokens
     dummy_ids = [i if i != 49406 else -1 for i in dummy_ids]
     dummy_ids = [49406] + dummy_ids + [49407]
@@ -134,7 +129,7 @@ def initialize_prompt(tokenizer, token_embedding, args, device):
     dummy_embeds = token_embedding(tmp_dummy_ids).detach()
     dummy_embeds.requires_grad = False
     
-    return prompt_embeds, dummy_embeds, dummy_ids, dummy_text
+    return prompt_embeds, dummy_embeds, dummy_ids
 
 
 def optimize_prompt_loop(model, tokenizer, token_embedding, all_target_features, args, device):
@@ -146,7 +141,7 @@ def optimize_prompt_loop(model, tokenizer, token_embedding, all_target_features,
     print_new_best = getattr(args, 'print_new_best', False)
 
     # initialize prompt
-    prompt_embeds, dummy_embeds, dummy_ids, dummy_text = initialize_prompt(tokenizer, token_embedding, args, device)
+    prompt_embeds, dummy_embeds, dummy_ids = initialize_prompt(tokenizer, token_embedding, args, device)
     p_bs, p_len, p_dim = prompt_embeds.shape
 
     # get optimizer
@@ -174,7 +169,7 @@ def optimize_prompt_loop(model, tokenizer, token_embedding, all_target_features,
             padded_embeds = dummy_embeds.detach().clone()
             padded_embeds[dummy_ids == -1] = projected_embeds.reshape(-1, p_dim)
             # Get text features from the model
-            text_features = model.encode_text(dummy_text)
+            text_features = model.encode_text(dummy_ids)
 
             # Normalize the features
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
@@ -197,7 +192,7 @@ def optimize_prompt_loop(model, tokenizer, token_embedding, all_target_features,
         padded_embeds[dummy_ids == -1] = tmp_embeds.reshape(-1, p_dim)
 
         # Get text features from the model
-        text_features = model.encode_text(dummy_text)
+        text_features = model.encode_text(dummy_ids)
 
         # Normalize the features
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
