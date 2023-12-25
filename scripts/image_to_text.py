@@ -166,14 +166,13 @@ def main():
             image_url = data['image_urls'][0]
 
             # Download and process the image
-            try:
-                image = download_image(image_url)
-                #prompt = ci.interrogate(image)
-                # optimize prompt
-                learned_prompt = optimize_prompt(model, preprocess, args, device, target_images=[image])[0]
-            except Exception as e:
-                print(f"Error processing image {image_url}: {e}")
-                continue
+            image = download_image(image_url)
+            #prompt = ci.interrogate(image)
+            # optimize prompt
+            learned_prompt = optimize_prompt(model, preprocess, args, device, target_images=[image])[0]
+            # except Exception as e:
+            #     print(f"Error processing image {image_url}: {e}")
+            #     continue
 
             print(learned_prompt) 
             # get text embedding of the prompt
