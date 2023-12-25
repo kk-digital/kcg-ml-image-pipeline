@@ -168,7 +168,7 @@ def optimize_prompt_loop(model, tokenizer, token_embedding, all_target_features,
             # padded_embeds = copy.deepcopy(dummy_embeds)
             padded_embeds = dummy_embeds.detach().clone()
             padded_embeds[dummy_ids == -1] = projected_embeds.reshape(-1, p_dim)
-            logits_per_image, _ = model.forward_text_embedding(padded_embeds, dummy_ids, universal_target_features)
+            logits_per_image, _ = model.get_text_features(padded_embeds, dummy_ids, universal_target_features)
             scores_per_prompt = logits_per_image.mean(dim=0)
             universal_cosim_score = scores_per_prompt.max().item()
             best_indx = scores_per_prompt.argmax().item()
@@ -183,7 +183,7 @@ def optimize_prompt_loop(model, tokenizer, token_embedding, all_target_features,
         padded_embeds = dummy_embeds.detach().clone()
         padded_embeds[dummy_ids == -1] = tmp_embeds.reshape(-1, p_dim)
         
-        logits_per_image, _ = model.forward_text_embedding(padded_embeds, dummy_ids, target_features)
+        logits_per_image, _ = model.get_text_features(padded_embeds, dummy_ids, target_features)
         cosim_scores = logits_per_image
         loss = 1 - cosim_scores.mean()
         loss = loss * args.loss_weight
