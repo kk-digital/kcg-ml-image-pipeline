@@ -59,10 +59,26 @@ def rename_tag_definition(request: Request, tag_id: int, new_tag_string: str):
         return {"status": "fail", "message": "Tag definition not found."}
 
 
-@router.delete("/tags/delete_tag_definition")
-def delete_tag_definition(request: Request, tag_id: int):
-    # Immediately raise an error without any other implementation
-    raise HTTPException(status_code=501, detail="Tag deletion is not supported.")
+@router.delete("/tags/remove_tag")
+def remove_test_tag(request: Request, tag_id: int):
+    # Check if the tag exists
+    tag_query = {"tag_id": tag_id}
+    tag = request.app.tag_definitions_collection.find_one(tag_query)
+
+    if tag is None:
+        raise HTTPException(status_code=404, detail="Tag not found.")
+
+    # Check if the tag is used in any images
+    image_query = {"tags": tag_id}
+    image_with_tag = request.app.image_tags_collection.find_one(image_query)
+
+    if image_with_tag is not None:
+        raise HTTPException(status_code=400, detail="Cannot remove tag, it is already used in images.")
+
+    # Remove the tag
+    request.app.tag_definitions_collection.delete_one(tag_query)
+    return {"status": "success", "message": "Test tag removed successfully."}
+
 
 @router.get("/tags/list_tag_definition", response_class=PrettyJSONResponse)
 def list_tag_definitions(request: Request):
