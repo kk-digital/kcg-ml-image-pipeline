@@ -169,7 +169,7 @@ def optimize_prompt_loop(model, tokenizer, token_embedding, all_target_features,
             padded_embeds = dummy_embeds.detach().clone()
             padded_embeds[dummy_ids == -1] = projected_embeds.reshape(-1, p_dim)
             # Get text features from the model
-            text_features = model.encode_text(dummy_ids)
+            text_features = model.encode_text(nn_indices)
 
             # Normalize the features
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
@@ -192,7 +192,7 @@ def optimize_prompt_loop(model, tokenizer, token_embedding, all_target_features,
         padded_embeds[dummy_ids == -1] = tmp_embeds.reshape(-1, p_dim)
 
         # Get text features from the model
-        text_features = model.encode_text(dummy_ids)
+        text_features = model.encode_text(nn_indices)
 
         # Normalize the features
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
