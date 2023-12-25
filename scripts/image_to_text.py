@@ -22,6 +22,19 @@ from utility.minio import cmd
 
 def parse_args():
     parser = argparse.ArgumentParser()
+
+    # Model config
+    parser.add_argument('--prompt-len', type=int, default=16, help='Length of the prompt')
+    parser.add_argument('--iter', type=int, default=3000, help='Number of iterations')
+    parser.add_argument('--lr', type=float, default=0.1, help='Learning rate')
+    parser.add_argument('--weight-decay', type=float, default=0.1, help='Weight decay')
+    parser.add_argument('--prompt-bs', type=int, default=1, help='Prompt batch size')
+    parser.add_argument('--loss-weight', type=float, default=1.0, help='Loss weight')
+    parser.add_argument('--print-step', type=int, default=100, help='Print step')
+    parser.add_argument('--batch-size', type=int, default=1, help='Batch size')
+    parser.add_argument('--clip-model', default="ViT-L-14", help='CLIP model')
+    parser.add_argument('--clip-pretrain', default="openai", help='CLIP pretraining')
+
     parser.add_argument('--minio-addr', required=False, help='Minio server address', default="192.168.3.5:9000")
     parser.add_argument('--minio-access-key', required=False, help='Minio access key')
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
@@ -138,10 +151,8 @@ def main():
     # get mean and std values
     mean, std= float(positive_scorer.mean), float(positive_scorer.standard_deviation)
 
-    # load CLIP pez model
-    model_config=read_json(args.config_path)
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model, _, preprocess = open_clip.create_model_and_transforms(model_config['clip_model'], pretrained=model_config['clip_pretrain'], device=device)
+    model, _, preprocess = open_clip.create_model_and_transforms(model_name=args.clip_model, pretrained=args.clip_pretrain, device=device)
     # Initialize CLIP Interrogator
     # ci = Interrogator(Config(clip_model_name="ViT-L-14/openai"))
 
@@ -159,7 +170,7 @@ def main():
                 image = download_image(image_url)
                 #prompt = ci.interrogate(image)
                 # optimize prompt
-                learned_prompt = optimize_prompt(model, preprocess, model_config, device, target_images=image)
+                learned_prompt = optimize_prompt(model, preprocess, args, device, target_images=image)
             except Exception as e:
                 print(f"Error processing image {image_url}: {e}")
                 continue
