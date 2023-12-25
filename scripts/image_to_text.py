@@ -6,7 +6,7 @@ import sys
 import requests
 from PIL import Image
 from io import BytesIO
-from clip_interrogator import Config, Interrogator
+import open_clip
 import pandas as pd
 import torch
 from tqdm import tqdm
@@ -17,6 +17,7 @@ sys.path.insert(0, base_directory)
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
+from utility.hard_prompts_made_easy.optim_utils import *
 from utility.minio import cmd
 
 def parse_args():
@@ -26,8 +27,9 @@ def parse_args():
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
     parser.add_argument('--input-file', help='JSON file containing all images from pinterest board', default='input/synth-boards-pinterest-dataset.jsonl')
     parser.add_argument('--output-path', help='Folder where csv files containing prompts are stored', default='output/synth-boards-pinterest-dataset')
+    parser.add_argument('--config-path', help='Configuration for prompt inversion', default='utility/hard_prompts_made_easy/config.json')
     return parser.parse_args()
- 
+
 # load elm or linear scoring models
 def load_model(minio_client, device, embedding_type="positive", scoring_model="linear", input_size=768):
     input_path="environmental/models/ranking/"
@@ -136,8 +138,12 @@ def main():
     # get mean and std values
     mean, std= float(positive_scorer.mean), float(positive_scorer.standard_deviation)
 
+    # load CLIP pez model
+    model_config=read_json(args.config_path)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model, _, preprocess = open_clip.create_model_and_transforms(model_config.clip_model, pretrained=model_config.clip_pretrain, device=device)
     # Initialize CLIP Interrogator
-    ci = Interrogator(Config(clip_model_name="ViT-L-14/openai"))
+    # ci = Interrogator(Config(clip_model_name="ViT-L-14/openai"))
 
     # Process each line in the JSONL file
     prompts = []
@@ -151,14 +157,16 @@ def main():
             # Download and process the image
             try:
                 image = download_image(image_url)
-                prompt = ci.interrogate(image)
+                #prompt = ci.interrogate(image)
+                # optimize prompt
+                learned_prompt = optimize_prompt(model, preprocess, model_config, device, target_images=image)
             except Exception as e:
                 print(f"Error processing image {image_url}: {e}")
                 continue
 
-            print(prompt) 
+            print(learned_prompt) 
             # get text embedding of the prompt
-            prompt_embedding=get_prompt_embedding(embedder, device, prompt)
+            prompt_embedding=get_prompt_embedding(embedder, device, learned_prompt)
             
             # get prompt score
             score= get_prompt_score(positive_scorer, prompt_embedding)
@@ -166,7 +174,7 @@ def main():
 
             prompt_data={
                 'image_url': image_url, 
-                'prompt': prompt,
+                'prompt': learned_prompt,
                 'board': board_title,
                 'score': score,
                 'sigma_score': sigma_score
