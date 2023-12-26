@@ -134,7 +134,7 @@ def truncate_prompts(embedder, prompt, max_length=77):
                                         return_overflowing_tokens=False, padding="max_length", return_tensors="pt")
     
     print(batch_encoding)
-    input_ids = batch_encoding['input_ids']
+    input_ids = batch_encoding['input_ids'][0]
     print(input_ids)
     # Truncate to the desired length
     truncated_tokens = input_ids[:max_length]
