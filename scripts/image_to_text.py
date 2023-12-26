@@ -232,7 +232,6 @@ def main():
 
             # append prompt data
             prompts.append(prompt_data)
-            break
 
     # Output results to CSV files
     prompts_df = pd.DataFrame(prompts)
