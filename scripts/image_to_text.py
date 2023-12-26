@@ -193,8 +193,8 @@ def main():
             prompts.append(prompt_data)
 
     # Output results to CSV files
-    prompts_df = pd.DataFrame(prompt_data)
-    store_prompts_in_csv_file(minio_client, prompts_df)
+    # prompts_df = pd.DataFrame(prompt_data)
+    # store_prompts_in_csv_file(minio_client, prompts_df)
     
     try:
         response = generate_image_generation_jobs(
