@@ -134,7 +134,7 @@ def truncate_prompts(embedder, prompt, max_length=77):
     
     if len(tokens)<=77:
         # Truncate to the desired length
-        truncated_tokens = tokens[1:max_length-1]
+        truncated_tokens = tokens[1:len(tokens)-1]
     else:
         truncated_tokens = tokens[1:max_length]
 
