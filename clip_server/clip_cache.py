@@ -5,6 +5,7 @@ from io import BytesIO
 import os
 import json
 import msgpack
+import threading
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -65,6 +66,7 @@ class ClipCache:
         self.clip_model = ClipModel(device=device)
         self.device = device
         self.clip_cache_directory = clip_cache_directory
+        self.clip_vector_dictionary_lock = threading.Lock()
         self.clip_vector_dictionary = {}
 
     # the cache has two levels
@@ -73,13 +75,15 @@ class ClipCache:
     def cache_clip_vector(self, image_path, clip_vector):
         # TODO(): implement ssh cache
         # TODO(): memory mapped clip vector caching
-        if image_path not in self.clip_vector_dictionary:
-            self.clip_vector_dictionary[image_path] = clip_vector
+        with self.clip_vector_dictionary_lock:
+            if image_path not in self.clip_vector_dictionary:
+                self.clip_vector_dictionary[image_path] = clip_vector
 
     def get_clip_vector(self, image_path):
         # if its already in the cache just return it
-        if image_path in self.clip_vector_dictionary:
-            return self.clip_vector_dictionary[image_path]
+        with self.clip_vector_dictionary_lock:
+            if image_path in self.clip_vector_dictionary:
+                return self.clip_vector_dictionary[image_path]
 
         image_clip_vector_numpy = self.get_clip_vector_from_minio(image_path)
 

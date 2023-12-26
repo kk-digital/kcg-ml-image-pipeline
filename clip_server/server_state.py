@@ -305,7 +305,7 @@ class ClipServer:
 
             # this will download the clip vector from minio
             # and will also add it to clip cache
-            self.clip_cache.get_clip_vector_from_minio(image_path)
+            self.clip_cache.get_clip_vector(image_path)
 
 
 
