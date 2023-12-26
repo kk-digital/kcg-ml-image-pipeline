@@ -104,10 +104,10 @@ def get_prompt_score(positive_scorer, embedding):
     return prompt_score.item()
 
 # Function to download an image from a URL
-def download_image(url):
-    response = requests.get(url)
-    img = Image.open(BytesIO(response.content)).convert('RGB')
-    return img
+# def download_image(url):
+#     response = requests.get(url)
+#     img = Image.open(BytesIO(response.content)).convert('RGB')
+#     return img
 
 # store generated prompts in a csv file
 def store_prompts_in_csv_file(minio_client, data):
@@ -165,14 +165,15 @@ def main():
             board_title = data['board_title']
             image_url = data['image_urls'][0]
 
-            # Download and process the image
-            image = download_image(image_url)
-            #prompt = ci.interrogate(image)
-            # optimize prompt
-            learned_prompt = optimize_prompt(model, preprocess, args, device, target_images=[image])[0]
-            # except Exception as e:
-            #     print(f"Error processing image {image_url}: {e}")
-            #     continue
+            try:
+                # Download and process the image
+                image = download_image(image_url)
+                #prompt = ci.interrogate(image)
+                # optimize prompt
+                learned_prompt = optimize_prompt(model, preprocess, args, device, target_images=[image])[0]
+            except Exception as e:
+                print(f"Error processing image {image_url}: {e}")
+                continue
 
             print(learned_prompt) 
             # get text embedding of the prompt
