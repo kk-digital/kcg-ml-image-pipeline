@@ -23,17 +23,18 @@ def read_json(filename: str) -> Mapping[str, Any]:
         return json.load(fp)
 
 def encode_embeds(model, text, embeddings):
-        embeddings = embeddings + model.positional_embedding.type(model.dtype)
-        embeddings = embeddings.permute(1, 0, 2)  # NLD -> LND
-        embeddings = model.transformer(x)
-        embeddings = embeddings.permute(1, 0, 2)  # LND -> NLD
-        embeddings = model.ln_final(x).type(model.dtype)
 
-        # x.shape = [batch_size, n_ctx, transformer.width]
-        # take features from the eot embedding (eot_token is the highest number in each sequence)
-        embeddings = embeddings[torch.arange(embeddings.shape[0]), text.argmax(dim=-1)] @ model.text_projection
+    embeddings = embeddings + model.positional_embedding.type(model.dtype())
+    embeddings = embeddings.permute(1, 0, 2)  # NLD -> LND
+    embeddings = model.transformer(embeddings)
+    embeddings = embeddings.permute(1, 0, 2)  # LND -> NLD
+    embeddings = model.ln_final(embeddings).type(model.dtype())
 
-        return embeddings
+    # x.shape = [batch_size, n_ctx, transformer.width]
+    # take features from the eot embedding (eot_token is the highest number in each sequence)
+    embeddings = embeddings[torch.arange(embeddings.shape[0]), text.argmax(dim=-1)] @ model.text_projection
+
+    return embeddings
 
 def nn_project(curr_embeds, embedding_layer, print_hits=False):
     with torch.no_grad():
