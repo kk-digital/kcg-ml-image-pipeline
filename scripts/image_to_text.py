@@ -26,7 +26,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     # Model config
-    parser.add_argument('--prompt-len', type=int, default=75, help='Length of the prompt')
+    parser.add_argument('--prompt-len', type=int, default=70, help='Length of the prompt')
     parser.add_argument('--iter', type=int, default=3000, help='Number of iterations')
     parser.add_argument('--lr', type=float, default=0.1, help='Learning rate')
     parser.add_argument('--weight-decay', type=float, default=0.1, help='Weight decay')
@@ -42,7 +42,6 @@ def parse_args():
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
     parser.add_argument('--input-file', help='JSON file containing all images from pinterest board', default='input/synth-boards-pinterest-dataset.jsonl')
     parser.add_argument('--output-path', help='Folder where csv files containing prompts are stored', default='output/synth-boards-pinterest-dataset')
-    parser.add_argument('--config-path', help='Configuration for prompt inversion', default='utility/hard_prompts_made_easy/config.json')
     return parser.parse_args()
 
 # load elm or linear scoring models
