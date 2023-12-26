@@ -138,7 +138,7 @@ def truncate_prompts(embedder, prompt, max_length=77):
     print(input_ids)
     # Truncate to the desired length
     truncated_tokens = input_ids[:max_length]
-
+    print(truncated_tokens)
     # Decode back to text
     truncated_text = tokenizer.decode(truncated_tokens)
 
