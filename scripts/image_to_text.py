@@ -12,6 +12,7 @@ from clip_interrogator import Config, Interrogator
 import pandas as pd
 import torch
 from tqdm import tqdm
+from stable_diffusion.model_paths import CLIP_TOKENIZER_DIR_PATH
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -22,6 +23,8 @@ from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from utility.hard_prompts_made_easy.optim_utils import *
 from utility.minio import cmd
+
+GENERATION_POLICY="clip-interrogator-prompts"
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -123,6 +126,21 @@ def store_prompts_in_csv_file(minio_client, data):
     # Remove the temporary file
     os.remove(local_path)
 
+def truncate_prompts(embedder, prompt, max_length=77):
+    # Initialize the tokenizer
+    tokenizer = embedder.tokenizer
+    
+    # Tokenize the prompt
+    tokens = tokenizer.encode(prompt)
+    
+    # Truncate to the desired length
+    truncated_tokens = tokens[:max_length]
+    
+    # Decode back to text
+    truncated_text = tokenizer.decode(truncated_tokens)
+    
+    return truncated_text
+
 def main():
     args= parse_args()
 
@@ -142,6 +160,7 @@ def main():
     embedder=CLIPTextEmbedder(device=device)
     embedder.load_submodels()
 
+
     # Load scoring model
     positive_scorer= load_model(minio_client, device)
     # get mean and std values
@@ -154,7 +173,6 @@ def main():
 
     # Process each line in the JSONL file
     prompts = []
-    images=[]
     with open(args.input_file, 'r') as file:
         for line in tqdm(file):
             # Parse JSON line
@@ -170,44 +188,44 @@ def main():
                 print(f"Error processing image {image_url}: {e}")
                 continue
 
+            # truncate prompts if they exceed maximum length
+            learned_prompt=truncate_prompts(embedder, learned_prompt)
             print(learned_prompt) 
-            # get text embedding of the prompt
-            # prompt_embedding=get_prompt_embedding(embedder, torch_device, learned_prompt)
-            
-            # # get prompt score
-            # score= get_prompt_score(positive_scorer, prompt_embedding)
-            # sigma_score= (score - mean) / std
+
+            try:
+                response = generate_image_generation_jobs(
+                    positive_prompt=learned_prompt,
+                    negative_prompt='',
+                    prompt_scoring_model=f'image-pair-ranking-linear',
+                    prompt_score=0,
+                    prompt_generation_policy=GENERATION_POLICY,
+                    top_k='',
+                    dataset_name='test-generations'
+                )
+                task_uuid = response['uuid']
+                task_time = response['creation_time']
+            except:
+                print('Error occured:')
+                print(traceback.format_exc())
+                task_uuid = -1
+                task_time = -1
 
             prompt_data={
+                'task_uuid': task_uuid,
                 'image_url': image_url, 
                 'prompt': learned_prompt,
-                'board': board_title
+                'board': board_title,
+                'generation_policy_string': GENERATION_POLICY,
+                'time': task_time
             }
 
             # append prompt data
             prompts.append(prompt_data)
 
     # Output results to CSV files
-    prompts_df = pd.DataFrame(prompt_data)
+    prompts_df = pd.DataFrame(prompts)
     store_prompts_in_csv_file(minio_client, prompts_df)
     
-    try:
-        response = generate_image_generation_jobs(
-            positive_prompt=prompt_data['prompt'],
-            negative_prompt='',
-            prompt_scoring_model=f'image-pair-ranking-linear',
-            prompt_score=0,
-            prompt_generation_policy='hard-prompts-made-easy-inversion',
-            top_k='',
-            dataset_name='test-generations'
-        )
-        task_uuid = response['uuid']
-        task_time = response['creation_time']
-    except:
-        print('Error occured:')
-        print(traceback.format_exc())
-        task_uuid = -1
-        task_time = -1
 
     print("Processing complete!")
 
