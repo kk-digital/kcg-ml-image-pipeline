@@ -22,6 +22,18 @@ def read_json(filename: str) -> Mapping[str, Any]:
     with open(filename) as fp:
         return json.load(fp)
 
+def encode_embeds(model, text, embeddings):
+        embeddings = embeddings + model.positional_embedding.type(model.dtype)
+        embeddings = embeddings.permute(1, 0, 2)  # NLD -> LND
+        embeddings = model.transformer(x)
+        embeddings = embeddings.permute(1, 0, 2)  # LND -> NLD
+        embeddings = model.ln_final(x).type(model.dtype)
+
+        # x.shape = [batch_size, n_ctx, transformer.width]
+        # take features from the eot embedding (eot_token is the highest number in each sequence)
+        embeddings = embeddings[torch.arange(embeddings.shape[0]), text.argmax(dim=-1)] @ model.text_projection
+
+        return embeddings
 
 def nn_project(curr_embeds, embedding_layer, print_hits=False):
     with torch.no_grad():
@@ -169,7 +181,7 @@ def optimize_prompt_loop(model, tokenizer, token_embedding, all_target_features,
             padded_embeds = dummy_embeds.detach().clone()
             padded_embeds[dummy_ids == -1] = projected_embeds.reshape(-1, p_dim)
             # Get text features from the model
-            text_features = model.encode_text(nn_indices)
+            text_features = encode_embeds(model, dummy_ids, padded_embeds)
 
             # Normalize the features
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
@@ -192,18 +204,18 @@ def optimize_prompt_loop(model, tokenizer, token_embedding, all_target_features,
         padded_embeds[dummy_ids == -1] = tmp_embeds.reshape(-1, p_dim)
 
         # Get text features from the model
-        text_features = model.encode_text(nn_indices)
+        text_features = encode_embeds(model, dummy_ids, padded_embeds)
 
         # Normalize the features
-        normalised_text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
         target_features = target_features / target_features.norm(dim=-1, keepdim=True)
 
         # Compute cosine similarity
-        cosim_scores = torch.mm(normalised_text_features, target_features.t())
+        cosim_scores = torch.mm(text_features, target_features.t())
         loss = 1 - cosim_scores.mean()
         loss = loss * args.loss_weight
         
-        prompt_embeds.grad, = torch.autograd.grad(loss, [text_features])
+        prompt_embeds.grad, = torch.autograd.grad(loss, [tmp_embeds])
         print(prompt_embeds.grad)
         
         input_optimizer.step()
