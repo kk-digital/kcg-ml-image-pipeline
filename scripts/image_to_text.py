@@ -12,7 +12,6 @@ from clip_interrogator import Config, Interrogator
 import pandas as pd
 import torch
 from tqdm import tqdm
-from stable_diffusion.model_paths import CLIP_TOKENIZER_DIR_PATH
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -221,6 +220,7 @@ def main():
 
             # append prompt data
             prompts.append(prompt_data)
+            break
 
     # Output results to CSV files
     prompts_df = pd.DataFrame(prompts)
