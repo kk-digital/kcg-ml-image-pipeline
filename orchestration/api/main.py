@@ -138,6 +138,9 @@ def startup_db_client():
     app.counters_collection = app.mongodb_db["counters"]
     add_models_counter()
 
+    app.uuid_tag_count_collection = app.mongodb_db["tag_count"]
+
+    
     # scores
     app.image_scores_collection = app.mongodb_db["image-scores"]
 
