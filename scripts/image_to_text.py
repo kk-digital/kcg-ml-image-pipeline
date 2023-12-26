@@ -3,6 +3,7 @@ import io
 import json
 import os
 import sys
+import traceback
 import requests
 from PIL import Image
 from io import BytesIO
@@ -14,6 +15,7 @@ from tqdm import tqdm
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
+from worker.prompt_generation.prompt_generator import generate_image_generation_jobs
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
@@ -103,12 +105,6 @@ def get_prompt_score(positive_scorer, embedding):
     
     return prompt_score.item()
 
-# Function to download an image from a URL
-# def download_image(url):
-#     response = requests.get(url)
-#     img = Image.open(BytesIO(response.content)).convert('RGB')
-#     return img
-
 # store generated prompts in a csv file
 def store_prompts_in_csv_file(minio_client, data):
 
@@ -140,7 +136,7 @@ def main():
         device = 'cuda'
     else:
         device = 'cpu'
-    device = torch.device(device)
+    torch_device = torch.device(device)
 
     # Load the clip embedder model
     embedder=CLIPTextEmbedder(device=device)
@@ -150,14 +146,15 @@ def main():
     positive_scorer= load_model(minio_client, device)
     # get mean and std values
     mean, std= float(positive_scorer.mean), float(positive_scorer.standard_deviation)
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    # get clip model
     model, _, preprocess = open_clip.create_model_and_transforms(model_name=args.clip_model, pretrained=args.clip_pretrain, device=device)
     # Initialize CLIP Interrogator
     # ci = Interrogator(Config(clip_model_name="ViT-L-14/openai"))
 
     # Process each line in the JSONL file
     prompts = []
+    index=0
     with open(args.input_file, 'r') as file:
         for line in tqdm(file):
             # Parse JSON line
@@ -177,7 +174,7 @@ def main():
 
             print(learned_prompt) 
             # get text embedding of the prompt
-            prompt_embedding=get_prompt_embedding(embedder, device, learned_prompt)
+            prompt_embedding=get_prompt_embedding(embedder, torch_device, learned_prompt)
             
             # get prompt score
             score= get_prompt_score(positive_scorer, prompt_embedding)
@@ -191,12 +188,31 @@ def main():
                 'sigma_score': sigma_score
             }
 
+            break
             # append prompt data
             prompts.append(prompt_data)
 
     # Output results to CSV files
     prompts_df = pd.DataFrame(prompt_data)
     store_prompts_in_csv_file(minio_client, prompts_df)
+    
+    try:
+        response = generate_image_generation_jobs(
+            positive_prompt=prompt_data['prompt'],
+            negative_prompt='',
+            prompt_scoring_model=f'image-pair-ranking-linear',
+            prompt_score=prompt_data['score'],
+            prompt_generation_policy='hard-prompts-made-easy-inversion',
+            top_k='',
+            dataset_name='test-generations'
+        )
+        task_uuid = response['uuid']
+        task_time = response['creation_time']
+    except:
+        print('Error occured:')
+        print(traceback.format_exc())
+        task_uuid = -1
+        task_time = -1
 
     print("Processing complete!")
 
