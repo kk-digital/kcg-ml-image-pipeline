@@ -137,7 +137,7 @@ def add_relevancy_selection_datapoint(request: Request, relevance_selection: Rel
 
 
 
-@router.post("/rank/add-ranking-data-point-to-mongo")
+@router.post("/rank/add-ranking-data-point-v1")
 def add_selection_datapoint(
     request: Request, 
     selection: NewSelection
@@ -165,17 +165,18 @@ def add_selection_datapoint(
     json_data = json.dumps(dict_data, indent=4).encode('utf-8')  # dict_data does not include '_id'
     data = BytesIO(json_data)
 
-    # Upload to MinIO
-    request.app.minio_client.put_object(
-        "datasets",  # Assuming 'datasets' is the bucket name
-        full_path,   # The full path where the file will be stored in MinIO
-        data,
-        length=len(json_data),  # The length of the data to be uploaded
-        content_type='application/json'
-    )
+    # upload
+    cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
 
-    # Return the response
-    return {"status": "success", "message": "Data point added successfully", "inserted_id": str(inserted_id)}
+    image_1_hash = selection.Selection.image_1_metadata.file_hash
+    image_2_hash = selection.Selection.image_2_metadata.file_hash
+
+    # update rank count
+    # get models counter
+    for img_hash in [image_1_hash, image_2_hash]:
+        update_image_rank_use_count(request, img_hash)
+
+    return True
 
 
 

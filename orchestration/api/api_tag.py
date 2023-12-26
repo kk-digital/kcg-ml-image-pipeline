@@ -147,7 +147,7 @@ def get_tag_vector_index(request: Request, tag_id: int):
 def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_created: str):
     date_now = datetime.now().isoformat()
     
-    # Check if the tag exists by tag_id in the tag_definitions_collection
+    # Check if the tag exists by tag_id
     existing_tag = request.app.tag_definitions_collection.find_one({"tag_id": tag_id})
     if not existing_tag:
         raise HTTPException(status_code=400, detail="Tag does not exist!")
@@ -160,10 +160,9 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_cre
     if not image:
         raise HTTPException(status_code=400, detail="No image found with the given hash")
 
-    # Extract the file_path from the image
     file_path = image.get("task_output_file_dict", {}).get("output_file_path", "")
 
-    # Create association between image and tag in the image_tags_collection
+    # Create association between image and tag
     image_tag_data = {
         "tag_id": tag_id,
         "file_path": file_path,  
@@ -173,7 +172,18 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_cre
     }
 
     request.app.image_tags_collection.insert_one(image_tag_data)
+
+    # Increment the tag count for the image's uuid
+    job_uuid = image.get("job_uuid")
+    if job_uuid:
+        request.app.uuid_tag_count_collection.update_one(
+            {"job_uuid": job_uuid},
+            {"$inc": {"tag_count": 1}},
+            upsert=True
+        )
+
     return image_tag_data
+
 
 
 @router.delete("/tags/remove_tag_from_image")
