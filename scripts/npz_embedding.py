@@ -136,9 +136,13 @@ def build_autofaiss_index(embeddings_npy_path, index_path, index_infos_path, mem
     # Ensure the index folder exists
     os.makedirs(os.path.dirname(index_path), exist_ok=True)
 
+    # Load embeddings from .npy file
+    embeddings = np.load(embeddings_npy_path)
+
     # Build index using autofaiss
-    build_index(embeddings=embeddings_npy_path, index_path=index_path, 
+    build_index(embeddings=embeddings, index_path=index_path, 
                 index_infos_path=index_infos_path, max_index_memory_usage=memory_available)
+
 
 def save_csv(metadata, csv_file_path):
     # Ensure the CSV file directory exists
