@@ -159,7 +159,7 @@ def main():
             # Parse JSON line
             data = json.loads(line)
             board_title = data['board_title']
-            image_url = data['images']['url']
+            image_url = data['image_urls'][0]
 
             try:
                 # Download and process the image
