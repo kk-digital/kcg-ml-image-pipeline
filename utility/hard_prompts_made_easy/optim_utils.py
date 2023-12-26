@@ -24,11 +24,11 @@ def read_json(filename: str) -> Mapping[str, Any]:
 
 def encode_embeds(model, text, embeddings):
 
-    embeddings = embeddings + model.positional_embedding.type(model.dtype())
+    embeddings = embeddings + model.positional_embedding
     embeddings = embeddings.permute(1, 0, 2)  # NLD -> LND
     embeddings = model.transformer(embeddings)
     embeddings = embeddings.permute(1, 0, 2)  # LND -> NLD
-    embeddings = model.ln_final(embeddings).type(model.dtype())
+    embeddings = model.ln_final(embeddings)
 
     # x.shape = [batch_size, n_ctx, transformer.width]
     # take features from the eot embedding (eot_token is the highest number in each sequence)
