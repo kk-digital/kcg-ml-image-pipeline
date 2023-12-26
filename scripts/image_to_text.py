@@ -26,7 +26,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     # Model config
-    parser.add_argument('--prompt-len', type=int, default=16, help='Length of the prompt')
+    parser.add_argument('--prompt-len', type=int, default=32, help='Length of the prompt')
     parser.add_argument('--iter', type=int, default=3000, help='Number of iterations')
     parser.add_argument('--lr', type=float, default=0.1, help='Learning rate')
     parser.add_argument('--weight-decay', type=float, default=0.1, help='Weight decay')
