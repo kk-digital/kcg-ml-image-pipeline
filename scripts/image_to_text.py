@@ -130,13 +130,12 @@ def truncate_prompts(embedder, prompt, max_length=77):
     tokenizer = embedder.tokenizer
     
     # Tokenize the prompt
-    tokens = tokenizer.encode(prompt)
+    batch_encoding = tokenizer(prompt, truncation=False, max_length=max_length, return_length=True,
+                                        return_overflowing_tokens=False, padding="max_length", return_tensors="pt")
     
-    if len(tokens)<=77:
-        # Truncate to the desired length
-        truncated_tokens = tokens[1:len(tokens)-1]
-    else:
-        truncated_tokens = tokens[1:max_length]
+    input_ids = batch_encoding['input_ids']
+    # Truncate to the desired length
+    truncated_tokens = input_ids[:max_length]
 
     # Decode back to text
     truncated_text = tokenizer.decode(truncated_tokens)
