@@ -8,6 +8,7 @@ import requests
 from PIL import Image
 from io import BytesIO
 import open_clip
+from clip_interrogator import Config, Interrogator
 import pandas as pd
 import torch
 from tqdm import tqdm
@@ -147,9 +148,9 @@ def main():
     mean, std= float(positive_scorer.mean), float(positive_scorer.standard_deviation)
     
     # get clip model
-    model, _, preprocess = open_clip.create_model_and_transforms(model_name=args.clip_model, pretrained=args.clip_pretrain, device=device)
+    #model, _, preprocess = open_clip.create_model_and_transforms(model_name=args.clip_model, pretrained=args.clip_pretrain, device=device)
     # Initialize CLIP Interrogator
-    #ci = Interrogator(Config(clip_model_name="ViT-L-14/openai"))
+    ci = Interrogator(Config(clip_model_name="ViT-L-14/openai"))
 
     # Process each line in the JSONL file
     prompts = []
@@ -164,54 +165,49 @@ def main():
             try:
                 # Download and process the image
                 image = download_image(image_url)
-                images.append(image)
-                #prompt = ci.interrogate(image)
+                learned_prompt = ci.interrogate(image)
             except Exception as e:
                 print(f"Error processing image {image_url}: {e}")
                 continue
 
-            # # get text embedding of the prompt
+            print(learned_prompt) 
+            # get text embedding of the prompt
             # prompt_embedding=get_prompt_embedding(embedder, torch_device, learned_prompt)
             
             # # get prompt score
             # score= get_prompt_score(positive_scorer, prompt_embedding)
             # sigma_score= (score - mean) / std
 
-            # prompt_data={
-            #     'image_url': image_url, 
-            #     'prompt': learned_prompt,
-            #     'board': board_title,
-            #     'score': score,
-            #     'sigma_score': sigma_score
-            # }
+            prompt_data={
+                'image_url': image_url, 
+                'prompt': learned_prompt,
+                'board': board_title
+            }
 
-            # # append prompt data
-            # prompts.append(prompt_data)
+            # append prompt data
+            prompts.append(prompt_data)
 
     # Output results to CSV files
-    # prompts_df = pd.DataFrame(prompt_data)
-    # store_prompts_in_csv_file(minio_client, prompts_df)
+    prompts_df = pd.DataFrame(prompt_data)
+    store_prompts_in_csv_file(minio_client, prompts_df)
     
-    # optimize prompt
-    optimize_prompt(model, preprocess, args, device, target_images=[images])
-
-    # try:
-    #     response = generate_image_generation_jobs(
-    #         positive_prompt=prompt_data['prompt'],
-    #         negative_prompt='',
-    #         prompt_scoring_model=f'image-pair-ranking-linear',
-    #         prompt_score=prompt_data['score'],
-    #         prompt_generation_policy='hard-prompts-made-easy-inversion',
-    #         top_k='',
-    #         dataset_name='test-generations'
-    #     )
-    #     task_uuid = response['uuid']
-    #     task_time = response['creation_time']
-    # except:
-    #     print('Error occured:')
-    #     print(traceback.format_exc())
-    #     task_uuid = -1
-    #     task_time = -1
+    try:
+        response = generate_image_generation_jobs(
+            positive_prompt=prompt_data['prompt'],
+            negative_prompt='',
+            prompt_scoring_model=f'image-pair-ranking-linear',
+            prompt_score=0,
+            prompt_generation_policy='hard-prompts-made-easy-inversion',
+            top_k='',
+            dataset_name='test-generations'
+        )
+        task_uuid = response['uuid']
+        task_time = response['creation_time']
+    except:
+        print('Error occured:')
+        print(traceback.format_exc())
+        task_uuid = -1
+        task_time = -1
 
     print("Processing complete!")
 
