@@ -1,10 +1,9 @@
-'''
 import pandas as pd
 import numpy as np
 import msgpack
-import os
 from minio import Minio
-from autofaiss import build_index
+import os
+from tqdm import tqdm
 
 # MinIO Client connection setup
 def connect_to_minio_client(minio_ip_addr, access_key, secret_key):
@@ -14,67 +13,61 @@ def connect_to_minio_client(minio_ip_addr, access_key, secret_key):
     return client
 
 # Process embedding msgpack files and collect data
-def process_files(minio_client, bucket_name, embeddings_dir):
+def process_files(minio_client, bucket_name, dataset_folder):
+    positive_embeddings = []
+    negative_embeddings = []
     metadata = []
 
-    objects = minio_client.list_objects(bucket_name, recursive=True)
-
-    os.makedirs(embeddings_dir, exist_ok=True)
-    for obj in objects:
+    objects = minio_client.list_objects(bucket_name, prefix=dataset_folder, recursive=True)
+    for obj in tqdm(list(objects), desc="Processing files"):
         if obj.object_name.endswith('_embedding.msgpack'):
             # Extract embedding data
             data = minio_client.get_object(bucket_name, obj.object_name).read()
             embedding_data = msgpack.unpackb(data, raw=False)
-            
+
             # Extract metadata and embeddings
             job_uuid = embedding_data['job_uuid']
             file_hash = embedding_data['file_hash']
             dataset = embedding_data['dataset']
             positive_embedding = np.array(embedding_data['positive_embedding']['__ndarray__'], dtype=np.float32)
             negative_embedding = np.array(embedding_data['negative_embedding']['__ndarray__'], dtype=np.float32)
-            
-            # Save embeddings as .npy files
-            pos_filename = f"{job_uuid}_positive.npy"
-            neg_filename = f"{job_uuid}_negative.npy"
-            np.save(f"{embeddings_dir}/{pos_filename}", positive_embedding)
-            np.save(f"{embeddings_dir}/{neg_filename}", negative_embedding)
-            
+
+            # Add embeddings to their respective lists
+            positive_embeddings.append(positive_embedding)
+            negative_embeddings.append(negative_embedding)
+
             # Save metadata
-            metadata.append((file_hash, job_uuid, dataset, 'positive', pos_filename))
-            metadata.append((file_hash, job_uuid, dataset, 'negative', neg_filename))
-    
+            pos_index = len(positive_embeddings) - 1
+            neg_index = len(negative_embeddings) - 1
+            metadata.append((file_hash, job_uuid, dataset, 'positive', pos_index))
+            metadata.append((file_hash, job_uuid, dataset, 'negative', neg_index))
+
+    # Save the embeddings to npz files
+    np.savez('positive_embeddings.npz', *positive_embeddings)
+    np.savez('negative_embeddings.npz', *negative_embeddings)
+
     return metadata
 
-def build_autofaiss_index(embeddings_dir, index_path, index_infos_path, memory_available="4G"):
-    # Build index using autofaiss
-    build_index(embeddings_path=embeddings_dir, index_path=index_path, 
-                index_infos_path=index_infos_path, max_index_memory_usage=memory_available)
-
 def save_csv(metadata, csv_file_path):
+    # Ensure the CSV file directory exists
+    os.makedirs(os.path.dirname(csv_file_path), exist_ok=True)
+
     # Save metadata to .csv file
-    df = pd.DataFrame(metadata, columns=['file_hash', 'job_uuid', 'dataset', 'embedding_type', 'npy_filename'])
+    df = pd.DataFrame(metadata, columns=['file_hash', 'job_uuid', 'dataset', 'embedding_type', 'npy_index'])
     df.to_csv(csv_file_path, index=False)
 
 def main():
-    minio_client = connect_to_minio_client('123.176.98.90:9000', '3lUCPCfLMgQoxrYaxgoz', 'MXszqU6KFV6X95Lo5jhMeuu5Xm85R79YImgI3Xmp')
-    embeddings_dir = 'path_to_embeddings_dir'
-    metadata = process_files(minio_client, 'datasets', embeddings_dir)
-    csv_file_path = 'metadata.csv'
+    minio_client = connect_to_minio_client('192.168.3.5:9000', 'v048BpXpWrsVIHUfdAix', '4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu')
+    dataset_folder = 'test-generations'
+    metadata = process_files(minio_client, 'datasets', dataset_folder)
+    csv_file_path = 'metadata/metadata.csv'
     save_csv(metadata, csv_file_path)
-    
-    # Path where the KNN index and index info will be saved
-    index_path = 'my_index_folder/knn.index'
-    index_infos_path = 'my_index_folder/index_infos.json'
-    
-    # Build and save autofaiss index
-    build_autofaiss_index(embeddings_dir, index_path, index_infos_path)
 
 if __name__ == '__main__':
     main()
 
+
 '''
-
-
 
 ## script for one npy file
 import pandas as pd
@@ -172,3 +165,4 @@ def main():
 if __name__ == '__main__':
     main()
 
+'''
