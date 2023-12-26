@@ -217,7 +217,6 @@ def optimize_prompt_loop(model, tokenizer, token_embedding, all_target_features,
         loss = loss * args.loss_weight
         
         prompt_embeds.grad, = torch.autograd.grad(loss, [tmp_embeds])
-        print(prompt_embeds.grad)
         
         input_optimizer.step()
         input_optimizer.zero_grad()
