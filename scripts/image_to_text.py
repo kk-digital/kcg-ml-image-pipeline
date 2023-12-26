@@ -194,12 +194,19 @@ def main():
             learned_prompt=truncate_prompts(embedder, learned_prompt)
             print(learned_prompt) 
 
+            # get text embedding of the prompt
+            prompt_embedding=get_prompt_embedding(embedder, torch_device, learned_prompt)
+            
+            # get prompt score
+            score= get_prompt_score(positive_scorer, prompt_embedding)
+            sigma_score= (score - mean) / std
+
             try:
                 response = generate_image_generation_jobs(
                     positive_prompt=learned_prompt,
                     negative_prompt='',
                     prompt_scoring_model=f'image-pair-ranking-linear',
-                    prompt_score=0,
+                    prompt_score=score,
                     prompt_generation_policy=GENERATION_POLICY,
                     top_k='',
                     dataset_name='test-generations'
@@ -216,6 +223,8 @@ def main():
                 'task_uuid': task_uuid,
                 'image_url': image_url, 
                 'prompt': learned_prompt,
+                'score': score,
+                'sigma_score': sigma_score,
                 'board': board_title,
                 'generation_policy_string': GENERATION_POLICY,
                 'time': task_time
