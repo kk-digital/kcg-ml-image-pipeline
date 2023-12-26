@@ -149,69 +149,69 @@ def main():
     # get clip model
     model, _, preprocess = open_clip.create_model_and_transforms(model_name=args.clip_model, pretrained=args.clip_pretrain, device=device)
     # Initialize CLIP Interrogator
-    # ci = Interrogator(Config(clip_model_name="ViT-L-14/openai"))
+    #ci = Interrogator(Config(clip_model_name="ViT-L-14/openai"))
 
     # Process each line in the JSONL file
     prompts = []
-    index=0
+    images=[]
     with open(args.input_file, 'r') as file:
         for line in tqdm(file):
             # Parse JSON line
             data = json.loads(line)
             board_title = data['board_title']
-            image_url = data['image_urls'][0]
+            image_url = data['images']['url']
 
             try:
                 # Download and process the image
                 image = download_image(image_url)
+                images.append(image)
                 #prompt = ci.interrogate(image)
-                # optimize prompt
-                learned_prompt = optimize_prompt(model, preprocess, args, device, target_images=[image])
             except Exception as e:
                 print(f"Error processing image {image_url}: {e}")
                 continue
 
-            print(learned_prompt) 
-            # get text embedding of the prompt
-            prompt_embedding=get_prompt_embedding(embedder, torch_device, learned_prompt)
+            # # get text embedding of the prompt
+            # prompt_embedding=get_prompt_embedding(embedder, torch_device, learned_prompt)
             
-            # get prompt score
-            score= get_prompt_score(positive_scorer, prompt_embedding)
-            sigma_score= (score - mean) / std
+            # # get prompt score
+            # score= get_prompt_score(positive_scorer, prompt_embedding)
+            # sigma_score= (score - mean) / std
 
-            prompt_data={
-                'image_url': image_url, 
-                'prompt': learned_prompt,
-                'board': board_title,
-                'score': score,
-                'sigma_score': sigma_score
-            }
+            # prompt_data={
+            #     'image_url': image_url, 
+            #     'prompt': learned_prompt,
+            #     'board': board_title,
+            #     'score': score,
+            #     'sigma_score': sigma_score
+            # }
 
-            break
-            # append prompt data
-            prompts.append(prompt_data)
+            # # append prompt data
+            # prompts.append(prompt_data)
 
     # Output results to CSV files
     # prompts_df = pd.DataFrame(prompt_data)
     # store_prompts_in_csv_file(minio_client, prompts_df)
     
-    try:
-        response = generate_image_generation_jobs(
-            positive_prompt=prompt_data['prompt'],
-            negative_prompt='',
-            prompt_scoring_model=f'image-pair-ranking-linear',
-            prompt_score=prompt_data['score'],
-            prompt_generation_policy='hard-prompts-made-easy-inversion',
-            top_k='',
-            dataset_name='test-generations'
-        )
-        task_uuid = response['uuid']
-        task_time = response['creation_time']
-    except:
-        print('Error occured:')
-        print(traceback.format_exc())
-        task_uuid = -1
-        task_time = -1
+    # optimize prompt
+    optimize_prompt(model, preprocess, args, device, target_images=[images])
+
+    # try:
+    #     response = generate_image_generation_jobs(
+    #         positive_prompt=prompt_data['prompt'],
+    #         negative_prompt='',
+    #         prompt_scoring_model=f'image-pair-ranking-linear',
+    #         prompt_score=prompt_data['score'],
+    #         prompt_generation_policy='hard-prompts-made-easy-inversion',
+    #         top_k='',
+    #         dataset_name='test-generations'
+    #     )
+    #     task_uuid = response['uuid']
+    #     task_time = response['creation_time']
+    # except:
+    #     print('Error occured:')
+    #     print(traceback.format_exc())
+    #     task_uuid = -1
+    #     task_time = -1
 
     print("Processing complete!")
 
