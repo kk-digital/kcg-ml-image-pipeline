@@ -568,7 +568,7 @@ class PromptSubstitutionGenerator:
             negative_token_lengths = self.embedder.compute_token_length(negative_prompts)
 
             # Filter out prompts with too many tokens
-            valid_indices = [i for i, (ptl, ntl) in enumerate(list(zip(positive_token_lengths, negative_token_lengths))) if ptl <= 77 and ntl <= 77]
+            valid_indices = [i for i in range(positive_token_lengths) if positive_token_lengths[i] <= 77 and negative_token_lengths[i] <= 77]
 
             # Process only valid prompts
             valid_positive_prompts = [positive_prompts[i] for i in valid_indices]
