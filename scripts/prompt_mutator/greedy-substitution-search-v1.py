@@ -262,8 +262,8 @@ class PromptSubstitutionGenerator:
         batch_encoding = self.embedder.tokenizer(phrase, truncation=False, max_length=77, return_length=True,
                                         return_overflowing_tokens=False, return_tensors="pt")
         
-        input_ids = batch_encoding['input_ids'][0]
-        num_tokens = len(input_ids)
+        input_ids = batch_encoding['input_ids']
+        num_tokens = input_ids.numel()
 
         return num_tokens
 
@@ -297,8 +297,6 @@ class PromptSubstitutionGenerator:
             # create a substitution for each position in the prompt
             for i in range(num_choices):
                 phrase_position= random.randint(0, num_phrases - 1)
-                # get the substituted phrase
-                substituted_phrase=prompt_list[phrase_position]
                 # get the substituted phrase token length
                 substituted_phrase_length=prompt.positive_phrase_token_lengths[phrase_position]
                 # get the substituted phrase embedding
@@ -494,64 +492,135 @@ class PromptSubstitutionGenerator:
             self.store_self_training_data(self_training_data)
             
     # function to generate initial prompts
-    def generate_initial_prompts(self, num_prompts):
+    # def generate_initial_prompts(self, num_prompts):
          
+    #     prompts = generate_prompts_from_csv_with_base_prompt_prefix(csv_dataset_path=self.csv_phrase,
+    #                                                            csv_base_prompts_path=self.csv_base_prompts,
+    #                                                            prompt_count=int(num_prompts / self.top_k))
+    #     prompt_data=[]
+    #     # add base prompts and calculate scores
+    #     print("---------scoring prompts")
+    #     for prompt in tqdm(prompts):
+    #         # get positive and negative prompt
+    #         positive_prompt = prompt.positive_prompt_str
+    #         negative_prompt = prompt.negative_prompt_str
+
+    #         # check token_length
+    #         positive_token_length=self.embedder.compute_token_length(positive_prompt)
+    #         negative_token_length=self.embedder.compute_token_length(negative_prompt)
+
+    #         if positive_token_length>77 or negative_token_length>77:
+    #             continue
+
+    #         # get positive and negative embeddings
+    #         positive_embedding=self.get_prompt_embedding(positive_prompt)
+    #         negative_embedding=self.get_prompt_embedding(negative_prompt)
+           
+    #         # calculating combined score and positive score of prompt
+    #         with torch.no_grad():
+    #             prompt_score=self.scorer.predict(positive_embedding, negative_embedding).item()
+    #             positive_score=self.positive_scorer.predict_positive_or_negative_only(positive_embedding).item()
+            
+    #         # calculate mean pooled embeddings
+    #         positive_embedding=self.get_mean_pooled_embedding(positive_embedding)
+    #         negative_embedding=self.get_mean_pooled_embedding(negative_embedding)
+
+    #         # convert scores to sigma scores
+    #         positive_score= (positive_score - self.positive_mean) / self.positive_std
+    #         prompt_score=(prompt_score - self.mean) / self.std
+
+    #         # storing prompt data
+    #         prompt= PromptData(positive_prompt= positive_prompt,
+    #             negative_prompt= negative_prompt,
+    #             positive_embedding= positive_embedding,
+    #             negative_embedding= negative_embedding,
+    #             prompt_score= prompt_score,
+    #             positive_score= positive_score)
+            
+    #         prompt_data.append(prompt)
+        
+    #     # Sort the list based on the maximize_int1 function
+    #     sorted_scored_prompts = sorted(prompt_data, key=lambda data: data.prompt_score, reverse=True)
+    #     chosen_scored_prompts = sorted_scored_prompts[:num_prompts]
+
+    #     print("Calculating phrase embeddings for each prompt")
+    #     for prompt in tqdm(chosen_scored_prompts):
+    #         # caclualte embeddings for each phrase in the prompt
+    #         prompt.positive_phrase_embeddings= [self.get_mean_pooled_embedding(self.get_prompt_embedding(phrase)) for phrase in prompt.positive_prompt.split(', ')]
+    #         prompt.positive_phrase_token_lengths= [self.get_token_length(phrase) for phrase in prompt.positive_prompt.split(', ')]
+
+    #     return chosen_scored_prompts
+
+    def generate_initial_prompts(self, num_prompts, batch_size=10000):
         prompts = generate_prompts_from_csv_with_base_prompt_prefix(csv_dataset_path=self.csv_phrase,
                                                                csv_base_prompts_path=self.csv_base_prompts,
                                                                prompt_count=int(num_prompts / self.top_k))
         prompt_data=[]
+
         # add base prompts and calculate scores
         print("---------scoring prompts")
-        for prompt in tqdm(prompts):
-            # get positive and negative prompt
-            positive_prompt = prompt.positive_prompt_str
-            negative_prompt = prompt.negative_prompt_str
+        for batch_start in tqdm(range(0, len(prompts), batch_size)):
+            batch_end = batch_start + batch_size
+            prompt_batch = prompts[batch_start:batch_end]
 
-            # check token_length
-            positive_token_length=self.embedder.compute_token_length(positive_prompt)
-            negative_token_length=self.embedder.compute_token_length(negative_prompt)
+            # Prepare data for batch processing
+            positive_prompts = [p.positive_prompt_str for p in prompt_batch]
+            negative_prompts = [p.negative_prompt_str for p in prompt_batch]
 
-            if positive_token_length>77 or negative_token_length>77:
-                continue
+            # Compute token lengths for the batch
+            positive_token_lengths = self.embedder.compute_token_length(positive_prompts)
+            negative_token_lengths = self.embedder.compute_token_length(negative_prompts)
 
-            # get positive and negative embeddings
-            positive_embedding=self.get_prompt_embedding(positive_prompt)
-            negative_embedding=self.get_prompt_embedding(negative_prompt)
-           
-            # calculating combined score and positive score of prompt
+            # Filter out prompts with too many tokens
+            valid_indices = [i for i, (ptl, ntl) in enumerate(zip(positive_token_lengths, negative_token_lengths)) if ptl <= 77 and ntl <= 77]
+
+            # Process only valid prompts
+            valid_positive_prompts = [positive_prompts[i] for i in valid_indices]
+            valid_negative_prompts = [negative_prompts[i] for i in valid_indices]
+
+            # Get embeddings for the batch
+            positive_embeddings = self.get_prompt_embedding(valid_positive_prompts)
+            negative_embeddings = self.get_prompt_embedding(valid_negative_prompts)
+
+            # Calculate scores for the batch
             with torch.no_grad():
-                prompt_score=self.scorer.predict(positive_embedding, negative_embedding).item()
-                positive_score=self.positive_scorer.predict_positive_or_negative_only(positive_embedding).item()
-            
-            # calculate mean pooled embeddings
-            positive_embedding=self.get_mean_pooled_embedding(positive_embedding)
-            negative_embedding=self.get_mean_pooled_embedding(negative_embedding)
+                prompt_scores = self.scorer.predict(positive_embeddings, negative_embeddings)
+                positive_scores = self.positive_scorer.predict_positive_or_negative_only(positive_embeddings)
 
-            # convert scores to sigma scores
-            positive_score= (positive_score - self.positive_mean) / self.positive_std
-            prompt_score=(prompt_score - self.mean) / self.std
+            # Normalize scores and calculate mean pooled embeddings for the batch
+            for i, index in enumerate(valid_indices):
+                positive_score = (positive_scores[i].item() - self.positive_mean) / self.positive_std
+                prompt_score = (prompt_scores[i].item() - self.mean) / self.std
 
-            # storing prompt data
-            prompt= PromptData(positive_prompt= positive_prompt,
-                negative_prompt= negative_prompt,
-                positive_embedding= positive_embedding,
-                negative_embedding= negative_embedding,
-                prompt_score= prompt_score,
-                positive_score= positive_score)
-            
-            prompt_data.append(prompt)
-        
-        # Sort the list based on the maximize_int1 function
+                # Mean pooling and other processing
+                positive_embedding = self.get_mean_pooled_embedding(positive_embeddings[i])
+                negative_embedding = self.get_mean_pooled_embedding(negative_embeddings[i])
+
+                # Storing prompt data
+                prompt = prompt_batch[index]
+                prompt_data.append(PromptData(
+                    positive_prompt=prompt.positive_prompt_str,
+                    negative_prompt=prompt.negative_prompt_str,
+                    positive_embedding=positive_embedding,
+                    negative_embedding=negative_embedding,
+                    prompt_score=prompt_score,
+                    positive_score=positive_score
+                ))
+
+        # Sort and select prompts
         sorted_scored_prompts = sorted(prompt_data, key=lambda data: data.prompt_score, reverse=True)
         chosen_scored_prompts = sorted_scored_prompts[:num_prompts]
 
-        print("Calculating phrase embeddings for each prompt")
+        # Calculate phrase embeddings and token lengths for chosen prompts
+        print("Calculating phrase embeddings and token lengths for each chosen prompt")
         for prompt in tqdm(chosen_scored_prompts):
-            # caclualte embeddings for each phrase in the prompt
-            prompt.positive_phrase_embeddings= [self.get_mean_pooled_embedding(self.get_prompt_embedding(phrase)) for phrase in prompt.positive_prompt.split(', ')]
-            prompt.positive_phrase_token_lengths= [self.get_token_length(phrase) for phrase in prompt.positive_prompt.split(', ')]
+            phrases = prompt.positive_prompt.split(', ')
+            embeddings= self.get_prompt_embedding(phrases)
+            prompt.positive_phrase_embeddings = [self.get_mean_pooled_embedding(embedding) for embedding in embeddings]
+            prompt.positive_phrase_token_lengths = self.get_token_length(phrases)
 
         return chosen_scored_prompts
+
 
     # get paths for embeddings of all prompts in a dataset
     def get_embedding_paths(self, dataset):
