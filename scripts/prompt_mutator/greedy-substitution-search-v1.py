@@ -594,14 +594,14 @@ class PromptSubstitutionGenerator:
                 # Calculate scores for the batch
                 with torch.no_grad():
                     prompt_score = self.scorer.predict(positive_embeddings[i], negative_embeddings[i])
-                    positive_score = self.positive_scorer.predict_positive_or_negative_only(positive_embeddings[i])
+                    positive_score = self.positive_scorer.predict_positive_or_negative_only(positive_embeddings[i].unsqueeze(0))
 
                 positive_score = (positive_score.item() - self.positive_mean) / self.positive_std
                 prompt_score = (prompt_score.item() - self.mean) / self.std
 
                 # Mean pooling and other processing
-                positive_embedding = self.get_mean_pooled_embedding(positive_embeddings[i])
-                negative_embedding = self.get_mean_pooled_embedding(negative_embeddings[i])
+                positive_embedding = self.get_mean_pooled_embedding(positive_embeddings[i].unsqueeze(0))
+                negative_embedding = self.get_mean_pooled_embedding(negative_embeddings[i].unsqueeze(0))
 
                 # Storing prompt data
                 prompt = prompt_batch[index]
