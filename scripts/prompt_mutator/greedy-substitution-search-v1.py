@@ -241,7 +241,7 @@ class PromptSubstitutionGenerator:
         embeddings=embeddings.to(self.device)
         
         if len(embeddings) == 1:
-            return embeddings[0]
+            return embeddings[0].unsqueeze(0).unsqueeze(0)
         
         return embeddings
 
@@ -585,12 +585,9 @@ class PromptSubstitutionGenerator:
             positive_embeddings = self.get_prompt_embedding(valid_positive_prompts)
             negative_embeddings = self.get_prompt_embedding(valid_negative_prompts)
 
-            print(positive_embeddings.shape)
-
             # Normalize scores and calculate mean pooled embeddings for the batch
             for i, index in enumerate(valid_indices):
                 # Calculate scores for the batch
-                print(positive_embeddings[i].shape)
                 with torch.no_grad():
                     prompt_score = self.scorer.predict(positive_embeddings[i], negative_embeddings[i])
                     positive_score = self.positive_scorer.predict_positive_or_negative_only(positive_embeddings[i])
