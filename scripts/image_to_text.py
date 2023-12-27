@@ -181,7 +181,7 @@ def main():
 
             try:
                 # Download and process the image
-                image = download_image("https://i.pinimg.com/originals/e1/e4/b4/e1e4b48731d6eb9207d36447235e0dac.jpg")
+                image = download_image(image_url)
                 learned_prompt = ci.interrogate(image)
             except Exception as e:
                 print(f"Error processing image {image_url}: {e}")
@@ -198,43 +198,41 @@ def main():
             score= get_prompt_score(positive_scorer, prompt_embedding)
             sigma_score= (score - mean) / std
 
-            # try:
-            #     response = generate_image_generation_jobs(
-            #         positive_prompt=learned_prompt,
-            #         negative_prompt='',
-            #         prompt_scoring_model=f'image-pair-ranking-linear',
-            #         prompt_score=score,
-            #         prompt_generation_policy=GENERATION_POLICY,
-            #         top_k='',
-            #         dataset_name='test-generations'
-            #     )
-            #     task_uuid = response['uuid']
-            #     task_time = response['creation_time']
-            # except:
-            #     print('Error occured:')
-            #     print(traceback.format_exc())
-            #     task_uuid = -1
-            #     task_time = -1
+            try:
+                response = generate_image_generation_jobs(
+                    positive_prompt=learned_prompt,
+                    negative_prompt='',
+                    prompt_scoring_model=f'image-pair-ranking-linear',
+                    prompt_score=score,
+                    prompt_generation_policy=GENERATION_POLICY,
+                    top_k='',
+                    dataset_name='test-generations'
+                )
+                task_uuid = response['uuid']
+                task_time = response['creation_time']
+            except:
+                print('Error occured:')
+                print(traceback.format_exc())
+                task_uuid = -1
+                task_time = -1
 
-            # prompt_data={
-            #     'task_uuid': task_uuid,
-            #     'image_url': image_url, 
-            #     'prompt': learned_prompt,
-            #     'score': score,
-            #     'sigma_score': sigma_score,
-            #     'board': board_title,
-            #     'generation_policy_string': GENERATION_POLICY,
-            #     'time': task_time
-            # }
+            prompt_data={
+                'task_uuid': task_uuid,
+                'image_url': image_url, 
+                'prompt': learned_prompt,
+                'score': score,
+                'sigma_score': sigma_score,
+                'board': board_title,
+                'generation_policy_string': GENERATION_POLICY,
+                'time': task_time
+            }
 
-            # # append prompt data
-            # prompts.append(prompt_data)
+            # append prompt data
+            prompts.append(prompt_data)
 
-            break
-
-    # Output results to CSV files
-    prompts_df = pd.DataFrame(prompts)
-    store_prompts_in_csv_file(minio_client, prompts_df)
+            # Output results to CSV files every iteration in case there is a crash
+            prompts_df = pd.DataFrame(prompts)
+            store_prompts_in_csv_file(minio_client, prompts_df)
     
 
     print("Processing complete!")
