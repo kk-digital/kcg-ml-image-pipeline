@@ -1,4 +1,5 @@
 import argparse
+import csv
 from datetime import datetime
 import io
 import os
@@ -46,6 +47,7 @@ def parse_args():
     parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=100)
     parser.add_argument('--self-training', action='store_true', default=False)
     parser.add_argument('--store-embeddings', action='store_true', default=False)
+    parser.add_argument('--store-token-lengths', action='store_true', default=False)
     parser.add_argument('--save-csv', action='store_true', default=False)
     parser.add_argument('--generate-initial-prompts', action='store_true', default=True)
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
@@ -65,7 +67,8 @@ class PromptData:
                  negative_embedding,
                  prompt_score,
                  positive_score,
-                 positive_phrase_embeddings=None):
+                 positive_phrase_embeddings=None,
+                 positive_phrase_token_lengths=None):
         
         self.positive_prompt=positive_prompt
         self.negative_prompt=negative_prompt
@@ -74,6 +77,7 @@ class PromptData:
         self.positive_score= positive_score
         self.prompt_score= prompt_score
         self.positive_phrase_embeddings= positive_phrase_embeddings
+        self.positive_phrase_token_lengths= positive_phrase_token_lengths
 
 class PromptSubstitutionGenerator:
     def __init__(
@@ -90,6 +94,7 @@ class PromptSubstitutionGenerator:
         sigma_threshold,
         dataset_name,
         store_embeddings,
+        store_token_lengths,
         self_training,
         send_job,
         save_csv,
@@ -169,12 +174,16 @@ class PromptSubstitutionGenerator:
         # get list of phrases and their token lengths
         phrase_df=pd.read_csv(csv_phrase).sort_values(by="index")
         self.phrase_list=phrase_df['phrase str'].tolist()
-        self.phrase_token_lengths=phrase_df['token size'].tolist()
+        # store phrase token lengths
+        if(store_token_lengths):
+            self.store_phrase_token_lengths()
+
+        self.phrase_token_lengths=self.load_phrase_token_lengths()
         # get phrase embeddings
         self.phrase_embeddings= self.load_phrase_embeddings()
         
         # tiktoken encoder for checking token length
-        self.token_encoder = tiktoken.get_encoding("cl100k_base")
+        # self.token_encoder = tiktoken.get_encoding("cl100k_base")
 
         end=time.time()
         # log the loading time
@@ -246,6 +255,17 @@ class PromptSubstitutionGenerator:
         embedding = embedding.reshape(len(embedding), -1).squeeze(0)
 
         return embedding.detach().cpu().numpy()
+    
+    # get token length of a phrase
+    def get_token_length(self, phrase):
+        # Tokenize the phrase
+        batch_encoding = self.tokenizer(phrase, truncation=False, return_length=True,
+                                        return_overflowing_tokens=False, return_tensors="pt")
+        
+        input_ids = batch_encoding['input_ids'][0]
+        num_tokens = len(input_ids)
+
+        return num_tokens
 
     # function to get a random phrase from civitai with a max token size for substitutions
     def choose_random_phrase(self, max_token_length):
@@ -280,7 +300,7 @@ class PromptSubstitutionGenerator:
                 # get the substituted phrase
                 substituted_phrase=prompt_list[phrase_position]
                 # get the substituted phrase token length
-                substituted_phrase_length=len(self.token_encoder.encode(substituted_phrase))
+                substituted_phrase_length=prompt.positive_phrase_token_lengths[phrase_position]
                 # get the substituted phrase embedding
                 substituted_embedding = prompt.positive_phrase_embeddings[phrase_position]
                 # get a random phrase from civitai to substitute with
@@ -529,6 +549,7 @@ class PromptSubstitutionGenerator:
         for prompt in tqdm(chosen_scored_prompts):
             # caclualte embeddings for each phrase in the prompt
             prompt.positive_phrase_embeddings= [self.get_mean_pooled_embedding(self.get_prompt_embedding(phrase)) for phrase in prompt.positive_prompt.split(', ')]
+            prompt.positive_phrase_token_lengths= [self.get_token_length(phrase) for phrase in prompt.positive_prompt.split(', ')]
 
         return chosen_scored_prompts
 
@@ -757,6 +778,32 @@ class PromptSubstitutionGenerator:
 
         # Remove the temporary file
         os.remove(local_file_path)
+    
+    def store_phrase_token_lengths(self):
+        phrase_list=self.phrase_list
+        token_lengths = [self.get_token_length(phrase) for phrase in phrase_list]
+        local_file_path='token_lengths.csv'
+        
+        # Write to a CSV file
+        with open(local_file_path, 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(['Phrase index', 'Token Length'])
+            for phrase_index, length in enumerate(token_lengths):
+                writer.writerow([phrase_index, length])
+        
+        # Read the contents of the .npz file
+        with open(local_file_path, 'rb') as file:
+            content = file.read()
+
+        # Upload the local file to MinIO
+        buffer = io.BytesIO(content)
+        buffer.seek(0)
+
+        minio_path=DATA_MINIO_DIRECTORY + f"/input/{local_file_path}"
+        cmd.upload_data(self.minio_client, 'datasets',minio_path, buffer)
+
+        # Remove the temporary file
+        os.remove(local_file_path)
 
     # get civitai phrase embeddings from minIO
     def load_phrase_embeddings(self):
@@ -776,6 +823,26 @@ class PromptSubstitutionGenerator:
             phrase_embeddings = data['arr_0']
 
         return phrase_embeddings
+    
+    # get civitai phrase token lengths, calculated by the tokenizer
+    def load_phrase_token_lengths(self):
+        # Get the file data from MinIO
+        minio_path = DATA_MINIO_DIRECTORY + f"/input/token_lengths.csv"
+        # Download the file from MinIO
+        try:
+            data = cmd.get_file_from_minio(self.minio_client, 'datasets', minio_path)
+            data_stream = io.BytesIO(data.read())  # Read data into an in-memory stream
+        except Exception as e:
+            print(f"Error downloading file from MinIO: {e}")
+            return None
+        
+        # Read the contents directly into a Pandas DataFrame
+        phrase_df = pd.read_csv(data_stream)
+
+        # get token lengths array
+        token_lengths=phrase_df['Token Length'].tolist()
+        
+        return token_lengths
 
 
 def main():
