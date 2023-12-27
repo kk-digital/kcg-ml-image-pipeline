@@ -170,17 +170,10 @@ class PromptSubstitutionGenerator:
         # store phrase embeddings in a file in minio 
         if(store_embeddings):
             self.store_phrase_embeddings()
-        
-        # get list of phrases and their token lengths
-        phrase_df=pd.read_csv(csv_phrase).sort_values(by="index")
-        self.phrase_list=phrase_df['phrase str'].tolist()
+
         # store phrase token lengths
         if(store_token_lengths):
             self.store_phrase_token_lengths()
-
-        self.phrase_token_lengths=self.load_phrase_token_lengths()
-        # get phrase embeddings
-        self.phrase_embeddings= self.load_phrase_embeddings()
 
         end=time.time()
         # log the loading time
@@ -427,6 +420,13 @@ class PromptSubstitutionGenerator:
         # get initial prompts
         prompt_list = self.generate_initial_prompts(num_images)
 
+        # get list of phrases and their token lengths
+        phrase_df=pd.read_csv(self.csv_phrase).sort_values(by="index")
+        self.phrase_list=phrase_df['phrase str'].tolist()
+        self.phrase_token_lengths=self.load_phrase_token_lengths()
+        # get phrase embeddings
+        self.phrase_embeddings= self.load_phrase_embeddings()
+
         #mutate positive prompts
         prompts, self_training_data= self.mutate_prompts(prompt_list)
         end=time.time()
@@ -494,66 +494,7 @@ class PromptSubstitutionGenerator:
         # save self training data
         if self.self_training:
             self.store_self_training_data(self_training_data)
-            
-    # function to generate initial prompts
-    # def generate_initial_prompts(self, num_prompts):
-         
-    #     prompts = generate_prompts_from_csv_with_base_prompt_prefix(csv_dataset_path=self.csv_phrase,
-    #                                                            csv_base_prompts_path=self.csv_base_prompts,
-    #                                                            prompt_count=int(num_prompts / self.top_k))
-    #     prompt_data=[]
-    #     # add base prompts and calculate scores
-    #     print("---------scoring prompts")
-    #     for prompt in tqdm(prompts):
-    #         # get positive and negative prompt
-    #         positive_prompt = prompt.positive_prompt_str
-    #         negative_prompt = prompt.negative_prompt_str
-
-    #         # check token_length
-    #         positive_token_length=self.embedder.compute_token_length(positive_prompt)
-    #         negative_token_length=self.embedder.compute_token_length(negative_prompt)
-
-    #         if positive_token_length>77 or negative_token_length>77:
-    #             continue
-
-    #         # get positive and negative embeddings
-    #         positive_embedding=self.get_prompt_embedding(positive_prompt)
-    #         negative_embedding=self.get_prompt_embedding(negative_prompt)
-           
-    #         # calculating combined score and positive score of prompt
-    #         with torch.no_grad():
-    #             prompt_score=self.scorer.predict(positive_embedding, negative_embedding).item()
-    #             positive_score=self.positive_scorer.predict_positive_or_negative_only(positive_embedding).item()
-            
-    #         # calculate mean pooled embeddings
-    #         positive_embedding=self.get_mean_pooled_embedding(positive_embedding)
-    #         negative_embedding=self.get_mean_pooled_embedding(negative_embedding)
-
-    #         # convert scores to sigma scores
-    #         positive_score= (positive_score - self.positive_mean) / self.positive_std
-    #         prompt_score=(prompt_score - self.mean) / self.std
-
-    #         # storing prompt data
-    #         prompt= PromptData(positive_prompt= positive_prompt,
-    #             negative_prompt= negative_prompt,
-    #             positive_embedding= positive_embedding,
-    #             negative_embedding= negative_embedding,
-    #             prompt_score= prompt_score,
-    #             positive_score= positive_score)
-            
-    #         prompt_data.append(prompt)
         
-    #     # Sort the list based on the maximize_int1 function
-    #     sorted_scored_prompts = sorted(prompt_data, key=lambda data: data.prompt_score, reverse=True)
-    #     chosen_scored_prompts = sorted_scored_prompts[:num_prompts]
-
-    #     print("Calculating phrase embeddings for each prompt")
-    #     for prompt in tqdm(chosen_scored_prompts):
-    #         # caclualte embeddings for each phrase in the prompt
-    #         prompt.positive_phrase_embeddings= [self.get_mean_pooled_embedding(self.get_prompt_embedding(phrase)) for phrase in prompt.positive_prompt.split(', ')]
-    #         prompt.positive_phrase_token_lengths= [self.get_token_length(phrase) for phrase in prompt.positive_prompt.split(', ')]
-
-    #     return chosen_scored_prompts
 
     def generate_initial_prompts(self, num_prompts, batch_size=10000):
         prompts = generate_prompts_from_csv_with_base_prompt_prefix(csv_dataset_path=self.csv_phrase,
@@ -582,13 +523,19 @@ class PromptSubstitutionGenerator:
             valid_positive_prompts = [positive_prompts[i] for i in valid_indices]
             valid_negative_prompts = [negative_prompts[i] for i in valid_indices]
 
+            del positive_prompts
+            del negative_prompts
+            del positive_token_lengths
+            del negative_token_lengths
+            del valid_indices
+
             # Get embeddings for the batch
             positive_embeddings = self.get_prompt_embedding(valid_positive_prompts)
             negative_embeddings = self.get_prompt_embedding(valid_negative_prompts)
 
 
             # Normalize scores and calculate mean pooled embeddings for the batch
-            for i, index in enumerate(valid_indices):
+            for i, index in enumerate(positive_embeddings):
                 # Calculate scores for the batch
                 with torch.no_grad():
                     prompt_score = self.scorer.predict(positive_embeddings[i], negative_embeddings[i])
@@ -612,6 +559,9 @@ class PromptSubstitutionGenerator:
                     positive_score=positive_score
                 ))
 
+            del positive_embeddings
+            del positive_embeddings
+           
         # Sort and select prompts
         sorted_scored_prompts = sorted(prompt_data, key=lambda data: data.prompt_score, reverse=True)
         chosen_scored_prompts = sorted_scored_prompts[:num_prompts]
