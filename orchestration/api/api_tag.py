@@ -48,22 +48,6 @@ def update_tag_definition(request: Request, tag_id: int, update_data: TagDefinit
     return {"status": "success", "message": "Tag definition updated successfully.", "tag_id": tag_id}
 
 
-
-@router.put("/tags/rename_tag_definition")
-def rename_tag_definition(request: Request, tag_id: int, new_tag_string: str):
-    # Find the tag definition using the provided tag_id
-    query = {"tag_id": tag_id}
-    existing_tag = request.app.tag_definitions_collection.find_one(query)
-    
-    if existing_tag:
-        # Update the tag name if it exists
-        new_values = {"$set": {"tag_string": new_tag_string}}
-        request.app.tag_definitions_collection.update_one(query, new_values)
-        return {"status": "success", "message": "Tag definition renamed successfully."}
-    else:
-        return {"status": "fail", "message": "Tag definition not found."}
-
-
 @router.delete("/tags/remove_tag")
 def remove_test_tag(request: Request, tag_id: int):
     # Check if the tag exists
