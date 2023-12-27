@@ -259,7 +259,7 @@ class PromptSubstitutionGenerator:
     # get token length of a phrase
     def get_token_length(self, phrase):
         # Tokenize the phrase
-        batch_encoding = self.embedder.tokenizer(phrase, truncation=False, return_length=True,
+        batch_encoding = self.embedder.tokenizer(phrase, truncation=False, max_length=77, return_length=True,
                                         return_overflowing_tokens=False, return_tensors="pt")
         
         input_ids = batch_encoding['input_ids'][0]
@@ -781,7 +781,7 @@ class PromptSubstitutionGenerator:
     
     def store_phrase_token_lengths(self):
         phrase_list=self.phrase_list
-        token_lengths = [self.get_token_length(phrase) for phrase in phrase_list]
+        token_lengths = [self.get_token_length(phrase) for phrase in tqdm(phrase_list)]
         local_file_path='token_lengths.csv'
         
         # Write to a CSV file
