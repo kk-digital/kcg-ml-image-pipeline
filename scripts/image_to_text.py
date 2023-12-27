@@ -181,7 +181,7 @@ def main():
 
             try:
                 # Download and process the image
-                image = download_image("https://i.pinimg.com/originals/e1/e4/b4/e1e4b48731d6eb9207d36447235e0dac.jpg")
+                image = download_image(image_url)
                 learned_prompt = ci.interrogate(image)
             except Exception as e:
                 print(f"Error processing image {image_url}: {e}")
@@ -229,12 +229,11 @@ def main():
 
             # append prompt data
             prompts.append(prompt_data)
-
-            # Output results to CSV files every iteration in case there is a crash
-            prompts_df = pd.DataFrame(prompts)
-            store_prompts_in_csv_file(minio_client, prompts_df)
     
-
+    
+    # Output results to CSV files
+    prompts_df = pd.DataFrame(prompts)
+    store_prompts_in_csv_file(minio_client, prompts_df)
     print("Processing complete!")
 
 if __name__=="__main__":
