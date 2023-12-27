@@ -259,7 +259,7 @@ class PromptSubstitutionGenerator:
     # get token length of a phrase
     def get_token_length(self, phrase):
         # Tokenize the phrase
-        batch_encoding = self.tokenizer(phrase, truncation=False, return_length=True,
+        batch_encoding = self.embedder.tokenizer(phrase, truncation=False, return_length=True,
                                         return_overflowing_tokens=False, return_tensors="pt")
         
         input_ids = batch_encoding['input_ids'][0]
