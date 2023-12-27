@@ -230,14 +230,20 @@ class PromptSubstitutionGenerator:
         return embedding_model
 
     # get the clip text embedding of a prompt or a phrase
-    def get_prompt_embedding(self, prompt):
+    def get_prompt_embedding(self, prompts):
+        # Ensure phrases is a list
+        if not isinstance(prompts, list):
+            prompts = [prompts]
+
         with torch.no_grad():
-            embedding= self.embedder(prompt)
+            embeddings= self.embedder(prompts)
 
-        embedding= embedding.unsqueeze(0)
-        embedding=embedding.to(self.device)
-
-        return embedding
+        embeddings=embeddings.to(self.device)
+        
+        if len(embeddings) == 1:
+            return embeddings[0]
+        
+        return embeddings
 
     # get linear or elm score of an embedding
     def get_prompt_score(self, embedding):
