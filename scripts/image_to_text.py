@@ -130,8 +130,8 @@ def truncate_prompts(embedder, prompt, max_length=77):
     tokenizer = embedder.tokenizer
     
     # Tokenize the prompt with truncation
-    batch_encoding = tokenizer(prompt, truncation=True, max_length=max_length,
-                               padding="max_length", return_tensors="pt")
+    batch_encoding = tokenizer(prompt, truncation=True, max_length=max_length,return_length=True,
+                               return_overflowing_tokens=False, padding="max_length", return_tensors="pt")
     
     input_ids = batch_encoding['input_ids'][0]
     
@@ -181,7 +181,7 @@ def main():
 
             try:
                 # Download and process the image
-                image = download_image(image_url)
+                image = download_image("https://i.pinimg.com/originals/e1/e4/b4/e1e4b48731d6eb9207d36447235e0dac.jpg")
                 learned_prompt = ci.interrogate(image)
             except Exception as e:
                 print(f"Error processing image {image_url}: {e}")
@@ -229,6 +229,8 @@ def main():
 
             # append prompt data
             prompts.append(prompt_data)
+
+            break
 
     # Output results to CSV files
     prompts_df = pd.DataFrame(prompts)
