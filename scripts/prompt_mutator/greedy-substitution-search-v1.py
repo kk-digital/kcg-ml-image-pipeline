@@ -859,6 +859,7 @@ def main():
                                   sigma_threshold=args.sigma_threshold,
                                   dataset_name=args.dataset_name,
                                   store_embeddings=args.store_embeddings,
+                                  store_token_lengths=args.store_token_lengths,
                                   self_training=args.self_training,
                                   send_job=args.send_job,
                                   save_csv=args.save_csv,
