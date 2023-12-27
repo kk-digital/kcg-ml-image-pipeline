@@ -49,6 +49,7 @@ def parse_args():
     parser.add_argument('--save-csv', action='store_true', default=False)
     parser.add_argument('--generate-initial-prompts', action='store_true', default=True)
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
+    parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=128)
     parser.add_argument(
         '--csv_base_prompts', help='CSV containing base prompts', 
         default='input/dataset-config/environmental/base-prompts-environmental.csv'
@@ -92,7 +93,8 @@ class PromptSubstitutionGenerator:
         self_training,
         send_job,
         save_csv,
-        top_k
+        top_k,
+        num_choices_per_iteration
     ):
         start=time.time()
 
@@ -123,6 +125,8 @@ class PromptSubstitutionGenerator:
         self.substitution_model= None
         # top k value for generating initial prompts
         self.top_k=top_k
+        # number of substitution choices tested every iteration
+        self.num_choices_per_iteration= num_choices_per_iteration
         # get list of base prompts
         self.csv_base_prompts=csv_base_prompts
 
@@ -263,7 +267,7 @@ class PromptSubstitutionGenerator:
         substitution_positions=[]
         
         # number of choices per iteration
-        num_choices=128
+        num_choices=self.num_choices_per_iteration
 
         for prompt in prompts:
             # get number of phrases
@@ -791,7 +795,8 @@ def main():
                                   self_training=args.self_training,
                                   send_job=args.send_job,
                                   save_csv=args.save_csv,
-                                  top_k=args.top_k)
+                                  top_k=args.top_k,
+                                  num_choices_per_iteration=args.num_choices)
     
     # generate n number of images
     prompt_mutator.generate_images(num_images=args.n_data)
