@@ -55,6 +55,10 @@ def list_active_learning_policies(request: Request) -> List[ActiveLearningPolicy
     # Convert the cursor to a list of ActiveLearningPolicy objects
     policies = [ActiveLearningPolicy(**policy) for policy in policies_cursor]
 
+    # Check if the policies list is empty
+    if len(policies) == 0:
+        return []
+
     return policies
 
 
