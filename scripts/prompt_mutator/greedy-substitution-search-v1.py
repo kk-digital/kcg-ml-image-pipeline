@@ -316,7 +316,7 @@ class PromptSubstitutionGenerator:
             
             if(choices_count == num_choices):
                 prompt_index+=1
-                choices_count=1
+                choices_count=0
                 # substitutions are sorted from highest sigma score to lowest
                 current_prompt_substitution_choices= sorted(current_prompt_substitution_choices, key=lambda s: s['score'], reverse=True) 
                 prompts_substitution_choices.append(current_prompt_substitution_choices)
