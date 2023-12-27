@@ -586,11 +586,9 @@ class PromptSubstitutionGenerator:
             positive_embeddings = self.get_prompt_embedding(valid_positive_prompts)
             negative_embeddings = self.get_prompt_embedding(valid_negative_prompts)
 
-            print(positive_embeddings.shape)
 
             # Normalize scores and calculate mean pooled embeddings for the batch
             for i, index in enumerate(valid_indices):
-                print(positive_embeddings[i].shape)
                 # Calculate scores for the batch
                 with torch.no_grad():
                     prompt_score = self.scorer.predict(positive_embeddings[i], negative_embeddings[i])
@@ -623,7 +621,7 @@ class PromptSubstitutionGenerator:
         for prompt in tqdm(chosen_scored_prompts):
             phrases = prompt.positive_prompt.split(', ')
             embeddings= self.get_prompt_embedding(phrases)
-            prompt.positive_phrase_embeddings = [self.get_mean_pooled_embedding(embedding) for embedding in embeddings]
+            prompt.positive_phrase_embeddings = [self.get_mean_pooled_embedding(embedding.unsqueeze(0)) for embedding in embeddings]
             prompt.positive_phrase_token_lengths = [self.get_token_length(phrase) for phrase in phrases] 
 
         return chosen_scored_prompts
