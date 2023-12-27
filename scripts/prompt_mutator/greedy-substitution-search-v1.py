@@ -28,6 +28,7 @@ from worker.prompt_generation.prompt_generator import generate_image_generation_
 
 GENERATION_POLICY="greedy-substitution-search-v1"
 DATA_MINIO_DIRECTORY="environmental/data/prompt-generator/substitution"
+MAX_LENGTH=77
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -252,10 +253,10 @@ class PromptSubstitutionGenerator:
 
         return embedding.detach().cpu().numpy()
     
-    # get token length of prompts
-    def get_token_length(self, prompts):
+    # get token length of a phrase
+    def get_token_length(self, phrase):
         # Tokenize the phrase
-        batch_encoding = self.embedder.tokenizer(prompts, truncation=False, max_length=77, return_length=True,
+        batch_encoding = self.embedder.tokenizer(phrase, truncation=False, max_length=MAX_LENGTH, return_length=True,
                                         return_overflowing_tokens=False, return_tensors="pt")
         
         input_ids = batch_encoding['input_ids']
@@ -564,8 +565,8 @@ class PromptSubstitutionGenerator:
             negative_prompts = [p.negative_prompt_str for p in prompt_batch]
 
             # Compute token lengths for the batch
-            positive_token_lengths = self.get_token_length(positive_prompts)
-            negative_token_lengths = self.get_token_length(negative_prompts)
+            positive_token_lengths = [self.embedder.compute_token_length(prompt) for prompt in positive_prompts]
+            negative_token_lengths = [self.embedder.compute_token_length(prompt) for prompt in negative_prompts]
 
             # Filter out prompts with too many tokens
             valid_indices = [i for i in range(positive_token_lengths) if positive_token_lengths[i] <= 77 and negative_token_lengths[i] <= 77]
@@ -613,7 +614,7 @@ class PromptSubstitutionGenerator:
             phrases = prompt.positive_prompt.split(', ')
             embeddings= self.get_prompt_embedding(phrases)
             prompt.positive_phrase_embeddings = [self.get_mean_pooled_embedding(embedding) for embedding in embeddings]
-            prompt.positive_phrase_token_lengths = self.get_token_length(phrases)
+            prompt.positive_phrase_token_lengths = [self.get_token_length(phrase) for phrase in phrases] 
 
         return chosen_scored_prompts
 
