@@ -10,7 +10,6 @@ import traceback
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
-import tiktoken
 import torch
 import msgpack
 from tqdm import tqdm
@@ -25,7 +24,7 @@ from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from utility.minio import cmd
 
-from worker.prompt_generation.prompt_generator import generate_base_prompts, generate_image_generation_jobs, generate_prompts_from_csv_proportional_selection, generate_prompts_from_csv_with_base_prompt_prefix, load_base_prompts
+from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix
 
 GENERATION_POLICY="greedy-substitution-search-v1"
 DATA_MINIO_DIRECTORY="environmental/data/prompt-generator/substitution"
@@ -44,7 +43,7 @@ def parse_args():
     parser.add_argument('--rejection-policy', help="by probability or sigma_score", default="sigma_score")
     parser.add_argument('--probability-threshold', type=float, help="threshold of rejection policy for probability of increase", default=0.66)
     parser.add_argument('--sigma-threshold', type=float, help="threshold of rejection policy for increase of sigma score", default=-0.1)
-    parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=100)
+    parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=80)
     parser.add_argument('--self-training', action='store_true', default=False)
     parser.add_argument('--store-embeddings', action='store_true', default=False)
     parser.add_argument('--store-token-lengths', action='store_true', default=False)
@@ -181,9 +180,6 @@ class PromptSubstitutionGenerator:
         self.phrase_token_lengths=self.load_phrase_token_lengths()
         # get phrase embeddings
         self.phrase_embeddings= self.load_phrase_embeddings()
-        
-        # tiktoken encoder for checking token length
-        # self.token_encoder = tiktoken.get_encoding("cl100k_base")
 
         end=time.time()
         # log the loading time
