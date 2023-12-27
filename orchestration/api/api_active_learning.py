@@ -104,11 +104,19 @@ def list_queue_pairs(request: Request, dataset: Optional[str] = None, limit: int
 
 
 @router.get("/active-learning-queue/get-random-queue-pair-from-mongo", response_class=PrettyJSONResponse)
-def random_queue_pair(request: Request, size: int = 1) -> List[dict]:
+def random_queue_pair(request: Request, size: int = 1, dataset: Optional[str] = None):
+    # Define the aggregation pipeline
+    pipeline = []
+
+    # If a dataset is provided, add a match stage to the pipeline
+    if dataset:
+        pipeline.append({"$match": {"dataset": dataset}})
+
+    # Add the random sampling stage to the pipeline
+    pipeline.append({"$sample": {"size": size}})
+
     # Use MongoDB's aggregation framework to randomly select documents
-    random_pairs_cursor = request.app.active_learning_queue_pairs_collection.aggregate([
-        {"$sample": {"size": size}}
-    ])
+    random_pairs_cursor = request.app.active_learning_queue_pairs_collection.aggregate(pipeline)
 
     # Convert the cursor to a list of dictionaries
     random_pairs = []
@@ -117,8 +125,8 @@ def random_queue_pair(request: Request, size: int = 1) -> List[dict]:
         pair['_id'] = str(pair['_id'])
         random_pairs.append(pair)
 
-    # Directly return the list of modified dictionaries
     return random_pairs
+
 
 
 @router.delete("/active-learning-queue/delete-queue-pair-from-mongo")
