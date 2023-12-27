@@ -43,6 +43,8 @@ def startup_db_client():
     app.clip_server = ClipServer(app.device, app.minio_client)
     app.clip_server.load_clip_model()
 
+    # downloads all clip vectors
+    app.clip_server.download_all_clip_vectors()
 
 if __name__ == "__main__":
 

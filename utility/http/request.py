@@ -4,6 +4,20 @@ import json
 SERVER_ADDRESS = 'http://192.168.3.1:8111'
 
 
+def http_get_list_completed_jobs():
+    url = SERVER_ADDRESS + "/queue/image-generation/list-completed"
+
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            job_json = response.json()
+            return job_json
+
+    except Exception as e:
+        print('request exception ', e)
+
+    return None
 
 # Get request to get sequential id of a dataset
 def http_get_sequential_id(dataset_name: str, limit: int):
