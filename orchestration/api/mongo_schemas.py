@@ -343,7 +343,7 @@ class RankingResidualPercentile(BaseModel):
 
 
 class ActiveLearningPolicy(BaseModel):
-    active_learning_policy_id: Union[str, None] = None 
+    active_learning_policy_id: Union[int, None] = None 
     active_learning_policy: str
     active_learning_policy_description: str
     creation_time: Union[str, None] = None 
