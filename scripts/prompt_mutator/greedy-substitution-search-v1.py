@@ -237,11 +237,12 @@ class PromptSubstitutionGenerator:
 
         with torch.no_grad():
             embeddings= self.embedder(prompts)
-
+        
+        embeddings= embeddings.unsqueeze(1)
         embeddings=embeddings.to(self.device)
         
         if len(embeddings) == 1:
-            return embeddings[0].unsqueeze(0).unsqueeze(0)
+            return embeddings[0].unsqueeze(0)
         
         return embeddings
 
