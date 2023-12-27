@@ -242,7 +242,7 @@ class PromptSubstitutionGenerator:
         embeddings=embeddings.to(self.device)
         
         if len(embeddings) == 1:
-            return embeddings[0].unsqueeze(0)
+            return embeddings[0]
         
         return embeddings
 
