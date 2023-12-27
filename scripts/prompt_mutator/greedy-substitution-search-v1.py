@@ -1,4 +1,5 @@
 import argparse
+import csv
 from datetime import datetime
 import io
 import os
@@ -46,9 +47,11 @@ def parse_args():
     parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=100)
     parser.add_argument('--self-training', action='store_true', default=False)
     parser.add_argument('--store-embeddings', action='store_true', default=False)
+    parser.add_argument('--store-token-lengths', action='store_true', default=False)
     parser.add_argument('--save-csv', action='store_true', default=False)
     parser.add_argument('--generate-initial-prompts', action='store_true', default=True)
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
+    parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=128)
     parser.add_argument(
         '--csv_base_prompts', help='CSV containing base prompts', 
         default='input/dataset-config/environmental/base-prompts-environmental.csv'
@@ -64,7 +67,8 @@ class PromptData:
                  negative_embedding,
                  prompt_score,
                  positive_score,
-                 positive_phrase_embeddings=None):
+                 positive_phrase_embeddings=None,
+                 positive_phrase_token_lengths=None):
         
         self.positive_prompt=positive_prompt
         self.negative_prompt=negative_prompt
@@ -73,6 +77,7 @@ class PromptData:
         self.positive_score= positive_score
         self.prompt_score= prompt_score
         self.positive_phrase_embeddings= positive_phrase_embeddings
+        self.positive_phrase_token_lengths= positive_phrase_token_lengths
 
 class PromptSubstitutionGenerator:
     def __init__(
@@ -89,10 +94,12 @@ class PromptSubstitutionGenerator:
         sigma_threshold,
         dataset_name,
         store_embeddings,
+        store_token_lengths,
         self_training,
         send_job,
         save_csv,
-        top_k
+        top_k,
+        num_choices_per_iteration
     ):
         start=time.time()
 
@@ -123,6 +130,8 @@ class PromptSubstitutionGenerator:
         self.substitution_model= None
         # top k value for generating initial prompts
         self.top_k=top_k
+        # number of substitution choices tested every iteration
+        self.num_choices_per_iteration= num_choices_per_iteration
         # get list of base prompts
         self.csv_base_prompts=csv_base_prompts
 
@@ -165,12 +174,16 @@ class PromptSubstitutionGenerator:
         # get list of phrases and their token lengths
         phrase_df=pd.read_csv(csv_phrase).sort_values(by="index")
         self.phrase_list=phrase_df['phrase str'].tolist()
-        self.phrase_token_lengths=phrase_df['token size'].tolist()
+        # store phrase token lengths
+        if(store_token_lengths):
+            self.store_phrase_token_lengths()
+
+        self.phrase_token_lengths=self.load_phrase_token_lengths()
         # get phrase embeddings
         self.phrase_embeddings= self.load_phrase_embeddings()
         
         # tiktoken encoder for checking token length
-        self.token_encoder = tiktoken.get_encoding("cl100k_base")
+        # self.token_encoder = tiktoken.get_encoding("cl100k_base")
 
         end=time.time()
         # log the loading time
@@ -242,6 +255,17 @@ class PromptSubstitutionGenerator:
         embedding = embedding.reshape(len(embedding), -1).squeeze(0)
 
         return embedding.detach().cpu().numpy()
+    
+    # get token length of a phrase
+    def get_token_length(self, phrase):
+        # Tokenize the phrase
+        batch_encoding = self.embedder.tokenizer(phrase, truncation=False, max_length=77, return_length=True,
+                                        return_overflowing_tokens=False, return_tensors="pt")
+        
+        input_ids = batch_encoding['input_ids'][0]
+        num_tokens = len(input_ids)
+
+        return num_tokens
 
     # function to get a random phrase from civitai with a max token size for substitutions
     def choose_random_phrase(self, max_token_length):
@@ -260,10 +284,10 @@ class PromptSubstitutionGenerator:
         substitution_inputs=[]
         sampled_phrases=[]
         sampled_embeddings=[]
+        substitution_positions=[]
         
-        # arrays to save number of substitutions per prompt 
-        prompt_num_phrases=[]
-        num_choices=0
+        # number of choices per iteration
+        num_choices=self.num_choices_per_iteration
 
         for prompt in prompts:
             # get number of phrases
@@ -271,11 +295,12 @@ class PromptSubstitutionGenerator:
             num_phrases= len(prompt_list)
 
             # create a substitution for each position in the prompt
-            for phrase_position in range(num_phrases):
+            for i in range(num_choices):
+                phrase_position= random.randint(0, num_phrases - 1)
                 # get the substituted phrase
                 substituted_phrase=prompt_list[phrase_position]
                 # get the substituted phrase token length
-                substituted_phrase_length=len(self.token_encoder.encode(substituted_phrase))
+                substituted_phrase_length=prompt.positive_phrase_token_lengths[phrase_position]
                 # get the substituted phrase embedding
                 substituted_embedding = prompt.positive_phrase_embeddings[phrase_position]
                 # get a random phrase from civitai to substitute with
@@ -290,39 +315,38 @@ class PromptSubstitutionGenerator:
                 substitution_inputs.append(substitution_input)
                 sampled_phrases.append(substitute_phrase)
                 sampled_embeddings.append(substitute_embedding)
-            
-            num_choices+=num_phrases
-            prompt_num_phrases.append(num_choices)
+                substitution_positions.append(phrase_position)
         
         # Predict sigma score for every substitution
         predictions = self.substitution_model.predict(substitution_inputs)
 
         prompt_index=0
-        current_position=0
+        choices_count=1
         current_prompt_substitution_choices=[]
         prompts_substitution_choices=[]
         # Filter with rejection sampling
-        for position, sigma_score in enumerate(predictions):
-            if(position >= prompt_num_phrases[prompt_index]):
+        for index, sigma_score in enumerate(predictions):
+            # only take substitutions that increase score by more then a set threshold
+            if sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold:
+                phrase_position=substitution_positions[index]
+                substitution_data={
+                    'position':phrase_position,
+                    'substitute_phrase':sampled_phrases[index],
+                    'substitute_embedding':sampled_embeddings[index],
+                    'substituted_embedding':prompts[prompt_index].positive_phrase_embeddings[phrase_position],
+                    'score':sigma_score
+                }
+                current_prompt_substitution_choices.append(substitution_data)
+            
+            if(choices_count == num_choices):
                 prompt_index+=1
-                current_position=0
+                choices_count=0
                 # substitutions are sorted from highest sigma score to lowest
                 current_prompt_substitution_choices= sorted(current_prompt_substitution_choices, key=lambda s: s['score'], reverse=True) 
                 prompts_substitution_choices.append(current_prompt_substitution_choices)
                 current_prompt_substitution_choices=[]
             
-            # only take substitutions that increase score by more then a set threshold
-            if sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold:
-                substitution_data={
-                    'position':current_position,
-                    'substitute_phrase':sampled_phrases[position],
-                    'substitute_embedding':sampled_embeddings[position],
-                    'substituted_embedding':prompts[prompt_index].positive_phrase_embeddings[current_position],
-                    'score':sigma_score
-                }
-                current_prompt_substitution_choices.append(substitution_data)
-            
-            current_position+=1
+            choices_count+=1
         
         return prompts_substitution_choices
 
@@ -525,6 +549,7 @@ class PromptSubstitutionGenerator:
         for prompt in tqdm(chosen_scored_prompts):
             # caclualte embeddings for each phrase in the prompt
             prompt.positive_phrase_embeddings= [self.get_mean_pooled_embedding(self.get_prompt_embedding(phrase)) for phrase in prompt.positive_prompt.split(', ')]
+            prompt.positive_phrase_token_lengths= [self.get_token_length(phrase) for phrase in prompt.positive_prompt.split(', ')]
 
         return chosen_scored_prompts
 
@@ -753,6 +778,32 @@ class PromptSubstitutionGenerator:
 
         # Remove the temporary file
         os.remove(local_file_path)
+    
+    def store_phrase_token_lengths(self):
+        phrase_list=self.phrase_list
+        token_lengths = [self.get_token_length(phrase) for phrase in tqdm(phrase_list)]
+        local_file_path='token_lengths.csv'
+        
+        # Write to a CSV file
+        with open(local_file_path, 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(['Phrase index', 'Token Length'])
+            for phrase_index, length in enumerate(token_lengths):
+                writer.writerow([phrase_index, length])
+        
+        # Read the contents of the .npz file
+        with open(local_file_path, 'rb') as file:
+            content = file.read()
+
+        # Upload the local file to MinIO
+        buffer = io.BytesIO(content)
+        buffer.seek(0)
+
+        minio_path=DATA_MINIO_DIRECTORY + f"/input/{local_file_path}"
+        cmd.upload_data(self.minio_client, 'datasets',minio_path, buffer)
+
+        # Remove the temporary file
+        os.remove(local_file_path)
 
     # get civitai phrase embeddings from minIO
     def load_phrase_embeddings(self):
@@ -772,6 +823,26 @@ class PromptSubstitutionGenerator:
             phrase_embeddings = data['arr_0']
 
         return phrase_embeddings
+    
+    # get civitai phrase token lengths, calculated by the tokenizer
+    def load_phrase_token_lengths(self):
+        # Get the file data from MinIO
+        minio_path = DATA_MINIO_DIRECTORY + f"/input/token_lengths.csv"
+        # Download the file from MinIO
+        try:
+            data = cmd.get_file_from_minio(self.minio_client, 'datasets', minio_path)
+            data_stream = io.BytesIO(data.read())  # Read data into an in-memory stream
+        except Exception as e:
+            print(f"Error downloading file from MinIO: {e}")
+            return None
+        
+        # Read the contents directly into a Pandas DataFrame
+        phrase_df = pd.read_csv(data_stream)
+
+        # get token lengths array
+        token_lengths=phrase_df['Token Length'].tolist()
+        
+        return token_lengths
 
 
 def main():
@@ -788,10 +859,12 @@ def main():
                                   sigma_threshold=args.sigma_threshold,
                                   dataset_name=args.dataset_name,
                                   store_embeddings=args.store_embeddings,
+                                  store_token_lengths=args.store_token_lengths,
                                   self_training=args.self_training,
                                   send_job=args.send_job,
                                   save_csv=args.save_csv,
-                                  top_k=args.top_k)
+                                  top_k=args.top_k,
+                                  num_choices_per_iteration=args.num_choices)
     
     # generate n number of images
     prompt_mutator.generate_images(num_images=args.n_data)
