@@ -257,7 +257,7 @@ class PromptSubstitutionGenerator:
         embedding=torch.mean(embedding, dim=2)
         embedding = embedding.reshape(len(embedding), -1).squeeze(0)
 
-        return embedding
+        return embedding.detach().cpu().numpy()
     
     # get token length of a phrase
     def get_token_length(self, phrase):
@@ -311,8 +311,7 @@ class PromptSubstitutionGenerator:
                 # get phrase embedding by its index
                 substitute_embedding = self.phrase_embeddings[phrase_index]
                 # concatenate input in one array to use for inference
-                substitution_input = np.concatenate([prompt.positive_embedding.cpu().numpy(),  
-                                                     substituted_embedding, 
+                substitution_input = np.concatenate([prompt.positive_embedding, substituted_embedding, 
                                                      substitute_embedding, [phrase_position], [prompt.positive_score]])
                 # save data in an array to use for inference and rejection sampling
                 substitution_inputs.append(substitution_input)
@@ -387,7 +386,7 @@ class PromptSubstitutionGenerator:
                     modified_prompt_score= (modified_prompt_score - self.positive_mean) / self.positive_std
 
                     # collect self training data
-                    data=np.concatenate((prompts[index].positive_embedding.cpu().numpy(), 
+                    data=np.concatenate((prompts[index].positive_embedding, 
                                          substituted_embedding, 
                                          substitute_embedding)).tolist(),
                     prompt_data={
@@ -439,6 +438,7 @@ class PromptSubstitutionGenerator:
             # get negative prompt embedding
             negative_embedding=self.get_prompt_embedding(prompt.negative_prompt)
             negative_embedding=self.get_mean_pooled_embedding(negative_embedding)
+            negative_embedding=torch.from_numpy(negative_embedding).to(self.device)
             # calculate combined prompt score
             with torch.no_grad():
                 prompt_score = self.scorer.predict_pooled_embeddings(prompt.positive_embedding, negative_embedding)
