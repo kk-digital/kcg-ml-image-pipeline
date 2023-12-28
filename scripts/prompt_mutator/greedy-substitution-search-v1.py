@@ -24,7 +24,7 @@ from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from utility.minio import cmd
 
-from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix
+from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix, load_base_prompts
 
 GENERATION_POLICY="greedy-substitution-search-v1"
 DATA_MINIO_DIRECTORY="environmental/data/prompt-generator/substitution"
@@ -185,9 +185,7 @@ class PromptSubstitutionGenerator:
         self.phrase_index_dictionarry={phrase:i for i, phrase in enumerate(self.phrase_list)}
 
         # get base prompt list
-        base_prompt_df=pd.read_csv(self.csv_base_prompts)
-        # Convert the first column to a NumPy array
-        base_prompts = base_prompt_df.values
+        base_prompts = load_base_prompts(self.csv_base_prompts)
         # create a dictionarry for base prompts
         self.base_prompt_embeddings={phrase: self.get_mean_pooled_embedding(self.get_prompt_embedding(phrase)) for phrase in base_prompts}
         self.base_prompt_token_lengths={phrase: self.get_token_length(phrase) for phrase in base_prompts}
