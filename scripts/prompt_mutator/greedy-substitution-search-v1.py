@@ -282,7 +282,7 @@ class PromptSubstitutionGenerator:
     # function to get a random phrase from civitai with a max token size for substitutions
     def choose_random_phrase(self, max_token_length):
         phrase_token_length=max_token_length + 1
-
+        print(max_token_length)
         while(phrase_token_length > max_token_length):
             random_index=random.randrange(0, len(self.phrase_list))
             phrase= self.phrase_list[random_index]
