@@ -24,7 +24,7 @@ from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from utility.minio import cmd
 
-from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix, generate_prompts_from_csv_proportional_selection
+from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix
 
 GENERATION_POLICY="greedy-substitution-search-v1"
 DATA_MINIO_DIRECTORY="environmental/data/prompt-generator/substitution"
@@ -180,6 +180,17 @@ class PromptSubstitutionGenerator:
         
         # store list of token lengths for each phrase
         self.phrase_token_lengths=self.load_phrase_token_lengths()
+
+        # create a dictionarry to get phrase index from phrase str
+        self.phrase_index_dictionarry={phrase:i for i, phrase in enumerate(self.phrase_list)}
+
+        # get base prompt list
+        base_prompt_df=pd.read_csv(self.csv_base_prompts)
+        # Convert the first column to a NumPy array
+        base_prompts = base_prompt_df[0].values
+        # create a dictionarry for base prompts
+        self.base_prompt_embeddings={phrase: self.get_mean_pooled_embedding(self.get_prompt_embedding(phrase)) for phrase in base_prompts}
+        self.base_prompt_token_lengths={phrase: self.get_token_length(phrase) for phrase in base_prompts}
 
         end=time.time()
         # log the loading time
@@ -510,11 +521,13 @@ class PromptSubstitutionGenerator:
         
 
     def generate_initial_prompts(self, num_prompts, batch_size=64):
-        prompts = generate_prompts_from_csv_proportional_selection(csv_dataset_path=self.csv_phrase,
+        print("---------generating initial prompts")
+        prompts = generate_prompts_from_csv_with_base_prompt_prefix(csv_dataset_path=self.csv_phrase,
+                                                               csv_base_prompts_path=self.csv_base_prompts,
                                                                prompt_count=int(num_prompts / self.top_k))
         prompt_data=[]
 
-        # add base prompts and calculate scores
+        # calculate scores and rank
         print("---------scoring prompts")
         for batch_start in tqdm(range(0, len(prompts), batch_size)):
             batch_end = batch_start + batch_size
@@ -571,12 +584,39 @@ class PromptSubstitutionGenerator:
         print("Calculating phrase embeddings and token lengths for each chosen prompt")
         for prompt in tqdm(chosen_scored_prompts):
             phrases = prompt.positive_prompt.split(', ')
-            embeddings= self.get_prompt_embedding(phrases)
-            prompt.positive_phrase_embeddings = [self.get_mean_pooled_embedding(embedding.unsqueeze(0)) for embedding in embeddings]
-            prompt.positive_phrase_token_lengths = [self.get_token_length(phrase) for phrase in phrases] 
+            #embeddings= self.get_prompt_embedding(phrases)
+            prompt.positive_phrase_embeddings = [self.load_phrase_embedding(phrase) for phrase in phrases]
+            prompt.positive_phrase_token_lengths = [self.load_phrase_token_length(phrase) for phrase in phrases] 
 
         return chosen_scored_prompts
 
+    def load_phrase_embedding(self, phrase):
+        # get the phrase index
+        index=self.phrase_index_dictionarry.get(phrase)
+
+        if index:
+            return self.phrase_embeddings[index]
+        else:
+            return self.base_prompt_embeddings.get(phrase)
+    
+    def load_phrase_token_length(self, phrase):
+        # get the phrase index
+        index=self.phrase_index_dictionarry.get(phrase)
+
+        if index:
+            return self.phrase_embeddings[index]
+        else:
+            return self.base_prompt_embeddings.get(phrase)
+    
+    def load_token_length(self, phrase):
+        # get the phrase index
+        index=self.phrase_index_dictionarry.get(phrase)
+
+        if index:
+            return self.phrase_token_lengths[index]
+        else:
+            return self.base_prompt_token_lengths.get(phrase)
+            
 
     # get paths for embeddings of all prompts in a dataset
     def get_embedding_paths(self, dataset):
