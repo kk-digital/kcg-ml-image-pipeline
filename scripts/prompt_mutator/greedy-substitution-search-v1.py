@@ -539,7 +539,7 @@ class PromptSubstitutionGenerator:
                 prompt_score = self.scorer.predict_pooled_embeddings(positive_embedding, negative_embedding).item()
 
             # calculate mean, entropy and variance
-            self.get_prompt_entropy(positive_embedding, negative_embedding)
+            entropy, variance, mean= self.get_prompt_entropy(positive_embedding, negative_embedding)
            
             # sending a job to generate an image with the mutated prompt
             if self.send_job:
@@ -566,6 +566,9 @@ class PromptSubstitutionGenerator:
                 df_data.append({
                     'task_uuid': task_uuid,
                     'score': prompt_score,
+                    'entropy': entropy,
+                    'variance': variance,
+                    'mean': mean,
                     'positive_prompt': prompt.positive_prompt,
                     'negative_prompt': prompt.negative_prompt,
                     'generation_policy_string': GENERATION_POLICY,
