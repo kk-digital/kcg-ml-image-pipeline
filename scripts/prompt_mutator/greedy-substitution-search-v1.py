@@ -64,8 +64,6 @@ class PromptData:
                  positive_prompt,
                  negative_prompt,
                  positive_embedding,
-                 negative_embedding,
-                 prompt_score,
                  positive_score,
                  positive_phrase_embeddings=None,
                  positive_phrase_token_lengths=None):
@@ -73,9 +71,7 @@ class PromptData:
         self.positive_prompt=positive_prompt
         self.negative_prompt=negative_prompt
         self.positive_embedding= positive_embedding
-        self.negative_embedding= negative_embedding
         self.positive_score= positive_score
-        self.prompt_score= prompt_score
         self.positive_phrase_embeddings= positive_phrase_embeddings
         self.positive_phrase_token_lengths= positive_phrase_token_lengths
 
@@ -436,7 +432,12 @@ class PromptSubstitutionGenerator:
 
         # mutate prompts one by one
         for prompt in prompts:
-
+            # get negative prompt embedding
+            negative_embedding=self.get_prompt_embedding(prompt.negative_prompt)
+            # calculate combined prompt score
+            with torch.no_grad():
+                prompt_score = self.scorer.predict(prompt.positive_embedding, negative_embedding)
+            
             # sending a job to generate an image with the mutated prompt
             if self.send_job:
                 try:
@@ -444,7 +445,7 @@ class PromptSubstitutionGenerator:
                         positive_prompt=prompt.positive_prompt,
                         negative_prompt=prompt.negative_prompt,
                         prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
-                        prompt_score=prompt.prompt_score,
+                        prompt_score=prompt_score,
                         prompt_generation_policy=GENERATION_POLICY,
                         top_k='',
                         dataset_name=self.dataset_name
@@ -524,26 +525,26 @@ class PromptSubstitutionGenerator:
 
             # Process only valid prompts
             valid_positive_prompts = [positive_prompts[i] for i in valid_indices]
-            valid_negative_prompts = [negative_prompts[i] for i in valid_indices]
+            #valid_negative_prompts = [negative_prompts[i] for i in valid_indices]
 
             # Get embeddings for the batch
             positive_embeddings = self.get_prompt_embedding(valid_positive_prompts)
-            negative_embeddings = self.get_prompt_embedding(valid_negative_prompts)
+            #negative_embeddings = self.get_prompt_embedding(valid_negative_prompts)
 
 
             # Normalize scores and calculate mean pooled embeddings for the batch
             for i, index in enumerate(valid_indices):
                 # Calculate scores for the batch
                 with torch.no_grad():
-                    prompt_score = self.scorer.predict(positive_embeddings[i], negative_embeddings[i])
+                    # prompt_score = self.scorer.predict(positive_embeddings[i], negative_embeddings[i])
                     positive_score = self.positive_scorer.predict_positive_or_negative_only(positive_embeddings[i].unsqueeze(0))
 
                 positive_score = (positive_score.item() - self.positive_mean) / self.positive_std
-                prompt_score = (prompt_score.item() - self.mean) / self.std
+                # prompt_score = (prompt_score.item() - self.mean) / self.std
 
                 # Mean pooling and other processing
                 positive_embedding = self.get_mean_pooled_embedding(positive_embeddings[i].unsqueeze(0))
-                negative_embedding = self.get_mean_pooled_embedding(negative_embeddings[i].unsqueeze(0))
+                # negative_embedding = self.get_mean_pooled_embedding(negative_embeddings[i].unsqueeze(0))
 
                 # Storing prompt data
                 prompt = prompt_batch[index]
@@ -551,13 +552,11 @@ class PromptSubstitutionGenerator:
                     positive_prompt=prompt.positive_prompt_str,
                     negative_prompt=prompt.negative_prompt_str,
                     positive_embedding=positive_embedding,
-                    negative_embedding=negative_embedding,
-                    prompt_score=prompt_score,
                     positive_score=positive_score
                 ))
            
         # Sort and select prompts
-        sorted_scored_prompts = sorted(prompt_data, key=lambda data: data.prompt_score, reverse=True)
+        sorted_scored_prompts = sorted(prompt_data, key=lambda data: data.positive_score, reverse=True)
         chosen_scored_prompts = sorted_scored_prompts[:num_prompts]
 
         # Calculate phrase embeddings and token lengths for chosen prompts
