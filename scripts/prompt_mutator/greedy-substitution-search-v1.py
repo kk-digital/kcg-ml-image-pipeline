@@ -254,7 +254,7 @@ class PromptSubstitutionGenerator:
         return np.array(sigma_scores)
         
     # get prompt mean, entropy and variance for ensemble scores
-    def get_prompt_entropy(self, positive_embedding, negative_embedding, start=-6, bins=8, step=1):
+    def get_prompt_entropy(self, positive_embedding, negative_embedding, start=-2, bins=8, step=1):
         # get ensemble sigma scores
         sigma_scores=self.get_ensemble_sigma_scores(positive_embedding, negative_embedding)
 
@@ -406,7 +406,7 @@ class PromptSubstitutionGenerator:
         start=time.time()
         predictions = self.substitution_model.predict_in_batches(data=substitution_inputs, batch_size=self.xgboost_batch_size)
         end=time.time()
-        self.inference_speed+= (num_choices * len(prompts))/ (start-end)
+        self.inference_speed+= (num_choices * len(prompts))/ (end-start)
 
         prompt_index=0
         choices_count=1
@@ -505,7 +505,7 @@ class PromptSubstitutionGenerator:
         self_training_data = sorted(self_training_data, key=lambda d: d['delta'], reverse=True)[:10 * len(prompts)]  
         
         end=time.time()
-        self.mutation_time= start-end
+        self.mutation_time= end-start
         self.inference_speed= self.inference_speed / self.max_iterations
 
         return prompts, self_training_data
@@ -607,7 +607,7 @@ class PromptSubstitutionGenerator:
         
 
     def generate_initial_prompts(self, num_prompts):
-        start=time.time()
+        total_start=time.time()
         print("---------generating initial prompts")
         prompts = generate_prompts_from_csv_with_base_prompt_prefix(csv_dataset_path=self.csv_phrase,
                                                                csv_base_prompts_path=self.csv_base_prompts,
@@ -640,7 +640,7 @@ class PromptSubstitutionGenerator:
             positive_embeddings = self.get_prompt_embedding(valid_positive_prompts)
             end= time.time()
 
-            clip_time+= start-end
+            clip_time+= end-start
 
             # Normalize scores and calculate mean pooled embeddings for the batch
             for i, index in enumerate(valid_indices):
@@ -673,8 +673,8 @@ class PromptSubstitutionGenerator:
             prompt.positive_phrase_embeddings = [self.load_phrase_embedding(phrase) for phrase in phrases]
             prompt.positive_phrase_token_lengths = [self.load_phrase_token_length(phrase) for phrase in phrases] 
 
-        end=time.time() 
-        self.generation_time= start - end  
+        total_end=time.time() 
+        self.generation_time= total_end - total_start  
         self.clip_speed= num_prompts / clip_time
 
         return chosen_scored_prompts
