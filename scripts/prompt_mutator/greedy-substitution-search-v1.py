@@ -47,7 +47,6 @@ def parse_args():
     parser.add_argument('--store-embeddings', action='store_true', default=False)
     parser.add_argument('--store-token-lengths', action='store_true', default=False)
     parser.add_argument('--save-csv', action='store_true', default=False)
-    parser.add_argument('--generate-initial-prompts', action='store_true', default=True)
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
     parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=128)
     parser.add_argument('--clip-batch-size', type=int, help="Batch size for clip embeddings", default=64)
@@ -813,16 +812,21 @@ class PromptSubstitutionGenerator:
         content += f"Generation speed: {generation_speed:.2f} prompts/sec\n"
         content += f"Loading time: {self.loading_time:.2f} seconds\n"
         content += f"Initial top-k prompt generation time: {self.generation_time:.2f} seconds\n"
-        content += f"Prompt Mutation Time: {self.mutation_time:.2f} seconds\n"
+        content += f"Prompt Mutation Time: {self.mutation_time:.2f} seconds\n\n"
 
         content += f"================ Model Stats ==================\n"
-        content += f"Clip batch size: {self.clip_batch_size:.2f}\n"
+        content += f"Clip batch size: {self.clip_batch_size}\n"
         content += f"Clip embedding speed: {self.clip_speed:.2f} embeddings/second\n"
-        content += f"Xgboost batch size: {self.xgboost_batch_size:.2f}\n"
-        content += f"Xgboost inference speed: {self.inference_speed:.2f} predictions/second\n"       
+        content += f"Xgboost batch size: {self.xgboost_batch_size}\n"
+        content += f"Xgboost inference speed: {self.inference_speed:.2f} predictions/second\n\n"
 
+        content += f"================ Generator Parameters ==================\n"
+        content += f"Number of Iterations: {self.max_iterations}\n"
+        content += f"Number of substitution choices per iteration: {self.num_choices_per_iteration}\n\n"
+
+        content += f"================ Results ==================\n"
         content += f"Average sigma score before mutation: {avg_score_before_mutation:.2f}\n"
-        content += f"Average sigma score after mutation: {avg_score_after_mutation:.2f}\n"
+        content += f"Average sigma score after mutation: {avg_score_after_mutation:.2f}\n\n"
 
         # Write content to a text file
         file_path = "generation_stats.txt"  # Update with the desired file path
