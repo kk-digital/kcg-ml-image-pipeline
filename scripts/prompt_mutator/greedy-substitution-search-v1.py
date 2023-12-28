@@ -387,7 +387,7 @@ class PromptSubstitutionGenerator:
                     modified_prompt_score= (modified_prompt_score - self.positive_mean) / self.positive_std
 
                     # collect self training data
-                    data=np.concatenate((prompts[index].positive_embedding.detach().cpu().numpy(), 
+                    data=np.concatenate((prompts[index].positive_embedding.cpu().numpy(), 
                                          substituted_embedding, substitute_embedding)).tolist(),
                     prompt_data={
                         'input': data[0],
