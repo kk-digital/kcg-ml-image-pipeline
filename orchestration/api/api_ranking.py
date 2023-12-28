@@ -218,17 +218,35 @@ def list_ranking_data(
 
     return ranking_data
 
-@router.delete("/rank/delete-ranking-data-point")
-def delete_ranking_data_point(
-    request: Request, 
-    file_name: str = Query(...)
-):
-    # Attempt to delete the document with the specified file_name
-    result = request.app.image_pair_ranking_collection.delete_one({"file_name": file_name})
+@router.delete("/rank/delete-ranking-data-point-from-mongo")
+def delete_ranking_data_point(request: Request, id: str):
+    try:
+        # Convert the string ID to ObjectId
+        obj_id = ObjectId(id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid ObjectId format")
+
+    # Attempt to delete the document with the specified ObjectId
+    result = request.app.image_pair_ranking_collection.delete_one({"_id": obj_id})
 
     # Check if a document was deleted
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Document with the given file name not found")
+        raise HTTPException(status_code=404, detail="Document with the given file id not found")
+
+    return True
+
+
+
+@router.delete("/rank/delete-ranking-data-point-from-minio")
+def delete_ranking_data_point(request: Request, file_path: str):
+    bucket_name = "datasets"  # Assuming the bucket name is 'datasets'
+
+    try:
+        # Attempt to remove the object from MinIO
+        request.app.minio_client.remove_object(bucket_name, file_path)
+    except Exception as e:
+        # If there's an error (e.g., file not found), raise an HTTP exception
+        raise HTTPException(status_code=500, detail=f"Failed to delete object: {str(e)}")
 
     return True
 
