@@ -18,7 +18,7 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from training_worker.prompt_mutator.prompt_mutator_model import PromptMutator
-from training_worker.prompt_mutator.binary_prompt_mutator import BinaryPromptMutator
+from utility.ensemble.ensemble_helpers import Binning, SigmaScoresWithEntropy
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
@@ -41,8 +41,6 @@ def parse_args():
     parser.add_argument('--update-prompts', action='store_true', default=False)
     parser.add_argument('--dataset-name', default='test-generations')
     parser.add_argument('--scoring-model', help="elm or linear", default="linear")
-    parser.add_argument('--rejection-policy', help="by probability or sigma_score", default="sigma_score")
-    parser.add_argument('--probability-threshold', type=float, help="threshold of rejection policy for probability of increase", default=0.66)
     parser.add_argument('--sigma-threshold', type=float, help="threshold of rejection policy for increase of sigma score", default=-0.1)
     parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=80)
     parser.add_argument('--self-training', action='store_true', default=False)
@@ -52,6 +50,8 @@ def parse_args():
     parser.add_argument('--generate-initial-prompts', action='store_true', default=True)
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
     parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=128)
+    parser.add_argument('--clip-batch-size', type=int, help="Batch size for clip embeddings", default=64)
+    parser.add_argument('--xgboost-batch-size', type=int, help="Batch size for xgboost model", default=100000)
     parser.add_argument(
         '--csv_base_prompts', help='CSV containing base prompts', 
         default='input/dataset-config/environmental/base-prompts-environmental.csv'
@@ -85,8 +85,6 @@ class PromptSubstitutionGenerator:
         csv_base_prompts,
         scoring_model,
         max_iterations,
-        rejection_policy,
-        probability_threshold,
         sigma_threshold,
         dataset_name,
         store_embeddings,
@@ -95,7 +93,9 @@ class PromptSubstitutionGenerator:
         send_job,
         save_csv,
         top_k,
-        num_choices_per_iteration
+        num_choices_per_iteration,
+        clip_batch_size,
+        xgboost_batch_size
     ):
         start=time.time()
 
@@ -108,10 +108,6 @@ class PromptSubstitutionGenerator:
         self.max_iterations= max_iterations
         # average score by iteration to track score improvement
         self.average_score_by_iteration=np.zeros(self.max_iterations)
-        # rejection policy (by probability of increasing score or sigma score)
-        self.rejection_policy= rejection_policy
-        # rejection threshold for increase probability
-        self.probability_threshold= probability_threshold
         # rejection threshold for increase in sigma score
         self.sigma_threshold= sigma_threshold
         # name of dataset
@@ -128,6 +124,10 @@ class PromptSubstitutionGenerator:
         self.top_k=top_k
         # number of substitution choices tested every iteration
         self.num_choices_per_iteration= num_choices_per_iteration
+        # batch size for clip embeddings
+        self.clip_batch_size= clip_batch_size
+        # batch size for xgboost inference
+        self.xgboost_batch_size=xgboost_batch_size
         # get list of base prompts
         self.csv_base_prompts=csv_base_prompts
 
@@ -155,12 +155,11 @@ class PromptSubstitutionGenerator:
         self.mean, self.std= float(self.scorer.mean), float(self.scorer.standard_deviation)
         self.positive_mean, self.positive_std= float(self.positive_scorer.mean), float(self.positive_scorer.standard_deviation)
         
-        # load the xgboost model depending on what rejection policy is being used
-        if(self.rejection_policy=="sigma_score"):
-            self.substitution_model= PromptMutator(minio_client=self.minio_client, ranking_model=self.scoring_model)
-        else:
-            self.substitution_model= BinaryPromptMutator(minio_client=self.minio_client, ranking_model=self.scoring_model)
+        # get ensemble elm models
+        self.ensemble_models=self.get_ensemble_models()
 
+        # load the xgboost model depending on what rejection policy is being used
+        self.substitution_model= PromptMutator(minio_client=self.minio_client, ranking_model=self.scoring_model)
         self.substitution_model.load_model()
 
         # store phrase embeddings in a file in minio 
@@ -191,9 +190,85 @@ class PromptSubstitutionGenerator:
         self.base_prompt_token_lengths={phrase: self.get_token_length(phrase) for phrase in base_prompts}
 
         end=time.time()
-        # log the loading time
+        # log time taken for each step
         self.loading_time= end-start
+        self.generation_time=0
+        self.mutation_time=0
+        self.clip_speed=0
+        self.inference_speed=0
+    
+    # load ensemble elm model for entropy calculation
+    def get_ensemble_models(self):
+        input_path = "environmental/models/ranking/"
+
+        model_class = ABRankingELMModel
+
+        # Get all model files
+        model_files = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
+
+        # Filter relevant model files
+        relevant_models = [
+            model_file for model_file in model_files
+            if model_file.endswith(f"score-elm-v1-embedding.pth")
+        ]
+
+        # Sort the model files by timestamp (assuming the file names include a timestamp)
+        relevant_models=np.flip(relevant_models)
+
+        # Load the latest num_models models
+        loaded_models = []
+        for i in range(min(16, len(relevant_models))):
+            most_recent_model = relevant_models[i]
+
+            # Get the model file data
+            model_file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', most_recent_model)
+
+            # Create a BytesIO object and write the downloaded content into it
+            byte_buffer = io.BytesIO()
+            for data in model_file_data.stream(amt=8192):
+                byte_buffer.write(data)
+            # Reset the buffer's position to the beginning
+            byte_buffer.seek(0)
+
+            # Load the model
+            embedding_model = model_class(768*2)
+            embedding_model.load_pth(byte_buffer)
+            embedding_model.model=embedding_model.model.to(self.device)
+
+            loaded_models.append(embedding_model)
+
+        return loaded_models
+    
+    # get sigma scores for ensemble models
+    def get_ensemble_sigma_scores(self, positive_embedding, negative_embedding):
+        sigma_scores=[]
+        for model in self.ensemble_models:
+            mean=model.mean
+            std=model.standard_deviation
+            with torch.no_grad():
+                score=model.predict_pooled_embeddings(positive_embedding,negative_embedding).item()
+                score=(score - mean)/std
+            
+            sigma_scores.append(score)
         
+        return np.array(sigma_scores)
+        
+    # get prompt mean, entropy and variance for ensemble scores
+    def get_prompt_entropy(self, positive_embedding, negative_embedding, start=-6, bins=8, step=1):
+        # get ensemble sigma scores
+        sigma_scores=self.get_ensemble_sigma_scores(positive_embedding, negative_embedding)
+
+        # get entropy classes
+        binning= Binning(start=start,count=bins,step=step)
+        entropy_data=SigmaScoresWithEntropy(sigma_scores, binning)
+
+        # get entropy, variance and average
+        entropy= entropy_data.entropy
+        variance= entropy_data.variance
+        mean= entropy_data.mean
+
+        return entropy, variance, mean
+
     # load elm or linear scoring models
     def load_model(self, embedding_type, scoring_model="linear", input_size=768):
         input_path="environmental/models/ranking/"
@@ -328,7 +403,10 @@ class PromptSubstitutionGenerator:
                 substitution_positions.append(phrase_position)
         
         # Predict sigma score for every substitution
+        start=time.time()
         predictions = self.substitution_model.predict(substitution_inputs)
+        end=time.time()
+        self.inference_speed+= (num_choices * len(prompts))/ (start-end)
 
         prompt_index=0
         choices_count=1
@@ -362,6 +440,7 @@ class PromptSubstitutionGenerator:
 
     # function to mutate prompts
     def mutate_prompts(self, prompts):
+        start= time.time()
         # self training datapoints
         self_training_data=[]
         num_prompts=len(prompts)
@@ -425,6 +504,10 @@ class PromptSubstitutionGenerator:
         # taking top 10 training datapoints with highest delta
         self_training_data = sorted(self_training_data, key=lambda d: d['delta'], reverse=True)[:10 * len(prompts)]  
         
+        end=time.time()
+        self.mutation_time= start-end
+        self.inference_speed= self.inference_speed / self.max_iterations
+
         return prompts, self_training_data
 
     # function to generate n images
@@ -440,7 +523,7 @@ class PromptSubstitutionGenerator:
         #mutate positive prompts
         prompts, self_training_data= self.mutate_prompts(prompt_list)
         end=time.time()
-
+      
         # mutate prompts one by one
         for prompt in prompts:
             # get negative prompt embedding
@@ -455,6 +538,9 @@ class PromptSubstitutionGenerator:
             with torch.no_grad():
                 prompt_score = self.scorer.predict_pooled_embeddings(positive_embedding, negative_embedding).item()
 
+            # calculate mean, entropy and variance
+            self.get_prompt_entropy(positive_embedding, negative_embedding)
+           
             # sending a job to generate an image with the mutated prompt
             if self.send_job:
                 try:
@@ -518,12 +604,13 @@ class PromptSubstitutionGenerator:
         
 
     def generate_initial_prompts(self, num_prompts, batch_size=64):
+        start=time.time()
         print("---------generating initial prompts")
         prompts = generate_prompts_from_csv_with_base_prompt_prefix(csv_dataset_path=self.csv_phrase,
                                                                csv_base_prompts_path=self.csv_base_prompts,
                                                                prompt_count=int(num_prompts / self.top_k))
         prompt_data=[]
-
+        clip_time=0
         # calculate scores and rank
         print("---------scoring prompts")
         for batch_start in tqdm(range(0, len(prompts), batch_size)):
@@ -546,23 +633,22 @@ class PromptSubstitutionGenerator:
             #valid_negative_prompts = [negative_prompts[i] for i in valid_indices]
 
             # Get embeddings for the batch
+            start=time.time()
             positive_embeddings = self.get_prompt_embedding(valid_positive_prompts)
-            #negative_embeddings = self.get_prompt_embedding(valid_negative_prompts)
+            end= time.time()
 
+            clip_time+= start-end
 
             # Normalize scores and calculate mean pooled embeddings for the batch
             for i, index in enumerate(valid_indices):
                 # Calculate scores for the batch
                 with torch.no_grad():
-                    # prompt_score = self.scorer.predict(positive_embeddings[i], negative_embeddings[i])
                     positive_score = self.positive_scorer.predict_positive_or_negative_only(positive_embeddings[i].unsqueeze(0))
 
                 positive_score = (positive_score.item() - self.positive_mean) / self.positive_std
-                # prompt_score = (prompt_score.item() - self.mean) / self.std
 
                 # Mean pooling and other processing
                 positive_embedding = self.get_mean_pooled_embedding(positive_embeddings[i].unsqueeze(0))
-                # negative_embedding = self.get_mean_pooled_embedding(negative_embeddings[i].unsqueeze(0))
 
                 # Storing prompt data
                 prompt = prompt_batch[index]
@@ -578,15 +664,19 @@ class PromptSubstitutionGenerator:
         chosen_scored_prompts = sorted_scored_prompts[:num_prompts]
 
         # Calculate phrase embeddings and token lengths for chosen prompts
-        print("Calculating phrase embeddings and token lengths for each chosen prompt")
+        print("Calculating phrase embeddings and token lengths for each phrase in each prompt")
         for prompt in tqdm(chosen_scored_prompts):
             phrases = prompt.positive_prompt.split(', ')
-            #embeddings= self.get_prompt_embedding(phrases)
             prompt.positive_phrase_embeddings = [self.load_phrase_embedding(phrase) for phrase in phrases]
             prompt.positive_phrase_token_lengths = [self.load_phrase_token_length(phrase) for phrase in phrases] 
 
+        end=time.time() 
+        self.generation_time= start - end  
+        self.clip_speed= num_prompts / clip_time
+
         return chosen_scored_prompts
 
+    # load the embedding of a phrase
     def load_phrase_embedding(self, phrase):
         # get the phrase index
         index=self.phrase_index_dictionarry.get(phrase)
@@ -596,6 +686,7 @@ class PromptSubstitutionGenerator:
         else:
             return self.base_prompt_embeddings[phrase]
     
+    # load the token length of a phrase
     def load_phrase_token_length(self, phrase):
         # get the phrase index
         index=self.phrase_index_dictionarry.get(phrase)
@@ -718,6 +809,14 @@ class PromptSubstitutionGenerator:
         content += f"Number of generated prompts: {num_prompts}\n"
         content += f"Generation speed: {generation_speed:.2f} prompts/sec\n"
         content += f"Loading time: {self.loading_time:.2f} seconds\n"
+        content += f"Initial top-k prompt generation time: {self.generation_time:.2f} seconds\n"
+        content += f"Prompt Mutation Time: {self.mutation_time:.2f} seconds\n"
+
+        content += f"================ Model Stats ==================\n"
+        content += f"Clip batch size: {self.clip_batch_size:.2f}\n"
+        content += f"Clip embedding speed: {self.clip_speed:.2f} embeddings/second\n"
+        content += f"Xgboost batch size: {self.xgboost_batch_size:.2f}\n"
+        content += f"Xgboost inference speed: {self.inference_speed:.2f} predictions/second\n"       
 
         content += f"Average sigma score before mutation: {avg_score_before_mutation:.2f}\n"
         content += f"Average sigma score after mutation: {avg_score_after_mutation:.2f}\n"
@@ -831,6 +930,7 @@ class PromptSubstitutionGenerator:
         # Remove the temporary file
         os.remove(local_file_path)
     
+    # store toke nlength of all phrases in civitai in a file in minIO
     def store_phrase_token_lengths(self):
         phrase_list=self.phrase_list
         token_lengths = [self.get_token_length(phrase) for phrase in tqdm(phrase_list)]
