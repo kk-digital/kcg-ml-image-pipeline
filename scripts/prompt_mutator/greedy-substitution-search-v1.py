@@ -442,10 +442,12 @@ class PromptSubstitutionGenerator:
 
             # get positive prompt embedding
             positive_embedding= torch.from_numpy(prompt.positive_embedding).to(self.device)
-            
+
             # calculate combined prompt score
             with torch.no_grad():
                 prompt_score = self.scorer.predict_pooled_embeddings(positive_embedding, negative_embedding)
+            
+            print(prompt_score)
             
             # sending a job to generate an image with the mutated prompt
             if self.send_job:
@@ -471,7 +473,7 @@ class PromptSubstitutionGenerator:
                 # storing job data to put in csv file later
                 df_data.append({
                     'task_uuid': task_uuid,
-                    'score': prompt.prompt_score,
+                    'score': prompt_score,
                     'positive_prompt': prompt.positive_prompt,
                     'negative_prompt': prompt.negative_prompt,
                     'generation_policy_string': GENERATION_POLICY,
