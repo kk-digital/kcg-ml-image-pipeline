@@ -176,8 +176,7 @@ def add_selection_datapoint(request: Request, selection: NewSelection):
     for img_hash in [image_1_hash, image_2_hash]:
         update_image_rank_use_count(request, img_hash)
 
-    return {"status": "success", "message": "Data point added successfully", "inserted_id": str(mongo_data["_id"])}
-
+    return True
 
 
 
