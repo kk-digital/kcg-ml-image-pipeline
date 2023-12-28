@@ -1006,8 +1006,6 @@ def main():
                                   csv_base_prompts=args.csv_base_prompts,
                                   scoring_model=args.scoring_model,
                                   max_iterations=args.max_iterations,
-                                  rejection_policy=args.rejection_policy,
-                                  probability_threshold=args.probability_threshold,
                                   sigma_threshold=args.sigma_threshold,
                                   dataset_name=args.dataset_name,
                                   store_embeddings=args.store_embeddings,
@@ -1016,7 +1014,9 @@ def main():
                                   send_job=args.send_job,
                                   save_csv=args.save_csv,
                                   top_k=args.top_k,
-                                  num_choices_per_iteration=args.num_choices)
+                                  num_choices_per_iteration=args.num_choices,
+                                  clip_batch_size=args.clip_batch_size,
+                                  xgboost_batch_size=args.xgboost_batch_size)
     
     # generate n number of images
     prompt_mutator.generate_images(num_images=args.n_data)
