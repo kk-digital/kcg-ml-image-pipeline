@@ -257,7 +257,7 @@ class PromptSubstitutionGenerator:
         embedding=torch.mean(embedding, dim=2)
         embedding = embedding.reshape(len(embedding), -1).squeeze(0)
 
-        return embedding.detach().cpu().numpy()
+        return embedding
     
     # get token length of a phrase
     def get_token_length(self, phrase):
