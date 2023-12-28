@@ -312,7 +312,7 @@ class PromptSubstitutionGenerator:
                 substitute_embedding = self.phrase_embeddings[phrase_index]
                 # concatenate input in one array to use for inference
                 substitution_input = np.concatenate([prompt.positive_embedding.cpu().numpy(),  
-                                                     substituted_embedding.cpu().numpy(), 
+                                                     substituted_embedding, 
                                                      substitute_embedding, [phrase_position], [prompt.positive_score]])
                 # save data in an array to use for inference and rejection sampling
                 substitution_inputs.append(substitution_input)
@@ -388,7 +388,7 @@ class PromptSubstitutionGenerator:
 
                     # collect self training data
                     data=np.concatenate((prompts[index].positive_embedding.cpu().numpy(), 
-                                         substituted_embedding.cpu().numpy(), 
+                                         substituted_embedding, 
                                          substitute_embedding)).tolist(),
                     prompt_data={
                         'input': data[0],
