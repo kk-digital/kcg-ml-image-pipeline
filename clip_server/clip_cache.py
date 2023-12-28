@@ -81,6 +81,11 @@ class ClipCache:
         if image_path in self.clip_vector_dictionary:
             return self.clip_vector_dictionary[image_path]
 
+        image_clip_vector_numpy = self.get_clip_vector_from_minio(image_path)
+
+        return image_clip_vector_numpy
+
+    def get_clip_vector_from_minio(self, image_path):
         # if its not in the cache
         # get the clip vector from minio
         # and store it in the clip cache
