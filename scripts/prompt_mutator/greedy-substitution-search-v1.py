@@ -282,7 +282,6 @@ class PromptSubstitutionGenerator:
     # function to get a random phrase from civitai with a max token size for substitutions
     def choose_random_phrase(self, max_token_length):
         phrase_token_length=max_token_length + 1
-        print(max_token_length)
         while(phrase_token_length > max_token_length):
             random_index=random.randrange(0, len(self.phrase_list))
             phrase= self.phrase_list[random_index]
@@ -602,20 +601,10 @@ class PromptSubstitutionGenerator:
         index=self.phrase_index_dictionarry.get(phrase)
 
         if index:
-            return self.phrase_embeddings[index]
-        else:
-            return self.base_prompt_embeddings.get(phrase)
-    
-    def load_token_length(self, phrase):
-        # get the phrase index
-        index=self.phrase_index_dictionarry.get(phrase)
-
-        if index:
             return self.phrase_token_lengths[index]
         else:
             return self.base_prompt_token_lengths.get(phrase)
             
-
     # get paths for embeddings of all prompts in a dataset
     def get_embedding_paths(self, dataset):
             objects=self.minio_client.list_objects('datasets', dataset, recursive=True)
