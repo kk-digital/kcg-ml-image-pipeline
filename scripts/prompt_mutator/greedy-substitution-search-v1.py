@@ -598,7 +598,7 @@ class PromptSubstitutionGenerator:
     
     def load_phrase_token_length(self, phrase):
         # get the phrase index
-        index=self.phrase_index_dictionarry[phrase]
+        index=self.phrase_index_dictionarry.get(phrase)
 
         if index:
             return self.phrase_token_lengths[index]
