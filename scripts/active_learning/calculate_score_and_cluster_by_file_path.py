@@ -1,6 +1,7 @@
 import sys
 import os
-sys.path.append(os.path.abspath('../kcg-ml-image-pipeline/'))
+root_directory = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(root_directory)
 
 from tqdm.auto import tqdm
 
