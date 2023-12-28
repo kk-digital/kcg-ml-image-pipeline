@@ -170,10 +170,20 @@ class PromptSubstitutionGenerator:
         # store phrase embeddings in a file in minio 
         if(store_embeddings):
             self.store_phrase_embeddings()
+        
+        # get list of phrases and their token lengths
+        phrase_df=pd.read_csv(self.csv_phrase).sort_values(by="index")
+        self.phrase_list=phrase_df['phrase str'].tolist()
+
+        # get phrase embeddings
+        self.phrase_embeddings= self.load_phrase_embeddings()
 
         # store phrase token lengths
         if(store_token_lengths):
             self.store_phrase_token_lengths()
+        
+        # store list of token lengths for each phrase
+        self.phrase_token_lengths=self.load_phrase_token_lengths()
 
         end=time.time()
         # log the loading time
@@ -419,13 +429,6 @@ class PromptSubstitutionGenerator:
         start=time.time()
         # get initial prompts
         prompt_list = self.generate_initial_prompts(num_images)
-
-        # get list of phrases and their token lengths
-        phrase_df=pd.read_csv(self.csv_phrase).sort_values(by="index")
-        self.phrase_list=phrase_df['phrase str'].tolist()
-        self.phrase_token_lengths=self.load_phrase_token_lengths()
-        # get phrase embeddings
-        self.phrase_embeddings= self.load_phrase_embeddings()
 
         #mutate positive prompts
         prompts, self_training_data= self.mutate_prompts(prompt_list)
