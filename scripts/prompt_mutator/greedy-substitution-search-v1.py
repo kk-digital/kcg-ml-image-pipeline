@@ -523,11 +523,6 @@ class PromptSubstitutionGenerator:
             valid_positive_prompts = [positive_prompts[i] for i in valid_indices]
             valid_negative_prompts = [negative_prompts[i] for i in valid_indices]
 
-            del positive_prompts
-            del negative_prompts
-            del positive_token_lengths
-            del negative_token_lengths
-
             # Get embeddings for the batch
             positive_embeddings = self.get_prompt_embedding(valid_positive_prompts)
             negative_embeddings = self.get_prompt_embedding(valid_negative_prompts)
@@ -557,9 +552,6 @@ class PromptSubstitutionGenerator:
                     prompt_score=prompt_score,
                     positive_score=positive_score
                 ))
-
-            del positive_embeddings
-            del positive_embeddings
            
         # Sort and select prompts
         sorted_scored_prompts = sorted(prompt_data, key=lambda data: data.prompt_score, reverse=True)
