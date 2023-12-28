@@ -527,7 +527,6 @@ class PromptSubstitutionGenerator:
             del negative_prompts
             del positive_token_lengths
             del negative_token_lengths
-            del valid_indices
 
             # Get embeddings for the batch
             positive_embeddings = self.get_prompt_embedding(valid_positive_prompts)
@@ -535,7 +534,7 @@ class PromptSubstitutionGenerator:
 
 
             # Normalize scores and calculate mean pooled embeddings for the batch
-            for i, index in enumerate(positive_embeddings):
+            for i, index in enumerate(valid_indices):
                 # Calculate scores for the batch
                 with torch.no_grad():
                     prompt_score = self.scorer.predict(positive_embeddings[i], negative_embeddings[i])
