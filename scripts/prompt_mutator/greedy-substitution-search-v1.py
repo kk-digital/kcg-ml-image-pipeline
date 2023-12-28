@@ -390,7 +390,7 @@ class PromptSubstitutionGenerator:
                     # collect self training data
                     data=np.concatenate((prompts[index].positive_embedding.detach().cpu().numpy(), 
                                          substituted_embedding.detach().cpu().numpy(), 
-                                         substitute_embedding.detach().cpu().numpy())).tolist(),
+                                         substitute_embedding)).tolist(),
                     prompt_data={
                         'input': data[0],
                         'position_encoding': position,
