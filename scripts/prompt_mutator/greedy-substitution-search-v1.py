@@ -445,10 +445,8 @@ class PromptSubstitutionGenerator:
 
             # calculate combined prompt score
             with torch.no_grad():
-                prompt_score = self.scorer.predict_pooled_embeddings(positive_embedding, negative_embedding)
-            
-            print(prompt_score)
-            
+                prompt_score = self.scorer.predict_pooled_embeddings(positive_embedding, negative_embedding).item()
+
             # sending a job to generate an image with the mutated prompt
             if self.send_job:
                 try:
