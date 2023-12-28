@@ -404,7 +404,7 @@ class PromptSubstitutionGenerator:
         
         # Predict sigma score for every substitution
         start=time.time()
-        predictions = self.substitution_model.predict(substitution_inputs)
+        predictions = self.substitution_model.predict_in_batches(data=substitution_inputs, batch_size=self.xgboost_batch_size)
         end=time.time()
         self.inference_speed+= (num_choices * len(prompts))/ (start-end)
 
@@ -606,7 +606,7 @@ class PromptSubstitutionGenerator:
             self.store_self_training_data(self_training_data)
         
 
-    def generate_initial_prompts(self, num_prompts, batch_size=64):
+    def generate_initial_prompts(self, num_prompts):
         start=time.time()
         print("---------generating initial prompts")
         prompts = generate_prompts_from_csv_with_base_prompt_prefix(csv_dataset_path=self.csv_phrase,
@@ -616,8 +616,8 @@ class PromptSubstitutionGenerator:
         clip_time=0
         # calculate scores and rank
         print("---------scoring prompts")
-        for batch_start in tqdm(range(0, len(prompts), batch_size)):
-            batch_end = batch_start + batch_size
+        for batch_start in tqdm(range(0, len(prompts), self.clip_batch_size)):
+            batch_end = batch_start + self.clip_batch_size
             prompt_batch = prompts[batch_start:batch_end]
 
             # Prepare data for batch processing
