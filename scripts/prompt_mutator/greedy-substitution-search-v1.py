@@ -594,16 +594,16 @@ class PromptSubstitutionGenerator:
         if index:
             return self.phrase_embeddings[index]
         else:
-            return self.base_prompt_embeddings.get(phrase)
+            return self.base_prompt_embeddings[phrase]
     
     def load_phrase_token_length(self, phrase):
         # get the phrase index
-        index=self.phrase_index_dictionarry.get(phrase)
+        index=self.phrase_index_dictionarry[phrase]
 
         if index:
             return self.phrase_token_lengths[index]
         else:
-            return self.base_prompt_token_lengths.get(phrase)
+            return self.base_prompt_token_lengths[phrase]
             
     # get paths for embeddings of all prompts in a dataset
     def get_embedding_paths(self, dataset):
