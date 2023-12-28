@@ -187,7 +187,7 @@ class PromptSubstitutionGenerator:
         # get base prompt list
         base_prompt_df=pd.read_csv(self.csv_base_prompts)
         # Convert the first column to a NumPy array
-        base_prompts = base_prompt_df[0].values
+        base_prompts = base_prompt_df.values
         # create a dictionarry for base prompts
         self.base_prompt_embeddings={phrase: self.get_mean_pooled_embedding(self.get_prompt_embedding(phrase)) for phrase in base_prompts}
         self.base_prompt_token_lengths={phrase: self.get_token_length(phrase) for phrase in base_prompts}
