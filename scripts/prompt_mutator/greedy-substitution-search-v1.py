@@ -186,9 +186,12 @@ class PromptSubstitutionGenerator:
 
         # get base prompt list
         base_prompts = load_base_prompts(self.csv_base_prompts)
+        print(base_prompts)
         # create a dictionarry for base prompts
         self.base_prompt_embeddings={phrase: self.get_mean_pooled_embedding(self.get_prompt_embedding(phrase)) for phrase in base_prompts}
         self.base_prompt_token_lengths={phrase: self.get_token_length(phrase) for phrase in base_prompts}
+
+        print(self.base_prompt_token_lengths)
 
         end=time.time()
         # log the loading time
