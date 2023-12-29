@@ -633,8 +633,7 @@ def main():
                                   embedding_type=args.embedding_type, 
                                   output_type=args.output_type,
                                   scoring_model=args.scoring_model,
-                                  operation=args.operation,
-                                  dataset=args.dataset)
+                                  operation=args.operation)
 
     if(args.output_type=="binary"):
         model= BinaryPromptMutator(minio_client=minio_client, ranking_model=args.scoring_model,
