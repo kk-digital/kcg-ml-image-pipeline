@@ -85,9 +85,6 @@ def get_jobs_count_last_hour(request: Request, dataset):
     in_progress_count = request.app.in_progress_jobs_collection.count_documents(in_progress_query)
     completed_count = request.app.completed_jobs_collection.count_documents(completed_query)
 
-    print("pending, ", pending_count)
-    print("in_progress_count, ", in_progress_count)
-    print("completed_count, ", completed_count)
 
     count += pending_count
     count += in_progress_count

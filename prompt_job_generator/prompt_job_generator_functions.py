@@ -4,8 +4,8 @@ import sys
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from worker.prompt_generation.prompt_generator import (generate_inpainting_job,
-                                                       generate_image_generation_jobs)
+from worker.prompt_generation.prompt_generator import (generate_inpainting_job_with_temperature,
+                                                       generate_image_generation_jobs_with_temperature)
 def generate_icon_generation_jobs(prompt_job_generator_state):
 
     dataset_name = 'icons'
@@ -32,8 +32,10 @@ def generate_icon_generation_jobs(prompt_job_generator_state):
     prompt_score = scored_prompt.score
     prompt_generation_policy = scored_prompt.generation_policy
     top_k = scored_prompt.top_k
+    boltzman_temperature = scored_prompt.boltzman_temperature
+    boltzman_k = scored_prompt.boltzman_k
 
-    generate_inpainting_job(
+    generate_inpainting_job_with_temperature(
         positive_prompt=positive_prompt,
         negative_prompt=negative_prompt,
         prompt_scoring_model=prompt_scoring_model,
@@ -43,6 +45,8 @@ def generate_icon_generation_jobs(prompt_job_generator_state):
         dataset_name=dataset_name,
         init_img_path=init_img_path,
         mask_path=mask_path,
+        boltzman_temperature=boltzman_temperature,
+        boltzman_k=boltzman_k
     )
 
 def generate_character_generation_jobs(prompt_job_generator_state):
@@ -70,8 +74,10 @@ def generate_character_generation_jobs(prompt_job_generator_state):
     prompt_score = scored_prompt.score
     prompt_generation_policy = scored_prompt.generation_policy
     top_k = scored_prompt.top_k
+    boltzman_temperature = scored_prompt.boltzman_temperature
+    boltzman_k = scored_prompt.boltzman_k
 
-    generate_inpainting_job(
+    generate_inpainting_job_with_temperature(
         positive_prompt=positive_prompt,
         negative_prompt=negative_prompt,
         prompt_scoring_model=prompt_scoring_model,
@@ -81,6 +87,8 @@ def generate_character_generation_jobs(prompt_job_generator_state):
         dataset_name=dataset_name,
         init_img_path=init_img_path,
         mask_path=mask_path,
+        boltzman_temperature=boltzman_temperature,
+        boltzman_k=boltzman_k
 
     )
 
@@ -102,8 +110,10 @@ def generate_propaganda_posters_image_generation_jobs(prompt_job_generator_state
     prompt_score = scored_prompt.score
     prompt_generation_policy = scored_prompt.generation_policy
     top_k = scored_prompt.top_k
+    boltzman_temperature = scored_prompt.boltzman_temperature
+    boltzman_k = scored_prompt.boltzman_k
 
-    generate_image_generation_jobs(
+    generate_image_generation_jobs_with_temperature(
         positive_prompt=positive_prompt,
         negative_prompt=negative_prompt,
         prompt_scoring_model=prompt_scoring_model,
@@ -111,6 +121,8 @@ def generate_propaganda_posters_image_generation_jobs(prompt_job_generator_state
         prompt_generation_policy=prompt_generation_policy,
         top_k=top_k,
         dataset_name=dataset_name,
+        boltzman_temperature=boltzman_temperature,
+        boltzman_k=boltzman_k
     )
 
 
@@ -132,8 +144,10 @@ def generate_environmental_image_generation_jobs(prompt_job_generator_state):
     prompt_score = scored_prompt.score
     prompt_generation_policy = scored_prompt.generation_policy
     top_k = scored_prompt.top_k
+    boltzman_temperature = scored_prompt.boltzman_temperature
+    boltzman_k = scored_prompt.boltzman_k
 
-    generate_image_generation_jobs(
+    generate_image_generation_jobs_with_temperature(
         positive_prompt=positive_prompt,
         negative_prompt=negative_prompt,
         prompt_scoring_model=prompt_scoring_model,
@@ -141,6 +155,8 @@ def generate_environmental_image_generation_jobs(prompt_job_generator_state):
         prompt_generation_policy=prompt_generation_policy,
         top_k=top_k,
         dataset_name=dataset_name,
+        boltzman_temperature=boltzman_temperature,
+        boltzman_k=boltzman_k
     )
 
 def generate_waifu_image_generation_jobs(prompt_job_generator_state):
@@ -161,8 +177,10 @@ def generate_waifu_image_generation_jobs(prompt_job_generator_state):
     prompt_score = scored_prompt.score
     prompt_generation_policy = scored_prompt.generation_policy
     top_k = scored_prompt.top_k
+    boltzman_temperature = scored_prompt.boltzman_temperature
+    boltzman_k = scored_prompt.boltzman_k
 
-    generate_image_generation_jobs(
+    generate_image_generation_jobs_with_temperature(
         positive_prompt=positive_prompt,
         negative_prompt=negative_prompt,
         prompt_scoring_model=prompt_scoring_model,
@@ -170,6 +188,8 @@ def generate_waifu_image_generation_jobs(prompt_job_generator_state):
         prompt_generation_policy=prompt_generation_policy,
         top_k=top_k,
         dataset_name=dataset_name,
+        boltzman_temperature=boltzman_temperature,
+        boltzman_k=boltzman_k
     )
 
 
@@ -200,8 +220,10 @@ def generate_mechs_image_generation_jobs(prompt_job_generator_state):
     prompt_score = scored_prompt.score
     prompt_generation_policy = scored_prompt.generation_policy
     top_k = scored_prompt.top_k
+    boltzman_temperature = scored_prompt.boltzman_temperature
+    boltzman_k = scored_prompt.boltzman_k
 
-    generate_inpainting_job(
+    generate_inpainting_job_with_temperature(
         positive_prompt=positive_prompt,
         negative_prompt=negative_prompt,
         prompt_scoring_model=prompt_scoring_model,
@@ -211,6 +233,8 @@ def generate_mechs_image_generation_jobs(prompt_job_generator_state):
         dataset_name=dataset_name,
         init_img_path=init_img_path,
         mask_path=mask_path,
+        boltzman_temperature=boltzman_temperature,
+        boltzman_k=boltzman_k
 
     )
 

@@ -151,17 +151,32 @@ def load_dataset_prompt_gen_approx_v1(prompt_job_generator_state, dataset):
         date = datetime.strptime(date_string, "%Y-%m-%d")
         date_objects.append(date)
 
-    # Find the latest date using the max function
-    latest_date = max(date_objects)
-    # Format the latest date as a string
-    latest_date_str = latest_date.strftime("%Y-%m-%d")
+    date_objects = sorted(date_objects)
 
-    positive_phrase_scores_csv = f'{latest_date_str}-positive-phrases-score.csv'
-    negative_phrase_scores_csv = f'{latest_date_str}-negative-phrases-score.csv'
-    prompt_job_generator_state.prompt_queue.load_prompt_approx_v1(dataset,
-                                                                  minio_client,
-                                                                  positive_phrase_scores_csv,
-                                                                  negative_phrase_scores_csv)
+    # Try to find a date starting with the latest date
+    date_index = len(date_objects) - 1
+
+    found_date = False
+    while not found_date and date_index >= 0:
+        # Find the latest date using the max function
+        latest_date = date_objects[date_index]
+        # Format the latest date as a string
+        latest_date_str = latest_date.strftime("%Y-%m-%d")
+
+        positive_phrase_scores_csv = f'{latest_date_str}-positive-phrases-score.csv'
+        negative_phrase_scores_csv = f'{latest_date_str}-negative-phrases-score.csv'
+
+        try:
+            prompt_job_generator_state.prompt_queue.load_prompt_approx_v1(dataset,
+                                                                          minio_client,
+                                                                          positive_phrase_scores_csv,
+                                                                          negative_phrase_scores_csv)
+            found_date = True
+        except Exception as e:
+            date_index = date_index - 1
+
+    if not found_date and date_index < 0:
+        print('Loading independent approx v1 : Couldnt find any csv file.')
 
 
 def update_dataset_config_data(prompt_job_generator_state, list_datasets):

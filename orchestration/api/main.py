@@ -138,6 +138,9 @@ def startup_db_client():
     app.counters_collection = app.mongodb_db["counters"]
     add_models_counter()
 
+    app.uuid_tag_count_collection = app.mongodb_db["tag_count"]
+
+    
     # scores
     app.image_scores_collection = app.mongodb_db["image-scores"]
 
@@ -197,6 +200,8 @@ def startup_db_client():
 
     # image rank use count - the count the image is used in selection datapoint
     app.image_rank_use_count_collection = app.mongodb_db["image-rank-use-count"]
+
+    app.image_pair_ranking_collection = app.mongodb_db["image_pair_ranking"]
 
     print("Connected to the MongoDB database!")
 
