@@ -161,7 +161,7 @@ class PromptGenerationPromptQueue:
             prompts = prompt_list
 
         elif generation_policy == 'independent-approx-v1-top-k':
-            boltzman_temperature = random.randint(3, 8)
+            boltzman_temperature = random.randint(2, 16)
             boltzman_k = 1
 
             prompt_generator = self.get_independent_approx_v1_generator(dataset)
