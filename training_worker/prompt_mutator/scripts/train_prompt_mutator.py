@@ -314,7 +314,7 @@ def create_substitution_dataset(minio_client, device, csv_path, embedding_type, 
     clip.load_submodels()
 
     # get dataset of phrases
-    phrases_df = pd.read_csv(csv_path)
+    phrases_df = pd.read_csv(csv_path).sort_values(by="index")
     phrase_list=phrases_df['phrase str'].tolist()
     # get token lengths for each phrase
     phrase_token_lengths=load_phrase_token_lengths(minio_client)
