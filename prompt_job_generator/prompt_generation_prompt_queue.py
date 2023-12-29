@@ -3,6 +3,7 @@ import queue
 import math
 import random
 import threading
+import time
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -161,7 +162,14 @@ class PromptGenerationPromptQueue:
             prompts = prompt_list
 
         elif generation_policy == 'independent-approx-v1-top-k':
-            boltzman_temperature = random.randint(2, 16)
+
+            # Seed the random number generator with the current time
+            random.seed(time.time())
+
+            # Generate a random number between 2 and 16 (inclusive)
+            random_number = random.randint(2, 16)
+
+            boltzman_temperature = random_number
             boltzman_k = 1
 
             prompt_generator = self.get_independent_approx_v1_generator(dataset)
