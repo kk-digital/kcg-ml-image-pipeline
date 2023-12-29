@@ -636,9 +636,13 @@ def main():
                                   dataset=args.dataset)
 
     if(args.output_type=="binary"):
-        model= BinaryPromptMutator(minio_client=minio_client, ranking_model=args.scoring_model, operation=args.operation, prompt_type=args.embedding_type)
+        model= BinaryPromptMutator(minio_client=minio_client, ranking_model=args.scoring_model,
+                                   operation=args.operation, prompt_type=args.embedding_type,
+                                   dataset=args.dataset)
     else:
-        model= PromptMutator(minio_client=minio_client, output_type=args.output_type, ranking_model=args.scoring_model, operation=args.operation, prompt_type=args.embedding_type)
+        model= PromptMutator(minio_client=minio_client, output_type=args.output_type, 
+                             ranking_model=args.scoring_model, operation=args.operation, 
+                             prompt_type=args.embedding_type, dataset=args.dataset)
 
     model.train(inputs, outputs)
     model.save_model()
