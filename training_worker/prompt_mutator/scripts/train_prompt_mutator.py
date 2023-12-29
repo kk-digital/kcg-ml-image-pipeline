@@ -618,6 +618,7 @@ def main():
                                         minio_ip_addr=args.minio_addr)
     
     # set the minio data path
+    global DATA_MINIO_DIRECTORY
     DATA_MINIO_DIRECTORY= f"{args.dataset}/" + DATA_MINIO_DIRECTORY
     
     if args.create_dataset:
