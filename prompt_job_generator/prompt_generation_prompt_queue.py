@@ -169,7 +169,6 @@ class PromptGenerationPromptQueue:
             prompt_list = []
 
 
-            if prompt_generator is not None:
             for prompt in prompts:
                 prompt_list.append(ScoredPrompt(0,
                                                 prompt['positive_prompt'],
