@@ -231,7 +231,7 @@ class PromptSubstitutionGenerator:
 
             # Load the model
             embedding_model = model_class(768*2)
-            embedding_model.load_safetensors(byte_buffer)
+            embedding_model.load_pth(byte_buffer)
             embedding_model.model=embedding_model.model.to(self.device)
 
             loaded_models.append(embedding_model)
