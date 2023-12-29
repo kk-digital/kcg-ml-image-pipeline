@@ -30,19 +30,17 @@ class PromptGenerationPromptQueue:
             print('Failed to load independent approx v1 prompt generator for dataset ', dataset)
             return
 
-        boltzman_temperature = 16
-        boltzman_k = 1
-        prompt_generator = IndependentApproxV1(dataset, boltzman_temperature, boltzman_k)
+        prompt_generator = IndependentApproxV1(dataset)
         prompt_generator.load_csv(minio_client, positive_phrase_scores_csv, negative_phrase_scores_csv)
         with self.dataset_independent_prompt_gen_dictionary_lock:
             self.dataset_independent_prompt_gen_dictionary[dataset] = prompt_generator
 
-    def generate_prompts_independent_approx_v1(self, dataset, prompt_count):
+    def generate_prompts_independent_approx_v1(self, dataset, prompt_count, boltzman_temperature, boltzman_k):
         prompt_list = []
         with self.dataset_independent_prompt_gen_dictionary_lock:
             if dataset in self.dataset_independent_prompt_gen_dictionary:
                 prompt_generator = self.dataset_independent_prompt_gen_dictionary[dataset]
-                prompt_list = prompt_generator.generate_prompts(prompt_count)
+                prompt_list = prompt_generator.generate_prompts(prompt_count, boltzman_temperature, boltzman_k)
 
         return prompt_list
 
@@ -163,16 +161,15 @@ class PromptGenerationPromptQueue:
             prompts = prompt_list
 
         elif generation_policy == 'independent-approx-v1-top-k':
+            boltzman_temperature = random.randint(16, 32)
+            boltzman_k = 1
+
             prompt_generator = self.get_independent_approx_v1_generator(dataset)
-            prompts = self.generate_prompts_independent_approx_v1(dataset, total_prompt_count)
+            prompts = self.generate_prompts_independent_approx_v1(dataset, total_prompt_count, boltzman_temperature, boltzman_k)
             prompt_list = []
 
-            boltzman_temperature = 0
-            boltzman_k = 0
 
             if prompt_generator is not None:
-                boltzman_temperature = prompt_generator.boltzman_temperature
-                boltzman_k = prompt_generator.boltzman_k
             for prompt in prompts:
                 prompt_list.append(ScoredPrompt(0,
                                                 prompt['positive_prompt'],
