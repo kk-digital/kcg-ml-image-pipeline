@@ -48,8 +48,8 @@ def parse_args():
     parser.add_argument('--store-token-lengths', action='store_true', default=False)
     parser.add_argument('--save-csv', action='store_true', default=False)
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
-    parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=128)
-    parser.add_argument('--clip-batch-size', type=int, help="Batch size for clip embeddings", default=64)
+    parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=150)
+    parser.add_argument('--clip-batch-size', type=int, help="Batch size for clip embeddings", default=1000)
     parser.add_argument('--xgboost-batch-size', type=int, help="Batch size for xgboost model", default=100000)
     parser.add_argument(
         '--csv_base_prompts', help='CSV containing base prompts', 
