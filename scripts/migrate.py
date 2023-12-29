@@ -38,12 +38,17 @@ def migrate_json_to_mongodb(minio_client, mongo_collection, datasets):
             if obj.is_dir:
                 continue
 
+            json_filename = obj.object_name.split('/')[-1]
+
+            # Check if the document with the same file_name already exists in MongoDB
+            if mongo_collection.count_documents({"file_name": json_filename}) > 0:
+                print(f"Skipping '{json_filename}', already exists in MongoDB.")
+                continue
+
             print(f"Found object '{obj.object_name}' in dataset '{dataset}'...")
             response = minio_client.get_object(bucket_name, obj.object_name)
             data = response.read()
             original_data = json.loads(data.decode('utf-8'))
-
-            json_filename = obj.object_name.split('/')[-1]
 
             ordered_data = OrderedDict([
                 ("file_name", json_filename),
