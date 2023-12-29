@@ -86,7 +86,7 @@ def get_embedding_paths(minio_client, dataset):
 # get civitai phrase token lengths, calculated by the tokenizer
 def load_phrase_token_lengths(minio_client):
     # Get the file data from MinIO
-    minio_path = "environmental/data/prompt-generator/input/token_lengths.csv"
+    minio_path = "datasets/environmental/data/prompt-generator/substitution/input"
     # Download the file from MinIO
     try:
         data = cmd.get_file_from_minio(minio_client, 'datasets', minio_path)
