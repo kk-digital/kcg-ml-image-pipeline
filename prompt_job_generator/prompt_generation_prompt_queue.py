@@ -163,17 +163,24 @@ class PromptGenerationPromptQueue:
 
         elif generation_policy == 'independent-approx-v1-top-k':
 
-            # Seed the random number generator with the current time
-            random.seed(time.time())
 
-            # Generate a random number between 2 and 16 (inclusive)
-            random_number = random.randint(2, 16)
 
-            boltzman_temperature = random_number
-            boltzman_k = 1
+            prompts = []
+            for i in range (0, total_prompt_count):
+                # Seed the random number generator with the current time
+                random.seed(time.time())
 
-            prompt_generator = self.get_independent_approx_v1_generator(dataset)
-            prompts = self.generate_prompts_independent_approx_v1(dataset, total_prompt_count, boltzman_temperature, boltzman_k)
+                # Generate a random number between 2 and 16 (inclusive)
+                random_number = random.randint(2, 16)
+
+                boltzman_temperature = random_number
+                boltzman_k = 1
+
+                pr = self.generate_prompts_independent_approx_v1(dataset, 1, boltzman_temperature, boltzman_k)
+
+                for prompt in pr:
+                    prompts.append(prompt)
+
             prompt_list = []
 
 
