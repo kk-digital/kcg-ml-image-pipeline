@@ -123,7 +123,7 @@ def choose_random_phrase(phrase_list, phrase_token_lengths, max_token_length):
         phrase= phrase_list[random_index]
         phrase_token_length=phrase_token_lengths[random_index]
 
-    return phrase
+    return phrase, phrase_token_length
 
 def store_in_csv_file(csv_data, minio_client, embedding_type, operation):
     # Save data to a CSV file
@@ -366,7 +366,10 @@ def create_substitution_dataset(minio_client, device, csv_path, embedding_type, 
         
         # Randomly select a phrase from the dataset and get an embedding
         max_token_length= get_token_length(clip, substituted_phrase)
-        substitute_phrase= choose_random_phrase(phrase_list, phrase_token_lengths, max_token_length)
+        substitute_phrase, token_length= choose_random_phrase(phrase_list, phrase_token_lengths, max_token_length)
+        
+        print(f"substituted phrase: {substituted_phrase} token length: {max_token_length}")
+        print(f"substitute phrase: {substitute_phrase} token length: {token_length}")
         # get substitute and substituted phrase embedding
         with torch.no_grad():
                 substitute_embedding= clip.forward(substitute_phrase).unsqueeze(0)
