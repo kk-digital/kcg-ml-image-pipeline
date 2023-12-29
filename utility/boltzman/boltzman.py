@@ -75,7 +75,6 @@ def generate_prompt(positive_phrase_scores_loader,
     positive_cumulative_probability_arr_max = positive_cumulative_probability_arr.max()
     # positive prompt
     while positive_prompt_total_token_size < max_token_size:
-        print(positive_prompt_total_token_size)
         random_float = random.uniform(positive_cumulative_probability_arr_min,
                                       positive_cumulative_probability_arr_max)
         random_index = find_first_element_binary_search(positive_cumulative_probability_arr, random_float)
