@@ -604,7 +604,7 @@ class PromptSubstitutionGenerator:
         if self.self_training:
             self.store_self_training_data(self_training_data)
         
-
+    # generate initial prompts with top k
     def generate_initial_prompts(self, num_prompts):
         total_start=time.time()
         print("---------generating initial prompts")
