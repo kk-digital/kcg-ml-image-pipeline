@@ -654,6 +654,10 @@ class PromptSubstitutionGenerator:
 
                 # Storing prompt data
                 prompt = prompt_batch[index]
+                # Strip whitespace and filter out empty phrases
+                positive_prompt = [phrase for phrase in prompt.positive_prompt_str.split(', ') if phrase!=""]
+                prompt.positive_prompt_str = ', '.join(positive_prompt)
+                # save prompt data
                 prompt_data.append(PromptData(
                     positive_prompt=prompt.positive_prompt_str,
                     negative_prompt=prompt.negative_prompt_str,
