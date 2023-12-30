@@ -18,12 +18,14 @@ sys.path.insert(0, base_directory)
 from utility.minio import cmd
 
 class BinaryPromptMutator:
-    def __init__(self, minio_client, prompt_type="positive", ranking_model="elm", operation="substitution"):
+    def __init__(self, minio_client, prompt_type="positive", ranking_model="elm", operation="substitution",
+                 dataset="environmental"):
         self.model = None
         self.minio_client= minio_client
         self.prompt_type= prompt_type
         self.ranking_model=ranking_model
         self.operation=operation
+        self.dataset=dataset
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path=self.get_model_path()
         self.accuracy=0
@@ -31,7 +33,7 @@ class BinaryPromptMutator:
 
     def get_model_path(self):    
         local_path=f"output/binary_prompt_mutator.json"
-        minio_path=f"environmental/models/prompt-generator/{self.operation}/{self.prompt_type}_prompts_only/{self.date}_binary_{self.ranking_model}_model.json"
+        minio_path=f"{self.dataset}/models/prompt-generator/{self.operation}/{self.prompt_type}_prompts_only/{self.date}_binary_{self.ranking_model}_model.json"
 
         return local_path, minio_path
 
@@ -177,7 +179,7 @@ class BinaryPromptMutator:
                             "Training size = {}\n"
                             "Validation size = {}\n"
                             "Accuracy ={:.4f}".format(self.date,
-                                                            'environmental',
+                                                            self.dataset,
                                                             f'Prompt {self.operation}',
                                                             'XGBoost',
                                                             f'{self.prompt_type}_clip_text_embedding',
@@ -238,7 +240,7 @@ class BinaryPromptMutator:
         
 
     def load_model(self):
-        minio_path=f"environmental/models/prompt-generator/{self.operation}/{self.prompt_type}_prompts_only/"
+        minio_path=f"{self.dataset}/models/prompt-generator/{self.operation}/{self.prompt_type}_prompts_only/"
         file_name=f"_binary_{self.ranking_model}_model.json"
         # get model file data from MinIO
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', minio_path)

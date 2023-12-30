@@ -21,7 +21,8 @@ from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from utility.minio import cmd
 
-DATA_MINIO_DIRECTORY="environmental/data/prompt-generator/"
+DATA_MINIO_DIRECTORY="data/prompt-generator/"
+MAX_LENGTH=77
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -34,11 +35,12 @@ def parse_args():
     parser.add_argument('--operation', help='operation to train mutator on (substitution, permutation..)', default="substitution")
     parser.add_argument('--output-type', help='type of output for the prompt mutator model', default="sigma_score")
     parser.add_argument('--scoring-model', help="scoring model to do self training on (elm,linear etc..)", default="linear")
+    parser.add_argument('--dataset', help="dataset that the model will be trained on (ex: environmental, character etc...)", default="environmental")
     args = parser.parse_args()
     return args
 
-def load_model(input_size, minio_client, device, scoring_model, embedding_type):
-    input_path="environmental/models/ranking/"
+def load_model(input_size, minio_client, device, scoring_model, embedding_type, dataset):
+    input_path=f"{dataset}/models/ranking/"
 
     if(scoring_model=="elm-v1"):
         embedding_model = ABRankingELMModel(input_size)
@@ -81,13 +83,47 @@ def get_embedding_paths(minio_client, dataset):
             
     return embedding_files
 
-def get_self_training_paths(minio_client, operation):
-    # get minio paths for existing self training data
-    dataset_path=DATA_MINIO_DIRECTORY + f"{operation}/self_training/"
-    dataset_files=minio_client.list_objects('datasets', prefix=dataset_path, recursive=True)
-    dataset_files= [file.object_name for file in dataset_files]
+# get civitai phrase token lengths, calculated by the tokenizer
+def load_phrase_token_lengths(minio_client):
+    # Get the file data from MinIO
+    minio_path = "environmental/data/prompt-generator/substitution/input/token_lengths.csv"
+    # Download the file from MinIO
+    try:
+        data = cmd.get_file_from_minio(minio_client, 'datasets', minio_path)
+        data_stream = io.BytesIO(data.read())  # Read data into an in-memory stream
+    except Exception as e:
+        print(f"Error downloading file from MinIO: {e}")
+        return None
     
-    return dataset_files
+    # Read the contents directly into a Pandas DataFrame
+    phrase_df = pd.read_csv(data_stream)
+
+    # get token lengths array
+    token_lengths=phrase_df['Token Length'].tolist()
+    
+    return token_lengths
+
+# get token length of a phrase
+def get_token_length(embedder, phrase):
+    # Tokenize the phrase
+    batch_encoding = embedder.tokenizer(phrase, truncation=False, max_length=MAX_LENGTH, return_length=True,
+                                    return_overflowing_tokens=False, return_tensors="pt")
+    
+    input_ids = batch_encoding['input_ids']
+    num_tokens = input_ids.numel()
+
+    return num_tokens
+
+# function to get a random phrase from civitai with a max token size for substitutions
+def choose_random_phrase(phrase_list, phrase_token_lengths, max_token_length):
+    num_phrases=len(phrase_list)
+    phrase_token_length=max_token_length + 1
+    while(phrase_token_length > max_token_length):
+        random_index=random.randrange(0, num_phrases-1)
+        phrase= phrase_list[random_index]
+        phrase_token_length=phrase_token_lengths[random_index]
+
+    return phrase
 
 def store_in_csv_file(csv_data, minio_client, embedding_type, operation):
     # Save data to a CSV file
@@ -272,16 +308,20 @@ def create_permutation_dataset(minio_client, device, embedding_type):
 
     store_in_csv_file(csv_data, minio_client, embedding_type, "permutation")  
 
-def create_substitution_dataset(minio_client, device, csv_path, embedding_type):
+def create_substitution_dataset(minio_client, device, csv_path, embedding_type, dataset):
     # Load the CLIP model
     clip=CLIPTextEmbedder(device=device)
     clip.load_submodels()
 
     # get dataset of phrases
     phrases_df = pd.read_csv(csv_path)
+    phrase_list=phrases_df['phrase str'].tolist()
+    # get token lengths for each phrase
+    phrase_token_lengths=load_phrase_token_lengths(minio_client)
+
     # get ranking mondel
-    elm_model= load_model(768,minio_client, device, 'elm-v1', embedding_type)
-    linear_model= load_model(768,minio_client, device, 'linear', embedding_type)
+    elm_model= load_model(768,minio_client, device, 'elm-v1', embedding_type, dataset)
+    linear_model= load_model(768,minio_client, device, 'linear', embedding_type, dataset)
     # get mean and std values
     elm_mean, elm_std= elm_model.mean, elm_model.standard_deviation
     linear_mean, linear_std= linear_model.mean, linear_model.standard_deviation
@@ -290,7 +330,7 @@ def create_substitution_dataset(minio_client, device, csv_path, embedding_type):
     print(f"linear mean: {linear_mean}, linear std {linear_std}")
 
     # get minio paths for embeddings
-    embedding_paths = get_embedding_paths(minio_client, "environmental")
+    embedding_paths = get_embedding_paths(minio_client, dataset)
 
     prompt_index=1
     csv_data = []
@@ -308,14 +348,14 @@ def create_substitution_dataset(minio_client, device, csv_path, embedding_type):
 
         # get prompt embedding 
         prompt_str=msgpack_data[f'{embedding_type}_prompt']
+        # check token length
+        prompt_token_length=clip.compute_token_length(prompt_str)
+        if prompt_token_length > 77:
+            continue
+
         prompt_embedding= list(msgpack_data[f'{embedding_type}_embedding'].values())
         prompt_embedding = torch.tensor(np.array(prompt_embedding)).float()
         prompt_embedding=prompt_embedding.to(device)
-
-        #Randomly select a phrase from the dataset and get an embedding
-        substitute_phrase = random.choice(phrases_df['phrase str'].tolist())
-        with torch.no_grad():
-                substitute_embedding= clip.forward(substitute_phrase).unsqueeze(0)
         
         prompt_list = prompt_str.split(', ')
         # Choose a random position to substitute in the prompt
@@ -323,9 +363,16 @@ def create_substitution_dataset(minio_client, device, csv_path, embedding_type):
 
         # Create a modified prompt with the substitution and get embedding of substituted phrase
         substituted_phrase=prompt_list[position_to_substitute]
+        
+        # Randomly select a phrase from the dataset and get an embedding
+        max_token_length= get_token_length(clip, substituted_phrase)
+        substitute_phrase= choose_random_phrase(phrase_list, phrase_token_lengths, max_token_length)
+        # get substitute and substituted phrase embedding
         with torch.no_grad():
-            substituted_embedding= clip.forward(substituted_phrase).unsqueeze(0)
-
+                substitute_embedding= clip.forward(substitute_phrase).unsqueeze(0)
+                substituted_embedding= clip.forward(substituted_phrase).unsqueeze(0)
+        
+        # getting prompt after substitution
         prompt_list[position_to_substitute] = substitute_phrase
         modified_prompt = ", ".join(prompt_list)
 
@@ -568,13 +615,17 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     
+    # set the minio data path
+    global DATA_MINIO_DIRECTORY
+    DATA_MINIO_DIRECTORY= f"{args.dataset}/" + DATA_MINIO_DIRECTORY
+    
     if args.create_dataset:
         if args.operation=="substitution":
-            create_substitution_dataset(minio_client, device, args.csv_phrase, args.embedding_type)
+            create_substitution_dataset(minio_client, device, args.csv_phrase, args.embedding_type, args.dataset)
         elif args.operation=="permutation":
-            create_permutation_dataset(minio_client, device, args.embedding_type)
+            create_permutation_dataset(minio_client, device, args.embedding_type, args.dataset)
         elif args.operation=="addition":
-            create_addition_dataset(minio_client, device, args.csv_phrase, args.embedding_type)
+            create_addition_dataset(minio_client, device, args.csv_phrase, args.embedding_type, args.dataset)
 
     inputs, outputs= load_dataset(minio_client=minio_client, 
                                   embedding_type=args.embedding_type, 
@@ -583,9 +634,13 @@ def main():
                                   operation=args.operation)
 
     if(args.output_type=="binary"):
-        model= BinaryPromptMutator(minio_client=minio_client, ranking_model=args.scoring_model, operation=args.operation, prompt_type=args.embedding_type)
+        model= BinaryPromptMutator(minio_client=minio_client, ranking_model=args.scoring_model,
+                                   operation=args.operation, prompt_type=args.embedding_type,
+                                   dataset=args.dataset)
     else:
-        model= PromptMutator(minio_client=minio_client, output_type=args.output_type, ranking_model=args.scoring_model, operation=args.operation, prompt_type=args.embedding_type)
+        model= PromptMutator(minio_client=minio_client, output_type=args.output_type, 
+                             ranking_model=args.scoring_model, operation=args.operation, 
+                             prompt_type=args.embedding_type, dataset=args.dataset)
 
     model.train(inputs, outputs)
     model.save_model()
