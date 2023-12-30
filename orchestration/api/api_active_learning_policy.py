@@ -5,12 +5,13 @@ import random
 import pymongo
 from utility.minio import cmd
 from orchestration.api.mongo_schemas import  ActiveLearningPolicy
-from .api_utils import PrettyJSONResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandler
 import os
 from datetime import datetime, timezone
 from typing import List
 from io import BytesIO
 import json
+
 from fastapi.encoders import jsonable_encoder
 
 
@@ -97,33 +98,37 @@ def delete_active_learning_policy(request: Request, active_learning_policy_id: i
 
 @router.post("/active-learning-queue/policy/add", response_class=PrettyJSONResponse)
 def add_policy(request: Request, policy_data: ActiveLearningPolicy):
-    # Find the maximum active_learning_policy_id in the collection
-    last_entry = request.app.active_learning_policies_collection.find_one({}, sort=[("active_learning_policy_id", -1)])
-    new_policy_id = last_entry["active_learning_policy_id"] + 1 if last_entry else 0
+    response_handler = ApiResponseHandler("/active-learning-queue/policy/add")
 
-    # Ensure that the policy does not already exist
-    if request.app.active_learning_policies_collection.find_one({"active_learning_policy": policy_data.active_learning_policy}):
-        raise HTTPException(status_code=400, detail="Policy already exists")
+    try:
+        # Find the maximum active_learning_policy_id in the collection
+        last_entry = request.app.active_learning_policies_collection.find_one({}, sort=[("active_learning_policy_id", -1)])
+        new_policy_id = last_entry["active_learning_policy_id"] + 1 if last_entry else 0
 
-    # Add the new policy
-    policy_data.active_learning_policy_id = new_policy_id
-    policy_data.creation_time = datetime.now(timezone.utc).isoformat()
+        # Ensure that the policy does not already exist
+        if request.app.active_learning_policies_collection.find_one({"active_learning_policy": policy_data.active_learning_policy}):
+            return response_handler.create_error_response(400, "Policy already exists")
 
-    # Convert the policy data to a dict for MongoDB insertion
-    inserted_policy_dict = policy_data.dict()
-    inserted_result = request.app.active_learning_policies_collection.insert_one(inserted_policy_dict)
-    
-    # Retrieve the inserted policy, converting ObjectId to string
-    inserted_policy = request.app.active_learning_policies_collection.find_one({"_id": inserted_result.inserted_id})
-    if inserted_policy:
-        # Convert _id from ObjectId to string
-        inserted_policy['_id'] = str(inserted_policy['_id'])
+        # Add the new policy
+        policy_data.active_learning_policy_id = new_policy_id
+        policy_data.creation_time = datetime.now(timezone.utc).isoformat()
+        inserted_policy_dict = policy_data.dict()
+        inserted_result = request.app.active_learning_policies_collection.insert_one(inserted_policy_dict)
 
-        # Use jsonable_encoder to handle any non-serializable data
-        inserted_policy = jsonable_encoder(inserted_policy)
-        return inserted_policy
+        # Retrieve the inserted policy, converting ObjectId to string
+        inserted_policy = request.app.active_learning_policies_collection.find_one({"_id": inserted_result.inserted_id})
+        if inserted_policy:
+            # Convert _id from ObjectId to string and handle non-serializable data
+            inserted_policy['_id'] = str(inserted_policy['_id'])
+            inserted_policy = jsonable_encoder(inserted_policy)
+            return response_handler.create_success_response(inserted_policy)
 
-    raise HTTPException(status_code=500, detail="Failed to retrieve the inserted policy")
+        return response_handler.create_error_response(500, "Failed to retrieve the inserted policy")
+
+    except Exception as e:
+        # Handle unexpected errors
+        return response_handler.create_error_response(500, str(e))
+
 
 
 
