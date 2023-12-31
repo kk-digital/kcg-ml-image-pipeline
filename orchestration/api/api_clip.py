@@ -1,6 +1,6 @@
 from fastapi import Request, APIRouter, HTTPException
 import requests
-from .api_utils import PrettyJSONResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandler
 from typing import Optional
 from typing import List
 import json
@@ -102,26 +102,30 @@ def add_phrase(request: Request,
              tags=["clip"])
 @cache(expire=60)  # Cache for 60 seconds, adjust as necessary
 def add_phrase(request: Request):
-    body = request.json()
-    phrase = body.get("phrase")
-    
-    if not phrase:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Phrase is required")
+    response_handler = ApiResponseHandler("/clip/phrases")  # Initialize ApiResponseHandler
 
     try:
+        body = request.json()
+        phrase = body.get("phrase")
+
+        if not phrase:
+            return response_handler.create_error_response(
+                status.HTTP_400_BAD_REQUEST, "Phrase is required")
+
         response = http_clip_server_add_phrase(phrase)
 
-        # Check if the response status code is within the success range (200-299)
         if not (200 <= response.status_code < 300):
-            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
-                                detail=f"Clip server error with status code {response.status_code}")
+            return response_handler.create_error_response(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                f"Clip server error with status code {response.status_code}")
 
-        # Return standard response object with null response for success
-        return JSONResponse(status_code=status.HTTP_201_CREATED, content=None)
+        # Return the added phrase in the success response
+        return response_handler.create_success_response({"added_phrase": phrase})
 
     except Exception as e:
-        # Log the error here, if needed
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        return response_handler.create_error_response(
+            status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
+
 
 
 @router.get("/clip/clip-vector",
@@ -140,17 +144,22 @@ def add_phrase(request: Request,
              description="Retrieves the clip vector for a given phrase.")
 @cache(expire=60)  # Cache for 60 seconds, adjust as necessary
 def get_clip_vector(request: Request, phrase: str):
+    response_handler = ApiResponseHandler(f"/clip/vectors/{phrase}")  # Initialize ApiResponseHandler
+
     try:
         vector = http_clip_server_clip_vector_from_phrase(phrase)
 
         if vector is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Phrase not found")
+            return response_handler.create_error_response(
+                status.HTTP_404_NOT_FOUND, "Phrase not found")
 
-        return vector
+        return response_handler.create_success_response({"clip_vector": vector})
 
     except Exception as e:
-        # Here you can log the exception details if needed
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        # Log the error here, if needed
+        return response_handler.create_error_response(
+            status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
+
 
 
 @router.get("/clip/random-image-similarity-threshold",
@@ -379,10 +388,17 @@ def check_clip_server_status():
 @router.get("/clip/server-status", tags=["clip"])
 @cache(expire=60)  # Cache for 60 seconds, adjust as necessary
 def check_clip_server_status():
+    response_handler = ApiResponseHandler("/clip/server-status")  # Initialize ApiResponseHandler
+
     try:
         response = requests.get(CLIP_SERVER_ADDRESS)
         reachable = response.status_code == 200
-    except requests.exceptions.RequestException:
-        reachable = False
 
-    return JSONResponse(status_code=200, content={"reachable": reachable})
+        # Use ApiResponseHandler to create a success response
+        return response_handler.create_success_response({"reachable": reachable})
+
+    except requests.exceptions.RequestException as e:
+        # Use ApiResponseHandler to create an error response
+        return response_handler.create_error_response(
+            status.HTTP_503_SERVICE_UNAVAILABLE, str(e))
+
