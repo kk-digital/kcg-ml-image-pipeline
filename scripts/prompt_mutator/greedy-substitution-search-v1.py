@@ -433,21 +433,26 @@ class PromptSubstitutionGenerator:
                 substitue_phrase=sampled_phrases[index]
                 substitute_embedding=sampled_embeddings[index]
                 substituted_embedding= prompts[prompt_index].positive_phrase_embeddings[phrase_position] 
+                similarity= self.get_cosine_sim(substitute_embedding, topic_target)
 
                 substitution_data={
                     'position':phrase_position,
                     'substitute_phrase':substitue_phrase,
                     'substitute_embedding':substitute_embedding,
                     'substituted_embedding':substituted_embedding,
-                    'score': self.get_cosine_sim(substitute_embedding, topic_target)
+                    'score': sigma_score,
+                    'similarity': similarity
                 }
+
+                print(f"({substitute_phrase} , {prompts[prompt_index].positive_prompt[phrase_position]}")
+                print(f"similarity: {similarity}")
                 current_prompt_substitution_choices.append(substitution_data)
             
             if(choices_count == num_choices):
                 prompt_index+=1
                 choices_count=0
                 # substitutions are sorted from highest sigma score to lowest
-                current_prompt_substitution_choices= sorted(current_prompt_substitution_choices, key=lambda s: s['score'], reverse=True) 
+                current_prompt_substitution_choices= sorted(current_prompt_substitution_choices, key=lambda s: s['similarity'], reverse=True) 
                 prompts_substitution_choices.append(current_prompt_substitution_choices)
                 current_prompt_substitution_choices=[]
             
@@ -632,7 +637,7 @@ class PromptSubstitutionGenerator:
         print("---------generating initial prompts")
         prompts = generate_prompts_from_csv_with_base_prompt_prefix(csv_dataset_path=self.csv_phrase,
                                                                csv_base_prompts_path=self.csv_base_prompts,
-                                                               prompt_count=num_prompts)
+                                                               prompt_count=int(num_prompts / self.top_k))
         prompt_data=[]
         clip_time=0
         # calculate scores and rank
@@ -692,12 +697,12 @@ class PromptSubstitutionGenerator:
                 ))
            
         # Sort and select prompts
-        # sorted_scored_prompts = sorted(prompt_data, key=lambda data: data.positive_score, reverse=True)
-        # chosen_scored_prompts = sorted_scored_prompts[:num_prompts]
+        sorted_scored_prompts = sorted(prompt_data, key=lambda data: data.positive_score, reverse=True)
+        chosen_scored_prompts = sorted_scored_prompts[:num_prompts]
 
         # Calculate phrase embeddings and token lengths for chosen prompts
         print("Calculating phrase embeddings and token lengths for each phrase in each prompt")
-        for prompt in tqdm(prompt_data):
+        for prompt in tqdm(chosen_scored_prompts):
             phrases = prompt.positive_prompt.split(', ')
             prompt.positive_phrase_embeddings = [self.load_phrase_embedding(phrase) for phrase in phrases]
             prompt.positive_phrase_token_lengths = [self.load_phrase_token_length(phrase) for phrase in phrases] 
@@ -706,7 +711,7 @@ class PromptSubstitutionGenerator:
         self.generation_time= total_end - total_start  
         self.clip_speed= num_prompts / clip_time
 
-        return prompt_data
+        return chosen_scored_prompts
 
     # get list of topics and their embeddings
     def load_topic_prompts(self):
