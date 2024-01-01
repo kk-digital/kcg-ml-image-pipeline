@@ -427,14 +427,19 @@ class PromptSubstitutionGenerator:
         for index, sigma_score in enumerate(predictions):
             # only take substitutions that increase score by more then a set threshold
             if sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold:
+                # get substituion data
                 phrase_position=substitution_positions[index]
                 topic_target= prompt[prompt_index].topic_embedding
+                substitue_phrase=sampled_phrases[index]
+                substitute_embedding=sampled_embeddings[index]
+                substituted_embedding= prompts[prompt_index].positive_phrase_embeddings[phrase_position] 
+
                 substitution_data={
                     'position':phrase_position,
-                    'substitute_phrase':sampled_phrases[index],
-                    'substitute_embedding':sampled_embeddings[index],
-                    'substituted_embedding':prompts[prompt_index].positive_phrase_embeddings[phrase_position],
-                    'score': cosine_similarity(sampled_embeddings[index], topic_target).item()
+                    'substitute_phrase':substitue_phrase,
+                    'substitute_embedding':substitute_embedding,
+                    'substituted_embedding':substituted_embedding,
+                    'score': self.get_cosine_sim(substitute_embedding, topic_target)
                 }
                 current_prompt_substitution_choices.append(substitution_data)
             
@@ -729,11 +734,20 @@ class PromptSubstitutionGenerator:
 
         return topic_prompt_list, topic_prompt_embeddings
     
+    # get cosine similarity
+    def get_cosine_sim(self, embedding, topic):
+        embedding= torch.from_numpy(embedding)
+        topic= torch.from_numpy(topic)
+
+        sim= cosine_similarity(embedding, topic)
+
+        return sim.item()
+
     # cosine similarity between embeddings
     def get_prompt_topic(self, embedding):
         highest_similarity=0
         for i,topic in enumerate(self.topic_embeddings):
-            cosine= cosine_similarity(embedding, topic)
+            cosine= self.get_cosine_sim(embedding, topic)
             if cosine > highest_similarity:
                 highest_similarity= cosine
                 index= i
