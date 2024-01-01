@@ -56,6 +56,7 @@ def parse_args():
         '--csv_base_prompts', help='CSV containing base prompts', 
         default='input/dataset-config/environmental/base-prompts-environmental.csv'
     )
+    parser.add_argument('--csv-topics', help="csv containing target topics", default="input/topics/topic-list.csv")
 
     return parser.parse_args()
 
@@ -87,6 +88,7 @@ class PromptSubstitutionGenerator:
         minio_ip_addr,
         csv_phrase,
         csv_base_prompts,
+        csv_topics,
         scoring_model,
         max_iterations,
         sigma_threshold,
@@ -134,6 +136,8 @@ class PromptSubstitutionGenerator:
         self.xgboost_batch_size=xgboost_batch_size
         # get list of base prompts
         self.csv_base_prompts=csv_base_prompts
+        # get list of topics
+        self.csv_topics= csv_topics
 
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key,
@@ -1072,6 +1076,7 @@ def main():
                                   minio_ip_addr=args.minio_addr,
                                   csv_phrase=args.csv_phrase,
                                   csv_base_prompts=args.csv_base_prompts,
+                                  csv_topics=args.csv_topics,
                                   scoring_model=args.scoring_model,
                                   max_iterations=args.max_iterations,
                                   sigma_threshold=args.sigma_threshold,
