@@ -739,7 +739,7 @@ class PromptSubstitutionGenerator:
         embedding= torch.from_numpy(embedding)
         topic= torch.from_numpy(topic)
 
-        sim= cosine_similarity(embedding, topic)
+        sim= cosine_similarity(embedding, topic, dim=0)
 
         return sim.item()
 
