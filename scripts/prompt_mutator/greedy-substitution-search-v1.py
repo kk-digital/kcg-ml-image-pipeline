@@ -706,7 +706,7 @@ class PromptSubstitutionGenerator:
         self.generation_time= total_end - total_start  
         self.clip_speed= num_prompts / clip_time
 
-        return chosen_scored_prompts
+        return prompt_data
 
     # get list of topics and their embeddings
     def load_topic_prompts(self):
