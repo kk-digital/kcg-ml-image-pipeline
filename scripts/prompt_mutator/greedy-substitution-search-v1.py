@@ -13,7 +13,7 @@ import pandas as pd
 import torch
 import msgpack
 from tqdm import tqdm
-from sentence_transformers import SentenceTransformer, util
+from torch.nn.functional import cosine_similarity
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -154,8 +154,6 @@ class PromptSubstitutionGenerator:
         # Load the clip embedder model
         self.embedder=CLIPTextEmbedder(device=device)
         self.embedder.load_submodels()
-
-        self.sentence_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 
         # load the scoring models (for positive prompts and for both)
         self.positive_scorer= self.load_model(embedding_type='positive', scoring_model=self.scoring_model)
@@ -431,11 +429,11 @@ class PromptSubstitutionGenerator:
             if sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold:
                 # get substituion data
                 phrase_position=substitution_positions[index]
-                topic_target= prompts[prompt_index].topic
+                topic_target= prompts[prompt_index].topic_embedding
                 substitute_phrase=sampled_phrases[index]
                 substitute_embedding=sampled_embeddings[index]
                 substituted_embedding= prompts[prompt_index].positive_phrase_embeddings[phrase_position] 
-                similarity= self.get_cosine_sim(substitute_phrase, topic_target)
+                similarity= self.get_cosine_sim(substitute_embedding, topic_target)
 
                 substitution_data={
                     'position':phrase_position,
@@ -746,22 +744,13 @@ class PromptSubstitutionGenerator:
         return topic_prompt_list, topic_prompt_embeddings
     
     # get cosine similarity
-    def get_cosine_sim(self, phrase, topic):
-        # Calculate the dot product of the two vectors
-        # dot_product = np.dot(embedding, topic)
+    def get_cosine_sim(self, embedding, topic):
+        # Normalize the features
+        embedding = embedding / embedding.norm(dim=-1, keepdim=True)
+        topic = topic / topic.norm(dim=-1, keepdim=True)
 
-        # # Calculate the magnitude (norm) of each vector
-        # norm1 = np.linalg.norm(embedding)
-        # norm2 = np.linalg.norm(topic)
-
-        # Calculate the cosine similarity
-        # cosine_sim = dot_product
-
-        #Compute embedding for both lists
-        embedding_1= self.sentence_model.encode(phrase, convert_to_tensor=True)
-        embedding_2 = self.sentence_model.encode(topic, convert_to_tensor=True)
-
-        cosine_sim=util.pytorch_cos_sim(embedding_1, embedding_2).item()
+        # Compute cosine similarity
+        cosine_sim = torch.mm(embedding, topic.t())
 
         return cosine_sim
 
