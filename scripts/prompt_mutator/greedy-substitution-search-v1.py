@@ -740,12 +740,17 @@ class PromptSubstitutionGenerator:
     
     # get cosine similarity
     def get_cosine_sim(self, embedding, topic):
-        embedding= torch.from_numpy(embedding)
-        topic= torch.from_numpy(topic)
+        # Calculate the dot product of the two vectors
+        dot_product = np.dot(embedding, topic)
 
-        sim= cosine_similarity(embedding, topic, dim=0)
+        # Calculate the magnitude (norm) of each vector
+        norm1 = np.linalg.norm(embedding)
+        norm2 = np.linalg.norm(topic)
 
-        return sim.item()
+        # Calculate the cosine similarity
+        cosine_sim = dot_product / (norm1 * norm2)
+
+        return cosine_sim
 
     # cosine similarity between embeddings
     def get_prompt_topic(self, embedding):
