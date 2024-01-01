@@ -366,7 +366,7 @@ class PromptSubstitutionGenerator:
     # get clip embedding of a phrase
     def get_clip_embedding(self, prompt):
         # get prompt embedding
-        text_tokens = clip.tokenize(prompt).to(self.device)
+        text_tokens = self.clip_model.tokenize(prompt).to(self.device)
         with torch.no_grad():
             embedding= self.clip_model.encode_text(text_tokens)
         
