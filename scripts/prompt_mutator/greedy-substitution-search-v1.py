@@ -49,7 +49,7 @@ def parse_args():
     parser.add_argument('--store-token-lengths', action='store_true', default=False)
     parser.add_argument('--save-csv', action='store_true', default=False)
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
-    parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=150)
+    parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=128)
     parser.add_argument('--clip-batch-size', type=int, help="Batch size for clip embeddings", default=1000)
     parser.add_argument('--xgboost-batch-size', type=int, help="Batch size for xgboost model", default=100000)
     parser.add_argument(
@@ -554,6 +554,8 @@ class PromptSubstitutionGenerator:
             # calculate combined prompt score
             with torch.no_grad():
                 prompt_score = self.scorer.predict_pooled_embeddings(positive_embedding, negative_embedding).item()
+            
+            sigma_score= (prompt_score - self.mean) / self.std
 
             # calculate mean, entropy and variance
             entropy, variance, mean= self.get_prompt_entropy(positive_embedding, negative_embedding)
@@ -583,7 +585,7 @@ class PromptSubstitutionGenerator:
                 df_data.append({
                     'task_uuid': task_uuid,
                     'score': prompt_score,
-                    'sigma_score': prompt.prompt_score,
+                    'sigma_score': sigma_score,
                     'topic': prompt.topic,
                     'entropy': entropy,
                     'variance': variance,
@@ -748,6 +750,7 @@ class PromptSubstitutionGenerator:
     # cosine similarity between embeddings
     def get_prompt_topic(self, embedding):
         highest_similarity=0
+        index=0
         for i,topic in enumerate(self.topic_embeddings):
             cosine= self.get_cosine_sim(embedding, topic)
             if cosine > highest_similarity:
