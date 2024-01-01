@@ -748,12 +748,12 @@ class PromptSubstitutionGenerator:
         # Calculate the dot product of the two vectors
         dot_product = np.dot(embedding, topic)
 
-        # Calculate the magnitude (norm) of each vector
-        norm1 = np.linalg.norm(embedding)
-        norm2 = np.linalg.norm(topic)
+        # # Calculate the magnitude (norm) of each vector
+        # norm1 = np.linalg.norm(embedding)
+        # norm2 = np.linalg.norm(topic)
 
         # Calculate the cosine similarity
-        cosine_sim = dot_product / (norm1 * norm2)
+        cosine_sim = dot_product
 
         return cosine_sim
 
