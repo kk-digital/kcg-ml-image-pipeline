@@ -746,11 +746,14 @@ class PromptSubstitutionGenerator:
     # get cosine similarity
     def get_cosine_sim(self, embedding, topic):
         # Normalize the features
-        embedding = embedding / embedding.norm(dim=-1, keepdim=True)
-        topic = topic / topic.norm(dim=-1, keepdim=True)
+        embedding_norm = np.linalg.norm(embedding, axis=1, keepdims=True)
+        topic_norm = np.linalg.norm(topic, axis=1, keepdims=True)
+
+        embedding_normalized = embedding / embedding_norm
+        topic_normalized = topic / topic_norm
 
         # Compute cosine similarity
-        cosine_sim = torch.mm(embedding, topic.t())
+        cosine_sim = np.dot(embedding_normalized, topic_normalized.T)
 
         return cosine_sim
 
