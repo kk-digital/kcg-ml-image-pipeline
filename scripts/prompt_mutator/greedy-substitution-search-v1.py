@@ -430,21 +430,21 @@ class PromptSubstitutionGenerator:
                 # get substituion data
                 phrase_position=substitution_positions[index]
                 topic_target= prompts[prompt_index].topic_embedding
-                substitue_phrase=sampled_phrases[index]
+                substitute_phrase=sampled_phrases[index]
                 substitute_embedding=sampled_embeddings[index]
                 substituted_embedding= prompts[prompt_index].positive_phrase_embeddings[phrase_position] 
                 similarity= self.get_cosine_sim(substitute_embedding, topic_target)
 
                 substitution_data={
                     'position':phrase_position,
-                    'substitute_phrase':substitue_phrase,
+                    'substitute_phrase':substitute_phrase,
                     'substitute_embedding':substitute_embedding,
                     'substituted_embedding':substituted_embedding,
                     'score': sigma_score,
                     'similarity': similarity
                 }
 
-                print(f"({substitute_phrase} , {prompts[prompt_index].positive_prompt[phrase_position]}")
+                print(f"({substitute_phrase} , {prompts[prompt_index].topic}")
                 print(f"similarity: {similarity}")
                 current_prompt_substitution_choices.append(substitution_data)
             
