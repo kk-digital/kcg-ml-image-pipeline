@@ -198,7 +198,7 @@ class PromptSubstitutionGenerator:
         self.base_prompt_token_lengths={phrase: self.get_token_length(phrase) for phrase in base_prompts}
 
         # get list of topics
-        self.topics, self.topic_embeddings= self.load_topic_prompts(self.csv_topics)
+        self.topics, self.topic_embeddings= self.load_topic_prompts()
 
         end=time.time()
         # log time taken for each step
