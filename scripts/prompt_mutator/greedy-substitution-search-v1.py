@@ -13,7 +13,7 @@ import pandas as pd
 import torch
 import msgpack
 from tqdm import tqdm
-from torch.nn.functional import cosine_similarity
+import clip
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -46,6 +46,7 @@ def parse_args():
     parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=80)
     parser.add_argument('--self-training', action='store_true', default=False)
     parser.add_argument('--store-embeddings', action='store_true', default=False)
+    parser.add_argument('--store-clip-embeds', action='store_true', default=False)
     parser.add_argument('--store-token-lengths', action='store_true', default=False)
     parser.add_argument('--save-csv', action='store_true', default=False)
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
@@ -94,6 +95,7 @@ class PromptSubstitutionGenerator:
         sigma_threshold,
         dataset_name,
         store_embeddings,
+        store_clip_embeds,
         store_token_lengths,
         self_training,
         send_job,
@@ -155,6 +157,9 @@ class PromptSubstitutionGenerator:
         self.embedder=CLIPTextEmbedder(device=device)
         self.embedder.load_submodels()
 
+        # load openai clip model
+        self.clip_model, preprocess = clip.load("ViT-L-14", device=device)
+
         # load the scoring models (for positive prompts and for both)
         self.positive_scorer= self.load_model(embedding_type='positive', scoring_model=self.scoring_model)
         self.scorer= self.load_model(embedding_type='combined', scoring_model=self.scoring_model, input_size=768*2)
@@ -174,12 +179,16 @@ class PromptSubstitutionGenerator:
         if(store_embeddings):
             self.store_phrase_embeddings()
         
+        if(store_clip_embeds):
+            self.store_clip_embeds()
+        
         # get list of phrases and their token lengths
         phrase_df=pd.read_csv(self.csv_phrase).sort_values(by="index")
         self.phrase_list=phrase_df['phrase str'].tolist()
 
         # get phrase embeddings
         self.phrase_embeddings= self.load_phrase_embeddings()
+        self.clip_embeddings= self.load_clip_embeds()
 
         # store phrase token lengths
         if(store_token_lengths):
@@ -354,6 +363,15 @@ class PromptSubstitutionGenerator:
 
         return embedding.detach().cpu().numpy()
     
+    # get clip embedding of a phrase
+    def get_clip_embedding(self, prompt):
+        # get prompt embedding
+        text_tokens = clip.tokenize(prompt).to(self.device)
+        with torch.no_grad():
+            embedding= self.clip_model.encode_text(text_tokens)
+        
+        return embedding.detach().cpu().numpy()
+
     # get token length of a phrase
     def get_token_length(self, phrase):
         # Tokenize the phrase
@@ -373,14 +391,13 @@ class PromptSubstitutionGenerator:
             phrase= self.phrase_list[random_index]
             phrase_token_length=self.phrase_token_lengths[random_index]
 
-        return random_index, phrase
+        return random_index
 
     # rejection sampling function
     def rejection_sampling(self, prompts):
         # arrays to save substitution data
         substitution_inputs=[]
         sampled_phrases=[]
-        sampled_embeddings=[]
         substitution_positions=[]
         
         # number of choices per iteration
@@ -399,9 +416,7 @@ class PromptSubstitutionGenerator:
                 # get the substituted phrase embedding
                 substituted_embedding = prompt.positive_phrase_embeddings[phrase_position]
                 # get a random phrase from civitai to substitute with
-                phrase_index, random_phrase= self.choose_random_phrase(max_token_length=substituted_phrase_length)   
-                # get phrase string
-                substitute_phrase = random_phrase
+                phrase_index= self.choose_random_phrase(max_token_length=substituted_phrase_length)
                 # get phrase embedding by its index
                 substitute_embedding = self.phrase_embeddings[phrase_index]
                 # concatenate input in one array to use for inference
@@ -409,8 +424,7 @@ class PromptSubstitutionGenerator:
                                                      substitute_embedding, [phrase_position], [prompt.positive_score]])
                 # save data in an array to use for inference and rejection sampling
                 substitution_inputs.append(substitution_input)
-                sampled_phrases.append(substitute_phrase)
-                sampled_embeddings.append(substitute_embedding)
+                sampled_phrases.append(phrase_index)
                 substitution_positions.append(phrase_position)
         
         # Predict sigma score for every substitution
@@ -429,11 +443,13 @@ class PromptSubstitutionGenerator:
             if sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold:
                 # get substituion data
                 phrase_position=substitution_positions[index]
-                topic_target= prompts[prompt_index].topic_embedding
-                substitute_phrase=sampled_phrases[index]
-                substitute_embedding=sampled_embeddings[index]
-                substituted_embedding= prompts[prompt_index].positive_phrase_embeddings[phrase_position] 
-                similarity= self.get_cosine_sim(substitute_embedding, topic_target)
+                phrase_index= sampled_phrases[index]
+                substitute_phrase=self.phrase_list[phrase_index]
+                substitute_embedding=self.phrase_embeddings[phrase_index]
+                clip_embedding=self.clip_embeddings[phrase_index]
+                substituted_embedding= prompts[prompt_index].positive_phrase_embeddings[phrase_position]
+                topic_target= prompts[prompt_index].topic_embedding 
+                similarity= self.get_cosine_sim(clip_embedding, topic_target)
 
                 substitution_data={
                     'position':phrase_position,
@@ -703,6 +719,11 @@ class PromptSubstitutionGenerator:
         # Calculate phrase embeddings and token lengths for chosen prompts
         print("Calculating phrase embeddings and token lengths for each phrase in each prompt")
         for prompt in tqdm(chosen_scored_prompts):
+            # get prompt topic
+            prompt_clip_embedding= self.get_clip_embedding(prompt.positive_prompt)
+            prompt.topic, prompt.topic_embedding= self.get_prompt_topic(prompt_clip_embedding)
+
+            # get phrase embeddings and token lengths
             phrases = prompt.positive_prompt.split(', ')
             prompt.positive_phrase_embeddings = [self.load_phrase_embedding(phrase) for phrase in phrases]
             prompt.positive_phrase_token_lengths = [self.load_phrase_token_length(phrase) for phrase in phrases] 
@@ -737,9 +758,7 @@ class PromptSubstitutionGenerator:
             topic_prompt_list.append(topic_prompt)
 
             # get prompt embedding
-            topic_embedding= self.get_prompt_embedding(topic_prompt)
-            pooled_topic_embedding= self.get_mean_pooled_embedding(topic_embedding)
-            topic_prompt_embeddings.append(pooled_topic_embedding)
+            topic_prompt_embeddings.append(self.get_clip_embedding(topic_prompt))
 
         return topic_prompt_list, topic_prompt_embeddings
     
@@ -1031,6 +1050,37 @@ class PromptSubstitutionGenerator:
         # Remove the temporary file
         os.remove(local_file_path)
     
+    # store clip embeddings of all phrases in civitai in a file in minIO
+    def store_clip_embeds(self):
+        phrase_list=pd.read_csv(self.csv_phrase)
+        phrase_list= phrase_list.sort_values(by="index")
+        phrase_embeddings_list=[]
+        
+        for index, row in phrase_list.iterrows():
+            print(f"storing phrase {row['index']}")
+            phrase_embeddings_list.append(self.get_clip_embedding(row['phrase str']))
+        
+        # Convert the list of numpy arrays to a 2D numpy array
+        phrase_embeddings = np.array(phrase_embeddings_list)
+
+        # Save the numpy array to an .npz file
+        local_file_path='phrase_clip_embeddings.npz'
+        np.savez_compressed(local_file_path, phrase_embeddings)
+
+        # Read the contents of the .npz file
+        with open(local_file_path, 'rb') as file:
+            content = file.read()
+
+        # Upload the local file to MinIO
+        buffer = io.BytesIO(content)
+        buffer.seek(0)
+
+        minio_path=DATA_MINIO_DIRECTORY + f"/input/phrase_clip_embeddings.npz"
+        cmd.upload_data(self.minio_client, 'datasets',minio_path, buffer)
+
+        # Remove the temporary file
+        os.remove(local_file_path)
+    
     # store toke nlength of all phrases in civitai in a file in minIO
     def store_phrase_token_lengths(self):
         phrase_list=self.phrase_list
@@ -1077,6 +1127,25 @@ class PromptSubstitutionGenerator:
 
         return phrase_embeddings
     
+    # get civitai phrase clip embeddings from minIO
+    def load_clip_embeds(self):
+        # Get the file data from MinIO
+        minio_path = DATA_MINIO_DIRECTORY + f"/input/phrase_clip_embeddings.npz"
+        file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', minio_path)
+
+        # Create a BytesIO object and write the downloaded content into it
+        byte_buffer = io.BytesIO()
+        for data in file_data.stream(amt=8192):
+            byte_buffer.write(data)
+        # Reset the buffer's position to the beginning
+        byte_buffer.seek(0)
+
+        # Load the compressed numpy array from the BytesIO object
+        with np.load(byte_buffer) as data:
+            phrase_embeddings = data['arr_0']
+
+        return phrase_embeddings
+
     # get civitai phrase token lengths, calculated by the tokenizer
     def load_phrase_token_lengths(self):
         # Get the file data from MinIO
@@ -1112,6 +1181,7 @@ def main():
                                   dataset_name=args.dataset_name,
                                   store_embeddings=args.store_embeddings,
                                   store_token_lengths=args.store_token_lengths,
+                                  store_clip_embeds=args.store_clip_embeds,
                                   self_training=args.self_training,
                                   send_job=args.send_job,
                                   save_csv=args.save_csv,
