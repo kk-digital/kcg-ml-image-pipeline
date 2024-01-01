@@ -429,7 +429,7 @@ class PromptSubstitutionGenerator:
             if sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold:
                 # get substituion data
                 phrase_position=substitution_positions[index]
-                topic_target= prompt[prompt_index].topic_embedding
+                topic_target= prompts[prompt_index].topic_embedding
                 substitue_phrase=sampled_phrases[index]
                 substitute_embedding=sampled_embeddings[index]
                 substituted_embedding= prompts[prompt_index].positive_phrase_embeddings[phrase_position] 
