@@ -158,7 +158,7 @@ class PromptSubstitutionGenerator:
         self.embedder.load_submodels()
 
         # load openai clip model
-        self.clip_model, preprocess = clip.load("ViT-L-14", device=device)
+        self.clip_model, preprocess = clip.load("ViT-L/14", device=device)
 
         # load the scoring models (for positive prompts and for both)
         self.positive_scorer= self.load_model(embedding_type='positive', scoring_model=self.scoring_model)
