@@ -733,7 +733,7 @@ class PromptSubstitutionGenerator:
                 continue
             
             # get prompt str
-            topic_prompt = item[0]
+            topic_prompt = item
             topic_prompt_list.append(topic_prompt)
 
             # get prompt embedding
