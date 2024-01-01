@@ -583,6 +583,8 @@ class PromptSubstitutionGenerator:
                 df_data.append({
                     'task_uuid': task_uuid,
                     'score': prompt_score,
+                    'sigma_score': prompt.prompt_score,
+                    'topic': prompt.topic,
                     'entropy': entropy,
                     'variance': variance,
                     'mean': mean,
