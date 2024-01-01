@@ -13,6 +13,7 @@ import pandas as pd
 import torch
 import msgpack
 from tqdm import tqdm
+from torch.nn.functional import cosine_similarity
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -64,6 +65,8 @@ class PromptData:
                  negative_prompt,
                  positive_embedding,
                  positive_score,
+                 topic,
+                 topic_embedding,
                  positive_phrase_embeddings=None,
                  positive_phrase_token_lengths=None):
         
@@ -71,6 +74,8 @@ class PromptData:
         self.negative_prompt=negative_prompt
         self.positive_embedding= positive_embedding
         self.positive_score= positive_score
+        self.topic=topic
+        self.topic_embedding= topic_embedding
         self.positive_phrase_embeddings= positive_phrase_embeddings
         self.positive_phrase_token_lengths= positive_phrase_token_lengths
 
@@ -187,6 +192,9 @@ class PromptSubstitutionGenerator:
         # create a dictionarry for base prompts
         self.base_prompt_embeddings={phrase: self.get_mean_pooled_embedding(self.get_prompt_embedding(phrase)) for phrase in base_prompts}
         self.base_prompt_token_lengths={phrase: self.get_token_length(phrase) for phrase in base_prompts}
+
+        # get list of topics
+        self.topics, self.topic_embeddings= self.load_topic_prompts(self.csv_topics)
 
         end=time.time()
         # log time taken for each step
@@ -416,12 +424,13 @@ class PromptSubstitutionGenerator:
             # only take substitutions that increase score by more then a set threshold
             if sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold:
                 phrase_position=substitution_positions[index]
+                topic_target= prompt[prompt_index].topic_embedding
                 substitution_data={
                     'position':phrase_position,
                     'substitute_phrase':sampled_phrases[index],
                     'substitute_embedding':sampled_embeddings[index],
                     'substituted_embedding':prompts[prompt_index].positive_phrase_embeddings[phrase_position],
-                    'score':sigma_score
+                    'score': cosine_similarity(sampled_embeddings[index], topic_target).item()
                 }
                 current_prompt_substitution_choices.append(substitution_data)
             
@@ -632,7 +641,6 @@ class PromptSubstitutionGenerator:
 
             # Process only valid prompts
             valid_positive_prompts = [positive_prompts[i] for i in valid_indices]
-            #valid_negative_prompts = [negative_prompts[i] for i in valid_indices]
 
             # Get embeddings for the batch
             start=time.time()
@@ -649,8 +657,11 @@ class PromptSubstitutionGenerator:
 
                 positive_score = (positive_score.item() - self.positive_mean) / self.positive_std
 
-                # Mean pooling and other processing
+                # Mean pooling
                 positive_embedding = self.get_mean_pooled_embedding(positive_embeddings[i].unsqueeze(0))
+                
+                # get prompt topic
+                topic, topic_embedding= self.get_prompt_topic(positive_embedding)
 
                 # Storing prompt data
                 prompt = prompt_batch[index]
@@ -662,7 +673,9 @@ class PromptSubstitutionGenerator:
                     positive_prompt=prompt.positive_prompt_str,
                     negative_prompt=prompt.negative_prompt_str,
                     positive_embedding=positive_embedding,
-                    positive_score=positive_score
+                    positive_score=positive_score,
+                    topic_embedding= topic_embedding,
+                    topic= topic,
                 ))
            
         # Sort and select prompts
@@ -681,6 +694,50 @@ class PromptSubstitutionGenerator:
         self.clip_speed= num_prompts / clip_time
 
         return chosen_scored_prompts
+
+    # get list of topics and their embeddings
+    def load_topic_prompts(self):
+        # Initialize an empty list to store the data
+        data_list = []
+        # Initialize empty base prompt list
+        topic_prompt_list = []
+        topic_prompt_embeddings = []
+        # Open the CSV file and read its contents
+        with open(self.csv_topics, newline='') as file:
+            csv_reader = csv.reader(file)
+
+            # Iterate through each row in the CSV file
+            for row in csv_reader:
+                data_list.append(row)
+
+        for index, item in enumerate(data_list):
+            if index == 0:
+                continue
+            
+            # get prompt str
+            topic_prompt = item[0]
+            topic_prompt_list.append(topic_prompt)
+
+            # get prompt embedding
+            topic_embedding= self.get_prompt_embedding(topic_prompt)
+            pooled_topic_embedding= self.get_mean_pooled_embedding(topic_embedding)
+            topic_prompt_embeddings.append(pooled_topic_embedding)
+
+        return topic_prompt_list, topic_prompt_embeddings
+    
+    # cosine similarity between embeddings
+    def get_prompt_topic(self, embedding):
+        highest_similarity=0
+        for i,topic in enumerate(self.topic_embeddings):
+            cosine= cosine_similarity(embedding, topic)
+            if cosine > highest_similarity:
+                highest_similarity= cosine
+                index= i
+        
+        topic= self.topics[index]
+        topic_embedding= self.topic_embeddings[index]
+
+        return topic, topic_embedding
 
     # load the embedding of a phrase
     def load_phrase_embedding(self, phrase):
