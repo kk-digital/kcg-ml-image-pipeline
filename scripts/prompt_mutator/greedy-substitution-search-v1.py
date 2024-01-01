@@ -503,7 +503,7 @@ class PromptSubstitutionGenerator:
                     self_training_data.append(prompt_data)
 
                     # check if score improves
-                    if(prompts[index].positive_score < modified_prompt_score):
+                    if(prompts[index].positive_score  < modified_prompt_score):
                         # if it does improve, the new prompt is saved and it jumps to the next iteration
                         prompts[index].positive_prompt= modified_prompt_str
                         prompts[index].positive_embedding= self.get_mean_pooled_embedding(modified_prompt_embedding)
@@ -632,7 +632,7 @@ class PromptSubstitutionGenerator:
         print("---------generating initial prompts")
         prompts = generate_prompts_from_csv_with_base_prompt_prefix(csv_dataset_path=self.csv_phrase,
                                                                csv_base_prompts_path=self.csv_base_prompts,
-                                                               prompt_count=int(num_prompts / self.top_k))
+                                                               prompt_count=num_prompts)
         prompt_data=[]
         clip_time=0
         # calculate scores and rank
@@ -692,12 +692,12 @@ class PromptSubstitutionGenerator:
                 ))
            
         # Sort and select prompts
-        sorted_scored_prompts = sorted(prompt_data, key=lambda data: data.positive_score, reverse=True)
-        chosen_scored_prompts = sorted_scored_prompts[:num_prompts]
+        # sorted_scored_prompts = sorted(prompt_data, key=lambda data: data.positive_score, reverse=True)
+        # chosen_scored_prompts = sorted_scored_prompts[:num_prompts]
 
         # Calculate phrase embeddings and token lengths for chosen prompts
         print("Calculating phrase embeddings and token lengths for each phrase in each prompt")
-        for prompt in tqdm(chosen_scored_prompts):
+        for prompt in tqdm(prompt_data):
             phrases = prompt.positive_prompt.split(', ')
             prompt.positive_phrase_embeddings = [self.load_phrase_embedding(phrase) for phrase in phrases]
             prompt.positive_phrase_token_lengths = [self.load_phrase_token_length(phrase) for phrase in phrases] 
