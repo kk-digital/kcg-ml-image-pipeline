@@ -18,7 +18,7 @@ import clip
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from training_worker.prompt_mutator.prompt_mutator_model import PromptMutator
+from training_worker.prompt_mutator.models.substitution_ranking_xgboost import XgboostSubstitutionModel
 from utility.ensemble.ensemble_helpers import Binning, SigmaScoresWithEntropy
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
@@ -172,7 +172,7 @@ class PromptSubstitutionGenerator:
         self.ensemble_models=self.get_ensemble_models()
 
         # load the xgboost model depending on what rejection policy is being used
-        self.substitution_model= PromptMutator(minio_client=self.minio_client, ranking_model=self.scoring_model)
+        self.substitution_model= XgboostSubstitutionModel(minio_client=self.minio_client, ranking_model=self.scoring_model)
         self.substitution_model.load_model()
 
         # store phrase embeddings in a file in minio 
