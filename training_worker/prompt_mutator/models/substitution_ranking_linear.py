@@ -123,8 +123,8 @@ class LinearSubstitutionModel(nn.Module):
 
         start = time.time()
         # Inference and calculate residuals on the training and validation set
-        val_preds = self.predict_in_batches(val_dataset, batch_size)
-        train_preds = self.predict_in_batches(train_dataset, batch_size)
+        val_preds = self.inference(val_dataset, batch_size)
+        train_preds = self.inference(train_dataset, batch_size)
         
         end = time.time()
         inference_speed=(train_size + val_size)/(end - start)
@@ -289,16 +289,6 @@ class LinearSubstitutionModel(nn.Module):
         # Clear the current figure
         plt.clf()
 
-    def predict_in_batches(self, dataset, batch_size=64):
-        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
-        self.model.eval()  # Set the model to evaluation mode
-        predictions = []
-        with torch.no_grad():
-            for inputs, _ in loader:
-                outputs = self.model(inputs)
-                predictions.append(outputs)
-        return torch.cat(predictions).squeeze()
-
     def predict(self, features_array, batch_size=64):
         # Convert the features array into a PyTorch Tensor
         features_tensor = torch.Tensor(features_array)
@@ -320,6 +310,16 @@ class LinearSubstitutionModel(nn.Module):
         predictions = torch.cat(predictions, dim=0).numpy()
 
         return predictions         
+
+    def inference(self, dataset, batch_size=64):
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+        self.model.eval()  # Set the model to evaluation mode
+        predictions = []
+        with torch.no_grad():
+            for inputs, _ in loader:
+                outputs = self.model(inputs)
+                predictions.append(outputs)
+        return torch.cat(predictions).squeeze()
 
     def load_model(self):
         minio_path=f"{self.dataset}/models/prompt-generator/{self.operation}/{self.prompt_type}_prompts_only/"
