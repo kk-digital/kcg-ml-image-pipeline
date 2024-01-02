@@ -71,7 +71,9 @@ class LinearSubstitutionModel(nn.Module):
 
         return local_path, minio_path
 
-    def train_model(self, dataset, num_epochs=1000, batch_size=64):
+    def train_model(self, inputs, outputs, num_epochs=1000, batch_size=64):
+        # load the dataset
+        dataset= DatasetLoader(features=inputs, labels=outputs)
         # Split dataset into training and validation
         val_size = int(len(dataset) * self.validation_split)
         train_size = len(dataset) - val_size
@@ -295,7 +297,29 @@ class LinearSubstitutionModel(nn.Module):
             for inputs, _ in loader:
                 outputs = self.model(inputs)
                 predictions.append(outputs)
-        return torch.cat(predictions).squeeze()         
+        return torch.cat(predictions).squeeze()
+
+    def predict(self, features_array, batch_size=64):
+        # Convert the features array into a PyTorch Tensor
+        features_tensor = torch.Tensor(features_array)
+
+        # Ensure the model is in evaluation mode
+        self.eval()
+
+        # List to hold all predictions
+        predictions = []
+
+        # Perform prediction in batches
+        with torch.no_grad():
+            for i in range(0, len(features_tensor), batch_size):
+                batch = features_tensor[i:i + batch_size]  # Extract a batch
+                outputs = self(batch)  # Get predictions for this batch
+                predictions.append(outputs)
+
+        # Concatenate all predictions and convert to a NumPy array
+        predictions = torch.cat(predictions, dim=0).numpy()
+
+        return predictions         
 
     def load_model(self):
         minio_path=f"{self.dataset}/models/prompt-generator/{self.operation}/{self.prompt_type}_prompts_only/"
