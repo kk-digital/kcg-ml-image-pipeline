@@ -773,7 +773,7 @@ class PromptSubstitutionGenerator:
         topic_normalized = topic / topic_norm
 
         # Compute cosine similarity
-        cosine_sim = np.dot(embedding_normalized, topic_normalized.T)
+        cosine_sim = (100.0 * embedding_normalized @ topic_normalized.T).softmax(dim=-1)
 
         return cosine_sim.item()
 
