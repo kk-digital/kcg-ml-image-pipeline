@@ -167,18 +167,16 @@ class PromptGenerationPromptQueue:
             random.seed(time.time())
 
             prompts = []
-            for i in range (0, total_prompt_count):
+            # Generate a random number between 2 and 16 (inclusive)
+            random_number = random.randint(4, 16)
 
-                # Generate a random number between 2 and 16 (inclusive)
-                random_number = random.randint(4, 16)
+            boltzman_temperature = random_number
+            boltzman_k = 1
 
-                boltzman_temperature = random_number
-                boltzman_k = 1
+            pr = self.generate_prompts_independent_approx_v1(dataset, total_prompt_count, boltzman_temperature, boltzman_k)
 
-                pr = self.generate_prompts_independent_approx_v1(dataset, 1, boltzman_temperature, boltzman_k)
-
-                for prompt in pr:
-                    prompts.append(prompt)
+            for prompt in pr:
+                prompts.append(prompt)
 
             prompt_list = []
 
