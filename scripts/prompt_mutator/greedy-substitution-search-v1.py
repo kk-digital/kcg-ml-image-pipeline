@@ -765,8 +765,6 @@ class PromptSubstitutionGenerator:
     
     # get cosine similarity
     def get_cosine_sim(self, embedding, topic):
-        print(embedding.shape)
-        print(topic.shape)
         # Normalize the features
         embedding_norm = np.linalg.norm(embedding, axis=-1, keepdims=True)
         topic_norm = np.linalg.norm(topic, axis=-1, keepdims=True)
@@ -777,7 +775,7 @@ class PromptSubstitutionGenerator:
         # Compute cosine similarity
         cosine_sim = np.dot(embedding_normalized, topic_normalized.T)
 
-        return cosine_sim
+        return cosine_sim.item()
 
     # cosine similarity between embeddings
     def get_prompt_topic(self, embedding):
