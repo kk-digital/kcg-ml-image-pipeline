@@ -441,30 +441,23 @@ class PromptSubstitutionGenerator:
         # Filter with rejection sampling
         for index, sigma_score in enumerate(predictions):
             # only take substitutions that increase score by more then a set threshold
-            # if sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold:
+            if sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold:
+                # get substituion data
+                phrase_position=substitution_positions[index]
+                phrase_index= sampled_phrases[index]
+                substitute_phrase=self.phrase_list[phrase_index]
+                substitute_embedding=self.phrase_embeddings[phrase_index]
+                substituted_embedding= prompts[prompt_index].positive_phrase_embeddings[phrase_position]
 
-            # get substituion data
-            phrase_position=substitution_positions[index]
-            phrase_index= sampled_phrases[index]
-            substitute_phrase=self.phrase_list[phrase_index]
-            substitute_embedding=self.phrase_embeddings[phrase_index]
-            clip_embedding=self.clip_embeddings[phrase_index]
-            substituted_embedding= prompts[prompt_index].positive_phrase_embeddings[phrase_position]
-            topic_target= prompts[prompt_index].topic_embedding 
-            similarity= self.get_cosine_sim(clip_embedding, topic_target)
+                substitution_data={
+                    'position':phrase_position,
+                    'substitute_phrase':substitute_phrase,
+                    'substitute_embedding':substitute_embedding,
+                    'substituted_embedding':substituted_embedding,
+                    'score': sigma_score
+                }
 
-            substitution_data={
-                'position':phrase_position,
-                'substitute_phrase':substitute_phrase,
-                'substitute_embedding':substitute_embedding,
-                'substituted_embedding':substituted_embedding,
-                'score': sigma_score,
-                'similarity': similarity
-            }
-
-            print(f"({substitute_phrase} , {prompts[prompt_index].topic}")
-            print(f"similarity: {similarity}")
-            current_prompt_substitution_choices.append(substitution_data)
+                current_prompt_substitution_choices.append(substitution_data)
             
             if(choices_count == num_choices):
                 prompt_index+=1
