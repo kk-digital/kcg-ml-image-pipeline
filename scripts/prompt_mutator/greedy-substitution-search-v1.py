@@ -721,8 +721,8 @@ class PromptSubstitutionGenerator:
         print("Calculating phrase embeddings and token lengths for each phrase in each prompt")
         for prompt in tqdm(chosen_scored_prompts):
             # get prompt topic
-            prompt_clip_embedding= self.get_clip_embedding(prompt.positive_prompt)
-            prompt.topic, prompt.topic_embedding= self.get_prompt_topic(prompt_clip_embedding)
+            random_index= random.randint(0, len(self.topics)-1)
+            prompt.topic, prompt.topic_embedding= self.topics[random_index], self.topic_embeddings[random_index]
 
             # get phrase embeddings and token lengths
             phrases = prompt.positive_prompt.split(', ')
