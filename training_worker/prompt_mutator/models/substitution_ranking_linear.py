@@ -3,21 +3,55 @@ from io import BytesIO
 import os
 import sys
 import tempfile
-import time
 from matplotlib import pyplot as plt
-import numpy as np
-import xgboost as xgb
-from sklearn.model_selection import GridSearchCV, KFold, train_test_split
+import torch
+import time
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import Dataset
+from torch.utils.data import random_split
+from torch.utils.data.dataloader import DataLoader
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
-
 from utility.minio import cmd
 
-class PromptMutator:
-    def __init__(self, minio_client, model=None, output_type="sigma_score", prompt_type="positive",
-                 ranking_model="elm", operation="substitution", dataset="environmental"):
-        self.model = model
+class DatasetLoader(Dataset):
+    def __init__(self, features, labels):
+        """
+        Initialize the dataset with features and labels.
+        :param features: A NumPy array of the input features.
+        :param labels: A NumPy array of the corresponding labels.
+        """
+        # Convert the data to torch.FloatTensor as it is the standard data type for floats in PyTorch
+        self.features = torch.FloatTensor(features)
+        self.labels = torch.FloatTensor(labels)
+
+    def __len__(self):
+        """
+        Return the total number of samples in the dataset.
+        """
+        return len(self.features)
+
+    def __getitem__(self, idx):
+        """
+        Retrieve the features and label of the sample at the given index.
+        :param idx: The index of the sample.
+        """
+        sample_features = self.features[idx]
+        sample_label = self.labels[idx]
+        return sample_features, sample_label
+
+
+class LinearSubstitutionModel(nn.Module):
+    def __init__(self, minio_client, input_size, output_size=1, output_type="sigma_score", prompt_type="positive",
+                 ranking_model="elm", operation="substitution", dataset="environmental", learning_rate=0.1, 
+                 validation_split=0.2):
+        
+        super(LinearSubstitutionModel, self).__init__()
+        # Define the single layer with input and output size
+        self.model = nn.Linear(input_size, output_size)
+        self.input_size= input_size
         self.minio_client= minio_client
         self.output_type= output_type
         self.prompt_type= prompt_type
@@ -26,89 +60,96 @@ class PromptMutator:
         self.dataset=dataset
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path=self.get_model_path()
-        self.input_size=0
+
+        # Training parameters
+        self.learning_rate = learning_rate
+        self.validation_split = validation_split
 
     def get_model_path(self):
-        
         local_path=f"output/{self.output_type}_prompt_mutator.json"
-        minio_path=f"{self.dataset}/models/prompt-generator/{self.operation}/{self.prompt_type}_prompts_only/{self.date}_{self.output_type}_{self.ranking_model}_model.json"
+        minio_path=f"{self.dataset}/models/prompt-generator/{self.operation}/{self.prompt_type}_prompts_only/{self.date}_linear_{self.output_type}_model.pth"
 
         return local_path, minio_path
 
-    def train(self, 
-              X_train,
-              y_train, 
-              max_depth=7, 
-              min_child_weight=1,
-              gamma=0.01, 
-              subsample=1, 
-              colsample_bytree=1, 
-              eta=0.1,
-              early_stopping=50):
-        
-        self.input_size=len(X_train[0])
+    def train_model(self, dataset, num_epochs=1000, batch_size=64):
+        # Split dataset into training and validation
+        val_size = int(len(dataset) * self.validation_split)
+        train_size = len(dataset) - val_size
+        train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
-        X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, shuffle=True)
+        # Create data loaders
+        train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
+        val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
 
-        dtrain = xgb.DMatrix(X_train, label=y_train)
-        dval = xgb.DMatrix(X_val, label=y_val)
+        criterion = nn.MSELoss()  # Define the loss function
+        optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)  # Define the optimizer
 
-        
-        params = {
-            'objective': 'reg:absoluteerror',
-            "device": "cuda",
-            'max_depth': max_depth,
-            'min_child_weight': min_child_weight,
-            'gamma': gamma,
-            'subsample': subsample,
-            'colsample_bytree': colsample_bytree,
-            'eta': eta,
-            'eval_metric': 'mae'
-        }
+        # save loss for each epoch
+        train_loss=[]
+        val_loss=[]
 
-        evals_result = {}
-        
         start = time.time()
-        self.model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval,'eval'), (dtrain,'train')], 
-                                early_stopping_rounds=early_stopping, evals_result=evals_result)
+        # Training and Validation Loop
+        for epoch in range(num_epochs):
+            self.train()  # Set the model to training mode
+            total_train_loss = 0
+            for inputs, targets in train_loader:
+                optimizer.zero_grad()  # Zero the gradients
+                outputs = self(inputs)  # Forward pass
+                loss = criterion(outputs, targets)  # Compute the loss
+                loss.backward()  # Backward pass
+                optimizer.step()  # Update the weights
+                total_train_loss += loss.item()
 
+            # Validation
+            self.eval()  # Set the model to evaluation mode
+            total_val_loss = 0
+            with torch.no_grad():  # No need to track the gradients
+                for inputs, targets in val_loader:
+                    outputs = self(inputs)  # Forward pass
+                    loss = criterion(outputs, targets)  # Compute the loss
+                    total_val_loss += loss.item()
+
+            avg_train_loss = total_train_loss / len(train_loader)
+            avg_val_loss = total_val_loss / len(val_loader)
+            train_loss.append(avg_train_loss)
+            val_loss.append(avg_val_loss)
+            print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss}, Val Loss: {avg_val_loss}')
+        
         end = time.time()
-
         training_time= end - start
- 
-        #Extract MAE values and residuals
-        val_mae = evals_result['eval']['mae']
-        train_mae = evals_result['train']['mae']
-
 
         start = time.time()
-        # Get predictions for validation set
-        val_preds = self.predict_in_batches(X_val)
-
-        # Get predictions for training set
-        train_preds = self.predict_in_batches(X_train)
+        # Inference and calculate residuals on the training and validation set
+        val_preds = self.predict_in_batches(val_dataset, batch_size)
+        train_preds = self.predict_in_batches(train_dataset, batch_size)
+        
         end = time.time()
-        inference_speed=(len(X_train) + len(X_val))/(end - start)
-        print(f'Time taken for inference of {len(X_train) + len(X_val)} data points is: {end - start:.2f} seconds')
+        inference_speed=(train_size + val_size)/(end - start)
+        print(f'Time taken for inference of {(train_size + val_size)} data points is: {end - start:.2f} seconds')
 
-        # Now you can calculate residuals using the predicted values
+        # Extract the true values from the datasets
+        y_train = torch.cat([y for _, y in train_dataset], dim=0)
+        y_val = torch.cat([y for _, y in val_dataset], dim=0)
+
+        # Calculate residuals
         val_residuals = y_val - val_preds
         train_residuals = y_train - train_preds
         
-        self.save_graph_report(train_mae, val_mae, 
+        self.save_graph_report(train_loss, val_loss, 
                                val_residuals, train_residuals, 
                                val_preds, y_val,
-                               len(X_train), len(X_val))
+                               train_size, val_size)
         
-        self.save_model_report(num_training=len(X_train),
-                              num_validation=len(X_val),
+        self.save_model_report(num_training=train_size,
+                              num_validation=val_size,
                               training_time=training_time, 
-                              train_loss=train_mae, 
-                              val_loss=val_mae, 
+                              train_loss=train_loss, 
+                              val_loss=val_loss, 
                               inference_speed= inference_speed,
-                              model_params=params)
+                              learning_rate=self.learning_rate)
         
-        return val_mae[-1]
+        return val_loss[-1]
         
     def save_model_report(self,num_training,
                               num_validation,
@@ -116,7 +157,7 @@ class PromptMutator:
                               train_loss, 
                               val_loss, 
                               inference_speed,
-                              model_params):
+                              learning_rate):
         if self.operation=="substitution":
             input_type="[prompt_embeding[768], substituted_embeding[768], substitute_embedding[768], position_encoding[1], score_encoding[1]]"
         elif self.operation=="addition":
@@ -130,6 +171,7 @@ class PromptMutator:
             f"Number of validation datapoints: {num_validation} \n"
             f"Total training Time: {training_time:.2f} seconds\n"
             "Loss Function: L1 \n"
+            f"Learning Rate: {learning_rate} \n"
             f"Training Loss: {train_loss[-1]} \n"
             f"Validation Loss: {val_loss[-1]} \n"
             f"Inference Speed: {inference_speed:.2f} predictions per second\n\n"
@@ -139,10 +181,6 @@ class PromptMutator:
             f"Output: {self.output_type} \n\n"
             "================ Parameters ==================\n"
         )
-
-        # Add model parameters to the report
-        for param, value in model_params.items():
-            report_text += f"{param}: {value}\n"
 
         # Define the local file path for the report
         local_report_path = 'output/model_report.txt'
@@ -159,7 +197,7 @@ class PromptMutator:
         buffer = BytesIO(content)
         buffer.seek(0)
 
-        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.json', '.txt'), buffer)
+        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.pth', '.txt'), buffer)
 
         # Remove the temporary file
         os.remove(local_report_path)
@@ -185,7 +223,7 @@ class PromptMutator:
                             "Validation loss = {:.4f}\n".format(self.date,
                                                             self.dataset,
                                                             f'Prompt {self.operation}',
-                                                            'XGBoost',
+                                                            'Linear',
                                                             f'{self.prompt_type}_clip_text_embedding',
                                                             f'{self.input_size}',
                                                             self.output_type,
@@ -196,12 +234,12 @@ class PromptMutator:
                                                             ))
 
         # Plot validation and training Rmse vs. Rounds
-        axs[0][0].plot(range(1, len(train_mae_per_round) + 1), train_mae_per_round,'b', label='Training mae')
-        axs[0][0].plot(range(1, len(val_mae_per_round) + 1), val_mae_per_round,'r', label='Validation mae')
+        axs[0][0].plot(range(1, len(train_mae_per_round) + 1), train_mae_per_round,'b', label='Training loss')
+        axs[0][0].plot(range(1, len(val_mae_per_round) + 1), val_mae_per_round,'r', label='Validation loss')
         axs[0][0].set_title('MAE per Round')
-        axs[0][0].set_ylabel('MAE')
+        axs[0][0].set_ylabel('Loss')
         axs[0][0].set_xlabel('Rounds')
-        axs[0][0].legend(['Training mae', 'Validation mae'])
+        axs[0][0].legend(['Training loss', 'Validation loss'])
         
         # Scatter Plot of actual values vs predicted values
         axs[0][1].scatter(predicted_values, actual_values, color='green', alpha=0.5)
@@ -236,7 +274,7 @@ class PromptMutator:
         # Adjust spacing between subplots
         plt.subplots_adjust(hspace=0.7, wspace=0.3, left=0.3)
 
-        plt.savefig(self.local_path.replace('.json', '.png'))
+        plt.savefig(self.local_path.replace('.pth', '.png'))
 
         # Save the figure to a file
         buf = BytesIO()
@@ -244,58 +282,24 @@ class PromptMutator:
         buf.seek(0)
 
         # upload the graph report
-        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.json', '.png'), buf)  
+        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.pth', '.png'), buf)  
 
         # Clear the current figure
-        plt.clf()           
-    
-    def grid_search(self, X_train, y_train, param_grid, cv=5, scoring='neg_mean_squared_error'):
-        kfold = KFold(n_splits=cv, shuffle=True, random_state=42)
-        xgb_model = xgb.XGBRegressor()
+        plt.clf()
 
-        grid_search = GridSearchCV(
-            xgb_model,
-            param_grid,
-            scoring=scoring,
-            cv=kfold,
-            n_jobs=-1,
-            verbose=1,
-        )
-
-        grid_result = grid_search.fit(X_train, y_train)
-
-        best_params = grid_result.best_params_
-        best_score = grid_result.best_score_
-
-        return best_params, best_score
-
-    def predict(self, X):
-        dtest = xgb.DMatrix(X)
-        predictions=self.model.predict(dtest)
-        return predictions
-    
-    def predict_in_batches(self, data, batch_size=10000):
-        num_samples = len(data)
-        num_batches = int(np.ceil(num_samples / batch_size))
-
+    def predict_in_batches(self, dataset, batch_size=64):
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+        self.model.eval()  # Set the model to evaluation mode
         predictions = []
-
-        for i in range(num_batches):
-            start_idx = i * batch_size
-            end_idx = min((i + 1) * batch_size, num_samples)
-
-            batch_data = data[start_idx:end_idx]
-
-            # Get predictions for the current batch
-            batch_preds = self.model.predict(xgb.DMatrix(batch_data))
-
-            predictions.extend(batch_preds)
-
-        return np.array(predictions)
+        with torch.no_grad():
+            for inputs, _ in loader:
+                outputs = self.model(inputs)
+                predictions.append(outputs)
+        return torch.cat(predictions).squeeze()         
 
     def load_model(self):
         minio_path=f"{self.dataset}/models/prompt-generator/{self.operation}/{self.prompt_type}_prompts_only/"
-        file_name=f"_{self.output_type}_{self.ranking_model}_model.json"
+        file_name=f"_linear_{self.output_type}_model.pth"
         # get model file data from MinIO
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', minio_path)
         most_recent_model = None
@@ -318,14 +322,14 @@ class PromptMutator:
                 temp_file.write(data)
 
         # Load the model from the downloaded bytes
-        self.model = xgb.Booster(model_file=temp_file.name)
-        self.model.set_param({"device": "cuda"})
+        self.model.load_state_dict(torch.load(temp_file.name))
         
         # Remove the temporary file
         os.remove(temp_file.name)
 
     def save_model(self):
-        self.model.save_model(self.local_path)
+         # Save the model locally
+        torch.save(self.model.state_dict(), self.local_path)
         
         #Read the contents of the saved model file
         with open(self.local_path, "rb") as model_file:
@@ -333,5 +337,4 @@ class PromptMutator:
 
         # Upload the model to MinIO
         cmd.upload_data(self.minio_client, 'datasets', self.minio_path, BytesIO(model_bytes))
-
-
+        print(f'Model saved to {self.minio_path}')

@@ -6,12 +6,12 @@ from matplotlib import pyplot as plt
 import numpy as np
 import msgpack
 
-
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from training_worker.prompt_mutator.prompt_mutator_model import PromptMutator
-from training_worker.prompt_mutator.binary_prompt_mutator import BinaryPromptMutator
+from training_worker.prompt_mutator.models.substitution_ranking_xgboost import XgboostSubstitutionModel
+from training_worker.prompt_mutator.models.substitution_classification_xgboost import XgboostSubstitutionClassifier
+from training_worker.prompt_mutator.models.substitution_ranking_linear import LinearSubstitutionModel
 from utility.minio import cmd
 
 DATA_MINIO_DIRECTORY="environmental/data/prompt-generator/"
@@ -21,6 +21,7 @@ def parse_args():
     parser.add_argument('--minio-addr', required=False, help='Minio server address', default="192.168.3.5:9000")
     parser.add_argument('--minio-access-key', required=False, help='Minio access key')
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
+    parser.add_argument('--model-type', help="Model type (xgboost ,linear etc..)", default="xgboost")
     parser.add_argument('--scoring-model', help="scoring model to do self training on (elm,linear etc..)", default="linear")
     parser.add_argument('--operation', help="operation to do self training for (substitution, permutation etc...)", default="substitution")
     parser.add_argument('--embedding-type', help='type of embedding, positive or negative', default='positive')
@@ -35,6 +36,7 @@ class SelfTrainingPromptMutator:
         minio_access_key,
         minio_secret_key,
         minio_ip_addr,
+        model_type,
         scoring_model,
         operation,
         embedding_type,
@@ -50,12 +52,17 @@ class SelfTrainingPromptMutator:
         self.operation=operation
         self.embedding_type=embedding_type
         self.output_type= output_type
+        self.model_type= model_type
         self.scaling_graph=scaling_graph
 
-        if(self.output_type=="binary"):
-            self.model= BinaryPromptMutator(minio_client=self.minio_client, ranking_model=self.scoring_model, operation=self.operation, prompt_type=self.embedding_type)
-        else:
-            self.model= PromptMutator(minio_client=self.minio_client, output_type=self.output_type, ranking_model=self.scoring_model, operation=self.operation, prompt_type=self.embedding_type)
+        if(self.model_type=="xgboost"):
+            if(self.output_type=="binary"):
+                self.model= XgboostSubstitutionClassifier(minio_client=self.minio_client, ranking_model=self.scoring_model, operation=self.operation, prompt_type=self.embedding_type)
+            else:
+                self.model= XgboostSubstitutionModel(minio_client=self.minio_client, output_type=self.output_type, ranking_model=self.scoring_model, operation=self.operation, prompt_type=self.embedding_type)
+        elif(self.model_type=="linear"):
+            self.model= LinearSubstitutionModel(minio_client=self.minio_client, input_size=2306)
+
 
     def get_training_data(self):
         dataset_path=DATA_MINIO_DIRECTORY + f"{self.operation}/{self.embedding_type}_prompts/"
@@ -186,6 +193,7 @@ def main():
     model_trainer=SelfTrainingPromptMutator(minio_access_key=args.minio_access_key,
                                 minio_secret_key=args.minio_secret_key,
                                 minio_ip_addr=args.minio_addr,
+                                model_type=args.model_type,
                                 scoring_model=args.scoring_model,
                                 operation=args.operation,
                                 embedding_type=args.embedding_type,
