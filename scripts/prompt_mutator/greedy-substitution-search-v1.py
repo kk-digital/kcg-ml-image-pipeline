@@ -257,12 +257,11 @@ class PromptSubstitutionGenerator:
     def get_ensemble_sigma_scores(self, positive_embedding, negative_embedding):
         sigma_scores=[]
         for model in self.ensemble_models:
-            mean=model.mean
-            std=model.standard_deviation
+            mean=float(model.mean)
+            std=float(model.standard_deviation)
             with torch.no_grad():
                 score=model.predict_pooled_embeddings(positive_embedding,negative_embedding).item()
             
-            print(score, mean , std)
             score=(score - mean)/std
             sigma_scores.append(score)
         
