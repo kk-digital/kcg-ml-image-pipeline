@@ -284,6 +284,10 @@ class PromptSubstitutionGenerator:
         return entropy, variance, mean
 
     def get_variance_score(self, positive_embedding, negative_embedding, score):
+        # convert embeddings to tensors
+        positive_embedding= torch.from_numpy(positive_embedding).to(self.device)
+        negative_embedding= torch.from_numpy(negative_embedding).to(self.device)
+
         # get variance
         entropy, variance, mean= self.get_prompt_entropy(positive_embedding, negative_embedding)
 
