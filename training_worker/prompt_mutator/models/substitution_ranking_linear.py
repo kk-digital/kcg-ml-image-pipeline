@@ -94,7 +94,7 @@ class LinearSubstitutionModel(nn.Module):
         criterion = nn.L1Loss()  # Define the loss function
         optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)  # Define the optimizer
 
-        # save loss for each epoch
+        # save loss for each epoch and features
         train_loss=[]
         val_loss=[]
 
@@ -147,9 +147,8 @@ class LinearSubstitutionModel(nn.Module):
         print(f'Time taken for inference of {(train_size + val_size)} data points is: {end - start:.2f} seconds')
 
         # Extract the true values from the datasets
-        print(train_dataset)
-        y_train = train_dataset.features
-        y_val = val_dataset.features
+        y_train = torch.cat([y for _, y in train_dataset])
+        y_val = torch.cat([y for _, y in val_dataset])
 
         # Calculate residuals
         val_residuals = y_val - val_preds
