@@ -13,7 +13,6 @@ import pandas as pd
 import torch
 import msgpack
 from tqdm import tqdm
-import clip
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -28,7 +27,7 @@ from utility.minio import cmd
 from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix, load_base_prompts
 
 GENERATION_POLICY="greedy-substitution-search-v1"
-DATA_MINIO_DIRECTORY="environmental/data/prompt-generator/substitution"
+DATA_MINIO_DIRECTORY="data/prompt-generator/substitution"
 MAX_LENGTH=77
 
 def parse_args():
@@ -41,23 +40,23 @@ def parse_args():
     parser.add_argument('--send-job', action='store_true', default=False)
     parser.add_argument('--update-prompts', action='store_true', default=False)
     parser.add_argument('--dataset-name', default='test-generations')
+    parser.add_argument('--model-dataset', default='environmental')
     parser.add_argument('--scoring-model', help="elm or linear", default="linear")
     parser.add_argument('--sigma-threshold', type=float, help="threshold of rejection policy for increase of sigma score", default=-0.1)
+    parser.add_argument('--variance-weight', type=float, help="weight of variance when optimizing score", default=0.1)
     parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=80)
     parser.add_argument('--self-training', action='store_true', default=False)
     parser.add_argument('--store-embeddings', action='store_true', default=False)
-    parser.add_argument('--store-clip-embeds', action='store_true', default=False)
     parser.add_argument('--store-token-lengths', action='store_true', default=False)
     parser.add_argument('--save-csv', action='store_true', default=False)
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
-    parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=128)
+    parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=150)
     parser.add_argument('--clip-batch-size', type=int, help="Batch size for clip embeddings", default=1000)
     parser.add_argument('--xgboost-batch-size', type=int, help="Batch size for xgboost model", default=100000)
     parser.add_argument(
         '--csv_base_prompts', help='CSV containing base prompts', 
         default='input/dataset-config/environmental/base-prompts-environmental.csv'
     )
-    parser.add_argument('--csv-topics', help="csv containing target topics", default="input/topics/topic-list.csv")
 
     return parser.parse_args()
 
@@ -66,18 +65,24 @@ class PromptData:
                  positive_prompt,
                  negative_prompt,
                  positive_embedding,
+                 negative_embedding,
                  positive_score,
-                 topic,
-                 topic_embedding,
+                 variance_score,
+                 variance,
+                 entropy,
+                 mean,
                  positive_phrase_embeddings=None,
                  positive_phrase_token_lengths=None):
         
         self.positive_prompt=positive_prompt
         self.negative_prompt=negative_prompt
         self.positive_embedding= positive_embedding
+        self.negative_embedding= negative_embedding
         self.positive_score= positive_score
-        self.topic=topic
-        self.topic_embedding= topic_embedding
+        self.variance_score= variance_score
+        self.variance= variance
+        self.entropy= entropy
+        self.mean= mean
         self.positive_phrase_embeddings= positive_phrase_embeddings
         self.positive_phrase_token_lengths= positive_phrase_token_lengths
 
@@ -89,13 +94,12 @@ class PromptSubstitutionGenerator:
         minio_ip_addr,
         csv_phrase,
         csv_base_prompts,
-        csv_topics,
         scoring_model,
         max_iterations,
         sigma_threshold,
+        variance_weight,
         dataset_name,
         store_embeddings,
-        store_clip_embeds,
         store_token_lengths,
         self_training,
         send_job,
@@ -118,6 +122,8 @@ class PromptSubstitutionGenerator:
         self.average_score_by_iteration=np.zeros(self.max_iterations)
         # rejection threshold for increase in sigma score
         self.sigma_threshold= sigma_threshold
+        # variance weight for optimisation score
+        self.variance_weight= variance_weight
         # name of dataset
         self.dataset_name=dataset_name
         # wheher to self training or not
@@ -138,8 +144,6 @@ class PromptSubstitutionGenerator:
         self.xgboost_batch_size=xgboost_batch_size
         # get list of base prompts
         self.csv_base_prompts=csv_base_prompts
-        # get list of topics
-        self.csv_topics= csv_topics
 
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key,
@@ -156,9 +160,6 @@ class PromptSubstitutionGenerator:
         # Load the clip embedder model
         self.embedder=CLIPTextEmbedder(device=device)
         self.embedder.load_submodels()
-
-        # load openai clip model
-        self.clip_model, preprocess = clip.load("ViT-L/14", device=device)
 
         # load the scoring models (for positive prompts and for both)
         self.positive_scorer= self.load_model(embedding_type='positive', scoring_model=self.scoring_model)
@@ -179,16 +180,12 @@ class PromptSubstitutionGenerator:
         if(store_embeddings):
             self.store_phrase_embeddings()
         
-        if(store_clip_embeds):
-            self.store_clip_embeds()
-        
         # get list of phrases and their token lengths
         phrase_df=pd.read_csv(self.csv_phrase).sort_values(by="index")
         self.phrase_list=phrase_df['phrase str'].tolist()
 
         # get phrase embeddings
         self.phrase_embeddings= self.load_phrase_embeddings()
-        self.clip_embeddings= self.load_clip_embeds()
 
         # store phrase token lengths
         if(store_token_lengths):
@@ -205,9 +202,6 @@ class PromptSubstitutionGenerator:
         # create a dictionarry for base prompts
         self.base_prompt_embeddings={phrase: self.get_mean_pooled_embedding(self.get_prompt_embedding(phrase)) for phrase in base_prompts}
         self.base_prompt_token_lengths={phrase: self.get_token_length(phrase) for phrase in base_prompts}
-
-        # get list of topics
-        self.topics, self.topic_embeddings= self.load_topic_prompts()
 
         end=time.time()
         # log time taken for each step
@@ -252,7 +246,7 @@ class PromptSubstitutionGenerator:
 
             # Load the model
             embedding_model = model_class(768*2)
-            embedding_model.load_pth(byte_buffer)
+            embedding_model.load_safetensors(byte_buffer)
             embedding_model.model=embedding_model.model.to(self.device)
 
             loaded_models.append(embedding_model)
@@ -288,6 +282,15 @@ class PromptSubstitutionGenerator:
         mean= entropy_data.mean
 
         return entropy, variance, mean
+
+    def get_variance_score(self, positive_embedding, negative_embedding, score):
+        # get variance
+        entropy, variance, mean= self.get_prompt_entropy(positive_embedding, negative_embedding)
+
+        # get comibned variance score
+        variance_score= score + (self.variance_weight * variance)
+
+        return entropy, variance, mean, variance_score
 
     # load elm or linear scoring models
     def load_model(self, embedding_type, scoring_model="linear", input_size=768):
@@ -363,16 +366,6 @@ class PromptSubstitutionGenerator:
 
         return embedding.detach().cpu().numpy()
     
-    # get clip embedding of a phrase
-    def get_clip_embedding(self, prompt):
-
-        # get prompt embedding
-        text_tokens = clip.tokenize(prompt, truncate=True).to(self.device)
-        with torch.no_grad():
-            embedding= self.clip_model.encode_text(text_tokens).detach().cpu().numpy()
-        
-        return embedding
-
     # get token length of a phrase
     def get_token_length(self, phrase):
         # Tokenize the phrase
@@ -392,13 +385,14 @@ class PromptSubstitutionGenerator:
             phrase= self.phrase_list[random_index]
             phrase_token_length=self.phrase_token_lengths[random_index]
 
-        return random_index
+        return random_index, phrase
 
     # rejection sampling function
     def rejection_sampling(self, prompts):
         # arrays to save substitution data
         substitution_inputs=[]
         sampled_phrases=[]
+        sampled_embeddings=[]
         substitution_positions=[]
         
         # number of choices per iteration
@@ -417,7 +411,9 @@ class PromptSubstitutionGenerator:
                 # get the substituted phrase embedding
                 substituted_embedding = prompt.positive_phrase_embeddings[phrase_position]
                 # get a random phrase from civitai to substitute with
-                phrase_index= self.choose_random_phrase(max_token_length=substituted_phrase_length)
+                phrase_index, random_phrase= self.choose_random_phrase(max_token_length=substituted_phrase_length)   
+                # get phrase string
+                substitute_phrase = random_phrase
                 # get phrase embedding by its index
                 substitute_embedding = self.phrase_embeddings[phrase_index]
                 # concatenate input in one array to use for inference
@@ -425,7 +421,8 @@ class PromptSubstitutionGenerator:
                                                      substitute_embedding, [phrase_position], [prompt.positive_score]])
                 # save data in an array to use for inference and rejection sampling
                 substitution_inputs.append(substitution_input)
-                sampled_phrases.append(phrase_index)
+                sampled_phrases.append(substitute_phrase)
+                sampled_embeddings.append(substitute_embedding)
                 substitution_positions.append(phrase_position)
         
         # Predict sigma score for every substitution
@@ -442,28 +439,21 @@ class PromptSubstitutionGenerator:
         for index, sigma_score in enumerate(predictions):
             # only take substitutions that increase score by more then a set threshold
             if sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold:
-                # get substituion data
                 phrase_position=substitution_positions[index]
-                phrase_index= sampled_phrases[index]
-                substitute_phrase=self.phrase_list[phrase_index]
-                substitute_embedding=self.phrase_embeddings[phrase_index]
-                substituted_embedding= prompts[prompt_index].positive_phrase_embeddings[phrase_position]
-
                 substitution_data={
                     'position':phrase_position,
-                    'substitute_phrase':substitute_phrase,
-                    'substitute_embedding':substitute_embedding,
-                    'substituted_embedding':substituted_embedding,
-                    'score': sigma_score
+                    'substitute_phrase':sampled_phrases[index],
+                    'substitute_embedding':sampled_embeddings[index],
+                    'substituted_embedding':prompts[prompt_index].positive_phrase_embeddings[phrase_position],
+                    'score':sigma_score
                 }
-
                 current_prompt_substitution_choices.append(substitution_data)
             
             if(choices_count == num_choices):
                 prompt_index+=1
                 choices_count=0
                 # substitutions are sorted from highest sigma score to lowest
-                current_prompt_substitution_choices= sorted(current_prompt_substitution_choices, key=lambda s: s['similarity'], reverse=True) 
+                current_prompt_substitution_choices= sorted(current_prompt_substitution_choices, key=lambda s: s['score'], reverse=True) 
                 prompts_substitution_choices.append(current_prompt_substitution_choices)
                 current_prompt_substitution_choices=[]
             
@@ -505,6 +495,14 @@ class PromptSubstitutionGenerator:
                     modified_prompt_score= self.get_prompt_score(modified_prompt_embedding)
                     modified_prompt_score= (modified_prompt_score - self.positive_mean) / self.positive_std
 
+
+                    # get variance score
+                    modified_prompt_embedding=self.get_mean_pooled_embedding(modified_prompt_embedding)
+                    entropy, variance, mean, variance_score= self.get_variance_score(modified_prompt_embedding,
+                                                                                     prompts[index].negative_embedding,
+                                                                                     modified_prompt_score
+                                                                                    )
+
                     # collect self training data
                     data=np.concatenate((prompts[index].positive_embedding, 
                                          substituted_embedding, 
@@ -519,12 +517,16 @@ class PromptSubstitutionGenerator:
                     self_training_data.append(prompt_data)
 
                     # check if score improves
-                    if(prompts[index].positive_score  < modified_prompt_score):
+                    if(prompts[index].variance_score < variance_score):
                         # if it does improve, the new prompt is saved and it jumps to the next iteration
                         prompts[index].positive_prompt= modified_prompt_str
-                        prompts[index].positive_embedding= self.get_mean_pooled_embedding(modified_prompt_embedding)
+                        prompts[index].positive_embedding= modified_prompt_embedding
                         prompts[index].positive_phrase_embeddings[position]= substitute_embedding
                         prompts[index].positive_score= modified_prompt_score
+                        prompts[index].variance_score= variance_score
+                        prompts[index].entropy= entropy
+                        prompts[index].variance= variance
+                        prompts[index].mean= mean
                         break
                 
                 self.average_score_by_iteration[i]+=prompts[index].positive_score
@@ -559,22 +561,11 @@ class PromptSubstitutionGenerator:
       
         # mutate prompts one by one
         for prompt in prompts:
-            # get negative prompt embedding
-            negative_embedding=self.get_prompt_embedding(prompt.negative_prompt)
-            negative_embedding=self.get_mean_pooled_embedding(negative_embedding)
-            negative_embedding=torch.from_numpy(negative_embedding).to(self.device)
-
-            # get positive prompt embedding
-            positive_embedding= torch.from_numpy(prompt.positive_embedding).to(self.device)
-
             # calculate combined prompt score
             with torch.no_grad():
-                prompt_score = self.scorer.predict_pooled_embeddings(positive_embedding, negative_embedding).item()
-            
-            sigma_score= (prompt_score - self.mean) / self.std
+                prompt_score = self.scorer.predict_pooled_embeddings(prompt.positive_embedding, prompt.negative_embedding).item()
 
-            # calculate mean, entropy and variance
-            entropy, variance, mean= self.get_prompt_entropy(positive_embedding, negative_embedding)
+            sigma_score= (prompt_score - self.mean) / self.std
            
             # sending a job to generate an image with the mutated prompt
             if self.send_job:
@@ -602,16 +593,15 @@ class PromptSubstitutionGenerator:
                     'task_uuid': task_uuid,
                     'score': prompt_score,
                     'sigma_score': sigma_score,
-                    'topic': prompt.topic,
-                    'entropy': entropy,
-                    'variance': variance,
-                    'mean': mean,
+                    'entropy': prompt.entropy,
+                    'variance': prompt.variance,
+                    'mean': prompt.mean,
                     'positive_prompt': prompt.positive_prompt,
                     'negative_prompt': prompt.negative_prompt,
                     'generation_policy_string': GENERATION_POLICY,
                     'time': task_time
                 })
-            
+
             index+=1
 
         print(f"time taken for {num_images} prompts is {end - start:.2f} seconds")
@@ -666,31 +656,35 @@ class PromptSubstitutionGenerator:
             negative_token_lengths = [self.embedder.compute_token_length(prompt) for prompt in negative_prompts]
 
             # Filter out prompts with too many tokens
-            valid_indices = [i for i in range(len(positive_token_lengths)) if positive_token_lengths[i] <= 77 and negative_token_lengths[i] <= 77]
+            valid_positive_indices = [i for i in range(len(positive_token_lengths)) if positive_token_lengths[i] <= 77 and negative_token_lengths[i] <= 77]
+            valid_negative_indices = [i for i in range(len(negative_token_lengths)) if negative_token_lengths[i] <= 77 and negative_token_lengths[i] <= 77]
 
             # Process only valid prompts
-            valid_positive_prompts = [positive_prompts[i] for i in valid_indices]
+            valid_positive_prompts = [positive_prompts[i] for i in valid_positive_indices]
+            valid_negative_prompts = [negative_prompts[i] for i in valid_negative_indices]
 
             # Get embeddings for the batch
             start=time.time()
             positive_embeddings = self.get_prompt_embedding(valid_positive_prompts)
+            negative_embeddings = self.get_prompt_embedding(valid_negative_prompts)
             end= time.time()
 
             clip_time+= end-start
 
             # Normalize scores and calculate mean pooled embeddings for the batch
-            for i, index in enumerate(valid_indices):
+            for i, index in enumerate(valid_positive_indices):
                 # Calculate scores for the batch
                 with torch.no_grad():
                     positive_score = self.positive_scorer.predict_positive_or_negative_only(positive_embeddings[i].unsqueeze(0))
 
                 positive_score = (positive_score.item() - self.positive_mean) / self.positive_std
 
-                # Mean pooling
+                # Mean pooling and other processing
                 positive_embedding = self.get_mean_pooled_embedding(positive_embeddings[i].unsqueeze(0))
+                negative_embedding = self.get_mean_pooled_embedding(negative_embeddings[i].unsqueeze(0))
                 
-                # get prompt topic
-                topic, topic_embedding= self.get_prompt_topic(positive_embedding)
+                # calculate variance score
+                entropy, variance, mean, variance_score= self.get_variance_score(positive_embedding, negative_embedding, positive_score)
 
                 # Storing prompt data
                 prompt = prompt_batch[index]
@@ -702,9 +696,12 @@ class PromptSubstitutionGenerator:
                     positive_prompt=prompt.positive_prompt_str,
                     negative_prompt=prompt.negative_prompt_str,
                     positive_embedding=positive_embedding,
+                    negative_embedding=negative_embedding,
                     positive_score=positive_score,
-                    topic_embedding= topic_embedding,
-                    topic= topic,
+                    variance_score=variance_score,
+                    variance=variance,
+                    entropy=entropy,
+                    mean=mean
                 ))
            
         # Sort and select prompts
@@ -714,11 +711,6 @@ class PromptSubstitutionGenerator:
         # Calculate phrase embeddings and token lengths for chosen prompts
         print("Calculating phrase embeddings and token lengths for each phrase in each prompt")
         for prompt in tqdm(chosen_scored_prompts):
-            # get prompt topic
-            random_index= random.randint(0, len(self.topics)-1)
-            prompt.topic, prompt.topic_embedding= self.topics[random_index], self.topic_embeddings[random_index]
-
-            # get phrase embeddings and token lengths
             phrases = prompt.positive_prompt.split(', ')
             prompt.positive_phrase_embeddings = [self.load_phrase_embedding(phrase) for phrase in phrases]
             prompt.positive_phrase_token_lengths = [self.load_phrase_token_length(phrase) for phrase in phrases] 
@@ -728,63 +720,6 @@ class PromptSubstitutionGenerator:
         self.clip_speed= num_prompts / clip_time
 
         return chosen_scored_prompts
-
-    # get list of topics and their embeddings
-    def load_topic_prompts(self):
-        # Initialize an empty list to store the data
-        data_list = []
-        # Initialize empty base prompt list
-        topic_prompt_list = []
-        topic_prompt_embeddings = []
-        # Open the CSV file and read its contents
-        with open(self.csv_topics, newline='') as file:
-            csv_reader = csv.reader(file)
-
-            # Iterate through each row in the CSV file
-            for row in csv_reader:
-                data_list.append(row)
-
-        for index, item in enumerate(data_list):
-            if index == 0:
-                continue
-            
-            # get prompt str
-            topic_prompt = item[0]
-            topic_prompt_list.append(topic_prompt)
-
-            # get prompt embedding
-            topic_prompt_embeddings.append(self.get_clip_embedding(topic_prompt))
-
-        return topic_prompt_list, topic_prompt_embeddings
-    
-    # get cosine similarity
-    def get_cosine_sim(self, embedding, topic):
-        # Normalize the features
-        embedding_norm = np.linalg.norm(embedding, axis=-1, keepdims=True)
-        topic_norm = np.linalg.norm(topic, axis=-1, keepdims=True)
-
-        embedding_normalized = embedding / embedding_norm
-        topic_normalized = topic / topic_norm
-
-        # Compute cosine similarity
-        cosine_sim = np.dot(embedding_normalized, topic_normalized.T)
-
-        return cosine_sim.item()
-
-    # cosine similarity between embeddings
-    def get_prompt_topic(self, embedding):
-        highest_similarity=0
-        index=0
-        for i,topic in enumerate(self.topic_embeddings):
-            cosine= self.get_cosine_sim(embedding, topic)
-            if cosine > highest_similarity:
-                highest_similarity= cosine
-                index= i
-        
-        topic= self.topics[index]
-        topic_embedding= self.topic_embeddings[index]
-
-        return topic, topic_embedding
 
     # load the embedding of a phrase
     def load_phrase_embedding(self, phrase):
@@ -1045,37 +980,6 @@ class PromptSubstitutionGenerator:
         # Remove the temporary file
         os.remove(local_file_path)
     
-    # store clip embeddings of all phrases in civitai in a file in minIO
-    def store_clip_embeds(self):
-        phrase_list=pd.read_csv(self.csv_phrase)
-        phrase_list= phrase_list.sort_values(by="index")
-        phrase_embeddings_list=[]
-        
-        for index, row in phrase_list.iterrows():
-            print(f"storing phrase {row['index']}")
-            phrase_embeddings_list.append(self.get_clip_embedding(row['phrase str']))
-        
-        # Convert the list of numpy arrays to a 2D numpy array
-        phrase_embeddings = np.array(phrase_embeddings_list)
-
-        # Save the numpy array to an .npz file
-        local_file_path='phrase_clip_embeddings.npz'
-        np.savez_compressed(local_file_path, phrase_embeddings)
-
-        # Read the contents of the .npz file
-        with open(local_file_path, 'rb') as file:
-            content = file.read()
-
-        # Upload the local file to MinIO
-        buffer = io.BytesIO(content)
-        buffer.seek(0)
-
-        minio_path=DATA_MINIO_DIRECTORY + f"/input/phrase_clip_embeddings.npz"
-        cmd.upload_data(self.minio_client, 'datasets',minio_path, buffer)
-
-        # Remove the temporary file
-        os.remove(local_file_path)
-    
     # store toke nlength of all phrases in civitai in a file in minIO
     def store_phrase_token_lengths(self):
         phrase_list=self.phrase_list
@@ -1122,25 +1026,6 @@ class PromptSubstitutionGenerator:
 
         return phrase_embeddings
     
-    # get civitai phrase clip embeddings from minIO
-    def load_clip_embeds(self):
-        # Get the file data from MinIO
-        minio_path = DATA_MINIO_DIRECTORY + f"/input/phrase_clip_embeddings.npz"
-        file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', minio_path)
-
-        # Create a BytesIO object and write the downloaded content into it
-        byte_buffer = io.BytesIO()
-        for data in file_data.stream(amt=8192):
-            byte_buffer.write(data)
-        # Reset the buffer's position to the beginning
-        byte_buffer.seek(0)
-
-        # Load the compressed numpy array from the BytesIO object
-        with np.load(byte_buffer) as data:
-            phrase_embeddings = data['arr_0']
-
-        return phrase_embeddings
-
     # get civitai phrase token lengths, calculated by the tokenizer
     def load_phrase_token_lengths(self):
         # Get the file data from MinIO
@@ -1164,19 +1049,23 @@ class PromptSubstitutionGenerator:
 
 def main():
     args = parse_args()
+
+    # set the minio data path
+    global DATA_MINIO_DIRECTORY
+    DATA_MINIO_DIRECTORY= f"{args.model_dataset}/" + DATA_MINIO_DIRECTORY
+
     prompt_mutator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
                                   minio_secret_key=args.minio_secret_key,
                                   minio_ip_addr=args.minio_addr,
                                   csv_phrase=args.csv_phrase,
                                   csv_base_prompts=args.csv_base_prompts,
-                                  csv_topics=args.csv_topics,
                                   scoring_model=args.scoring_model,
                                   max_iterations=args.max_iterations,
                                   sigma_threshold=args.sigma_threshold,
+                                  variance_weight=args.variance_weight,
                                   dataset_name=args.dataset_name,
                                   store_embeddings=args.store_embeddings,
                                   store_token_lengths=args.store_token_lengths,
-                                  store_clip_embeds=args.store_clip_embeds,
                                   self_training=args.self_training,
                                   send_job=args.send_job,
                                   save_csv=args.save_csv,
