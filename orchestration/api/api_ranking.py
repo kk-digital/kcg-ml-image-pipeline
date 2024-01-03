@@ -7,6 +7,8 @@ from io import BytesIO
 from orchestration.api.mongo_schemas import Selection, RelevanceSelection, NewSelection
 from .api_utils import PrettyJSONResponse
 import random
+from collections import OrderedDict
+from bson import ObjectId
 
 router = APIRouter()
 
@@ -136,43 +138,41 @@ def add_relevancy_selection_datapoint(request: Request, relevance_selection: Rel
     return True
 
 
-
 @router.post("/rank/add-ranking-data-point-v1")
-def add_selection_datapoint(
-    request: Request, 
-    selection: NewSelection
-):
-    # Check if file_name and dataset are provided, otherwise compute them
-    if not selection.file_name or not selection.dataset:
-        current_time = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
-        selection.file_name = f"{current_time}-{selection.Selection.username}.json"
-        selection.dataset = selection.Selection.image_1_metadata.file_path.split('/')[1]
+def add_selection_datapoint(request: Request, selection: NewSelection):
+    current_time = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
+    file_name = f"{current_time}-{selection.Selection.username}.json"
+    dataset = selection.Selection.image_1_metadata.file_path.split('/')[1]
+    selection.Selection.datetime = current_time
 
-    # Convert selection data to dict
     dict_data = selection.to_dict()
 
-    # Add a datetime field to dict_data if it doesn't exist
-    #dict_data['datetime'] = dict_data.get('datetime', datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S'))
+    # Prepare ordered data for MongoDB insertion
+    mongo_data = OrderedDict([
+        ("_id", ObjectId()),  # Generate new ObjectId
+        ("file_name", file_name),
+        ("dataset", dataset),
+        *dict_data.items()  # Unpack the rest of dict_data
+    ])
 
-    # Insert the data into MongoDB without the '_id'
-    mongo_data = dict_data.copy()
-    mongo_result = request.app.image_pair_ranking_collection.insert_one(mongo_data)
-    inserted_id = mongo_result.inserted_id
+    # Insert the ordered data into MongoDB
+    request.app.image_pair_ranking_collection.insert_one(mongo_data)
 
-    # Prepare data for MinIO upload, excluding the '_id'
+    # Prepare data for MinIO upload (excluding the '_id' field)
+    minio_data = mongo_data.copy()
+    minio_data.pop("_id")
     path = "data/ranking/aggregate"
-    full_path = os.path.join(selection.dataset, path, selection.file_name)
-    json_data = json.dumps(dict_data, indent=4).encode('utf-8')  # dict_data does not include '_id'
+    full_path = os.path.join(dataset, path, file_name)
+    json_data = json.dumps(minio_data, indent=4).encode('utf-8')
     data = BytesIO(json_data)
 
-    # upload
+    # Upload data to MinIO
     cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
 
     image_1_hash = selection.Selection.image_1_metadata.file_hash
     image_2_hash = selection.Selection.image_2_metadata.file_hash
 
-    # update rank count
-    # get models counter
+    # Update rank count for images
     for img_hash in [image_1_hash, image_2_hash]:
         update_image_rank_use_count(request, img_hash)
 
@@ -218,17 +218,35 @@ def list_ranking_data(
 
     return ranking_data
 
-@router.delete("/rank/delete-ranking-data-point")
-def delete_ranking_data_point(
-    request: Request, 
-    file_name: str = Query(...)
-):
-    # Attempt to delete the document with the specified file_name
-    result = request.app.image_pair_ranking_collection.delete_one({"file_name": file_name})
+@router.delete("/rank/delete-ranking-data-point-from-mongo")
+def delete_ranking_data_point(request: Request, id: str):
+    try:
+        # Convert the string ID to ObjectId
+        obj_id = ObjectId(id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid ObjectId format")
+
+    # Attempt to delete the document with the specified ObjectId
+    result = request.app.image_pair_ranking_collection.delete_one({"_id": obj_id})
 
     # Check if a document was deleted
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Document with the given file name not found")
+        raise HTTPException(status_code=404, detail="Document with the given file id not found")
+
+    return True
+
+
+
+@router.delete("/rank/delete-ranking-data-point-from-minio")
+def delete_ranking_data_point(request: Request, file_path: str):
+    bucket_name = "datasets"  # Assuming the bucket name is 'datasets'
+
+    try:
+        # Attempt to remove the object from MinIO
+        request.app.minio_client.remove_object(bucket_name, file_path)
+    except Exception as e:
+        # If there's an error (e.g., file not found), raise an HTTP exception
+        raise HTTPException(status_code=500, detail=f"Failed to delete object: {str(e)}")
 
     return True
 

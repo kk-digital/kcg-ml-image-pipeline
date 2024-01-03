@@ -37,14 +37,8 @@ def update_tag_definition(request: Request, tag_id: int, update_data: TagDefinit
     if existing_tag is None:
         raise HTTPException(status_code=404, detail="Tag not found.")
 
-    # Prepare update data, excluding 'creation_time'
-    update_fields = {k: v for k, v in update_data.dict(exclude={'creation_time'}).items() if v is not None}
-
-    if 'tag_id' in update_fields:
-        # Check if the new tag_id is already used by another tag
-        new_tag_id = update_fields['tag_id']
-        if request.app.tag_definitions_collection.find_one({"tag_id": new_tag_id}):
-            raise HTTPException(status_code=400, detail=f"Tag ID {new_tag_id} is already in use.")
+    # Prepare update data, excluding 'tag_id' and 'creation_time'
+    update_fields = {k: v for k, v in update_data.dict(exclude={'tag_id', 'creation_time'}).items() if v is not None}
 
     if not update_fields:
         raise HTTPException(status_code=400, detail="No fields to update.")
@@ -55,8 +49,6 @@ def update_tag_definition(request: Request, tag_id: int, update_data: TagDefinit
     # Update the tag definition
     request.app.tag_definitions_collection.update_one(query, {"$set": update_fields})
     return {"status": "success", "message": "Tag definition updated successfully.", "tag_id": tag_id}
-
-
 
 
 @router.delete("/tags/remove_tag")

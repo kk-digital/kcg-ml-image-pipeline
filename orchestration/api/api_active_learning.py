@@ -104,13 +104,19 @@ def list_queue_pairs(request: Request, dataset: Optional[str] = None, limit: int
 
 
 @router.get("/active-learning-queue/get-random-queue-pair-from-mongo", response_class=PrettyJSONResponse)
-def random_queue_pair(request: Request, size: int = 1, dataset: Optional[str] = None):
+def random_queue_pair(request: Request, size: int = 1, dataset: Optional[str] = None, active_learning_policy: Optional[str] = None):
     # Define the aggregation pipeline
     pipeline = []
 
-    # If a dataset is provided, add a match stage to the pipeline
+    # Filters based on dataset and active_learning_policy
+    match_filter = {}
     if dataset:
-        pipeline.append({"$match": {"dataset": dataset}})
+        match_filter["dataset"] = dataset
+    if active_learning_policy:
+        match_filter["active_learning_policy"] = active_learning_policy
+
+    if match_filter:
+        pipeline.append({"$match": match_filter})
 
     # Add the random sampling stage to the pipeline
     pipeline.append({"$sample": {"size": size}})
@@ -121,8 +127,7 @@ def random_queue_pair(request: Request, size: int = 1, dataset: Optional[str] = 
     # Convert the cursor to a list of dictionaries
     random_pairs = []
     for pair in random_pairs_cursor:
-        # Convert _id ObjectId to string
-        pair['_id'] = str(pair['_id'])
+        pair['_id'] = str(pair['_id'])  # Convert _id ObjectId to string
         random_pairs.append(pair)
 
     return random_pairs
@@ -148,9 +153,16 @@ def delete_queue_pair(request: Request, id: str):
 
 
 @router.get("/active-learning-queue/count-queue-pairs")
-def count_queue_pairs(request: Request):
-    # Count the documents in the collection
-    count = request.app.active_learning_queue_pairs_collection.count_documents({})
+def count_queue_pairs(request: Request, dataset: Optional[str] = None, active_learning_policy: Optional[str] = None):
+    # Build a query filter based on the provided parameters
+    query_filter = {}
+    if dataset:
+        query_filter["dataset"] = dataset
+    if active_learning_policy:
+        query_filter["active_learning_policy"] = active_learning_policy
+
+    # Count the documents in the collection based on the query filter
+    count = request.app.active_learning_queue_pairs_collection.count_documents(query_filter)
 
     # Return the count in a JSON response
     return count
