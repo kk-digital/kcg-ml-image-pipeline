@@ -16,13 +16,14 @@ from utility.minio import cmd
 
 class PromptMutator:
     def __init__(self, minio_client, model=None, output_type="sigma_score", prompt_type="positive",
-                 ranking_model="elm", operation="substitution"):
+                 ranking_model="elm", operation="substitution", dataset="environmental"):
         self.model = model
         self.minio_client= minio_client
         self.output_type= output_type
         self.prompt_type= prompt_type
         self.ranking_model=ranking_model
         self.operation=operation
+        self.dataset=dataset
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path=self.get_model_path()
         self.input_size=0
@@ -30,7 +31,7 @@ class PromptMutator:
     def get_model_path(self):
         
         local_path=f"output/{self.output_type}_prompt_mutator.json"
-        minio_path=f"environmental/models/prompt-generator/{self.operation}/{self.prompt_type}_prompts_only/{self.date}_{self.output_type}_{self.ranking_model}_model.json"
+        minio_path=f"{self.dataset}/models/prompt-generator/{self.operation}/{self.prompt_type}_prompts_only/{self.date}_{self.output_type}_{self.ranking_model}_model.json"
 
         return local_path, minio_path
 
@@ -182,7 +183,7 @@ class PromptMutator:
                             "Validation size = {}\n"
                             "Training loss = {:.4f}\n"
                             "Validation loss = {:.4f}\n".format(self.date,
-                                                            'environmental',
+                                                            self.dataset,
                                                             f'Prompt {self.operation}',
                                                             'XGBoost',
                                                             f'{self.prompt_type}_clip_text_embedding',
@@ -293,7 +294,7 @@ class PromptMutator:
         return np.array(predictions)
 
     def load_model(self):
-        minio_path=f"environmental/models/prompt-generator/{self.operation}/{self.prompt_type}_prompts_only/"
+        minio_path=f"{self.dataset}/models/prompt-generator/{self.operation}/{self.prompt_type}_prompts_only/"
         file_name=f"_{self.output_type}_{self.ranking_model}_model.json"
         # get model file data from MinIO
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', minio_path)
