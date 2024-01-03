@@ -128,6 +128,8 @@ class LinearSubstitutionModel(nn.Module):
                     loss = criterion(outputs, targets)  # Compute the loss
                     total_val_loss += loss.item()
 
+            print(len(train_loader))
+            print(len(val_loader))
             avg_train_loss = total_train_loss / len(train_loader)
             avg_val_loss = total_val_loss / len(val_loader)
             train_loss.append(avg_train_loss)
