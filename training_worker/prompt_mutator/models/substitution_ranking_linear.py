@@ -306,7 +306,7 @@ class LinearSubstitutionModel(nn.Module):
 
     def predict(self, features_array, batch_size=64):
         # Convert the features array into a PyTorch Tensor
-        features_tensor = torch.Tensor(features_array)
+        features_tensor = torch.Tensor(features_array).to(self._device)
 
         # Ensure the model is in evaluation mode
         self.model.eval()
@@ -332,6 +332,7 @@ class LinearSubstitutionModel(nn.Module):
         predictions = []
         with torch.no_grad():
             for inputs, _ in loader:
+                inputs= inputs.to(self._device)
                 outputs = self.model(inputs)
                 predictions.append(outputs)
         return torch.cat(predictions).squeeze()
