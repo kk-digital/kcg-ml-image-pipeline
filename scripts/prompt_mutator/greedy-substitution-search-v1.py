@@ -223,7 +223,7 @@ class PromptSubstitutionGenerator:
         # Filter relevant model files
         relevant_models = [
             model_file for model_file in model_files
-            if model_file.endswith(f"score-linear-embedding.pth")
+            if model_file.endswith(f"score-linear-embedding.safetensors")
         ]
 
         # Sort the model files by timestamp (assuming the file names include a timestamp)
