@@ -105,7 +105,7 @@ class LinearSubstitutionModel(nn.Module):
             total_train_loss = 0
             for inputs, targets in train_loader:
                 # put inputs in device
-                inputs = inputs.to(self._device)
+                inputs = inputs.to(self._device).unsqueeze(0)
                 targets = targets.to(self._device)
 
                 optimizer.zero_grad()  # Zero the gradients
@@ -121,15 +121,13 @@ class LinearSubstitutionModel(nn.Module):
             with torch.no_grad():  # No need to track the gradients
                 for inputs, targets in val_loader:
                     # put inputs in device
-                    inputs = inputs.to(self._device)
+                    inputs = inputs.to(self._device).unsqueeze(0)
                     targets = targets.to(self._device)
 
                     outputs = self.model(inputs)  # Forward pass
                     loss = criterion(outputs, targets)  # Compute the loss
                     total_val_loss += loss.item()
 
-            print(len(train_loader))
-            print(len(val_loader))
             avg_train_loss = total_train_loss / len(train_loader)
             avg_val_loss = total_val_loss / len(val_loader)
             train_loss.append(avg_train_loss)
