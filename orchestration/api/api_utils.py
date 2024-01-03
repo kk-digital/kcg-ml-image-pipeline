@@ -3,6 +3,9 @@ import json, typing
 import time
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
+from enum import Enum
+from fastapi.responses import PrettyJSONResponse
+import time
 
 class PrettyJSONResponse(Response):
     media_type = "application/json"
@@ -15,6 +18,11 @@ class PrettyJSONResponse(Response):
             indent=4,
             separators=(", ", ": "),
         ).encode("utf-8")
+
+class ErrorCode(Enum):
+    OTHER_ERROR = 1
+    ELEMENT_NOT_FOUND = 2
+    INVALID_PARAMS = 3
 
 class ApiResponseHandler:
     def __init__(self, url: str):
@@ -34,13 +42,14 @@ class ApiResponseHandler:
             }
         )
 
-    def create_error_response(self, error_code: int, error_string: str):
+    def create_error_response(self, error_code: ErrorCode, error_string: str, http_status_code: int):
         return PrettyJSONResponse(
-            status_code=error_code,
+            status_code=http_status_code,
             content={
                 "url": self.url,
                 "duration": self._elapsed_time(),
-                "errorCode": error_code,
+                "errorCode": error_code.value,
                 "errorString": error_string
             }
-        )      
+        )
+     
