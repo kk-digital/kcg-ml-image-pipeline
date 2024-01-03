@@ -4,6 +4,7 @@ import os
 import sys
 import tempfile
 from matplotlib import pyplot as plt
+import numpy as np
 import torch
 import time
 import torch.nn as nn
@@ -24,8 +25,8 @@ class DatasetLoader(Dataset):
         :param labels: A NumPy array of the corresponding labels.
         """
         # Convert the data to torch.FloatTensor as it is the standard data type for floats in PyTorch
-        self.features = torch.FloatTensor(features)
-        self.labels = torch.FloatTensor(labels)
+        self.features = torch.FloatTensor(np.array(features))
+        self.labels = torch.FloatTensor(np.array(labels))
 
     def __len__(self):
         """
