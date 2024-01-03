@@ -32,14 +32,27 @@ class ApiResponseHandler:
     def _elapsed_time(self) -> float:
         return time.time() - self.start_time
 
-    def create_success_response(self, response_data: dict):
+    def create_success_response(self, response_data: dict, headers: dict = None):
+        response_content = {
+            "url": self.url,
+            "duration": self._elapsed_time(),
+            "response": response_data
+        }
+        if headers:
+            return PrettyJSONResponse(status_code=200, content=response_content, headers=headers)
+        else:
+            return PrettyJSONResponse(status_code=200, content=response_content)
+
+
+    def create_no_cache_success_response(self, response_data: dict):
         return PrettyJSONResponse(
             status_code=200,
             content={
                 "url": self.url,
                 "duration": self._elapsed_time(),
                 "response": response_data
-            }
+            },
+            headers={"Cache-Control": "no-store"}
         )
 
     def create_error_response(self, error_code: ErrorCode, error_string: str, http_status_code: int):
