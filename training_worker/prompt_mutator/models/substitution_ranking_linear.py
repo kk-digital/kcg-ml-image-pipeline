@@ -79,7 +79,7 @@ class LinearSubstitutionModel(nn.Module):
 
         return local_path, minio_path
 
-    def train(self, inputs, outputs, num_epochs=100, batch_size=100000):
+    def train(self, inputs, outputs, num_epochs=100, batch_size=10000):
         # load the dataset
         dataset= DatasetLoader(features=inputs, labels=outputs)
         # Split dataset into training and validation
