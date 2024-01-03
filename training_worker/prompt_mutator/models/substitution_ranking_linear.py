@@ -148,8 +148,8 @@ class LinearSubstitutionModel(nn.Module):
 
         # Extract the true values from the datasets
         print(train_dataset)
-        y_train = torch.cat(train_dataset.features, dim=0)
-        y_val = torch.cat(val_dataset.features, dim=0)
+        y_train = train_dataset.features
+        y_val = val_dataset.features
 
         # Calculate residuals
         val_residuals = y_val - val_preds
