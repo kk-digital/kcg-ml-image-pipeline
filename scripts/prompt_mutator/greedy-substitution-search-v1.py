@@ -261,8 +261,9 @@ class PromptSubstitutionGenerator:
             std=model.standard_deviation
             with torch.no_grad():
                 score=model.predict_pooled_embeddings(positive_embedding,negative_embedding).item()
-                score=(score - mean)/std
             
+            print(score, mean , std)
+            score=(score - mean)/std
             sigma_scores.append(score)
         
         return np.array(sigma_scores)
@@ -356,10 +357,23 @@ class PromptSubstitutionGenerator:
         
         return embeddings
 
-    # get linear or elm score of an embedding
-    def get_prompt_score(self, embedding):
+    # get linear or elm positive score of an embedding
+    def get_positive_score(self, embedding):
+        embedding= torch.from_numpy(embedding).to(self.device)
+
         with torch.no_grad():
-            prompt_score=self.positive_scorer.predict_positive_or_negative_only(embedding)
+            prompt_score=self.positive_scorer.predict_positive_or_negative_only_pooled(embedding)
+        
+        return prompt_score.item()
+    
+    # get linear or elm score of an embedding
+    def get_combined_score(self, positive_embedding, negative_embedding):
+        # convert embeddings to tensors
+        positive_embedding= torch.from_numpy(positive_embedding).to(self.device)
+        negative_embedding= torch.from_numpy(negative_embedding).to(self.device)
+
+        with torch.no_grad():
+            prompt_score=self.positive_scorer.predict_pooled_embeddings(positive_embedding, negative_embedding)
         
         return prompt_score.item()
 
@@ -496,12 +510,11 @@ class PromptSubstitutionGenerator:
 
                     #calculate modified prompt embedding and sigma score
                     modified_prompt_embedding=self.get_prompt_embedding(modified_prompt_str)
-                    modified_prompt_score= self.get_prompt_score(modified_prompt_embedding)
+                    modified_prompt_embedding=self.get_mean_pooled_embedding(modified_prompt_embedding)
+                    modified_prompt_score= self.get_positive_score(modified_prompt_embedding)
                     modified_prompt_score= (modified_prompt_score - self.positive_mean) / self.positive_std
 
-
                     # get variance score
-                    modified_prompt_embedding=self.get_mean_pooled_embedding(modified_prompt_embedding)
                     entropy, variance, mean, variance_score= self.get_variance_score(modified_prompt_embedding,
                                                                                      prompts[index].negative_embedding,
                                                                                      modified_prompt_score
@@ -566,9 +579,7 @@ class PromptSubstitutionGenerator:
         # mutate prompts one by one
         for prompt in prompts:
             # calculate combined prompt score
-            with torch.no_grad():
-                prompt_score = self.scorer.predict_pooled_embeddings(prompt.positive_embedding, prompt.negative_embedding).item()
-
+            prompt_score=self.get_combined_score(prompt.positive_embedding, prompt.negative_embedding)
             sigma_score= (prompt_score - self.mean) / self.std
            
             # sending a job to generate an image with the mutated prompt
@@ -677,17 +688,13 @@ class PromptSubstitutionGenerator:
 
             # Normalize scores and calculate mean pooled embeddings for the batch
             for i, index in enumerate(valid_positive_indices):
-                # Calculate scores for the batch
-                with torch.no_grad():
-                    positive_score = self.positive_scorer.predict_positive_or_negative_only(positive_embeddings[i].unsqueeze(0))
-
-                positive_score = (positive_score.item() - self.positive_mean) / self.positive_std
-
                 # Mean pooling and other processing
                 positive_embedding = self.get_mean_pooled_embedding(positive_embeddings[i].unsqueeze(0))
                 negative_embedding = self.get_mean_pooled_embedding(negative_embeddings[i].unsqueeze(0))
                 
-                # calculate variance score
+                # calculate positive score and variance score
+                positive_score=self.get_positive_score(positive_embedding)
+                positive_score = (positive_score.item() - self.positive_mean) / self.positive_std
                 entropy, variance, mean, variance_score= self.get_variance_score(positive_embedding, negative_embedding, positive_score)
 
                 # Storing prompt data
