@@ -72,12 +72,7 @@ class SelfTrainingPromptMutator:
         inputs=[]
         outputs=[]
 
-        index=0
-
         for file in dataset_files:
-            if(index==100):
-                break
-
             print(file)
             # get prompt embedding
             data = self.minio_client.get_object('datasets', file)
@@ -117,8 +112,6 @@ class SelfTrainingPromptMutator:
                 # get delta output
                 delta_score= msgpack_data[f'{self.scoring_model}_output'] - msgpack_data[f'{self.scoring_model}_score_encoding']
                 outputs.append(delta_score)
-
-            index+=1
             
         return inputs, outputs
     
@@ -135,7 +128,6 @@ class SelfTrainingPromptMutator:
         loss_by_data=[]
 
         for file in self_training_files:
-            break
             print(file)
             # save loss to track performance by data
             if(self.scaling_graph):
