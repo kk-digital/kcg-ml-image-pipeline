@@ -359,7 +359,7 @@ class PromptSubstitutionGenerator:
 
     # get linear or elm positive score of an embedding
     def get_positive_score(self, embedding):
-        embedding= torch.from_numpy(embedding).to(self.device).unsqueeze()
+        embedding= torch.from_numpy(embedding).to(self.device).unsqueeze(0)
 
         with torch.no_grad():
             prompt_score=self.positive_scorer.predict_positive_or_negative_only_pooled(embedding)
@@ -369,8 +369,8 @@ class PromptSubstitutionGenerator:
     # get linear or elm score of an embedding
     def get_combined_score(self, positive_embedding, negative_embedding):
         # convert embeddings to tensors
-        positive_embedding= torch.from_numpy(positive_embedding).to(self.device).unsqueeze()
-        negative_embedding= torch.from_numpy(negative_embedding).to(self.device).unsqueeze()
+        positive_embedding= torch.from_numpy(positive_embedding).to(self.device).unsqueeze(0)
+        negative_embedding= torch.from_numpy(negative_embedding).to(self.device).unsqueeze(0)
 
         with torch.no_grad():
             prompt_score=self.positive_scorer.predict_pooled_embeddings(positive_embedding, negative_embedding)
