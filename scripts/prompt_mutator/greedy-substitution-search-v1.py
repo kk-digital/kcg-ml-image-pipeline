@@ -694,7 +694,7 @@ class PromptSubstitutionGenerator:
                 
                 # calculate positive score and variance score
                 positive_score=self.get_positive_score(positive_embedding)
-                positive_score = (positive_score.item() - self.positive_mean) / self.positive_std
+                positive_score = (positive_score - self.positive_mean) / self.positive_std
                 entropy, variance, mean, variance_score= self.get_variance_score(positive_embedding, negative_embedding, positive_score)
 
                 # Storing prompt data
