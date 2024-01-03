@@ -372,7 +372,7 @@ class PromptSubstitutionGenerator:
         negative_embedding= torch.from_numpy(negative_embedding).to(self.device).unsqueeze(0)
 
         with torch.no_grad():
-            prompt_score=self.positive_scorer.predict_pooled_embeddings(positive_embedding, negative_embedding)
+            prompt_score=self.scorer.predict_pooled_embeddings(positive_embedding, negative_embedding)
         
         return prompt_score.item()
 
