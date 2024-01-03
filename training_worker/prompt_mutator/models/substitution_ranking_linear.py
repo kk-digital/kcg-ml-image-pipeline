@@ -153,6 +153,11 @@ class LinearSubstitutionModel(nn.Module):
         # Calculate residuals
         val_residuals = y_val - val_preds
         train_residuals = y_train - train_preds
+
+        val_preds= val_preds.cpu().numpy()
+        y_val= y_val.cpu().numpy()
+        val_residuals= val_residuals.cpu().numpy()
+        train_residuals= train_residuals.cpu().numpy
         
         self.save_graph_report(train_loss, val_loss, 
                                val_residuals, train_residuals, 
