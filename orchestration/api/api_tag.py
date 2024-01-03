@@ -130,7 +130,7 @@ def get_tag_vector_index(request: Request, tag_id: int):
 
 
 
-@router.post("/tags/add_tag_to_image", response_model=ImageTag)
+@router.post("/tags/add_tag_to_image", response_model=ImageTag, response_class=PrettyJSONResponse)
 def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_created: str):
     date_now = datetime.now().isoformat()
     
@@ -149,45 +149,55 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_cre
 
     file_path = image.get("task_output_file_dict", {}).get("output_file_path", "")
 
-    # Create association between image and tag
-    image_tag_data = {
-        "tag_id": tag_id,
-        "file_path": file_path,  
-        "image_hash": file_hash,
-        "user_who_created": user_who_created,
-        "creation_time": date_now
-    }
+    # Check if this tag_id and image_hash combination already exists
+    existing_image_tag = request.app.image_tags_collection.find_one({
+        "tag_id": tag_id, 
+        "image_hash": file_hash
+    })
 
-    request.app.image_tags_collection.insert_one(image_tag_data)
-
-    # Increment the tag count for the image's uuid
-    job_uuid = image.get("job_uuid")
-    if job_uuid:
-        request.app.uuid_tag_count_collection.update_one(
-            {"job_uuid": job_uuid},
-            {"$inc": {"tag_count": 1}},
-            upsert=True
+    # If it exists, increment the tag count, else set it to 1
+    if existing_image_tag:
+        new_tag_count = existing_image_tag["tag_count"] + 1
+        request.app.image_tags_collection.update_one(
+            {"_id": existing_image_tag["_id"]},
+            {"$set": {"tag_count": new_tag_count}}
         )
+    else:
+        new_tag_count = 1
+        image_tag_data = {
+            "tag_id": tag_id,
+            "file_path": file_path,  
+            "image_hash": file_hash,
+            "user_who_created": user_who_created,
+            "creation_time": date_now,
+            "tag_count": new_tag_count
+        }
+        request.app.image_tags_collection.insert_one(image_tag_data)
 
-    return image_tag_data
-
+    return ImageTag(tag_id=tag_id, file_path=file_path, image_hash=file_hash, tag_count=new_tag_count,
+                    user_who_created=user_who_created, creation_time=date_now, 
+                    )
 
 
 @router.delete("/tags/remove_tag_from_image")
-def remove_image_tag(
-    request: Request,
-    image_hash: str,  
-    tag_id: int,  
-):
-    # The query now checks for the specific tag_id within the array of tags
-    query = {"image_hash": image_hash, "tag_id": tag_id}
-    result = request.app.image_tags_collection.delete_one(query)
-    
-    # If no document was found and deleted, raise an HTTPException
-    if result.deleted_count == 0:
-        print("Tag or image hash not found!")
-      
-    return {"status": "success"}
+def remove_image_tag(request: Request, image_hash: str, tag_id: int):
+    # Find the existing tag with the specific tag_id and image_hash
+    existing_image_tag = request.app.image_tags_collection.find_one({
+        "tag_id": tag_id, 
+        "image_hash": image_hash
+    })
+
+    if not existing_image_tag:
+        raise HTTPException(status_code=404, detail="Tag or image hash not found!")
+
+    # Decrement the tag count or set it to zero
+    new_tag_count = max(existing_image_tag["tag_count"] - 1, 0)
+    request.app.image_tags_collection.update_one(
+        {"_id": existing_image_tag["_id"]},
+        {"$set": {"tag_count": new_tag_count}}
+    )
+
+    return {"status": "success", "tag_count": new_tag_count}
 
 
 @router.get("/tags/get_tag_list_for_image", response_model=List[TagDefinition])

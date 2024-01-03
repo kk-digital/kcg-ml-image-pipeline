@@ -201,6 +201,7 @@ class ImageTag(BaseModel):
     tag_id: Optional[int] = None
     file_path: str
     image_hash: str
+    tag_count: int 
     user_who_created: str = Field(..., description="User who created the tag")
     creation_time: Union[str, None] = None 
     
@@ -209,6 +210,7 @@ class ImageTag(BaseModel):
             "tag_id": self.tag_id,
             "file_path": self.file_path,
             "image_hash": self.image_hash,
+            "tag_count": self.tag_count,
             "user_who_created": self.user_who_created,
             "creation_time": self.creation_time
         }
