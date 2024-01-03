@@ -4,6 +4,9 @@ from .api_utils import PrettyJSONResponse
 from typing import Optional
 from typing import List
 import json
+from fastapi import HTTPException, Request, status
+from fastapi.responses import JSONResponse
+from fastapi_cache.decorator import cache
 
 CLIP_SERVER_ADDRESS = 'http://192.168.3.31:8002'
 #CLIP_SERVER_ADDRESS = 'http://127.0.0.1:8002'
@@ -93,6 +96,32 @@ def add_phrase(request: Request,
 
     return http_clip_server_add_phrase(phrase)
 
+@router.post("/clip/phrases",
+             response_class=PrettyJSONResponse,
+             description="Adds a phrase to the clip server",
+             tags=["clip"])
+@cache(expire=60)  # Cache for 60 seconds, adjust as necessary
+def add_phrase(request: Request):
+    body = request.json()
+    phrase = body.get("phrase")
+
+    if not phrase:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Phrase is required")
+
+    try:
+        response = http_clip_server_add_phrase(phrase)
+
+        # Check if the response status code is within the success range (200-299)
+        if not (200 <= response.status_code < 300):
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
+                                detail=f"Clip server error with status code {response.status_code}")
+
+        # Return standard response object with null response for success
+        return JSONResponse(status_code=status.HTTP_201_CREATED, content=None)
+
+    except Exception as e:
+        # Log the error here, if needed
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @router.get("/clip/clip-vector",
             response_class=PrettyJSONResponse,
@@ -102,6 +131,24 @@ def add_phrase(request: Request,
 
     return http_clip_server_clip_vector_from_phrase(phrase)
 
+@router.post("/clip/vectors/{phrase}",
+             response_class=PrettyJSONResponse,
+             tags=["clip"],
+             summary="Get Clip Vector for a Phrase",
+             description="Retrieves the clip vector for a given phrase.")
+@cache(expire=60)  # Cache for 60 seconds, adjust as necessary
+def get_clip_vector(request: Request, phrase: str):
+    try:
+        vector = http_clip_server_clip_vector_from_phrase(phrase)
+
+        if vector is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Phrase not found")
+
+        return vector
+
+    except Exception as e:
+        # Here you can log the exception details if needed
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @router.get("/clip/random-image-similarity-threshold",
             response_class=PrettyJSONResponse,
@@ -325,3 +372,14 @@ def check_clip_server_status():
         # Handle any exceptions that occur during the request
         print(f"Error checking clip server status: {e}")
         return {"status": "offline", "message": "Clip server is offline or unreachable."}
+
+@router.get("/clip/server-status", tags=["clip"])
+@cache(expire=60)  # Cache for 60 seconds, adjust as necessary
+def check_clip_server_status():
+    try:
+        response = requests.get(CLIP_SERVER_ADDRESS)
+        reachable = response.status_code == 200
+    except requests.exceptions.RequestException:
+        reachable = False
+
+    return JSONResponse(status_code=200, content={"reachable": reachable})
