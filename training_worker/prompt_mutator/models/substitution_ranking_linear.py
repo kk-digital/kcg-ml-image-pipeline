@@ -71,7 +71,7 @@ class LinearSubstitutionModel(nn.Module):
 
         return local_path, minio_path
 
-    def train_model(self, inputs, outputs, num_epochs=1000, batch_size=64):
+    def train(self, inputs, outputs, num_epochs=1000, batch_size=64):
         # load the dataset
         dataset= DatasetLoader(features=inputs, labels=outputs)
         # Split dataset into training and validation
@@ -93,7 +93,7 @@ class LinearSubstitutionModel(nn.Module):
         start = time.time()
         # Training and Validation Loop
         for epoch in range(num_epochs):
-            self.train()  # Set the model to training mode
+            self.model.train()  # Set the model to training mode
             total_train_loss = 0
             for inputs, targets in train_loader:
                 optimizer.zero_grad()  # Zero the gradients
@@ -104,7 +104,7 @@ class LinearSubstitutionModel(nn.Module):
                 total_train_loss += loss.item()
 
             # Validation
-            self.eval()  # Set the model to evaluation mode
+            self.model.eval()  # Set the model to evaluation mode
             total_val_loss = 0
             with torch.no_grad():  # No need to track the gradients
                 for inputs, targets in val_loader:
@@ -294,7 +294,7 @@ class LinearSubstitutionModel(nn.Module):
         features_tensor = torch.Tensor(features_array)
 
         # Ensure the model is in evaluation mode
-        self.eval()
+        self.model.eval()
 
         # List to hold all predictions
         predictions = []
@@ -303,7 +303,7 @@ class LinearSubstitutionModel(nn.Module):
         with torch.no_grad():
             for i in range(0, len(features_tensor), batch_size):
                 batch = features_tensor[i:i + batch_size]  # Extract a batch
-                outputs = self(batch)  # Get predictions for this batch
+                outputs = self.model(batch)  # Get predictions for this batch
                 predictions.append(outputs)
 
         # Concatenate all predictions and convert to a NumPy array
