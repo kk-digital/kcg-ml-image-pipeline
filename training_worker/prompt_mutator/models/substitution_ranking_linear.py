@@ -147,8 +147,9 @@ class LinearSubstitutionModel(nn.Module):
         print(f'Time taken for inference of {(train_size + val_size)} data points is: {end - start:.2f} seconds')
 
         # Extract the true values from the datasets
-        y_train = torch.cat([y for _, y in train_dataset], dim=0)
-        y_val = torch.cat([y for _, y in val_dataset], dim=0)
+        print(train_dataset)
+        y_train = torch.cat(train_dataset.features, dim=0)
+        y_val = torch.cat(val_dataset.features, dim=0)
 
         # Calculate residuals
         val_residuals = y_val - val_preds
