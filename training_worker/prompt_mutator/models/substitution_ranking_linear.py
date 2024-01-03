@@ -74,7 +74,7 @@ class LinearSubstitutionModel(nn.Module):
         self.validation_split = validation_split
 
     def get_model_path(self):
-        local_path=f"output/{self.output_type}_prompt_mutator.json"
+        local_path=f"output/{self.output_type}_prompt_mutator.pth"
         minio_path=f"{self.dataset}/models/prompt-generator/{self.operation}/{self.prompt_type}_prompts_only/{self.date}_linear_{self.output_type}_model.pth"
 
         return local_path, minio_path
