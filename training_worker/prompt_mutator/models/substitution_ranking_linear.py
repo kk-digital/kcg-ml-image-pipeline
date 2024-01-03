@@ -49,8 +49,15 @@ class LinearSubstitutionModel(nn.Module):
                  validation_split=0.2):
         
         super(LinearSubstitutionModel, self).__init__()
+        # set device
+        if torch.cuda.is_available():
+            device = 'cuda'
+        else:
+            device = 'cpu'
+        self._device = torch.device(device)
+
         # Define the single layer with input and output size
-        self.model = nn.Linear(input_size, output_size)
+        self.model = nn.Linear(input_size, output_size).to(self._device)
         self.input_size= input_size
         self.minio_client= minio_client
         self.output_type= output_type
@@ -71,7 +78,7 @@ class LinearSubstitutionModel(nn.Module):
 
         return local_path, minio_path
 
-    def train(self, inputs, outputs, num_epochs=1000, batch_size=64):
+    def train(self, inputs, outputs, num_epochs=100, batch_size=100000):
         # load the dataset
         dataset= DatasetLoader(features=inputs, labels=outputs)
         # Split dataset into training and validation
@@ -80,10 +87,10 @@ class LinearSubstitutionModel(nn.Module):
         train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
         # Create data loaders
-        train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
+        train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+        val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False, drop_last=True)
 
-        criterion = nn.MSELoss()  # Define the loss function
+        criterion = nn.L1Loss()  # Define the loss function
         optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)  # Define the optimizer
 
         # save loss for each epoch
