@@ -1077,9 +1077,9 @@ def main():
         csv_base_prompts='input/dataset-config/propaganda-poster/base-prompts-propaganda-poster.csv'
     elif(args.model_dataset=="mech"):
         csv_base_prompts='input/dataset-config/mech/base-prompts-dsp.csv'
-    elif(args.model=="character" or args.model=="waifu"):
+    elif(args.model_dataset=="character" or args.model_dataset=="waifu"):
         csv_base_prompts='input/dataset-config/character/base-prompts-waifu.csv'
-    elif(args.model=="environmental"):  
+    elif(args.model_dataset=="environmental"):  
         csv_base_prompts='input/dataset-config/environmental/base-prompts-environmental.csv'
 
     prompt_mutator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
