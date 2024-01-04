@@ -495,6 +495,7 @@ class PromptSubstitutionGenerator:
             print("Mutating prompts")
             index=0
             for substitution_choices in tqdm(prompt_substitutions):
+                num_substitutions=3
                 for substitution in substitution_choices:
                     # get substitution data
                     position=substitution['position']
@@ -535,6 +536,7 @@ class PromptSubstitutionGenerator:
 
                     # check if score improves
                     if(prompts[index].variance_score < variance_score):
+                        num_substitutions-=1
                         # if it does improve, the new prompt is saved and it jumps to the next iteration
                         prompts[index].positive_prompt= modified_prompt_str
                         prompts[index].positive_embedding= modified_prompt_embedding
@@ -544,7 +546,9 @@ class PromptSubstitutionGenerator:
                         prompts[index].entropy= entropy
                         prompts[index].variance= variance
                         prompts[index].mean= mean
-                        break
+
+                        if(num_substitutions==0):
+                            break
                 
                 self.average_score_by_iteration[i]+=prompts[index].positive_score
                 index+=1
