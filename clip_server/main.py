@@ -7,6 +7,8 @@ from server_state import ClipServer
 from utility.minio import cmd
 import multiprocessing
 import uvicorn
+import threading
+import time
 
 config = dotenv_values("./orchestration/api/.env")
 app = FastAPI(title="Clip Server API")
@@ -31,6 +33,20 @@ def get_minio_client(minio_address, minio_access_key, minio_secret_key):
             minio_client = cmd.connect_to_minio_client(minio_ip_addr=minio_address, access_key=minio_access_key, secret_key=minio_secret_key)
             return minio_client
 
+# Gets list of completed jobs
+# For each image that is not in dictionary
+# We will download from minio
+def check_new_images_and_download(clip_server):
+    while True:
+        # TODO(): orchestration must provide an api
+        # TODO(): that will take in num_jobs & offset
+        # TODO(): so that we dont download millions of jobs each time
+        clip_server.download_all_clip_vectors()
+
+        # Sleep for 2 hours
+        sleep_time_in_seconds = 2.0 * 60 * 60
+        time.sleep(sleep_time_in_seconds)
+
 
 @app.on_event("startup")
 def startup_db_client():
@@ -45,6 +61,11 @@ def startup_db_client():
 
     # downloads all clip vectors
     app.clip_server.download_all_clip_vectors()
+
+    # spawn a thread that will check if there are
+    # new images clip_vectors & download them
+    thread = threading.Thread(target=check_new_images_and_download, args=(app.clip_server,))
+    thread.start()
 
 if __name__ == "__main__":
 
