@@ -406,7 +406,7 @@ class PromptSubstitutionGenerator:
         return random_index, phrase
 
     # rejection sampling function
-    def rejection_sampling(self, prompts):
+    def rejection_sampling(self, prompts, iteration):
         # arrays to save substitution data
         substitution_inputs=[]
         sampled_phrases=[]
@@ -414,7 +414,7 @@ class PromptSubstitutionGenerator:
         substitution_positions=[]
         
         # number of choices per iteration
-        num_choices=self.num_choices_per_iteration
+        num_choices=self.num_choices_per_iteration * (iteration+1)
 
         for prompt in prompts:
             # get number of phrases
@@ -490,7 +490,7 @@ class PromptSubstitutionGenerator:
         for i in range(self.max_iterations):
             print(f"Iteration {i} -----------------------------")
             # return a list of potential substitution choices, filtered by the rejection policy
-            prompt_substitutions=self.rejection_sampling(prompts)
+            prompt_substitutions=self.rejection_sampling(prompts, i)
 
             print("Mutating prompts")
             index=0
@@ -586,7 +586,6 @@ class PromptSubstitutionGenerator:
             if self.send_job:
                 try:
                     if self.model_dataset in ["environmental", "propaganda-poster"]:
-                        print("1")
                         response = generate_image_generation_jobs(
                             positive_prompt=prompt.positive_prompt,
                             negative_prompt=prompt.negative_prompt,
@@ -596,8 +595,8 @@ class PromptSubstitutionGenerator:
                             top_k='',
                             dataset_name=self.dataset_name
                         )
+
                     elif self.model_dataset in ["icons", "mech"]:
-                        print("2")
                         response = generate_inpainting_job(
                             positive_prompt=prompt.positive_prompt,
                             negative_prompt=prompt.negative_prompt,
@@ -607,8 +606,8 @@ class PromptSubstitutionGenerator:
                             top_k='',
                             dataset_name=self.dataset_name
                         )
+                        
                     elif self.model_dataset in ["character", "waifu"]:
-                        print("3")
                         response = generate_inpainting_job(
                             positive_prompt=prompt.positive_prompt,
                             negative_prompt=prompt.negative_prompt,
