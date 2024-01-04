@@ -25,8 +25,8 @@ class DatasetLoader(Dataset):
         :param labels: A NumPy array of the corresponding labels.
         """
         # Convert the data to torch.FloatTensor as it is the standard data type for floats in PyTorch
-        self.features = torch.FloatTensor(np.array(features))
-        self.labels = torch.FloatTensor(np.array(labels))
+        self.features = torch.FloatTensor(features)
+        self.labels = torch.FloatTensor(labels)
 
     def __len__(self):
         """
@@ -58,7 +58,7 @@ class LinearSubstitutionModel(nn.Module):
         self._device = torch.device(device)
 
         # Define the single layer with input and output size
-        self.model = nn.Linear(input_size, output_size).to(self._device)
+        self.model = nn.Linear(input_size, output_size, device=self._device)
         self.input_size= input_size
         self.minio_client= minio_client
         self.output_type= output_type
@@ -89,7 +89,7 @@ class LinearSubstitutionModel(nn.Module):
 
         # Create data loaders
         train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
+        val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=True)
 
         criterion = nn.L1Loss()  # Define the loss function
         optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)  # Define the optimizer
@@ -105,7 +105,7 @@ class LinearSubstitutionModel(nn.Module):
             total_train_loss = 0
             for inputs, targets in train_loader:
                 # put inputs in device
-                inputs = inputs.to(self._device).unsqueeze(0)
+                inputs = inputs.to(self._device)
                 targets = targets.to(self._device)
 
                 optimizer.zero_grad()  # Zero the gradients
@@ -121,7 +121,7 @@ class LinearSubstitutionModel(nn.Module):
             with torch.no_grad():  # No need to track the gradients
                 for inputs, targets in val_loader:
                     # put inputs in device
-                    inputs = inputs.to(self._device).unsqueeze(0)
+                    inputs = inputs.to(self._device)
                     targets = targets.to(self._device)
 
                     outputs = self.model(inputs)  # Forward pass
@@ -202,7 +202,6 @@ class LinearSubstitutionModel(nn.Module):
             f"Input: {input_type} \n"
             f"Input Size: {self.input_size} \n" 
             f"Output: {self.output_type} \n\n"
-            "================ Parameters ==================\n"
         )
 
         # Define the local file path for the report
