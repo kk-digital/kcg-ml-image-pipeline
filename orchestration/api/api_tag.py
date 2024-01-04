@@ -8,6 +8,7 @@ from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode
 
 router = APIRouter()
 
+
 @router.post("/tags/add_new_tag_definition")
 def add_new_tag_definition(request: Request, tag_data: TagDefinition):
 
@@ -128,7 +129,48 @@ def get_tag_vector_index(request: Request, tag_id: int):
     vector_index = tag.get("tag_vector_index", -1)
     return {"tag_vector_index": vector_index}
 
-@router.post("/tags/add_tag_to_image", response_model=ImageTag, response_class=PrettyJSONResponse)
+@router.post("/tags/add_tag_to_image", response_model=ImageTag)
+def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_created: str):
+    date_now = datetime.now().isoformat()
+    
+    # Check if the tag exists by tag_id
+    existing_tag = request.app.tag_definitions_collection.find_one({"tag_id": tag_id})
+    if not existing_tag:
+        raise HTTPException(status_code=400, detail="Tag does not exist!")
+
+    # Get the image from completed_jobs_collection using file_hash
+    image = request.app.completed_jobs_collection.find_one({
+        'task_output_file_dict.output_file_hash': file_hash
+    })
+
+    if not image:
+        raise HTTPException(status_code=400, detail="No image found with the given hash")
+
+    file_path = image.get("task_output_file_dict", {}).get("output_file_path", "")
+
+    # Create association between image and tag
+    image_tag_data = {
+        "tag_id": tag_id,
+        "file_path": file_path,  
+        "image_hash": file_hash,
+        "user_who_created": user_who_created,
+        "creation_time": date_now
+    }
+
+    request.app.image_tags_collection.insert_one(image_tag_data)
+
+    # Increment the tag count for the image's uuid
+    job_uuid = image.get("job_uuid")
+    if job_uuid:
+        request.app.uuid_tag_count_collection.update_one(
+            {"job_uuid": job_uuid},
+            {"$inc": {"tag_count": 1}},
+            upsert=True
+        )
+
+    return image_tag_data
+
+@router.post("/tags/add_tag_to_image-v1", response_model=ImageTag, response_class=PrettyJSONResponse)
 def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_created: str):
     response_handler = ApiResponseHandler("/tags/add_tag_to_image")
     try:
@@ -166,7 +208,23 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_cre
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, str(e), 500)
 
 
-@router.delete("/tags/remove_tag_from_image", response_class=PrettyJSONResponse)
+@router.delete("/tags/remove_tag_from_image")
+def remove_image_tag(
+    request: Request,
+    image_hash: str,  
+    tag_id: int,  
+):
+    # The query now checks for the specific tag_id within the array of tags
+    query = {"image_hash": image_hash, "tag_id": tag_id}
+    result = request.app.image_tags_collection.delete_one(query)
+    
+    # If no document was found and deleted, raise an HTTPException
+    if result.deleted_count == 0:
+        print("Tag or image hash not found!")
+      
+    return {"status": "success"}
+
+@router.delete("/tags/remove_tag_from_image-v1", response_class=PrettyJSONResponse)
 def remove_image_tag(request: Request, image_hash: str, tag_id: int):
     response_handler = ApiResponseHandler("/tags/remove_tag_from_image")
     try:
