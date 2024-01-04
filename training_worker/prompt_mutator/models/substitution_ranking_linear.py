@@ -105,7 +105,6 @@ class LinearSubstitutionModel(nn.Module):
             total_train_loss = 0
             for inputs, targets in train_loader:
                 # put inputs in device
-                print(inputs.shape, inputs)
                 inputs = inputs.to(self._device)
                 targets = targets.to(self._device)
 
