@@ -172,7 +172,9 @@ class PromptSubstitutionGenerator:
         self.ensemble_models=self.get_ensemble_models()
 
         # load the xgboost model depending on what rejection policy is being used
-        self.substitution_model= XgboostSubstitutionModel(minio_client=self.minio_client, ranking_model=self.scoring_model)
+        self.substitution_model= XgboostSubstitutionModel(minio_client=self.minio_client, 
+                                                          ranking_model=self.scoring_model, 
+                                                          dataset=self.model_dataset)
         self.substitution_model.load_model()
 
         # store phrase embeddings in a file in minio 
