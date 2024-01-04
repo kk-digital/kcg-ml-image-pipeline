@@ -1,9 +1,12 @@
 from fastapi import Request, APIRouter, HTTPException
 import requests
-from .api_utils import PrettyJSONResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode
 from typing import Optional
 from typing import List
 import json
+from fastapi import HTTPException, Request, status
+from fastapi.responses import JSONResponse
+from fastapi_cache.decorator import cache
 
 CLIP_SERVER_ADDRESS = 'http://192.168.3.31:8002'
 #CLIP_SERVER_ADDRESS = 'http://127.0.0.1:8002'
@@ -93,6 +96,27 @@ def add_phrase(request: Request,
 
     return http_clip_server_add_phrase(phrase)
 
+@router.post("/clip/phrases", response_class=PrettyJSONResponse, description="Adds a phrase to the clip server", tags=["clip"])
+async def add_phrase(request: Request):
+    response_handler = ApiResponseHandler("/clip/phrases")
+
+    try:
+        body = await request.json()
+        phrase = body.get("phrase")
+
+        if not phrase:
+            return response_handler.create_error_response(ErrorCode.INVALID_PARAMS, "Phrase is required", status.HTTP_400_BAD_REQUEST)
+
+        response = await http_clip_server_add_phrase(phrase)
+
+        if not (200 <= response.status_code < 300):
+            return response_handler.create_error_response(ErrorCode.OTHER_ERROR, f"Clip server error with status code {response.status_code}", status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        return response_handler.create_success_response({"message": "Phrase added successfully"}, headers={"Cache-Control": "no-store"})
+
+    except Exception as e:
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 @router.get("/clip/clip-vector",
             response_class=PrettyJSONResponse,
@@ -101,6 +125,20 @@ def add_phrase(request: Request,
                phrase : str):
 
     return http_clip_server_clip_vector_from_phrase(phrase)
+
+@router.get("/clip/vectors/{phrase}", response_class=PrettyJSONResponse, tags=["clip"], summary="Get Clip Vector for a Phrase", description="Retrieves the clip vector for a given phrase.")
+def get_clip_vector(request: Request, phrase: str):
+    response_handler = ApiResponseHandler("/clip/vectors/{phrase}")
+    try:
+        vector = http_clip_server_clip_vector_from_phrase(phrase)
+
+        if vector is None:
+            return response_handler.create_error_response(ErrorCode.ELEMENT_NOT_FOUND, "Phrase not found", status.HTTP_404_NOT_FOUND)
+
+        return response_handler.create_success_response({"vector": vector}, headers={"Cache-Control": "no-store"})
+
+    except Exception as e:
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.get("/clip/random-image-similarity-threshold",
@@ -298,11 +336,12 @@ def get_random_image_similarity_date_range(
 
     # filter the images by similarity threshold
     filtered_images = []
-    for i in range(0, num_images):
+    for i in range(num_images):
         image_similarity_score = similarity_score_list[i]
         job = jobs[i]
 
         if image_similarity_score >= similarity_threshold:
+            job["similarity_score"] = image_similarity_score
             filtered_images.append(job)
 
     return {
@@ -325,3 +364,14 @@ def check_clip_server_status():
         # Handle any exceptions that occur during the request
         print(f"Error checking clip server status: {e}")
         return {"status": "offline", "message": "Clip server is offline or unreachable."}
+
+@router.get("/clip/server-status", tags=["clip"], description="Checks the status of the CLIP server.")
+def check_clip_server_status():
+    response_handler = ApiResponseHandler("/clip/server-status")
+    try:
+        response = requests.get(CLIP_SERVER_ADDRESS)
+        reachable = response.status_code == 200
+        return response_handler.create_success_delete_response(reachable)
+    except requests.exceptions.RequestException as e:
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "CLIP server is not reachable", 503)
+

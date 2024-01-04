@@ -5,7 +5,7 @@ import os
 import json
 from io import BytesIO
 from orchestration.api.mongo_schemas import Selection, RelevanceSelection, NewSelection
-from .api_utils import PrettyJSONResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode
 import random
 from collections import OrderedDict
 from bson import ObjectId
@@ -249,6 +249,42 @@ def delete_ranking_data_point(request: Request, file_path: str):
         raise HTTPException(status_code=500, detail=f"Failed to delete object: {str(e)}")
 
     return True
+
+
+@router.delete("/rank/delete-ranking-data", response_class=PrettyJSONResponse)
+def delete_ranking_data(request: Request, id: str):
+    response_handler = ApiResponseHandler("/rank/delete-ranking-data")
+    try:
+        # Convert the string ID to ObjectId
+        obj_id = ObjectId(id)
+    except Exception:
+        return response_handler.create_error_response(ErrorCode.INVALID_PARAMS, "Invalid ObjectId format", 400)
+
+    # Retrieve the document to get the file name and check its presence
+    document = request.app.image_pair_ranking_collection.find_one({"_id": obj_id})
+    was_present = bool(document)
+
+    if document:
+        file_name = document.get("file_name")
+        dataset = document.get("dataset")
+        if not file_name or not dataset:
+            return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Required data for deletion not found in document", 404)
+
+        # Delete the document from MongoDB
+        request.app.image_pair_ranking_collection.delete_one({"_id": obj_id})
+
+        # Construct the MinIO file path
+        bucket_name = "datasets"
+        minio_file_path = f"{dataset}/data/ranking/aggregate/{file_name}"
+
+        try:
+            # Attempt to remove the object from MinIO
+            request.app.minio_client.remove_object(bucket_name, minio_file_path)
+        except Exception as e:
+            return response_handler.create_error_response(ErrorCode.OTHER_ERROR, f"Failed to delete object from MinIO: {str(e)}", 500)
+
+    return response_handler.create_success_response({"wasPresent": was_present})
+
 
 
 @router.delete("/rank/delete-all-ranking-data-points")
