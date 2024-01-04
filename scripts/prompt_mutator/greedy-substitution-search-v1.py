@@ -406,7 +406,7 @@ class PromptSubstitutionGenerator:
         return random_index, phrase
 
     # rejection sampling function
-    def rejection_sampling(self, prompts, iteration):
+    def rejection_sampling(self, prompts):
         # arrays to save substitution data
         substitution_inputs=[]
         sampled_phrases=[]
@@ -414,7 +414,7 @@ class PromptSubstitutionGenerator:
         substitution_positions=[]
         
         # number of choices per iteration
-        num_choices=self.num_choices_per_iteration * (iteration+1)
+        num_choices=self.num_choices_per_iteration
 
         for prompt in prompts:
             # get number of phrases
@@ -490,7 +490,7 @@ class PromptSubstitutionGenerator:
         for i in range(self.max_iterations):
             print(f"Iteration {i} -----------------------------")
             # return a list of potential substitution choices, filtered by the rejection policy
-            prompt_substitutions=self.rejection_sampling(prompts, i)
+            prompt_substitutions=self.rejection_sampling(prompts)
 
             print("Mutating prompts")
             index=0
