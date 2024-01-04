@@ -377,18 +377,12 @@ class ActiveLearningQueuePair(BaseModel):
 
 
 class NewSelection(BaseModel):
-    file_name: Union[str, None] = None
-    dataset: Union[str, None] = None
     Selection: Selection
-    selected_residual: Union[selected_residual, None] = None 
-
+    selected_residual: Union[selected_residual, None] = None
 
     def to_dict(self):
-        # If ResidualDict is not provided, create a new instance with default values (None)
         selected_residual_data = self.selected_residual.to_dict() if self.selected_residual else {}
         return {
-            "file_name": self.file_name,
-            "dataset": self.dataset,
             "ranking_image_pair": self.Selection.to_dict(),
-            "selected_residual":selected_residual_data
+            "selected_residual": selected_residual_data
         }
