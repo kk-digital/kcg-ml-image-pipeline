@@ -50,7 +50,7 @@ def parse_args():
     parser.add_argument('--store-token-lengths', action='store_true', default=False)
     parser.add_argument('--save-csv', action='store_true', default=False)
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
-    parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=150)
+    parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=128)
     parser.add_argument('--clip-batch-size', type=int, help="Batch size for clip embeddings", default=1000)
     parser.add_argument('--xgboost-batch-size', type=int, help="Batch size for xgboost model", default=100000)
 
@@ -406,7 +406,7 @@ class PromptSubstitutionGenerator:
         return random_index, phrase
 
     # rejection sampling function
-    def rejection_sampling(self, prompts):
+    def rejection_sampling(self, prompts, iteration):
         # arrays to save substitution data
         substitution_inputs=[]
         sampled_phrases=[]
@@ -414,7 +414,7 @@ class PromptSubstitutionGenerator:
         substitution_positions=[]
         
         # number of choices per iteration
-        num_choices=self.num_choices_per_iteration
+        num_choices=self.num_choices_per_iteration * iteration
 
         for prompt in prompts:
             # get number of phrases
@@ -490,7 +490,7 @@ class PromptSubstitutionGenerator:
         for i in range(self.max_iterations):
             print(f"Iteration {i} -----------------------------")
             # return a list of potential substitution choices, filtered by the rejection policy
-            prompt_substitutions=self.rejection_sampling(prompts)
+            prompt_substitutions=self.rejection_sampling(prompts, i)
 
             print("Mutating prompts")
             index=0
@@ -553,7 +553,7 @@ class PromptSubstitutionGenerator:
             self.average_score_by_iteration[i]=self.average_score_by_iteration[i] / num_prompts
             print(f"Average score: {self.average_score_by_iteration[i]}")
 
-        # taking top 10 training datapoints with highest delta
+        # taking top k training datapoints with highest delta
         self_training_data = sorted(self_training_data, key=lambda d: d['delta'], reverse=True)[:10 * len(prompts)]  
         
         end=time.time()
