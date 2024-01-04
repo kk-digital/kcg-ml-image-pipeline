@@ -55,7 +55,7 @@ def parse_args():
                         help="The dataset of ranking model")
     parser.add_argument("--input-type", type=str,
                         help="The input_type of ranking model")
-    parser.add_argument("--output", type=str, default="clip",
+    parser.add_argument("--output", type=str,
                         help="The folder to save the safetensor")
     parser.add_argument("--api-addr", type=str, default=None,
                         help="The api server ip address")
