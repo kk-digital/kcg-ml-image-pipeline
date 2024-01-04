@@ -586,6 +586,7 @@ class PromptSubstitutionGenerator:
             if self.send_job:
                 try:
                     if self.model_dataset in ["environmental", "propaganda-poster"]:
+                        print("1")
                         response = generate_image_generation_jobs(
                             positive_prompt=prompt.positive_prompt,
                             negative_prompt=prompt.negative_prompt,
@@ -596,6 +597,7 @@ class PromptSubstitutionGenerator:
                             dataset_name=self.dataset_name
                         )
                     elif self.model_dataset in ["icons", "mech"]:
+                        print("2")
                         response = generate_inpainting_job(
                             positive_prompt=prompt.positive_prompt,
                             negative_prompt=prompt.negative_prompt,
@@ -606,6 +608,7 @@ class PromptSubstitutionGenerator:
                             dataset_name=self.dataset_name
                         )
                     elif self.model_dataset in ["character", "waifu"]:
+                        print("3")
                         response = generate_inpainting_job(
                             positive_prompt=prompt.positive_prompt,
                             negative_prompt=prompt.negative_prompt,
