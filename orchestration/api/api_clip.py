@@ -336,11 +336,12 @@ def get_random_image_similarity_date_range(
 
     # filter the images by similarity threshold
     filtered_images = []
-    for i in range(0, num_images):
+    for i in range(num_images):
         image_similarity_score = similarity_score_list[i]
         job = jobs[i]
 
         if image_similarity_score >= similarity_threshold:
+            job["similarity_score"] = image_similarity_score
             filtered_images.append(job)
 
     return {
