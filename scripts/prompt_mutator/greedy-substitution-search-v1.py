@@ -24,7 +24,7 @@ from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from utility.minio import cmd
 
-from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix, load_base_prompts
+from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix, load_base_prompts, generate_inpainting_job
 
 GENERATION_POLICY="greedy-substitution-search-v1"
 DATA_MINIO_DIRECTORY="data/prompt-generator/substitution"
@@ -53,10 +53,6 @@ def parse_args():
     parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=150)
     parser.add_argument('--clip-batch-size', type=int, help="Batch size for clip embeddings", default=1000)
     parser.add_argument('--xgboost-batch-size', type=int, help="Batch size for xgboost model", default=100000)
-    parser.add_argument(
-        '--csv_base_prompts', help='CSV containing base prompts', 
-        default='input/dataset-config/environmental/base-prompts-environmental.csv'
-    )
 
     return parser.parse_args()
 
@@ -94,6 +90,7 @@ class PromptSubstitutionGenerator:
         minio_ip_addr,
         csv_phrase,
         csv_base_prompts,
+        model_dataset,
         scoring_model,
         max_iterations,
         sigma_threshold,
@@ -124,6 +121,8 @@ class PromptSubstitutionGenerator:
         self.sigma_threshold= sigma_threshold
         # variance weight for optimisation score
         self.variance_weight= variance_weight
+        # name of dataset to generate for
+        self.model_dataset= model_dataset
         # name of dataset
         self.dataset_name=dataset_name
         # wheher to self training or not
@@ -213,7 +212,7 @@ class PromptSubstitutionGenerator:
     
     # load ensemble elm model for entropy calculation
     def get_ensemble_models(self):
-        input_path = "environmental/models/ranking/"
+        input_path = f"{self.model_dataset}/models/ranking/"
 
         model_class = ABRankingModel
 
@@ -298,7 +297,7 @@ class PromptSubstitutionGenerator:
 
     # load elm or linear scoring models
     def load_model(self, embedding_type, scoring_model="linear", input_size=768):
-        input_path="environmental/models/ranking/"
+        input_path=f"{self.model_dataset}/models/ranking/"
 
         if(scoring_model=="elm"):
             embedding_model = ABRankingELMModel(input_size)
@@ -583,8 +582,13 @@ class PromptSubstitutionGenerator:
            
             # sending a job to generate an image with the mutated prompt
             if self.send_job:
+                if self.model_dataset in ["environmental"]:
+                    image_generation_func=generate_image_generation_jobs
+                elif self.model_dataset in ["icons", "character", "mechs"]:
+                    image_generation_func=generate_inpainting_job
+
                 try:
-                    response = generate_image_generation_jobs(
+                    response = image_generation_func(
                         positive_prompt=prompt.positive_prompt,
                         negative_prompt=prompt.negative_prompt,
                         prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
@@ -763,7 +767,7 @@ class PromptSubstitutionGenerator:
 
     # store list of initial prompts in a csv to use for prompt mutation
     def store_prompts_in_csv_file(self, data):
-        minio_path="environmental/output/generated-prompts-csv"
+        minio_path=f"{self.model_dataset}/output/generated-prompts-csv"
         local_path="output/generated_prompts.csv"
         pd.DataFrame(data).to_csv(local_path, index=False)
         # Read the contents of the CSV file
@@ -775,7 +779,7 @@ class PromptSubstitutionGenerator:
         buffer.seek(0)
 
         current_date=datetime.now().strftime("%Y-%m-%d-%H:%M")
-        minio_path= minio_path + f"/{current_date}-{GENERATION_POLICY}-environmental.csv"
+        minio_path= minio_path + f"/{current_date}-{GENERATION_POLICY}-{self.model_dataset}.csv"
         cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
         # Remove the temporary file
         os.remove(local_path)
@@ -1064,11 +1068,14 @@ def main():
     global DATA_MINIO_DIRECTORY
     DATA_MINIO_DIRECTORY= f"{args.model_dataset}/" + DATA_MINIO_DIRECTORY
 
+    # set the base prompts csv path
+    csv_base_prompts=f"input/dataset-config/{args.model_dataset}/base-prompts-{args.model_dataset}.csv"
+
     prompt_mutator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
                                   minio_secret_key=args.minio_secret_key,
                                   minio_ip_addr=args.minio_addr,
                                   csv_phrase=args.csv_phrase,
-                                  csv_base_prompts=args.csv_base_prompts,
+                                  csv_base_prompts=csv_base_prompts,
                                   scoring_model=args.scoring_model,
                                   max_iterations=args.max_iterations,
                                   sigma_threshold=args.sigma_threshold,
