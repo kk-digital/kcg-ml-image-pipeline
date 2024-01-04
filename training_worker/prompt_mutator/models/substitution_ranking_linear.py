@@ -45,7 +45,7 @@ class DatasetLoader(Dataset):
 
 
 class LinearSubstitutionModel(nn.Module):
-    def __init__(self, minio_client, input_size, output_size=1, output_type="sigma_score", prompt_type="positive",
+    def __init__(self, minio_client, input_size, hidden_sizes=[1024, 768, 512], output_size=1, output_type="sigma_score", prompt_type="positive",
                  ranking_model="elm", operation="substitution", dataset="environmental", learning_rate=0.1, 
                  validation_split=0.2):
         
@@ -57,8 +57,18 @@ class LinearSubstitutionModel(nn.Module):
             device = 'cpu'
         self._device = torch.device(device)
 
-        # Define the single layer with input and output size
-        self.model = nn.Linear(input_size, output_size, device=self._device)
+        # Define the multi-layered model architecture
+        layers = [nn.Linear(input_size, hidden_sizes[0])]
+        for i in range(len(hidden_sizes)-1):
+            layers.append(nn.ReLU())
+            layers.append(nn.Linear(hidden_sizes[i], hidden_sizes[i+1]))
+        
+        # Adding the final layer (without an activation function for linear output)
+        layers.append(nn.ReLU())
+        layers.append(nn.Linear(hidden_sizes[-1], output_size))
+
+        # Combine all layers into a sequential model
+        self.model = nn.Sequential(*layers).to(self._device)
         self.input_size= input_size
         self.minio_client= minio_client
         self.output_type= output_type
