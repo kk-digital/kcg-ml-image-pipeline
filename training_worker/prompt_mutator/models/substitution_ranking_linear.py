@@ -45,7 +45,7 @@ class DatasetLoader(Dataset):
 
 
 class LinearSubstitutionModel(nn.Module):
-    def __init__(self, minio_client, input_size, hidden_sizes=[1024, 768, 512], output_size=1, output_type="sigma_score", prompt_type="positive",
+    def __init__(self, minio_client, input_size, hidden_sizes=[1024, 512], output_size=1, output_type="sigma_score", prompt_type="positive",
                  ranking_model="elm", operation="substitution", dataset="environmental", learning_rate=0.01, 
                  validation_split=0.2):
         
@@ -89,7 +89,7 @@ class LinearSubstitutionModel(nn.Module):
 
         return local_path, minio_path
 
-    def train(self, inputs, outputs, num_epochs=100, batch_size=128):
+    def train(self, inputs, outputs, num_epochs=100, batch_size=256):
         # load the dataset
         dataset= DatasetLoader(features=inputs, labels=outputs)
         # Split dataset into training and validation
