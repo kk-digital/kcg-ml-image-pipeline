@@ -31,3 +31,4 @@ python-dateutil
 scikit-learn
 xgboost
 clip-interrogator
+fastapi-cache2

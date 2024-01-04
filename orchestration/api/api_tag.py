@@ -3,10 +3,11 @@ from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
 from orchestration.api.mongo_schemas import TagDefinition, ImageTag
 from typing import Union
-from .api_utils import PrettyJSONResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode
 
 
 router = APIRouter()
+
 
 @router.post("/tags/add_new_tag_definition")
 def add_new_tag_definition(request: Request, tag_data: TagDefinition):
@@ -128,8 +129,6 @@ def get_tag_vector_index(request: Request, tag_id: int):
     vector_index = tag.get("tag_vector_index", -1)
     return {"tag_vector_index": vector_index}
 
-
-
 @router.post("/tags/add_tag_to_image", response_model=ImageTag)
 def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_created: str):
     date_now = datetime.now().isoformat()
@@ -171,6 +170,42 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_cre
 
     return image_tag_data
 
+@router.post("/tags/add_tag_to_image-v1", response_model=ImageTag, response_class=PrettyJSONResponse)
+def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_created: str):
+    response_handler = ApiResponseHandler("/tags/add_tag_to_image")
+    try:
+        date_now = datetime.now().isoformat()
+    
+        existing_tag = request.app.tag_definitions_collection.find_one({"tag_id": tag_id})
+        if not existing_tag:
+            return response_handler.create_error_response(ErrorCode.ELEMENT_NOT_FOUND, "Tag does not exist!", 400)
+
+        image = request.app.completed_jobs_collection.find_one({'task_output_file_dict.output_file_hash': file_hash})
+        if not image:
+            return response_handler.create_error_response(ErrorCode.ELEMENT_NOT_FOUND, "No image found with the given hash", 400)
+
+        file_path = image.get("task_output_file_dict", {}).get("output_file_path", "")
+        existing_image_tag = request.app.image_tags_collection.find_one({"tag_id": tag_id, "image_hash": file_hash})
+
+        if existing_image_tag:
+            new_tag_count = existing_image_tag["tag_count"] + 1
+            request.app.image_tags_collection.update_one({"_id": existing_image_tag["_id"]}, {"$set": {"tag_count": new_tag_count}})
+        else:
+            new_tag_count = 1
+            image_tag_data = {
+                "tag_id": tag_id,
+                "file_path": file_path,  
+                "image_hash": file_hash,
+                "user_who_created": user_who_created,
+                "creation_time": date_now,
+                "tag_count": new_tag_count
+            }
+            request.app.image_tags_collection.insert_one(image_tag_data)
+
+        return response_handler.create_success_response({"tag_id": tag_id, "file_path": file_path, "image_hash": file_hash, "tag_count": new_tag_count, "user_who_created": user_who_created, "creation_time": date_now})
+
+    except Exception as e:
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, str(e), 500)
 
 
 @router.delete("/tags/remove_tag_from_image")
@@ -188,6 +223,32 @@ def remove_image_tag(
         print("Tag or image hash not found!")
       
     return {"status": "success"}
+
+@router.delete("/tags/remove_tag_from_image-v1", response_class=PrettyJSONResponse)
+def remove_image_tag(request: Request, image_hash: str, tag_id: int):
+    response_handler = ApiResponseHandler("/tags/remove_tag_from_image")
+    try:
+        was_present = False
+        existing_image_tag = request.app.image_tags_collection.find_one({
+            "tag_id": tag_id, 
+            "image_hash": image_hash
+        })
+
+        if existing_image_tag:
+            was_present = True
+            new_tag_count = max(existing_image_tag["tag_count"] - 1, 0)
+            request.app.image_tags_collection.update_one(
+                {"_id": existing_image_tag["_id"]},
+                {"$set": {"tag_count": new_tag_count}}
+            )
+        else:
+            return response_handler.create_error_response(ErrorCode.ELEMENT_NOT_FOUND, "Tag or image hash not found!", 404)
+
+        return response_handler.create_success_response({"wasPresent": was_present, "tag_count": new_tag_count if was_present else 0})
+
+    except Exception as e:
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, str(e), 500)
+
 
 
 @router.get("/tags/get_tag_list_for_image", response_model=List[TagDefinition])
