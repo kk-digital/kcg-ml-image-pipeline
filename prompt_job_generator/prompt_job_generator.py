@@ -402,6 +402,11 @@ def main():
     prompt_job_generator_state.add_dataset_mask("character", "./test/test_inpainting/white_512x512.jpg",
                                                 "./test/test_inpainting/character_mask.png")
 
+    character_masks = find_png_files('./input/mask/character')
+    for mask in character_masks:
+        prompt_job_generator_state.add_dataset_mask("character", "./test/test_inpainting/white_512x512.jpg",
+                                                    mask)
+
     mech_masks = find_png_files('./input/mask/mech')
     for mask in mech_masks:
         prompt_job_generator_state.add_dataset_mask("mech", "./test/test_inpainting/white_512x512.jpg",
