@@ -25,7 +25,7 @@ class DatasetLoader(Dataset):
         :param labels: A NumPy array of the corresponding labels.
         """
         # Convert the data to torch.FloatTensor as it is the standard data type for floats in PyTorch
-        self.features = torch.FloatTensor(features).squeeze(1)
+        self.features = torch.FloatTensor(features)
         self.labels = torch.FloatTensor(labels)
 
     def __len__(self):
@@ -107,6 +107,8 @@ class LinearSubstitutionModel(nn.Module):
                 # put inputs in device
                 inputs = inputs.to(self._device).squeeze(1)
                 targets = targets.to(self._device)
+
+                print(inputs.shape, outputs.shape)
 
                 optimizer.zero_grad()  # Zero the gradients
                 outputs = self.model(inputs)  # Forward pass
