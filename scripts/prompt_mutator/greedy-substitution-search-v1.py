@@ -584,21 +584,39 @@ class PromptSubstitutionGenerator:
            
             # sending a job to generate an image with the mutated prompt
             if self.send_job:
-                if self.model_dataset in ["environmental"]:
-                    image_generation_func=generate_image_generation_jobs
-                elif self.model_dataset in ["icons", "character", "mechs"]:
-                    image_generation_func=generate_inpainting_job
-
                 try:
-                    response = image_generation_func(
-                        positive_prompt=prompt.positive_prompt,
-                        negative_prompt=prompt.negative_prompt,
-                        prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
-                        prompt_score=prompt_score,
-                        prompt_generation_policy=GENERATION_POLICY,
-                        top_k='',
-                        dataset_name=self.dataset_name
-                    )
+                    if self.model_dataset in ["environmental", "propaganda-poster"]:
+                        response = generate_image_generation_jobs(
+                            positive_prompt=prompt.positive_prompt,
+                            negative_prompt=prompt.negative_prompt,
+                            prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
+                            prompt_score=prompt_score,
+                            prompt_generation_policy=GENERATION_POLICY,
+                            top_k='',
+                            dataset_name=self.dataset_name
+                        )
+                    elif self.model_dataset in ["icons", "mech"]:
+                        response = generate_inpainting_job(
+                            positive_prompt=prompt.positive_prompt,
+                            negative_prompt=prompt.negative_prompt,
+                            prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
+                            prompt_score=prompt_score,
+                            prompt_generation_policy=GENERATION_POLICY,
+                            top_k='',
+                            dataset_name=self.dataset_name
+                        )
+                    elif self.model_dataset in ["character", "waifu"]:
+                        response = generate_inpainting_job(
+                            positive_prompt=prompt.positive_prompt,
+                            negative_prompt=prompt.negative_prompt,
+                            prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
+                            prompt_score=prompt_score,
+                            prompt_generation_policy=GENERATION_POLICY,
+                            top_k='',
+                            dataset_name=self.dataset_name,
+                            mask_path = "./test/test_inpainting/character_mask"
+                        ) 
+
                     task_uuid = response['uuid']
                     task_time = response['creation_time']
                 except:
