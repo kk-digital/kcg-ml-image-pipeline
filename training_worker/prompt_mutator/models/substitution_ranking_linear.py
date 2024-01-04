@@ -46,7 +46,7 @@ class DatasetLoader(Dataset):
 
 class LinearSubstitutionModel(nn.Module):
     def __init__(self, minio_client, input_size, hidden_sizes=[1024, 768, 512], output_size=1, output_type="sigma_score", prompt_type="positive",
-                 ranking_model="elm", operation="substitution", dataset="environmental", learning_rate=0.1, 
+                 ranking_model="elm", operation="substitution", dataset="environmental", learning_rate=0.01, 
                  validation_split=0.2):
         
         super(LinearSubstitutionModel, self).__init__()
@@ -89,7 +89,7 @@ class LinearSubstitutionModel(nn.Module):
 
         return local_path, minio_path
 
-    def train(self, inputs, outputs, num_epochs=100, batch_size=10000):
+    def train(self, inputs, outputs, num_epochs=100, batch_size=128):
         # load the dataset
         dataset= DatasetLoader(features=inputs, labels=outputs)
         # Split dataset into training and validation
@@ -111,37 +111,41 @@ class LinearSubstitutionModel(nn.Module):
         start = time.time()
         # Training and Validation Loop
         for epoch in range(num_epochs):
-            self.model.train()  # Set the model to training mode
+            self.model.train()
             total_train_loss = 0
+            total_train_samples = 0
+            
             for inputs, targets in train_loader:
-                # put inputs in device
                 inputs = inputs.to(self._device)
                 targets = targets.to(self._device)
 
-                optimizer.zero_grad()  # Zero the gradients
-                outputs = self.model(inputs)  # Forward pass
-                loss = criterion(outputs, targets)  # Compute the loss
-                loss.backward()  # Backward pass
-                optimizer.step()  # Update the weights
-                total_train_loss += loss.item()
+                optimizer.zero_grad()
+                outputs = self.model(inputs)
+                loss = criterion(outputs, targets)
+                loss.backward()
+                optimizer.step()
 
-            # Validation
-            self.model.eval()  # Set the model to evaluation mode
+                total_train_loss += loss.item() * inputs.size(0)
+                total_train_samples += inputs.size(0)
+
+            self.model.eval()
             total_val_loss = 0
-            with torch.no_grad():  # No need to track the gradients
+            total_val_samples = 0
+            
+            with torch.no_grad():
                 for inputs, targets in val_loader:
-                    # put inputs in device
                     inputs = inputs.to(self._device)
                     targets = targets.to(self._device)
 
-                    outputs = self.model(inputs)  # Forward pass
-                    loss = criterion(outputs, targets)  # Compute the loss
-                    total_val_loss += loss.item()
+                    outputs = self.model(inputs)
+                    loss = criterion(outputs, targets)
 
-            avg_train_loss = total_train_loss / len(train_loader)
-            avg_val_loss = total_val_loss / len(val_loader)
-            train_loss.append(avg_train_loss)
-            val_loss.append(avg_val_loss)
+                    total_val_loss += loss.item() * inputs.size(0)
+                    total_val_samples += inputs.size(0)
+
+            avg_train_loss = total_train_loss / total_train_samples
+            avg_val_loss = total_val_loss / total_val_samples
+
             print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss}, Val Loss: {avg_val_loss}')
         
         end = time.time()
