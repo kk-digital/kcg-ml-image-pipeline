@@ -1076,6 +1076,7 @@ def main():
                                   minio_ip_addr=args.minio_addr,
                                   csv_phrase=args.csv_phrase,
                                   csv_base_prompts=csv_base_prompts,
+                                  model_dataset=args.model_dataset,
                                   scoring_model=args.scoring_model,
                                   max_iterations=args.max_iterations,
                                   sigma_threshold=args.sigma_threshold,
