@@ -61,7 +61,7 @@ class SelfTrainingPromptMutator:
             else:
                 self.model= XgboostSubstitutionModel(minio_client=self.minio_client, output_type=self.output_type, ranking_model=self.scoring_model, operation=self.operation, prompt_type=self.embedding_type)
         elif(self.model_type=="linear"):
-            self.model= LinearSubstitutionModel(minio_client=self.minio_client, input_size=2306)
+            self.model= LinearSubstitutionModel(minio_client=self.minio_client, input_size=2305)
 
 
     def get_training_data(self):
@@ -84,9 +84,7 @@ class SelfTrainingPromptMutator:
 
             # get input
             if self.operation=="substitution":
-                input=np.concatenate([msgpack_data['input'],
-                                                [msgpack_data['position_encoding']],
-                                            [msgpack_data[f'{self.scoring_model}_score_encoding']]])
+                input=np.concatenate([msgpack_data['input'], [msgpack_data[f'{self.scoring_model}_score_encoding']]])
             elif self.operation=="permutation":
                 input=np.concatenate([msgpack_data['input'],
                                                 [msgpack_data['first_position']],
@@ -159,7 +157,7 @@ class SelfTrainingPromptMutator:
         inputs=[]
         outputs=[]
         for d in data:
-            input=np.concatenate([d['input'], [d['position_encoding']], [d['score_encoding']]])
+            input=np.concatenate([d['input'], [d['score_encoding']]])
             inputs.append(input)
             outputs.append(d['output'])
         
