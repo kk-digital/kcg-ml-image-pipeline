@@ -4,7 +4,6 @@ import time
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 from enum import Enum
-from fastapi.responses import PrettyJSONResponse
 import time
 
 class PrettyJSONResponse(Response):
