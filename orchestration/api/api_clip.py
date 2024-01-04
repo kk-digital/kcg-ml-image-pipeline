@@ -370,7 +370,7 @@ def check_clip_server_status():
     try:
         response = requests.get(CLIP_SERVER_ADDRESS)
         reachable = response.status_code == 200
-        return response_handler.create_no_cache_success_response({"reachable": reachable})
+        return response_handler.create_success_delete_response(reachable)
     except requests.exceptions.RequestException as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "CLIP server is not reachable", 503)
 

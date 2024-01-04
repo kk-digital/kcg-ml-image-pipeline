@@ -44,13 +44,13 @@ class ApiResponseHandler:
             return PrettyJSONResponse(status_code=200, content=response_content)
 
 
-    def create_no_cache_success_response(self, response_data: dict):
+    def create_success_delete_response(self, reachable: bool):
         return PrettyJSONResponse(
             status_code=200,
             content={
                 "url": self.url,
                 "duration": self._elapsed_time(),
-                "response": response_data
+                "response": {"reachable": reachable}
             },
             headers={"Cache-Control": "no-store"}
         )
