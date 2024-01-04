@@ -11,3 +11,4 @@ python-jose
 python-multipart
 python-dateutil
 paramiko
+fastapi-cache2
