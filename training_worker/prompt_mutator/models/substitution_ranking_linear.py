@@ -111,6 +111,21 @@ class LinearSubstitutionModel(nn.Module):
         start = time.time()
         # Training and Validation Loop
         for epoch in range(num_epochs):
+            self.model.eval()
+            total_val_loss = 0
+            total_val_samples = 0
+            
+            with torch.no_grad():
+                for inputs, targets in val_loader:
+                    inputs = inputs.to(self._device)
+                    targets = targets.to(self._device)
+
+                    outputs = self.model(inputs)
+                    loss = criterion(outputs, targets)
+
+                    total_val_loss += loss.item() * inputs.size(0)
+                    total_val_samples += inputs.size(0)
+                    
             self.model.train()
             total_train_loss = 0
             total_train_samples = 0
@@ -128,23 +143,10 @@ class LinearSubstitutionModel(nn.Module):
                 total_train_loss += loss.item() * inputs.size(0)
                 total_train_samples += inputs.size(0)
 
-            self.model.eval()
-            total_val_loss = 0
-            total_val_samples = 0
-            
-            with torch.no_grad():
-                for inputs, targets in val_loader:
-                    inputs = inputs.to(self._device)
-                    targets = targets.to(self._device)
-
-                    outputs = self.model(inputs)
-                    loss = criterion(outputs, targets)
-
-                    total_val_loss += loss.item() * inputs.size(0)
-                    total_val_samples += inputs.size(0)
-
             avg_train_loss = total_train_loss / total_train_samples
             avg_val_loss = total_val_loss / total_val_samples
+            train_loss.append(avg_train_loss)
+            val_loss.append(avg_val_loss)
 
             print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss}, Val Loss: {avg_val_loss}')
         
