@@ -22,10 +22,12 @@ from utility.minio import cmd
 
 
 def get_zero_mean_unit_variance(energy_vector):
-    mean = torch.mean(energy_vector)
     std = torch.std(energy_vector)
-    zero_mean = energy_vector - mean
-    unit_variance = zero_mean / std
+    # mean = torch.mean(energy_vector)
+    # zero_mean = energy_vector - mean
+    # unit_variance = zero_mean / std
+
+    unit_variance = energy_vector / std
 
     return unit_variance
 
