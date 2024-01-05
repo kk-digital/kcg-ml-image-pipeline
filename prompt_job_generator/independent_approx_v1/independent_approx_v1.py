@@ -8,7 +8,7 @@ sys.path.insert(0, base_directory)
 
 from utility.boltzman.boltzman_phrase_scores_loader import BoltzmanPhraseScoresLoader
 from utility.boltzman.boltzman import (generate_prompts_array)
-from boltzman_probabilities_cache import BoltzmanProbabilitiesCache
+from prompt_job_generator.independent_approx_v1.boltzman_probabilities_cache import BoltzmanProbabilitiesCache
 
 
 # Helper class that generates prompts using
