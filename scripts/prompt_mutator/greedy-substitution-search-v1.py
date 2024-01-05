@@ -1318,7 +1318,7 @@ def main():
                                   xgboost_batch_size=args.xgboost_batch_size)
     
     # generate n number of images
-    prompt_mutator.generate_images(num_images=args.n_data)
+    prompt_mutator.generate_image_progression(num_images=args.n_data)
     
 if __name__ == "__main__":
     main()
