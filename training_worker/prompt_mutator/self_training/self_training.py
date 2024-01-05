@@ -115,7 +115,7 @@ class SelfTrainingPromptMutator:
     
     def self_training(self):
         # get training data
-        inputs, outputs= self.get_training_data()
+        #inputs, outputs= self.get_training_data()
 
         # get self training data
         self_training_path = DATA_MINIO_DIRECTORY + f"{self.operation}/self_training/{self.scoring_model}/"
@@ -124,6 +124,8 @@ class SelfTrainingPromptMutator:
 
         # save loss
         loss_by_data=[]
+        inputs=[]
+        outputs=[]
 
         for file in self_training_files:
             print(file)
