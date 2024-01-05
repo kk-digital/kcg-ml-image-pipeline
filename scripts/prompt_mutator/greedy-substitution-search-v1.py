@@ -743,7 +743,8 @@ class PromptSubstitutionGenerator:
                 self.average_score_by_iteration[i]+=prompts[index].positive_score
 
                 prompt_progression[index].append({
-                    "prompt": prompts[index].positive_prompt,
+                    "positive_prompt": prompts[index].positive_prompt,
+                    "negative_prompt": prompts[index].negative_prompt,
                     "positive_embedding":prompts[index].positive_embedding, 
                     "negative_embedding":prompts[index].negative_embedding,
                     "entropy": prompts[index].entropy,
