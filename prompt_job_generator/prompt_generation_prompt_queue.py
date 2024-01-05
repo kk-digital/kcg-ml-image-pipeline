@@ -170,7 +170,7 @@ class PromptGenerationPromptQueue:
 
             for index in range(0, total_prompt_count):
                 # Generate a random number between 2 and 16 (inclusive)
-                random_number = random.randint(5, 10)
+                random_number = 11
 
                 print(random_number)
 
