@@ -172,6 +172,8 @@ class PromptGenerationPromptQueue:
                 # Generate a random number between 2 and 16 (inclusive)
                 random_number = random.randint(5, 10)
 
+                print(random_number)
+
                 boltzman_temperature = random_number
                 boltzman_k = 1
 
