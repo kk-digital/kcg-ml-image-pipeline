@@ -40,7 +40,7 @@ def run_prompt_generator(minio_client,
                                                                                                          dataset_name=dataset_name,
                                                                                                          index_phrase_score_data=negative_phrase_scores_loader.index_phrase_score_data,
                                                                                                          boltzman_temperature=boltzman_temperature,
-                                                                                                         boltzman_k=boltzman_k+10,
+                                                                                                         boltzman_k=boltzman_k,
                                                                                                          type="negative")
 
     generate_prompts(minio_client,
