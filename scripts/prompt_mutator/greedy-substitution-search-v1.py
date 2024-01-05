@@ -17,17 +17,17 @@ from tqdm import tqdm
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from training_worker.prompt_mutator.prompt_mutator_model import PromptMutator
+from training_worker.prompt_mutator.models.substitution_ranking_xgboost import XgboostSubstitutionModel
 from utility.ensemble.ensemble_helpers import Binning, SigmaScoresWithEntropy
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from utility.minio import cmd
 
-from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix, load_base_prompts
+from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix, load_base_prompts, generate_inpainting_job
 
 GENERATION_POLICY="greedy-substitution-search-v1"
-DATA_MINIO_DIRECTORY="environmental/data/prompt-generator/substitution"
+DATA_MINIO_DIRECTORY="data/prompt-generator/substitution"
 MAX_LENGTH=77
 
 def parse_args():
@@ -40,21 +40,19 @@ def parse_args():
     parser.add_argument('--send-job', action='store_true', default=False)
     parser.add_argument('--update-prompts', action='store_true', default=False)
     parser.add_argument('--dataset-name', default='test-generations')
+    parser.add_argument('--model-dataset', default='environmental')
     parser.add_argument('--scoring-model', help="elm or linear", default="linear")
     parser.add_argument('--sigma-threshold', type=float, help="threshold of rejection policy for increase of sigma score", default=-0.1)
+    parser.add_argument('--variance-weight', type=float, help="weight of variance when optimizing score", default=0.1)
     parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=80)
     parser.add_argument('--self-training', action='store_true', default=False)
     parser.add_argument('--store-embeddings', action='store_true', default=False)
     parser.add_argument('--store-token-lengths', action='store_true', default=False)
     parser.add_argument('--save-csv', action='store_true', default=False)
-    parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
-    parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=150)
+    parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0)
+    parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=128)
     parser.add_argument('--clip-batch-size', type=int, help="Batch size for clip embeddings", default=1000)
     parser.add_argument('--xgboost-batch-size', type=int, help="Batch size for xgboost model", default=100000)
-    parser.add_argument(
-        '--csv_base_prompts', help='CSV containing base prompts', 
-        default='input/dataset-config/environmental/base-prompts-environmental.csv'
-    )
 
     return parser.parse_args()
 
@@ -63,14 +61,24 @@ class PromptData:
                  positive_prompt,
                  negative_prompt,
                  positive_embedding,
+                 negative_embedding,
                  positive_score,
+                 variance_score,
+                 variance,
+                 entropy,
+                 mean,
                  positive_phrase_embeddings=None,
                  positive_phrase_token_lengths=None):
         
         self.positive_prompt=positive_prompt
         self.negative_prompt=negative_prompt
         self.positive_embedding= positive_embedding
+        self.negative_embedding= negative_embedding
         self.positive_score= positive_score
+        self.variance_score= variance_score
+        self.variance= variance
+        self.entropy= entropy
+        self.mean= mean
         self.positive_phrase_embeddings= positive_phrase_embeddings
         self.positive_phrase_token_lengths= positive_phrase_token_lengths
 
@@ -82,9 +90,11 @@ class PromptSubstitutionGenerator:
         minio_ip_addr,
         csv_phrase,
         csv_base_prompts,
+        model_dataset,
         scoring_model,
         max_iterations,
         sigma_threshold,
+        variance_weight,
         dataset_name,
         store_embeddings,
         store_token_lengths,
@@ -109,6 +119,10 @@ class PromptSubstitutionGenerator:
         self.average_score_by_iteration=np.zeros(self.max_iterations)
         # rejection threshold for increase in sigma score
         self.sigma_threshold= sigma_threshold
+        # variance weight for optimisation score
+        self.variance_weight= variance_weight
+        # name of dataset to generate for
+        self.model_dataset= model_dataset
         # name of dataset
         self.dataset_name=dataset_name
         # wheher to self training or not
@@ -158,7 +172,9 @@ class PromptSubstitutionGenerator:
         self.ensemble_models=self.get_ensemble_models()
 
         # load the xgboost model depending on what rejection policy is being used
-        self.substitution_model= PromptMutator(minio_client=self.minio_client, ranking_model=self.scoring_model)
+        self.substitution_model= XgboostSubstitutionModel(minio_client=self.minio_client, 
+                                                          ranking_model=self.scoring_model, 
+                                                          dataset=self.model_dataset)
         self.substitution_model.load_model()
 
         # store phrase embeddings in a file in minio 
@@ -198,9 +214,9 @@ class PromptSubstitutionGenerator:
     
     # load ensemble elm model for entropy calculation
     def get_ensemble_models(self):
-        input_path = "environmental/models/ranking/"
+        input_path = f"{self.model_dataset}/models/ranking/"
 
-        model_class = ABRankingELMModel
+        model_class = ABRankingModel
 
         # Get all model files
         model_files = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
@@ -208,7 +224,7 @@ class PromptSubstitutionGenerator:
         # Filter relevant model files
         relevant_models = [
             model_file for model_file in model_files
-            if model_file.endswith(f"score-elm-v1-embedding.pth")
+            if model_file.endswith(f"score-linear-embedding.safetensors")
         ]
 
         # Sort the model files by timestamp (assuming the file names include a timestamp)
@@ -231,7 +247,7 @@ class PromptSubstitutionGenerator:
 
             # Load the model
             embedding_model = model_class(768*2)
-            embedding_model.load_pth(byte_buffer)
+            embedding_model.load_safetensors(byte_buffer)
             embedding_model.model=embedding_model.model.to(self.device)
 
             loaded_models.append(embedding_model)
@@ -242,12 +258,12 @@ class PromptSubstitutionGenerator:
     def get_ensemble_sigma_scores(self, positive_embedding, negative_embedding):
         sigma_scores=[]
         for model in self.ensemble_models:
-            mean=model.mean
-            std=model.standard_deviation
+            mean=float(model.mean)
+            std=float(model.standard_deviation)
             with torch.no_grad():
                 score=model.predict_pooled_embeddings(positive_embedding,negative_embedding).item()
-                score=(score - mean)/std
             
+            score=(score - mean)/std
             sigma_scores.append(score)
         
         return np.array(sigma_scores)
@@ -268,9 +284,22 @@ class PromptSubstitutionGenerator:
 
         return entropy, variance, mean
 
+    def get_variance_score(self, positive_embedding, negative_embedding, score):
+        # convert embeddings to tensors
+        positive_embedding= torch.from_numpy(positive_embedding).to(self.device)
+        negative_embedding= torch.from_numpy(negative_embedding).to(self.device)
+
+        # get variance
+        entropy, variance, mean= self.get_prompt_entropy(positive_embedding, negative_embedding)
+
+        # get comibned variance score
+        variance_score= score + (self.variance_weight * variance)
+
+        return entropy, variance, mean, variance_score
+
     # load elm or linear scoring models
     def load_model(self, embedding_type, scoring_model="linear", input_size=768):
-        input_path="environmental/models/ranking/"
+        input_path=f"{self.model_dataset}/models/ranking/"
 
         if(scoring_model=="elm"):
             embedding_model = ABRankingELMModel(input_size)
@@ -328,10 +357,23 @@ class PromptSubstitutionGenerator:
         
         return embeddings
 
-    # get linear or elm score of an embedding
-    def get_prompt_score(self, embedding):
+    # get linear or elm positive score of an embedding
+    def get_positive_score(self, embedding):
+        embedding= torch.from_numpy(embedding).to(self.device).unsqueeze(0)
+
         with torch.no_grad():
-            prompt_score=self.positive_scorer.predict_positive_or_negative_only(embedding)
+            prompt_score=self.positive_scorer.predict_positive_or_negative_only_pooled(embedding)
+        
+        return prompt_score.item()
+    
+    # get linear or elm score of an embedding
+    def get_combined_score(self, positive_embedding, negative_embedding):
+        # convert embeddings to tensors
+        positive_embedding= torch.from_numpy(positive_embedding).to(self.device).unsqueeze(0)
+        negative_embedding= torch.from_numpy(negative_embedding).to(self.device).unsqueeze(0)
+
+        with torch.no_grad():
+            prompt_score=self.scorer.predict_pooled_embeddings(positive_embedding, negative_embedding)
         
         return prompt_score.item()
 
@@ -448,6 +490,7 @@ class PromptSubstitutionGenerator:
         for i in range(self.max_iterations):
             print(f"Iteration {i} -----------------------------")
             # return a list of potential substitution choices, filtered by the rejection policy
+            print("ranking the best substitution choices")
             prompt_substitutions=self.rejection_sampling(prompts)
 
             print("Mutating prompts")
@@ -468,8 +511,15 @@ class PromptSubstitutionGenerator:
 
                     #calculate modified prompt embedding and sigma score
                     modified_prompt_embedding=self.get_prompt_embedding(modified_prompt_str)
-                    modified_prompt_score= self.get_prompt_score(modified_prompt_embedding)
+                    modified_prompt_embedding=self.get_mean_pooled_embedding(modified_prompt_embedding)
+                    modified_prompt_score= self.get_positive_score(modified_prompt_embedding)
                     modified_prompt_score= (modified_prompt_score - self.positive_mean) / self.positive_std
+
+                    # get variance score
+                    entropy, variance, mean, variance_score= self.get_variance_score(modified_prompt_embedding,
+                                                                                     prompts[index].negative_embedding,
+                                                                                     modified_prompt_score
+                                                                                    )
 
                     # collect self training data
                     data=np.concatenate((prompts[index].positive_embedding, 
@@ -485,12 +535,16 @@ class PromptSubstitutionGenerator:
                     self_training_data.append(prompt_data)
 
                     # check if score improves
-                    if(prompts[index].positive_score < modified_prompt_score):
+                    if(prompts[index].variance_score < variance_score):
                         # if it does improve, the new prompt is saved and it jumps to the next iteration
                         prompts[index].positive_prompt= modified_prompt_str
-                        prompts[index].positive_embedding= self.get_mean_pooled_embedding(modified_prompt_embedding)
+                        prompts[index].positive_embedding= modified_prompt_embedding
                         prompts[index].positive_phrase_embeddings[position]= substitute_embedding
                         prompts[index].positive_score= modified_prompt_score
+                        prompts[index].variance_score= variance_score
+                        prompts[index].entropy= entropy
+                        prompts[index].variance= variance
+                        prompts[index].mean= mean
                         break
                 
                 self.average_score_by_iteration[i]+=prompts[index].positive_score
@@ -500,7 +554,7 @@ class PromptSubstitutionGenerator:
             self.average_score_by_iteration[i]=self.average_score_by_iteration[i] / num_prompts
             print(f"Average score: {self.average_score_by_iteration[i]}")
 
-        # taking top 10 training datapoints with highest delta
+        # taking top k training datapoints with highest delta
         self_training_data = sorted(self_training_data, key=lambda d: d['delta'], reverse=True)[:10 * len(prompts)]  
         
         end=time.time()
@@ -525,33 +579,47 @@ class PromptSubstitutionGenerator:
       
         # mutate prompts one by one
         for prompt in prompts:
-            # get negative prompt embedding
-            negative_embedding=self.get_prompt_embedding(prompt.negative_prompt)
-            negative_embedding=self.get_mean_pooled_embedding(negative_embedding)
-            negative_embedding=torch.from_numpy(negative_embedding).to(self.device)
-
-            # get positive prompt embedding
-            positive_embedding= torch.from_numpy(prompt.positive_embedding).to(self.device)
-
             # calculate combined prompt score
-            with torch.no_grad():
-                prompt_score = self.scorer.predict_pooled_embeddings(positive_embedding, negative_embedding).item()
-
-            # calculate mean, entropy and variance
-            entropy, variance, mean= self.get_prompt_entropy(positive_embedding, negative_embedding)
+            prompt_score=self.get_combined_score(prompt.positive_embedding, prompt.negative_embedding)
+            sigma_score= (prompt_score - self.mean) / self.std
            
             # sending a job to generate an image with the mutated prompt
             if self.send_job:
                 try:
-                    response = generate_image_generation_jobs(
-                        positive_prompt=prompt.positive_prompt,
-                        negative_prompt=prompt.negative_prompt,
-                        prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
-                        prompt_score=prompt_score,
-                        prompt_generation_policy=GENERATION_POLICY,
-                        top_k='',
-                        dataset_name=self.dataset_name
-                    )
+                    if self.model_dataset in ["environmental", "propaganda-poster"]:
+                        response = generate_image_generation_jobs(
+                            positive_prompt=prompt.positive_prompt,
+                            negative_prompt=prompt.negative_prompt,
+                            prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
+                            prompt_score=prompt_score,
+                            prompt_generation_policy=GENERATION_POLICY,
+                            top_k='',
+                            dataset_name=self.dataset_name
+                        )
+
+                    elif self.model_dataset in ["icons", "mech"]:
+                        response = generate_inpainting_job(
+                            positive_prompt=prompt.positive_prompt,
+                            negative_prompt=prompt.negative_prompt,
+                            prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
+                            prompt_score=prompt_score,
+                            prompt_generation_policy=GENERATION_POLICY,
+                            top_k='',
+                            dataset_name=self.dataset_name
+                        )
+                        
+                    elif self.model_dataset in ["character", "waifu"]:
+                        response = generate_inpainting_job(
+                            positive_prompt=prompt.positive_prompt,
+                            negative_prompt=prompt.negative_prompt,
+                            prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
+                            prompt_score=prompt_score,
+                            prompt_generation_policy=GENERATION_POLICY,
+                            top_k='',
+                            dataset_name=self.dataset_name,
+                            mask_path = "./test/test_inpainting/character_mask"
+                        ) 
+
                     task_uuid = response['uuid']
                     task_time = response['creation_time']
                 except:
@@ -565,15 +633,16 @@ class PromptSubstitutionGenerator:
                 df_data.append({
                     'task_uuid': task_uuid,
                     'score': prompt_score,
-                    'entropy': entropy,
-                    'variance': variance,
-                    'mean': mean,
+                    'sigma_score': sigma_score,
+                    'entropy': prompt.entropy,
+                    'variance': prompt.variance,
+                    'mean': prompt.mean,
                     'positive_prompt': prompt.positive_prompt,
                     'negative_prompt': prompt.negative_prompt,
                     'generation_policy_string': GENERATION_POLICY,
                     'time': task_time
                 })
-            
+
             index+=1
 
         print(f"time taken for {num_images} prompts is {end - start:.2f} seconds")
@@ -628,29 +697,31 @@ class PromptSubstitutionGenerator:
             negative_token_lengths = [self.embedder.compute_token_length(prompt) for prompt in negative_prompts]
 
             # Filter out prompts with too many tokens
-            valid_indices = [i for i in range(len(positive_token_lengths)) if positive_token_lengths[i] <= 77 and negative_token_lengths[i] <= 77]
+            valid_positive_indices = [i for i in range(len(positive_token_lengths)) if positive_token_lengths[i] <= 77 and negative_token_lengths[i] <= 77]
+            valid_negative_indices = [i for i in range(len(negative_token_lengths)) if negative_token_lengths[i] <= 77 and negative_token_lengths[i] <= 77]
 
             # Process only valid prompts
-            valid_positive_prompts = [positive_prompts[i] for i in valid_indices]
-            #valid_negative_prompts = [negative_prompts[i] for i in valid_indices]
+            valid_positive_prompts = [positive_prompts[i] for i in valid_positive_indices]
+            valid_negative_prompts = [negative_prompts[i] for i in valid_negative_indices]
 
             # Get embeddings for the batch
             start=time.time()
             positive_embeddings = self.get_prompt_embedding(valid_positive_prompts)
+            negative_embeddings = self.get_prompt_embedding(valid_negative_prompts)
             end= time.time()
 
             clip_time+= end-start
 
             # Normalize scores and calculate mean pooled embeddings for the batch
-            for i, index in enumerate(valid_indices):
-                # Calculate scores for the batch
-                with torch.no_grad():
-                    positive_score = self.positive_scorer.predict_positive_or_negative_only(positive_embeddings[i].unsqueeze(0))
-
-                positive_score = (positive_score.item() - self.positive_mean) / self.positive_std
-
+            for i, index in enumerate(valid_positive_indices):
                 # Mean pooling and other processing
                 positive_embedding = self.get_mean_pooled_embedding(positive_embeddings[i].unsqueeze(0))
+                negative_embedding = self.get_mean_pooled_embedding(negative_embeddings[i].unsqueeze(0))
+                
+                # calculate positive score and variance score
+                positive_score=self.get_positive_score(positive_embedding)
+                positive_score = (positive_score - self.positive_mean) / self.positive_std
+                entropy, variance, mean, variance_score= self.get_variance_score(positive_embedding, negative_embedding, positive_score)
 
                 # Storing prompt data
                 prompt = prompt_batch[index]
@@ -662,7 +733,12 @@ class PromptSubstitutionGenerator:
                     positive_prompt=prompt.positive_prompt_str,
                     negative_prompt=prompt.negative_prompt_str,
                     positive_embedding=positive_embedding,
-                    positive_score=positive_score
+                    negative_embedding=negative_embedding,
+                    positive_score=positive_score,
+                    variance_score=variance_score,
+                    variance=variance,
+                    entropy=entropy,
+                    mean=mean
                 ))
            
         # Sort and select prompts
@@ -714,7 +790,7 @@ class PromptSubstitutionGenerator:
 
     # store list of initial prompts in a csv to use for prompt mutation
     def store_prompts_in_csv_file(self, data):
-        minio_path="environmental/output/generated-prompts-csv"
+        minio_path=f"{self.model_dataset}/output/generated-prompts-csv"
         local_path="output/generated_prompts.csv"
         pd.DataFrame(data).to_csv(local_path, index=False)
         # Read the contents of the CSV file
@@ -726,7 +802,7 @@ class PromptSubstitutionGenerator:
         buffer.seek(0)
 
         current_date=datetime.now().strftime("%Y-%m-%d-%H:%M")
-        minio_path= minio_path + f"/{current_date}-{GENERATION_POLICY}-environmental.csv"
+        minio_path= minio_path + f"/{current_date}-{GENERATION_POLICY}-{self.model_dataset}.csv"
         cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
         # Remove the temporary file
         os.remove(local_path)
@@ -971,7 +1047,7 @@ class PromptSubstitutionGenerator:
     # get civitai phrase embeddings from minIO
     def load_phrase_embeddings(self):
         # Get the file data from MinIO
-        minio_path = DATA_MINIO_DIRECTORY + f"/input/phrase_embeddings.npz"
+        minio_path = "environmental/data/prompt-generator/substitution/input/phrase_embeddings.npz"
         file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', minio_path)
 
         # Create a BytesIO object and write the downloaded content into it
@@ -990,7 +1066,7 @@ class PromptSubstitutionGenerator:
     # get civitai phrase token lengths, calculated by the tokenizer
     def load_phrase_token_lengths(self):
         # Get the file data from MinIO
-        minio_path = DATA_MINIO_DIRECTORY + f"/input/token_lengths.csv"
+        minio_path = "environmental/data/prompt-generator/substitution/input/token_lengths.csv"
         # Download the file from MinIO
         try:
             data = cmd.get_file_from_minio(self.minio_client, 'datasets', minio_path)
@@ -1010,14 +1086,33 @@ class PromptSubstitutionGenerator:
 
 def main():
     args = parse_args()
+
+    # set the minio data path
+    global DATA_MINIO_DIRECTORY
+    DATA_MINIO_DIRECTORY= f"{args.model_dataset}/" + DATA_MINIO_DIRECTORY
+
+    # set the base prompts csv path
+    if(args.model_dataset=="icons"):
+        csv_base_prompts='input/dataset-config/icon/base-prompts-dsp.csv'
+    elif(args.model_dataset=="propaganda-poster"):
+        csv_base_prompts='input/dataset-config/propaganda-poster/base-prompts-propaganda-poster.csv'
+    elif(args.model_dataset=="mech"):
+        csv_base_prompts='input/dataset-config/mech/base-prompts-dsp.csv'
+    elif(args.model_dataset=="character" or args.model_dataset=="waifu"):
+        csv_base_prompts='input/dataset-config/character/base-prompts-waifu.csv'
+    elif(args.model_dataset=="environmental"):  
+        csv_base_prompts='input/dataset-config/environmental/base-prompts-environmental.csv'
+
     prompt_mutator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
                                   minio_secret_key=args.minio_secret_key,
                                   minio_ip_addr=args.minio_addr,
                                   csv_phrase=args.csv_phrase,
-                                  csv_base_prompts=args.csv_base_prompts,
+                                  csv_base_prompts=csv_base_prompts,
+                                  model_dataset=args.model_dataset,
                                   scoring_model=args.scoring_model,
                                   max_iterations=args.max_iterations,
                                   sigma_threshold=args.sigma_threshold,
+                                  variance_weight=args.variance_weight,
                                   dataset_name=args.dataset_name,
                                   store_embeddings=args.store_embeddings,
                                   store_token_lengths=args.store_token_lengths,

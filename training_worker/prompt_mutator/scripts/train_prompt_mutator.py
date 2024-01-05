@@ -115,15 +115,18 @@ def get_token_length(embedder, phrase):
     return num_tokens
 
 # function to get a random phrase from civitai with a max token size for substitutions
-def choose_random_phrase(phrase_list, phrase_token_lengths, max_token_length):
-    num_phrases=len(phrase_list)
-    phrase_token_length=max_token_length + 1
-    while(phrase_token_length > max_token_length):
-        random_index=random.randrange(0, num_phrases-1)
+def choose_random_substitution(embedder, phrase_list, prompt_list, position_to_substitute, max_token_length=77):
+    prompt_token_length=max_token_length + 1
+    
+    while(prompt_token_length > max_token_length):
+        random_index=random.randrange(0, len(phrase_list))
         phrase= phrase_list[random_index]
-        phrase_token_length=phrase_token_lengths[random_index]
 
-    return phrase
+        prompt_list[position_to_substitute] = phrase
+        modified_prompt = ", ".join(prompt_list)
+        prompt_token_length= embedder.compute_token_length(modified_prompt)
+    
+    return phrase, modified_prompt
 
 def store_in_csv_file(csv_data, minio_client, embedding_type, operation):
     # Save data to a CSV file
@@ -314,10 +317,8 @@ def create_substitution_dataset(minio_client, device, csv_path, embedding_type, 
     clip.load_submodels()
 
     # get dataset of phrases
-    phrases_df = pd.read_csv(csv_path)
+    phrases_df = pd.read_csv(csv_path).sort_values(by="index")
     phrase_list=phrases_df['phrase str'].tolist()
-    # get token lengths for each phrase
-    phrase_token_lengths=load_phrase_token_lengths(minio_client)
 
     # get ranking mondel
     elm_model= load_model(768,minio_client, device, 'elm-v1', embedding_type, dataset)
@@ -365,16 +366,12 @@ def create_substitution_dataset(minio_client, device, csv_path, embedding_type, 
         substituted_phrase=prompt_list[position_to_substitute]
         
         # Randomly select a phrase from the dataset and get an embedding
-        max_token_length= get_token_length(clip, substituted_phrase)
-        substitute_phrase= choose_random_phrase(phrase_list, phrase_token_lengths, max_token_length)
+        substitute_phrase, modified_prompt= choose_random_substitution(clip, phrase_list, prompt_list, position_to_substitute)
+        
         # get substitute and substituted phrase embedding
         with torch.no_grad():
                 substitute_embedding= clip.forward(substitute_phrase).unsqueeze(0)
                 substituted_embedding= clip.forward(substituted_phrase).unsqueeze(0)
-        
-        # getting prompt after substitution
-        prompt_list[position_to_substitute] = substitute_phrase
-        modified_prompt = ", ".join(prompt_list)
 
         # Get embedding of mutated prompt
         with torch.no_grad():
