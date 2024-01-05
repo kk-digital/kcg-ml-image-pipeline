@@ -46,7 +46,7 @@ class DatasetLoader(Dataset):
 
 class LinearSubstitutionModel(nn.Module):
     def __init__(self, minio_client, input_size, hidden_sizes=[1024, 512], output_size=1, output_type="sigma_score", prompt_type="positive",
-                 ranking_model="elm", operation="substitution", dataset="environmental", learning_rate=0.01, 
+                 ranking_model="elm", operation="substitution", dataset="environmental", learning_rate=0.001, 
                  validation_split=0.2):
         
         super(LinearSubstitutionModel, self).__init__()
