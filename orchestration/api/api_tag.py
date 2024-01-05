@@ -172,7 +172,7 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_cre
 
 @router.post("/tags/add_tag_to_image-v1", response_model=ImageTag, response_class=PrettyJSONResponse)
 def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_created: str):
-    response_handler = ApiResponseHandler("/tags/add_tag_to_image")
+    response_handler = ApiResponseHandler(request)
     try:
         date_now = datetime.now().isoformat()
     
@@ -185,27 +185,29 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_cre
             return response_handler.create_error_response(ErrorCode.ELEMENT_NOT_FOUND, "No image found with the given hash", 400)
 
         file_path = image.get("task_output_file_dict", {}).get("output_file_path", "")
+        
+        # Check if the tag is already associated with the image
         existing_image_tag = request.app.image_tags_collection.find_one({"tag_id": tag_id, "image_hash": file_hash})
-
         if existing_image_tag:
-            new_tag_count = existing_image_tag["tag_count"] + 1
-            request.app.image_tags_collection.update_one({"_id": existing_image_tag["_id"]}, {"$set": {"tag_count": new_tag_count}})
-        else:
-            new_tag_count = 1
-            image_tag_data = {
-                "tag_id": tag_id,
-                "file_path": file_path,  
-                "image_hash": file_hash,
-                "user_who_created": user_who_created,
-                "creation_time": date_now,
-                "tag_count": new_tag_count
-            }
-            request.app.image_tags_collection.insert_one(image_tag_data)
+            # Return an error response indicating that the tag has already been added to the image
+            return response_handler.create_error_response(ErrorCode.INVALID_PARAMS, "This tag has already been added to the image", 400)
 
-        return response_handler.create_success_response({"tag_id": tag_id, "file_path": file_path, "image_hash": file_hash, "tag_count": new_tag_count, "user_who_created": user_who_created, "creation_time": date_now})
+        # Add new tag to image
+        image_tag_data = {
+            "tag_id": tag_id,
+            "file_path": file_path,  
+            "image_hash": file_hash,
+            "user_who_created": user_who_created,
+            "creation_time": date_now,
+            "tag_count": 1  # Since this is a new tag for this image, set count to 1
+        }
+        request.app.image_tags_collection.insert_one(image_tag_data)
+
+        return response_handler.create_success_response({"tag_id": tag_id, "file_path": file_path, "image_hash": file_hash, "tag_count": 1, "user_who_created": user_who_created, "creation_time": date_now})
 
     except Exception as e:
-        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, str(e), 500)
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
+
 
 
 @router.delete("/tags/remove_tag_from_image")
@@ -226,28 +228,33 @@ def remove_image_tag(
 
 @router.delete("/tags/remove_tag_from_image-v1", response_class=PrettyJSONResponse)
 def remove_image_tag(request: Request, image_hash: str, tag_id: int):
-    response_handler = ApiResponseHandler("/tags/remove_tag_from_image")
+    response_handler = ApiResponseHandler(request)
     try:
-        was_present = False
         existing_image_tag = request.app.image_tags_collection.find_one({
             "tag_id": tag_id, 
             "image_hash": image_hash
         })
 
         if existing_image_tag:
-            was_present = True
-            new_tag_count = max(existing_image_tag["tag_count"] - 1, 0)
+            # Check if the tag count is already zero
+            if existing_image_tag["tag_count"] == 0:
+                return response_handler.create_error_response(ErrorCode.ELEMENT_NOT_FOUND, "This image is not tagged with the given tag", 404)
+
+            # Set tag count to zero and delete the tag association
             request.app.image_tags_collection.update_one(
                 {"_id": existing_image_tag["_id"]},
-                {"$set": {"tag_count": new_tag_count}}
+                {"$set": {"tag_count": 0}}
             )
+            request.app.image_tags_collection.delete_one({"_id": existing_image_tag["_id"]})
+            was_present = True
         else:
-            return response_handler.create_error_response(ErrorCode.ELEMENT_NOT_FOUND, "Tag or image hash not found!", 404)
+            was_present = False
 
-        return response_handler.create_success_response({"wasPresent": was_present, "tag_count": new_tag_count if was_present else 0})
+        return response_handler.create_success_response({"wasPresent": was_present, "tag_count": 0 if was_present else None})
 
     except Exception as e:
-        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, str(e), 500)
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
+
 
 
 
