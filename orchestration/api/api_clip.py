@@ -112,7 +112,7 @@ def add_phrase(request: Request, phrase: str):
 
         # Assuming the response includes the clip vector or is None
         clip_vector = response.get("clip_vector") if response else None
-        return response_handler.create_success_response({"clip_vector": clip_vector}, headers={"Cache-Control": "no-store"})
+        return response_handler.create_success_response({"clip_vector": clip_vector}, http_status_code = 201, headers={"Cache-Control": "no-store"}, )
 
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -135,7 +135,7 @@ def get_clip_vector(request: Request, phrase: str):
         if vector is None:
             return response_handler.create_error_response(ErrorCode.ELEMENT_NOT_FOUND, "Phrase not found", status.HTTP_404_NOT_FOUND)
 
-        return response_handler.create_success_response({"vector": vector}, headers={"Cache-Control": "no-store"})
+        return response_handler.create_success_response({"vector": vector}, http_status_code=200, headers={"Cache-Control": "no-store"})
 
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -371,7 +371,7 @@ def check_clip_server_status(request: Request):
     try:
         response = requests.get(CLIP_SERVER_ADDRESS)
         reachable = response.status_code == 200
-        return response_handler.create_success_delete_response(reachable)
+        return response_handler.create_success_response({"reachable": reachable}, http_status_code=200, headers={"Cache-Control": "no-store"})
     except requests.exceptions.RequestException as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "CLIP server is not reachable", 503)
 
