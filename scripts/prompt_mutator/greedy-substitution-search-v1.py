@@ -24,7 +24,7 @@ from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from utility.minio import cmd
 
-from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix, load_base_prompts, generate_inpainting_job
+from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix, generate_prompts_from_csv_proportional_selection, load_base_prompts, generate_inpainting_job
 
 GENERATION_POLICY="greedy-substitution-search-v1"
 DATA_MINIO_DIRECTORY="data/prompt-generator/substitution"
@@ -873,8 +873,7 @@ class PromptSubstitutionGenerator:
         print("---------generating initial prompts")
         # number of prompts to generate
         prompt_count= int(num_prompts / self.top_k) if num_prompts>10 else 100
-        prompts = generate_prompts_from_csv_with_base_prompt_prefix(csv_dataset_path=self.csv_phrase,
-                                                               csv_base_prompts_path=self.csv_base_prompts,
+        prompts = generate_prompts_from_csv_proportional_selection(csv_dataset_path=self.csv_phrase,
                                                                prompt_count=prompt_count)
         prompt_data=[]
         clip_time=0
@@ -950,7 +949,7 @@ class PromptSubstitutionGenerator:
 
         total_end=time.time() 
         self.generation_time= total_end - total_start  
-        self.clip_speed= num_prompts / clip_time
+        self.clip_speed= (num_prompts * 2) / clip_time
 
         return chosen_scored_prompts
 
