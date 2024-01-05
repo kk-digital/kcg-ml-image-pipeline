@@ -5,6 +5,8 @@ from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 from enum import Enum
 import time
+from fastapi import Request
+
 
 class PrettyJSONResponse(Response):
     media_type = "application/json"
@@ -24,8 +26,8 @@ class ErrorCode(Enum):
     INVALID_PARAMS = 3
 
 class ApiResponseHandler:
-    def __init__(self, url: str):
-        self.url = url
+    def __init__(self, request: Request):
+        self.url = str(request.url)
         self.start_time = time.time()
 
     def _elapsed_time(self) -> float:
@@ -38,10 +40,9 @@ class ApiResponseHandler:
             "response": response_data
         }
         if headers:
-            return PrettyJSONResponse(status_code=200, content=response_content, headers=headers)
+            return PrettyJSONResponse(status_code=201, content=response_content, headers=headers)
         else:
-            return PrettyJSONResponse(status_code=200, content=response_content)
-
+            return PrettyJSONResponse(status_code=201, content=response_content)
 
     def create_success_delete_response(self, reachable: bool):
         return PrettyJSONResponse(
@@ -64,4 +65,5 @@ class ApiResponseHandler:
                 "errorString": error_string
             }
         )
+
      
