@@ -6,9 +6,7 @@ import random
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from utility.boltzman.boltzman_phrase_scores_loader import BoltzmanPhraseScoresLoader
-from utility.boltzman.boltzman import (get_cumulative_probability_arr_without_upload,
-                                        generate_prompts_array)
+from utility.boltzman.boltzman import (get_cumulative_probability_arr_without_upload)
 
 # Helper class that generates prompts using
 # Indenpendent approx v1
