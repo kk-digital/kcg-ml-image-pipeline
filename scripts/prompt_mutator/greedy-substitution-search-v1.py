@@ -871,9 +871,11 @@ class PromptSubstitutionGenerator:
     def generate_initial_prompts(self, num_prompts):
         total_start=time.time()
         print("---------generating initial prompts")
+        # number of prompts to generate
+        prompt_count= int(num_prompts / self.top_k) if num_prompts>100 else 1000
         prompts = generate_prompts_from_csv_with_base_prompt_prefix(csv_dataset_path=self.csv_phrase,
                                                                csv_base_prompts_path=self.csv_base_prompts,
-                                                               prompt_count=int(num_prompts / self.top_k))
+                                                               prompt_count=prompt_count)
         prompt_data=[]
         clip_time=0
         # calculate scores and rank
