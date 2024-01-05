@@ -691,11 +691,8 @@ class PromptSubstitutionGenerator:
         
     # function to return prompt progression in mutation
     def prompt_mutation_progression(self, prompts):
-        start= time.time()
-        # self training datapoints
-        self_training_data=[]
         num_prompts=len(prompts)
-        prompt_progression=[]
+        prompt_progression= [[] for _ in range(prompts)]
 
         # run mutation process for a set number of iterations
         for i in range(self.max_iterations):
@@ -712,8 +709,6 @@ class PromptSubstitutionGenerator:
                     position=substitution['position']
                     substitute_phrase=substitution['substitute_phrase']
                     substitute_embedding=substitution['substitute_embedding']
-                    substituted_embedding=substitution['substituted_embedding']
-                    predicted_score=substitution['score']
 
                     #Create a modified prompt with the substitution
                     prompt_list = prompts[index].positive_prompt.split(', ')
@@ -732,19 +727,6 @@ class PromptSubstitutionGenerator:
                                                                                      modified_prompt_score
                                                                                     )
 
-                    # collect self training data
-                    data=np.concatenate((prompts[index].positive_embedding, 
-                                         substituted_embedding, 
-                                         substitute_embedding)).tolist(),
-                    prompt_data={
-                        'input': data[0],
-                        'position_encoding': position,
-                        'score_encoding': prompts[index].positive_prompt,
-                        'output': modified_prompt_score,
-                        'delta': abs(modified_prompt_score - predicted_score)
-                    }
-                    self_training_data.append(prompt_data)
-
                     # check if score improves
                     if(prompts[index].variance_score < variance_score):
                         # if it does improve, the new prompt is saved and it jumps to the next iteration
@@ -759,25 +741,130 @@ class PromptSubstitutionGenerator:
                         break
                 
                 self.average_score_by_iteration[i]+=prompts[index].positive_score
-                prompt_progression[index].append()
+
+                prompt_progression[index].append({
+                    "prompt": prompts[index].positive_prompt,
+                    "positive_embedding":prompts[index].positive_embedding, 
+                    "negative_embedding":prompts[index].negative_embedding,
+                    "entropy": prompts[index].entropy,
+                    "variance": prompts[index].variance,
+                    "mean": prompts[index].mean
+                })
                 index+=1
             
             # save average score for current iteration
             self.average_score_by_iteration[i]=self.average_score_by_iteration[i] / num_prompts
             print(f"Average score: {self.average_score_by_iteration[i]}")
 
-        # taking top k training datapoints with highest delta
-        self_training_data = sorted(self_training_data, key=lambda d: d['delta'], reverse=True)[:10 * len(prompts)]  
-        
-        end=time.time()
-        self.mutation_time= end-start
-        self.inference_speed= self.inference_speed / self.max_iterations
-
-        return prompts, self_training_data
+        return prompt_progression
     
     # function to generate images each iteration
     def generate_image_progression(self, num_images):
-        pass
+        # dataframe for saving csv of generated prompts
+        df_data=[]
+        index=0
+
+        start=time.time()
+        # get initial prompts
+        prompt_list = self.generate_initial_prompts(num_images)
+
+        #mutate positive prompts
+        prompts_progression= self.prompt_mutation_progression(prompt_list)
+        end=time.time()
+      
+        # mutate prompts one by one
+        for prompt_index, prompt_progres in enumerate(prompts_progression):
+
+            for iteration, prompt in enumerate(prompt_progres):
+                # calculate combined prompt score
+                prompt_score=self.get_combined_score(prompt['positive_embedding'], prompt['negative_embedding'])
+                sigma_score= (prompt_score - self.mean) / self.std
+            
+                # sending a job to generate an image with the mutated prompt
+                if self.send_job:
+                    try:
+                        if self.model_dataset in ["environmental", "propaganda-poster", "waifu"]:
+                            response = generate_image_generation_jobs(
+                                positive_prompt=prompt['positive_prompt'],
+                                negative_prompt=prompt['negative_prompt'],
+                                prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
+                                prompt_score=prompt_score,
+                                prompt_generation_policy=GENERATION_POLICY,
+                                top_k='',
+                                dataset_name=self.dataset_name
+                            )
+
+                        elif self.model_dataset in ["icons"]:
+                            response = generate_inpainting_job(
+                                positive_prompt=prompt['positive_prompt'],
+                                negative_prompt=prompt['negative_prompt'],
+                                prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
+                                prompt_score=prompt_score,
+                                prompt_generation_policy=GENERATION_POLICY,
+                                top_k='',
+                                dataset_name=self.dataset_name,
+                                init_img_path="./test/test_inpainting/white_512x512.jpg",
+                                mask_path="./test/test_inpainting/icon_mask.png"
+                            )
+                        
+                        elif self.model_dataset in ["mech"]:
+                            response = generate_inpainting_job(
+                                positive_prompt=prompt['positive_prompt'],
+                                negative_prompt=prompt['negative_prompt'],
+                                prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
+                                prompt_score=prompt_score,
+                                prompt_generation_policy=GENERATION_POLICY,
+                                top_k='',
+                                dataset_name=self.dataset_name,
+                                init_img_path="./test/test_inpainting/white_512x512.jpg",
+                                mask_path="./input/mask/mech/mech_mask_2x2.png"
+                            )
+                            
+                        elif self.model_dataset in ["character"]:
+                            response = generate_inpainting_job(
+                                positive_prompt=prompt['positive_prompt'],
+                                negative_prompt=prompt['negative_prompt'],
+                                prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
+                                prompt_score=prompt_score,
+                                prompt_generation_policy=GENERATION_POLICY,
+                                top_k='',
+                                dataset_name=self.dataset_name,
+                                init_img_path="./test/test_inpainting/white_512x512.jpg",
+                                mask_path = "./test/test_inpainting/character_mask.png"
+                            ) 
+
+                        task_uuid = response['uuid']
+                        task_time = response['creation_time']
+                    except:
+                        print('Error occured:')
+                        print(traceback.format_exc())
+                        task_uuid = -1
+                        task_time = -1
+
+                if self.save_csv:   
+                    # storing job data to put in csv file later
+                    df_data.append({
+                        'task_uuid': task_uuid,
+                        'prompt_index': prompt_index + 1,
+                        'iteration': iteration + 1,
+                        'score': prompt_score,
+                        'sigma_score': sigma_score,
+                        'entropy': prompt['entropy'],
+                        'variance': prompt['variance'],
+                        'mean': prompt['mean'],
+                        'positive_prompt': prompt['positive_prompt'],
+                        'negative_prompt': prompt['negative_prompt'],
+                        'generation_policy_string': GENERATION_POLICY,
+                        'time': task_time
+                    })
+
+                index+=1
+
+            print(f"time taken for {num_images} prompts is {end - start:.2f} seconds")
+
+            # save generated prompts in csv
+            if self.save_csv:
+                self.store_prompts_in_csv_file(df_data)
 
     # generate initial prompts with top k
     def generate_initial_prompts(self, num_prompts):
