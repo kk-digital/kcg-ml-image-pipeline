@@ -692,7 +692,7 @@ class PromptSubstitutionGenerator:
     # function to return prompt progression in mutation
     def prompt_mutation_progression(self, prompts):
         num_prompts=len(prompts)
-        prompt_progression= [[] for _ in range(prompts)]
+        prompt_progression= [[] for _ in range(num_prompts)]
 
         # run mutation process for a set number of iterations
         for i in range(self.max_iterations):
