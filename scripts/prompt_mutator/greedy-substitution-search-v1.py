@@ -861,11 +861,11 @@ class PromptSubstitutionGenerator:
 
                 index+=1
 
-            print(f"time taken for {num_images} prompts is {end - start:.2f} seconds")
+        print(f"time taken for {num_images} prompts is {end - start:.2f} seconds")
 
-            # save generated prompts in csv
-            if self.save_csv:
-                self.store_prompts_in_csv_file(df_data)
+        # save generated prompts in csv
+        if self.save_csv:
+            self.store_prompts_in_csv_file(df_data)
 
     # generate initial prompts with top k
     def generate_initial_prompts(self, num_prompts):
