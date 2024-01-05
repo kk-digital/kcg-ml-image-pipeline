@@ -180,11 +180,15 @@ class PromptGenerationPromptQueue:
                 pr = self.generate_prompts_independent_approx_v1(dataset, 1, boltzman_temperature, boltzman_k)
 
                 for prompt in pr:
+                    pr['boltzman_temperature'] = boltzman_temperature
+                    pr['boltzman_k'] = boltzman_k
                     prompts.append(prompt)
 
             prompt_list = []
 
             for prompt in prompts:
+                boltzman_temperature = prompt['boltzman_temperature']
+                boltzman_k = prompt['boltzman_k']
                 prompt_list.append(ScoredPrompt(0,
                                                 prompt['positive_prompt'],
                                                 prompt['negative_prompt'],
