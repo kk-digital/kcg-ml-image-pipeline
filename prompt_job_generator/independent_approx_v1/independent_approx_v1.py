@@ -58,7 +58,9 @@ class IndependentApproxV1:
             return []
 
         boltzman_probabilities = self.probabilities_cache.get_boltzman_probabilities(boltzman_temperature=boltzman_temperature,
-                                                            boltzman_k=boltzman_k)
+                                                                                     boltzman_k=boltzman_k,
+                                                                                     positive_phrase_scores_loader=self.positive_phrase_scores_loader,
+                                                                                     negative_phrase_scores_loader=self.negative_phrase_scores_loader)
         positive_phrase_origin_indexes = boltzman_probabilities.positive_phrase_origin_indexes
         positive_cumulative_probability_arr = boltzman_probabilities.positive_cumulative_probability_arr
 
