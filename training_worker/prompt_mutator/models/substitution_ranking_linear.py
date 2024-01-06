@@ -26,7 +26,7 @@ class DatasetLoader(Dataset):
         """
         # Convert the data to torch.FloatTensor as it is the standard data type for floats in PyTorch
         self.features = torch.FloatTensor(np.array(features))
-        self.labels = torch.FloatTensor(np.array(features))
+        self.labels = torch.FloatTensor(np.array(labels))
 
         print(f"features shape {self.features.shape}")
         print(f"targets shape {self.labels.shape}")
