@@ -20,7 +20,7 @@ minio
 blendmodes
 scikit-image
 lark
-diffusers
+diffusers==0.24.0
 termcolor
 msgpack
 matplotlib==3.7.1

@@ -77,9 +77,12 @@ def generate_prompt(positive_phrase_scores_loader,
     while positive_prompt_total_token_size < max_token_size:
         random_float = random.uniform(positive_cumulative_probability_arr_min,
                                       positive_cumulative_probability_arr_max)
+        x_rand = random_float
         random_index = find_first_element_binary_search(positive_cumulative_probability_arr, random_float)
-        if random_index in positive_used_phrase_dict:
-            continue
+        while random_index in positive_used_phrase_dict:
+            y_rand = random.uniform(0.0, (1.0 - x_rand))
+            x_rand = x_rand + y_rand
+            random_index = find_first_element_binary_search(positive_cumulative_probability_arr, x_rand)
 
         prompt_index = positive_phrase_origin_indexes[random_index]
         random_phrase = positive_phrase_scores_loader.get_phrase(prompt_index)
@@ -100,10 +103,12 @@ def generate_prompt(positive_phrase_scores_loader,
     while negative_prompt_total_token_size < max_token_size:
         random_float = random.uniform(negative_cumulative_probability_arr_min,
                                       negative_cumulative_probability_arr_max)
+        x_rand = random_float
         random_index = find_first_element_binary_search(negative_cumulative_probability_arr, random_float)
-        if random_index in negative_used_phrase_dict:
-            # print("float={} index={}", random_float, random_index)
-            continue
+        while random_index in negative_used_phrase_dict:
+            y_rand = random.uniform(0.0, (1.0 - x_rand))
+            x_rand = x_rand + y_rand
+            random_index = find_first_element_binary_search(negative_cumulative_probability_arr, x_rand)
 
         prompt_index = negative_phrase_origin_indexes[random_index]
         random_phrase = negative_phrase_scores_loader.get_phrase(prompt_index)

@@ -14,7 +14,7 @@ sys.path.insert(0, base_directory)
 
 from utility.minio import cmd
 
-class PromptMutator:
+class XgboostSubstitutionModel:
     def __init__(self, minio_client, model=None, output_type="sigma_score", prompt_type="positive",
                  ranking_model="elm", operation="substitution", dataset="environmental"):
         self.model = model
