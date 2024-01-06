@@ -25,8 +25,11 @@ class DatasetLoader(Dataset):
         :param labels: A NumPy array of the corresponding labels.
         """
         # Convert the data to torch.FloatTensor as it is the standard data type for floats in PyTorch
-        self.features = torch.FloatTensor(features)
-        self.labels = torch.FloatTensor(labels)
+        self.features = torch.FloatTensor(np.array(features))
+        self.labels = torch.FloatTensor(np.array(features))
+
+        print(f"features shape {self.features.shape}")
+        print(f"targets shape {self.labels.shape}")
 
     def __len__(self):
         """
@@ -120,7 +123,9 @@ class LinearSubstitutionModel(nn.Module):
                     inputs = inputs.to(self._device)
                     targets = targets.to(self._device)
 
-                    outputs = self.model(inputs.squeeze())
+                    print(inputs.shape , targets.shape)
+
+                    outputs = self.model(inputs)
                     loss = criterion(outputs, targets)
 
                     total_val_loss += loss.item() * inputs.size(0)
@@ -134,8 +139,10 @@ class LinearSubstitutionModel(nn.Module):
                 inputs = inputs.to(self._device)
                 targets = targets.to(self._device)
 
+                print(inputs.shape, targets.shape)
+
                 optimizer.zero_grad()
-                outputs = self.model(inputs.squeeze())
+                outputs = self.model(inputs)
                 loss = criterion(outputs, targets)
                 loss.backward()
                 optimizer.step()

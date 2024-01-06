@@ -159,7 +159,7 @@ class SelfTrainingPromptMutator:
         inputs=[]
         outputs=[]
         for d in data:
-            input=np.concatenate([d['input'], [d['score_encoding']]])
+            input=np.concatenate([d['input'], [d['score_encoding']]]).tolist()
             inputs.append(input)
             outputs.append(d['output'])
         
