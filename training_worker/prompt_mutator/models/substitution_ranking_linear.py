@@ -106,9 +106,6 @@ class LinearSubstitutionModel(nn.Module):
         train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
         val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=True)
 
-        print(train_dataset[0][0].shape)  # Should be (2305,)
-        print(val_dataset[0][0].shape)  # Should be (2305,)
-
         criterion = nn.L1Loss()  # Define the loss function
         optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)  # Define the optimizer
 
@@ -125,6 +122,7 @@ class LinearSubstitutionModel(nn.Module):
             
             with torch.no_grad():
                 for inputs, targets in val_loader:
+                    print(inputs.shape)
                     inputs = inputs.to(self._device)
                     targets = targets.to(self._device)
 
