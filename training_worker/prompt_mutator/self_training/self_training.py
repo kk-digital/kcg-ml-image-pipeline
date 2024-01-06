@@ -145,6 +145,7 @@ class SelfTrainingPromptMutator:
             self_training_inputs, self_training_outputs= self.load_self_training_data(self_training_data)
             inputs.extend(self_training_inputs)
             outputs.extend(self_training_outputs)
+            break
         
         # training and saving the model
         loss=self.model.train(inputs, outputs)
