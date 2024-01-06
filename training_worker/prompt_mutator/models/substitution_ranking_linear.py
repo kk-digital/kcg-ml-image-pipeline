@@ -25,7 +25,9 @@ class DatasetLoader(Dataset):
         :param labels: A NumPy array of the corresponding labels.
         """
         # Convert the data to torch.FloatTensor as it is the standard data type for floats in PyTorch
-        self.features = torch.FloatTensor(np.array(features))
+        features=np.array(features)
+        print(features[0], len(features[0]))
+        self.features = torch.FloatTensor(features)
         self.labels = torch.FloatTensor(np.array(labels))
 
         print(f"features shape {self.features.shape}")
@@ -44,6 +46,7 @@ class DatasetLoader(Dataset):
         """
         sample_features = self.features[idx]
         sample_label = self.labels[idx]
+        print(sample_features.shape)
         return sample_features, sample_label
 
 
