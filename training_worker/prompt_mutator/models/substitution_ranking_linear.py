@@ -141,7 +141,7 @@ class LinearSubstitutionModel(nn.Module):
 
                 optimizer.zero_grad()
                 outputs = self.model(inputs)
-                loss = criterion(outputs, targets)
+                loss = criterion(outputs.squeeze(1), targets)
                 loss.backward()
                 optimizer.step()
 
