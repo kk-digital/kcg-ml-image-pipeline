@@ -73,7 +73,7 @@ class LinearSubstitutionModel(nn.Module):
         layers.append(nn.Linear(hidden_sizes[-1], output_size))
 
         # Combine all layers into a sequential model
-        self.model = nn.Sequential(*layers)
+        self.model = nn.Sequential(*layers).to(self._device)
         self.input_size= input_size
         self.minio_client= minio_client
         self.output_type= output_type
@@ -122,8 +122,7 @@ class LinearSubstitutionModel(nn.Module):
             
             with torch.no_grad():
                 for inputs, targets in val_loader:
-                    print(inputs.shape)
-                    outputs = self.model(inputs)
+                    outputs = self.model(inputs.to(self._device))
                     loss = criterion(outputs, targets)
 
                     total_val_loss += loss.item() * inputs.size(0)
@@ -136,7 +135,7 @@ class LinearSubstitutionModel(nn.Module):
             for inputs, targets in train_loader:
 
                 optimizer.zero_grad()
-                outputs = self.model(inputs)
+                outputs = self.model(inputs.to(self._device))
                 loss = criterion(outputs, targets)
                 loss.backward()
                 optimizer.step()
