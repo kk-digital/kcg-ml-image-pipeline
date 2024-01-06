@@ -2,7 +2,7 @@ from fastapi import Request, APIRouter, Query, HTTPException, Response
 from utility.minio import cmd
 import json
 from orchestration.api.mongo_schemas import RankingModel
-from .api_utils import PrettyJSONResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import re
@@ -334,7 +334,6 @@ async def get_latest_graph(request: Request, dataset: str = Query(...), model_ty
     
     # Get the latest graph image data
     try:
-        # Replace 'cmd.get_file_from_minio' with your actual method to get the file as binary
         image_data = request.app.minio_client.get_object(bucket_name, latest_file_path)
         content = image_data.read()
         content_type = "image/png"
@@ -342,6 +341,30 @@ async def get_latest_graph(request: Request, dataset: str = Query(...), model_ty
         raise HTTPException(status_code=500, detail=str(e))
 
     return Response(content=content, media_type=content_type)
+
+
+@router.get("/static/models/list-model-types", response_class=PrettyJSONResponse)
+async def list_model_types(request: Request, dataset: str):
+    response_handler = ApiResponseHandler(request)
+    bucket_name = "datasets"
+    base_path = f"{dataset}/output/scores-graph"
+
+    try:
+        objects = request.app.minio_client.list_objects(bucket_name, prefix=base_path, recursive=True)
+        files = [obj.object_name for obj in objects]
+
+        # Extract model types from file names
+        model_types = set()
+        pattern = rf".*score-(.+?)-{re.escape(dataset)}\.png"
+        for file in files:
+            match = re.match(pattern, file)
+            if match:
+                model_types.add(match.group(1))
+
+        return response_handler.create_success_response({"model_types": list(model_types)}, http_status_code=200)
+
+    except Exception as e:
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Error listing model types", 500)
 
 
 
