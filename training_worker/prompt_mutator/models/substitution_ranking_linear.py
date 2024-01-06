@@ -46,7 +46,6 @@ class DatasetLoader(Dataset):
         """
         sample_features = self.features[idx]
         sample_label = self.labels[idx]
-        print(sample_features.shape)
         return sample_features, sample_label
 
 
