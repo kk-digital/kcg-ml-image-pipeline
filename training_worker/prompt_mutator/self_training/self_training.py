@@ -84,12 +84,12 @@ class SelfTrainingPromptMutator:
 
             # get input
             if self.operation=="substitution":
-                input=np.concatenate([msgpack_data['input'], [msgpack_data['position_encoding']], [msgpack_data[f'{self.scoring_model}_score_encoding']]])
+                input=np.concatenate([msgpack_data['input'], [msgpack_data['position_encoding']], [msgpack_data[f'{self.scoring_model}_score_encoding']]]).tolist()
             elif self.operation=="permutation":
                 input=np.concatenate([msgpack_data['input'],
                                                 [msgpack_data['first_position']],
                                                 [msgpack_data['second_position']],
-                                        [msgpack_data[f'{self.scoring_model}_score_encoding']]])
+                                        [msgpack_data[f'{self.scoring_model}_score_encoding']]]).tolist()
                 
             inputs.append(input)
             
