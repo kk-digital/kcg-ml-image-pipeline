@@ -73,7 +73,7 @@ class LinearSubstitutionModel(nn.Module):
         layers.append(nn.Linear(hidden_sizes[-1], output_size))
 
         # Combine all layers into a sequential model
-        self.model = nn.Sequential(*layers).to(self._device)
+        self.model = nn.Sequential(*layers)
         self.input_size= input_size
         self.minio_client= minio_client
         self.output_type= output_type
