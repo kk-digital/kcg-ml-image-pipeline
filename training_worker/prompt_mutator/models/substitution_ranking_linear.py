@@ -123,8 +123,6 @@ class LinearSubstitutionModel(nn.Module):
                     inputs = inputs.to(self._device)
                     targets = targets.to(self._device)
 
-                    print(inputs.shape , targets.shape)
-
                     outputs = self.model(inputs)
                     loss = criterion(outputs, targets)
 
@@ -138,8 +136,6 @@ class LinearSubstitutionModel(nn.Module):
             for inputs, targets in train_loader:
                 inputs = inputs.to(self._device)
                 targets = targets.to(self._device)
-
-                print(inputs.shape, targets.shape)
 
                 optimizer.zero_grad()
                 outputs = self.model(inputs)
