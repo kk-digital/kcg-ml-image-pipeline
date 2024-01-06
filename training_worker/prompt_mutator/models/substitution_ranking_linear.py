@@ -122,7 +122,11 @@ class LinearSubstitutionModel(nn.Module):
             
             with torch.no_grad():
                 for inputs, targets in val_loader:
-                    outputs = self.model(inputs.to(self._device))
+                    inputs=inputs.to(self._device)
+                    targets=targets.to(self._device)
+
+                    outputs = self.model(inputs)
+                    print(outputs, outputs.shape)
                     loss = criterion(outputs, targets)
 
                     total_val_loss += loss.item() * inputs.size(0)
@@ -133,9 +137,11 @@ class LinearSubstitutionModel(nn.Module):
             total_train_samples = 0
             
             for inputs, targets in train_loader:
+                inputs=inputs.to(self._device)
+                targets=targets.to(self._device)
 
                 optimizer.zero_grad()
-                outputs = self.model(inputs.to(self._device))
+                outputs = self.model(inputs)
                 loss = criterion(outputs, targets)
                 loss.backward()
                 optimizer.step()
