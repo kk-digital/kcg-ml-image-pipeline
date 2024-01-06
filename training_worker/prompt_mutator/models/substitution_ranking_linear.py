@@ -126,8 +126,7 @@ class LinearSubstitutionModel(nn.Module):
                     targets=targets.to(self._device)
 
                     outputs = self.model(inputs)
-                    print(outputs, outputs.shape)
-                    loss = criterion(outputs, targets)
+                    loss = criterion(outputs.squeeze(1), targets)
 
                     total_val_loss += loss.item() * inputs.size(0)
                     total_val_samples += inputs.size(0)
