@@ -103,6 +103,10 @@ class ImageScorer:
     def get_feature_data(self, job_uuid, index):
         # get generation policy and task completion time
         completed_job = request.http_get_completed_job_by_uuid(job_uuid)
+        if completed_job is None:
+            print("None job = ", job_uuid)
+            return (job_uuid, "n/a", "n/a"), index
+        
         generation_policy = "n/a"
         if "prompt_generation_policy" in completed_job["task_input_dict"]:
             generation_policy = completed_job["task_input_dict"]["prompt_generation_policy"]
