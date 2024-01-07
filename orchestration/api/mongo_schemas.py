@@ -197,6 +197,25 @@ class TagDefinition(BaseModel):
         }
 
 
+class TagCategory(BaseModel):
+    tag_category_id: Optional[int] = None
+    tag_category_string: str = Field(..., description="Name of the tag category")
+    tag_category_description: str = Field(..., description="Description of the tag category")
+    deprecated: bool = False
+    user_who_created: str = Field(..., description="User who created the tag category")
+    creation_time: Union[str, None] = None
+
+    def to_dict(self):
+        return {
+            "tag_category_id": self.tag_category_id,
+            "tag_category_string": self.tag_category_string,
+            "tag_category_description": self.tag_category_description,
+            "deprecated": self.deprecated,
+            "user_who_created": self.user_who_created,
+            "creation_time": self.creation_time
+        }
+
+
 class ImageTag(BaseModel):
     tag_id: Optional[int] = None
     file_path: str

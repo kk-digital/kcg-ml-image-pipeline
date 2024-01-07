@@ -1,7 +1,7 @@
 from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
-from orchestration.api.mongo_schemas import TagDefinition, ImageTag
+from orchestration.api.mongo_schemas import TagDefinition, ImageTag, TagCategory
 from typing import Union
 from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode
 
@@ -304,8 +304,6 @@ def get_tagged_images(
     return image_info_list
 
 
-
-
 @router.get("/tags/get_all_tagged_images", response_model=List[ImageTag], response_class=PrettyJSONResponse)
 def get_all_tagged_images(request: Request):
     # Fetch all tagged image details
@@ -329,3 +327,108 @@ def get_all_tagged_images(request: Request):
         return []
 
     return image_info_list
+
+@router.post("/tags/add_tag_category", response_class=PrettyJSONResponse)
+def add_tag_category(request: Request, tag_category_data: TagCategory):
+    response_handler = ApiResponseHandler(request)
+    try:
+        # Assign new tag_category_id
+        last_entry = request.app.tag_categories_collection.find_one({}, sort=[("tag_category_id", -1)])
+        new_tag_category_id = last_entry["tag_category_id"] + 1 if last_entry else 0
+
+        tag_category_data.tag_category_id = new_tag_category_id
+        tag_category_data.creation_time = datetime.utcnow().isoformat()
+
+        # Insert new tag category
+        request.app.tag_categories_collection.insert_one(tag_category_data.to_dict())
+
+        # Prepare the response data
+        response_data = tag_category_data.to_dict()
+
+        return response_handler.create_success_response(response_data, http_status_code=201)
+
+    except Exception as e:
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
+
+
+
+@router.put("/tags/update_tag_category", response_class=PrettyJSONResponse)
+def update_tag_category(request: Request, tag_category_id: int, tag_category_update: TagCategory):
+    response_handler = ApiResponseHandler(request)
+    try:
+        # Check if the tag category exists
+        existing_category = request.app.tag_categories_collection.find_one({"tag_category_id": tag_category_id})
+        if not existing_category:
+            return response_handler.create_error_response(ErrorCode.ELEMENT_NOT_FOUND, "Tag category not found", 404)
+
+        # Prepare update data, excluding 'tag_category_id' and 'creation_time'
+        update_fields = {k: v for k, v in tag_category_update.dict(exclude={'tag_category_id', 'creation_time'}).items() if v is not None}
+
+        if not update_fields:
+            return response_handler.create_error_response(ErrorCode.INVALID_PARAMS, "No fields to update", 400)
+
+        # Update the tag category
+        request.app.tag_categories_collection.update_one({"tag_category_id": tag_category_id}, {"$set": update_fields})
+
+        # Fetch the updated tag category
+        updated_category = request.app.tag_categories_collection.find_one({"tag_category_id": tag_category_id})
+        if updated_category:
+            updated_category_data = {
+                "tag_category_id": updated_category["tag_category_id"],
+                "tag_category_string": updated_category["tag_category_string"],
+                "tag_category_description": updated_category["tag_category_description"],
+                "deprecated": updated_category.get("deprecated", False),
+                "user_who_created": updated_category["user_who_created"],
+                "creation_time": updated_category["creation_time"]
+            }
+            return response_handler.create_success_response(updated_category_data, http_status_code=200)
+
+    except Exception as e:
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
+
+
+
+@router.delete("/tags/remove_tag_category", response_class=PrettyJSONResponse)
+def remove_tag_category(request: Request, tag_category_id: int):
+    response_handler = ApiResponseHandler(request)
+    try:
+        # Check if the tag category exists
+        existing_category = request.app.tag_categories_collection.find_one({"tag_category_id": tag_category_id})
+        was_present = False
+
+        if existing_category:
+            # Delete the tag category
+            request.app.tag_categories_collection.delete_one({"tag_category_id": tag_category_id})
+            was_present = True
+
+        # Return success response with the 'wasPresent' flag
+        return response_handler.create_success_response({"wasPresent": was_present}, http_status_code=200)
+
+    except Exception as e:
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
+
+
+
+@router.get("/tags/list_tag_categories", response_class=PrettyJSONResponse)
+def list_tag_categories(request: Request):
+    response_handler = ApiResponseHandler(request)
+    try:
+        # Query all the tag categories
+        categories_cursor = request.app.tag_categories_collection.find({})
+        result = []
+
+        for category in categories_cursor:
+            category_data = {
+                "tag_category_id": category["tag_category_id"],
+                "tag_category_string": category["tag_category_string"],
+                "tag_category_description": category["tag_category_description"],
+                "deprecated": category.get("deprecated"),
+                "user_who_created": category["user_who_created"],
+                "creation_time": category["creation_time"]
+            }
+            result.append(category_data)
+
+        return response_handler.create_success_response(result, http_status_code=200)
+
+    except Exception as e:
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
