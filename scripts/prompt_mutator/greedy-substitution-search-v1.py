@@ -273,6 +273,10 @@ class PromptSubstitutionGenerator:
         
     # get prompt mean, entropy and variance for ensemble scores
     def get_prompt_entropy(self, positive_embedding, negative_embedding, start=-2, bins=8, step=1):
+        # convert embeddings to tensors
+        positive_embedding= torch.from_numpy(positive_embedding).to(self.device)
+        negative_embedding= torch.from_numpy(negative_embedding).to(self.device)
+
         # get ensemble sigma scores
         sigma_scores=self.get_ensemble_sigma_scores(positive_embedding, negative_embedding)
 
