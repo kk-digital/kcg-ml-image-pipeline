@@ -152,6 +152,13 @@ def remove_unwanted_chars(phrase: str):
     phrase = re.sub(r'[\@]', '', phrase)
     # remove ` signs
     phrase = re.sub(r'[\`]', '', phrase)
+    # remove % signs
+    phrase = re.sub(r'[\%]', '', phrase)
+    # remove ~ signs
+    phrase = re.sub(r'[\~]', '', phrase)
+    # remove hex
+    phrase = re.sub(r'[\x01-\x1f]', '', phrase)
+
     # remove weird ints and floats
     phrase = re.sub('(\d+.\d+)|(\d+)', '', phrase)
     # remove tabs
