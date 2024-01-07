@@ -78,9 +78,6 @@ class PromptData:
         self.negative_embedding= negative_embedding
         self.positive_score= positive_score
         self.variance_score= variance_score
-        self.variance= variance
-        self.entropy= entropy
-        self.mean= mean
         self.positive_phrase_embeddings= positive_phrase_embeddings
         self.positive_phrase_token_lengths= positive_phrase_token_lengths
 
@@ -294,17 +291,24 @@ class PromptSubstitutionGenerator:
         return entropy, variance, mean
 
     def get_variance_score(self, positive_embedding, negative_embedding, score):
+
+        if(self.variance_weight==0):
+            return score
+
         # convert embeddings to tensors
         positive_embedding= torch.from_numpy(positive_embedding).to(self.device)
         negative_embedding= torch.from_numpy(negative_embedding).to(self.device)
+        
+        # get ensemble sigma scores
+        sigma_scores=self.get_ensemble_sigma_scores(positive_embedding, negative_embedding)
 
         # get variance
-        entropy, variance, mean= self.get_prompt_entropy(positive_embedding, negative_embedding)
+        variance= np.var(sigma_scores, axis=-1)
 
         # get comibned variance score
         variance_score= score + (self.variance_weight * variance)
 
-        return entropy, variance, mean, variance_score
+        return variance_score
 
     # load elm or linear scoring models
     def load_model(self, embedding_type, scoring_model="linear", input_size=768):
@@ -525,23 +529,24 @@ class PromptSubstitutionGenerator:
                     modified_prompt_score= (modified_prompt_score - self.positive_mean) / self.positive_std
 
                     # get variance score
-                    entropy, variance, mean, variance_score= self.get_variance_score(modified_prompt_embedding,
-                                                                                     prompts[index].negative_embedding,
-                                                                                     modified_prompt_score
-                                                                                    )
+                    variance_score= self.get_variance_score(modified_prompt_embedding,
+                                                            prompts[index].negative_embedding,
+                                                            modified_prompt_score)
 
-                    # collect self training data
-                    data=np.concatenate((prompts[index].positive_embedding, 
-                                         substituted_embedding, 
-                                         substitute_embedding)).tolist(),
-                    prompt_data={
+                    if(self.self_training):
+                        # collect self training data
+                        data=np.concatenate((prompts[index].positive_embedding, 
+                                            substituted_embedding, 
+                                            substitute_embedding)).tolist(),
+                    
+                        prompt_data={
                         'input': data[0],
                         'position_encoding': position,
                         'score_encoding': prompts[index].positive_prompt,
                         'output': modified_prompt_score,
                         'delta': abs(modified_prompt_score - predicted_score)
-                    }
-                    self_training_data.append(prompt_data)
+                        }
+                        self_training_data.append(prompt_data)
 
                     # check if score improves
                     if(prompts[index].variance_score < variance_score):
@@ -551,9 +556,6 @@ class PromptSubstitutionGenerator:
                         prompts[index].positive_phrase_embeddings[position]= substitute_embedding
                         prompts[index].positive_score= modified_prompt_score
                         prompts[index].variance_score= variance_score
-                        prompts[index].entropy= entropy
-                        prompts[index].variance= variance
-                        prompts[index].mean= mean
                         break
                 
                 self.average_score_by_iteration[i]+=prompts[index].positive_score
@@ -591,6 +593,8 @@ class PromptSubstitutionGenerator:
             # calculate combined prompt score
             prompt_score=self.get_combined_score(prompt.positive_embedding, prompt.negative_embedding)
             sigma_score= (prompt_score - self.mean) / self.std
+
+            entropy, variance, mean= self.get_prompt_entropy(prompt.positive_embedding, prompt.negative_embedding)
            
             # sending a job to generate an image with the mutated prompt
             if self.send_job:
@@ -659,9 +663,9 @@ class PromptSubstitutionGenerator:
                     'task_uuid': task_uuid,
                     'score': prompt_score,
                     'sigma_score': sigma_score,
-                    'entropy': prompt.entropy,
-                    'variance': prompt.variance,
-                    'mean': prompt.mean,
+                    'entropy': entropy,
+                    'variance': variance,
+                    'mean': mean,
                     'positive_prompt': prompt.positive_prompt,
                     'negative_prompt': prompt.negative_prompt,
                     'generation_policy_string': GENERATION_POLICY,
@@ -926,13 +930,14 @@ class PromptSubstitutionGenerator:
                 # calculate positive score and variance score
                 positive_score=self.get_positive_score(positive_embedding)
                 positive_score = (positive_score - self.positive_mean) / self.positive_std
-                entropy, variance, mean, variance_score= self.get_variance_score(positive_embedding, negative_embedding, positive_score)
+                variance_score= self.get_variance_score(positive_embedding, negative_embedding, positive_score)
 
                 # Storing prompt data
                 prompt = prompt_batch[index]
                 # Strip whitespace and filter out empty phrases
                 positive_prompt = [phrase for phrase in prompt.positive_prompt_str.split(', ') if phrase!=""]
                 prompt.positive_prompt_str = ', '.join(positive_prompt)
+                
                 # save prompt data
                 prompt_data.append(PromptData(
                     positive_prompt=prompt.positive_prompt_str,
@@ -940,10 +945,7 @@ class PromptSubstitutionGenerator:
                     positive_embedding=positive_embedding,
                     negative_embedding=negative_embedding,
                     positive_score=positive_score,
-                    variance_score=variance_score,
-                    variance=variance,
-                    entropy=entropy,
-                    mean=mean
+                    variance_score=variance_score
                 ))
            
         # Sort and select prompts
