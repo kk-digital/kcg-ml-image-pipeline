@@ -66,9 +66,6 @@ class PromptData:
                  negative_embedding,
                  positive_score,
                  variance_score,
-                 variance,
-                 entropy,
-                 mean,
                  positive_phrase_embeddings=None,
                  positive_phrase_token_lengths=None):
         
@@ -937,7 +934,7 @@ class PromptSubstitutionGenerator:
                 # Strip whitespace and filter out empty phrases
                 positive_prompt = [phrase for phrase in prompt.positive_prompt_str.split(', ') if phrase!=""]
                 prompt.positive_prompt_str = ', '.join(positive_prompt)
-                
+
                 # save prompt data
                 prompt_data.append(PromptData(
                     positive_prompt=prompt.positive_prompt_str,
