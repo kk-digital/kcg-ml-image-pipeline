@@ -343,7 +343,7 @@ class LinearSubstitutionModel(nn.Module):
                 predictions.append(outputs)
 
         # Concatenate all predictions and convert to a NumPy array
-        predictions = torch.cat(predictions, dim=0).numpy()
+        predictions = torch.cat(predictions, dim=0).cpu().numpy()
 
         return predictions         
 
