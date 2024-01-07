@@ -18,6 +18,7 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from training_worker.prompt_mutator.models.substitution_ranking_xgboost import XgboostSubstitutionModel
+from training_worker.prompt_mutator.models.substitution_ranking_linear import LinearSubstitutionModel
 from utility.ensemble.ensemble_helpers import Binning, SigmaScoresWithEntropy
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
@@ -41,6 +42,7 @@ def parse_args():
     parser.add_argument('--update-prompts', action='store_true', default=False)
     parser.add_argument('--dataset-name', default='test-generations')
     parser.add_argument('--model-dataset', default='environmental')
+    parser.add_argument('--substitution-model', help="substitution model type: xgboost or linear", default='xgboost')
     parser.add_argument('--scoring-model', help="elm or linear", default="linear")
     parser.add_argument('--sigma-threshold', type=float, help="threshold of rejection policy for increase of sigma score", default=-0.1)
     parser.add_argument('--variance-weight', type=float, help="weight of variance when optimizing score", default=0)
@@ -52,7 +54,7 @@ def parse_args():
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
     parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=128)
     parser.add_argument('--clip-batch-size', type=int, help="Batch size for clip embeddings", default=1000)
-    parser.add_argument('--xgboost-batch-size', type=int, help="Batch size for xgboost model", default=100000)
+    parser.add_argument('--substitution-batch-size', type=int, help="Batch size for the substitution model", default=100000)
 
     return parser.parse_args()
 
@@ -91,6 +93,7 @@ class PromptSubstitutionGenerator:
         csv_phrase,
         csv_base_prompts,
         model_dataset,
+        substitution_model,
         scoring_model,
         max_iterations,
         sigma_threshold,
@@ -104,7 +107,7 @@ class PromptSubstitutionGenerator:
         top_k,
         num_choices_per_iteration,
         clip_batch_size,
-        xgboost_batch_size
+        substitution_batch_size
     ):
         start=time.time()
 
@@ -131,8 +134,8 @@ class PromptSubstitutionGenerator:
         self.send_job=send_job
         # whether to save csv of prompts or not
         self.save_csv=save_csv
-        # substitution model (binary of sigma score)
-        self.substitution_model= None
+        # substitution model (linear or xgboost)
+        self.model_type= substitution_model
         # top k value for generating initial prompts
         self.top_k=top_k
         # number of substitution choices tested every iteration
@@ -140,7 +143,7 @@ class PromptSubstitutionGenerator:
         # batch size for clip embeddings
         self.clip_batch_size= clip_batch_size
         # batch size for xgboost inference
-        self.xgboost_batch_size=xgboost_batch_size
+        self.substitution_batch_size=substitution_batch_size
         # get list of base prompts
         self.csv_base_prompts=csv_base_prompts
 
@@ -168,13 +171,19 @@ class PromptSubstitutionGenerator:
         self.mean, self.std= float(self.scorer.mean), float(self.scorer.standard_deviation)
         self.positive_mean, self.positive_std= float(self.positive_scorer.mean), float(self.positive_scorer.standard_deviation)
         
-        # get ensemble elm models
+        # get ensemble models
         self.ensemble_models=self.get_ensemble_models()
 
-        # load the xgboost model depending on what rejection policy is being used
-        self.substitution_model= XgboostSubstitutionModel(minio_client=self.minio_client, 
+        # load the substitution model 
+        if(self.model_type=="xgboost"):
+            self.substitution_model= XgboostSubstitutionModel(minio_client=self.minio_client, 
                                                           ranking_model=self.scoring_model, 
                                                           dataset=self.model_dataset)
+        elif(self.model_type=="linear"):
+            self.substitution_model= LinearSubstitutionModel(minio_client=self.minio_client, 
+                                                          ranking_model=self.scoring_model, 
+                                                          dataset=self.model_dataset)
+            
         self.substitution_model.load_model()
 
         # store phrase embeddings in a file in minio 
@@ -445,7 +454,7 @@ class PromptSubstitutionGenerator:
         
         # Predict sigma score for every substitution
         start=time.time()
-        predictions = self.substitution_model.predict_in_batches(data=substitution_inputs, batch_size=self.xgboost_batch_size)
+        predictions = self.substitution_model.predict(data=substitution_inputs, batch_size=self.substitution_batch_size)
         end=time.time()
         self.inference_speed+= (num_choices * len(prompts))/ (end-start)
 
@@ -1093,7 +1102,7 @@ class PromptSubstitutionGenerator:
         content += f"================ Model Stats ==================\n"
         content += f"Clip batch size: {self.clip_batch_size}\n"
         content += f"Clip embedding speed: {self.clip_speed:.2f} embeddings/second\n"
-        content += f"Xgboost batch size: {self.xgboost_batch_size}\n"
+        content += f"Xgboost batch size: {self.substitution_batch_size}\n"
         content += f"Xgboost inference speed: {self.inference_speed:.2f} predictions/second\n\n"
 
         content += f"================ Generator Parameters ==================\n"
@@ -1305,6 +1314,7 @@ def main():
                                   csv_phrase=args.csv_phrase,
                                   csv_base_prompts=csv_base_prompts,
                                   model_dataset=args.model_dataset,
+                                  substitution_model=args.substitution_model,
                                   scoring_model=args.scoring_model,
                                   max_iterations=args.max_iterations,
                                   sigma_threshold=args.sigma_threshold,
@@ -1318,10 +1328,10 @@ def main():
                                   top_k=args.top_k,
                                   num_choices_per_iteration=args.num_choices,
                                   clip_batch_size=args.clip_batch_size,
-                                  xgboost_batch_size=args.xgboost_batch_size)
+                                  substitution_batch_size=args.substitution_batch_size)
     
     # generate n number of images
-    prompt_mutator.generate_image_progression(num_images=args.n_data)
+    prompt_mutator.generate_images(num_images=args.n_data)
     
 if __name__ == "__main__":
     main()
