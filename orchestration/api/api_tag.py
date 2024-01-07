@@ -203,7 +203,7 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_cre
         }
         request.app.image_tags_collection.insert_one(image_tag_data)
 
-        return response_handler.create_success_response({"tag_id": tag_id, "file_path": file_path, "image_hash": file_hash, "tag_count": 1, "user_who_created": user_who_created, "creation_time": date_now})
+        return response_handler.create_success_response({"tag_id": tag_id, "file_path": file_path, "image_hash": file_hash, "tag_count": 1, "user_who_created": user_who_created, "creation_time": date_now}, http_status_code=200)
 
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
@@ -236,25 +236,18 @@ def remove_image_tag(request: Request, image_hash: str, tag_id: int):
         })
 
         if existing_image_tag:
-            # Check if the tag count is already zero
+            # If tag count is already zero, return ELEMENT_NOT_FOUND error
             if existing_image_tag["tag_count"] == 0:
                 return response_handler.create_error_response(ErrorCode.ELEMENT_NOT_FOUND, "This image is not tagged with the given tag", 404)
 
-            # Set tag count to zero and delete the tag association
-            request.app.image_tags_collection.update_one(
-                {"_id": existing_image_tag["_id"]},
-                {"$set": {"tag_count": 0}}
-            )
+            # Directly delete the tag association
             request.app.image_tags_collection.delete_one({"_id": existing_image_tag["_id"]})
-            was_present = True
+            return response_handler.create_success_response({"wasPresent": True}, http_status_code=200)
         else:
-            was_present = False
-
-        return response_handler.create_success_response({"wasPresent": was_present, "tag_count": 0 if was_present else None})
+            return response_handler.create_success_response({"wasPresent": False}, http_status_code=200)
 
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
-
 
 
 

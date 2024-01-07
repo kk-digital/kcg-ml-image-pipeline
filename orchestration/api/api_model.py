@@ -343,7 +343,7 @@ async def get_latest_graph(request: Request, dataset: str = Query(...), model_ty
     return Response(content=content, media_type=content_type)
 
 
-@router.get("/static/models/list-model-types", response_class=PrettyJSONResponse)
+@router.get("/models/list-model-types", response_class=PrettyJSONResponse)
 async def list_model_types(request: Request, dataset: str):
     response_handler = ApiResponseHandler(request)
     bucket_name = "datasets"
