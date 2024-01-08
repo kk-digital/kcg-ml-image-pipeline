@@ -378,18 +378,12 @@ def get_job_by_uuid(request: Request, uuid: str):
 def get_jobs_by_uuids(request: Request, uuids: List[str] = Query(None)):
     print("uuids=", uuids)
     # Assuming the job's UUID is stored in the 'uuid' field
-    query = {"uuid": {"$in": uuids}}
+    query = {"uuid": {"$in": uuids}, "_id": False}
     jobs = request.app.completed_jobs_collection.find(query)
     if jobs is None:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    final_job_list = []
-    # Remove the '_id' field to avoid issues with JSON serialization
-    for job in jobs:
-        job = job.pop('_id', None)
-        final_job_list.append(job)
-
-    return final_job_list
+    return list(jobs)
 
 # --------------- Get Job With Required Fields ---------------------
 
