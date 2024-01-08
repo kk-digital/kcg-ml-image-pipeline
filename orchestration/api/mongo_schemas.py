@@ -405,3 +405,12 @@ class NewSelection(BaseModel):
             "ranking_image_pair": self.Selection.to_dict(),
             "selected_residual": selected_residual_data
         }
+
+
+class PhraseModel(BaseModel):
+    phrase: str
+
+    def to_dict(self):
+        return{
+            "phrase": self.phrase
+        }
