@@ -24,6 +24,7 @@ from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from prompt_job_generator.independent_approx_v1.independent_approx_v1 import IndependentApproxV1
+from utility.boltzman.boltzman_phrase_scores_loader import BoltzmanPhraseScoresLoader
 from utility.minio import cmd
 
 from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix, generate_prompts_from_csv_proportional_selection, load_base_prompts, generate_inpainting_job
@@ -191,16 +192,29 @@ class PromptSubstitutionGenerator:
                                                           dataset=self.model_dataset)
             
         self.substitution_model.load_model()
+        
+        if(self.initial_generation_policy=="fixed_probabilities"):
+            # get list of phrases and their token lengths
+            phrase_df=pd.read_csv(self.csv_phrase).sort_values(by="index")
+            self.phrase_list=phrase_df['phrase str'].tolist()
+
+        elif(self.initial_generation_policy=="indpendant_approximation"):
+            # get list of boltzman phrase score
+            self.positive_phrase_scores_csv,self.negative_phrase_scores_csv=self.get_boltzman_scores_csv()
+            
+            # loading positive phrase scores to use for rejection sampling
+            phrase_loader=BoltzmanPhraseScoresLoader(dataset_name="environmental",
+                                                    phrase_scores_csv=self.positive_phrase_scores_csv,
+                                                    minio_client=self.minio_client)
+            phrase_loader.load_dataset()
+            self.phrase_score_data= phrase_loader.index_phrase_score_data
+            self.phrase_list=[self.phrase_score_data[i].phrase for i in range(len(self.phrase_score_data))]
 
         # store phrase embeddings in a file in minio 
         if(store_embeddings):
             self.store_phrase_embeddings()
-        
-        # get list of phrases and their token lengths
-        phrase_df=pd.read_csv(self.csv_phrase).sort_values(by="index")
-        self.phrase_list=phrase_df['phrase str'].tolist()
-
-        # get phrase embeddings
+            
+        # get phrase embeddings    
         self.phrase_embeddings= self.load_phrase_embeddings()
 
         # store phrase token lengths
@@ -303,6 +317,7 @@ class PromptSubstitutionGenerator:
 
         return entropy, variance, mean
 
+    # get combined quality score and variance
     def get_variance_score(self, positive_embedding, negative_embedding, score):
 
         if(self.variance_weight==0):
@@ -365,6 +380,20 @@ class PromptSubstitutionGenerator:
         embedding_model.model=embedding_model.model.to(self.device)
 
         return embedding_model
+
+    # get path for phrase score csv files
+    def get_boltzman_scores_csv(self):
+        score_csvs=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', 'environmental/output/phrases-score-csv')
+        positive_score_csv = None
+        negative_score_csv = None
+
+        for csv_file in score_csvs:
+            if csv_file.endswith('positive-phrases-score.csv'):
+                positive_score_csv = csv_file.split("/")[-1]
+            if csv_file.endswith('negative-phrases-score.csv'):
+                negative_score_csv = csv_file.split("/")[-1]
+        
+        return positive_score_csv, negative_score_csv
 
     # get the clip text embedding of a prompt or a phrase
     def get_prompt_embedding(self, prompts):
@@ -894,23 +923,105 @@ class PromptSubstitutionGenerator:
             self.store_prompts_in_csv_file(df_data)
 
     # generate initial prompts with top k
-    def generate_initial_prompts(self, num_prompts):
+    def generate_initial_prompts_with_independant_approximation(self, num_prompts):
         total_start=time.time()
         print("---------generating initial prompts")
         # number of prompts to generate
         prompt_count= int(num_prompts / self.top_k) if num_prompts>10 else 100
 
-        if(self.initial_generation_policy=="independant_approximation"):
-            # generate initial prompts before mutation
-            prompt_generator = IndependentApproxV1(self.model_dataset)
-            prompt_generator.load_csv(self.minio_client, self.positive_phrase_scores_csv, self.negative_phrase_scores_csv)
-            
-            prompts =  prompt_generator.generate_prompts(prompt_count, self.boltzman_temperature, self.boltzman_k)
+        # generate initial prompts before mutation
+        prompt_generator = IndependentApproxV1(self.model_dataset)
+        prompt_generator.load_csv(self.minio_client, self.positive_phrase_scores_csv, self.negative_phrase_scores_csv)
+        
+        prompts =  prompt_generator.generate_prompts(prompt_count, self.boltzman_temperature, self.boltzman_k)
 
-        elif(self.initial_generation_policy=="fixed_probabilities"):
-            prompts = generate_prompts_from_csv_with_base_prompt_prefix(csv_dataset_path=self.csv_phrase,
-                                                                    csv_base_prompts_path=self.csv_base_prompts,
-                                                                    prompt_count=prompt_count)
+            
+        prompt_data=[]
+        clip_time=0
+        # calculate scores and rank
+        print("---------scoring prompts")
+        for batch_start in tqdm(range(0, len(prompts), self.clip_batch_size)):
+            batch_end = batch_start + self.clip_batch_size
+            prompt_batch = prompts[batch_start:batch_end]
+
+            # Prepare data for batch processing
+            positive_prompts = [p['positive_prompt'] for p in prompt_batch]
+            negative_prompts = [p['negative_prompt'] for p in prompt_batch]
+
+            # Compute token lengths for the batch
+            positive_token_lengths = [self.embedder.compute_token_length(prompt) for prompt in positive_prompts]
+            negative_token_lengths = [self.embedder.compute_token_length(prompt) for prompt in negative_prompts]
+
+            # Filter out prompts with too many tokens
+            valid_positive_indices = [i for i in range(len(positive_token_lengths)) if positive_token_lengths[i] <= 77 and negative_token_lengths[i] <= 77]
+            valid_negative_indices = [i for i in range(len(negative_token_lengths)) if negative_token_lengths[i] <= 77 and negative_token_lengths[i] <= 77]
+
+            # Process only valid prompts
+            valid_positive_prompts = [positive_prompts[i] for i in valid_positive_indices]
+            valid_negative_prompts = [negative_prompts[i] for i in valid_negative_indices]
+
+            # Get embeddings for the batch
+            start=time.time()
+            positive_embeddings = self.get_prompt_embedding(valid_positive_prompts)
+            negative_embeddings = self.get_prompt_embedding(valid_negative_prompts)
+            end= time.time()
+
+            clip_time+= end-start
+
+            # Normalize scores and calculate mean pooled embeddings for the batch
+            for i, index in enumerate(valid_positive_indices):
+                # Mean pooling and other processing
+                positive_embedding = self.get_mean_pooled_embedding(positive_embeddings[i].unsqueeze(0))
+                negative_embedding = self.get_mean_pooled_embedding(negative_embeddings[i].unsqueeze(0))
+                
+                # calculate positive score and variance score
+                positive_score=self.get_positive_score(positive_embedding)
+                positive_score = (positive_score - self.positive_mean) / self.positive_std
+                variance_score= self.get_variance_score(positive_embedding, negative_embedding, positive_score)
+
+                # Storing prompt data
+                prompt = prompt_batch[index]
+                # Strip whitespace and filter out empty phrases
+                positive_prompt = [phrase for phrase in prompt['positive_prompt'].split(', ') if phrase!=""]
+                prompt['positive_prompt'] = ', '.join(positive_prompt)
+
+                # save prompt data
+                prompt_data.append(PromptData(
+                    positive_prompt=prompt['positive_prompt'],
+                    negative_prompt=prompt['negative_prompt'],
+                    positive_embedding=positive_embedding,
+                    negative_embedding=negative_embedding,
+                    positive_score=positive_score,
+                    variance_score=variance_score
+                ))
+           
+        # Sort and select prompts
+        sorted_scored_prompts = sorted(prompt_data, key=lambda data: data.positive_score, reverse=True)
+        chosen_scored_prompts = sorted_scored_prompts[:num_prompts]
+
+        # Calculate phrase embeddings and token lengths for chosen prompts
+        print("Calculating phrase embeddings and token lengths for each phrase in each prompt")
+        for prompt in tqdm(chosen_scored_prompts):
+            phrases = prompt.positive_prompt.split(', ')
+            prompt.positive_phrase_embeddings = [self.load_phrase_embedding(phrase) for phrase in phrases]
+            prompt.positive_phrase_token_lengths = [self.load_phrase_token_length(phrase) for phrase in phrases] 
+
+        total_end=time.time() 
+        self.generation_time= total_end - total_start  
+        self.clip_speed= (num_prompts * 2) / clip_time
+
+        return chosen_scored_prompts
+
+    # generate initial prompts with top k
+    def generate_initial_prompts_with_fixed_probs(self, num_prompts):
+        total_start=time.time()
+        print("---------generating initial prompts")
+        # number of prompts to generate
+        prompt_count= int(num_prompts / self.top_k) if num_prompts>10 else 100
+
+        prompts = generate_prompts_from_csv_with_base_prompt_prefix(csv_dataset_path=self.csv_phrase,
+                                                                csv_base_prompts_path=self.csv_base_prompts,
+                                                                prompt_count=prompt_count)
             
         prompt_data=[]
         clip_time=0
@@ -1216,13 +1327,11 @@ class PromptSubstitutionGenerator:
 
     # store embeddings of all phrases in civitai in a file in minIO
     def store_phrase_embeddings(self):
-        phrase_list=pd.read_csv(self.csv_phrase)
-        phrase_list= phrase_list.sort_values(by="index")
+        phrase_list=self.phrase_list
         phrase_embeddings_list=[]
         
-        for index, row in phrase_list.iterrows():
-            print(f"storing phrase {row['index']}")
-            embedding= self.get_prompt_embedding(row['phrase str'])
+        for phrase in tqdm(phrase_list):
+            embedding= self.get_prompt_embedding(phrase)
             mean_pooled_embedding= self.get_mean_pooled_embedding(embedding)
             phrase_embeddings_list.append(mean_pooled_embedding)
         
@@ -1230,7 +1339,11 @@ class PromptSubstitutionGenerator:
         phrase_embeddings = np.array(phrase_embeddings_list)
 
         # Save the numpy array to an .npz file
-        local_file_path='phrase_embeddings.npz'
+        if self.initial_generation_policy=="fixed_probabilities":
+            local_file_path='phrase_embeddings.npz'
+        else:
+            local_file_path='independant_approx_phrase_embeddings.npz'
+
         np.savez_compressed(local_file_path, phrase_embeddings)
 
         # Read the contents of the .npz file
@@ -1241,7 +1354,7 @@ class PromptSubstitutionGenerator:
         buffer = io.BytesIO(content)
         buffer.seek(0)
 
-        minio_path=DATA_MINIO_DIRECTORY + f"/input/phrase_embeddings.npz"
+        minio_path=DATA_MINIO_DIRECTORY + f"/input/{local_file_path}"
         cmd.upload_data(self.minio_client, 'datasets',minio_path, buffer)
 
         # Remove the temporary file
@@ -1251,7 +1364,12 @@ class PromptSubstitutionGenerator:
     def store_phrase_token_lengths(self):
         phrase_list=self.phrase_list
         token_lengths = [self.get_token_length(phrase) for phrase in tqdm(phrase_list)]
-        local_file_path='token_lengths.csv'
+
+        # Save the numpy array to an .npz file
+        if self.initial_generation_policy=="fixed_probabilities":
+            local_file_path='token_lengths.csv'
+        else:
+            local_file_path='independant_approx_token_lengths.csv'
         
         # Write to a CSV file
         with open(local_file_path, 'w', newline='') as file:
