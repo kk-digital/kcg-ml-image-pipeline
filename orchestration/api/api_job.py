@@ -374,6 +374,20 @@ def get_job_by_uuid(request: Request, uuid: str):
 
     return job
 
+@router.get("/job/get-jobs/{uuids}", response_class=PrettyJSONResponse)
+def get_jobs_by_uuids(request: Request, uuids):
+    # Assuming the job's UUID is stored in the 'uuid' field
+    query = {"uuid": {"$in": uuids}}
+    jobs = request.app.completed_jobs_collection.find(query)
+
+    if jobs is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Remove the '_id' field to avoid issues with JSON serialization
+    for job in jobs:
+        job.pop('_id', None)
+
+    return jobs
 
 # --------------- Get Job With Required Fields ---------------------
 
