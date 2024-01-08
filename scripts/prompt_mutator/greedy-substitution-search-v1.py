@@ -1352,6 +1352,7 @@ def main():
                                   self_training=args.self_training,
                                   send_job=args.send_job,
                                   save_csv=args.save_csv,
+                                  initial_generation_policy=args.initial_generation_policy,
                                   top_k=args.top_k,
                                   num_choices_per_iteration=args.num_choices,
                                   clip_batch_size=args.clip_batch_size,
