@@ -23,6 +23,7 @@ from utility.ensemble.ensemble_helpers import Binning, SigmaScoresWithEntropy
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
+from prompt_job_generator.independent_approx_v1.independent_approx_v1 import IndependentApproxV1
 from utility.minio import cmd
 
 from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix, generate_prompts_from_csv_proportional_selection, load_base_prompts, generate_inpainting_job
@@ -46,11 +47,14 @@ def parse_args():
     parser.add_argument('--scoring-model', help="elm or linear", default="linear")
     parser.add_argument('--sigma-threshold', type=float, help="threshold of rejection policy for increase of sigma score", default=-0.1)
     parser.add_argument('--variance-weight', type=float, help="weight of variance when optimizing score", default=0)
+    parser.add_argument('--boltzman-temperature', type=int, default=11)
+    parser.add_argument('--boltzman-k', type=float, default=1.0)
     parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=80)
     parser.add_argument('--self-training', action='store_true', default=False)
     parser.add_argument('--store-embeddings', action='store_true', default=False)
     parser.add_argument('--store-token-lengths', action='store_true', default=False)
     parser.add_argument('--save-csv', action='store_true', default=False)
+    parser.add_argument('--initial-generation-policy', help="the generation policy used for generating the initial seed prompts", default="independant_approximation")
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
     parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=128)
     parser.add_argument('--clip-batch-size', type=int, help="Batch size for clip embeddings", default=1000)
@@ -92,12 +96,15 @@ class PromptSubstitutionGenerator:
         max_iterations,
         sigma_threshold,
         variance_weight,
+        boltzman_temperature,
+        boltzman_k,
         dataset_name,
         store_embeddings,
         store_token_lengths,
         self_training,
         send_job,
         save_csv,
+        initial_generation_policy,
         top_k,
         num_choices_per_iteration,
         clip_batch_size,
@@ -118,6 +125,9 @@ class PromptSubstitutionGenerator:
         self.sigma_threshold= sigma_threshold
         # variance weight for optimisation score
         self.variance_weight= variance_weight
+        # boltzman temperature and k value
+        self.boltzman_temperature = boltzman_temperature
+        self.boltzman_k = boltzman_k
         # name of dataset to generate for
         self.model_dataset= model_dataset
         # name of dataset
@@ -130,6 +140,8 @@ class PromptSubstitutionGenerator:
         self.save_csv=save_csv
         # substitution model (linear or xgboost)
         self.model_type= substitution_model
+        # initial generation policy
+        self.initial_generation_policy= initial_generation_policy
         # top k value for generating initial prompts
         self.top_k=top_k
         # number of substitution choices tested every iteration
@@ -887,9 +899,19 @@ class PromptSubstitutionGenerator:
         print("---------generating initial prompts")
         # number of prompts to generate
         prompt_count= int(num_prompts / self.top_k) if num_prompts>10 else 100
-        prompts = generate_prompts_from_csv_with_base_prompt_prefix(csv_dataset_path=self.csv_phrase,
-                                                                csv_base_prompts_path=self.csv_base_prompts,
-                                                                prompt_count=prompt_count)
+
+        if(self.initial_generation_policy=="independant_approximation"):
+            # generate initial prompts before mutation
+            prompt_generator = IndependentApproxV1(self.model_dataset)
+            prompt_generator.load_csv(self.minio_client, self.positive_phrase_scores_csv, self.negative_phrase_scores_csv)
+            
+            prompts =  prompt_generator.generate_prompts(prompt_count, self.boltzman_temperature, self.boltzman_k)
+
+        elif(self.initial_generation_policy=="fixed_probabilities"):
+            prompts = generate_prompts_from_csv_with_base_prompt_prefix(csv_dataset_path=self.csv_phrase,
+                                                                    csv_base_prompts_path=self.csv_base_prompts,
+                                                                    prompt_count=prompt_count)
+            
         prompt_data=[]
         clip_time=0
         # calculate scores and rank
@@ -1322,6 +1344,8 @@ def main():
                                   max_iterations=args.max_iterations,
                                   sigma_threshold=args.sigma_threshold,
                                   variance_weight=args.variance_weight,
+                                  boltzman_temperature=args.boltzman_temperature,
+                                  boltzman_k=args.boltzman_k,
                                   dataset_name=args.dataset_name,
                                   store_embeddings=args.store_embeddings,
                                   store_token_lengths=args.store_token_lengths,
