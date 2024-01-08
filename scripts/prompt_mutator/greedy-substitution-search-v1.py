@@ -198,7 +198,7 @@ class PromptSubstitutionGenerator:
             phrase_df=pd.read_csv(self.csv_phrase).sort_values(by="index")
             self.phrase_list=phrase_df['phrase str'].tolist()
 
-        elif(self.initial_generation_policy=="indpendant_approximation"):
+        elif(self.initial_generation_policy=="independant_approximation"):
             # get list of boltzman phrase score
             self.positive_phrase_scores_csv,self.negative_phrase_scores_csv=self.get_boltzman_scores_csv()
             
