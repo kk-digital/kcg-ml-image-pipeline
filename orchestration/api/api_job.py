@@ -374,9 +374,8 @@ def get_job_by_uuid(request: Request, uuid: str):
 
     return job
 
-# make it post for now so we can give payload
-@router.post("/job/get-jobs", response_class=PrettyJSONResponse)
-def get_jobs_by_uuids(request: Request, uuids: List[str]):
+@router.get("/job/get-jobs", response_class=PrettyJSONResponse)
+def get_jobs_by_uuids(request: Request, uuids: List[str] = Query(None)):
     # Assuming the job's UUID is stored in the 'uuid' field
     query = {"uuid": {"$in": uuids}}
     jobs = request.app.completed_jobs_collection.find(query)
