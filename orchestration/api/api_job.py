@@ -383,6 +383,7 @@ def get_jobs_by_uuids(request: Request, uuids: List[str] = Query(None)):
     if jobs is None:
         raise HTTPException(status_code=404, detail="Job not found")
 
+    print("jobs=", jobs)
     return list(jobs)
 
 # --------------- Get Job With Required Fields ---------------------
