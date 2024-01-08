@@ -1397,8 +1397,14 @@ class PromptSubstitutionGenerator:
 
     # get civitai phrase embeddings from minIO
     def load_phrase_embeddings(self):
+        # get file name
+        if self.initial_generation_policy=="fixed_probabilities":
+            filename='phrase_embeddings.npz'
+        else:
+            filename='independant_approx_phrase_embeddings.npz'
+
         # Get the file data from MinIO
-        minio_path = "environmental/data/prompt-generator/substitution/input/phrase_embeddings.npz"
+        minio_path = f"environmental/data/prompt-generator/substitution/input/{filename}"
         file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', minio_path)
 
         # Create a BytesIO object and write the downloaded content into it
@@ -1416,8 +1422,14 @@ class PromptSubstitutionGenerator:
     
     # get civitai phrase token lengths, calculated by the tokenizer
     def load_phrase_token_lengths(self):
+        # get file name
+        if self.initial_generation_policy=="fixed_probabilities":
+            filename='token_lengths.csv'
+        else:
+            filename='independant_approx_token_lengths.csv'
+
         # Get the file data from MinIO
-        minio_path = "environmental/data/prompt-generator/substitution/input/token_lengths.csv"
+        minio_path = f"environmental/data/prompt-generator/substitution/input/{filename}"
         # Download the file from MinIO
         try:
             data = cmd.get_file_from_minio(self.minio_client, 'datasets', minio_path)
