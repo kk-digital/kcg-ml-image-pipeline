@@ -1,6 +1,7 @@
 from fastapi import Request, APIRouter, HTTPException
 import requests
 from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode
+from orchestration.api.mongo_schemas import  PhraseModel
 from typing import Optional
 from typing import List
 import json
@@ -97,25 +98,25 @@ def add_phrase(request: Request,
     return http_clip_server_add_phrase(phrase)
 
 @router.post("/clip/phrases", response_class=PrettyJSONResponse, description="Adds a phrase to the clip server", tags=["clip"])
-async def add_phrase(request: Request):
-    response_handler = ApiResponseHandler("/clip/phrases")
+def add_phrase(request: Request, phrase_data: PhraseModel):
+    response_handler = ApiResponseHandler(request)
 
     try:
-        body = await request.json()
-        phrase = body.get("phrase")
-
-        if not phrase:
+        if not phrase_data.phrase:
             return response_handler.create_error_response(ErrorCode.INVALID_PARAMS, "Phrase is required", status.HTTP_400_BAD_REQUEST)
 
-        response = await http_clip_server_add_phrase(phrase)
+        # Use the phrase from the PhraseModel object
+        response = http_clip_server_add_phrase(phrase_data.phrase)
 
         if not (200 <= response.status_code < 300):
-            return response_handler.create_error_response(ErrorCode.OTHER_ERROR, f"Clip server error with status code {response.status_code}", status.HTTP_503_SERVICE_UNAVAILABLE)
+            return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Clip server error", status.HTTP_503_SERVICE_UNAVAILABLE)
 
-        return response_handler.create_success_response({"message": "Phrase added successfully"}, headers={"Cache-Control": "no-store"})
+        # Assuming the response includes the clip vector or is None
+        clip_vector = response.get("clip_vector") if response else None
+        return response_handler.create_success_response({"clip_vector": clip_vector}, http_status_code=201, headers={"Cache-Control": "no-store"})
 
     except Exception as e:
-        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.get("/clip/clip-vector",
@@ -128,17 +129,17 @@ def add_phrase(request: Request,
 
 @router.get("/clip/vectors/{phrase}", response_class=PrettyJSONResponse, tags=["clip"], summary="Get Clip Vector for a Phrase", description="Retrieves the clip vector for a given phrase.")
 def get_clip_vector(request: Request, phrase: str):
-    response_handler = ApiResponseHandler("/clip/vectors/{phrase}")
+    response_handler = ApiResponseHandler(request)
     try:
         vector = http_clip_server_clip_vector_from_phrase(phrase)
 
         if vector is None:
             return response_handler.create_error_response(ErrorCode.ELEMENT_NOT_FOUND, "Phrase not found", status.HTTP_404_NOT_FOUND)
 
-        return response_handler.create_success_response({"vector": vector}, headers={"Cache-Control": "no-store"})
+        return response_handler.create_success_response({"vector": vector}, http_status_code=200, headers={"Cache-Control": "no-store"})
 
     except Exception as e:
-        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.get("/clip/random-image-similarity-threshold",
@@ -366,12 +367,12 @@ def check_clip_server_status():
         return {"status": "offline", "message": "Clip server is offline or unreachable."}
 
 @router.get("/clip/server-status", tags=["clip"], description="Checks the status of the CLIP server.")
-def check_clip_server_status():
-    response_handler = ApiResponseHandler("/clip/server-status")
+def check_clip_server_status(request: Request):
+    response_handler = ApiResponseHandler(request)
     try:
         response = requests.get(CLIP_SERVER_ADDRESS)
         reachable = response.status_code == 200
-        return response_handler.create_success_delete_response(reachable)
+        return response_handler.create_success_response({"reachable": reachable}, http_status_code=200, headers={"Cache-Control": "no-store"})
     except requests.exceptions.RequestException as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "CLIP server is not reachable", 503)
 

@@ -130,6 +130,7 @@ def startup_db_client():
     # tags
     app.tag_definitions_collection = app.mongodb_db["tag_definitions"]
     app.image_tags_collection = app.mongodb_db["image_tags"]
+    app.tag_categories_collection = app.mongodb_db["tag_categories"]
 
     # models
     app.models_collection = app.mongodb_db["models"]
