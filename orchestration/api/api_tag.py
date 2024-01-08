@@ -30,6 +30,65 @@ def add_new_tag_definition(request: Request, tag_data: TagDefinition):
     return {"status": "success", "message": "Tag definition added successfully.", "tag_id": new_tag_id}
 
 
+@router.post("/tags/new_tag_definition")
+def add_new_tag_definition(request: Request, tag_data: TagDefinition):
+    response_handler = ApiResponseHandler(request)
+
+    try:
+        # Check if the provided tag_category_id exists in the tag_categories_collection
+        if tag_data.tag_category_id is not None:
+            existing_category = request.app.tag_categories_collection.find_one(
+                {"tag_category_id": tag_data.tag_category_id}
+            )
+            if not existing_category:
+                return response_handler.create_error_response(
+                    ErrorCode.ELEMENT_NOT_FOUND,
+                    "Tag category not found",
+                    400
+                )
+
+        # Find the maximum tag_id in the collection
+        last_entry = request.app.tag_definitions_collection.find_one({}, sort=[("tag_id", -1)])
+        new_tag_id = last_entry["tag_id"] + 1 if last_entry and "tag_id" in last_entry else 0
+
+        # Check if the tag definition exists by tag_string
+        existing_tag = request.app.tag_definitions_collection.find_one({"tag_string": tag_data.tag_string})
+        if existing_tag:
+            return response_handler.create_error_response(
+                ErrorCode.INVALID_PARAMS,
+                "Tag definition already exists.",
+                400
+            )
+
+        # Assign new tag_id and creation time
+        tag_data.tag_id = new_tag_id
+        tag_data.creation_time = datetime.utcnow().isoformat()
+
+        # Insert new tag definition and retrieve it
+        inserted_id = request.app.tag_definitions_collection.insert_one(tag_data.to_dict()).inserted_id
+        new_tag = request.app.tag_definitions_collection.find_one({"_id": inserted_id})
+        
+        # Prepare the response data with the new tag details
+        new_tag_data = {
+            "tag_id": new_tag["tag_id"],
+            "tag_string": new_tag["tag_string"],
+            "tag_category_id": new_tag.get("tag_category_id"),
+            "tag_description": new_tag["tag_description"],
+            "tag_vector_index": new_tag.get("tag_vector_index", -1),
+            "deprecated": new_tag.get("deprecated", False),
+            "user_who_created": new_tag["user_who_created"],
+            "creation_time": new_tag["creation_time"]
+        }
+
+        return response_handler.create_success_response(
+            new_tag_data,
+            http_status_code=201
+        )
+
+    except Exception as e:
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
+
+
 @router.put("/tags/update_tag_definition")
 def update_tag_definition(request: Request, tag_id: int, update_data: TagDefinition):
     query = {"tag_id": tag_id}
@@ -92,6 +151,32 @@ def list_tag_definitions(request: Request):
         result.append(tag_data)
 
     return result
+
+@router.get("/tags/tag_definition", response_class=PrettyJSONResponse)
+def list_tag_definitions(request: Request):
+    response_handler = ApiResponseHandler(request)
+    try:
+        # Query all the tag definitions
+        tags_cursor = request.app.tag_definitions_collection.find({})
+        result = []
+
+        for tag in tags_cursor:
+            tag_data = {
+                "tag_id": tag["tag_id"],
+                "tag_string": tag["tag_string"],
+                "tag_category_id": tag["tag_category_id"],
+                "tag_vector_index": tag.get("tag_vector_index", -1),  # Use default value if tag_vector_index is absent
+                "tag_description": tag["tag_description"],
+                "deprecated": tag["deprecated"],  # Corrected typo from 'depracated' to 'deprecated'
+                "user_who_created": tag["user_who_created"],
+                "creation_time": tag["creation_time"]
+            }
+            result.append(tag_data)
+
+        return response_handler.create_success_response(result, http_status_code=200)
+
+    except Exception as e:
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
 
 @router.put("/tags/set_tag_vector_index")
