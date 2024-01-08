@@ -624,7 +624,10 @@ class PromptSubstitutionGenerator:
 
         start=time.time()
         # get initial prompts
-        prompt_list = self.generate_initial_prompts(num_images)
+        if(self.initial_generation_policy=="independant_approximation"):
+            prompt_list = self.generate_initial_prompts_with_independant_approximation(num_images)
+        else:
+            prompt_list = self.generate_initial_prompts_with_fixed_probs(num_images)
 
         #mutate positive prompts
         prompts, self_training_data= self.mutate_prompts(prompt_list)
