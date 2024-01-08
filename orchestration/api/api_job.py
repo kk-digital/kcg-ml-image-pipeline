@@ -385,10 +385,9 @@ def get_jobs_by_uuids(request: Request, uuids: List[str] = Query(None)):
 
     # Remove the '_id' field to avoid issues with JSON serialization
     for job in jobs:
-        print("job=", job)
         job.pop('_id', None)
 
-    return jobs
+    return list(jobs)
 
 # --------------- Get Job With Required Fields ---------------------
 
