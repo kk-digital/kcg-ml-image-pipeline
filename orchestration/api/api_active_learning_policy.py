@@ -95,7 +95,7 @@ def delete_active_learning_policy(request: Request, active_learning_policy_id: i
 
 @router.post("/active-learning-queue/policy/add", description="adding policy for active learning", response_class=PrettyJSONResponse)
 def add_policy(request: Request, policy_data: ActiveLearningPolicy):
-    response_handler = ApiResponseHandler("/active-learning-queue/policy/add")
+    response_handler = ApiResponseHandler(request)
 
     try:
         # Find the maximum active_learning_policy_id in the collection
@@ -124,13 +124,13 @@ def add_policy(request: Request, policy_data: ActiveLearningPolicy):
 
     except Exception as e:
         # Handle unexpected errors
-        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, str(e), 500)
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
 
 
 @router.put("/active-learning-queue/policy/update", description="updating existed policy", response_class=PrettyJSONResponse)
 def update_policy(request: Request, policy_id: int, policy_update: ActiveLearningPolicy):
-    response_handler = ApiResponseHandler("/active-learning-queue/policy/update")
+    response_handler = ApiResponseHandler(request)
     try:
         existing_policy = request.app.active_learning_policies_collection.find_one({"active_learning_policy_id": policy_id})
         if not existing_policy:
@@ -141,13 +141,13 @@ def update_policy(request: Request, policy_id: int, policy_update: ActiveLearnin
 
         return response_handler.create_success_response({"status": "success", "message": "Active learning policy updated.", "active_learning_policy_id": policy_id})
     except Exception as e:
-        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, str(e), 500)
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
 
 
 @router.get("/active-learning-queue/policy/list", description="returning a list of policies", response_class=PrettyJSONResponse)
 def list_active_learning_policies(request: Request):
-    response_handler = ApiResponseHandler("/active-learning-queue/policy/list")
+    response_handler = ApiResponseHandler(request)
     try:
         policies_cursor = request.app.active_learning_policies_collection.find({})
         policies = [ActiveLearningPolicy(**policy) for policy in policies_cursor]
@@ -157,12 +157,12 @@ def list_active_learning_policies(request: Request):
 
         return response_handler.create_success_response({"policies": policies})
     except Exception as e:
-        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, str(e), 500)
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
 
 @router.delete("/active-learning-queue/policy/remove", description="Removing an existing policy", response_class=PrettyJSONResponse)
 def delete_active_learning_policy(request: Request, active_learning_policy_id: int = None):
-    response_handler = ApiResponseHandler("/active-learning-queue/policy/remove")
+    response_handler = ApiResponseHandler(request)
     try:
         was_present = False
 
@@ -185,4 +185,4 @@ def delete_active_learning_policy(request: Request, active_learning_policy_id: i
         return response_handler.create_success_response({"wasPresent": was_present})
 
     except Exception as e:
-        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, str(e), 500)
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)

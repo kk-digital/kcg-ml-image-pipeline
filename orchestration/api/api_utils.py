@@ -5,6 +5,8 @@ from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 from enum import Enum
 import time
+from fastapi import Request
+
 
 class PrettyJSONResponse(Response):
     media_type = "application/json"
@@ -24,25 +26,25 @@ class ErrorCode(Enum):
     INVALID_PARAMS = 3
 
 class ApiResponseHandler:
-    def __init__(self, url: str):
-        self.url = url
+    def __init__(self, request: Request):
+        self.url = str(request.url)
         self.start_time = time.time()
 
     def _elapsed_time(self) -> float:
         return time.time() - self.start_time
 
-    def create_success_response(self, response_data: dict, headers: dict = None):
+    def create_success_response(self, response_data: dict, http_status_code: int, headers: dict = {"Cache-Control": "no-store"}):
+        # Validate the provided HTTP status code
+        if not 200 <= http_status_code < 300:
+            raise ValueError("Invalid HTTP status code for a success response. Must be between 200 and 299.")
+
         response_content = {
             "url": self.url,
             "duration": self._elapsed_time(),
             "response": response_data
         }
-        if headers:
-            return PrettyJSONResponse(status_code=200, content=response_content, headers=headers)
-        else:
-            return PrettyJSONResponse(status_code=200, content=response_content)
-
-
+        return PrettyJSONResponse(status_code=http_status_code, content=response_content, headers=headers)
+    
     def create_success_delete_response(self, reachable: bool):
         return PrettyJSONResponse(
             status_code=200,
@@ -64,4 +66,5 @@ class ApiResponseHandler:
                 "errorString": error_string
             }
         )
+
      
