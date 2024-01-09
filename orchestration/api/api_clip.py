@@ -19,18 +19,18 @@ router = APIRouter()
 # --------- Http requests -------------
 def http_clip_server_add_phrase(phrase: str):
     url = CLIP_SERVER_ADDRESS + "/add-phrase?phrase=" + phrase
-
     try:
         response = requests.put(url)
-
         if response.status_code == 200:
             result_json = response.json()
+            print(f"Response JSON: {result_json}")  # Debug log
             return result_json
-
+        else:
+            print(f"Unexpected status code: {response.status_code}")  # Debug log
     except Exception as e:
-        print('request exception ', e)
-
+        print(f"Request exception: {e}")  # Debug log
     return None
+
 
 
 def http_clip_server_clip_vector_from_phrase(phrase: str):
