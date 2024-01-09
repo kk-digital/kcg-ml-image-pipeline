@@ -15,6 +15,8 @@ import torch
 import msgpack
 from tqdm import tqdm
 
+from utility.boltzman.boltzman import find_first_element_binary_search, get_cumulative_probability_arr_without_upload
+
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
@@ -225,6 +227,16 @@ class PromptSubstitutionGenerator:
             phrase_loader.load_dataset()
             self.phrase_score_data= phrase_loader.index_phrase_score_data
             self.phrase_list=[self.phrase_score_data[i].phrase for i in range(len(self.phrase_score_data))]
+
+            # get cumulative probabilities
+            self.positive_phrase_origin_indexes, self.positive_cumulative_probability_arr = get_cumulative_probability_arr_without_upload(
+            index_phrase_score_data=self.phrase_score_data,
+            boltzman_temperature=boltzman_temperature,
+            boltzman_k=boltzman_k)
+
+            # get min and max
+            self.positive_cumulative_probability_arr_min = self.positive_cumulative_probability_arr.min()
+            self.positive_cumulative_probability_arr_max = self.positive_cumulative_probability_arr.max()
 
         # store phrase embeddings in a file in minio 
         if(store_embeddings):
@@ -469,12 +481,28 @@ class PromptSubstitutionGenerator:
     # function to get a random phrase from civitai with a max token size for substitutions
     def choose_random_phrase(self, max_token_length):
         phrase_token_length=max_token_length + 1
+
         while(phrase_token_length > max_token_length):
             random_index=random.randrange(0, len(self.phrase_list))
             phrase= self.phrase_list[random_index]
             phrase_token_length=self.phrase_token_lengths[random_index]
 
         return random_index, phrase
+    
+    # function to choose a phrase based on binary search
+    def choose_phrase_by_temperature(self, max_token_length):
+        phrase_token_length=max_token_length + 1
+        while(phrase_token_length > max_token_length):
+            random_float = random.uniform(self.positive_cumulative_probability_arr_min,
+                                      self.positive_cumulative_probability_arr_max)
+            
+            random_index = find_first_element_binary_search(self.positive_cumulative_probability_arr, 
+                                                            random_float)
+            prompt_index = self.positive_phrase_origin_indexes[random_index]
+            phrase= self.phrase_list[prompt_index]
+            phrase_token_length=self.phrase_token_lengths[random_index]
+
+        return prompt_index, phrase
 
     # rejection sampling function
     def rejection_sampling(self, prompts):
