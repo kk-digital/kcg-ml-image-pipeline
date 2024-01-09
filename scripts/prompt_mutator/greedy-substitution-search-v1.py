@@ -528,8 +528,10 @@ class PromptSubstitutionGenerator:
         phrase= self.phrase_list[prompt_index]
         phrase_token_length=self.phrase_token_lengths[prompt_index]
 
+        counter= 1 if prompt_index < (len(self.phrase_list)-prompt_index) else -1
+
         while(phrase_token_length > max_token_length):
-            prompt_index=random.randrange(prompt_index+1, len(self.phrase_list))
+            prompt_index+=counter
             phrase= self.phrase_list[prompt_index]
             phrase_token_length=self.phrase_token_lengths[prompt_index]
 
