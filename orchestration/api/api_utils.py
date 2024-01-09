@@ -48,7 +48,7 @@ class ApiResponseHandler:
         return time.time() - self.start_time
     
     @staticmethod
-    def listErrors(errors: list[int]) -> dict:
+    def listErrors(errors: List[int]) -> dict:
         repsonse = {}
         for err in errors:
             repsonse[err] = {"model": StandardErrorResponse}
