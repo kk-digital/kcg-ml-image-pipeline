@@ -94,6 +94,9 @@ class PromptData:
         # Extracting the phrases into a list
         phrases = next(reader)
 
+        # removing white spaces
+        phrases= [phrase.strip() for phrase in phrases]
+
         return phrases
 
 class PromptSubstitutionGenerator:
