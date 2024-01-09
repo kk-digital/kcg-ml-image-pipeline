@@ -21,10 +21,21 @@ def http_clip_server_add_phrase(phrase: str):
     url = CLIP_SERVER_ADDRESS + "/add-phrase?phrase=" + phrase
     try:
         response = requests.put(url)
+
+        # Logging the response for debugging purposes
+        print(f"Response Status Code: {response.status_code}")
+        try:
+            print(f"Response JSON: {response.json()}")
+        except Exception as e:
+            print(f"Error parsing JSON response: {e}")
+            print(f"Raw Response Content: {response.content}")
+
         return response  # Return the whole response object
+
     except Exception as e:
         print(f"Request exception: {e}")
-        return None  
+        return None
+
 
 
 
