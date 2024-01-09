@@ -501,20 +501,23 @@ class PromptSubstitutionGenerator:
     def choose_phrase_by_temperature(self, max_token_length):
         start=time.time()
         phrase_token_length=max_token_length + 1
-        retries=0
-        while(phrase_token_length > max_token_length):
-            random_float = random.uniform(self.positive_cumulative_probability_arr_min,
+
+        random_float = random.uniform(self.positive_cumulative_probability_arr_min,
                                       self.positive_cumulative_probability_arr_max)
             
-            random_index = find_first_element_binary_search(self.positive_cumulative_probability_arr, 
-                                                            random_float)
-            prompt_index = self.positive_phrase_origin_indexes[random_index]
+        random_index = find_first_element_binary_search(self.positive_cumulative_probability_arr, 
+                                                        random_float)
+        prompt_index = self.positive_phrase_origin_indexes[random_index]
+        phrase= self.phrase_list[prompt_index]
+        phrase_token_length=self.phrase_token_lengths[prompt_index]
+
+        while(phrase_token_length > max_token_length):
+            prompt_index=random.randrange(prompt_index+1, len(self.phrase_list))
             phrase= self.phrase_list[prompt_index]
             phrase_token_length=self.phrase_token_lengths[prompt_index]
-            retries+=1
 
         end= time.time()
-        print(f"{retries} retries in {end-start} seconds")
+        print(f"time taken: {end-start}")
 
         return prompt_index, phrase
 
