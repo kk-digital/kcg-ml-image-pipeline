@@ -92,7 +92,7 @@ class PromptData:
         matches = re.findall(pattern, self.positive_prompt)
         
         # Strip only leading and trailing whitespace, keep quotes if they exist
-        phrases = [phrase for phrase in matches]
+        phrases = [phrase.strip() for phrase in matches]
 
         return phrases
 
