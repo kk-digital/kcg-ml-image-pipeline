@@ -9,6 +9,7 @@ from fastapi import HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from fastapi_cache.decorator import cache
 from pydantic import BaseModel
+import traceback
 
 CLIP_SERVER_ADDRESS = 'http://192.168.3.31:8002'
 #CLIP_SERVER_ADDRESS = 'http://127.0.0.1:8002'
@@ -125,7 +126,10 @@ def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
         return response_handler.create_success_response({"clip_vector": clip_vector}, http_status_code=201, headers={"Cache-Control": "no-store"})
 
     except Exception as e:
+        # Log the full stack trace to your server logs for debugging
+        traceback.print_exc()  # Or use a logging framework to log the traceback
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 @router.get("/clip/clip-vector",
