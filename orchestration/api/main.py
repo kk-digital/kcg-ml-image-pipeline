@@ -99,11 +99,12 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content=StandardErrorResponse(
             url=str(request.url),
-            duration=0, 
-            errorCode=422,
-            errorString="Validation error",
+            duration=0,  
+            errorCode=ErrorCode.INVALID_PARAMS.value,
+            errorString="Validation error"
         ).dict(),
     )
+
 
 @app.on_event("startup")
 def startup_db_client():
