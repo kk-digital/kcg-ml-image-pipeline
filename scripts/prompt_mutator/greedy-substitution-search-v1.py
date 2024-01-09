@@ -86,7 +86,8 @@ class PromptData:
         self.positive_phrase_token_lengths= positive_phrase_token_lengths
 
     def get_phrases(self):
-        # split prompt phrases by ,
+        # split prompt phrases by comma
+        print(self.positive_prompt)
         phrases = self.positive_prompt.split(', ')
         print(phrases)
 
