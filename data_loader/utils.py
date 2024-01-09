@@ -96,6 +96,8 @@ def format_prompt(prompt):
 
     prompt = re.sub(r'^[\.,;\s]+', '', prompt)
     prompt = re.sub(r'[\.,;\s]+$', '', prompt)
+    # remove single character
+    prompt = re.sub(r'(?<!\S)\S(?!\S)', '', prompt)
 
     return prompt
 
@@ -128,6 +130,35 @@ def remove_unwanted_chars(phrase: str):
     phrase = re.sub(r'[\-]', '', phrase)
     # remove underscores
     phrase = re.sub(r'[\_]', '', phrase)
+    # remove + signs
+    phrase = re.sub(r'[\+]', '', phrase)
+    # remove ! signs
+    phrase = re.sub(r'[\!]', '', phrase)
+    # remove = signs
+    phrase = re.sub(r'[\=]', '', phrase)
+    # remove ^ signs
+    phrase = re.sub(r'[\^]', '', phrase)
+    # remove ? signs
+    phrase = re.sub(r'[\?]', '', phrase)
+    # remove * signs
+    phrase = re.sub(r'[\*]', '', phrase)
+    # remove $ signs
+    phrase = re.sub(r'[\$]', '', phrase)
+    # remove # signs
+    phrase = re.sub(r'[\#]', '', phrase)
+    # remove & signs
+    phrase = re.sub(r'[\&]', '', phrase)
+    # remove @ signs
+    phrase = re.sub(r'[\@]', '', phrase)
+    # remove ` signs
+    phrase = re.sub(r'[\`]', '', phrase)
+    # remove % signs
+    phrase = re.sub(r'[\%]', '', phrase)
+    # remove ~ signs
+    phrase = re.sub(r'[\~]', '', phrase)
+    # remove hex
+    phrase = re.sub(r'[\x01-\x1f]', '', phrase)
+
     # remove weird ints and floats
     phrase = re.sub('(\d+.\d+)|(\d+)', '', phrase)
     # remove tabs
@@ -143,14 +174,13 @@ def remove_unwanted_chars(phrase: str):
 
 
 def get_phrases_from_prompt(prompt):
-    prompt = format_prompt(prompt)
-    prompt = remove_weight(prompt)
-    prompt = format_prompt(prompt)
-
     phrases = []
     for phrase in prompt.split(','):
         phrase = phrase.strip()
         phrase = remove_unwanted_chars(phrase)
+        phrase = format_prompt(phrase)
+        phrase = remove_weight(phrase)
+        phrase = format_prompt(phrase)
 
         if len(phrase) == 0:
             continue

@@ -1,6 +1,6 @@
-from fastapi import Request, APIRouter, HTTPException
+from fastapi import Request, APIRouter, HTTPException, Response
 import requests
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardErrorResponse, StandardSuccessResponse
 from orchestration.api.mongo_schemas import  PhraseModel
 from typing import Optional
 from typing import List
@@ -8,6 +8,7 @@ import json
 from fastapi import HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from fastapi_cache.decorator import cache
+from pydantic import BaseModel
 
 CLIP_SERVER_ADDRESS = 'http://192.168.3.31:8002'
 #CLIP_SERVER_ADDRESS = 'http://127.0.0.1:8002'
@@ -97,8 +98,16 @@ def add_phrase(request: Request,
 
     return http_clip_server_add_phrase(phrase)
 
-@router.post("/clip/phrases", response_class=PrettyJSONResponse, description="Adds a phrase to the clip server", tags=["clip"])
-def add_phrase(request: Request, phrase_data: PhraseModel):
+class AddClipPhraseResponse(BaseModel):
+    clip_vector: str
+
+@router.post("/clip/phrases",
+             description="Adds a phrase to the clip server.",
+             tags=["clip"],
+             response_model=StandardSuccessResponse[AddClipPhraseResponse],
+             status_code=201,
+             responses=ApiResponseHandler.listErrors([400, 500, 503]))
+def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
     response_handler = ApiResponseHandler(request)
 
     try:
