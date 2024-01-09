@@ -9,6 +9,7 @@ from fastapi import HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from fastapi_cache.decorator import cache
 from pydantic import BaseModel
+import traceback
 
 CLIP_SERVER_ADDRESS = 'http://192.168.3.31:8002'
 #CLIP_SERVER_ADDRESS = 'http://127.0.0.1:8002'
@@ -30,6 +31,9 @@ def http_clip_server_add_phrase(phrase: str):
         print('request exception ', e)
 
     return None
+
+
+
 
 
 def http_clip_server_clip_vector_from_phrase(phrase: str):
@@ -106,7 +110,7 @@ class AddClipPhraseResponse(BaseModel):
              tags=["clip"],
              response_model=StandardSuccessResponse[AddClipPhraseResponse],
              status_code=201,
-             responses=ApiResponseHandler.listErrors([400, 500, 503]))
+             responses=ApiResponseHandler.listErrors([400, 422, 500, 503]))
 def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
     response_handler = ApiResponseHandler(request)
 
@@ -114,18 +118,18 @@ def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
         if not phrase_data.phrase:
             return response_handler.create_error_response(ErrorCode.INVALID_PARAMS, "Phrase is required", status.HTTP_400_BAD_REQUEST)
 
-        # Use the phrase from the PhraseModel object
-        response = http_clip_server_add_phrase(phrase_data.phrase)
+        response_json = http_clip_server_add_phrase(phrase_data.phrase)
 
-        if not (200 <= response.status_code < 300):
-            return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Clip server error", status.HTTP_503_SERVICE_UNAVAILABLE)
+        # Explicitly check if the response is True and set clip_vector to None in that case
+        clip_vector = None if response_json is True else response_json
 
-        # Assuming the response includes the clip vector or is None
-        clip_vector = response.get("clip_vector") if response else None
-        return response_handler.create_success_response({"clip_vector": clip_vector}, http_status_code=201, headers={"Cache-Control": "no-store"})
+        return response_handler.create_success_response(clip_vector, http_status_code=201, headers={"Cache-Control": "no-store"})
 
     except Exception as e:
+        traceback.print_exc()  # Log the full stack trace
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 
 
 @router.get("/clip/clip-vector",
