@@ -88,7 +88,7 @@ class PromptData:
     def get_phrases(self):
         # split prompt phrases by ,
         phrases = self.positive_prompt.split(', ')
-        print(merged_phrases)
+        print(phrases)
 
         # merge quoted phrases that have commas within them that were split
         merged_phrases = []
