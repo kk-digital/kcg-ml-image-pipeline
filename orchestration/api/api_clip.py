@@ -19,22 +19,18 @@ router = APIRouter()
 # --------- Http requests -------------
 def http_clip_server_add_phrase(phrase: str):
     url = CLIP_SERVER_ADDRESS + "/add-phrase?phrase=" + phrase
+
     try:
         response = requests.put(url)
 
-        # Logging the response for debugging purposes
-        print(f"Response Status Code: {response.status_code}")
-        try:
-            print(f"Response JSON: {response.json()}")
-        except Exception as e:
-            print(f"Error parsing JSON response: {e}")
-            print(f"Raw Response Content: {response.content}")
-
-        return response  # Return the whole response object
+        if response.status_code == 200:
+            result_json = response.json()
+            return result_json
 
     except Exception as e:
-        print(f"Request exception: {e}")
-        return None
+        print('request exception ', e)
+
+    return None
 
 
 
@@ -122,30 +118,20 @@ def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
         if not phrase_data.phrase:
             return response_handler.create_error_response(ErrorCode.INVALID_PARAMS, "Phrase is required", status.HTTP_400_BAD_REQUEST)
 
-        response = http_clip_server_add_phrase(phrase_data.phrase)
+        response_json = http_clip_server_add_phrase(phrase_data.phrase)
 
-        if response is None or response.status_code != 200:
+        if response_json is None:
             return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Clip server error", status.HTTP_503_SERVICE_UNAVAILABLE)
 
-        # Handle the response
-        try:
-            response_json = response.json()
-        except ValueError:
-            # The response is not JSON, handle accordingly
-            return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Invalid response format from CLIP server", 500)
-
-        # Check if response JSON is a dictionary and contains 'clip_vector'
-        if isinstance(response_json, dict) and 'clip_vector' in response_json:
-            clip_vector = response_json['clip_vector']
-        else:
-            # Handle case where 'clip_vector' is not present
-            return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Missing 'clip_vector' in response", 500)
+        # Check if 'clip_vector' is present in response_json
+        clip_vector = response_json.get('clip_vector', None)  # Default to None if 'clip_vector' is not present
 
         return response_handler.create_success_response({"clip_vector": clip_vector}, http_status_code=201, headers={"Cache-Control": "no-store"})
 
     except Exception as e:
         traceback.print_exc()  # Log the full stack trace
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 
