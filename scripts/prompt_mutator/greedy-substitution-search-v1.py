@@ -1390,9 +1390,9 @@ class PromptSubstitutionGenerator:
         # Write to a CSV file
         with open(local_file_path, 'w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(['Phrase index', 'Token Length'])
+            writer.writerow(['Phrase index', 'Phrase str', 'Token Length'])
             for phrase_index, length in enumerate(token_lengths):
-                writer.writerow([phrase_index, length])
+                writer.writerow([phrase_index, phrase_list[phrase_index], length])
         
         # Read the contents of the .npz file
         with open(local_file_path, 'rb') as file:
