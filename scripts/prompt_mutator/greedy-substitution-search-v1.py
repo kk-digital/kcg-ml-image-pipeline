@@ -501,6 +501,7 @@ class PromptSubstitutionGenerator:
     def choose_phrase_by_temperature(self, max_token_length):
         start=time.time()
         phrase_token_length=max_token_length + 1
+        retries=0
         while(phrase_token_length > max_token_length):
             random_float = random.uniform(self.positive_cumulative_probability_arr_min,
                                       self.positive_cumulative_probability_arr_max)
@@ -510,10 +511,11 @@ class PromptSubstitutionGenerator:
             prompt_index = self.positive_phrase_origin_indexes[random_index]
             phrase= self.phrase_list[prompt_index]
             phrase_token_length=self.phrase_token_lengths[prompt_index]
+            retries+=1
 
         end= time.time()
-        print(f"{end-start} seconds")
-        
+        print(f"{retries} retries in {end-start} seconds")
+
         return prompt_index, phrase
 
     # rejection sampling function
