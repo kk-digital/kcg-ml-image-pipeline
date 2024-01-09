@@ -15,8 +15,6 @@ import torch
 import msgpack
 from tqdm import tqdm
 
-from utility.boltzman.boltzman import find_first_element_binary_search, get_cumulative_probability_arr_without_upload
-
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
@@ -28,9 +26,10 @@ from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from prompt_job_generator.independent_approx_v1.independent_approx_v1 import IndependentApproxV1
 from utility.boltzman.boltzman_phrase_scores_loader import BoltzmanPhraseScoresLoader
+from utility.boltzman.boltzman import find_first_element_binary_search, get_cumulative_probability_arr_without_upload
 from utility.minio import cmd
 
-from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix, generate_prompts_from_csv_proportional_selection, load_base_prompts, generate_inpainting_job
+from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix, load_base_prompts, generate_inpainting_job
 
 GENERATION_POLICY="greedy-substitution-search-v1"
 DATA_MINIO_DIRECTORY="data/prompt-generator/substitution"
@@ -478,6 +477,15 @@ class PromptSubstitutionGenerator:
 
         return num_tokens
 
+    # selection policy
+    def selection_policy(self, max_token_length):
+        if(self.initial_generation_policy=="fixed_probabilities"):
+            random_index, phrase= self.choose_random_phrase(max_token_length)
+        else:
+            random_index, phrase= self.choose_phrase_by_temperature(max_token_length)
+        
+        return random_index, phrase
+    
     # function to get a random phrase from civitai with a max token size for substitutions
     def choose_random_phrase(self, max_token_length):
         phrase_token_length=max_token_length + 1
@@ -528,7 +536,7 @@ class PromptSubstitutionGenerator:
                 # get the substituted phrase embedding
                 substituted_embedding = prompt.positive_phrase_embeddings[phrase_position]
                 # get a random phrase from civitai to substitute with
-                phrase_index, random_phrase= self.choose_random_phrase(max_token_length=substituted_phrase_length)   
+                phrase_index, random_phrase= self.selection_policy(max_token_length=substituted_phrase_length)   
                 # get phrase string
                 substitute_phrase = random_phrase
                 # get phrase embedding by its index
