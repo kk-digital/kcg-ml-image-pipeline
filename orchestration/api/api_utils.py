@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from enum import Enum
 import time
 from fastapi import Request
-from typing import TypeVar, Generic
+from typing import TypeVar, Generic, List
 from pydantic import BaseModel
 
 
