@@ -106,7 +106,7 @@ class AddClipPhraseResponse(BaseModel):
              tags=["clip"],
              response_model=StandardSuccessResponse[AddClipPhraseResponse],
              status_code=201,
-             responses=ApiResponseHandler.listErrors([400, 500, 503]))
+             responses=ApiResponseHandler.listErrors([400, 422, 500, 503]))
 def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
     response_handler = ApiResponseHandler(request)
 
