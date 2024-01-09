@@ -123,7 +123,7 @@ def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
         # Explicitly check if the response is True and set clip_vector to None in that case
         clip_vector = None if response_json is True else response_json
 
-        return response_handler.create_success_response( clip_vector, http_status_code=201, headers={"Cache-Control": "no-store"})
+        return response_handler.create_success_response({"clip_vector": clip_vector}, http_status_code=201, headers={"Cache-Control": "no-store"})
 
     except Exception as e:
         traceback.print_exc()  # Log the full stack trace
