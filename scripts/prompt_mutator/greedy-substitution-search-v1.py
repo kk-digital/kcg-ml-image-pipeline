@@ -108,6 +108,8 @@ class PromptData:
             else:
                 # Regular, non-quoted phrase
                 merged_phrases.append(phrase)
+        
+        print(merged_phrases)
 
         # Merge phrases that were incorrectly split
         return merged_phrases
