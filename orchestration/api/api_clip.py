@@ -104,27 +104,29 @@ class AddClipPhraseResponse(BaseModel):
              response_model=StandardSuccessResponse[AddClipPhraseResponse],
              status_code=201,
              responses=ApiResponseHandler.listErrors([400, 422, 500, 503]))
-def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
+def add_phrase(request: Request, phrase_data: PhraseModel):
     response_handler = ApiResponseHandler(request)
 
     try:
         if not phrase_data.phrase:
             return response_handler.create_error_response(ErrorCode.INVALID_PARAMS, "Phrase is required", status.HTTP_400_BAD_REQUEST)
 
-        # Use the phrase from the PhraseModel object
         response = http_clip_server_add_phrase(phrase_data.phrase)
 
-        if not (200 <= response.status_code < 300):
+        if response is None or not (200 <= response.status_code < 300):
             return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Clip server error", status.HTTP_503_SERVICE_UNAVAILABLE)
 
-        # Assuming the response includes the clip vector or is None
-        clip_vector = response.get("clip_vector") if response else None
+        # Parse the JSON response body
+        response_json = response.json()
+        clip_vector = response_json.get("clip_vector")  # Use .get() on the JSON object
+
         return response_handler.create_success_response({"clip_vector": clip_vector}, http_status_code=201, headers={"Cache-Control": "no-store"})
 
     except Exception as e:
         # Log the full stack trace to your server logs for debugging
         traceback.print_exc()  # Or use a logging framework to log the traceback
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 
