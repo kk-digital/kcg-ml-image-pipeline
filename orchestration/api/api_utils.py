@@ -6,6 +6,8 @@ from fastapi.responses import JSONResponse
 from enum import Enum
 import time
 from fastapi import Request
+from typing import TypeVar, Generic
+from pydantic import BaseModel
 
 
 class PrettyJSONResponse(Response):
@@ -25,6 +27,18 @@ class ErrorCode(Enum):
     ELEMENT_NOT_FOUND = 2
     INVALID_PARAMS = 3
 
+T = TypeVar('T')
+class StandardSuccessResponse(BaseModel, Generic[T]):
+    url: str
+    duration: int
+    response: T
+
+class StandardErrorResponse(BaseModel):
+    url: str
+    duration: int
+    errorCode: int
+    errorString: str
+
 class ApiResponseHandler:
     def __init__(self, request: Request):
         self.url = str(request.url)
@@ -32,6 +46,13 @@ class ApiResponseHandler:
 
     def _elapsed_time(self) -> float:
         return time.time() - self.start_time
+    
+    @staticmethod
+    def listErrors(errors: list[int]) -> dict:
+        repsonse = {}
+        for err in errors:
+            repsonse[err] = {"model": StandardErrorResponse}
+        return repsonse
 
     def create_success_response(self, response_data: dict, http_status_code: int, headers: dict = {"Cache-Control": "no-store"}):
         # Validate the provided HTTP status code
