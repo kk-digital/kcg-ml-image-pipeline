@@ -120,14 +120,15 @@ def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
 
         response_json = http_clip_server_add_phrase(phrase_data.phrase)
 
-        # Return null for clip_vector if response_json is not True
-        clip_vector = None if not response_json else response_json
+        # Explicitly check if the response is True and set clip_vector to None in that case
+        clip_vector = None if response_json is True else response_json
 
-        return response_handler.create_success_response( clip_vector, http_status_code=201, headers={"Cache-Control": "no-store"})
+        return response_handler.create_success_response({"clip_vector": clip_vector}, http_status_code=201, headers={"Cache-Control": "no-store"})
 
     except Exception as e:
         traceback.print_exc()  # Log the full stack trace
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 
