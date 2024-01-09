@@ -115,7 +115,7 @@ class AddClipPhraseResponse(BaseModel):
              response_model=StandardSuccessResponse[AddClipPhraseResponse],
              status_code=201,
              responses=ApiResponseHandler.listErrors([400, 422, 500, 503]))
-def add_phrase(request: Request, phrase_data: PhraseModel):
+def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
     response_handler = ApiResponseHandler(request)
 
     try:
@@ -124,19 +124,29 @@ def add_phrase(request: Request, phrase_data: PhraseModel):
 
         response = http_clip_server_add_phrase(phrase_data.phrase)
 
-        if response is None or not (200 <= response.status_code < 300):
+        if response is None or response.status_code != 200:
             return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Clip server error", status.HTTP_503_SERVICE_UNAVAILABLE)
 
-        # Parse the JSON response body
-        response_json = response.json()
-        clip_vector = response_json.get("clip_vector")  # Use .get() on the JSON object
+        # Handle the response
+        try:
+            response_json = response.json()
+        except ValueError:
+            # The response is not JSON, handle accordingly
+            return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Invalid response format from CLIP server", 500)
+
+        # Check if response JSON is a dictionary and contains 'clip_vector'
+        if isinstance(response_json, dict) and 'clip_vector' in response_json:
+            clip_vector = response_json['clip_vector']
+        else:
+            # Handle case where 'clip_vector' is not present
+            return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Missing 'clip_vector' in response", 500)
 
         return response_handler.create_success_response({"clip_vector": clip_vector}, http_status_code=201, headers={"Cache-Control": "no-store"})
 
     except Exception as e:
-        # Log the full stack trace to your server logs for debugging
-        traceback.print_exc()  # Or use a logging framework to log the traceback
+        traceback.print_exc()  # Log the full stack trace
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 
