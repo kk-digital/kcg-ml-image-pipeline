@@ -120,17 +120,15 @@ def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
 
         response_json = http_clip_server_add_phrase(phrase_data.phrase)
 
-        if response_json is None or not isinstance(response_json, dict):
-            return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Clip server error", status.HTTP_503_SERVICE_UNAVAILABLE)
+        # Return null for clip_vector if response_json is not True
+        clip_vector = None if not response_json else response_json
 
-        # Directly use 'clip_vector' from response_json if present, else None
-        clip_vector = response_json.get('clip_vector') if 'clip_vector' in response_json else None
-
-        return response_handler.create_success_response({"clip_vector": clip_vector}, http_status_code=201, headers={"Cache-Control": "no-store"})
+        return response_handler.create_success_response( clip_vector, http_status_code=201, headers={"Cache-Control": "no-store"})
 
     except Exception as e:
         traceback.print_exc()  # Log the full stack trace
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 @router.get("/clip/clip-vector",
