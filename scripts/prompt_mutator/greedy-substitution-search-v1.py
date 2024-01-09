@@ -106,6 +106,7 @@ class PromptData:
             elif merge_next and phrase.endswith('"'):
                 # End of a quoted phrase
                 merged_phrases[-1] += ', ' + phrase
+                print(merged_phrases[-1])
                 merge_next = False
             else:
                 # Regular, non-quoted phrase
