@@ -87,9 +87,7 @@ class PromptData:
 
     def get_phrases(self):
         # split prompt phrases by comma
-        print(self.positive_prompt)
         phrases = self.positive_prompt.split(', ')
-        print(phrases)
 
         # merge quoted phrases that have commas within them that were split
         merged_phrases = []
@@ -111,8 +109,6 @@ class PromptData:
             else:
                 # Regular, non-quoted phrase
                 merged_phrases.append(phrase)
-        
-        print(merged_phrases)
 
         # Merge phrases that were incorrectly split
         return merged_phrases
@@ -516,7 +512,6 @@ class PromptSubstitutionGenerator:
     
     # function to choose a phrase based on binary search
     def choose_phrase_by_temperature(self, max_token_length):
-        start=time.time()
         phrase_token_length=max_token_length + 1
 
         random_float = random.uniform(self.positive_cumulative_probability_arr_min,
@@ -534,9 +529,6 @@ class PromptSubstitutionGenerator:
             prompt_index+=counter
             phrase= self.phrase_list[prompt_index]
             phrase_token_length=self.phrase_token_lengths[prompt_index]
-
-        end= time.time()
-        print(f"time taken: {end-start}")
 
         return prompt_index, phrase
 
@@ -1064,9 +1056,6 @@ class PromptSubstitutionGenerator:
 
                 # Storing prompt data
                 prompt = prompt_batch[index]
-                # Strip whitespace and filter out empty phrases
-                # positive_prompt = [phrase for phrase in prompt['positive_prompt'].split(', ') if phrase!=""]
-                # prompt['positive_prompt'] = ', '.join(positive_prompt)
 
                 # save prompt data
                 prompt_data.append(PromptData(
