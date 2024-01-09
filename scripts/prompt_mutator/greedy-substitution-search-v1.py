@@ -85,14 +85,14 @@ class PromptData:
         self.positive_phrase_token_lengths= positive_phrase_token_lengths
 
     def get_phrases(self):
-        # Regular expression to match phrases in quotes or non-comma text
-        pattern = r'\".*?\"|[^,]+'
-        
-        # Find all matches of the pattern in the string
-        matches = re.findall(pattern, self.positive_prompt)
-        
-        # Strip only leading and trailing whitespace, keep quotes if they exist
-        phrases = [phrase.strip() for phrase in matches]
+        # Convert the string to a file-like object
+        string_as_file = io.StringIO(self.positive_prompt)
+
+        # Use csv.reader to handle the string
+        reader = csv.reader(string_as_file, delimiter=',', quotechar='"')
+
+        # Extracting the phrases into a list
+        phrases = next(reader)
 
         return phrases
 
