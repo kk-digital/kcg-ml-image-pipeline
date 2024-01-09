@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from enum import Enum
 import time
 from fastapi import Request
-from typing import TypeVar, Generic
+from typing import TypeVar, Generic, List
 from pydantic import BaseModel
 
 
@@ -48,7 +48,7 @@ class ApiResponseHandler:
         return time.time() - self.start_time
     
     @staticmethod
-    def listErrors(errors: list[int]) -> dict:
+    def listErrors(errors: List[int]) -> dict:
         repsonse = {}
         for err in errors:
             repsonse[err] = {"model": StandardErrorResponse}
