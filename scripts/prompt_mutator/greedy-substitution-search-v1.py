@@ -4,6 +4,7 @@ from datetime import datetime
 import io
 import os
 import random
+import re
 import sys
 import time
 import traceback
@@ -82,6 +83,18 @@ class PromptData:
         self.variance_score= variance_score
         self.positive_phrase_embeddings= positive_phrase_embeddings
         self.positive_phrase_token_lengths= positive_phrase_token_lengths
+
+    def get_phrases(self):
+        # Regular expression to match phrases in quotes or non-comma text
+        pattern = r'\".*?\"|[^,]+'
+        
+        # Find all matches of the pattern in the string
+        matches = re.findall(pattern, self.positive_prompt)
+        
+        # Strip only leading and trailing whitespace, keep quotes if they exist
+        phrases = [phrase for phrase in matches]
+
+        return phrases
 
 class PromptSubstitutionGenerator:
     def __init__(
@@ -198,7 +211,7 @@ class PromptSubstitutionGenerator:
             phrase_df=pd.read_csv(self.csv_phrase).sort_values(by="index")
             self.phrase_list=phrase_df['phrase str'].tolist()
 
-        elif(self.initial_generation_policy=="independant_approximation"):
+        else:
             # get list of boltzman phrase score
             self.positive_phrase_scores_csv,self.negative_phrase_scores_csv=self.get_boltzman_scores_csv()
             
@@ -473,7 +486,7 @@ class PromptSubstitutionGenerator:
 
         for prompt in prompts:
             # get number of phrases
-            prompt_list = prompt.positive_prompt.split(', ')
+            prompt_list = prompt.get_phrases()
             num_phrases= len(prompt_list)
 
             # create a substitution for each position in the prompt
@@ -560,7 +573,7 @@ class PromptSubstitutionGenerator:
                     predicted_score=substitution['score']
 
                     #Create a modified prompt with the substitution
-                    prompt_list = prompts[index].positive_prompt.split(', ')
+                    prompt_list = prompts[index].get_phrases()
                     prompt_list[position] = substitute_phrase
                     modified_prompt_str = ", ".join(prompt_list)
 
@@ -769,7 +782,7 @@ class PromptSubstitutionGenerator:
                     substitute_embedding=substitution['substitute_embedding']
 
                     #Create a modified prompt with the substitution
-                    prompt_list = prompts[index].positive_prompt.split(', ')
+                    prompt_list = prompts[index].get_phrases()
                     prompt_list[position] = substitute_phrase
                     modified_prompt_str = ", ".join(prompt_list)
 
@@ -1005,7 +1018,7 @@ class PromptSubstitutionGenerator:
         # Calculate phrase embeddings and token lengths for chosen prompts
         print("Calculating phrase embeddings and token lengths for each phrase in each prompt")
         for prompt in tqdm(chosen_scored_prompts):
-            phrases = prompt.positive_prompt.split(', ')
+            phrases = prompt.get_phrases()
             prompt.positive_phrase_embeddings = [self.load_phrase_embedding(phrase) for phrase in phrases]
             prompt.positive_phrase_token_lengths = [self.load_phrase_token_length(phrase) for phrase in phrases] 
 
@@ -1092,7 +1105,7 @@ class PromptSubstitutionGenerator:
         # Calculate phrase embeddings and token lengths for chosen prompts
         print("Calculating phrase embeddings and token lengths for each phrase in each prompt")
         for prompt in tqdm(chosen_scored_prompts):
-            phrases = prompt.positive_prompt.split(', ')
+            phrases = prompt.get_phrases()
             prompt.positive_phrase_embeddings = [self.load_phrase_embedding(phrase) for phrase in phrases]
             prompt.positive_phrase_token_lengths = [self.load_phrase_token_length(phrase) for phrase in phrases] 
 
