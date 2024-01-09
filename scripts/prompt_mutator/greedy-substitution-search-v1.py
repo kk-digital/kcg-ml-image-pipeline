@@ -86,19 +86,31 @@ class PromptData:
         self.positive_phrase_token_lengths= positive_phrase_token_lengths
 
     def get_phrases(self):
-        # Convert the string to a file-like object
-        string_as_file = io.StringIO(self.positive_prompt)
+        # split prompt phrases by ,
+        phrases = self.positive_prompt.split(', ')
 
-        # Use csv.reader to handle the string
-        reader = csv.reader(string_as_file, delimiter=',', quotechar='"')
+        # merge phrases that have commas within them that were split
+        merged_phrases = []
+        merge_next = False
 
-        # Extracting the phrases into a list
-        phrases = next(reader)
+        for phrase in phrases:
+            if phrase.startswith('"') and not phrase.endswith('"'):
+                # Start of a quoted phrase
+                merge_next = True
+                merged_phrases.append(phrase)
+            elif merge_next and not phrase.endswith('"'):
+                # Middle of a quoted phrase
+                merged_phrases[-1] += ', ' + phrase
+            elif merge_next and phrase.endswith('"'):
+                # End of a quoted phrase
+                merged_phrases[-1] += ', ' + phrase
+                merge_next = False
+            else:
+                # Regular, non-quoted phrase
+                merged_phrases.append(phrase)
 
-        # removing white spaces
-        phrases= [phrase.strip() for phrase in phrases]
-
-        return phrases
+        # Merge phrases that were incorrectly split
+        return merged_phrases
 
 class PromptSubstitutionGenerator:
     def __init__(
