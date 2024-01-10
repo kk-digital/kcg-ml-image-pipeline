@@ -33,9 +33,6 @@ def http_clip_server_add_phrase(phrase: str):
     return None
 
 
-
-
-
 def http_clip_server_clip_vector_from_phrase(phrase: str):
     url = CLIP_SERVER_ADDRESS + "/clip-vector?phrase=" + phrase
 
@@ -120,7 +117,11 @@ def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
 
         response_json = http_clip_server_add_phrase(phrase_data.phrase)
 
-        # Explicitly check if the response is True and set clip_vector to None in that case
+        # Check if the response from http_clip_server_add_phrase is False
+        if response_json is False:
+            return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Clip server error", status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        # Handle the case where the response is True (indicating success but no data)
         clip_vector = None if response_json is True else response_json
 
         return response_handler.create_success_response(clip_vector, http_status_code=201, headers={"Cache-Control": "no-store"})
@@ -128,7 +129,6 @@ def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
     except Exception as e:
         traceback.print_exc()  # Log the full stack trace
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 
 
