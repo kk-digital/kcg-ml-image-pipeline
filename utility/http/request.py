@@ -217,3 +217,27 @@ def http_get_completed_job_by_uuid(job_uuid):
         print('request exception ', e)
 
     return None
+
+# Get completed jobs
+def http_get_completed_jobs_by_uuids(job_uuids):
+    count = 0
+    batch_uuids = ""
+    for uuid in job_uuids:
+        if count!=0:
+            batch_uuids += "&uuids="
+
+        batch_uuids += "{}".format(uuid)
+        count += 1
+
+    url = SERVER_ADDRESS + "/job/get-jobs?uuids={}".format(batch_uuids)
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json
+
+    except Exception as e:
+        print('request exception ', e)
+
+    return None

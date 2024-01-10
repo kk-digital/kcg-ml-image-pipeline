@@ -10,6 +10,7 @@ import msgpack
 from io import BytesIO
 import matplotlib.pyplot as plt
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from matplotlib.ticker import PercentFormatter
 from tqdm import tqdm
 import math
 base_directory = "./"
@@ -100,37 +101,43 @@ class ImageScorer:
         print("Total paths found=", len(type_paths))
         return type_paths
 
-    def get_feature_data(self, job_uuid, index):
-        # get generation policy and task completion time
-        completed_job = request.http_get_completed_job_by_uuid(job_uuid)
-        if completed_job is None:
-            print("None job = ", job_uuid)
-            return (job_uuid, "n/a", "n/a"), index
-        
-        generation_policy = "n/a"
-        if "prompt_generation_policy" in completed_job["task_input_dict"]:
-            generation_policy = completed_job["task_input_dict"]["prompt_generation_policy"]
+    def get_feature_data(self, job_uuids):
+        data = request.http_get_completed_jobs_by_uuids(job_uuids)
+        return data
 
-        completion_time = completed_job["task_completion_time"]
-
-        return (job_uuid, generation_policy, completion_time), index
-
-    def get_all_feature_data(self, job_uuids):
+    def get_all_feature_data(self, job_uuids_hash_dict):
         print('Getting features data...')
+        # get all job uuids
+        job_uuids = []
+        hash_job_uuid_dict = {}
+        for hash, uuid in job_uuids_hash_dict.items():
+            job_uuids.append(uuid)
+            hash_job_uuid_dict[uuid] = hash
 
-        features_data = [None] * len(job_uuids)
+        features_data_image_hash_dict = {}
         with ThreadPoolExecutor(max_workers=5) as executor:
             futures = []
-            count = 0
-            for job_uuid in job_uuids:
-                futures.append(executor.submit(self.get_feature_data, job_uuid=job_uuid, index=count))
-                count += 1
+            chunk_size = 100
+            for i in range(0, len(job_uuids), chunk_size):
+                batch_job_uuids = job_uuids[i:i + chunk_size]
+                futures.append(executor.submit(self.get_feature_data, job_uuids=batch_job_uuids))
 
-            for future in tqdm(as_completed(futures), total=len(job_uuids)):
-                feature_data, index= future.result()
-                features_data[index] = feature_data
+            for future in tqdm(as_completed(futures), total=round(len(job_uuids)/chunk_size)):
+                feature_data_list = future.result()
+                for features_data in feature_data_list:
+                    job_uuid = features_data["uuid"]
+                    generation_policy = "n/a"
+                    if "prompt_generation_policy" in features_data["task_input_dict"]:
+                        generation_policy = features_data["task_input_dict"]["prompt_generation_policy"]
 
-        return features_data
+                    completion_time = features_data["task_completion_time"]
+                    positive_prompt = features_data["task_input_dict"]["positive_prompt"]
+                    negative_prompt = features_data["task_input_dict"]["negative_prompt"]
+                    features_data = (job_uuid, generation_policy, completion_time, positive_prompt, negative_prompt)
+                    hash = hash_job_uuid_dict[job_uuid]
+                    features_data_image_hash_dict[hash] = features_data
+
+        return features_data_image_hash_dict
 
     def get_feature_pair(self, path, index):
         # Updated bucket name to 'datasets'
@@ -208,16 +215,13 @@ class ImageScorer:
 
     def get_scores(self, msgpack_paths):
         hash_score_pairs = []
-        job_uuids = []
+        job_uuids_hash_dict = {}
         features_data, image_paths = self.get_all_feature_pairs(msgpack_paths)
         print('Predicting dataset scores...')
         with torch.no_grad():
             count=0
             weird_count = 0
             for data in tqdm(features_data):
-                # add job uuids to array
-                job_uuids.append(data[3])
-
                 if self.model_input_type == "embedding":
                     positive_embedding_array = data[1].to(self.device)
                     negative_embedding_array = data[2].to(self.device)
@@ -247,11 +251,14 @@ class ImageScorer:
                     continue
 
                 hash_score_pairs.append((image_hash, score.item()))
+                # add job uuids to dict
+                job_uuids_hash_dict[image_hash] = data[3]
+
                 count += 1
 
         print("Weird scores count = ", weird_count)
 
-        return hash_score_pairs, image_paths, job_uuids
+        return hash_score_pairs, image_paths, job_uuids_hash_dict
 
     def get_percentiles(self, hash_score_pairs):
         hash_percentile_dict = {}
@@ -299,20 +306,29 @@ class ImageScorer:
                    hash_percentile_dict,
                    hash_sigma_score_dict,
                    image_paths,
-                   features_data):
+                   features_data_job_uuid_dict):
         print("Saving data to csv...")
         csv_data = []
         csv_buffer = io.StringIO()
         writer = csv.writer(csv_buffer)
-        writer.writerow((["Job UUID", "Image Hash", "Image Path", "Completed Time", "Generation Policy", "Score", "Percentile", "Sigma Score"]))
+        writer.writerow((["Job UUID", "Image Hash", "Image Path", "Completed Time", "Generation Policy", "Positive Prompt", "Negative Prompt", "Score", "Percentile", "Sigma Score"]))
 
         count = 0
         for image_hash, score in hash_score_pairs:
-            job_uuid = features_data[0]
-            generation_policy = features_data[1]
-            completed_time = features_data[2]
+            job_uuid = "n/a"
+            generation_policy = "n/a"
+            completed_time = "n/a"
+            positive_prompt = "n/a"
+            negative_prompt = "n/a"
+            if image_hash in features_data_job_uuid_dict:
+                features_data = features_data_job_uuid_dict[image_hash]
+                job_uuid = features_data[0]
+                generation_policy = features_data[1]
+                completed_time = features_data[2]
+                positive_prompt = features_data[3]
+                negative_prompt = features_data[4]
 
-            row = [job_uuid, image_hash, image_paths[count], completed_time, generation_policy, score, hash_percentile_dict[image_hash], hash_sigma_score_dict[image_hash]]
+            row = [job_uuid, image_hash, image_paths[count], completed_time, generation_policy, positive_prompt, negative_prompt, score, hash_percentile_dict[image_hash], hash_sigma_score_dict[image_hash]]
             writer.writerow(row)
             csv_data.append(row)
             count += 1
@@ -378,10 +394,11 @@ class ImageScorer:
     def generate_graphs(self, hash_score_pairs, hash_percentile_dict, hash_sigma_score_dict):
         # Initialize all graphs/subplots
         plt.figure(figsize=(22, 20))
-        figure_shape = (3, 1)
+        figure_shape = (4, 1)
         percentile_graph = plt.subplot2grid(figure_shape, (0, 0), rowspan=1, colspan=1)
         score_graph = plt.subplot2grid(figure_shape, (1, 0), rowspan=1, colspan=1)
         sigma_score_graph = plt.subplot2grid(figure_shape, (2, 0), rowspan=1, colspan=1)
+        hist_sigma_score_graph = plt.subplot2grid(figure_shape, (3, 0), rowspan=1, colspan=1)
 
         # percentiles
         chronological_percentiles = []
@@ -428,6 +445,15 @@ class ImageScorer:
         sigma_score_graph.set_title("Sigma Score vs Time")
         sigma_score_graph.legend()
         sigma_score_graph.autoscale(enable=True, axis='y')
+
+        # hist sigma scores
+        hist_sigma_score_graph.set_xlabel("Sigma Score")
+        hist_sigma_score_graph.set_ylabel("Frequency")
+        hist_sigma_score_graph.set_title("Sigma Scores Histogram")
+        hist_sigma_score_graph.hist(chronological_sigma_scores,
+                                    weights=np.ones(len(chronological_sigma_scores)) / len(
+                                        chronological_sigma_scores))
+        hist_sigma_score_graph.yaxis.set_major_formatter(PercentFormatter(1))
 
         # Save figure
         plt.suptitle('Dataset: {}\nModel: {}'.format(self.dataset, self.model_name), fontsize=20)
@@ -545,16 +571,16 @@ def run_image_scorer(minio_client,
 
     scorer.load_model()
     paths = scorer.get_paths()
-    hash_score_pairs, image_paths, job_uuids = scorer.get_scores(paths)
-    features_data = scorer.get_all_feature_data(job_uuids)
+    hash_score_pairs, image_paths, job_uuids_hash_dict = scorer.get_scores(paths)
+    features_data_job_uuid_dict = scorer.get_all_feature_data(job_uuids_hash_dict)
     hash_percentile_dict = scorer.get_percentiles(hash_score_pairs)
+    hash_sigma_score_dict = scorer.get_sigma_scores(hash_score_pairs)
 
     csv_data = scorer.upload_csv(hash_score_pairs=hash_score_pairs,
                                   hash_percentile_dict=hash_percentile_dict,
                                   hash_sigma_score_dict=hash_sigma_score_dict,
                                   image_paths=image_paths,
-                                  features_data=features_data)
-    hash_sigma_score_dict = scorer.get_sigma_scores(hash_score_pairs)
+                                  features_data_job_uuid_dict=features_data_job_uuid_dict)
     scorer.generate_graphs(hash_score_pairs, hash_percentile_dict, hash_sigma_score_dict)
     # scorer.upload_scores(hash_score_pairs)
     # scorer.upload_percentile(hash_percentile_dict)
