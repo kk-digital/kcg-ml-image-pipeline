@@ -14,7 +14,6 @@ import pandas as pd
 import torch
 import msgpack
 from tqdm import tqdm
-from data_loader.phrase_embedding_loader import PhraseEmbeddingLoader
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -27,6 +26,7 @@ from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from prompt_job_generator.independent_approx_v1.independent_approx_v1 import IndependentApproxV1
 from utility.boltzman.boltzman_phrase_scores_loader import BoltzmanPhraseScoresLoader
+from data_loader.phrase_embedding_loader import PhraseEmbeddingLoader
 from utility.boltzman.boltzman import find_first_element_binary_search, get_cumulative_probability_arr_without_upload
 from utility.minio import cmd
 
