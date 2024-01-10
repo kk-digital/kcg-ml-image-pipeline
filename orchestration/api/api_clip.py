@@ -136,8 +136,8 @@ def add_phrase(request: Request,
 
     return http_clip_server_clip_vector_from_phrase(phrase)
 
-@router.get("/clip/vectors/{phrase}", response_class=PrettyJSONResponse, tags=["clip"], summary="Get Clip Vector for a Phrase", description="Retrieves the clip vector for a given phrase.")
-def get_clip_vector(request: Request, phrase: str):
+@router.get("/clip/vectors/{phrase}", tags=["clip"], response_model=StandardSuccessResponse[AddClipPhraseResponse], status_code = 200, responses=ApiResponseHandler.listErrors([400, 422, 500]), summary="Get Clip Vector for a Phrase", description="Retrieves the clip vector for a given phrase.")
+def get_clip_vector(request: Request,  phrase: str):
     response_handler = ApiResponseHandler(request)
     try:
         vector = http_clip_server_clip_vector_from_phrase(phrase)
@@ -375,7 +375,11 @@ def check_clip_server_status():
         print(f"Error checking clip server status: {e}")
         return {"status": "offline", "message": "Clip server is offline or unreachable."}
 
-@router.get("/clip/server-status", tags=["clip"], description="Checks the status of the CLIP server.")
+class RechableResponse(BaseModel):
+    reachable: bool
+
+
+@router.get("/clip/server-status", tags=["clip"], response_model=StandardSuccessResponse[RechableResponse],status_code=202, responses=ApiResponseHandler.listErrors([503]), description="Checks the status of the CLIP server.")
 def check_clip_server_status(request: Request):
     response_handler = ApiResponseHandler(request)
     try:
