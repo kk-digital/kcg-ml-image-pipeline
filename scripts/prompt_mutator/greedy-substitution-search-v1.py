@@ -14,6 +14,7 @@ import pandas as pd
 import torch
 import msgpack
 from tqdm import tqdm
+from data_loader.phrase_embedding_loader import PhraseEmbeddingLoader
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -235,6 +236,13 @@ class PromptSubstitutionGenerator:
             # store list of token lengths for each phrase
             self.phrase_token_lengths=self.load_phrase_token_lengths()
 
+            # store phrase embeddings in a file in minio 
+            if(store_embeddings):
+                self.store_phrase_embeddings()
+                
+            # get phrase embeddings    
+            self.phrase_embeddings= self.load_phrase_embeddings()
+        
         else:
             # get list of boltzman phrase score
             self.positive_phrase_scores_csv,self.negative_phrase_scores_csv=self.get_boltzman_scores_csv()
@@ -245,8 +253,18 @@ class PromptSubstitutionGenerator:
                                                     minio_client=self.minio_client)
             phrase_loader.load_dataset()
             self.phrase_score_data= phrase_loader.index_phrase_score_data
+            # get the list of phrases
             self.phrase_list=[self.phrase_score_data[i].phrase for i in range(len(self.phrase_score_data))]
+            # get list of token lengths for each phrase
             self.phrase_token_lengths=[self.phrase_score_data[i].token_length for i in range(len(self.phrase_score_data))]
+            # get embeddings of the phrases
+
+            phrase_embedding_loader= PhraseEmbeddingLoader(dataset_name=self.model_dataset,
+                                                           minio_access_key=minio_access_key,
+                                                           minio_secret_key=minio_secret_key,
+                                                           minio_ip_addr=minio_ip_addr)
+            phrase_embedding_loader.load_dataset_phrases()
+            self.phrase_embeddings= phrase_embedding_loader.phrase_embedding_arr 
 
             # get cumulative probabilities
             self.positive_phrase_origin_indexes, self.positive_cumulative_probability_arr = get_cumulative_probability_arr_without_upload(
@@ -258,12 +276,6 @@ class PromptSubstitutionGenerator:
             self.positive_cumulative_probability_arr_min = self.positive_cumulative_probability_arr.min()
             self.positive_cumulative_probability_arr_max = self.positive_cumulative_probability_arr.max()
 
-        # store phrase embeddings in a file in minio 
-        if(store_embeddings):
-            self.store_phrase_embeddings()
-            
-        # get phrase embeddings    
-        self.phrase_embeddings= self.load_phrase_embeddings()
 
         # create a dictionarry to get phrase index from phrase str
         self.phrase_index_dictionarry={phrase:i for i, phrase in enumerate(self.phrase_list)}
@@ -1414,11 +1426,7 @@ class PromptSubstitutionGenerator:
         phrase_embeddings = np.array(phrase_embeddings_list)
 
         # Save the numpy array to an .npz file
-        if self.initial_generation_policy=="fixed_probabilities":
-            local_file_path='phrase_embeddings.npz'
-        else:
-            local_file_path='independant_approx_phrase_embeddings.npz'
-
+        local_file_path='phrase_embeddings.npz'
         np.savez_compressed(local_file_path, phrase_embeddings)
 
         # Read the contents of the .npz file
@@ -1441,10 +1449,7 @@ class PromptSubstitutionGenerator:
         token_lengths = [self.get_token_length(phrase) for phrase in tqdm(phrase_list)]
 
         # Save the numpy array to an .npz file
-        if self.initial_generation_policy=="fixed_probabilities":
-            local_file_path='token_lengths.csv'
-        else:
-            local_file_path='independant_approx_token_lengths.csv'
+        local_file_path='token_lengths.csv'
         
         # Write to a CSV file
         with open(local_file_path, 'w', newline='') as file:
@@ -1469,11 +1474,7 @@ class PromptSubstitutionGenerator:
 
     # get civitai phrase embeddings from minIO
     def load_phrase_embeddings(self):
-        # get file name
-        if self.initial_generation_policy=="fixed_probabilities":
-            filename='phrase_embeddings.npz'
-        else:
-            filename='independant_approx_phrase_embeddings.npz'
+        filename='phrase_embeddings.npz'
 
         # Get the file data from MinIO
         minio_path = f"environmental/data/prompt-generator/substitution/input/{filename}"
@@ -1495,10 +1496,7 @@ class PromptSubstitutionGenerator:
     # get civitai phrase token lengths, calculated by the tokenizer
     def load_phrase_token_lengths(self):
         # get file name
-        if self.initial_generation_policy=="fixed_probabilities":
-            filename='token_lengths.csv'
-        else:
-            filename='independant_approx_token_lengths.csv'
+        filename='token_lengths.csv'
 
         # Get the file data from MinIO
         minio_path = f"environmental/data/prompt-generator/substitution/input/{filename}"
