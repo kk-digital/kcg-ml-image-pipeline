@@ -190,7 +190,7 @@ def parse_args():
     parser.add_argument("--min-sigma-score", type=float, 
                         help="minimum sigma score when filtering images", default=1)
     parser.add_argument("--min-variance", type=float, 
-                        help="minimum sigma score when filtering images", default=0.1)
+                        help="minimum sigma score when filtering images", default=0.5)
     
     parser.add_argument("--minio-addr", type=str, default=None,
                         help="The minio server ip address")
@@ -215,7 +215,10 @@ def main():
         bin_type=args.bin_type,
         bins=args.bins,
         cluster_type=args.cluster_type,
-        csv_path=args.csv_path
+        pairs=args.pairs,
+        csv_path=args.csv_path,
+        min_sigma_score=args.min_sigma_score,
+        min_variance=args.min_variance
     )
 
     # get list of pairs
