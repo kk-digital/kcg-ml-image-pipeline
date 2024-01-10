@@ -61,7 +61,7 @@ class SelfTrainingPromptMutator:
             else:
                 self.model= XgboostSubstitutionModel(minio_client=self.minio_client, output_type=self.output_type, ranking_model=self.scoring_model, operation=self.operation, prompt_type=self.embedding_type)
         elif(self.model_type=="linear"):
-            self.model= LinearSubstitutionModel(minio_client=self.minio_client, input_size=2305)
+            self.model= LinearSubstitutionModel(minio_client=self.minio_client, input_size=2306, output_type=self.output_type, ranking_model=self.scoring_model, operation=self.operation, prompt_type=self.embedding_type)
 
 
     def get_training_data(self):
@@ -84,12 +84,12 @@ class SelfTrainingPromptMutator:
 
             # get input
             if self.operation=="substitution":
-                input=np.concatenate([msgpack_data['input'], [msgpack_data[f'{self.scoring_model}_score_encoding']]])
+                input=np.concatenate([msgpack_data['input'], [msgpack_data['position_encoding']], [msgpack_data[f'{self.scoring_model}_score_encoding']]]).tolist()
             elif self.operation=="permutation":
                 input=np.concatenate([msgpack_data['input'],
                                                 [msgpack_data['first_position']],
                                                 [msgpack_data['second_position']],
-                                        [msgpack_data[f'{self.scoring_model}_score_encoding']]])
+                                        [msgpack_data[f'{self.scoring_model}_score_encoding']]]).tolist()
                 
             inputs.append(input)
             
@@ -115,7 +115,7 @@ class SelfTrainingPromptMutator:
     
     def self_training(self):
         # get training data
-        #inputs, outputs= self.get_training_data()
+        inputs, outputs= self.get_training_data()
 
         # get self training data
         self_training_path = DATA_MINIO_DIRECTORY + f"{self.operation}/self_training/{self.scoring_model}/"
@@ -124,8 +124,6 @@ class SelfTrainingPromptMutator:
 
         # save loss
         loss_by_data=[]
-        inputs=[]
-        outputs=[]
 
         for file in self_training_files:
             print(file)
@@ -159,7 +157,7 @@ class SelfTrainingPromptMutator:
         inputs=[]
         outputs=[]
         for d in data:
-            input=np.concatenate([d['input'], [d['score_encoding']]])
+            input=np.concatenate([d['input'], [d['position_encoding']], [d['score_encoding']]]).tolist()
             inputs.append(input)
             outputs.append(d['output'])
         

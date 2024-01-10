@@ -14,8 +14,8 @@ import torch
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from training_worker.prompt_mutator.prompt_mutator_model import PromptMutator
-from training_worker.prompt_mutator.binary_prompt_mutator import BinaryPromptMutator
+from training_worker.prompt_mutator.models.substitution_ranking_xgboost import XgboostSubstitutionModel
+from training_worker.prompt_mutator.models.substitution_classification_xgboost import XgboostSubstitutionClassifier
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
@@ -631,11 +631,11 @@ def main():
                                   operation=args.operation)
 
     if(args.output_type=="binary"):
-        model= BinaryPromptMutator(minio_client=minio_client, ranking_model=args.scoring_model,
+        model= XgboostSubstitutionClassifier(minio_client=minio_client, ranking_model=args.scoring_model,
                                    operation=args.operation, prompt_type=args.embedding_type,
                                    dataset=args.dataset)
     else:
-        model= PromptMutator(minio_client=minio_client, output_type=args.output_type, 
+        model= XgboostSubstitutionModel(minio_client=minio_client, output_type=args.output_type, 
                              ranking_model=args.scoring_model, operation=args.operation, 
                              prompt_type=args.embedding_type, dataset=args.dataset)
 

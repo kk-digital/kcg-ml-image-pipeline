@@ -2,6 +2,10 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import pymongo
 from bson.objectid import ObjectId
+from fastapi.responses import JSONResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode,  StandardErrorResponse, StandardSuccessResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi import status, Request
 from dotenv import dotenv_values
 from orchestration.api.api_clip import router as clip_router
 from orchestration.api.api_dataset import router as dataset_router
@@ -86,6 +90,21 @@ def create_index_if_not_exists(collection, index_key, index_name):
         print(f"Index '{index_name}' created on collection '{collection.name}'.")
     else:
         print(f"Index '{index_name}' already exists on collection '{collection.name}'.")
+
+
+# Define the exception handler
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=StandardErrorResponse(
+            url=str(request.url),
+            duration=0,  
+            errorCode=ErrorCode.INVALID_PARAMS.value,
+            errorString="Validation error"
+        ).dict(),
+    )
+
 
 @app.on_event("startup")
 def startup_db_client():
