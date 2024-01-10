@@ -781,7 +781,7 @@ class PromptSubstitutionGenerator:
 
                     task_uuid = response['uuid']
                     task_time = response['creation_time']
-                    file_path= response['file_path']
+                    file_path= response['task_input_dict']['file_path']
                 except:
                     print('Error occured:')
                     print(traceback.format_exc())
