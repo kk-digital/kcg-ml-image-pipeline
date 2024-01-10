@@ -21,11 +21,16 @@ def http_clip_server_add_phrase(phrase: str):
     url = CLIP_SERVER_ADDRESS + "/add-phrase?phrase=" + phrase
     try:
         response = requests.put(url)
-        return response.status_code, response.json() if response.status_code == 200 else None
+        if response.status_code == 200:
+            return response.status_code, response.json()
+        else:
+            return response.status_code, None
     
     except Exception as e:
         print('request exception ', e)
-        return None, None
+        # Return a 503 status code when the server is not accessible
+        return 500, None
+
 
 
 def http_clip_server_clip_vector_from_phrase(phrase: str):
