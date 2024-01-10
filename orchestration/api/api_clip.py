@@ -21,8 +21,6 @@ def http_clip_server_add_phrase(phrase: str):
     url = CLIP_SERVER_ADDRESS + "/add-phrase?phrase=" + phrase
     try:
         response = requests.put(url)
-        print(f"Response Status Code: {response.status_code}")
-        print("Response JSON:", response.json())
         return response.status_code, response.json() if response.status_code == 200 else None
     
     except Exception as e:
@@ -112,12 +110,12 @@ def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
         if not phrase_data.phrase:
             return response_handler.create_error_response(ErrorCode.INVALID_PARAMS, "Phrase is required", status.HTTP_400_BAD_REQUEST)
 
-        status_code, response_json = http_clip_server_add_phrase(phrase_data.phrase)
+        status_code, _ = http_clip_server_add_phrase(phrase_data.phrase)  # Ignoring the actual response data
 
         # Check for successful status code
         if 200 <= status_code < 300:
-            clip_vector = response_json
-            return response_handler.create_success_response(clip_vector, http_status_code=201, headers={"Cache-Control": "no-store"})
+            # Always set clip_vector to None
+            return response_handler.create_success_response(None, http_status_code=201, headers={"Cache-Control": "no-store"})
         else:
             # Handle unsuccessful response
             return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Clip server error", status.HTTP_503_SERVICE_UNAVAILABLE)
@@ -125,6 +123,7 @@ def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
     except Exception as e:
         traceback.print_exc()  # Log the full stack trace
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 
