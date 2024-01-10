@@ -25,8 +25,8 @@ class DatasetLoader(Dataset):
         :param labels: A NumPy array of the corresponding labels.
         """
         # Convert the data to torch.FloatTensor as it is the standard data type for floats in PyTorch
-        self.features = torch.FloatTensor(features)
-        self.labels = torch.FloatTensor(labels)
+        self.features = torch.FloatTensor(np.array(features))
+        self.labels = torch.FloatTensor(np.array(labels))
 
     def __len__(self):
         """
@@ -45,8 +45,8 @@ class DatasetLoader(Dataset):
 
 
 class LinearSubstitutionModel(nn.Module):
-    def __init__(self, minio_client, input_size, hidden_sizes=[1024, 512], output_size=1, output_type="sigma_score", prompt_type="positive",
-                 ranking_model="elm", operation="substitution", dataset="environmental", learning_rate=0.001, 
+    def __init__(self, minio_client, input_size=2306, hidden_sizes=[1024, 512], output_size=1, output_type="sigma_score", prompt_type="positive",
+                 ranking_model="linear", operation="substitution", dataset="environmental", learning_rate=0.001, 
                  validation_split=0.2):
         
         super(LinearSubstitutionModel, self).__init__()
@@ -117,11 +117,11 @@ class LinearSubstitutionModel(nn.Module):
             
             with torch.no_grad():
                 for inputs, targets in val_loader:
-                    inputs = inputs.to(self._device)
-                    targets = targets.to(self._device)
+                    inputs=inputs.to(self._device)
+                    targets=targets.to(self._device)
 
                     outputs = self.model(inputs)
-                    loss = criterion(outputs, targets)
+                    loss = criterion(outputs.squeeze(1), targets)
 
                     total_val_loss += loss.item() * inputs.size(0)
                     total_val_samples += inputs.size(0)
@@ -131,12 +131,12 @@ class LinearSubstitutionModel(nn.Module):
             total_train_samples = 0
             
             for inputs, targets in train_loader:
-                inputs = inputs.to(self._device)
-                targets = targets.to(self._device)
+                inputs=inputs.to(self._device)
+                targets=targets.to(self._device)
 
                 optimizer.zero_grad()
                 outputs = self.model(inputs)
-                loss = criterion(outputs, targets)
+                loss = criterion(outputs.squeeze(1), targets)
                 loss.backward()
                 optimizer.step()
 
@@ -325,9 +325,9 @@ class LinearSubstitutionModel(nn.Module):
         # Clear the current figure
         plt.clf()
 
-    def predict(self, features_array, batch_size=64):
+    def predict(self, data, batch_size=64):
         # Convert the features array into a PyTorch Tensor
-        features_tensor = torch.Tensor(features_array).to(self._device)
+        features_tensor = torch.Tensor(np.array(data)).to(self._device)
 
         # Ensure the model is in evaluation mode
         self.model.eval()
@@ -343,7 +343,7 @@ class LinearSubstitutionModel(nn.Module):
                 predictions.append(outputs)
 
         # Concatenate all predictions and convert to a NumPy array
-        predictions = torch.cat(predictions, dim=0).numpy()
+        predictions = torch.cat(predictions, dim=0).cpu().numpy()
 
         return predictions         
 
