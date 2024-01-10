@@ -253,7 +253,7 @@ def delete_ranking_data_point(request: Request, file_path: str):
 
 @router.delete("/rank/delete-ranking-data", response_class=PrettyJSONResponse)
 def delete_ranking_data(request: Request, id: str):
-    response_handler = ApiResponseHandler("/rank/delete-ranking-data")
+    response_handler = ApiResponseHandler(request)
     try:
         # Convert the string ID to ObjectId
         obj_id = ObjectId(id)
