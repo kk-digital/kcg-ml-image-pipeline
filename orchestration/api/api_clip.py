@@ -110,7 +110,7 @@ def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
         if not phrase_data.phrase:
             return response_handler.create_error_response(ErrorCode.INVALID_PARAMS, "Phrase is required", status.HTTP_400_BAD_REQUEST)
 
-        status_code, _ = http_clip_server_add_phrase(phrase_data.phrase)  # Ignoring the actual response data
+        status_code, _ = http_clip_server_add_phrase(phrase_data.phrase)  
 
         # Check for successful status code
         if 200 <= status_code < 300:
