@@ -19,10 +19,12 @@ router = APIRouter()
 # --------- Http requests -------------
 def http_clip_server_add_phrase(phrase: str):
     url = CLIP_SERVER_ADDRESS + "/add-phrase?phrase=" + phrase
-
     try:
         response = requests.put(url)
+        print(f"Response Status Code: {response.status_code}")
+        print("Response JSON:", response.json())
         return response.status_code, response.json() if response.status_code == 200 else None
+    
     except Exception as e:
         print('request exception ', e)
         return None, None
