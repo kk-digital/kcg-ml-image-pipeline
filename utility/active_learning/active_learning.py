@@ -1,21 +1,17 @@
 import sys
 import os
 import requests
-
-root_directory = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(root_directory)
-
 from tqdm.auto import tqdm
-
 import argparse
 import msgpack
-
 import numpy as np
 import pandas as pd
-
 import torch
-
 from sklearn.metrics.pairwise import cosine_similarity
+
+base_dir = "./"
+sys.path.insert(0, base_dir)
+sys.path.insert(0, os.getcwd())
 
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from utility.minio.cmd import connect_to_minio_client
