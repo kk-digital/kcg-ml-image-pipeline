@@ -298,7 +298,7 @@ class PromptSubstitutionGenerator:
     def get_ensemble_models(self):
         input_path = f"{self.model_dataset}/models/ranking/"
 
-        model_class = ABRankingModel
+        model_class = ABRankingELMModel
 
         # Get all model files
         model_files = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
