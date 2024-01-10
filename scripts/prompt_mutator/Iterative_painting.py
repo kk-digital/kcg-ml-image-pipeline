@@ -1,8 +1,7 @@
-import io
+import argparse
 import os
 import sys
 from PIL import Image, ImageDraw
-import matplotlib.pyplot as plt
 import torch
 
 base_dir = "./"
@@ -11,15 +10,21 @@ sys.path.insert(0, os.getcwd())
 
 from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
 from worker.image_generation.scripts.inpaint_A1111 import get_model, img2img
+from utility.minio import cmd
 
-def display_image(image_byte_array):
-    """Display image from a bytes array."""
-    image = Image.open(io.BytesIO(image_byte_array))
-    plt.imshow(image)
-    plt.axis('off')
-    plt.show()
+OUTPUT_PATH="output/iterative_painting"
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--minio-addr', required=False, help='Minio server address', default="192.168.3.5:9000")
+    parser.add_argument('--minio-access-key', required=False, help='Minio access key')
+    parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
+
+    return parser.parse_args()
 
 def main():
+    args = parse_args()
+
     mask = Image.new('L', (1024, 1024), 0)
     square_start_x= 128
     square_start_y= 128
@@ -39,9 +44,9 @@ def main():
     n_iter = 1
     steps = 50
     cfg_scale = 7.0
-    width = 512
-    height = 512
-    mask_blur = 4
+    width = 1024
+    height = 1024
+    mask_blur = 0
     inpainting_fill = 0
     outpath = "output"  # Specify the output path
     styles = None
@@ -53,6 +58,11 @@ def main():
     inpaint_full_res_padding = 0
     inpainting_mask_invert = 0
 
+    minio_client = cmd.get_minio_client(
+            minio_access_key=args.minio_access_key,
+            minio_secret_key=args.minio_secret_key,
+            minio_ip_addr=args.minio_addr)
+ 
     # Assuming the models are loaded here (sd, clip_text_embedder, model)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     sd, config, model = get_model(device, steps)
@@ -69,7 +79,7 @@ def main():
         sd=sd, clip_text_embedder=embedder, model=model, device=device)
 
     # Display the image
-    display_image(img_byte_arr.getvalue())
+    cmd.upload_data(minio_client, 'datasets', OUTPUT_PATH , img_byte_arr.getvalue()) 
 
 if __name__ == "__main__":
     main()
