@@ -153,7 +153,7 @@ class ActiveLearningPipeline:
             
         return merged_list
     
-    def upload_pair_of_jsons_from_csv(pair_list, policy):
+    def upload_pairs_to_queue(pair_list, policy):
         
         for pair in tqdm(pair_list):
             job_uuid_1= pair[0]
@@ -173,6 +173,8 @@ def parse_args():
     # Required parameters
     parser.add_argument("--csv-path", type=str,
                         help="The path to csv file")
+    parser.add_argument("--policy-string", type=str,
+                        help="name of policy")
     parser.add_argument("--scoring-model-path", type=str,
                         help="The path to clip scoring model safetensors file")
     parser.add_argument("--pca-model-path", type=str,
@@ -222,7 +224,10 @@ def main():
     )
 
     # get list of pairs
-    print(pipeline.get_image_pairs())
+    pair_list=pipeline.get_image_pairs()
+
+    # send list to active learning
+    pipeline.upload_pairs_to_queue(pair_list, args.policy_string)
     
 
 if __name__ == '__main__':
