@@ -228,6 +228,13 @@ class PromptSubstitutionGenerator:
             phrase_df=pd.read_csv(self.csv_phrase).sort_values(by="index")
             self.phrase_list=phrase_df['phrase str'].tolist()
 
+            # store phrase token lengths
+            if(store_token_lengths):
+                self.store_phrase_token_lengths()
+            
+            # store list of token lengths for each phrase
+            self.phrase_token_lengths=self.load_phrase_token_lengths()
+
         else:
             # get list of boltzman phrase score
             self.positive_phrase_scores_csv,self.negative_phrase_scores_csv=self.get_boltzman_scores_csv()
@@ -239,6 +246,7 @@ class PromptSubstitutionGenerator:
             phrase_loader.load_dataset()
             self.phrase_score_data= phrase_loader.index_phrase_score_data
             self.phrase_list=[self.phrase_score_data[i].phrase for i in range(len(self.phrase_score_data))]
+            self.phrase_token_lengths=[self.phrase_score_data[i].token_length for i in range(len(self.phrase_score_data))]
 
             # get cumulative probabilities
             self.positive_phrase_origin_indexes, self.positive_cumulative_probability_arr = get_cumulative_probability_arr_without_upload(
@@ -256,13 +264,6 @@ class PromptSubstitutionGenerator:
             
         # get phrase embeddings    
         self.phrase_embeddings= self.load_phrase_embeddings()
-
-        # store phrase token lengths
-        if(store_token_lengths):
-            self.store_phrase_token_lengths()
-        
-        # store list of token lengths for each phrase
-        self.phrase_token_lengths=self.load_phrase_token_lengths()
 
         # create a dictionarry to get phrase index from phrase str
         self.phrase_index_dictionarry={phrase:i for i, phrase in enumerate(self.phrase_list)}
