@@ -268,13 +268,8 @@ class XgboostSubstitutionModel:
         best_score = grid_result.best_score_
 
         return best_params, best_score
-
-    def predict(self, X):
-        dtest = xgb.DMatrix(X)
-        predictions=self.model.predict(dtest)
-        return predictions
     
-    def predict_in_batches(self, data, batch_size=10000):
+    def predict(self, data, batch_size=10000):
         num_samples = len(data)
         num_batches = int(np.ceil(num_samples / batch_size))
 
@@ -307,7 +302,7 @@ class XgboostSubstitutionModel:
         if most_recent_model:
             model_file_data =cmd.get_file_from_minio(self.minio_client, 'datasets', most_recent_model)
         else:
-            print("No .pth files found in the list.")
+            print("No .json files found in the list.")
             return
         
         print(most_recent_model)
