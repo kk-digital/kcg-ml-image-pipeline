@@ -44,7 +44,7 @@ class ActiveLearningPipeline:
         df= pd.read_csv(csv_path)
         
         # Assert that necessary columns are in the DataFrame
-        assert 'uuid' in df.columns, "Column 'uuid' not found in csv file"
+        assert 'task_uuid' in df.columns, "Column 'task_uuid' not found in csv file"
         assert 'file_path' in df.columns, "Column 'file_path' not found in csv file"
         assert 'variance' in df.columns, "Column 'variance' not found in csv file"
         assert 'sigma_score' in df.columns, "Column 'sigma_score' not found in csv file"
@@ -130,13 +130,13 @@ class ActiveLearningPipeline:
         return cluster_ids
     
     def get_image_pairs(self):
-        vision_embs = self.load_vision_embs(job_uuids=self.image_list['file_path'].values)
+        vision_embs = self.load_vision_embs(file_paths=self.image_list['file_path'].values)
         image_clip_sigma_score = self.get_scores(vision_embs)
         cluster_ids = self.get_cluster_ids(vision_embs)
                     
         # pairing
         sigma_score_pairs = get_candidate_pairs_by_score(
-            job_uuids=self.image_list['uuid'].values,
+            job_uuids=self.image_list['task_uuid'].values,
             scores = image_clip_sigma_score, 
             max_pairs = self.pairs, 
             n_bins = self.bins, 
@@ -144,7 +144,7 @@ class ActiveLearningPipeline:
         )
 
         cluster_pairs = get_candidate_pairs_within_category(
-            job_uuids=self.image_list['uuid'].values,
+            job_uuids=self.image_list['task_uuid'].values,
             categories = cluster_ids, 
             max_pairs = self.pairs
         )
