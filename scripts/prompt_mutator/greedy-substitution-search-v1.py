@@ -1179,7 +1179,9 @@ class PromptSubstitutionGenerator:
         if index is not None:
             return self.phrase_embeddings[index]
         else:
-            return self.base_prompt_embeddings[phrase]
+            embedding= self.get_prompt_embedding(phrase)
+            embedding= self.get_mean_pooled_embedding(embedding)
+            return embedding
     
     # load the token length of a phrase
     def load_phrase_token_length(self, phrase):
@@ -1189,7 +1191,7 @@ class PromptSubstitutionGenerator:
         if index is not None:
             return self.phrase_token_lengths[index]
         else:
-            return self.base_prompt_token_lengths[phrase]
+            return self.get_token_length(phrase)
             
     # get paths for embeddings of all prompts in a dataset
     def get_embedding_paths(self, dataset):
