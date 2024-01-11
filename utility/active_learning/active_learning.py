@@ -1,3 +1,4 @@
+import json
 import sys
 import os
 import requests
@@ -21,11 +22,12 @@ API_URL = "http://123.176.98.90:8764"
 
 class ActiveLearningPipeline:
 
-    def __init__(self, minio_addr: str, minio_access_key: str, minio_secret_key: str, 
+    def __init__(self, minio_addr: str, minio_access_key: str, minio_secret_key: str, policy: str,
                  scoring_model_path: str, pca_model_path: str, kmeans_model_path: str, 
                  bins: int, bin_type: str , cluster_type: str, pairs: int,
                  csv_path: str, min_sigma_score: float, min_variance: float):
-
+ 
+        self.policy=policy
         self.bins=bins
         self.bin_type=bin_type
         self.min_sigma_score=min_sigma_score
@@ -41,14 +43,36 @@ class ActiveLearningPipeline:
         
         # Assert that necessary columns are in the DataFrame
         assert 'task_uuid' in df.columns, "Column 'task_uuid' not found in csv file"
-        assert 'file_path' in df.columns, "Column 'file_path' not found in csv file"
         assert 'variance' in df.columns, "Column 'variance' not found in csv file"
         assert 'sigma_score' in df.columns, "Column 'sigma_score' not found in csv file"
         
         # Filter the DataFrame based on minimum sigma_score and variance
         filtered_df = df[(df['sigma_score'] >= self.min_sigma_score) & (df['variance'] >= self.min_variance)]
 
+        print('Loading image file paths..........')
+        for i, job_uuid in enumerate(tqdm(df['task_uuid'])):
+            try:
+                info = self.get_info(job_uuid)
+        
+                if 'task_output_file_dict' in info:
+                    output_info = info['task_output_file_dict']
+                    if 'output_file_path' in output_info:
+                        df.loc[i, 'file_path'] = output_info['output_file_path']
+                    if 'output_file_hash' in output_info:
+                        df.loc[i, 'file_hash'] = output_info['output_file_hash']
+            
+            except:
+                continue
+
         return filtered_df
+    
+    def get_info(self, job_uuid: str):
+        
+        response = requests.get(f'http://{API_URL}/job/get-job/{job_uuid}')
+        
+        info = json.loads(response.content)
+
+        return info
 
     def connect_to_minio_client(self, minio_addr: str, minio_access_key: str, minio_secret_key: str):
 
@@ -153,13 +177,13 @@ class ActiveLearningPipeline:
             
         return merged_list
     
-    def upload_pairs_to_queue(pair_list, policy):
+    def upload_pairs_to_queue(self, pair_list):
         
         for pair in tqdm(pair_list):
             job_uuid_1= pair[0]
             job_uuid_2= pair[1]
 
-            endpoint_url = f"{API_URL}/ranking-queue/add-image-pair-to-queue?job_uuid_1={job_uuid_1}&job_uuid_2={job_uuid_2}&policy={policy}"
+            endpoint_url = f"{API_URL}/ranking-queue/add-image-pair-to-queue?job_uuid_1={job_uuid_1}&job_uuid_2={job_uuid_2}&policy={self.policy}"
             response = requests.post(endpoint_url)
 
             if response.status_code == 200:
@@ -211,6 +235,7 @@ def main():
         minio_addr=args.minio_addr,
         minio_access_key=args.minio_access_key,
         minio_secret_key=args.minio_secret_key,
+        policy=args.policy_string,
         scoring_model_path=args.scoring_model_path,
         pca_model_path=args.pca_model_path,
         kmeans_model_path=args.kmeans_model_path,
@@ -225,9 +250,10 @@ def main():
 
     # get list of pairs
     pair_list=pipeline.get_image_pairs()
+    print(pair_list)
 
     # send list to active learning
-    pipeline.upload_pairs_to_queue(pair_list, args.policy_string)
+    # pipeline.upload_pairs_to_queue(pair_list, args.policy_string)
     
 
 if __name__ == '__main__':
