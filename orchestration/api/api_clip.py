@@ -1,6 +1,6 @@
 from fastapi import Request, APIRouter, HTTPException, Response
 import requests
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardErrorResponse, StandardSuccessResponse, RechableResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardErrorResponse, StandardSuccessResponse
 from orchestration.api.mongo_schemas import  PhraseModel
 from typing import Optional
 from typing import List
@@ -379,6 +379,9 @@ def check_clip_server_status():
         # Handle any exceptions that occur during the request
         print(f"Error checking clip server status: {e}")
         return {"status": "offline", "message": "Clip server is offline or unreachable."}
+
+class RechableResponse(BaseModel):
+    reachable: bool
 
 
 @router.get("/clip/server-status", tags=["clip"], response_model=StandardSuccessResponse[RechableResponse],status_code=202, responses=ApiResponseHandler.listErrors([503]), description="Checks the status of the CLIP server.")

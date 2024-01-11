@@ -1,11 +1,10 @@
 from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
-from orchestration.api.mongo_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest
+from orchestration.api.mongo_schemas import TagDefinition, ImageTag, TagCategory
 from typing import Union
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse
-import traceback
-from bson import ObjectId
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode
+
 
 router = APIRouter()
 
@@ -29,71 +28,6 @@ def add_new_tag_definition(request: Request, tag_data: TagDefinition):
     tag_data.creation_time = datetime.utcnow().isoformat()
     request.app.tag_definitions_collection.insert_one(tag_data.to_dict())
     return {"status": "success", "message": "Tag definition added successfully.", "tag_id": new_tag_id}
-
-
-@router.post("/tags", 
-             status_code=201,
-             tags=["tags"],
-             description="Adds a new tag.",
-             response_model=StandardSuccessResponse[TagDefinition],
-             responses=ApiResponseHandler.listErrors([400, 422, 500]))
-def add_new_tag_definition(request: Request, tag_data: NewTagRequest):
-
-    response_handler = ApiResponseHandler(request)
-
-    try:
-        # Check if the provided tag_category_id exists in the tag_categories_collection
-        if tag_data.tag_category_id is not None:
-            existing_category = request.app.tag_categories_collection.find_one(
-                {"tag_category_id": tag_data.tag_category_id}
-            )
-            if not existing_category:
-                return response_handler.create_error_response(
-                    ErrorCode.ELEMENT_NOT_FOUND,
-                    "Tag category not found",
-                    400
-                )
-
-        # Find the maximum tag_id in the collection
-        last_entry = request.app.tag_definitions_collection.find_one({}, sort=[("tag_id", -1)])
-        new_tag_id = last_entry["tag_id"] + 1 if last_entry and "tag_id" in last_entry else 0
-
-        # Check if the tag definition exists by tag_string
-        existing_tag = request.app.tag_definitions_collection.find_one({"tag_string": tag_data.tag_string})
-        if existing_tag:
-            return response_handler.create_error_response(
-                ErrorCode.INVALID_PARAMS,
-                "Tag definition already exists.",
-                400
-            )
-
-        # Create the new tag object with only the specified fields
-        new_tag = {
-            "tag_id": new_tag_id,
-            "tag_string": tag_data.tag_string,
-            "tag_category_id": tag_data.tag_category_id,
-            "tag_description": tag_data.tag_description,
-            "tag_vector_index": tag_data.tag_vector_index if tag_data.tag_vector_index is not None else -1,
-            "deprecated": tag_data.deprecated,
-            "user_who_created": tag_data.user_who_created,
-            "creation_time": datetime.utcnow().isoformat()
-        }
-
-        # Insert new tag definition into the collection
-        inserted_id = request.app.tag_definitions_collection.insert_one(new_tag).inserted_id
-        new_tag = request.app.tag_definitions_collection.find_one({"_id": inserted_id})
-
-        new_tag = {k: str(v) if isinstance(v, ObjectId) else v for k, v in new_tag.items()}
-
-        return response_handler.create_success_response(
-            new_tag,
-            http_status_code=201
-        )
-
-    except Exception as e:
-
-        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
-
 
 
 @router.post("/tags/new_tag_definition")
@@ -197,43 +131,6 @@ def remove_test_tag(request: Request, tag_id: int):
     request.app.tag_definitions_collection.delete_one(tag_query)
     return {"status": "success", "message": "Test tag removed successfully."}
 
-@router.delete("/tags/{tag_id}", 
-               response_model=StandardSuccessResponse[WasPresentResponse], 
-               description="remove tag with tag_id", 
-               tags=["tags"], 
-               status_code=200,
-               responses=ApiResponseHandler.listErrors([400, 422, 500]))
-def remove_tag(request: Request, tag_id: int):
-    response_handler = ApiResponseHandler(request)
-
-    # Check if the tag exists
-    tag_query = {"tag_id": tag_id}
-    tag = request.app.tag_definitions_collection.find_one(tag_query)
-
-    if tag is None:
-        # Return standard response with wasPresent: false
-        return response_handler.create_success_delete_response({"wasPresent": False})
-
-    # Check if the tag is used in any images
-    image_query = {"tags": tag_id}
-    image_with_tag = request.app.image_tags_collection.find_one(image_query)
-
-    if image_with_tag is not None:
-        # Since it's used in images, do not delete but notify the client
-        return response_handler.create_error_response(
-            ErrorCode.INVALID_OPERATION,
-            "Cannot remove tag, it is already used in images.",
-            400
-        )
-
-    # Remove the tag
-    request.app.tag_definitions_collection.delete_one(tag_query)
-
-    # Return standard response with wasPresent: true
-    return response_handler.create_success_delete_response({"wasPresent": True})
-
-
-
 
 @router.get("/tags/list_tag_definition", response_class=PrettyJSONResponse)
 def list_tag_definitions(request: Request):
@@ -281,31 +178,6 @@ def list_tag_definitions(request: Request):
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
-
-@router.get("/tags", 
-            response_model=StandardSuccessResponse[TagsListResponse],
-            description="list tags",
-            tags=["tags"],
-            status_code=200,
-            responses=ApiResponseHandler.listErrors([500]))
-def list_tag_definitions(request: Request):
-    response_handler = ApiResponseHandler(request)
-    try:
-        # Query all the tag definitions
-        tags_cursor = request.app.tag_definitions_collection.find({})
-        
-        # Convert each tag document to TagDefinition and then to a dictionary
-        result = [TagDefinition(**tag).to_dict() for tag in tags_cursor]
-
-        return response_handler.create_success_response({"tags": result}, http_status_code=200)
-
-    except Exception as e:
-        traceback_str = traceback.format_exc()
-        print(f"Exception Traceback:\n{traceback_str}")
-        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
-
-
-    
 
 @router.put("/tags/set_tag_vector_index")
 def set_tag_vector_index(request: Request, tag_id: int, vector_index: int):
