@@ -83,6 +83,7 @@ def main():
         sd=sd, clip_text_embedder=embedder, model=model, device=device)
 
     # Display the image
+    img_byte_arr.seek(0)
     cmd.upload_data(minio_client, 'datasets', OUTPUT_PATH , img_byte_arr) 
 
 if __name__ == "__main__":
