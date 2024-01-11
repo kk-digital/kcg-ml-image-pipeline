@@ -64,7 +64,11 @@ def main():
             minio_ip_addr=args.minio_addr)
  
     # Assuming the models are loaded here (sd, clip_text_embedder, model)
-    device = "cpu"
+    if torch.cuda.is_available():
+        device = 'cuda'
+    else:
+        device = 'cpu'
+        
     sd, config, model = get_model(device, steps)
 
     # Load the clip embedder model
