@@ -1,6 +1,6 @@
-from pydantic import BaseModel, Field, constr
+from pydantic import BaseModel, Field, constr, validator
 from typing import Union, Optional
-
+import re
 
 class Task(BaseModel):
     task_type: str
@@ -199,17 +199,21 @@ class TagDefinition(BaseModel):
         }
 
 
-TagString = constr(regex=r'^[a-zA-Z0-9_-]+$')
 NonEmptyString = constr(strict=True, min_length=1)
 
-
 class NewTagRequest(BaseModel):
-    tag_string: TagString = Field(..., description="Name of the tag")
+    tag_string: str = Field(..., description="Name of the tag")
     tag_category_id: Optional[int] = Field(None, description="ID of the tag category")
     tag_description: str = Field(..., description="Description of the tag")
     tag_vector_index: Optional[int] = None
     deprecated: bool = False
     user_who_created: NonEmptyString = Field(..., description="Username of the user who created the tag")
+
+    @validator('tag_string')
+    def validate_tag_string(cls, value):
+        if not re.match(r'^[a-zA-Z0-9_-]+$', value):
+            raise ValueError('Invalid tag string')
+        return value
 
 
 class TagCategory(BaseModel):
@@ -263,7 +267,7 @@ class FlaggedDataUpdate(BaseModel):
 class User(BaseModel):
     username: str = Field(...)
     password: str = Field(...)
-    role: constr(pattern='^(admin|user)$') = Field(...)
+    "role: constr(pattern='^(admin|user)$') = Field(...)"
 
     def to_dict(self):
         return {
