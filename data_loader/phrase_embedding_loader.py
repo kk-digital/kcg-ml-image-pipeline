@@ -38,6 +38,8 @@ class PhraseEmbeddingLoader:
         self.phrase_arr = np.array([])
         self.phrase_embedding_arr = np.array([])
 
+        self.text_embedder = None
+
 
     def load_phrase_embeddings(self):
         count = 0
@@ -110,6 +112,7 @@ class PhraseEmbeddingLoader:
         # load text embedder
         text_embedder = CLIPTextEmbedder()
         text_embedder.load_submodels()
+        self.text_embedder = text_embedder
 
         print("Updating phrase embeddings data...")
         len_phrases_arr = len(phrases_arr)
@@ -154,14 +157,28 @@ class PhraseEmbeddingLoader:
         self.upload_phrases_embedding_npz()
 
     def get_embedding(self, phrase):
-        index = self.phrase_index_dict[phrase]
+        if phrase in self.phrase_index_dict:
+            index = self.phrase_index_dict[phrase]
+        else:
+            # calculate embedding
+            phrase_embeddings, _, phrase_attention_masks = self.text_embedder.forward_return_all(phrase)
+            phrase_average_pooled = tensor_attention_pooling(phrase_embeddings, phrase_attention_masks)
+            phrase_average_pooled_results = phrase_average_pooled.cpu().detach().numpy()
+
+            curr_len = len(self.phrase_arr)
+            self.phrase_index_dict[phrase] = curr_len
+            self.phrase_arr = np.append(self.phrase_arr, phrase)
+
+            self.phrase_embedding_arr = np.append(self.phrase_embedding_arr, phrase_average_pooled_results, axis=0)
+
+            return phrase_average_pooled_results
+
         return self.phrase_embedding_arr[index]
 
     def get_embeddings(self, phrases):
         phrase_embeddings = []
         for phrase in phrases:
-            index = self.phrase_index_dict[phrase]
-            embedding = self.phrase_embedding_arr[index]
+            embedding = self.get_embedding(phrase)
             phrase_embeddings.append(embedding)
 
         return phrase_embeddings
