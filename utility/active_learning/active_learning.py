@@ -37,6 +37,13 @@ class ActiveLearningPipeline:
         self.min_sigma_score=min_sigma_score
         self.min_variance=min_variance
         self.pairs=pairs
+
+        # get device
+        if torch.cuda.is_available():
+            device = 'cuda'
+        else:
+            device = 'cpu'
+        self.device = torch.device(device)
         
         self.image_list=self.filter_images(csv_path) 
         self.connect_to_minio_client(minio_addr, minio_access_key, minio_secret_key)
