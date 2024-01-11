@@ -1,3 +1,4 @@
+import io
 import json
 import sys
 import os
@@ -9,6 +10,8 @@ import numpy as np
 import pandas as pd
 import torch
 from sklearn.metrics.pairwise import cosine_similarity
+from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
+from utility.minio import cmd
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -22,12 +25,13 @@ API_URL = "http://123.176.98.90:8764"
 
 class ActiveLearningPipeline:
 
-    def __init__(self, minio_addr: str, minio_access_key: str, minio_secret_key: str, policy: str,
-                 scoring_model_path: str, pca_model_path: str, kmeans_model_path: str, 
-                 bins: int, bin_type: str , cluster_type: str, pairs: int,
-                 csv_path: str, min_sigma_score: float, min_variance: float):
+    def __init__(self, minio_addr: str, minio_access_key: str, minio_secret_key: str, 
+                 policy: str, dataset: str, scoring_model_type: str, pca_model_path: str, 
+                 kmeans_model_path: str, bins: int, bin_type: str , cluster_type: str, 
+                 pairs: int, csv_path: str, min_sigma_score: float, min_variance: float):
  
         self.policy=policy
+        self.dataset=dataset
         self.bins=bins
         self.bin_type=bin_type
         self.min_sigma_score=min_sigma_score
@@ -36,7 +40,7 @@ class ActiveLearningPipeline:
         
         self.image_list=self.filter_images(csv_path) 
         self.connect_to_minio_client(minio_addr, minio_access_key, minio_secret_key)
-        self.load_models(scoring_model_path, pca_model_path, kmeans_model_path, cluster_type)
+        self.load_models(scoring_model_type, pca_model_path, kmeans_model_path, cluster_type)
 
     def filter_images(self, csv_path):
         df= pd.read_csv(csv_path)
@@ -50,16 +54,16 @@ class ActiveLearningPipeline:
         filtered_df = df[(df['sigma_score'] >= self.min_sigma_score) & (df['variance'] >= self.min_variance)]
 
         print('Loading image file paths..........')
-        for i, job_uuid in enumerate(tqdm(df['task_uuid'])):
+        for i, job_uuid in enumerate(tqdm(filtered_df['task_uuid'])):
             try:
                 info = self.get_info(job_uuid)
         
                 if 'task_output_file_dict' in info:
                     output_info = info['task_output_file_dict']
                     if 'output_file_path' in output_info:
-                        df.loc[i, 'file_path'] = output_info['output_file_path']
+                        filtered_df.loc[i, 'file_path'] = output_info['output_file_path']
                     if 'output_file_hash' in output_info:
-                        df.loc[i, 'file_hash'] = output_info['output_file_hash']
+                        filtered_df.loc[i, 'file_hash'] = output_info['output_file_hash']
             
             except:
                 continue
@@ -84,16 +88,50 @@ class ActiveLearningPipeline:
 
         self.bucket_name = 'datasets'
     
-    def load_models(self, scoring_model_path: str, pca_model_path: str, kmeans_model_path: str, cluster_type: str):
-        
-        model = ABRankingModel(768)
-        
-        model.load_safetensors(open(scoring_model_path, 'rb'))
+    # load elm or linear scoring models
+    def load_scoring_model(self, scoring_model_type: str):
+        input_path=f"{self.dataset}/models/ranking/"
 
-        self.scoring_model = model.model.linear
+        if(scoring_model_type=="elm"):
+            scoring_model = ABRankingELMModel(768)
+            file_name=f"score-elm-v1-clip.safetensors"
+        else:
+            scoring_model= ABRankingModel(768)
+            file_name=f"score-linear-clip.safetensors"
 
-        self.scoring_model_mean = float(model.mean)
-        self.scoring_model_standard_deviation = float(model.standard_deviation)
+        model_files=cmd.get_list_of_objects_with_prefix(self.client, 'datasets', input_path)
+        most_recent_model = None
+
+        for model_file in model_files:
+            if model_file.endswith(file_name):
+                most_recent_model = model_file
+
+        if most_recent_model:
+            model_file_data =cmd.get_file_from_minio(self.client, 'datasets', most_recent_model)
+        else:
+            print("No .safetensors files found in the list.")
+            return
+        
+        print(most_recent_model)
+
+        # Create a BytesIO object and write the downloaded content into it
+        byte_buffer = io.BytesIO()
+        for data in model_file_data.stream(amt=8192):
+            byte_buffer.write(data)
+        # Reset the buffer's position to the beginning
+        byte_buffer.seek(0)
+
+        scoring_model.load_safetensors(byte_buffer)
+        scoring_model.model=scoring_model.model.to(self.device)
+
+        return scoring_model
+
+    def load_models(self, scoring_model_type: str,  pca_model_path: str, kmeans_model_path: str, cluster_type: str):
+
+        self.scoring_model = self.load_scoring_model(scoring_model_type) 
+
+        self.scoring_model_mean = float(self.scoring_model.mean)
+        self.scoring_model_standard_deviation = float(self.scoring_model.standard_deviation)
 
         npz = np.load(pca_model_path)
 
@@ -195,16 +233,18 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     # Required parameters
-    parser.add_argument("--csv-path", type=str,
+    parser.add_argument("--csv-path", type=str, required=True,
                         help="The path to csv file")
-    parser.add_argument("--policy-string", type=str,
+    parser.add_argument("--policy-string", type=str, required=True,
                         help="name of policy")
-    parser.add_argument("--scoring-model-path", type=str,
-                        help="The path to clip scoring model safetensors file")
+    parser.add_argument("--dataset", type=str, required=True,
+                        help="name of dataset")
+    parser.add_argument("--scoring-model-type", type=str,
+                        help="elm or linear", default="linear")
     parser.add_argument("--pca-model-path", type=str,
-                        help="The path to PCA model npz file")
+                        help="The path to PCA model npz file", default="input/model/active_learning/kmeans.npz")
     parser.add_argument("--kmeans-model-path", type=str,
-                        help="The path to KMeans model npz file")
+                        help="The path to KMeans model npz file", default="input/model/active_learning/pca.npz")
     parser.add_argument("--pairs", type=int, default=1000,
                         help="The number of pairs")
     parser.add_argument("--bins", type=int, default=10,
@@ -236,7 +276,8 @@ def main():
         minio_access_key=args.minio_access_key,
         minio_secret_key=args.minio_secret_key,
         policy=args.policy_string,
-        scoring_model_path=args.scoring_model_path,
+        dataset=args.dataset,
+        scoring_model_type=args.scoring_model_type,
         pca_model_path=args.pca_model_path,
         kmeans_model_path=args.kmeans_model_path,
         bin_type=args.bin_type,
