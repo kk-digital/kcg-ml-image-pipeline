@@ -44,8 +44,8 @@ def main():
     n_iter = 1
     steps = 20
     cfg_scale = 7.0
-    width = 1024
-    height = 1024
+    width = 512
+    height = 512
     mask_blur = 0
     inpainting_fill = 0
     outpath = "output"  # Specify the output path

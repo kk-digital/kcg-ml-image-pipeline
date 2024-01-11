@@ -10,14 +10,14 @@ import numpy as np
 import pandas as pd
 import torch
 from sklearn.metrics.pairwise import cosine_similarity
-from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
-from utility.minio import cmd
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
+from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
+from utility.minio import cmd
 from utility.minio.cmd import connect_to_minio_client
 from utility.active_learning.pairs import get_candidate_pairs_by_score, get_candidate_pairs_within_category
 
