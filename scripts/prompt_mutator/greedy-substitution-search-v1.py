@@ -306,7 +306,7 @@ class PromptSubstitutionGenerator:
         # Filter relevant model files
         relevant_models = [
             model_file for model_file in model_files
-            if model_file.endswith(f"score-elm-v1-embedding.pth")
+            if model_file.endswith(f"score-elm-v1-embedding.safetensors")
         ]
 
         # Sort the model files by timestamp (assuming the file names include a timestamp)
@@ -329,7 +329,7 @@ class PromptSubstitutionGenerator:
 
             # Load the model
             embedding_model = model_class(768*2)
-            embedding_model.load_pth(byte_buffer)
+            embedding_model.load_safetensors(byte_buffer)
             embedding_model.model=embedding_model.model.to(self.device)
 
             loaded_models.append(embedding_model)
