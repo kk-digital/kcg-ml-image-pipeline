@@ -246,7 +246,8 @@ class PromptSubstitutionGenerator:
         else:
             # get list of boltzman phrase score
             self.positive_phrase_scores_csv,self.negative_phrase_scores_csv=self.get_boltzman_scores_csv()
-            
+            print(self.positive_phrase_scores_csv)
+
             # loading positive phrase scores to use for rejection sampling
             phrase_loader=BoltzmanPhraseScoresLoader(dataset_name="environmental",
                                                     phrase_scores_csv=self.positive_phrase_scores_csv,
