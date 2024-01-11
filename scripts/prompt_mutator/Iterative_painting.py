@@ -12,7 +12,7 @@ from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTex
 from worker.image_generation.scripts.inpaint_A1111 import get_model, img2img
 from utility.minio import cmd
 
-OUTPUT_PATH="environmental/output/iterative_painting"
+OUTPUT_PATH="environmental/output/iterative_painting/result.png"
 
 def parse_args():
     parser = argparse.ArgumentParser()
