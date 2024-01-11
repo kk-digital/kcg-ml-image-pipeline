@@ -215,6 +215,18 @@ class NewTagRequest(BaseModel):
             raise ValueError('Invalid tag string')
         return value
 
+class NewTagCategory(BaseModel):
+    tag_category_string: str = Field(..., description="Name of the tag category")
+    tag_category_description: str = Field(..., description="Description of the tag category")
+    deprecated: bool = False
+    user_who_created: NonEmptyString = Field(..., description="Username of the user who created the tag")
+
+    @validator('tag_category_string')
+    def validate_tag_string(cls, value):
+        if not re.match(r'^[a-zA-Z0-9_-]+$', value):
+            raise ValueError('Invalid tag string')
+        return value
+
 
 class TagCategory(BaseModel):
     tag_category_id: Optional[int] = None

@@ -8,7 +8,7 @@ import time
 from fastapi import Request
 from typing import TypeVar, Generic, List
 from pydantic import BaseModel
-from .mongo_schemas import TagDefinition
+from .mongo_schemas import TagDefinition, TagCategory
 
 class RechableResponse(BaseModel):
     reachable: bool
@@ -19,6 +19,8 @@ class VectorIndexUpdateRequest(BaseModel):
 class WasPresentResponse(BaseModel):
     wasPresent: bool
 
+class TagsCategoryListResponse(BaseModel):
+    tag_categories: List[TagCategory]
 
 class TagsListResponse(BaseModel):
     tags: List[TagDefinition]

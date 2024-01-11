@@ -1,9 +1,9 @@
 from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
-from orchestration.api.mongo_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest
+from orchestration.api.mongo_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory
 from typing import Union
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse
 import traceback
 from bson import ObjectId
 
@@ -261,7 +261,7 @@ def remove_tag(request: Request, tag_id: int):
     if image_with_tag is not None:
         # Since it's used in images, do not delete but notify the client
         return response_handler.create_error_response(
-            ErrorCode.INVALID_OPERATION,
+            ErrorCode.INVALID_PARAMS,
             "Cannot remove tag, it is already used in images.",
             400
         )
@@ -611,6 +611,7 @@ def get_tagged_images(
 
 @router.get("/tags/{tag_id}/images", 
             tags=["tags"], 
+            status_code=200,
             description="Get images by tag_id",
             response_model=StandardSuccessResponse[ImageTag], 
             responses=ApiResponseHandler.listErrors([400, 422, 500]))
@@ -643,13 +644,14 @@ def get_tagged_images(
         image_info_list = []
         for tag_data in image_tags_cursor:
             if "image_hash" in tag_data and "user_who_created" in tag_data and "file_path" in tag_data:
-                image_info_list.append(ImageTag(
+                image_tag = ImageTag(
                     tag_id=int(tag_data["tag_id"]),
                     file_path=tag_data["file_path"], 
                     image_hash=str(tag_data["image_hash"]),
                     user_who_created=tag_data["user_who_created"],
                     creation_time=tag_data.get("creation_time", None)
-                ))
+                )
+                image_info_list.append(image_tag.model_dump())  # Convert to dictionary
 
         # Return the list of images in a standard success response
         return response_handler.create_success_response({"images": image_info_list}, 200)
@@ -684,6 +686,43 @@ def get_all_tagged_images(request: Request):
 
     return image_info_list
 
+
+@router.get("/tags/images", 
+            tags=["tags"], 
+            status_code=200,
+            description="Get all tagged images",
+            response_model=StandardSuccessResponse[ImageTag], 
+            responses=ApiResponseHandler.listErrors([400, 422, 500]))
+def get_all_tagged_images(request: Request):
+    response_handler = ApiResponseHandler(request)
+
+    try:
+        # Execute the query to get all tagged images
+        image_tags_cursor = request.app.image_tags_collection.find({})
+
+        # Process the results
+        image_info_list = []
+        for tag_data in image_tags_cursor:
+            if "image_hash" in tag_data and "user_who_created" in tag_data and "file_path" in tag_data:
+                image_tag = ImageTag(
+                    tag_id=int(tag_data["tag_id"]),
+                    file_path=tag_data["file_path"], 
+                    image_hash=str(tag_data["image_hash"]),
+                    user_who_created=tag_data["user_who_created"],
+                    creation_time=tag_data.get("creation_time", None)
+                )
+                image_info_list.append(image_tag.model_dump())  # Convert to dictionary
+
+        # Return the list of images in a standard success response
+        return response_handler.create_success_response({"images": image_info_list}, 200)
+
+    except Exception as e:
+        # Log the exception details here, if necessary
+        return response_handler.create_error_response(
+            ErrorCode.OTHER_ERROR, str(e), 500
+        )
+
+
 @router.post("/tags/add_tag_category", response_class=PrettyJSONResponse)
 def add_tag_category(request: Request, tag_category_data: TagCategory):
     response_handler = ApiResponseHandler(request)
@@ -706,6 +745,44 @@ def add_tag_category(request: Request, tag_category_data: TagCategory):
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
+
+@router.post("/tag-categories",
+             status_code=201, 
+             tags=["tag-categories"], 
+             description="Add Tag Categoty",
+             response_model=StandardSuccessResponse[TagCategory],
+             responses=ApiResponseHandler.listErrors([400, 422, 500]))
+def add_tag_category(request: Request, tag_category_data: NewTagCategory):
+    response_handler = ApiResponseHandler(request)
+    try:
+        # Assign new tag_category_id
+        last_entry = request.app.tag_categories_collection.find_one({}, sort=[("tag_category_id", -1)])
+        new_tag_category_id = last_entry["tag_category_id"] + 1 if last_entry else 0
+
+        # Prepare tag category document
+        tag_category_document = tag_category_data.dict()
+        tag_category_document["tag_category_id"] = new_tag_category_id
+        tag_category_document["creation_time"] = datetime.utcnow().isoformat()
+
+        # Insert new tag category
+        inserted_id = request.app.tag_categories_collection.insert_one(tag_category_document).inserted_id
+
+        # Retrieve and serialize the new tag category object
+        new_tag_category = request.app.tag_categories_collection.find_one({"_id": inserted_id})
+        serialized_tag_category = {k: str(v) if isinstance(v, ObjectId) else v for k, v in new_tag_category.items()}
+
+        # Adjust order of the keys
+        ordered_response = {
+            "_id": serialized_tag_category.pop("_id"),
+            "tag_category_id": serialized_tag_category.pop("tag_category_id"),
+            **serialized_tag_category
+        }
+
+        # Return the ordered tag category in a standard success response
+        return response_handler.create_success_response(ordered_response, http_status_code=201)
+
+    except Exception as e:
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
 
 @router.put("/tags/update_tag_category", response_class=PrettyJSONResponse)
@@ -742,6 +819,47 @@ def update_tag_category(request: Request, tag_category_id: int, tag_category_upd
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
+@router.patch("/tag-categories/{tag_category_id}", 
+              tags=["tag-categories"],
+              status_code=200,
+              description="Update tag category",
+              response_model=StandardSuccessResponse[TagCategory],
+              responses=ApiResponseHandler.listErrors([400, 404, 422, 500]))
+def update_tag_category(
+    request: Request, 
+    tag_category_id: int,
+    update_data: NewTagCategory
+):
+    response_handler = ApiResponseHandler(request)
+
+    query = {"tag_category_id": tag_category_id}
+    existing_category = request.app.tag_categories_collection.find_one(query)
+
+    if existing_category is None:
+        return response_handler.create_error_response(
+            ErrorCode.ELEMENT_NOT_FOUND, "Tag category not found.", 404
+        )
+
+    update_fields = {k: v for k, v in update_data.dict(exclude_unset=True).items() if v is not None}
+
+    if not update_fields:
+        return response_handler.create_error_response(
+            ErrorCode.INVALID_PARAMS, "No fields to update.", 400
+        )
+
+    request.app.tag_categories_collection.update_one(query, {"$set": update_fields})
+
+    updated_category = request.app.tag_categories_collection.find_one(query)
+    updated_category = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_category.items()}
+
+    # Adjust order of the keys
+    ordered_response = {
+        "_id": updated_category.pop("_id"),
+        "tag_category_id": updated_category.pop("tag_category_id"),
+        **updated_category
+    }
+
+    return response_handler.create_success_response(ordered_response, 200)
 
 
 @router.delete("/tags/remove_tag_category", response_class=PrettyJSONResponse)
@@ -763,6 +881,41 @@ def remove_tag_category(request: Request, tag_category_id: int):
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
+
+@router.delete("/tag-categories/{tag_category_id}", 
+               tags=["tag-categories"], 
+               description="Remove tag category with tag_category_id", 
+               status_code=200,
+               response_model=StandardSuccessResponse[WasPresentResponse],
+               responses=ApiResponseHandler.listErrors([400, 422, 500]))
+def delete_tag_category(request: Request, tag_category_id: int):
+    response_handler = ApiResponseHandler(request)
+
+    # Check if the tag category exists
+    category_query = {"tag_category_id": tag_category_id}
+    category = request.app.tag_categories_collection.find_one(category_query)
+
+    if category is None:
+        # Return standard response with wasPresent: false
+        return response_handler.create_success_delete_response({"wasPresent": False})
+
+    # Check if the tag category is used in any tags
+    tag_query = {"tag_category_id": tag_category_id}
+    tag_with_category = request.app.tag_definitions_collection.find_one(tag_query)
+
+    if tag_with_category is not None:
+        # Since it's used in tags, do not delete but notify the client
+        return response_handler.create_error_response(
+            ErrorCode.INVALID_PARAMS,
+            "Cannot remove tag category, it is already used in tags.",
+            400
+        )
+
+    # Remove the tag category
+    request.app.tag_categories_collection.delete_one(category_query)
+
+    # Return standard response with wasPresent: true
+    return response_handler.create_success_delete_response({"wasPresent": True})
 
 
 @router.get("/tags/list_tag_categories", response_class=PrettyJSONResponse)
@@ -787,4 +940,26 @@ def list_tag_categories(request: Request):
         return response_handler.create_success_response(result, http_status_code=200)
 
     except Exception as e:
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
+
+@router.get("/tag-categories", 
+            tags=["tag-categories"], 
+            description="List tag categories",
+            status_code=200,
+            response_model=StandardSuccessResponse[TagsCategoryListResponse],
+            responses=ApiResponseHandler.listErrors([500]))
+def list_tag_categories(request: Request):
+    response_handler = ApiResponseHandler(request)
+    try:
+        # Query all the tag categories
+        categories_cursor = request.app.tag_categories_collection.find({})
+
+        # Convert each tag category document to a dictionary
+        result = [{k: str(v) if isinstance(v, ObjectId) else v for k, v in category.items()} for category in categories_cursor]
+
+        return response_handler.create_success_response({"categories": result}, http_status_code=200)
+
+    except Exception as e:
+        traceback_str = traceback.format_exc()
+        print(f"Exception Traceback:\n{traceback_str}")
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
