@@ -3,7 +3,7 @@ from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
 from orchestration.api.mongo_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest
 from typing import Union
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest
 import traceback
 from bson import ObjectId
 
@@ -94,7 +94,7 @@ def add_new_tag_definition(request: Request, tag_data: TagDefinition):
 @router.post("/tags", 
              status_code=201,
              tags=["tags"],
-             description="Adds a new tag.",
+             description="Adds a new tag",
              response_model=StandardSuccessResponse[TagDefinition],
              responses=ApiResponseHandler.listErrors([400, 422, 500]))
 def add_new_tag_definition(request: Request, tag_data: NewTagRequest):
@@ -175,6 +175,45 @@ def update_tag_definition(request: Request, tag_id: int, update_data: TagDefinit
     # Update the tag definition
     request.app.tag_definitions_collection.update_one(query, {"$set": update_fields})
     return {"status": "success", "message": "Tag definition updated successfully.", "tag_id": tag_id}
+
+
+@router.patch("/tags/{tag_id}", 
+              tags=["tags"],
+              status_code=200,
+              description="Update tag definitions",
+              response_model=StandardSuccessResponse[TagDefinition],
+              responses=ApiResponseHandler.listErrors([400,404, 422, 500]))
+def update_tag_definition(request: Request, tag_id: int, update_data: NewTagRequest):
+    response_handler = ApiResponseHandler(request)
+
+    query = {"tag_id": tag_id}
+    existing_tag = request.app.tag_definitions_collection.find_one(query)
+
+    if existing_tag is None:
+        return response_handler.create_error_response(
+            ErrorCode.ELEMENT_NOT_FOUND, "Tag not found.", 404
+        )
+
+    # Prepare update data
+    update_fields = {k: v for k, v in update_data.dict().items() if v is not None}
+
+    if not update_fields:
+        return response_handler.create_error_response(
+            ErrorCode.INVALID_PARAMS, "No fields to update.", 400
+        )
+
+    # Update the tag definition
+    request.app.tag_definitions_collection.update_one(query, {"$set": update_fields})
+
+    # Retrieve the updated tag
+    updated_tag = request.app.tag_definitions_collection.find_one(query)
+
+    # Serialize ObjectId to string
+    updated_tag = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_tag.items()}
+
+    # Return the updated tag object
+    return response_handler.create_success_response(updated_tag, 200)
+
 
 
 @router.delete("/tags/remove_tag")
@@ -323,6 +362,41 @@ def set_tag_vector_index(request: Request, tag_id: int, vector_index: int):
 
     return {"status": "success", "message": "Tag vector index updated successfully."}
 
+@router.put("/tags/{tag_id}/vector-index", 
+            tags=["tags"], 
+            status_code=200,
+            description="Add vector index to tag definition",
+            response_model=StandardSuccessResponse[VectorIndexUpdateRequest],
+            responses=ApiResponseHandler.listErrors([400, 422, 500]))
+def set_tag_vector_index(request: Request, tag_id: int, update_data: VectorIndexUpdateRequest):
+    response_handler = ApiResponseHandler(request)
+
+    # Find the tag definition using the provided tag_id
+    query = {"tag_id": tag_id}
+    tag = request.app.tag_definitions_collection.find_one(query)
+
+    if not tag:
+        return response_handler.create_error_response(
+            ErrorCode.ELEMENT_NOT_FOUND, "Tag definition not found.", 404
+        )
+
+    # Check if any other tag has the same vector index
+    existing_tag = request.app.tag_definitions_collection.find_one({"tag_vector_index": update_data.vector_index})
+    if existing_tag and existing_tag["tag_id"] != tag_id:
+        return response_handler.create_error_response(
+            ErrorCode.INVALID_PARAMS, "Another tag already has the same vector index.", 400
+        )
+
+    # Update the tag vector index
+    update_query = {"$set": {"tag_vector_index": update_data.vector_index}}
+    request.app.tag_definitions_collection.update_one(query, update_query)
+
+    # Optionally, retrieve updated tag data and include it in the response
+    updated_tag = request.app.tag_definitions_collection.find_one(query)
+    return response_handler.create_success_response(
+        {"tag_vector_index": updated_tag.get("tag_vector_index", None)}, 200
+    )
+
 
 @router.get("/tags/get_tag_vector_index")
 def get_tag_vector_index(request: Request, tag_id: int):
@@ -336,6 +410,29 @@ def get_tag_vector_index(request: Request, tag_id: int):
 
     vector_index = tag.get("tag_vector_index", -1)
     return {"tag_vector_index": vector_index}
+
+
+@router.get("/tags/{tag_id}/vector-index", 
+            tags=["tags"], 
+            status_code=200,
+            response_model=StandardSuccessResponse[VectorIndexUpdateRequest],
+            responses=ApiResponseHandler.listErrors([400, 422, 500]))
+def get_tag_vector_index(request: Request, tag_id: int):
+    response_handler = ApiResponseHandler(request)
+
+    # Find the tag definition using the provided tag_id
+    query = {"tag_id": tag_id}
+    tag = request.app.tag_definitions_collection.find_one(query)
+
+    if not tag:
+        return response_handler.create_error_response(
+            ErrorCode.TAG_NOT_FOUND, "Tag not found.", 404
+        )
+
+    vector_index = tag.get("tag_vector_index", None)
+    return response_handler.create_success_response(
+        {"tag_vector_index": vector_index}, 200
+    )    
 
 @router.post("/tags/add_tag_to_image", response_model=ImageTag)
 def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_created: str):
@@ -511,6 +608,57 @@ def get_tagged_images(
     # Return the list of images
     return image_info_list
 
+
+@router.get("/tags/{tag_id}/images", 
+            tags=["tags"], 
+            description="Get images by tag_id",
+            response_model=StandardSuccessResponse[ImageTag], 
+            responses=ApiResponseHandler.listErrors([400, 422, 500]))
+def get_tagged_images(
+    request: Request, 
+    tag_id: int,
+    start_date: str = None,
+    end_date: str = None,
+    order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first")
+):
+    response_handler = ApiResponseHandler(request)
+
+    try:
+        # Build the query
+        query = {"tag_id": tag_id}
+        if start_date and end_date:
+            query["creation_time"] = {"$gte": start_date, "$lte": end_date}
+        elif start_date:
+            query["creation_time"] = {"$gte": start_date}
+        elif end_date:
+            query["creation_time"] = {"$lte": end_date}
+
+        # Decide the sort order
+        sort_order = -1 if order == "desc" else 1
+
+        # Execute the query
+        image_tags_cursor = request.app.image_tags_collection.find(query).sort("creation_time", sort_order)
+
+        # Process the results
+        image_info_list = []
+        for tag_data in image_tags_cursor:
+            if "image_hash" in tag_data and "user_who_created" in tag_data and "file_path" in tag_data:
+                image_info_list.append(ImageTag(
+                    tag_id=int(tag_data["tag_id"]),
+                    file_path=tag_data["file_path"], 
+                    image_hash=str(tag_data["image_hash"]),
+                    user_who_created=tag_data["user_who_created"],
+                    creation_time=tag_data.get("creation_time", None)
+                ))
+
+        # Return the list of images in a standard success response
+        return response_handler.create_success_response({"images": image_info_list}, 200)
+
+    except Exception as e:
+        # Log the exception details here, if necessary
+        return response_handler.create_error_response(
+            ErrorCode.OTHER_ERROR, str(e), 500
+        )
 
 @router.get("/tags/get_all_tagged_images", response_model=List[ImageTag], response_class=PrettyJSONResponse)
 def get_all_tagged_images(request: Request):

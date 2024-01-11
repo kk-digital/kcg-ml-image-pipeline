@@ -13,6 +13,8 @@ from .mongo_schemas import TagDefinition
 class RechableResponse(BaseModel):
     reachable: bool
 
+class VectorIndexUpdateRequest(BaseModel):
+    vector_index: int
 
 class WasPresentResponse(BaseModel):
     wasPresent: bool
