@@ -68,7 +68,7 @@ def main():
         device = 'cuda'
     else:
         device = 'cpu'
-        
+
     sd, config, model = get_model(device, steps)
 
     # Load the clip embedder model
@@ -83,7 +83,7 @@ def main():
         sd=sd, clip_text_embedder=embedder, model=model, device=device)
 
     # Display the image
-    cmd.upload_data(minio_client, 'datasets', OUTPUT_PATH , img_byte_arr.getvalue()) 
+    cmd.upload_data(minio_client, 'datasets', OUTPUT_PATH , img_byte_arr) 
 
 if __name__ == "__main__":
     main()
