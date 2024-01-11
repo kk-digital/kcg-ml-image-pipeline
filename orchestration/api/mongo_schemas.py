@@ -198,6 +198,17 @@ class TagDefinition(BaseModel):
             "creation_time": self.creation_time
         }
 
+TagString = constr(regex=r'^[a-zA-Z0-9_-]+$')
+NonEmptyString = constr(strict=True, min_length=1)
+
+
+class NewTagRequest(BaseModel):
+    tag_string: TagString = Field(..., description="Name of the tag")
+    tag_category_id: Optional[int] = Field(None, description="ID of the tag category")
+    tag_description: str = Field(..., description="Description of the tag")
+    tag_vector_index: Optional[int] = None
+    deprecated: bool = False
+    user_who_created: NonEmptyString = Field(..., description="Username of the user who created the tag")
 
 class TagCategory(BaseModel):
     tag_category_id: Optional[int] = None

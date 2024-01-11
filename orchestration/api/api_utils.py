@@ -8,6 +8,18 @@ import time
 from fastapi import Request
 from typing import TypeVar, Generic, List
 from pydantic import BaseModel
+from .mongo_schemas import TagDefinition
+
+class RechableResponse(BaseModel):
+    reachable: bool
+
+
+class WasPresentResponse(BaseModel):
+    wasPresent: bool
+
+
+class TagsListResponse(BaseModel):
+    tags: List[TagDefinition]
 
 
 class PrettyJSONResponse(Response):
@@ -22,10 +34,12 @@ class PrettyJSONResponse(Response):
             separators=(", ", ": "),
         ).encode("utf-8")
 
+
 class ErrorCode(Enum):
     OTHER_ERROR = 1
     ELEMENT_NOT_FOUND = 2
     INVALID_PARAMS = 3
+
 
 T = TypeVar('T')
 class StandardSuccessResponse(BaseModel, Generic[T]):
@@ -33,11 +47,13 @@ class StandardSuccessResponse(BaseModel, Generic[T]):
     duration: int
     response: T
 
+
 class StandardErrorResponse(BaseModel):
     url: str
     duration: int
     errorCode: int
     errorString: str
+
 
 class ApiResponseHandler:
     def __init__(self, request: Request):
