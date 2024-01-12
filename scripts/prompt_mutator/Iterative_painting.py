@@ -68,7 +68,7 @@ class IterativePainter:
         new_cx1, new_cy1, new_cx2, new_cy2 = new_center
         for center in self.painted_centers:
             cx1, cy1, cx2, cy2 = center
-            if not (new_cx1== cx1 and new_cy1==cy1):
+            if new_cx1== cx1 and new_cy1==cy1:
                 return True
         return False
 
@@ -92,8 +92,7 @@ class IterativePainter:
             generated_prompt= self.generate_prompt()
             generated_image = self.generate_image(generated_prompt)
 
-            # Apply mask to the generated image and then composite it over the existing image
-            #mask = mask.convert("L")
+
             self.image.paste(generated_image, center)
 
             img_byte_arr = io.BytesIO()
