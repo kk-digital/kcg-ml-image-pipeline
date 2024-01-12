@@ -105,9 +105,9 @@ class IterativePainter:
     def generate_prompt(self):
         # generate a prompt
         prompt_list = self.prompt_generator.generate_initial_prompts_with_fixed_probs(1)
-        prompt, _= self.prompt_generator.mutate_prompts(prompt_list)[0]
+        prompt, _= self.prompt_generator.mutate_prompts(prompt_list)
 
-        return prompt.positive_prompt
+        return prompt[0].positive_prompt
     
     def generate_image(self, generated_prompt, mask):
         init_images = [Image.new("RGBA", (1024, 1024), "white")]
