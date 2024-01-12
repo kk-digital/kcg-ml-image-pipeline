@@ -71,7 +71,7 @@ class IterativePainter:
                 return True
         return False
 
-    def create_inpainting_mask(self, square_size=512, center_size=128):
+    def get_painting_area_center(self, square_size=512, center_size=128):
         while True:
             square_start_x = random.randint(0, 1024 - square_size)
             square_start_y = random.randint(0, 1024 - square_size)
@@ -81,23 +81,36 @@ class IterativePainter:
             if not self.check_center_overlap(new_center):
                 self.painted_centers.append(new_center)
                 break
+        
+        return new_center
 
-        mask = Image.new('L', (1024, 1024), 0)
-        draw = ImageDraw.Draw(mask)
-        draw.rectangle([square_start_x, square_start_y, square_start_x + square_size, square_start_y + square_size], fill=255)
-        draw.rectangle(new_center, fill=0)
-        return mask
+    # def create_inpainting_mask(self, square_size=512, center_size=128):
+    #     while True:
+    #         square_start_x = random.randint(0, 1024 - square_size)
+    #         square_start_y = random.randint(0, 1024 - square_size)
+    #         center_x = square_start_x + square_size // 2 - center_size // 2
+    #         center_y = square_start_y + square_size // 2 - center_size // 2
+    #         new_center = (center_x, center_y, center_x + center_size, center_y + center_size)
+    #         if not self.check_center_overlap(new_center):
+    #             self.painted_centers.append(new_center)
+    #             break
+
+    #     mask = Image.new('L', (1024, 1024), 0)
+    #     draw = ImageDraw.Draw(mask)
+    #     draw.rectangle([square_start_x, square_start_y, square_start_x + square_size, square_start_y + square_size], fill=0)
+    #     draw.rectangle(new_center, fill=255)
+    #     return mask
     
     def paint_image(self):
         while(len(self.painted_centers) < 50):
-            mask = self.create_inpainting_mask()
+            center = self.get_painting_area_center()
 
             generated_prompt= self.generate_prompt()
-            img_byte_arr, generated_image = self.generate_image(generated_prompt, mask)
+            img_byte_arr, generated_image = self.generate_image(generated_prompt)
 
             # Apply mask to the generated image and then composite it over the existing image
-            mask = mask.convert("L")
-            self.image.paste(generated_image, (0, 0), mask)
+            #mask = mask.convert("L")
+            self.image.paste(generated_image, center, generated_image)
 
             img_byte_arr.seek(0)
             cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH , img_byte_arr)
@@ -112,14 +125,15 @@ class IterativePainter:
 
         return prompt_str
     
-    def generate_image(self, generated_prompt, mask):
+    def generate_image(self, generated_prompt):
         init_images = [Image.new("RGBA", (1024, 1024), "white")]
+        mask = Image.new('L', (1024, 1024), 255)
         # Generate the image
         output_file_path, output_file_hash, img_byte_arr, seed, subseed = img2img(
-            prompt=generated_prompt, negative_prompt='', sampler_name="ddim", batch_size=1, n_iter=1, steps=self.steps, 
-            cfg_scale=7.0, width=512, height=512, mask_blur=0, inpainting_fill=0, outpath='output', 
-            styles=None, init_images=init_images, mask=mask, resize_mode=0, denoising_strength=0.75, 
-            image_cfg_scale=None, inpaint_full_res_padding=0, inpainting_mask_invert=0,
+            prompt=generated_prompt, negative_prompt='', sampler_name="ddim", batch_size=1, n_iter=1, 
+            steps=self.steps, cfg_scale=7.0, width=512, height=512, mask_blur=0, inpainting_fill=0, 
+            outpath='output', styles=None, init_images=init_images, mask=mask, resize_mode=0, 
+            denoising_strength=0.75, image_cfg_scale=None, inpaint_full_res_padding=0, inpainting_mask_invert=0,
             sd=self.sd, clip_text_embedder=self.embedder, model=self.model, device=self.device)
         
         img_byte_arr.seek(0)  # Reset the buffer
