@@ -72,7 +72,8 @@ class IterativePainter:
         return False
 
     def create_inpainting_mask(self, square_size=512, center_size=64):
-        while True:
+        iteration=0
+        while iteration<255:
             square_start_x = random.randint(0, 1024 - square_size)
             square_start_y = random.randint(0, 1024 - square_size)
             center_x = square_start_x + square_size // 2 - center_size // 2
@@ -82,6 +83,11 @@ class IterativePainter:
                 self.painted_centers.append(new_center)
                 break
 
+            iteration+=1
+        
+        if iteration==255:
+            return None
+
         mask = Image.new('L', (1024, 1024), 0)
         draw = ImageDraw.Draw(mask)
         draw.rectangle([square_start_x, square_start_y, square_start_x + square_size, square_start_y + square_size], fill=255)
@@ -89,10 +95,14 @@ class IterativePainter:
         return mask
     
     def paint_image(self):
-        while(len(self.painted_centers< 255)):
+        while(True):
             mask = self.create_inpainting_mask()
+
+            if mask is None:
+                cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH , img_byte_arr)
+
             generated_prompt= self.generate_prompt()
-            generated_image = self.generate_image(generated_prompt, mask)
+            img_byte_arr, generated_image = self.generate_image(generated_prompt, mask)
 
             # Apply mask to the generated image and then composite it over the existing image
             mask = mask.convert("L")
@@ -118,8 +128,9 @@ class IterativePainter:
             image_cfg_scale=None, inpaint_full_res_padding=0, inpainting_mask_invert=0,
             sd=self.sd, clip_text_embedder=self.embedder, model=self.model, device=self.device)
         
+        img_byte_arr.seek(0)  # Reset the buffer
+        return img_byte_arr, Image.open(img_byte_arr)
         
-
 def main():
    args = parse_args()
 
