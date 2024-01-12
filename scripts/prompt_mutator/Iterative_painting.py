@@ -71,9 +71,8 @@ class IterativePainter:
                 return True
         return False
 
-    def create_inpainting_mask(self, square_size=512, center_size=64):
-        iteration=0
-        while iteration<255:
+    def create_inpainting_mask(self, square_size=512, center_size=128):
+        while True:
             square_start_x = random.randint(0, 1024 - square_size)
             square_start_y = random.randint(0, 1024 - square_size)
             center_x = square_start_x + square_size // 2 - center_size // 2
@@ -83,11 +82,6 @@ class IterativePainter:
                 self.painted_centers.append(new_center)
                 break
 
-            iteration+=1
-        
-        if iteration==255:
-            return None
-
         mask = Image.new('L', (1024, 1024), 0)
         draw = ImageDraw.Draw(mask)
         draw.rectangle([square_start_x, square_start_y, square_start_x + square_size, square_start_y + square_size], fill=255)
@@ -95,11 +89,8 @@ class IterativePainter:
         return mask
     
     def paint_image(self):
-        while(True):
+        while(len(self.painted_centers) < 100):
             mask = self.create_inpainting_mask()
-
-            if mask is None:
-                cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH , img_byte_arr)
 
             generated_prompt= self.generate_prompt()
             img_byte_arr, generated_image = self.generate_image(generated_prompt, mask)
@@ -109,7 +100,7 @@ class IterativePainter:
             generated_image.putalpha(mask)
             self.image.paste(generated_image, (0, 0), generated_image)
 
-            self.image.save(f"output.png")
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH , img_byte_arr)
 
     def generate_prompt(self):
         # generate a prompt
@@ -158,6 +149,9 @@ def main():
                                   num_choices_per_iteration=args.num_choices,
                                   clip_batch_size=args.clip_batch_size,
                                   substitution_batch_size=args.substitution_batch_size)
+   
+   Painter= IterativePainter(prompt_generator=prompt_generator)
+   Painter.paint_image()
 
 if __name__ == "__main__":
     main()
