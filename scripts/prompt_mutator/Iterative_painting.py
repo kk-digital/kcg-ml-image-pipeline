@@ -72,7 +72,7 @@ class IterativePainter:
                 return True
         return False
 
-    def get_painting_area_center(self, square_size=512, center_size=64):
+    def get_painting_area_center(self, square_size=512, center_size=128):
         while True:
             square_start_x = random.randrange(0, 1024 - square_size, center_size)
             square_start_y = random.randint(0, 1024 - square_size, center_size)
@@ -86,7 +86,7 @@ class IterativePainter:
         return new_center
     
     def paint_image(self):
-        while(len(self.painted_centers) < 81):
+        while(len(self.painted_centers) < 25):
             center = self.get_painting_area_center()
 
             generated_prompt= self.generate_prompt()
@@ -118,7 +118,7 @@ class IterativePainter:
         # Generate the image
         output_file_path, output_file_hash, img_byte_arr, seed, subseed = img2img(
             prompt=generated_prompt, negative_prompt='', sampler_name="ddim", batch_size=1, n_iter=1, 
-            steps=self.steps, cfg_scale=7.0, width=512, height=512, mask_blur=0, inpainting_fill=0, 
+            steps=self.steps, cfg_scale=7.0, width=128, height=128, mask_blur=0, inpainting_fill=0, 
             outpath='output', styles=None, init_images=init_images, mask=mask, resize_mode=0, 
             denoising_strength=0.75, image_cfg_scale=None, inpaint_full_res_padding=0, inpainting_mask_invert=0,
             sd=self.sd, clip_text_embedder=self.embedder, model=self.model, device=self.device)
