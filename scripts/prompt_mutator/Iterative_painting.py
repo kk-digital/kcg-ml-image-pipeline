@@ -72,10 +72,10 @@ class IterativePainter:
                 return True
         return False
 
-    def get_painting_area_center(self, square_size=512, center_size=128):
+    def get_painting_area_center(self, square_size=512, center_size=64):
         while True:
-            square_start_x = random.randint(0, 1024 - square_size)
-            square_start_y = random.randint(0, 1024 - square_size)
+            square_start_x = random.randrange(0, 1024 - square_size, center_size)
+            square_start_y = random.randint(0, 1024 - square_size, center_size)
             center_x = square_start_x + square_size // 2 - center_size // 2
             center_y = square_start_y + square_size // 2 - center_size // 2
             new_center = (center_x, center_y, center_x + center_size, center_y + center_size)
@@ -84,26 +84,9 @@ class IterativePainter:
                 break
         
         return new_center
-
-    # def create_inpainting_mask(self, square_size=512, center_size=128):
-    #     while True:
-    #         square_start_x = random.randint(0, 1024 - square_size)
-    #         square_start_y = random.randint(0, 1024 - square_size)
-    #         center_x = square_start_x + square_size // 2 - center_size // 2
-    #         center_y = square_start_y + square_size // 2 - center_size // 2
-    #         new_center = (center_x, center_y, center_x + center_size, center_y + center_size)
-    #         if not self.check_center_overlap(new_center):
-    #             self.painted_centers.append(new_center)
-    #             break
-
-    #     mask = Image.new('L', (1024, 1024), 0)
-    #     draw = ImageDraw.Draw(mask)
-    #     draw.rectangle([square_start_x, square_start_y, square_start_x + square_size, square_start_y + square_size], fill=0)
-    #     draw.rectangle(new_center, fill=255)
-    #     return mask
     
     def paint_image(self):
-        while(len(self.painted_centers) < 50):
+        while(len(self.painted_centers) < 81):
             center = self.get_painting_area_center()
 
             generated_prompt= self.generate_prompt()
