@@ -110,7 +110,7 @@ class IterativePainter:
 
             # Apply mask to the generated image and then composite it over the existing image
             #mask = mask.convert("L")
-            self.image.paste(generated_image, center, generated_image)
+            self.image.paste(generated_image, center)
 
             img_byte_arr.seek(0)
             cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH , img_byte_arr)
