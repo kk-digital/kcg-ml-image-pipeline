@@ -72,10 +72,12 @@ class IterativePainter:
                 return True
         return False
 
-    def get_painting_area_center(self, square_size=512, center_size=128):
+    def get_painting_area_center(self, image_size=1024, square_size=512, center_size=128):
+        start=0
+        stop = image_size - square_size // 2 - center_size // 2
         while True:
-            square_start_x = random.randrange(0, 1024 , center_size)
-            square_start_y = random.randrange(0, 1024 , center_size)
+            square_start_x = random.randrange(start, stop, center_size)
+            square_start_y = random.randrange(start, stop, center_size)
             center_x = square_start_x + square_size // 2 - center_size // 2
             center_y = square_start_y + square_size // 2 - center_size // 2
             new_center = (center_x, center_y, center_x + center_size, center_y + center_size)
