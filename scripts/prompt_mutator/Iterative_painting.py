@@ -100,7 +100,8 @@ class IterativePainter:
             generated_image.putalpha(mask)
             self.image.paste(generated_image, (0, 0), generated_image)
 
-            cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH , img_byte_arr.seek(0))
+            img_byte_arr.seek(0)
+            cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH , img_byte_arr)
 
     def generate_prompt(self):
         # generate a prompt
