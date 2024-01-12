@@ -49,7 +49,7 @@ class IterativePainter:
     def __init__(self, prompt_generator):
 
         self.painted_centers=[]
-        self.image= Image.new("RGBA", (1024, 1024))
+        self.image= Image.new("RGBA", (1024, 1024), "white")
         self.steps=20
 
         self.prompt_generator= prompt_generator
