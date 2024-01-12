@@ -105,7 +105,7 @@ class IterativePainter:
     def generate_prompt(self):
         # generate a prompt
         prompt_list = self.prompt_generator.generate_initial_prompts_with_fixed_probs(1)
-        prompt, _= self.mutate_prompts(prompt_list)
+        prompt, _= self.prompt_generator.mutate_prompts(prompt_list)
 
         return prompt.positive_prompt
     
