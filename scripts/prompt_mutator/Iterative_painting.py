@@ -89,7 +89,7 @@ class IterativePainter:
         return mask
     
     def paint_image(self):
-        while(len(self.painted_centers) < 100):
+        while(len(self.painted_centers) < 50):
             mask = self.create_inpainting_mask()
 
             generated_prompt= self.generate_prompt()
