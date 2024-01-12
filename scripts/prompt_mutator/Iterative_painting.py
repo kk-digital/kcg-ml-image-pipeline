@@ -1,4 +1,5 @@
 import argparse
+import io
 import os
 import random
 import sys
@@ -106,13 +107,16 @@ class IterativePainter:
             center = self.get_painting_area_center()
 
             generated_prompt= self.generate_prompt()
-            img_byte_arr, generated_image = self.generate_image(generated_prompt)
+            generated_image = self.generate_image(generated_prompt)
 
             # Apply mask to the generated image and then composite it over the existing image
             #mask = mask.convert("L")
             self.image.paste(generated_image, center)
 
-            img_byte_arr.seek(0)
+            img_byte_arr = io.BytesIO()
+            self.image.save(img_byte_arr, format=format)
+            img_byte_arr.seek(0)  # Move to the start of the byte array
+
             cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH , img_byte_arr)
 
     def generate_prompt(self):
@@ -137,7 +141,7 @@ class IterativePainter:
             sd=self.sd, clip_text_embedder=self.embedder, model=self.model, device=self.device)
         
         img_byte_arr.seek(0)  # Reset the buffer
-        return img_byte_arr, Image.open(img_byte_arr)
+        return Image.open(img_byte_arr)
         
 def main():
    args = parse_args()
