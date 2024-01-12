@@ -107,13 +107,16 @@ class IterativePainter:
         prompt_list = self.prompt_generator.generate_initial_prompts_with_fixed_probs(1)
         prompt, _= self.prompt_generator.mutate_prompts(prompt_list)
 
-        return prompt[0].positive_prompt
+        prompt_str= prompt[0].positive_prompt
+        print(prompt_str)
+
+        return prompt_str
     
     def generate_image(self, generated_prompt, mask):
         init_images = [Image.new("RGBA", (1024, 1024), "white")]
         # Generate the image
         output_file_path, output_file_hash, img_byte_arr, seed, subseed = img2img(
-            generated_prompt, '', sampler_name="ddim", batch_size=1, n_iter=1, steps=self.steps, 
+            prompt=generated_prompt, negative_prompt='', sampler_name="ddim", batch_size=1, n_iter=1, steps=self.steps, 
             cfg_scale=7.0, width=512, height=512, mask_blur=0, inpainting_fill=0, outpath='output', 
             styles=None, init_images=init_images, mask=mask, resize_mode=0, denoising_strength=0.75, 
             image_cfg_scale=None, inpaint_full_res_padding=0, inpainting_mask_invert=0,
