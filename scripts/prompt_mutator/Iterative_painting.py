@@ -84,8 +84,8 @@ class IterativePainter:
 
         mask = Image.new('L', (1024, 1024), 0)
         draw = ImageDraw.Draw(mask)
-        draw.rectangle([square_start_x, square_start_y, square_start_x + square_size, square_start_y + square_size], fill=0)
-        draw.rectangle(new_center, fill=255)
+        draw.rectangle([square_start_x, square_start_y, square_start_x + square_size, square_start_y + square_size], fill=255)
+        draw.rectangle(new_center, fill=0)
         return mask
     
     def paint_image(self):
