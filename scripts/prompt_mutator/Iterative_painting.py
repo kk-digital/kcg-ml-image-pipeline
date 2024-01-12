@@ -74,7 +74,7 @@ class IterativePainter:
 
     def get_painting_area_center(self, image_size=1024, square_size=512, center_size=128):
         start=0
-        stop = image_size - square_size // 2 - center_size // 2
+        stop = image_size - square_size // 2 - center_size // 2 - center_size
         while True:
             square_start_x = random.randrange(start, stop, center_size)
             square_start_y = random.randrange(start, stop, center_size)
@@ -90,18 +90,15 @@ class IterativePainter:
     def paint_image(self):
         while(len(self.painted_centers) < 25):
             center = self.get_painting_area_center()
-
             generated_prompt= self.generate_prompt()
             generated_image = self.generate_image(generated_prompt)
-
-
             self.image.paste(generated_image, center)
-
-            img_byte_arr = io.BytesIO()
-            self.image.save(img_byte_arr, format="png")
-            img_byte_arr.seek(0)  # Move to the start of the byte array
-
-            cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH , img_byte_arr)
+            
+        img_byte_arr = io.BytesIO()
+        self.image.save(img_byte_arr, format="png")
+        img_byte_arr.seek(0)  # Move to the start of the byte array
+        
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH , img_byte_arr)
 
     def generate_prompt(self):
         # generate a prompt
