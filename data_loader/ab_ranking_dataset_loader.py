@@ -203,6 +203,12 @@ class ABRankingDatasetLoader:
 
         features_vector_img_2 = np.array(features_vector_img_2)
 
+        # check if feature is nan
+        if np.isnan(features_vector_img_1).all():
+            raise Exception("Features from {} is nan.".format(features_path_img_1))
+        if np.isnan(features_vector_img_2).all():
+            raise Exception("Features from {} is nan.".format(features_path_img_2))
+
         # if image 1 is the selected
         if selected_image_index == 0:
             selected_features_vector = features_vector_img_1

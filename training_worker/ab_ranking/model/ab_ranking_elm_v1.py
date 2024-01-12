@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import hashlib
@@ -9,6 +10,7 @@ from datetime import datetime
 import math
 import threading
 from safetensors.torch import save as safetensors_save
+from safetensors.torch import load as safetensors_load
 from io import BytesIO
 from tqdm import tqdm
 from random import sample
@@ -282,6 +284,9 @@ class ABRankingELMModel:
         # get total number of training features
         num_features = dataset_loader.get_len_training_ab_data()
 
+        if debug_asserts:
+            torch.autograd.set_detect_anomaly(True)
+            
         # get number of batches to do per epoch
         training_num_batches = math.ceil(num_features / training_batch_size)
         for epoch in tqdm(range(epochs), desc="Training epoch"):
@@ -304,6 +309,8 @@ class ABRankingELMModel:
                         num_data_to_get, self._device)
 
                     if debug_asserts:
+                        assert not torch.isnan(batch_features_x_orig).any()
+                        assert not torch.isnan(batch_features_y_orig).any()
                         assert batch_features_x_orig.shape == (training_batch_size, self.model.inputs_shape)
                         assert batch_features_y_orig.shape == (training_batch_size, self.model.inputs_shape)
                         assert batch_targets_orig.shape == (training_batch_size, 1)

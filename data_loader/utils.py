@@ -92,7 +92,6 @@ def format_prompt(prompt):
     prompt = re.sub(r'([\[\(\{\<])\s', r'\1', prompt)
     prompt = re.sub(r'\s([\]\)\}\>])', r'\1', prompt)
     prompt = re.sub(r'\s+', ' ', prompt)
-    prompt = re.sub(r'(\s?[,;])+', r',', prompt)
 
     prompt = re.sub(r'^[\.,;\s]+', '', prompt)
     prompt = re.sub(r'[\.,;\s]+$', '', prompt)
@@ -175,6 +174,10 @@ def remove_unwanted_chars(phrase: str):
 
 def get_phrases_from_prompt(prompt):
     phrases = []
+
+    # replace ; with ,
+    prompt = re.sub(r'(\s?[,;])+', r',', prompt)
+
     for phrase in prompt.split(','):
         phrase = phrase.strip()
         phrase = remove_unwanted_chars(phrase)
