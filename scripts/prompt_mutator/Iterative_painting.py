@@ -26,7 +26,7 @@ def parse_args():
     parser.add_argument('--update-prompts', action='store_true', default=False)
     parser.add_argument('--dataset-name', default='test-generations')
     parser.add_argument('--model-dataset', default='environmental')
-    parser.add_argument('--substitution-model', help="substitution model type: xgboost or linear", default='xgboost')
+    parser.add_argument('--substitution-model', help="substitution model type: xgboost or linear", default='linear')
     parser.add_argument('--scoring-model', help="elm or linear", default="linear")
     parser.add_argument('--sigma-threshold', type=float, help="threshold of rejection policy for increase of sigma score", default=-0.1)
     parser.add_argument('--variance-weight', type=float, help="weight of variance when optimizing score", default=0)
