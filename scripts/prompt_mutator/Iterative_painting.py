@@ -114,7 +114,7 @@ class IterativePainter:
             self.image.paste(generated_image, center)
 
             img_byte_arr = io.BytesIO()
-            self.image.save(img_byte_arr, format=format)
+            self.image.save(img_byte_arr, format="png")
             img_byte_arr.seek(0)  # Move to the start of the byte array
 
             cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH , img_byte_arr)
