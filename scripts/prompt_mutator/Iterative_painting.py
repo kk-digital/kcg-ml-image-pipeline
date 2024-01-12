@@ -68,7 +68,7 @@ class IterativePainter:
         new_cx1, new_cy1, new_cx2, new_cy2 = new_center
         for center in self.painted_centers:
             cx1, cy1, cx2, cy2 = center
-            if not (new_cx1== cx1 and new_cx2==cx2):
+            if not (new_cx1== cx1 and new_cy2==cy2):
                 return True
         return False
 
