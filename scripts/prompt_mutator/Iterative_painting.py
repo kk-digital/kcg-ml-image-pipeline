@@ -74,7 +74,7 @@ class IterativePainter:
 
         self.scoring_model= self.load_scoring_model()
 
-        self.sd, config, self.model = get_model(self.device, self.steps)
+        self.sd, config, self.model = get_model(self.device, 20)
 
     # load elm or linear scoring models
     def load_scoring_model(self):
