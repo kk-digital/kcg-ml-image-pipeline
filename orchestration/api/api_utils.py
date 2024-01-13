@@ -9,6 +9,8 @@ from fastapi import Request
 from typing import TypeVar, Generic, List
 from pydantic import BaseModel
 from .mongo_schemas import TagDefinition, TagCategory
+from datetime import datetime
+
 
 class RechableResponse(BaseModel):
     reachable: bool
@@ -25,6 +27,13 @@ class TagsCategoryListResponse(BaseModel):
 class TagsListResponse(BaseModel):
     tags: List[TagDefinition]
 
+
+def validate_date_format(date_str: str):
+    try:
+        # Assuming ISO 8601 format (YYYY-MM-DD)
+        return datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError as e:
+        return None
 
 class PrettyJSONResponse(Response):
     media_type = "application/json"

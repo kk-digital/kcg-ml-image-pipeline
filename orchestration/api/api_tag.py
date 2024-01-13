@@ -3,7 +3,7 @@ from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
 from orchestration.api.mongo_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory
 from typing import Union
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse
+from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse
 import traceback
 from bson import ObjectId
 
@@ -98,23 +98,34 @@ def add_new_tag_definition(request: Request, tag_data: TagDefinition):
              response_model=StandardSuccessResponse[TagDefinition],
              responses=ApiResponseHandler.listErrors([400, 422, 500]))
 def add_new_tag_definition(request: Request, tag_data: NewTagRequest):
-
     response_handler = ApiResponseHandler(request)
 
     try:
-        # Check if the provided tag_category_id exists in the tag_categories_collection
+        # Check for existing tag_category_id
         if tag_data.tag_category_id is not None:
             existing_category = request.app.tag_categories_collection.find_one(
                 {"tag_category_id": tag_data.tag_category_id}
             )
             if not existing_category:
                 return response_handler.create_error_response(
-                    ErrorCode.ELEMENT_NOT_FOUND,
+                    ErrorCode.INVALID_PARAMS,
                     "Tag category not found",
                     400
                 )
 
-        # Find the maximum tag_id in the collection
+        # Check for existing tag_vector_index
+        if tag_data.tag_vector_index is not None:
+            existing_tag_with_index = request.app.tag_definitions_collection.find_one(
+                {"tag_vector_index": tag_data.tag_vector_index}
+            )
+            if existing_tag_with_index:
+                return response_handler.create_error_response(
+                    ErrorCode.INVALID_PARAMS,
+                    "Tag vector index already in use.",
+                    400
+                )
+
+        # Generate new tag_id
         last_entry = request.app.tag_definitions_collection.find_one({}, sort=[("tag_id", -1)])
         new_tag_id = last_entry["tag_id"] + 1 if last_entry and "tag_id" in last_entry else 0
 
@@ -181,8 +192,8 @@ def update_tag_definition(request: Request, tag_id: int, update_data: TagDefinit
               tags=["tags"],
               status_code=200,
               description="Update tag definitions",
-              response_model=StandardSuccessResponse[TagDefinition],
-              responses=ApiResponseHandler.listErrors([400,404, 422, 500]))
+              response_model=StandardSuccessResponse[TagDefinition], 
+              responses=ApiResponseHandler.listErrors([400, 404, 422, 500]))
 def update_tag_definition(request: Request, tag_id: int, update_data: NewTagRequest):
     response_handler = ApiResponseHandler(request)
 
@@ -194,6 +205,12 @@ def update_tag_definition(request: Request, tag_id: int, update_data: NewTagRequ
             ErrorCode.ELEMENT_NOT_FOUND, "Tag not found.", 404
         )
 
+    # Check if the tag is deprecated
+    if existing_tag.get("deprecated", False):
+        return response_handler.create_error_response(
+            ErrorCode.INVALID_PARAMS, "Cannot modify a deprecated tag.", 400
+        )
+
     # Prepare update data
     update_fields = {k: v for k, v in update_data.dict().items() if v is not None}
 
@@ -201,6 +218,15 @@ def update_tag_definition(request: Request, tag_id: int, update_data: NewTagRequ
         return response_handler.create_error_response(
             ErrorCode.INVALID_PARAMS, "No fields to update.", 400
         )
+
+    # Check if tag_vector_index is being updated and if it's already in use
+    if 'tag_vector_index' in update_fields:
+        index_query = {"tag_vector_index": update_fields['tag_vector_index']}
+        existing_tag_with_index = request.app.tag_definitions_collection.find_one(index_query)
+        if existing_tag_with_index and existing_tag_with_index['tag_id'] != tag_id:
+            return response_handler.create_error_response(
+                ErrorCode.INVALID_PARAMS, "Tag vector index already in use.", 400
+            )
 
     # Update the tag definition
     request.app.tag_definitions_collection.update_one(query, {"$set": update_fields})
@@ -213,6 +239,7 @@ def update_tag_definition(request: Request, tag_id: int, update_data: NewTagRequ
 
     # Return the updated tag object
     return response_handler.create_success_response(updated_tag, 200)
+
 
 
 
@@ -365,7 +392,7 @@ def set_tag_vector_index(request: Request, tag_id: int, vector_index: int):
 @router.put("/tags/{tag_id}/vector-index", 
             tags=["tags"], 
             status_code=200,
-            description="Add vector index to tag definition",
+            description="Set vector index to tag definition",
             response_model=StandardSuccessResponse[VectorIndexUpdateRequest],
             responses=ApiResponseHandler.listErrors([400, 422, 500]))
 def set_tag_vector_index(request: Request, tag_id: int, update_data: VectorIndexUpdateRequest):
@@ -426,7 +453,7 @@ def get_tag_vector_index(request: Request, tag_id: int):
 
     if not tag:
         return response_handler.create_error_response(
-            ErrorCode.TAG_NOT_FOUND, "Tag not found.", 404
+            ErrorCode.ELEMENT_NOT_FOUND, "Tag not found.", 404
         )
 
     vector_index = tag.get("tag_vector_index", None)
@@ -625,14 +652,28 @@ def get_tagged_images(
     response_handler = ApiResponseHandler(request)
 
     try:
+        # Validate start_date and end_date
+        if start_date:
+            validated_start_date = validate_date_format(start_date)
+            if validated_start_date is None:
+                return response_handler.create_error_response(
+                    ErrorCode.INVALID_PARAMS, "Invalid start_date format. Expected format: YYYY-MM-DD", 400
+                )
+        if end_date:
+            validated_end_date = validate_date_format(end_date)
+            if validated_end_date is None:
+                return response_handler.create_error_response(
+                    ErrorCode.INVALID_PARAMS, "Invalid end_date format. Expected format: YYYY-MM-DD", 400
+                )
+
         # Build the query
         query = {"tag_id": tag_id}
         if start_date and end_date:
-            query["creation_time"] = {"$gte": start_date, "$lte": end_date}
+            query["creation_time"] = {"$gte": validated_start_date, "$lte": validated_end_date}
         elif start_date:
-            query["creation_time"] = {"$gte": start_date}
+            query["creation_time"] = {"$gte": validated_start_date}
         elif end_date:
-            query["creation_time"] = {"$lte": end_date}
+            query["creation_time"] = {"$lte": validated_end_date}
 
         # Decide the sort order
         sort_order = -1 if order == "desc" else 1
@@ -749,9 +790,9 @@ def add_tag_category(request: Request, tag_category_data: TagCategory):
 @router.post("/tag-categories",
              status_code=201, 
              tags=["tag-categories"], 
-             description="Add Tag Categoty",
+             description="Add Tag Category",
              response_model=StandardSuccessResponse[TagCategory],
-             responses=ApiResponseHandler.listErrors([400, 422, 500]))
+             responses=ApiResponseHandler.listErrors([422, 500]))
 def add_tag_category(request: Request, tag_category_data: NewTagCategory):
     response_handler = ApiResponseHandler(request)
     try:
@@ -793,6 +834,10 @@ def update_tag_category(request: Request, tag_category_id: int, tag_category_upd
         existing_category = request.app.tag_categories_collection.find_one({"tag_category_id": tag_category_id})
         if not existing_category:
             return response_handler.create_error_response(ErrorCode.ELEMENT_NOT_FOUND, "Tag category not found", 404)
+
+        # Check if the tag category is deprecated
+        if existing_category.get("deprecated", False):
+            return response_handler.create_error_response(ErrorCode.INVALID_OPERATION, "Cannot modify a deprecated tag category.", 400)
 
         # Prepare update data, excluding 'tag_category_id' and 'creation_time'
         update_fields = {k: v for k, v in tag_category_update.dict(exclude={'tag_category_id', 'creation_time'}).items() if v is not None}

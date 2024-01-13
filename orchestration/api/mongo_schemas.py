@@ -202,7 +202,7 @@ class TagDefinition(BaseModel):
 NonEmptyString = constr(strict=True, min_length=1)
 
 class NewTagRequest(BaseModel):
-    tag_string: str = Field(..., description="Name of the tag")
+    tag_string: str = Field(..., description="Name of the tag. Should only contain letters, numbers, hyphens, and underscores.")
     tag_category_id: Optional[int] = Field(None, description="ID of the tag category")
     tag_description: str = Field(..., description="Description of the tag")
     tag_vector_index: Optional[int] = None
@@ -216,7 +216,7 @@ class NewTagRequest(BaseModel):
         return value
 
 class NewTagCategory(BaseModel):
-    tag_category_string: str = Field(..., description="Name of the tag category")
+    tag_category_string: str = Field(..., description="Name of the tag category. Should only contain letters, numbers, hyphens, and underscores.")
     tag_category_description: str = Field(..., description="Description of the tag category")
     deprecated: bool = False
     user_who_created: NonEmptyString = Field(..., description="Username of the user who created the tag")
