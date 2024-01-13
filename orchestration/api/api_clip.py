@@ -121,7 +121,8 @@ def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
         # Check for successful status code
         if 200 <= status_code < 300:
             # Always set clip_vector to None
-            return response_handler.create_success_response(None, http_status_code=201, headers={"Cache-Control": "no-store"})
+            vector = None
+            return response_handler.create_success_response({"clip_vector": vector}, http_status_code=201, headers={"Cache-Control": "no-store"})
         else:
             # Handle unsuccessful response
             return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Clip server error", status.HTTP_503_SERVICE_UNAVAILABLE)
