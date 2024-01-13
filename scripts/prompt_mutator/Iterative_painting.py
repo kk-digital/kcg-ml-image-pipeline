@@ -136,7 +136,8 @@ class IterativePainter:
         return new_center
     
     def initialize_image(self):
-        while(len(self.painted_centers) < 25):
+        max_painted_areas= (self.image_size / self.paint_size)**2
+        while(len(self.painted_centers) < max_painted_areas):
             center = self.get_painting_area_center()
             generated_prompt= self.generate_prompt()
             generated_image = self.generate_image(generated_prompt)
