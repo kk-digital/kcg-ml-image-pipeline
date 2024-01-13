@@ -4,18 +4,22 @@ import os
 import random
 import sys
 from PIL import Image, ImageDraw
+import numpy
 import torch
+import tqdm
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 
-from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
+from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
+from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
+from stable_diffusion.model.clip_image_encoder.clip_image_encoder import CLIPImageEncoder
 from worker.image_generation.scripts.inpaint_A1111 import get_model, img2img
 from scripts.prompt_mutator.greedy_substitution_search_v1 import PromptSubstitutionGenerator
 from utility.minio import cmd
 
-OUTPUT_PATH="environmental/output/iterative_painting/result.png"
+OUTPUT_PATH="environmental/output/iterative_painting"
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -48,21 +52,68 @@ def parse_args():
 
 class IterativePainter:
     def __init__(self, prompt_generator):
-
+        self.max_iterations=100
+        self.image_size=1024, 
+        self.context_size=512, 
+        self.paint_size=128
         self.painted_centers=[]
         self.image= Image.new("RGBA", (1024, 1024), "white")
-        self.steps=20
+        self.top_choices=10
 
         self.prompt_generator= prompt_generator
         self.minio_client = self.prompt_generator.minio_client
-        self.embedder=self.prompt_generator.embedder
+        self.text_embedder=self.prompt_generator.embedder
 
         if torch.cuda.is_available():
             self.device = 'cuda'
         else:
             self.device = 'cpu'
 
+        self.image_embedder= CLIPImageEncoder(device=torch.device(self.device))
+        self.image_embedder.load_submodels()
+
+        self.scoring_model= self.load_scoring_model()
+
         self.sd, config, self.model = get_model(self.device, self.steps)
+
+    # load elm or linear scoring models
+    def load_scoring_model(self):
+        input_path=f"{self.prompt_generator.model_dataset}/models/ranking/"
+
+        if(self.prompt_generator.scoring_model=="elm"):
+            scoring_model = ABRankingELMModel(768)
+            file_name=f"score-elm-v1-clip.safetensors"
+        else:
+            scoring_model= ABRankingModel(768)
+            file_name=f"score-linear-clip.safetensors"
+
+        model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
+        most_recent_model = None
+
+        for model_file in model_files:
+            if model_file.endswith(file_name):
+                most_recent_model = model_file
+
+        if most_recent_model:
+            model_file_data =cmd.get_file_from_minio(self.minio_client, 'datasets', most_recent_model)
+        else:
+            print("No .safetensors files found in the list.")
+            return
+        
+        print(most_recent_model)
+
+        # Create a BytesIO object and write the downloaded content into it
+        byte_buffer = io.BytesIO()
+        for data in model_file_data.stream(amt=8192):
+            byte_buffer.write(data)
+        # Reset the buffer's position to the beginning
+        byte_buffer.seek(0)
+
+        scoring_model.load_safetensors(byte_buffer)
+        scoring_model.model=scoring_model.model.to(torch.device(self.device))
+
+        return scoring_model
+    
 
     def check_center_overlap(self, new_center):
         new_cx1, new_cy1, new_cx2, new_cy2 = new_center
@@ -72,22 +123,19 @@ class IterativePainter:
                 return True
         return False
 
-    def get_painting_area_center(self, image_size=1024, square_size=512, center_size=128):
-        start=0
-        stop = image_size - square_size // 2 - center_size // 2 - center_size
+    def get_painting_area_center(self):
         while True:
-            square_start_x = random.randrange(start, stop, center_size)
-            square_start_y = random.randrange(start, stop, center_size)
-            center_x = square_start_x + square_size // 2 - center_size // 2
-            center_y = square_start_y + square_size // 2 - center_size // 2
-            new_center = (center_x, center_y, center_x + center_size, center_y + center_size)
+            x = random.randrange(0, self.image_size, self.paint_size)
+            y = random.randrange(0, self.image_size, self.paint_size)
+
+            new_center = (x, y, x + self.paint_size, y + self.paint_size)
             if not self.check_center_overlap(new_center):
                 self.painted_centers.append(new_center)
                 break
         
         return new_center
     
-    def paint_image(self):
+    def initialize_image(self):
         while(len(self.painted_centers) < 25):
             center = self.get_painting_area_center()
             generated_prompt= self.generate_prompt()
@@ -98,7 +146,63 @@ class IterativePainter:
         self.image.save(img_byte_arr, format="png")
         img_byte_arr.seek(0)  # Move to the start of the byte array
         
-        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH , img_byte_arr)
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/step_0.png", img_byte_arr)
+    
+    def paint_image(self):
+        self.initialize_image()
+
+        for i in tqdm(range(self.max_iterations)):
+            # choose random area to paint in
+            x = random.randrange(0, self.image_size, self.paint_size)
+            y = random.randrange(0, self.image_size, self.paint_size)
+            
+            paint_area = (x, y, x + self.paint_size, y + self.paint_size)
+            # generating prompts
+            prompt, generated_image= self.choose_prompt(paint_area)
+            print(prompt)
+
+            # paste generated image in the main image
+            self.image.paste(generated_image, paint_area)
+            
+            # save image state in current step
+            img_byte_arr = io.BytesIO()
+            self.image.save(img_byte_arr, format="png")
+            img_byte_arr.seek(0)  # Move to the start of the byte array
+        
+            cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/step_{i+1}.png" , img_byte_arr)
+
+    def choose_prompt(self, paint_area):
+        # generate a set number of prompts
+        prompt_list = self.prompt_generator.generate_initial_prompts_with_fixed_probs(self.top_choices)
+        prompts_data, _= self.prompt_generator.mutate_prompts(prompt_list)
+        prompts= [prompts_data[i].positive_prompt for i in range(len(prompts_data))]
+        
+        # generate images with each prompt
+        generated_images= [self.generate_image(prompt) for prompt in range(prompts)]
+
+        # get image after pasting the generated images to the painted area
+        current_image= self.image.copy()
+        for image in generated_images:
+            current_image.paste(image, paint_area)
+        
+        # get surrounding context
+        context_x= paint_area[0] - self.context_size // 2 + self.paint_size // 2
+        context_y= paint_area[1] - self.context_size // 2 + self.paint_size // 2
+        context_box= (context_x, context_y, context_x + self.context_size, context_y + self.context_size)
+         
+        scores=[]
+        # get image embeddings and scores
+        for image in generated_images:
+            context_image= image.crop(context_box)
+            with torch.no_grad():
+                embedding= self.image_embedder(context_image)
+                score = self.scoring_model(embedding).item()
+            
+            scores.append(score)
+
+        prompt_index=numpy.argmax(scores)
+
+        return prompts[prompt_index], generated_images[prompt_index]
 
     def generate_prompt(self):
         # generate a prompt
@@ -116,10 +220,10 @@ class IterativePainter:
         # Generate the image
         output_file_path, output_file_hash, img_byte_arr, seed, subseed = img2img(
             prompt=generated_prompt, negative_prompt='', sampler_name="ddim", batch_size=1, n_iter=1, 
-            steps=self.steps, cfg_scale=7.0, width=512, height=512, mask_blur=0, inpainting_fill=0, 
+            steps=20, cfg_scale=7.0, width=512, height=512, mask_blur=0, inpainting_fill=0, 
             outpath='output', styles=None, init_images=init_images, mask=mask, resize_mode=0, 
             denoising_strength=0.75, image_cfg_scale=None, inpaint_full_res_padding=0, inpainting_mask_invert=0,
-            sd=self.sd, clip_text_embedder=self.embedder, model=self.model, device=self.device)
+            sd=self.sd, clip_text_embedder=self.text_embedder, model=self.model, device=self.device)
         
         img_byte_arr.seek(0)  # Reset the buffer
         return Image.open(img_byte_arr)
@@ -169,70 +273,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-#     args = parse_args()
-
-#     mask = Image.new('L', (1024, 1024), 0)
-#     square_start_x= 128
-#     square_start_y= 128
-#     square = (square_start_x, square_start_y, square_start_x + 512, square_start_y + 512) 
-#     draw = ImageDraw.Draw(mask)
-#     draw.rectangle(square, fill=255)
-#     center_x = square_start_x + 224  # 224 = 512/2 - 64/2
-#     center_y = square_start_y + 224
-#     center_size=64
-#     center_area = (center_x, center_y, center_x + center_size, center_y + center_size)
-#     draw.rectangle(center_area, fill=0)
-
-#     prompt = "A beautiful landscape"  # Example prompt
-#     negative_prompt = ""  # Negative prompt (can be an empty string if not used)
-#     sampler_name = "ddim"
-#     batch_size = 1
-#     n_iter = 1
-#     steps = 20
-#     cfg_scale = 7.0
-#     width = 512
-#     height = 512
-#     mask_blur = 0
-#     inpainting_fill = 0
-#     outpath = "output"  # Specify the output path
-#     styles = None
-#     init_images = [Image.new("RGBA", (1024, 1024), "white")]
-#     mask = mask
-#     resize_mode = 0
-#     denoising_strength = 0.75
-#     image_cfg_scale = None
-#     inpaint_full_res_padding = 0
-#     inpainting_mask_invert = 0
-
-#     minio_client = cmd.get_minio_client(
-#             minio_access_key=args.minio_access_key,
-#             minio_secret_key=args.minio_secret_key,
-#             minio_ip_addr=args.minio_addr)
- 
-#     # Assuming the models are loaded here (sd, clip_text_embedder, model)
-#     if torch.cuda.is_available():
-#         device = 'cuda'
-#     else:
-#         device = 'cpu'
-
-#     sd, config, model = get_model(device, steps)
-
-#     # Load the clip embedder model
-#     embedder=CLIPTextEmbedder(device=device)
-#     embedder.load_submodels()  
-
-#     # Generate the image
-#     output_file_path, output_file_hash, img_byte_arr, seed, subseed = img2img(
-#         prompt, negative_prompt, sampler_name, batch_size, n_iter, steps, cfg_scale, width, height,
-#         mask_blur, inpainting_fill, outpath, styles, init_images, mask, resize_mode,
-#         denoising_strength, image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert,
-#         sd=sd, clip_text_embedder=embedder, model=model, device=device)
-
-#     # Display the image
-#     img_byte_arr.seek(0)
-#     cmd.upload_data(minio_client, 'datasets', OUTPUT_PATH , img_byte_arr) 
-
-# if __name__ == "__main__":
-#     main()
