@@ -576,6 +576,7 @@ class PromptSubstitutionGenerator:
                 substitute_phrase = random_phrase
                 # get phrase embedding by its index
                 substitute_embedding = self.phrase_embeddings[phrase_index]
+                print(substitute_embedding.shape, substituted_embedding.shape)
                 # concatenate input in one array to use for inference
                 substitution_input = np.concatenate([prompt.positive_embedding, substituted_embedding, 
                                                      substitute_embedding, [phrase_position], [prompt.positive_score]])
