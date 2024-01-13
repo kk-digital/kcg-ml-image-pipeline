@@ -3,10 +3,9 @@ import io
 import os
 import random
 import sys
-from PIL import Image, ImageDraw
-import numpy
+from PIL import Image
+import numpy as np
 import torch
-import tqdm
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -56,6 +55,8 @@ class IterativePainter:
         self.image_size=1024 
         self.context_size=512 
         self.paint_size=128
+        self.painted_areas= self.image_size / self.paint_size
+        self.score_matrix = np.zeros((self.painted_areas, self.painted_areas))
         self.painted_centers=[]
         self.image= Image.new("RGBA", (1024, 1024), "white")
         self.top_choices=10
@@ -136,7 +137,7 @@ class IterativePainter:
         return new_center
     
     def initialize_image(self):
-        max_painted_areas= (self.image_size / self.paint_size)**2
+        max_painted_areas= (self.painted_areas)**2
         while(len(self.painted_centers) < max_painted_areas):
             center = self.get_painting_area_center()
             generated_prompt= self.generate_prompt()
@@ -152,27 +153,35 @@ class IterativePainter:
     def paint_image(self):
         self.initialize_image()
 
-        for i in tqdm(range(self.max_iterations)):
+        index=1
+        for i in range(self.max_iterations):
             # choose random area to paint in
-            x = random.randrange(0, self.image_size, self.paint_size)
-            y = random.randrange(0, self.image_size, self.paint_size)
+            row = random.randint(0, self.painted_areas-1)
+            col = random.randint(0, self.painted_areas-1)
+
+            x=self.paint_size * row
+            y=self.paint_size * col
             
             paint_area = (x, y, x + self.paint_size, y + self.paint_size)
             # generating prompts
-            prompt, generated_image= self.choose_prompt(paint_area)
-            print(prompt)
+            generated_image= self.choose_prompt(paint_area, row, col)
+            if generated_image is None:
+                continue
 
+            print(generated_image['prompt'])
+            self.score_matrix[row][col]= generated_image['score']
             # paste generated image in the main image
-            self.image.paste(generated_image, paint_area)
+            self.image.paste(generated_image['image'], paint_area)
             
             # save image state in current step
             img_byte_arr = io.BytesIO()
             self.image.save(img_byte_arr, format="png")
             img_byte_arr.seek(0)  # Move to the start of the byte array
-        
-            cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/step_{i+1}.png" , img_byte_arr)
-
-    def choose_prompt(self, paint_area):
+            
+            cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/step_{index}.png" , img_byte_arr)
+            index=+1
+ 
+    def choose_prompt(self, paint_area, row, col):
         # generate a set number of prompts
         prompt_list = self.prompt_generator.generate_initial_prompts_with_fixed_probs(self.top_choices)
         prompts_data, _= self.prompt_generator.mutate_prompts(prompt_list)
@@ -189,23 +198,35 @@ class IterativePainter:
         # get surrounding context
         context_x= paint_area[0] - self.context_size // 2 + self.paint_size // 2
         context_x= context_x if context_x>=0 else 0
+        context_x= context_x if context_x<=(self.image_size - self.context_size) else self.image_size - self.context_size
         context_y= paint_area[1] - self.context_size // 2 + self.paint_size // 2
         context_y= context_y if context_y>=0 else 0
+        context_y= context_y if context_y<=(self.image_size - self.context_size) else self.image_size - self.context_size
+        
         context_box= (context_x, context_y, context_x + self.context_size, context_y + self.context_size)
          
-        scores=[]
+        choices=[]
+        previous_score= self.score_matrix[row][col]
         # get image embeddings and scores
-        for image in generated_images:
+        for index, image in enumerate(generated_images):
             context_image= image.crop(context_box)
             with torch.no_grad():
                 embedding= self.image_embedder(context_image)
                 score = self.scoring_model(embedding).item()
-            
-            scores.append(score)
 
-        prompt_index=numpy.argmax(scores)
+            if previous_score < score:
+                choices.append({
+                    "prompt": prompts[index],
+                    "image": image ,
+                    "score": score 
+                })
 
-        return prompts[prompt_index], generated_images[prompt_index]
+        if len(choices)==0:
+            return None
+        
+        choices=sorted(choices, key=lambda s: s['score'], reverse=True) 
+
+        return choices[0]
 
     def generate_prompt(self):
         # generate a prompt
