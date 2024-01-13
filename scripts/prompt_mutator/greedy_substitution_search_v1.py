@@ -267,6 +267,7 @@ class PromptSubstitutionGenerator:
             phrase_embedding_loader.load_dataset_phrases()
             phrase_embedding_loader.text_embedder= self.embedder
             self.phrase_embeddings= phrase_embedding_loader.get_embeddings(self.phrase_list)
+            #self.phrase_embeddings = [embedding.reshape(-1) if embedding.shape == (1, 768) else embedding for embedding in self.phrase_embeddings]
 
             # get cumulative probabilities
             self.positive_phrase_origin_indexes, self.positive_cumulative_probability_arr = get_cumulative_probability_arr_without_upload(
@@ -576,7 +577,10 @@ class PromptSubstitutionGenerator:
                 substitute_phrase = random_phrase
                 # get phrase embedding by its index
                 substitute_embedding = self.phrase_embeddings[phrase_index]
-                print(substitute_embedding.shape, substituted_embedding.shape)
+                if substitute_embedding.shape==(1,768):
+                    print(substitute_embedding)
+                if substituted_embedding.shape==(1,768):
+                    print(substituted_embedding)
                 # concatenate input in one array to use for inference
                 substitution_input = np.concatenate([prompt.positive_embedding, substituted_embedding, 
                                                      substitute_embedding, [phrase_position], [prompt.positive_score]])
