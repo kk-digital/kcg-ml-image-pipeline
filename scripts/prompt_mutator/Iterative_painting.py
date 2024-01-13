@@ -187,7 +187,9 @@ class IterativePainter:
         
         # get surrounding context
         context_x= paint_area[0] - self.context_size // 2 + self.paint_size // 2
+        context_x= context_x if context_x>=0 else 0
         context_y= paint_area[1] - self.context_size // 2 + self.paint_size // 2
+        context_y= context_y if context_y>=0 else 0
         context_box= (context_x, context_y, context_x + self.context_size, context_y + self.context_size)
          
         scores=[]
