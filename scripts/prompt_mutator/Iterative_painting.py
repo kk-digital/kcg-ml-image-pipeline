@@ -53,8 +53,8 @@ def parse_args():
 class IterativePainter:
     def __init__(self, prompt_generator):
         self.max_iterations=100
-        self.image_size=1024, 
-        self.context_size=512, 
+        self.image_size=1024 
+        self.context_size=512 
         self.paint_size=128
         self.painted_centers=[]
         self.image= Image.new("RGBA", (1024, 1024), "white")
