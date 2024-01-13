@@ -55,7 +55,7 @@ class IterativePainter:
         self.image_size=1024 
         self.context_size=512 
         self.paint_size=128
-        self.painted_areas= self.image_size / self.paint_size
+        self.painted_areas= int(self.image_size / self.paint_size)
         self.score_matrix = np.zeros((self.painted_areas, self.painted_areas))
         self.painted_centers=[]
         self.image= Image.new("RGBA", (1024, 1024), "white")
