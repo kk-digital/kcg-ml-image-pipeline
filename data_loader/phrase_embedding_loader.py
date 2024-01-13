@@ -126,7 +126,7 @@ class PhraseEmbeddingLoader:
 
                 if len(batch_phrase) == max_batch_size or i >= (len_phrases_arr - max_batch_size):
                     # get embedding of phrase
-                    phrase_embeddings, _, phrase_attention_masks = text_embedder(batch_phrase)
+                    phrase_embeddings, _, phrase_attention_masks = text_embedder.forward_return_all(batch_phrase)
                     phrase_average_pooled = tensor_attention_pooling(phrase_embeddings, phrase_attention_masks)
                     phrase_average_pooled_results = phrase_average_pooled.cpu().detach().numpy()
 
@@ -161,7 +161,7 @@ class PhraseEmbeddingLoader:
             index = self.phrase_index_dict[phrase]
         else:
             # calculate embedding
-            phrase_embeddings, _, phrase_attention_masks = self.text_embedder(phrase)
+            phrase_embeddings, _, phrase_attention_masks = self.text_embedder.forward_return_all(phrase)
             phrase_average_pooled = tensor_attention_pooling(phrase_embeddings, phrase_attention_masks)
             phrase_average_pooled_results = phrase_average_pooled.cpu().detach().numpy()
 
