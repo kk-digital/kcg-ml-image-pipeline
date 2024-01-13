@@ -93,6 +93,7 @@ def http_clip_server_get_cosine_similarity_list(image_path_list: List[str],
 
 @router.put("/clip/add-phrase",
             response_class=PrettyJSONResponse,
+            tags=["deprecated"],
             description="Adds a phrase to the clip server")
 def add_phrase(request: Request,
                phrase : str):
@@ -135,6 +136,7 @@ def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
 
 @router.get("/clip/clip-vector",
             response_class=PrettyJSONResponse,
+            tags=["deprecated"],
             description="Gets a clip vector of a specific phrase")
 def add_phrase(request: Request,
                phrase : str):
@@ -363,7 +365,8 @@ def get_random_image_similarity_date_range(
         "images": filtered_images
     }
 
-@router.get("/check-clip-server-status")
+@router.get("/check-clip-server-status",
+            tags=["deprecated"])
 def check_clip_server_status():
     try:
         # Send a simple GET request to the clip server
