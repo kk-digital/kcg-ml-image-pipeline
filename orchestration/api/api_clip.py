@@ -41,10 +41,11 @@ def http_clip_server_clip_vector_from_phrase(phrase: str):
 
         if response.status_code == 200:
             result_json = response.json()
+            print("Response content:", result_json)  # Add this print statement
             return result_json
 
     except Exception as e:
-        print('request exception ', e)
+        print('Request exception:', e)
 
     return None
 
@@ -149,7 +150,6 @@ def get_clip_vector(request: Request,  phrase: str):
     response_handler = ApiResponseHandler(request)
     try:
         vector = http_clip_server_clip_vector_from_phrase(phrase)
-        print(vector)
 
         if vector is None:
             return response_handler.create_error_response(ErrorCode.ELEMENT_NOT_FOUND, "Phrase not found", status.HTTP_404_NOT_FOUND)
