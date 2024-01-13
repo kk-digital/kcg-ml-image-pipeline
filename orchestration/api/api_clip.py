@@ -385,16 +385,13 @@ def check_clip_server_status():
         return {"status": "offline", "message": "Clip server is offline or unreachable."}
 
 
-@router.get("/clip/server-status", tags=["clip"], response_model=StandardSuccessResponse[RechableResponse], status_code=202, responses=ApiResponseHandler.listErrors([503]), description="Checks the status of the CLIP server.")
+@router.get("/clip/server-status", tags=["clip"], response_model=StandardSuccessResponse[RechableResponse],status_code=202, responses=ApiResponseHandler.listErrors([503]), description="Checks the status of the CLIP server.")
 def check_clip_server_status(request: Request):
     response_handler = ApiResponseHandler(request)
-    
     try:
         response = requests.get(CLIP_SERVER_ADDRESS)
-        print("CLIP Server Status Code:", response.status_code)  # Add this print statement
-
         reachable = response.status_code == 200
         return response_handler.create_success_response({"reachable": reachable}, http_status_code=200, headers={"Cache-Control": "no-store"})
-    
     except requests.exceptions.RequestException as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "CLIP server is not reachable", 503)
+
