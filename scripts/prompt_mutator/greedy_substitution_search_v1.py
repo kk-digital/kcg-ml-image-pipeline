@@ -265,8 +265,8 @@ class PromptSubstitutionGenerator:
                                                            minio_secret_key=minio_secret_key,
                                                            minio_ip_addr=minio_ip_addr)
             phrase_embedding_loader.load_phrase_embeddings()
-            # phrase_embedding_loader.text_embedder=self.embedder
-            # self.phrase_embeddings= phrase_embedding_loader.get_embeddings(self.phrase_list)
+            phrase_embedding_loader.update_dataset_phrases(self.phrase_list)
+            self.phrase_embeddings= phrase_embedding_loader.get_embeddings(self.phrase_list)
 
             # get cumulative probabilities
             self.positive_phrase_origin_indexes, self.positive_cumulative_probability_arr = get_cumulative_probability_arr_without_upload(
