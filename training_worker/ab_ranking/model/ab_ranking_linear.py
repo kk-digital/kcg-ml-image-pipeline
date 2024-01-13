@@ -243,6 +243,9 @@ class ABRankingModel:
         # get total number of training features
         num_features = dataset_loader.get_len_training_ab_data()
 
+        if debug_asserts:
+            torch.autograd.set_detect_anomaly(True)
+
         # get number of batches to do per epoch
         training_num_batches = math.ceil(num_features / training_batch_size)
         for epoch in tqdm(range(epochs), desc="Training epoch"):
@@ -265,6 +268,8 @@ class ABRankingModel:
                         num_data_to_get, self._device)
 
                     if debug_asserts:
+                        assert not torch.isnan(batch_features_x_orig).any()
+                        assert not torch.isnan(batch_features_y_orig).any()
                         assert batch_features_x_orig.shape == (training_batch_size, self.model.inputs_shape)
                         assert batch_features_y_orig.shape == (training_batch_size, self.model.inputs_shape)
                         assert batch_targets_orig.shape == (training_batch_size, 1)
@@ -277,6 +282,7 @@ class ABRankingModel:
                         predicted_score_images_y = self.model.forward(batch_features_y)
 
                     optimizer.zero_grad()
+
                     predicted_score_images_x = self.model.forward(batch_features_x)
 
                     predicted_score_images_y_copy = predicted_score_images_y.clone().requires_grad_(True).to(self._device)
@@ -296,7 +302,6 @@ class ABRankingModel:
 
                     loss.backward()
                     optimizer.step()
-
                     training_loss_arr.append(loss.detach().cpu())
 
                 if debug_asserts:
