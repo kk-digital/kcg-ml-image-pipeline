@@ -58,7 +58,7 @@ class IterativePainter:
         self.painted_areas= int(self.image_size / self.paint_size)
         self.score_matrix = np.zeros((self.painted_areas, self.painted_areas))
         self.painted_centers=[]
-        self.image= Image.new("RGBA", (1024, 1024), "white")
+        self.image= Image.new("RGB", (1024, 1024), "white")
         self.top_choices=10
 
         self.prompt_generator= prompt_generator
@@ -194,7 +194,6 @@ class IterativePainter:
         for image in generated_images:
             current_image= self.image.copy()
             current_image.paste(image, paint_area)
-            current_image.convert('RGB')
             context_images.append(current_image)
 
         # get surrounding context
@@ -252,7 +251,7 @@ class IterativePainter:
             sd=self.sd, clip_text_embedder=self.text_embedder, model=self.model, device=self.device)
         
         img_byte_arr.seek(0)  # Reset the buffer
-        return Image.open(img_byte_arr)
+        return Image.open(img_byte_arr).convert('RGB')
         
 def main():
    args = parse_args()
