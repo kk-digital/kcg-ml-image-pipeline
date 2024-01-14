@@ -116,6 +116,7 @@ class CLIPImageEncoder(nn.Module):
     def preprocess_input(self, image):
         # Preprocess image
         if self.get_input_type(image) == PIL.Image.Image:
+            print('image is converted')
             image = (self.convert_image_to_tensor(image) + 1) / 2
         return self.image_processor(image).to(self.device)
 
