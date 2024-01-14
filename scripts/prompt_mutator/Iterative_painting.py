@@ -211,9 +211,9 @@ class IterativePainter:
         # get image embeddings and scores
         for index, image in enumerate(context_images):
             context_image= image.crop(context_box).convert('RGB')
-            context_image=self.image_embedder.image_processor(context_image).unsqueeze(0).to(device=torch.device(self.device))
+            context_image=self.image_embedder.image_processor(images=context_image, return_tensors="pt")
             with torch.no_grad():
-                embedding= self.image_embedder.forward(image=context_image)
+                embedding= self.image_embedder.forward(image=context_image.pixel_values)
                 score = self.scoring_model(embedding).item()
 
             if previous_score < score:
