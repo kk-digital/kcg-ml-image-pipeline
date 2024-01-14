@@ -192,7 +192,7 @@ class IterativePainter:
         # paste images into the current image 
         context_images=[]
         for image in generated_images:
-            current_image= self.image.copy()
+            current_image= self.image.copy().convert('RGB')
             current_image.paste(image, paint_area)
             context_images.append(current_image)
 
@@ -210,7 +210,7 @@ class IterativePainter:
         previous_score= self.score_matrix[row][col]
         # get image embeddings and scores
         for index, image in enumerate(context_images):
-            context_image= image.crop(context_box)
+            context_image= image.crop(context_box).convert('RGB')
             with torch.no_grad():
                 embedding= self.image_embedder.forward(image=context_image, do_preprocess=True)
                 score = self.scoring_model(embedding).item()
