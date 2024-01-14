@@ -58,8 +58,8 @@ class IterativePainter:
         self.painted_areas= int(self.image_size / self.paint_size)
         self.score_matrix = np.zeros((self.painted_areas, self.painted_areas))
         self.painted_centers=[]
-        self.image= Image.new("RGB", (1024, 1024), "white")
-        self.top_choices=10
+        self.image= Image.new("RGB", (1024, 1024), 255)
+        self.top_choices=3
 
         self.prompt_generator= prompt_generator
         self.minio_client = self.prompt_generator.minio_client
@@ -192,9 +192,9 @@ class IterativePainter:
         # paste images into the current image 
         context_images=[]
         for image in generated_images:
-            current_image= self.image.copy().convert('RGB')
+            current_image= self.image.copy()
             current_image.paste(image, paint_area)
-            context_images.append(current_image)
+            context_images.append(current_image.convert('RGB'))
 
         # get surrounding context
         context_x= paint_area[0] - self.context_size // 2 + self.paint_size // 2
@@ -240,8 +240,8 @@ class IterativePainter:
         return prompt_str
     
     def generate_image(self, generated_prompt):
-        init_images = [Image.new("RGB", (128, 128), "white")]
-        mask = Image.new("RGB", (128, 128), "white")
+        init_images = [Image.new("RGB", (128, 128), 255)]
+        mask = Image.new("RGB", (128, 128), 255)
         # Generate the image
         output_file_path, output_file_hash, img_byte_arr, seed, subseed = img2img(
             prompt=generated_prompt, negative_prompt='', sampler_name="ddim", batch_size=1, n_iter=1, 
