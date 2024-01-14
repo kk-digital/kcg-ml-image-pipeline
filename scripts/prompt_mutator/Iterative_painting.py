@@ -151,7 +151,7 @@ class IterativePainter:
         cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/step_0.png", img_byte_arr)
     
     def paint_image(self):
-        self.initialize_image()
+        #self.initialize_image()
 
         index=1
         for i in range(self.max_iterations):
