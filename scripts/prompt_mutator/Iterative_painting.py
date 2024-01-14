@@ -194,6 +194,7 @@ class IterativePainter:
         for image in generated_images:
             current_image= self.image.copy()
             current_image.paste(image, paint_area)
+            current_image.convert('RGB')
             context_images.append(current_image)
 
         # get surrounding context
