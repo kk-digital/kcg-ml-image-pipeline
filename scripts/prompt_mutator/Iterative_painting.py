@@ -59,7 +59,7 @@ class IterativePainter:
         self.score_matrix = np.zeros((self.painted_areas, self.painted_areas))
         self.painted_centers=[]
         self.image= Image.new("RGB", (1024, 1024), 255)
-        self.top_choices=3
+        self.top_choices=1
 
         self.prompt_generator= prompt_generator
         self.minio_client = self.prompt_generator.minio_client
