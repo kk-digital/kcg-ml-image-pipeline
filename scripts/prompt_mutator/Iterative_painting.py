@@ -189,12 +189,13 @@ class IterativePainter:
         
         # generate images with each prompt
         generated_images= [self.generate_image(prompt) for prompt in prompts]
-
-        # get image after pasting the generated images to the painted area
-        current_image= self.image.copy()
+        # paste images into the current image 
+        context_images=[]
         for image in generated_images:
+            current_image= self.image.copy()
             current_image.paste(image, paint_area)
-        
+            context_images.append(current_image)
+
         # get surrounding context
         context_x= paint_area[0] - self.context_size // 2 + self.paint_size // 2
         context_x= context_x if context_x>=0 else 0
@@ -208,7 +209,7 @@ class IterativePainter:
         choices=[]
         previous_score= self.score_matrix[row][col]
         # get image embeddings and scores
-        for index, image in enumerate(generated_images):
+        for index, image in enumerate(context_images):
             context_image= image.crop(context_box)
             with torch.no_grad():
                 embedding= self.image_embedder.forward(image=context_image, do_preprocess=True)
