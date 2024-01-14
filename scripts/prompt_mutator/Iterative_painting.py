@@ -240,8 +240,8 @@ class IterativePainter:
         return prompt_str
     
     def generate_image(self, generated_prompt):
-        init_images = [Image.new("RGBA", (128, 128), "white")]
-        mask = Image.new('L', (128, 128), 255)
+        init_images = [Image.new("RGB", (128, 128), "white")]
+        mask = Image.new("RGB", (128, 128), "white")
         # Generate the image
         output_file_path, output_file_hash, img_byte_arr, seed, subseed = img2img(
             prompt=generated_prompt, negative_prompt='', sampler_name="ddim", batch_size=1, n_iter=1, 
