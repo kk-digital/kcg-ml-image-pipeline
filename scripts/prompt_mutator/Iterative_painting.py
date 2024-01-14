@@ -188,7 +188,7 @@ class IterativePainter:
         prompts= [prompts_data[i].positive_prompt for i in range(len(prompts_data))]
         
         # generate images with each prompt
-        generated_images= [self.generate_image(prompt) for prompt in range(len(prompts))]
+        generated_images= [self.generate_image(prompt) for prompt in prompts]
 
         # get image after pasting the generated images to the painted area
         current_image= self.image.copy()
