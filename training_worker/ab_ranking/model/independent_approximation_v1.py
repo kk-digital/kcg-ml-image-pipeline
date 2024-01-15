@@ -21,15 +21,13 @@ from data_loader.independent_approximation_dataset_loader import IndependentAppr
 from utility.minio import cmd
 
 
-def get_zero_mean_unit_variance(energy_vector):
-    std = torch.std(energy_vector)
-    # mean = torch.mean(energy_vector)
-    # zero_mean = energy_vector - mean
-    # unit_variance = zero_mean / std
+def get_mean_absolute_deviation(energy_vector):
+    mean = energy_vector.mean()
+    mean_absolute = energy_vector - mean
+    abs_mean_absolute = mean_absolute.abs()
+    mean_absolute_deviation = abs_mean_absolute.mean()
 
-    unit_variance = energy_vector / std
-
-    return unit_variance
+    return mean_absolute_deviation
 
 
 class IndependentApproximationV1Model(nn.Module):
@@ -58,7 +56,7 @@ class IndependentApproximationV1Model(nn.Module):
         average_weight_param_product = torch.sum(input, dim=1) * self.prompt_phrase_average_weight
 
         # phrase score
-        sigma_energy_vector = get_zero_mean_unit_variance(self.energy_vector)
+        sigma_energy_vector = get_mean_absolute_deviation(self.energy_vector)
         energy_per_token = torch.mul(input, sigma_energy_vector)
         energy_per_phrase = torch.mul(self.token_length_vector, energy_per_token)
         prompt_energy = torch.sum(energy_per_phrase, dim=1)
@@ -210,7 +208,7 @@ class ABRankingIndependentApproximationV1Model:
                 if -1 in index_phrase_dict:
                     has_negative_index = True
 
-                sigma_energy_vector = get_zero_mean_unit_variance(param.cpu().detach().squeeze())
+                sigma_energy_vector = get_mean_absolute_deviation(param.cpu().detach().squeeze())
                 sigma_energy_vector = sigma_energy_vector.numpy()
 
                 for i in range(len(energy_vector)):
