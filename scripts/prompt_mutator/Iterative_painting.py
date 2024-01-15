@@ -72,6 +72,7 @@ class IterativePainter:
             self.device = 'cpu'
 
         self.image_embedder= clip.ClipModel(device=torch.device(self.device))
+        self.image_embedder.load_clip()
 
         self.scoring_model= self.load_scoring_model()
 
