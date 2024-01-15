@@ -3,7 +3,7 @@ import io
 import os
 import random
 import sys
-from PIL import Image
+from PIL import Image, ImageDraw
 import numpy as np
 import torch
 
@@ -56,11 +56,20 @@ class IterativePainter:
         self.image_size=1024 
         self.context_size=512 
         self.paint_size=128
-        self.painted_areas= int(self.image_size / self.paint_size)
-        self.score_matrix = np.zeros((self.painted_areas, self.painted_areas))
+        self.start= (self.context_size - self.paint_size) / 2
+        self.end=self.image_size - self.start
+        self.painted_areas= int((self.end - self.start) / self.paint_size)
+        self.current_score=0
         self.painted_centers=[]
         self.image= Image.new("RGB", (1024, 1024), "white")
         self.top_choices=10
+
+        left = (self.context_size - self.paint_size) // 2
+        top = (self.context_size - self.paint_size) // 2
+        right = left + self.paint_size
+        bottom = top + self.paint_size
+        
+        self.center_area=(left, top, right, bottom)
 
         self.prompt_generator= prompt_generator
         self.minio_client = self.prompt_generator.minio_client
@@ -152,25 +161,22 @@ class IterativePainter:
         cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/step_0.png", img_byte_arr)
     
     def paint_image(self):
-        self.initialize_image()
+        #self.initialize_image()
 
         index=1
         for i in range(self.max_iterations):
             # choose random area to paint in
-            row = random.randint(0, self.painted_areas-1)
-            col = random.randint(0, self.painted_areas-1)
-
-            x=self.paint_size * row
-            y=self.paint_size * col
+            x = random.randrange(self.start, self.end, self.paint_size)
+            y = random.randrange(self.start, self.end, self.paint_size)
             
             paint_area = (x, y, x + self.paint_size, y + self.paint_size)
             # generating prompts
-            generated_image= self.choose_prompt(paint_area, row, col)
+            generated_image= self.choose_prompt(paint_area)
             if generated_image is None:
                 continue
 
             print(generated_image['prompt'])
-            self.score_matrix[row][col]= generated_image['score']
+            self.current_score= generated_image['score']
             # paste generated image in the main image
             self.image.paste(generated_image['image'], paint_area)
             
@@ -182,41 +188,40 @@ class IterativePainter:
             cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/step_{index}.png" , img_byte_arr)
             index+=1
  
-    def choose_prompt(self, paint_area, row, col):
+    def get_context_area(self, paint_area):
+        # get surrounding context
+        context_x= paint_area[0] - self.context_size // 2 + self.paint_size // 2
+        context_y= paint_area[1] - self.context_size // 2 + self.paint_size // 2
+        
+        return (context_x, context_y, context_x + self.context_size, context_y + self.context_size)
+
+    def choose_prompt(self, paint_area):
         # generate a set number of prompts
         prompt_list = self.prompt_generator.generate_initial_prompts_with_fixed_probs(self.top_choices)
         prompts_data, _= self.prompt_generator.mutate_prompts(prompt_list)
         prompts= [prompts_data[i].positive_prompt for i in range(len(prompts_data))]
         
+        # get context area
+        context_box= self.get_context_area(paint_area)
+        context_image= self.image.copy().crop(context_box)
+
         # generate images with each prompt
-        generated_images= [self.generate_image(prompt) for prompt in prompts]
+        generated_images= [self.generate_image(context_image, prompt) for prompt in prompts]
         # paste images into the current image 
         context_images=[]
         for image in generated_images:
             current_image= self.image.copy()
             current_image.paste(image, paint_area)
             context_images.append(current_image)
-
-        # get surrounding context
-        context_x= paint_area[0] - self.context_size // 2 + self.paint_size // 2
-        context_x= context_x if context_x>=0 else 0
-        context_x= context_x if context_x<=(self.image_size - self.context_size) else self.image_size - self.context_size
-        context_y= paint_area[1] - self.context_size // 2 + self.paint_size // 2
-        context_y= context_y if context_y>=0 else 0
-        context_y= context_y if context_y<=(self.image_size - self.context_size) else self.image_size - self.context_size
-        
-        context_box= (context_x, context_y, context_x + self.context_size, context_y + self.context_size)
          
         choices=[]
-        previous_score= self.score_matrix[row][col]
         # get image embeddings and scores
         for index, image in enumerate(context_images):
-            context_image= image.crop(context_box).convert('RGB')
             with torch.no_grad():
                 embedding= self.image_embedder.get_image_features(context_image)
                 score = self.scoring_model.predict_clip(embedding).item()
 
-            if previous_score < score:
+            if self.current_score < score:
                 choices.append({
                     "prompt": prompts[index],
                     "image": generated_images[index],
@@ -240,19 +245,27 @@ class IterativePainter:
 
         return prompt_str
     
-    def generate_image(self, generated_prompt):
-        init_images = [Image.new("RGB", (128, 128), "white")]
-        mask = Image.new("RGB", (128, 128), "white")
+    def generate_image(self, context_image, generated_prompt):
+        init_images = [context_image]
+
+        # Create mask
+        mask = Image.new("L", (self.context_size, self.context_size), 0)  # Fully masked (black)
+        draw = ImageDraw.Draw(mask)
+        draw.rectangle(self.center_area, fill=255)  # Unmasked (white) center area
+
         # Generate the image
         output_file_path, output_file_hash, img_byte_arr, seed, subseed = img2img(
             prompt=generated_prompt, negative_prompt='', sampler_name="ddim", batch_size=1, n_iter=1, 
-            steps=20, cfg_scale=7.0, width=512, height=512, mask_blur=0, inpainting_fill=0, 
+            steps=20, cfg_scale=7.0, width=self.context_size, height=self.context_size, mask_blur=0, inpainting_fill=0, 
             outpath='output', styles=None, init_images=init_images, mask=mask, resize_mode=0, 
             denoising_strength=0.75, image_cfg_scale=None, inpaint_full_res_padding=0, inpainting_mask_invert=0,
             sd=self.sd, clip_text_embedder=self.text_embedder, model=self.model, device=self.device)
         
-        img_byte_arr.seek(0)  # Reset the buffer
-        return Image.open(img_byte_arr).convert('RGB')
+        img_byte_arr.seek(0)
+        generated_image = Image.open(img_byte_arr).convert('RGB')
+        cropped_image = generated_image.crop(self.center_area)
+
+        return cropped_image
         
 def main():
    args = parse_args()
