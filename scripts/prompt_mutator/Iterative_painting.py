@@ -160,9 +160,9 @@ class IterativePainter:
             # increment counter for each pixel that was counted
             for i in range(x, x+self.paint_size+1):
                 for j in range(y, y+self.paint_size+1):
-                    i= i - self.start 
-                    j= j - self.start
-                    self.paint_matrix[i][j]+=1
+                    row= i - self.start 
+                    col = j - self.start
+                    self.paint_matrix[row][col]+=1
             
             if index % 100==0:
                 # save image state in current step
