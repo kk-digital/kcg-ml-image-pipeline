@@ -60,9 +60,11 @@ class IterativePainter:
         self.end=self.image_size - self.start
         self.painted_areas= int((self.end - self.start) / self.paint_size)
         self.current_score=0
+        self.paint_matrix= np.zeros((self.end - self.start, self.end - self.start))
+        self.max_repaints=3
         self.painted_centers=[]
         self.image= Image.new("RGB", (1024, 1024), "white")
-        self.top_choices=10
+        self.num_prompts=10
 
         left = (self.context_size - self.paint_size) // 2
         top = (self.context_size - self.paint_size) // 2
@@ -124,69 +126,53 @@ class IterativePainter:
         scoring_model.model=scoring_model.model.to(torch.device(self.device))
 
         return scoring_model
-    
 
-    def check_center_overlap(self, new_center):
-        new_cx1, new_cy1, new_cx2, new_cy2 = new_center
-        for center in self.painted_centers:
-            cx1, cy1, cx2, cy2 = center
-            if new_cx1== cx1 and new_cy1==cy1:
-                return True
-        return False
+    def get_seed_prompts(self):    
+        # generate a set number of prompts
+        prompt_list = self.prompt_generator.generate_initial_prompts_with_fixed_probs(self.num_prompts)
+        prompts_data, _= self.prompt_generator.mutate_prompts(prompt_list)
 
-    def get_painting_area_center(self):
-        while True:
-            x = random.randrange(0, self.image_size, self.paint_size)
-            y = random.randrange(0, self.image_size, self.paint_size)
+        sorted_prompts= sorted(prompts_data, key=lambda data: data.positive_score, reverse=True)
 
-            new_center = (x, y, x + self.paint_size, y + self.paint_size)
-            if not self.check_center_overlap(new_center):
-                self.painted_centers.append(new_center)
-                break
-        
-        return new_center
-    
-    def initialize_image(self):
-        max_painted_areas= (self.painted_areas)**2
-        while(len(self.painted_centers) < max_painted_areas):
-            center = self.get_painting_area_center()
-            generated_prompt= self.generate_prompt()
-            generated_image = self.generate_image(generated_prompt)
-            self.image.paste(generated_image, center)
-            
-        img_byte_arr = io.BytesIO()
-        self.image.save(img_byte_arr, format="png")
-        img_byte_arr.seek(0)  # Move to the start of the byte array
-        
-        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/step_0.png", img_byte_arr)
-    
+        return sorted_prompts[0]
+
     def paint_image(self):
-        #self.initialize_image()
+        prompt= self.get_seed_prompts()
 
-        index=1
-        for i in range(self.max_iterations):
+        index=0
+        while(True):
             # choose random area to paint in
-            x = random.randrange(self.start, self.end, self.paint_size)
-            y = random.randrange(self.start, self.end, self.paint_size)
+            x = random.randint(self.start, self.end - self.paint_size)
+            y = random.randint(self.start, self.end - self.paint_size)
             
             paint_area = (x, y, x + self.paint_size, y + self.paint_size)
-            # generating prompts
-            generated_image= self.choose_prompt(paint_area)
-            if generated_image is None:
-                continue
+            context_box= self.get_context_area(paint_area)
 
-            print(generated_image['prompt'])
-            self.current_score= generated_image['score']
+            context_image= self.image.crop(context_box)
+            generated_image= self.generate_image(context_image, prompt)
+
             # paste generated image in the main image
-            self.image.paste(generated_image['image'], paint_area)
+            self.image.paste(generated_image, paint_area)
+
+            # increment counter for each pixel that was counted
+            for i in range(x, x+self.paint_size+1):
+                for j in range(y, y+self.paint_size+1):
+                    i-= self.start 
+                    j-= self.start
+                    self.paint_matrix[i][j]+=1
             
-            # save image state in current step
-            img_byte_arr = io.BytesIO()
-            self.image.save(img_byte_arr, format="png")
-            img_byte_arr.seek(0)  # Move to the start of the byte array
+            if index % 100==0:
+                # save image state in current step
+                img_byte_arr = io.BytesIO()
+                self.image.save(img_byte_arr, format="png")
+                img_byte_arr.seek(0)  # Move to the start of the byte array
+
+                cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/step_{index}.png" , img_byte_arr)
             
-            cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/step_{index}.png" , img_byte_arr)
             index+=1
+            
+            if np.all(self.paint_matrix > self.max_repaints):
+                break
  
     def get_context_area(self, paint_area):
         # get surrounding context
@@ -246,6 +232,9 @@ class IterativePainter:
         return prompt_str
     
     def generate_image(self, context_image, generated_prompt):
+        # Draw a blank rectangle over the center area
+        draw = ImageDraw.Draw(context_image)
+        draw.rectangle(self.center_area, fill="white")  # Use the background color
         init_images = [context_image]
 
         # Create mask
