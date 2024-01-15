@@ -133,6 +133,7 @@ class IterativePainter:
         prompts_data, _= self.prompt_generator.mutate_prompts(prompt_list)
 
         sorted_prompts= sorted(prompts_data, key=lambda data: data.positive_score, reverse=True)
+        print(sorted_prompts[0].positive_prompt)
 
         return sorted_prompts[0]
 
@@ -149,7 +150,7 @@ class IterativePainter:
             context_box= self.get_context_area(paint_area)
 
             context_image= self.image.crop(context_box)
-            generated_image= self.generate_image(context_image, prompt)
+            generated_image= self.generate_image(context_image, prompt.positive_prompt)
 
             # paste generated image in the main image
             self.image.paste(generated_image, paint_area)
