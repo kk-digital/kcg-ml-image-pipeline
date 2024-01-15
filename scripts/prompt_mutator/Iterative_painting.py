@@ -214,7 +214,7 @@ class IterativePainter:
             context_image= image.crop(context_box).convert('RGB')
             with torch.no_grad():
                 embedding= self.image_embedder.get_image_features(context_image)
-                score = self.scoring_model(embedding).item()
+                score = self.scoring_model.predict_clip(embedding).item()
 
             if previous_score < score:
                 choices.append({
