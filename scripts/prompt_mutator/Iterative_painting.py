@@ -219,7 +219,7 @@ class IterativePainter:
             if previous_score < score:
                 choices.append({
                     "prompt": prompts[index],
-                    "image": image ,
+                    "image": generated_images[index],
                     "score": score 
                 })
 
