@@ -736,7 +736,7 @@ class PromptSubstitutionGenerator:
                     if self.model_dataset in ["environmental", "propaganda-poster", "waifu"]:
                         response = generate_image_generation_jobs(
                             positive_prompt=prompt.positive_prompt,
-                            negative_prompt=prompt.negative_prompt,
+                            negative_prompt="",
                             prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
                             prompt_score=prompt_score,
                             prompt_generation_policy=GENERATION_POLICY,
@@ -747,7 +747,7 @@ class PromptSubstitutionGenerator:
                     elif self.model_dataset in ["icons"]:
                         response = generate_inpainting_job(
                             positive_prompt=prompt.positive_prompt,
-                            negative_prompt=prompt.negative_prompt,
+                            negative_prompt="",
                             prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
                             prompt_score=prompt_score,
                             prompt_generation_policy=GENERATION_POLICY,
@@ -760,7 +760,7 @@ class PromptSubstitutionGenerator:
                     elif self.model_dataset in ["mech"]:
                         response = generate_inpainting_job(
                             positive_prompt=prompt.positive_prompt,
-                            negative_prompt=prompt.negative_prompt,
+                            negative_prompt="",
                             prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
                             prompt_score=prompt_score,
                             prompt_generation_policy=GENERATION_POLICY,
@@ -773,7 +773,7 @@ class PromptSubstitutionGenerator:
                     elif self.model_dataset in ["character"]:
                         response = generate_inpainting_job(
                             positive_prompt=prompt.positive_prompt,
-                            negative_prompt=prompt.negative_prompt,
+                            negative_prompt="",
                             prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
                             prompt_score=prompt_score,
                             prompt_generation_policy=GENERATION_POLICY,
