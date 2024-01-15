@@ -145,6 +145,8 @@ class IterativePainter:
             # choose random area to paint in
             x = random.randint(self.start, self.end - self.paint_size)
             y = random.randint(self.start, self.end - self.paint_size)
+
+            print(x,y)
             
             paint_area = (x, y, x + self.paint_size, y + self.paint_size)
             context_box= self.get_context_area(paint_area)
