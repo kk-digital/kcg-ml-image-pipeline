@@ -17,6 +17,7 @@ from stable_diffusion.model.clip_image_encoder.clip_image_encoder import CLIPIma
 from worker.image_generation.scripts.inpaint_A1111 import get_model, img2img
 from scripts.prompt_mutator.greedy_substitution_search_v1 import PromptSubstitutionGenerator
 from utility.minio import cmd
+from utility.clip import clip
 
 OUTPUT_PATH="environmental/output/iterative_painting"
 
@@ -70,8 +71,7 @@ class IterativePainter:
         else:
             self.device = 'cpu'
 
-        self.image_embedder= CLIPImageEncoder(device=torch.device(self.device))
-        self.image_embedder.load_submodels()
+        self.image_embedder= clip.ClipModel(device=torch.device(self.device))
 
         self.scoring_model= self.load_scoring_model()
 
@@ -212,7 +212,7 @@ class IterativePainter:
         for index, image in enumerate(context_images):
             context_image= image.crop(context_box).convert('RGB')
             with torch.no_grad():
-                embedding= self.image_embedder.forward(image=context_image, do_preprocess=True)
+                embedding= self.image_embedder.get_image_features(context_image)
                 score = self.scoring_model(embedding).item()
 
             if previous_score < score:
