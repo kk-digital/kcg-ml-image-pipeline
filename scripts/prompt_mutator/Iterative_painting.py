@@ -180,7 +180,7 @@ class IterativePainter:
             img_byte_arr.seek(0)  # Move to the start of the byte array
             
             cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/step_{index}.png" , img_byte_arr)
-            index=+1
+            index+=1
  
     def choose_prompt(self, paint_area, row, col):
         # generate a set number of prompts
@@ -246,7 +246,7 @@ class IterativePainter:
         # Generate the image
         output_file_path, output_file_hash, img_byte_arr, seed, subseed = img2img(
             prompt=generated_prompt, negative_prompt='', sampler_name="ddim", batch_size=1, n_iter=1, 
-            steps=20, cfg_scale=7.0, width=512, height=512, mask_blur=0, inpainting_fill=0, 
+            steps=20, cfg_scale=7.0, width=128, height=128, mask_blur=0, inpainting_fill=0, 
             outpath='output', styles=None, init_images=init_images, mask=mask, resize_mode=0, 
             denoising_strength=0.75, image_cfg_scale=None, inpaint_full_res_padding=0, inpainting_mask_invert=0,
             sd=self.sd, clip_text_embedder=self.text_embedder, model=self.model, device=self.device)
