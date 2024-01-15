@@ -40,7 +40,9 @@ class IndependentApproximationV1Model(nn.Module):
         self.inputs_shape = inputs_shape
         self.token_length_vector = token_length_vector
 
-        initial_energy_vector = torch.rand((1, inputs_shape), dtype=torch.float32)
+        range_low = -1.0
+        range_high = 1.0
+        initial_energy_vector = (range_high - range_low) * torch.rand((1, inputs_shape), dtype=torch.float32) + range_low
         self.energy_vector = nn.Parameter(data=initial_energy_vector, requires_grad=True)
 
         initial_prompt_phrase_average_weight = torch.zeros(1, dtype=torch.float32)
