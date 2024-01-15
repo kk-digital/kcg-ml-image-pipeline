@@ -56,7 +56,7 @@ class IterativePainter:
         self.image_size=1024 
         self.context_size=512 
         self.paint_size=128
-        self.start= (self.context_size - self.paint_size) / 2
+        self.start= int((self.context_size - self.paint_size)/2)
         self.end=self.image_size - self.start
         self.painted_areas= int((self.end - self.start) / self.paint_size)
         self.current_score=0
