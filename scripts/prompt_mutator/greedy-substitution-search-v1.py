@@ -246,7 +246,8 @@ class PromptSubstitutionGenerator:
         else:
             # get list of boltzman phrase score
             self.positive_phrase_scores_csv,self.negative_phrase_scores_csv=self.get_boltzman_scores_csv()
-            
+            print(self.positive_phrase_scores_csv)
+
             # loading positive phrase scores to use for rejection sampling
             phrase_loader=BoltzmanPhraseScoresLoader(dataset_name="environmental",
                                                     phrase_scores_csv=self.positive_phrase_scores_csv,
@@ -263,8 +264,8 @@ class PromptSubstitutionGenerator:
                                                            minio_access_key=minio_access_key,
                                                            minio_secret_key=minio_secret_key,
                                                            minio_ip_addr=minio_ip_addr)
-            phrase_embedding_loader.load_dataset_phrases()
-            self.phrase_embeddings= phrase_embedding_loader.phrase_embedding_arr 
+            phrase_embedding_loader.load_phrase_embeddings()
+            self.phrase_embeddings= phrase_embedding_loader.get_embeddings(self.phrase_list)
 
             # get cumulative probabilities
             self.positive_phrase_origin_indexes, self.positive_cumulative_probability_arr = get_cumulative_probability_arr_without_upload(
@@ -298,7 +299,7 @@ class PromptSubstitutionGenerator:
     def get_ensemble_models(self):
         input_path = f"{self.model_dataset}/models/ranking/"
 
-        model_class = ABRankingModel
+        model_class = ABRankingELMModel
 
         # Get all model files
         model_files = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
@@ -306,7 +307,7 @@ class PromptSubstitutionGenerator:
         # Filter relevant model files
         relevant_models = [
             model_file for model_file in model_files
-            if model_file.endswith(f"score-linear-embedding.safetensors")
+            if model_file.endswith(f"score-elm-v1-embedding.safetensors")
         ]
 
         # Sort the model files by timestamp (assuming the file names include a timestamp)
@@ -1192,9 +1193,7 @@ class PromptSubstitutionGenerator:
         if index is not None:
             return self.phrase_embeddings[index]
         else:
-            embedding= self.get_prompt_embedding(phrase)
-            embedding= self.get_mean_pooled_embedding(embedding)
-            return embedding
+            return self.base_prompt_embeddings[phrase]
     
     # load the token length of a phrase
     def load_phrase_token_length(self, phrase):
@@ -1204,7 +1203,7 @@ class PromptSubstitutionGenerator:
         if index is not None:
             return self.phrase_token_lengths[index]
         else:
-            return self.get_token_length(phrase)
+            return self.base_prompt_token_lengths[phrase]
             
     # get paths for embeddings of all prompts in a dataset
     def get_embedding_paths(self, dataset):
