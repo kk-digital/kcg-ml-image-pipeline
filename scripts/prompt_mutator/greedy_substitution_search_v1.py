@@ -562,7 +562,7 @@ class PromptSubstitutionGenerator:
 
         for prompt in prompts:
             # get number of phrases
-            prompt_list = prompt.get_phrases()
+            prompt_list = prompt.positive_prompt.split(', ')
             num_phrases= len(prompt_list)
 
             # create a substitution for each position in the prompt
@@ -573,7 +573,7 @@ class PromptSubstitutionGenerator:
                 # get the substituted phrase embedding
                 substituted_embedding = prompt.positive_phrase_embeddings[phrase_position]
                 # get a random phrase from civitai to substitute with
-                phrase_index, random_phrase= self.choose_random_phrase(max_token_length=substituted_phrase_length)   
+                phrase_index, random_phrase= self.choose_phrase_by_temperature(max_token_length=substituted_phrase_length)   
                 # get phrase string
                 substitute_phrase = random_phrase
                 # get phrase embedding by its index
