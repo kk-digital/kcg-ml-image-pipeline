@@ -156,8 +156,8 @@ class IterativePainter:
             self.image.paste(generated_image, paint_area)
 
             # increment counter for each pixel that was counted
-            for i in range(x, x+self.paint_size+1):
-                for j in range(y, y+self.paint_size+1):
+            for i in range(x, x+self.paint_size):
+                for j in range(y, y+self.paint_size):
                     row= i - self.start 
                     col = j - self.start
                     self.paint_matrix[row][col]+=1
