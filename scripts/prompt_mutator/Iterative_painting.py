@@ -234,8 +234,7 @@ class IterativePainter:
     
     def generate_image(self, context_image, generated_prompt):
         # Draw a blank rectangle over the center area
-        draw = ImageDraw.Draw(context_image)
-        draw.rectangle(self.center_area, fill="white")  # Use the background color
+        # Use the background color
         init_images = [context_image]
 
         # Create mask
