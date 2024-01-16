@@ -397,11 +397,11 @@ def check_clip_server_status():
 def check_clip_server_status(request: Request):
     response_handler = ApiResponseHandler(request)
     try:
-        response = requests.get(CLIP_SERVER_ADDRESS)
+        # Update the URL to include '/docs'
+        response = requests.get(CLIP_SERVER_ADDRESS + "/docs")
         print("Response Status Code:", response.status_code)
         print("Response Content:", response.content)
         reachable = response.status_code == 200
         return response_handler.create_success_response({"reachable": reachable}, http_status_code=200, headers={"Cache-Control": "no-store"})
     except requests.exceptions.RequestException as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "CLIP server is not reachable", 503)
-
