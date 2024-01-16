@@ -86,33 +86,33 @@ class PromptData:
         self.positive_phrase_embeddings= positive_phrase_embeddings
         self.positive_phrase_token_lengths= positive_phrase_token_lengths
 
-        def get_phrases(self):
-            # split prompt phrases by comma
-            phrases = self.positive_prompt.split(', ')
+    def get_phrases(self):
+        # split prompt phrases by comma
+        phrases = self.positive_prompt.split(', ')
 
-            # merge quoted phrases that have commas within them that were split
-            merged_phrases = []
-            merge_next = False
+        # merge quoted phrases that have commas within them that were split
+        merged_phrases = []
+        merge_next = False
 
-            for phrase in phrases:
-                if phrase.startswith('"') and not phrase.endswith('"'):
-                    # Start of a quoted phrase
-                    merge_next = True
-                    merged_phrases.append(phrase)
-                elif merge_next and not phrase.endswith('"'):
-                    # Middle of a quoted phrase
-                    merged_phrases[-1] += ', ' + phrase
-                elif merge_next and phrase.endswith('"'):
-                    # End of a quoted phrase
-                    merged_phrases[-1] += ', ' + phrase
-                    print(merged_phrases[-1])
-                    merge_next = False
-                else:
-                    # Regular, non-quoted phrase
-                    merged_phrases.append(phrase)
+        for phrase in phrases:
+            if phrase.startswith('"') and not phrase.endswith('"'):
+                # Start of a quoted phrase
+                merge_next = True
+                merged_phrases.append(phrase)
+            elif merge_next and not phrase.endswith('"'):
+                # Middle of a quoted phrase
+                merged_phrases[-1] += ', ' + phrase
+            elif merge_next and phrase.endswith('"'):
+                # End of a quoted phrase
+                merged_phrases[-1] += ', ' + phrase
+                print(merged_phrases[-1])
+                merge_next = False
+            else:
+                # Regular, non-quoted phrase
+                merged_phrases.append(phrase)
 
-            # Merge phrases that were incorrectly split
-            return merged_phrases
+        # Merge phrases that were incorrectly split
+        return merged_phrases
 
 class PromptSubstitutionGenerator:
     def __init__(
