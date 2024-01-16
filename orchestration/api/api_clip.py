@@ -1,6 +1,6 @@
 from fastapi import Request, APIRouter, HTTPException, Response
 import requests
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardErrorResponse, StandardSuccessResponse, RechableResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardErrorResponse, StandardSuccessResponse
 from orchestration.api.mongo_schemas import  PhraseModel
 from typing import Optional
 from typing import List
@@ -93,7 +93,6 @@ def http_clip_server_get_cosine_similarity_list(image_path_list: List[str],
 
 @router.put("/clip/add-phrase",
             response_class=PrettyJSONResponse,
-            tags=["deprecated"],
             description="Adds a phrase to the clip server")
 def add_phrase(request: Request,
                phrase : str):
@@ -136,24 +135,18 @@ def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
 
 @router.get("/clip/clip-vector",
             response_class=PrettyJSONResponse,
-            tags=["deprecated"],
             description="Gets a clip vector of a specific phrase")
 def add_phrase(request: Request,
                phrase : str):
 
     return http_clip_server_clip_vector_from_phrase(phrase)
 
-@router.get("/clip/vectors/{phrase}", tags=["clip"], 
-            response_model=StandardSuccessResponse[AddClipPhraseResponse], 
-            status_code = 200, 
-            responses=ApiResponseHandler.listErrors([400, 422, 500]), 
-            summary="Get Clip Vector for a Phrase", 
-            description="Retrieves the clip vector for a given phrase.")
+@router.get("/clip/vectors/{phrase}", tags=["clip"], response_model=StandardSuccessResponse[AddClipPhraseResponse], status_code = 200, responses=ApiResponseHandler.listErrors([400, 422, 500]), summary="Get Clip Vector for a Phrase", description="Retrieves the clip vector for a given phrase.")
 def get_clip_vector(request: Request,  phrase: str):
     response_handler = ApiResponseHandler(request)
     try:
         vector = http_clip_server_clip_vector_from_phrase(phrase)
-        
+
         if vector is None:
             return response_handler.create_error_response(ErrorCode.ELEMENT_NOT_FOUND, "Phrase not found", status.HTTP_404_NOT_FOUND)
 
@@ -370,8 +363,7 @@ def get_random_image_similarity_date_range(
         "images": filtered_images
     }
 
-@router.get("/check-clip-server-status",
-            tags=["deprecated"])
+@router.get("/check-clip-server-status")
 def check_clip_server_status():
     try:
         # Send a simple GET request to the clip server
@@ -388,18 +380,17 @@ def check_clip_server_status():
         print(f"Error checking clip server status: {e}")
         return {"status": "offline", "message": "Clip server is offline or unreachable."}
 
+class RechableResponse(BaseModel):
+    reachable: bool
 
-@router.get("/clip/server-status", 
-            tags=["clip"], 
-            response_model=StandardSuccessResponse[RechableResponse],
-            status_code=202, responses=ApiResponseHandler.listErrors([503]), 
-            description="Checks the status of the CLIP server.")
+
+@router.get("/clip/server-status", tags=["clip"], response_model=StandardSuccessResponse[RechableResponse],status_code=202, responses=ApiResponseHandler.listErrors([503]), description="Checks the status of the CLIP server.")
 def check_clip_server_status(request: Request):
     response_handler = ApiResponseHandler(request)
     try:
-        # Update the URL to include '/docs'
-        response = requests.get(CLIP_SERVER_ADDRESS + "/docs")
+        response = requests.get(CLIP_SERVER_ADDRESS)
         reachable = response.status_code == 200
         return response_handler.create_success_response({"reachable": reachable}, http_status_code=200, headers={"Cache-Control": "no-store"})
     except requests.exceptions.RequestException as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "CLIP server is not reachable", 503)
+
