@@ -244,7 +244,7 @@ class PromptSubstitutionGenerator:
             # get cumulative probabilities
             self.positive_phrase_origin_indexes, self.positive_cumulative_probability_arr = get_cumulative_probability_arr_without_upload(
             index_phrase_score_data=self.phrase_score_data,
-            boltzman_temperature=16,
+            boltzman_temperature=20,
             boltzman_k=boltzman_k)
 
             # get min and max
