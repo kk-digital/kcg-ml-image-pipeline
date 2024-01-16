@@ -253,9 +253,9 @@ class IterativePainter:
         
         img_byte_arr.seek(0)
         generated_image = Image.open(img_byte_arr).convert('RGB')
-        cropped_image = generated_image.crop(self.center_area)
+        #cropped_image = generated_image.crop(self.center_area)
 
-        return cropped_image
+        return generated_image
 
     def test(self):
         prompt= self.generate_prompt()
