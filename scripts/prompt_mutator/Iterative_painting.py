@@ -159,7 +159,7 @@ class IterativePainter:
             for i in range(x, x+self.paint_size):
                 for j in range(y, y+self.paint_size):
                     row= i - self.start 
-                    col = j - self.start
+                    col= j - self.start
                     self.paint_matrix[row][col]+=1
             
             if index % 100==0:
@@ -256,7 +256,35 @@ class IterativePainter:
         cropped_image = generated_image.crop(self.center_area)
 
         return cropped_image
+
+    def test(self):
+        prompt= self.generate_prompt()
+
+        white_background= Image.new("RGB", (512, 512), "white")
+        mask= Image.new("L", (512, 512), 255)
+
+        # Generate the image
+        output_file_path, output_file_hash, img_byte_arr, seed, subseed = img2img(
+            prompt=prompt, negative_prompt='', sampler_name="ddim", batch_size=1, n_iter=1, 
+            steps=20, cfg_scale=7.0, width=self.context_size, height=self.context_size, mask_blur=0, inpainting_fill=0, 
+            outpath='output', styles=None, init_images=white_background, mask=mask, resize_mode=0, 
+            denoising_strength=0.75, image_cfg_scale=None, inpaint_full_res_padding=0, inpainting_mask_invert=0,
+            sd=self.sd, clip_text_embedder=self.text_embedder, model=self.model, device=self.device)
         
+        img_byte_arr.seek(0)
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/initial_image.png" , img_byte_arr)
+
+        init_image = Image.open(img_byte_arr).convert('RGB')
+
+        generated_image= self.generate_image(init_image, prompt)
+        
+        img_byte_arr = io.BytesIO()
+        generated_image.save(img_byte_arr, format="png")
+        img_byte_arr.seek(0)  # Move to the start of the byte array
+
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/test.png" , img_byte_arr)
+
+
 def main():
    args = parse_args()
 
@@ -298,7 +326,7 @@ def main():
                                   substitution_batch_size=args.substitution_batch_size)
    
    Painter= IterativePainter(prompt_generator=prompt_generator)
-   Painter.paint_image()
+   Painter.test()
 
 if __name__ == "__main__":
     main()
