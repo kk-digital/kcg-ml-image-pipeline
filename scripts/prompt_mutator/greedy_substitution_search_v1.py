@@ -86,6 +86,34 @@ class PromptData:
         self.positive_phrase_embeddings= positive_phrase_embeddings
         self.positive_phrase_token_lengths= positive_phrase_token_lengths
 
+        def get_phrases(self):
+            # split prompt phrases by comma
+            phrases = self.positive_prompt.split(', ')
+
+            # merge quoted phrases that have commas within them that were split
+            merged_phrases = []
+            merge_next = False
+
+            for phrase in phrases:
+                if phrase.startswith('"') and not phrase.endswith('"'):
+                    # Start of a quoted phrase
+                    merge_next = True
+                    merged_phrases.append(phrase)
+                elif merge_next and not phrase.endswith('"'):
+                    # Middle of a quoted phrase
+                    merged_phrases[-1] += ', ' + phrase
+                elif merge_next and phrase.endswith('"'):
+                    # End of a quoted phrase
+                    merged_phrases[-1] += ', ' + phrase
+                    print(merged_phrases[-1])
+                    merge_next = False
+                else:
+                    # Regular, non-quoted phrase
+                    merged_phrases.append(phrase)
+
+            # Merge phrases that were incorrectly split
+            return merged_phrases
+
 class PromptSubstitutionGenerator:
     def __init__(
         self,
@@ -1063,7 +1091,7 @@ class PromptSubstitutionGenerator:
         # Calculate phrase embeddings and token lengths for chosen prompts
         print("Calculating phrase embeddings and token lengths for each phrase in each prompt")
         for prompt in tqdm(chosen_scored_prompts):
-            phrases = prompt.positive_prompt.split()
+            phrases = prompt.get_phrases()
             prompt.positive_phrase_embeddings = [self.load_phrase_embedding(phrase) for phrase in phrases]
             prompt.positive_phrase_token_lengths = [self.load_phrase_token_length(phrase) for phrase in phrases] 
 
@@ -1150,7 +1178,7 @@ class PromptSubstitutionGenerator:
         # Calculate phrase embeddings and token lengths for chosen prompts
         print("Calculating phrase embeddings and token lengths for each phrase in each prompt")
         for prompt in tqdm(chosen_scored_prompts):
-            phrases = prompt.positive_prompt.split()
+            phrases = prompt.get_phrases()
             prompt.positive_phrase_embeddings = [self.load_phrase_embedding(phrase) for phrase in phrases]
             prompt.positive_phrase_token_lengths = [self.load_phrase_token_length(phrase) for phrase in phrases] 
 
