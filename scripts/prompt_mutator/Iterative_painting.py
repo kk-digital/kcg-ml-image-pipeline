@@ -260,7 +260,7 @@ class IterativePainter:
     def test(self):
         prompt= self.generate_prompt()
 
-        white_background= Image.new("RGB", (512, 512), "white")
+        white_background= [Image.new("RGB", (512, 512), "white")]
         mask= Image.new("L", (512, 512), 255)
 
         # Generate the image
