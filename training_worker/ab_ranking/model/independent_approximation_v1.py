@@ -27,7 +27,8 @@ def get_mean_absolute_deviation(energy_vector):
     abs_mean_absolute = mean_absolute.abs()
     mean_absolute_deviation = abs_mean_absolute.mean()
 
-    return mean_absolute_deviation
+    energy_vector_mad = energy_vector / mean_absolute_deviation
+    return energy_vector_mad
 
 
 class IndependentApproximationV1Model(nn.Module):
@@ -46,7 +47,8 @@ class IndependentApproximationV1Model(nn.Module):
         initial_prompt_phrase_average_weight = torch.zeros(1, dtype=torch.float32)
         self.prompt_phrase_average_weight = nn.Parameter(data=initial_prompt_phrase_average_weight, requires_grad=True)
 
-        self.l1_loss = nn.L1Loss()
+        # self.l1_loss = nn.L1Loss()
+        self.bce_loss = nn.BCELoss()
 
     # for score
     def forward(self, input):
@@ -371,7 +373,7 @@ class ABRankingIndependentApproximationV1Model:
                     if debug_asserts:
                         assert batch_pred_probabilities.shape == batch_targets.shape
 
-                    loss = self.model.l1_loss(batch_pred_probabilities, batch_targets)
+                    loss = self.model.bce_loss(batch_pred_probabilities, batch_targets)
 
                     if add_loss_penalty:
                         # add loss penalty
@@ -421,7 +423,7 @@ class ABRankingIndependentApproximationV1Model:
                     if debug_asserts:
                         assert validation_pred_probabilities.shape == validation_target.shape
 
-                    validation_loss = self.model.l1_loss(validation_pred_probabilities, validation_target)
+                    validation_loss = self.model.bce_loss(validation_pred_probabilities, validation_target)
 
                     if add_loss_penalty:
                         # add loss penalty
@@ -634,7 +636,7 @@ def forward_bradley_terry(predicted_score_images_x, predicted_score_images_y, us
 
         # prob = sigmoid( (x-y) / 100 )
         diff_predicted_score = torch.sub(predicted_score_images_x, predicted_score_images_y)
-        res_predicted_score = torch.div(diff_predicted_score, 1.0)
+        res_predicted_score = torch.div(diff_predicted_score, 0.1)
         pred_probabilities = torch.sigmoid(res_predicted_score)
     else:
         epsilon = 0.000001
