@@ -650,20 +650,19 @@ def get_tagged_images(
     order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first")
 ):
     response_handler = ApiResponseHandler(request)
-
     try:
         # Validate start_date and end_date
         if start_date:
             validated_start_date = validate_date_format(start_date)
             if validated_start_date is None:
                 return response_handler.create_error_response(
-                    ErrorCode.INVALID_PARAMS, "Invalid start_date format. Expected format: YYYY-MM-DD", 400
+                    ErrorCode.INVALID_PARAMS, "Invalid start_date format. Expected format: YYYY-MM-DDTHH:MM:SS", 400
                 )
         if end_date:
             validated_end_date = validate_date_format(end_date)
             if validated_end_date is None:
                 return response_handler.create_error_response(
-                    ErrorCode.INVALID_PARAMS, "Invalid end_date format. Expected format: YYYY-MM-DD", 400
+                    ErrorCode.INVALID_PARAMS, "Invalid end_date format. Expected format: YYYY-MM-DDTHH:MM:SS", 400
                 )
 
         # Build the query
@@ -700,7 +699,7 @@ def get_tagged_images(
     except Exception as e:
         # Log the exception details here, if necessary
         return response_handler.create_error_response(
-            ErrorCode.OTHER_ERROR, str(e), 500
+            ErrorCode.OTHER_ERROR, "Internal Server Error", 500
         )
 
 @router.get("/tags/get_all_tagged_images", response_model=List[ImageTag], response_class=PrettyJSONResponse)

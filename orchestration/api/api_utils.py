@@ -10,6 +10,8 @@ from typing import TypeVar, Generic, List
 from pydantic import BaseModel
 from .mongo_schemas import TagDefinition, TagCategory
 from datetime import datetime
+from dateutil import parser
+
 
 
 class RechableResponse(BaseModel):
@@ -29,14 +31,18 @@ class TagsListResponse(BaseModel):
 
 class GetClipPhraseResponse(BaseModel):
     phrase : str
-    clip_vector: str
+    clip_vector: List[List[float]]
 
 def validate_date_format(date_str: str):
     try:
-        # Assuming ISO 8601 format (YYYY-MM-DD)
-        return datetime.strptime(date_str, "%Y-%m-%d")
-    except ValueError as e:
+        # Attempt to parse the date string using dateutil.parser
+        parsed_date = parser.parse(date_str)
+        # If parsing succeeds, return the original date string
+        return date_str
+    except ValueError:
+        # If parsing fails, return None
         return None
+
 
 class PrettyJSONResponse(Response):
     media_type = "application/json"
