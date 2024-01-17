@@ -64,7 +64,7 @@ class IterativePainter:
         self.max_repaints=3
         self.painted_centers=[]
         self.image= Image.new("RGB", (1024, 1024), "white")
-        self.num_prompts=10
+        self.num_prompts=100
 
         left = (self.context_size - self.paint_size) // 2
         top = (self.context_size - self.paint_size) // 2
