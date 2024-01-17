@@ -269,10 +269,15 @@ class IterativePainter:
             denoising_strength=0.75, image_cfg_scale=None, inpaint_full_res_padding=0, inpainting_mask_invert=0,
             sd=self.sd, clip_text_embedder=self.text_embedder, model=self.model, device=self.device)
         
-        img_byte_arr.seek(0)
-        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/initial_image.png" , img_byte_arr)
 
+        img_byte_arr.seek(0)
         init_image = Image.open(img_byte_arr).convert('RGB')
+        draw = ImageDraw.Draw(mask)
+        draw.rectangle(self.center_area, fill=255)  # Unmasked (white) center area
+        img_byte_arr = io.BytesIO()
+        init_image.save(img_byte_arr, format="png")
+        img_byte_arr.seek(0)  # Move to the start of the byte array
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/initial_image.png" , img_byte_arr) 
 
         generated_image= self.generate_image(init_image, prompt)
         
