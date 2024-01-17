@@ -20,9 +20,9 @@ from minio import Minio
 os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
 # Stable Diffusion model setup
-model_id = 'runwayml/stable-diffusion-v1-5'
+model_path = '/input/models/runwayml-stable-diffusion-inpainting/'
 stable_diffusion = AutoPipelineForText2Image.from_pretrained(
-    model_id, local_files_only=False, torch_dtype=torch.float16, variant="fp16"
+    model_path, local_files_only=True, torch_dtype=torch.float16, variant="fp16"
 )
 stable_diffusion.vae.eval().cuda()
 
