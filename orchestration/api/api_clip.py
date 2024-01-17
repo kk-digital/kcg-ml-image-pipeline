@@ -106,7 +106,7 @@ class AddClipPhraseResponse(BaseModel):
 @router.post("/clip/phrases",
              description="Adds a phrase to the clip server.",
              tags=["clip"],
-             response_model=StandardSuccessResponse[AddClipPhraseResponse],
+             response_model=StandardSuccessResponse[None],
              status_code=201,
              responses=ApiResponseHandler.listErrors([400, 422, 500, 503]))
 def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
