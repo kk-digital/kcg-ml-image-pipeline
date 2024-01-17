@@ -7,7 +7,6 @@ from torchvision.transforms.functional import to_tensor, to_pil_image, resize
 from torchvision.transforms.functional import InterpolationMode
 import zipfile
 import numpy as np
-import pandas as pd
 from PIL import Image
 from matplotlib import pyplot
 from torchvision.transforms.functional import resize, center_crop
