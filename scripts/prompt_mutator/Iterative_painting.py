@@ -135,7 +135,7 @@ class IterativePainter:
         sorted_prompts= sorted(prompts_data, key=lambda data: data.positive_score, reverse=True)
         print(sorted_prompts[0].positive_prompt)
 
-        return sorted_prompts[0]..positive_prompt
+        return sorted_prompts[0].positive_prompt
 
     def paint_image(self):
         prompt= self.get_seed_prompts()
