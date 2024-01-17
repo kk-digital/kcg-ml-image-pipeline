@@ -3,20 +3,20 @@ import os
 import sys
 import json
 import torch
-from torchvision.transforms.functional import to_tensor, to_pil_image, resize
-from torchvision.transforms.functional import InterpolationMode
-import zipfile
+from torchvision.transforms.functional import to_tensor
 import numpy as np
 from PIL import Image
-from matplotlib import pyplot
-from torchvision.transforms.functional import resize, center_crop
 from tqdm.auto import tqdm
 from diffusers import AutoPipelineForText2Image
 import msgpack
 from minio import Minio
 
-# Set CUDA device
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+# Check for GPU availability
+if not torch.cuda.is_available():
+    print("GPU is not available. Exiting.")
+    sys.exit(1)
+
+device = 'cuda'
 
 # Stable Diffusion model setup
 model_path = '/input/models/runwayml-stable-diffusion-inpainting/'
@@ -39,7 +39,7 @@ def connect_to_minio_client():
     return client
 
 def worker(dataset_name, minio_client):
-    to_tensor = torch.nn.functional.to_tensor
+    to_tensor_transform = torch.nn.functional.to_tensor
     os.makedirs(LOCAL_SAVE_DIR, exist_ok=True)
 
     objects = minio_client.list_objects(BUCKET_NAME, prefix=f'{dataset_name}/', recursive=True)
@@ -48,7 +48,7 @@ def worker(dataset_name, minio_client):
         if obj.object_name.endswith('.jpg'):
             image_data = minio_client.get_object(BUCKET_NAME, obj.object_name)
             image = Image.open(image_data).convert('RGB')
-            image_tensor = to_tensor(image).half().cuda()
+            image_tensor = to_tensor_transform(image).half().cuda()
             image_tensor = (image_tensor - 0.5) * 2.0
 
             with torch.no_grad():
