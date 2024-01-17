@@ -1,6 +1,6 @@
 from fastapi import Request, APIRouter, HTTPException, Response
 import requests
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardErrorResponse, StandardSuccessResponse, RechableResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardErrorResponse, StandardSuccessResponse, RechableResponse, GetClipPhraseResponse
 from orchestration.api.mongo_schemas import  PhraseModel
 from typing import Optional
 from typing import List
@@ -100,9 +100,6 @@ def add_phrase(request: Request,
 
     return http_clip_server_add_phrase(phrase)
 
-class AddClipPhraseResponse(BaseModel):
-    clip_vector: str
-
 @router.post("/clip/phrases",
              description="Adds a phrase to the clip server.",
              tags=["clip"],
@@ -144,7 +141,7 @@ def add_phrase(request: Request,
     return http_clip_server_clip_vector_from_phrase(phrase)
 
 @router.get("/clip/vectors/{phrase}", tags=["clip"], 
-            response_model=StandardSuccessResponse[AddClipPhraseResponse], 
+            response_model=StandardSuccessResponse[GetClipPhraseResponse], 
             status_code = 200, 
             responses=ApiResponseHandler.listErrors([400, 422, 500]), 
             summary="Get Clip Vector for a Phrase", 
@@ -157,7 +154,7 @@ def get_clip_vector(request: Request,  phrase: str):
         if vector is None:
             return response_handler.create_error_response(ErrorCode.ELEMENT_NOT_FOUND, "Phrase not found", status.HTTP_404_NOT_FOUND)
 
-        return response_handler.create_success_response({"vector": vector}, http_status_code=200, headers={"Cache-Control": "no-store"})
+        return response_handler.create_success_response(vector, http_status_code=200, headers={"Cache-Control": "no-store"})
 
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
