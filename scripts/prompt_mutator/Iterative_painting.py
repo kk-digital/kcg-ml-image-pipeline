@@ -232,7 +232,7 @@ class IterativePainter:
 
         return prompt_str
     
-    def generate_image(self, context_image, generated_prompt):
+    def generate_image(self, context_image, prompt, negative_prompt):
         # Use the context image as an initial image
         init_images = [context_image]
 
@@ -243,7 +243,7 @@ class IterativePainter:
 
         # Generate the image
         output_file_path, output_file_hash, img_byte_arr, seed, subseed = img2img(
-            prompt=generated_prompt, negative_prompt="", sampler_name="ddim", batch_size=1, n_iter=1, 
+            prompt=prompt, negative_prompt=negative_prompt, sampler_name="ddim", batch_size=1, n_iter=1, 
             steps=20, cfg_scale=7.0, width=self.context_size, height=self.context_size, mask_blur=4.0, inpainting_fill=1, 
             outpath='output', styles=None, init_images=init_images, mask=mask, resize_mode=0, 
             denoising_strength=0.75, image_cfg_scale=None, inpaint_full_res_padding=0, inpainting_mask_invert=0,
@@ -256,14 +256,15 @@ class IterativePainter:
         return generated_image
 
     def test(self):
-        prompt= "side scrolling concept art, surviving in space, level design, steampunk, castle, warhammer , grin, eerie forest, jungle, power lines, cannons, a harbor, tree top, lab equipment, in dungeon, deep rainforest"
+        prompt= "side scrolling concept art, surviving in space, level design, steampunk, castle, warhammer , undewear, grin, ao, eerie forest, navel, hairy body, jungle, power lines, cannons, a harbor, tree top, lab equipment, in dungeon, deep rainforest"
+        negative_prompt="blurry, easynegative, mutilated, extra arms, anime, ngdeepnegativevt, disfugured, jpeg artifacts, multiple tails, extra limbs, doll, badpicturechillv, wildcard prompt masterpiece, lowres graffiti, undetailed skin, ugly, no clothes, poorly drawnfeet, sketches"
 
         white_background= [Image.new("RGB", (512, 512), "white")]
         mask= Image.new("L", (512, 512), 255)
 
         # Generate the image
         output_file_path, output_file_hash, img_byte_arr, seed, subseed = img2img(
-            prompt=prompt, negative_prompt="", sampler_name="ddim", batch_size=1, n_iter=1, 
+            prompt=prompt, negative_prompt=negative_prompt, sampler_name="ddim", batch_size=1, n_iter=1, 
             steps=20, cfg_scale=7.0, width=self.context_size, height=self.context_size, mask_blur=0, inpainting_fill=0, 
             outpath='output', styles=None, init_images=white_background, mask=mask, resize_mode=0, 
             denoising_strength=0.75, image_cfg_scale=None, inpaint_full_res_padding=0, inpainting_mask_invert=0,
@@ -274,12 +275,13 @@ class IterativePainter:
         init_image = Image.open(img_byte_arr).convert('RGB')
         draw = ImageDraw.Draw(init_image)
         draw.rectangle(self.center_area, fill="white")  # Unmasked (white) center area
+        
         img_byte_arr = io.BytesIO()
         init_image.save(img_byte_arr, format="png")
         img_byte_arr.seek(0)  # Move to the start of the byte array
         cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/initial_image.png" , img_byte_arr) 
 
-        generated_image= self.generate_image(init_image, prompt)
+        generated_image= self.generate_image(init_image, prompt, negative_prompt)
         
         img_byte_arr = io.BytesIO()
         generated_image.save(img_byte_arr, format="png")
