@@ -64,7 +64,7 @@ class IterativePainter:
         self.max_repaints=3
         self.painted_centers=[]
         self.image= Image.new("RGB", (1024, 1024), "white")
-        self.num_prompts=100
+        self.num_prompts=10
 
         left = (self.context_size - self.paint_size) // 2
         top = (self.context_size - self.paint_size) // 2
@@ -256,7 +256,7 @@ class IterativePainter:
         return generated_image
 
     def test(self):
-        prompt=self.get_seed_prompts()
+        prompt="space colony, ruins, space colonization, pixel art, tropical rain forest landscape, buildingruins, increased, mechanics, castle, vortex, magical glowing, style steampunk, spires, muscle huge chest, creepy trees, steampunk background, cog, steampunk background, robotic, fantasy tower"
         white_background= [Image.new("RGB", (512, 512), "white")]
         mask= Image.new("L", (512, 512), 255)
 
