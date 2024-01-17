@@ -263,7 +263,7 @@ class IterativePainter:
         # Generate the image
         output_file_path, output_file_hash, img_byte_arr, seed, subseed = img2img(
             prompt=prompt, negative_prompt="", sampler_name="ddim", batch_size=1, n_iter=1, 
-            steps=20, cfg_scale=7.0, width=self.context_size, height=self.context_size, mask_blur=0, inpainting_fill=0, 
+            steps=50, cfg_scale=12.0, width=self.context_size, height=self.context_size, mask_blur=0, inpainting_fill=0, 
             outpath='output', styles=None, init_images=white_background, mask=mask, resize_mode=0, 
             denoising_strength=0.75, image_cfg_scale=None, inpaint_full_res_padding=0, inpainting_mask_invert=0,
             sd=self.sd, clip_text_embedder=self.text_embedder, model=self.model, device=self.device)
