@@ -256,7 +256,7 @@ class IterativePainter:
         return generated_image
 
     def test(self):
-        prompt="blue cavern, 2D side scrolling, 2D side scrolling video game, 2D environmental, masterpiece, mushroom buildings, ancient trees, gigantic tree, dungeons, haunted treehouse, deep rainforest, jungle, tree top"
+        prompt="fantasy vibe, 2D environmental side scrolling, refined, atlantis, undewear, chest, potion, fingerless gloves, steampunk, upper body, gauntlet, background jungle, lightning everywhere, the ruins, in a dark castle, machinery, adventures guild, shiny, gloomy environment"
         white_background= [Image.new("RGB", (512, 512), "white")]
         mask= Image.new("L", (512, 512), 255)
 
