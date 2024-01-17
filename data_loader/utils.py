@@ -66,8 +66,12 @@ def get_aggregated_selection_datapoints(minio_client, dataset_name):
 
 
 def get_object(client, file_path):
-    response = client.get_object("datasets", file_path)
-    data = response.data
+    try:
+        response = client.get_object("datasets", file_path)
+        data = response.data
+    finally:
+        response.close()
+        response.release_conn()
 
     return data
 

@@ -24,7 +24,6 @@ def train_ranking(dataset_name: str,
                   minio_ip_addr=None,
                   minio_access_key=None,
                   minio_secret_key=None,
-                  phrases_csv_name=None,
                   epochs=10000,
                   learning_rate=0.05,
                   train_percent=0.9,
@@ -43,12 +42,7 @@ def train_ranking(dataset_name: str,
                                        minio_ip_addr=minio_ip_addr,
                                        minio_access_key=minio_access_key,
                                        minio_secret_key=minio_secret_key,)
-
-    if phrases_csv_name != None:
-        phrase_loader.load_dataset_phrases_from_csv(phrases_csv_name)
-    else:
-        phrase_loader.load_dataset_phrases()
-        phrase_loader.upload_csv()
+    phrase_loader.load_dataset_phrases()
 
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))

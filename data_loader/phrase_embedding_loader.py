@@ -68,9 +68,6 @@ class PhraseEmbeddingLoader:
                 print("Phrase embeddings data loaded...")
                 return
 
-            if count == 30:
-                raise Exception("No phrase embeddings data in minio server...")
-
             count += 1
 
     def load_dataset_phrases(self):
