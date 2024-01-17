@@ -27,6 +27,9 @@ class TagsCategoryListResponse(BaseModel):
 class TagsListResponse(BaseModel):
     tags: List[TagDefinition]
 
+class GetClipPhraseResponse(BaseModel):
+    phrase : str
+    clip_vector: str
 
 def validate_date_format(date_str: str):
     try:
