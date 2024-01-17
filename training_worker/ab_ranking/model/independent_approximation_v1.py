@@ -377,9 +377,15 @@ class ABRankingIndependentApproximationV1Model:
 
                     if add_loss_penalty:
                         # add loss penalty
-                        neg_score = torch.multiply(predicted_score_images_x, -1.0)
-                        negative_score_loss_penalty = torch.relu(neg_score)
-                        loss = torch.add(loss, negative_score_loss_penalty)
+                        # neg_score = torch.multiply(predicted_score_images_x, -1.0)
+                        # negative_score_loss_penalty = torch.relu(neg_score)
+                        # loss = torch.add(loss, negative_score_loss_penalty)
+
+                        # loss penalty = (relu(-x-1) + relu(x-1))
+                        # https://www.wolframalpha.com/input?i=graph+for+x%3D-5+to+x%3D5%2C++relu%28+-x+-+1.0%29+%2B+ReLu%28x+-+1.0%29
+                        loss_penalty = torch.relu(-predicted_score_images_x - 1.0) + torch.relu(predicted_score_images_x - 1.0) * 10
+                        loss = torch.add(loss, loss_penalty)
+
 
                     loss.backward()
                     optimizer.step()
@@ -427,9 +433,15 @@ class ABRankingIndependentApproximationV1Model:
 
                     if add_loss_penalty:
                         # add loss penalty
-                        neg_score = torch.multiply(predicted_score_image_x, -1.0)
-                        negative_score_loss_penalty = torch.relu(neg_score)
-                        validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
+                        # neg_score = torch.multiply(predicted_score_image_x, -1.0)
+                        # negative_score_loss_penalty = torch.relu(neg_score)
+                        # validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
+
+                        # loss penalty = (relu(-x-1) + relu(x-1))
+                        # https://www.wolframalpha.com/input?i=graph+for+x%3D-5+to+x%3D5%2C++relu%28+-x+-+1.0%29+%2B+ReLu%28x+-+1.0%29
+                        loss_penalty = torch.relu(-predicted_score_image_x - 1.0) + torch.relu(
+                            predicted_score_image_x - 1.0) * 10
+                        validation_loss = torch.add(validation_loss, loss_penalty)
 
                     # validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
                     validation_loss_arr.append(validation_loss.detach().cpu())
