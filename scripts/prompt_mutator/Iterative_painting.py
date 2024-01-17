@@ -256,7 +256,7 @@ class IterativePainter:
         return generated_image
 
     def test(self):
-        prompt="space colony, ruins, space colonization, pixel art, tropical rain forest landscape, buildingruins, increased, mechanics, castle, vortex, magical glowing, style steampunk, spires, muscle huge chest, creepy trees, steampunk background, cog, steampunk background, robotic, fantasy tower"
+        prompt="2D side scrolling, forest, electric atmosphere, mechanical ascension cyberpunk, tropical jungle theme, undewear, ruined walls, beastly, ruined cityscape, mechanical, ruins in a jungle, deep jungle, showchest, bad chest, adventurer, a ruin"
         white_background= [Image.new("RGB", (512, 512), "white")]
         mask= Image.new("L", (512, 512), 255)
 
