@@ -272,8 +272,8 @@ class IterativePainter:
 
         img_byte_arr.seek(0)
         init_image = Image.open(img_byte_arr).convert('RGB')
-        draw = ImageDraw.Draw(mask)
-        draw.rectangle(self.center_area, fill=255)  # Unmasked (white) center area
+        draw = ImageDraw.Draw(init_image)
+        draw.rectangle(self.center_area, fill="white")  # Unmasked (white) center area
         img_byte_arr = io.BytesIO()
         init_image.save(img_byte_arr, format="png")
         img_byte_arr.seek(0)  # Move to the start of the byte array
