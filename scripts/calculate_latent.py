@@ -3,13 +3,14 @@ import os
 import sys
 import json
 import torch
-from torchvision.transforms.functional import to_tensor
+from torchvision.transforms import ToTensor
 import numpy as np
 from PIL import Image
 from tqdm.auto import tqdm
 from diffusers import AutoPipelineForText2Image
 import msgpack
 from minio import Minio
+
 
 # Check for GPU availability
 if not torch.cuda.is_available():
@@ -39,7 +40,7 @@ def connect_to_minio_client():
     return client
 
 def worker(dataset_name, minio_client):
-    to_tensor_transform = torch.nn.functional.to_tensor
+    to_tensor_transform = ToTensor()
     os.makedirs(LOCAL_SAVE_DIR, exist_ok=True)
 
     objects = minio_client.list_objects(BUCKET_NAME, prefix=f'{dataset_name}/', recursive=True)
