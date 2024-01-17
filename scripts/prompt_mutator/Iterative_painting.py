@@ -256,8 +256,7 @@ class IterativePainter:
         return generated_image
 
     def test(self):
-        prompt= "side scrolling concept art, surviving in space, level design, steampunk, castle, warhammer, grin, ao, eerie forest, jungle, power lines, cannons, a harbor, tree top, lab equipment, in dungeon, deep rainforest"
-
+        prompt="blue cavern, 2D side scrolling, 2D side scrolling video game, 2D environmental, masterpiece, mushroom buildings, ancient trees, gigantic tree, dungeons, haunted treehouse, deep rainforest, jungle, tree top"
         white_background= [Image.new("RGB", (512, 512), "white")]
         mask= Image.new("L", (512, 512), 255)
 
@@ -266,7 +265,7 @@ class IterativePainter:
             prompt=prompt, negative_prompt="", sampler_name="ddim", batch_size=1, n_iter=1, 
             steps=20, cfg_scale=7.0, width=self.context_size, height=self.context_size, mask_blur=0, inpainting_fill=0, 
             outpath='output', styles=None, init_images=white_background, mask=mask, resize_mode=0, 
-            denoising_strength=0.75, image_cfg_scale=7.0, inpaint_full_res_padding=0, inpainting_mask_invert=0,
+            denoising_strength=0.75, image_cfg_scale=None, inpaint_full_res_padding=0, inpainting_mask_invert=0,
             sd=self.sd, clip_text_embedder=self.text_embedder, model=self.model, device=self.device)
         
 
