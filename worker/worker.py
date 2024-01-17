@@ -1,3 +1,5 @@
+import hashlib
+import io
 import sys
 import time
 import random
@@ -16,7 +18,7 @@ sys.path.insert(0, base_directory)
 
 from worker.prompt_generation.prompt_generator import run_generate_inpainting_generation_task, \
     run_generate_image_generation_task
-from worker.image_generation.scripts.inpaint_A1111 import img2img
+from worker.image_generation.scripts.inpaint_A1111 import convert_image_array_to_rgb, img2img
 from worker.image_generation.scripts.generate_image_from_text import generate_image_from_text
 from worker.worker_state import WorkerState
 from utility.http import generation_request
@@ -107,7 +109,7 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
     prompt_generation_policy = generation_task.task_input_dict["prompt_generation_policy"]
     top_k = generation_task.task_input_dict["top_k"]
 
-    output_file_path, output_file_hash, img_byte_arr, seed, subseed = img2img(
+    image, seed = img2img(
         prompt=positive_prompts,
         negative_prompt=negative_prompts,
         sampler_name=sampler,
@@ -119,8 +121,6 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
         height=image_height,
         mask_blur=generation_task.task_input_dict["mask_blur"],
         inpainting_fill=generation_task.task_input_dict["inpainting_fill_mode"],
-        outpath=os.path.join("datasets", generation_task.task_input_dict['dataset'],
-                             generation_task.task_input_dict['file_path']),
         styles=generation_task.task_input_dict["styles"],
         init_images=[init_image],
         mask=init_mask,
@@ -129,17 +129,24 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
         image_cfg_scale=generation_task.task_input_dict["image_cfg_scale"],
         inpaint_full_res_padding=generation_task.task_input_dict["inpaint_full_res_padding"],
         inpainting_mask_invert=generation_task.task_input_dict["inpainting_mask_invert"],
-        sd=worker_state.stable_diffusion,
-        model=worker_state.stable_diffusion.model,
         clip_text_embedder=worker_state.clip_text_embedder,
         device=worker_state.device
     )
-
+    
+    output_file_path=os.path.join("datasets", generation_task.task_input_dict['dataset'],
+                             generation_task.task_input_dict['file_path'])
     generation_task.task_input_dict["seed"] = seed
-    generation_task.task_input_dict["subseed"] = subseed
+    # generation_task.task_input_dict["subseed"] = subseed
 
-    return output_file_path, output_file_hash, img_byte_arr
+    # convert image to bytes arr
+    img_byte_arr = io.BytesIO()
+    image.save(img_byte_arr, format='jpeg')
+    img_byte_arr.seek(0)
 
+    # get hash from byte array
+    output_file_hash = (hashlib.sha256(img_byte_arr.getbuffer())).hexdigest()
+
+    return output_file_path, output_file_hash, img_byte_arr, seed
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Worker for image generation")
@@ -306,7 +313,7 @@ def process_jobs(worker_state):
 
             try:
                 if task_type == 'inpainting_generation_task':
-                    output_file_path, output_file_hash, img_data = run_inpainting_generation_task(worker_state,
+                    output_file_path, output_file_hash, img_data, seed = run_inpainting_generation_task(worker_state,
                                                                                                   generation_task)
 
                     job_completion_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')

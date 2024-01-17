@@ -151,7 +151,6 @@ def decode_latent_batch(model, batch, target_device=None, check_for_nans=False):
 @dataclass(repr=False)
 class StableDiffusionProcessing:
     sd_model: object = None
-    outpath: str = None
     prompt: str = ""
     prompt_for_display: str = None
     negative_prompt: str = ""
@@ -221,7 +220,8 @@ class StableDiffusionProcessing:
         self.extra_generation_params = self.extra_generation_params or {}
 
     def init(self, all_prompts, all_seeds, all_subseeds):
-        pass
+        # load stable diffusion model
+        self.sd, config, self.model = get_model(self.device, self.steps)
 
     def sample(self, conditioning, unconditional_conditioning, seeds, subseeds, subseed_strength, prompts):
         raise NotImplementedError()
@@ -569,7 +569,6 @@ def apply_overlay(image, paste_loc, index, overlays):
 
 
 def process_images(p: StableDiffusionProcessingImg2Img):
-    output_file_path = ""
 
     if isinstance(p.prompt, list):
         assert (len(p.prompt) > 0)
@@ -642,21 +641,10 @@ def process_images(p: StableDiffusionProcessingImg2Img):
 
                 image = apply_overlay(image, p.paste_to, i, p.overlay_images)
 
-                # convert to bytes arr
-                img_byte_arr = io.BytesIO()
-                image.save(img_byte_arr, format='JPEG')
-                img_byte_arr.seek(0)
-
-                # get hash
-                output_file_hash = (hashlib.sha256(img_byte_arr.getbuffer())).hexdigest()
-
-                # save to minio server
-                output_file_path = p.outpath
-
             del x_samples_ddim
             torch_gc()
 
-    return output_file_path, output_file_hash, img_byte_arr, seed, subseed
+    return image, seed
 
 
 def create_binary_mask(image):
@@ -682,11 +670,10 @@ def get_model(device, n_steps):
 
 
 def img2img(prompt: str, negative_prompt: str, sampler_name: str, batch_size: int, n_iter: int, steps: int,
-            cfg_scale: float, width: int, height: int, mask_blur: int, inpainting_fill: int,
-            outpath, styles, init_images, mask, resize_mode, denoising_strength,
-            image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert, sd=None, clip_text_embedder=None, model=None, device=None):
+            cfg_scale: float, width: int, height: int, mask_blur: int, inpainting_fill: int, 
+            styles, init_images, mask, resize_mode, denoising_strength,image_cfg_scale, 
+            inpaint_full_res_padding, inpainting_mask_invert, clip_text_embedder=None, device=None):
     p = StableDiffusionProcessingImg2Img(
-        outpath=outpath,
         prompt=prompt,
         negative_prompt=negative_prompt,
         styles=styles,
@@ -706,13 +693,11 @@ def img2img(prompt: str, negative_prompt: str, sampler_name: str, batch_size: in
         image_cfg_scale=image_cfg_scale,
         inpaint_full_res_padding=inpaint_full_res_padding,
         inpainting_mask_invert=inpainting_mask_invert,
-        sd=sd,
         clip_text_embedder=clip_text_embedder,
-        model=model,
         device=device
     )
 
     with closing(p):
-        output_file_path, output_file_hash, img_byte_arr, seed, subseed = process_images(p)
+        image, seed = process_images(p)
 
-    return output_file_path, output_file_hash, img_byte_arr, seed, subseed
+    return image, seed

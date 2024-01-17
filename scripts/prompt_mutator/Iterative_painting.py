@@ -150,7 +150,7 @@ class IterativePainter:
             context_box= self.get_context_area(paint_area)
 
             context_image= self.image.crop(context_box)
-            generated_image= self.generate_image(context_image, prompt.positive_prompt)
+            generated_image, context= self.generate_image(context_image, prompt)
 
             # paste generated image in the main image
             self.image.paste(generated_image, paint_area)
@@ -182,46 +182,6 @@ class IterativePainter:
         
         return (context_x, context_y, context_x + self.context_size, context_y + self.context_size)
 
-    def choose_prompt(self, paint_area):
-        # generate a set number of prompts
-        prompt_list = self.prompt_generator.generate_initial_prompts_with_fixed_probs(self.top_choices)
-        prompts_data, _= self.prompt_generator.mutate_prompts(prompt_list)
-        prompts= [prompts_data[i].positive_prompt for i in range(len(prompts_data))]
-        
-        # get context area
-        context_box= self.get_context_area(paint_area)
-        context_image= self.image.copy().crop(context_box)
-
-        # generate images with each prompt
-        generated_images= [self.generate_image(context_image, prompt) for prompt in prompts]
-        # paste images into the current image 
-        context_images=[]
-        for image in generated_images:
-            current_image= self.image.copy()
-            current_image.paste(image, paint_area)
-            context_images.append(current_image)
-         
-        choices=[]
-        # get image embeddings and scores
-        for index, image in enumerate(context_images):
-            with torch.no_grad():
-                embedding= self.image_embedder.get_image_features(context_image)
-                score = self.scoring_model.predict_clip(embedding).item()
-
-            if self.current_score < score:
-                choices.append({
-                    "prompt": prompts[index],
-                    "image": generated_images[index],
-                    "score": score 
-                })
-
-        if len(choices)==0:
-            return None
-        
-        choices=sorted(choices, key=lambda s: s['score'], reverse=True) 
-
-        return choices[0]
-
     def generate_prompt(self):
         # generate a prompt
         prompt_list = self.prompt_generator.generate_initial_prompts_with_fixed_probs(1)
@@ -234,6 +194,8 @@ class IterativePainter:
     
     def generate_image(self, context_image, prompt):
         # Use the context image as an initial image
+        draw = ImageDraw.Draw(context_image)
+        draw.rectangle(self.center_area, fill="white")  # Unmasked (white) center area
         init_images = [context_image]
 
         # Create mask
@@ -242,18 +204,17 @@ class IterativePainter:
         draw.rectangle(self.center_area, fill=255)  # Unmasked (white) center area
 
         # Generate the image
-        output_file_path, output_file_hash, img_byte_arr, seed, subseed = img2img(
+        image, seed = img2img(
             prompt=prompt, negative_prompt="", sampler_name="ddim", batch_size=1, n_iter=1, 
             steps=20, cfg_scale=7.0, width=self.context_size, height=self.context_size, mask_blur=4.0, inpainting_fill=1, 
             outpath='output', styles=None, init_images=init_images, mask=mask, resize_mode=0, 
             denoising_strength=0.75, image_cfg_scale=None, inpaint_full_res_padding=0, inpainting_mask_invert=0,
             sd=self.sd, clip_text_embedder=self.text_embedder, model=self.model, device=self.device)
         
-        img_byte_arr.seek(0)
-        generated_image = Image.open(img_byte_arr).convert('RGB')
-        #cropped_image = generated_image.crop(self.center_area)
 
-        return generated_image
+        cropped_image = image.crop(self.center_area)
+
+        return cropped_image, context_image
 
     def test(self):
         prompt="2D side scrolling, forest, electric atmosphere, mechanical ascension cyberpunk, tropical jungle theme, undewear, ruined walls, beastly, ruined cityscape, mechanical, ruins in a jungle, deep jungle, showchest, bad chest, adventurer, a ruin"
@@ -261,7 +222,7 @@ class IterativePainter:
         mask= Image.new("L", (512, 512), 255)
 
         # Generate the image
-        output_file_path, output_file_hash, img_byte_arr, seed, subseed = img2img(
+        init_image, seed = img2img(
             prompt=prompt, negative_prompt="", sampler_name="ddim", batch_size=1, n_iter=1, 
             steps=50, cfg_scale=12.0, width=self.context_size, height=self.context_size, mask_blur=0, inpainting_fill=0, 
             outpath='output', styles=None, init_images=white_background, mask=mask, resize_mode=0, 
@@ -269,8 +230,6 @@ class IterativePainter:
             sd=self.sd, clip_text_embedder=self.text_embedder, model=self.model, device=self.device)
         
 
-        img_byte_arr.seek(0)
-        init_image = Image.open(img_byte_arr).convert('RGB')
         draw = ImageDraw.Draw(init_image)
         draw.rectangle(self.center_area, fill="white")  # Unmasked (white) center area
         
