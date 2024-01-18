@@ -1,4 +1,5 @@
 from __future__ import print_function
+from io import BytesIO
 from keras.layers import Dense, Activation, Flatten, Reshape, Permute, LocallyConnected1D
 from keras.layers import Convolution2D
 from keras import backend as K
@@ -18,7 +19,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import profiler
 
+base_directory = "./"
+sys.path.insert(0, base_directory)
+from utility.minio import cmd
 
+
+
+minio_access_key='D6ybtPLyUrca5IdZfCIM'
+minio_secret_key='2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V'
+minio_ip_addr='192.168.3.5:9000'
+minio_client = cmd.get_minio_client(minio_access_key,minio_secret_key,minio_ip_addr)
 
 
 batch_size = 64 #64
@@ -28,14 +38,6 @@ nb_runs = 1 #5
 learning_rate = 0.001 # Seggested to be the best in the paper
 architecture = 'Full'  # can be one of 'Shallow', 'Full', 'TreeConnect', 'Bottleneck', 'Small' or 'RandomSparse'
 modelnameprefix = "Model-16-01" + architecture
-
-
-# # The data, shuffled and split between train and test sets:
-# (X_train, y_train), (X_test, y_test) = cifar10.load_data()
-
-# # Convert class vectors to binary class matrices.
-# Y_train = to_categorical(y_train, nb_classes)
-# Y_test = to_categorical(y_test, nb_classes)
 
 
 class RandomSparseLayer(Layer):
@@ -71,141 +73,6 @@ X_test = X_test.astype('float32')
 X_train /= 255
 X_test /= 255
 
-# for run_id in range(nb_runs):
-#     model = Sequential()
-#     if architecture == 'Small':
-#         model.add(Convolution2D(8, (3, 3), padding='same', activation='relu', input_shape=X_train.shape[1:]))
-#         model.add(Convolution2D(8, (3, 3), padding='same', activation='relu'))
-#         model.add(Convolution2D(16, (4, 4), padding='same', strides=2, activation='relu'))
-#         model.add(Convolution2D(16, (3, 3), padding='same', activation='relu'))
-#         model.add(Convolution2D(16, (3, 3), padding='same', activation='relu'))
-#         model.add(Convolution2D(32, (4, 4), padding='same', strides=2, activation='relu'))
-#         model.add(Flatten())
-#         model.add(Dense(552))
-#         model.add(Dense(256))
-#     else:
-#         model.add(Convolution2D(64, (3, 3), padding='same', activation='relu', input_shape=X_train.shape[1:]))
-#         model.add(Convolution2D(64, (3, 3), padding='same', activation='relu'))
-#         model.add(Convolution2D(128, (4, 4), padding='same', strides=2, activation='relu'))
-#         model.add(Convolution2D(128, (3, 3), padding='same', activation='relu'))
-#         model.add(Convolution2D(128, (3, 3), padding='same', activation='relu'))
-#         model.add(Convolution2D(256, (4, 4), padding='same', strides=2, activation='relu'))
-#     if architecture == 'Shallow':
-#         model.add(Flatten())
-#         model.add(Dense(256))
-#     elif architecture == 'Full':
-#         model.add(Flatten())
-#         model.add(Dense(2048))
-#         model.add(Dense(256))
-#     elif architecture == 'TreeConnect':
-#         model.add(Reshape((128, 128)))
-#         model.add(LocallyConnected1D(16, 1, activation='relu'))
-#         model.add(Permute((2, 1)))
-#         model.add(LocallyConnected1D(16, 1, activation='relu'))
-#         model.add(Flatten())
-#     elif architecture == 'Bottleneck':
-#         model.add(Flatten())
-#         model.add(Dense(18))
-#         model.add(Dense(167))
-#     elif architecture == 'RandomSparse':
-#         model.add(Flatten())
-#         model.add(RandomSparseLayer(2048, percentage_masked=99.22))
-#         model.add(RandomSparseLayer(256, percentage_masked=93.75))
-
-#     # ADD an FC at the and (MD)
-#     model.add(Flatten())
-#     model.add(Dense(256))
-#     model.add(Dense(128))
-#     model.add(Dense(64))
-#     # Classification
-#     model.add(Dense(nb_classes))
-#     model.add(Activation('softmax'))
-
-#     model.compile(loss='categorical_crossentropy',
-#                   optimizer=Adam(lr=learning_rate),
-#                   metrics=['accuracy'])
-
-#     # Save stats
-#     tbCallback = callbacks.TensorBoard(log_dir='./cifar/' + architecture + '_run_' + str(run_id),
-#                                        histogram_freq=1, write_graph=True)
-#     model.summary()
-
-
-# #    from tensorflow.keras.backend import set_session
-# #    config = tf.ConfigProto()
-# #    config.gpu_options.allow_growth = True  # Allow GPU memory usage to grow dynamically
-# #    set_session(tf.Session(config=config))
-
-
-#     # Allow GPU memory usage to grow dynamically
-#     gpus = tf.config.experimental.list_physical_devices('GPU')
-#     if gpus:
-#         try:
-#             for gpu in gpus:
-#                 tf.config.experimental.set_memory_growth(gpu, True)
-#         except RuntimeError as e:
-#             print(e)
-
-#     # Record the start time
-#     start_time = time.time()
-#     history = model.fit(X_train, Y_train,
-#               batch_size=batch_size,
-#               epochs=nb_epoch,
-#               validation_data=(X_test, Y_test),
-#               shuffle=True,
-#               callbacks=[tbCallback])
-#     K.clear_session()
-#     # Record the end time
-#     end_time = time.time()
-
-#     elapsed_time = end_time - start_time
-#     print(f"Training time for run {run_id + 1}: {elapsed_time:.2f} seconds")
-
-#     # Save model
-#     modelname = modelnameprefix + str(run_id) + ".keras"
-#     model.save(modelname)
-
-#     import matplotlib.pyplot as plt
-#     training_loss = history.history['loss']
-#     validation_loss = history.history['val_loss']
-
-#     # plt.plot(range(1, len(training_loss) + 1), training_loss,'b', label='Training loss')
-#     # plt.plot(range(1, len(validation_loss) + 1), validation_loss,'r', label='Validation loss')
-#     # plt.set_title('Loss per Round')
-#     # plt.set_ylabel('Loss')
-#     # plt.set_xlabel('Rounds')
-#     # plt.legend(['Training loss', 'Validation loss'])
-
-#     #plt.plot(range(1, len(training_loss) + 1), training_loss, 'bo', label='Training Loss')
-#     #plt.plot(range(1, len(validation_loss) + 1), validation_loss, 'r', label='Validation Loss')
-#     #plt.title('Training and Validation Loss')
-#     #plt.xlabel('Epochs')
-#     #plt.ylabel('Loss')
-#     #plt.legend()
-#     #plt.show()
-
-
-
-#     start_tinference = time.time()
-#     # Load the saved model
-
-
-#     # Display the model architecture
-#     model.summary()
-
-#     # Run inference on a batch of 1024
-#     inference_batch_size = 1024
-#     predictions = model.predict(X_test[:inference_batch_size])
-
-#     # Display the predictions
-#     print("Predictions:", predictions)
-#     end_time_inference = time.time()
-#     elapsed_time_inference = end_time_inference - start_tinference
-#     print("inference time is: ", elapsed_time_inference)
-
-
-
-######################### functions
 
 
 #Train and save model
@@ -342,26 +209,18 @@ def trainAndSaveModel(architecture,batch_size,nb_classes,nb_epoch,learning_rate,
 
       plt.tight_layout()
       plt.show()
+      plt.savefig('fc_training_graph.png')
 
-      # plt.plot(range(1, len(training_loss) + 1), training_loss,'b', label='Training loss')
-      # plt.plot(range(1, len(validation_loss) + 1), validation_loss,'r', label='Validation loss')
-      # plt.title('Training and Validation Loss')
-      # plt.ylabel('Loss')
-      # plt.xlabel('Epochs')
-      # plt.legend(['Training loss', 'Validation loss'])
+    #Save the figure to a file
+      buf = BytesIO()
+      plt.savefig(buf, format='png')
+      buf.seek(0)
 
-      # plt.plot(range(1, len(training_loss) + 1), training_loss, 'bo', label='Training Loss')
-      # plt.plot(range(1, len(validation_loss) + 1), validation_loss, 'r', label='Validation Loss')
-      # plt.title('Training and Validation Loss')
-      # plt.xlabel('Epochs')
-      # plt.ylabel('Loss')
-      # plt.legend()
-      # plt.show()
+    #upload the graph report
+      cmd.upload_data(minio_client, 'datasets', 'environmental/output/tree_connect/fc_training_graph.png', buf)
 
-
-
-      start_tinference = time.time()
-      # Load the saved model
+    #Clear the current figure
+      plt.clf()
 
 
 
@@ -522,12 +381,6 @@ def block_simulation_dummy_data(batch_size,testingRange):
 # #trainAndSaveModel("Full",64,10,2,0.001,modelnameX)
 # #calculateInferenceSpeed("modelv1.h5")
 
-
-
-
-
-
-
 ########### Final testing
 batch_size = 64 #64
 nb_classes = 10
@@ -540,21 +393,19 @@ modelnameprefix = "Model-16-01" + architecture
 
 
 
-
-
-
 # #training time
 # # architecture , Batch_size, number of classes,number of epochs, model name
 trainAndSaveModel(architecture,64,nb_classes,50,0.001,'keras_fc_t2.keras')
+
+
+
+
 
 #inference speed
 
 
 
 # bs = 1024
-
-
-
 # true_elapsed_time_inference = 0
 # elapsed_time_inference = 0
 # rangex = 10
