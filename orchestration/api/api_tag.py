@@ -558,6 +558,34 @@ def remove_image_tag(
       
     return {"status": "success"}
 
+@router.delete("/tags/remove_tag_from_image/{tag_id}", 
+               tags=["tags"], 
+               status_code=200,
+               description="Remove image tag",
+               response_model=StandardSuccessResponse[WasPresentResponse],
+               responses=ApiResponseHandler.listErrors([400, 422]))
+def remove_image_tag(
+    request: Request,
+    image_hash: str,  
+    tag_id: int  # Now as a path parameter
+):
+    response_handler = ApiResponseHandler(request)
+
+    # The query now checks for the specific tag_id within the array of tags
+    query = {"image_hash": image_hash, "tag_id": tag_id}
+    result = request.app.image_tags_collection.delete_one(query)
+    
+    # If no document was found and deleted, use response_handler to raise an HTTPException
+    if result.deleted_count == 0:
+        return response_handler.create_error_response(
+            ErrorCode.ELEMENT_NOT_FOUND, 
+            "Tag or image hash not found",
+            404
+        )
+
+    # Return standard success response with wasPresent: true using response_handler
+    return response_handler.create_success_response({"wasPresent": True})
+
 @router.delete("/tags/remove_tag_from_image-v1", response_class=PrettyJSONResponse)
 def remove_image_tag(request: Request, image_hash: str, tag_id: int):
     response_handler = ApiResponseHandler(request)
