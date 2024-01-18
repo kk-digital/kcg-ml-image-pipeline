@@ -48,6 +48,9 @@ class PhraseVectorLoader:
         self.negative_phrases_index_dict = {}
         self.index_negative_phrases_dict = {}
 
+        self.len_positive_phrase_vector = 0
+        self.len_negative_phrase_vector = 0
+
     def get_data_paths(self):
         print("Getting paths for dataset: {}...".format(self.dataset_name))
         all_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', self.dataset_name)
@@ -159,6 +162,19 @@ class PhraseVectorLoader:
         else:
             self.load_dataset_phrases_from_msgpacks()
             self.upload_csv()
+
+        # get and assign lengths
+        positive_len_vector = len(self.positive_phrases_index_dict)
+        if self.index_positive_phrases_dict.get(-1) is not None:
+            positive_len_vector -= 1
+
+        self.len_positive_phrase_vector = positive_len_vector
+
+        negative_len_vector = len(self.negative_phrases_index_dict)
+        if self.index_negative_phrases_dict.get(-1) is not None:
+            negative_len_vector -= 1
+
+        self.len_negative_phrase_vector = negative_len_vector
 
         print("Data loaded...")
         print("Time elapsed: {0}s".format(format(time.time() - start_time, ".2f")))
@@ -286,23 +302,22 @@ class PhraseVectorLoader:
         cmd.upload_data(self.minio_client, 'datasets', csv_path, bytes_buffer)
 
     def get_phrase_vector(self, prompt, input_type="positive"):
-        if input_type == "positive":
-            len_vector = len(self.positive_phrases_index_dict)
-            if self.index_positive_phrases_dict.get(-1) is not None:
-                len_vector -= 1
-        else:
-            len_vector = len(self.negative_phrases_index_dict)
-            if self.index_negative_phrases_dict.get(-1) is not None:
-                len_vector -= 1
+
+        len_vector = self.len_positive_phrase_vector
+        if input_type != "positive":
+            len_vector = self.len_negative_phrase_vector
 
         phrase_vector = [False] * len_vector
         phrases = get_phrases_from_prompt(prompt)
+
         for phrase in phrases:
             if len(phrase) > 80:
                 phrase = "more than 80 characters"
 
             if input_type == "positive":
+
                 index = self.positive_phrases_index_dict[phrase]
+
             else:
                 index = self.negative_phrases_index_dict[phrase]
 
