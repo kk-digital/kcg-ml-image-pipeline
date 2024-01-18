@@ -220,8 +220,7 @@ class StableDiffusionProcessing:
         self.extra_generation_params = self.extra_generation_params or {}
 
     def init(self, all_prompts, all_seeds, all_subseeds):
-        # load stable diffusion model
-        self.sd, config, self.model = get_model(self.device, self.steps)
+        pass
 
     def sample(self, conditioning, unconditional_conditioning, seeds, subseeds, subseed_strength, prompts):
         raise NotImplementedError()
@@ -355,6 +354,9 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
             self.mask_blur_y = value
 
     def init(self, all_prompts, all_seeds, all_subseeds):
+        # load stable diffusion model
+        self.sd, config, self.model = get_model(self.device, self.steps)
+        
         self.image_cfg_scale: float = None
 
         if self.sampler_name == 'ddim':

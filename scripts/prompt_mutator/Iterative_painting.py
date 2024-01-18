@@ -87,8 +87,6 @@ class IterativePainter:
 
         self.scoring_model= self.load_scoring_model()
 
-        self.sd, config, self.model = get_model(self.device, 20)
-
     # load elm or linear scoring models
     def load_scoring_model(self):
         input_path=f"{self.prompt_generator.model_dataset}/models/ranking/"
