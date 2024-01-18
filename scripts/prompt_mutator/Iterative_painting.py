@@ -105,6 +105,9 @@ class IterativePainter:
             inpainting_mask_invert=0,
             clip_text_embedder=self.text_embedder, 
             device=self.device)
+        
+        # load stable diffusion model for inpainting
+        self.inpainting_processor.load_model()
 
     # load elm or linear scoring models
     def load_scoring_model(self):
