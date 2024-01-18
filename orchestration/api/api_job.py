@@ -246,6 +246,7 @@ def get_list_completed_jobs_by_date(
         dataset_name = job.get("task_input_dict", {}).get("dataset")
         job_uuid = job.get("uuid")
         file_path = job.get("task_output_file_dict", {}).get("output_file_path")
+        clip_sigma_score = job.get("task_attributes_dict",{}).get("image_clip_sigma_score")
 
         if not dataset_name or not job_uuid or not file_path:
             continue
@@ -255,7 +256,8 @@ def get_list_completed_jobs_by_date(
 
         job_info = {
             "job_uuid": job_uuid,
-            "file_path": file_path
+            "file_path": file_path, 
+            "clip_sigma_score": clip_sigma_score
         }
 
         datasets[dataset_name].append(job_info)
