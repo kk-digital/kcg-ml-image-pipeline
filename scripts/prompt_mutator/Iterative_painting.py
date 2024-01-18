@@ -148,7 +148,7 @@ class IterativePainter:
             context_box= self.get_context_area(paint_area)
 
             context_image= self.image.crop(context_box)
-            generated_image, context= self.generate_image(context_image, prompt)
+            generated_image= self.generate_image(context_image, prompt)
 
             # paste generated image in the main image
             self.image.paste(generated_image, paint_area)
@@ -211,7 +211,7 @@ class IterativePainter:
 
         cropped_image = image.crop(self.center_area)
 
-        return cropped_image, context_image
+        return cropped_image
 
     def test(self):
         prompt="2D side scrolling, forest, electric atmosphere, mechanical ascension cyberpunk, tropical jungle theme, undewear, ruined walls, beastly, ruined cityscape, mechanical, ruins in a jungle, deep jungle, showchest, bad chest, adventurer, a ruin"
