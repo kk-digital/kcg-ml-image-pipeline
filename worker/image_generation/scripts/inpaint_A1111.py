@@ -151,9 +151,7 @@ def decode_latent_batch(model, batch, target_device=None, check_for_nans=False):
 @dataclass(repr=False)
 class StableDiffusionProcessing:
     sd_model: object = None
-    prompt: str = ""
     prompt_for_display: str = None
-    negative_prompt: str = ""
     styles: list = None
     seed: int = -1
     subseed: int = -1
@@ -235,18 +233,18 @@ class StableDiffusionProcessing:
         self.clip_text_embedder.to("cpu")
         torch.cuda.empty_cache()
 
-    def setup_prompts(self):
-        if isinstance(self.prompt, list):
-            self.all_prompts = self.prompt
-        elif isinstance(self.negative_prompt, list):
-            self.all_prompts = [self.prompt] * len(self.negative_prompt)
+    def setup_prompts(self, prompt, negative_prompt):
+        if isinstance(prompt, list):
+            self.all_prompts = prompt
+        elif isinstance(negative_prompt, list):
+            self.all_prompts = [prompt] * len(negative_prompt)
         else:
-            self.all_prompts = self.batch_size * self.n_iter * [self.prompt]
+            self.all_prompts = self.batch_size * self.n_iter * [prompt]
 
-        if isinstance(self.negative_prompt, list):
-            self.all_negative_prompts = self.negative_prompt
+        if isinstance(negative_prompt, list):
+            self.all_negative_prompts = negative_prompt
         else:
-            self.all_negative_prompts = [self.negative_prompt] * len(self.all_prompts)
+            self.all_negative_prompts = [negative_prompt] * len(self.all_prompts)
 
         if len(self.all_prompts) != len(self.all_negative_prompts):
             raise RuntimeError(
@@ -337,8 +335,6 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
     def __post_init__(self):
         super().__post_init__()
 
-        self.image_mask = self.mask
-        self.mask = None
         self.initial_noise_multiplier = opts.initial_noise_multiplier if self.initial_noise_multiplier is None else self.initial_noise_multiplier
 
     @property
@@ -354,9 +350,11 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
             self.mask_blur_y = value
 
     def init(self, all_prompts, all_seeds, all_subseeds):
-        # load stable diffusion model
-        self.sd, config, self.model = get_model(self.device, self.steps)
         
+        self.all_prompts=all_prompts
+        self.all_seeds=all_seeds
+        self.all_subseeds=all_subseeds
+
         self.image_cfg_scale: float = None
 
         if self.sampler_name == 'ddim':
@@ -365,10 +363,29 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
                                        ddim_eta=self.ddim_eta)
         elif self.sampler_name == 'ddpm':
             self.sampler = DDPMSampler(self.model)
+            
 
+    def load_model(self, sd=None):
+        # if stable diffusion model was provided as parameter
+        if sd is not None:
+            self.sd=sd
+            self.model = sd.model
+        
+        # else model is loaded
+        # NOTE: Initializing stable diffusion
+        sd = StableDiffusion(device=self.device, n_steps=self.n_steps)
+        config = ModelPathConfig()
+        sd.quick_initialize().load_autoencoder(config.get_model(SDconfigs.VAE)).load_decoder(
+            config.get_model(SDconfigs.VAE_DECODER))
+        sd.model.load_unet(config.get_model(SDconfigs.UNET))
+        sd.initialize_latent_diffusion(path='input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors',
+                                    force_submodels_init=True)
+        
+        self.sd=sd
+        self.model = sd.model  
+
+    def setup_image_latent(self, init_images, image_mask):
         crop_region = None
-
-        image_mask = self.image_mask
 
         if image_mask is not None:
             # image_mask is passed in as RGBA by Gradio to support alpha masks,
@@ -414,7 +431,7 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
         if add_color_corrections:
             self.color_corrections = []
         imgs = []
-        for img in self.init_images:
+        for img in init_images:
 
             # Save init image
             if opts.save_init_img:
@@ -496,7 +513,7 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
             # this needs to be fixed to be done in sample() using actual seeds for batches
             if self.inpainting_fill == 2:
                 self.init_latent = self.init_latent * self.mask + create_random_tensors(self.init_latent.shape[1:],
-                                                                                        all_seeds[
+                                                                                        self.all_seeds[
                                                                                         0:self.init_latent.shape[
                                                                                             0]], device=self.device) * self.nmask
             elif self.inpainting_fill == 3:
@@ -532,6 +549,97 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
         torch_gc()
 
         return samples
+    
+    def img2img(self, prompt: str, negative_prompt: str, init_images, image_mask):
+
+        if isinstance(prompt, list):
+            assert (len(prompt) > 0)
+        else:
+            assert prompt is not None
+
+        torch_gc()
+
+        seed = get_fixed_seed(self.seed)
+        subseed = get_fixed_seed(self.subseed)
+
+        # Check if is correct
+        self.setup_prompts(prompt, negative_prompt)
+
+        if isinstance(seed, list):
+            self.all_seeds = seed
+        else:
+            self.all_seeds = [int(seed) + (x if self.subseed_strength == 0 else 0) for x in range(len(self.all_prompts))]
+
+        if isinstance(subseed, list):
+            self.all_subseeds = subseed
+        else:
+            self.all_subseeds = [int(subseed) + x for x in range(len(self.all_prompts))]
+
+        with torch.no_grad():
+            with torch.autocast("cpu"):
+                self.init(self.all_prompts, self.all_seeds, self.all_subseeds)
+                self.setup_image_latent(init_images, image_mask)
+
+            for n in range(self.n_iter):
+                self.iteration = n
+                self.prompts = self.all_prompts[n * self.batch_size:(n + 1) * self.batch_size]
+                self.negative_prompts = self.all_negative_prompts[n * self.batch_size:(n + 1) * self.batch_size]
+                self.seeds = self.all_seeds[n * self.batch_size:(n + 1) * self.batch_size]
+                self.subseeds = self.all_subseeds[n * self.batch_size:(n + 1) * self.batch_size]
+
+                # May we need to configure this part to get the propaly conds
+                self.setup_conds()
+
+                self.rng = rng.ImageRNG((opt_C, self.height // opt_f, self.width // opt_f), self.seeds, subseeds=self.subseeds,
+                                    subseed_strength=self.subseed_strength, seed_resize_from_h=self.seed_resize_from_h,
+                                    seed_resize_from_w=self.seed_resize_from_w)
+                if len(self.prompts) == 0:
+                    break
+
+                with without_autocast():
+                    samples_ddim = self.sample(conditioning=self.c, unconditional_conditioning=self.uc, seeds=self.seeds,
+                                            subseeds=self.subseeds, subseed_strength=self.subseed_strength, prompts=self.prompts)
+
+                if getattr(samples_ddim, 'already_decoded', False):
+                    x_samples_ddim = samples_ddim
+                else:
+                    if opts.sd_vae_decode_method != 'Full':
+                        self.extra_generation_params['VAE Decoder'] = opts.sd_vae_decode_method
+
+                    x_samples_ddim = decode_latent_batch(self.model, samples_ddim, target_device=torch.device('cpu'),
+                                                        check_for_nans=True)
+
+                x_samples_ddim = torch.stack(x_samples_ddim).float()
+                x_samples_ddim = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
+
+                del samples_ddim
+
+                for i, x_sample in enumerate(x_samples_ddim):
+                    self.batch_index = i
+                    
+                    # get image float array
+                    x_sample = 255. * np.moveaxis(x_sample.cpu().numpy(), 0, 2)
+                    x_sample = x_sample.astype(np.uint8)
+
+                    # convert image array to rgb and apply overlays
+                    image = Image.fromarray(x_sample)
+                    image = apply_overlay(image, self.paste_to, i, self.overlay_images)
+
+                del x_samples_ddim
+                torch_gc()
+
+        return image, seed
+    
+    def convert_image_to_png(self, image):
+        # convert image to bytes arr
+        img_byte_arr = io.BytesIO()
+        image.save(img_byte_arr, format='jpeg')
+        img_byte_arr.seek(0)
+
+        # get hash from byte array
+        output_file_hash = (hashlib.sha256(img_byte_arr.getbuffer())).hexdigest()
+
+        return output_file_hash, img_byte_arr
 
 
 def apply_color_correction(correction, original_image):
@@ -570,85 +678,6 @@ def apply_overlay(image, paste_loc, index, overlays):
     return image
 
 
-def process_images(p: StableDiffusionProcessingImg2Img):
-
-    if isinstance(p.prompt, list):
-        assert (len(p.prompt) > 0)
-    else:
-        assert p.prompt is not None
-
-    torch_gc()
-
-    seed = get_fixed_seed(p.seed)
-    subseed = get_fixed_seed(p.subseed)
-
-    # Check if is correct
-    p.setup_prompts()
-
-    if isinstance(seed, list):
-        p.all_seeds = seed
-    else:
-        p.all_seeds = [int(seed) + (x if p.subseed_strength == 0 else 0) for x in range(len(p.all_prompts))]
-
-    if isinstance(subseed, list):
-        p.all_subseeds = subseed
-    else:
-        p.all_subseeds = [int(subseed) + x for x in range(len(p.all_prompts))]
-
-    with torch.no_grad():
-        with torch.autocast("cpu"):
-            p.init(p.all_prompts, p.all_seeds, p.all_subseeds)
-
-        for n in range(p.n_iter):
-            p.iteration = n
-            p.prompts = p.all_prompts[n * p.batch_size:(n + 1) * p.batch_size]
-            p.negative_prompts = p.all_negative_prompts[n * p.batch_size:(n + 1) * p.batch_size]
-            p.seeds = p.all_seeds[n * p.batch_size:(n + 1) * p.batch_size]
-            p.subseeds = p.all_subseeds[n * p.batch_size:(n + 1) * p.batch_size]
-
-            # May we need to configure this part to get the propaly conds
-            p.setup_conds()
-
-            p.rng = rng.ImageRNG((opt_C, p.height // opt_f, p.width // opt_f), p.seeds, subseeds=p.subseeds,
-                                 subseed_strength=p.subseed_strength, seed_resize_from_h=p.seed_resize_from_h,
-                                 seed_resize_from_w=p.seed_resize_from_w)
-            if len(p.prompts) == 0:
-                break
-
-            with without_autocast():
-                samples_ddim = p.sample(conditioning=p.c, unconditional_conditioning=p.uc, seeds=p.seeds,
-                                        subseeds=p.subseeds, subseed_strength=p.subseed_strength, prompts=p.prompts)
-
-            if getattr(samples_ddim, 'already_decoded', False):
-                x_samples_ddim = samples_ddim
-            else:
-                if opts.sd_vae_decode_method != 'Full':
-                    p.extra_generation_params['VAE Decoder'] = opts.sd_vae_decode_method
-
-                x_samples_ddim = decode_latent_batch(p.model, samples_ddim, target_device=torch.device('cpu'),
-                                                     check_for_nans=True)
-
-            x_samples_ddim = torch.stack(x_samples_ddim).float()
-            x_samples_ddim = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
-
-            del samples_ddim
-
-            for i, x_sample in enumerate(x_samples_ddim):
-                p.batch_index = i
-
-                x_sample = 255. * np.moveaxis(x_sample.cpu().numpy(), 0, 2)
-                x_sample = x_sample.astype(np.uint8)
-
-                image = Image.fromarray(x_sample)
-
-                image = apply_overlay(image, p.paste_to, i, p.overlay_images)
-
-            del x_samples_ddim
-            torch_gc()
-
-    return image, seed
-
-
 def create_binary_mask(image):
     if image.mode == 'RGBA' and image.getextrema()[-1] != (255, 255):
         image = image.split()[-1].convert("L").point(lambda x: 255 if x > 128 else 0)
@@ -657,49 +686,35 @@ def create_binary_mask(image):
     return image
 
 
-def get_model(device, n_steps):
-    # NOTE: Initializing stable diffusion
-    sd = StableDiffusion(device=device, n_steps=n_steps)
-    config = ModelPathConfig()
-    sd.quick_initialize().load_autoencoder(config.get_model(SDconfigs.VAE)).load_decoder(
-        config.get_model(SDconfigs.VAE_DECODER))
-    sd.model.load_unet(config.get_model(SDconfigs.UNET))
-    sd.initialize_latent_diffusion(path='input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors',
-                                   force_submodels_init=True)
-    model = sd.model
+# def img2img(prompt: str, negative_prompt: str, sampler_name: str, batch_size: int, n_iter: int, steps: int,
+#             cfg_scale: float, width: int, height: int, mask_blur: int, inpainting_fill: int, 
+#             styles, init_images, mask, resize_mode, denoising_strength,image_cfg_scale, 
+#             inpaint_full_res_padding, inpainting_mask_invert, clip_text_embedder=None, device=None):
+#     p = StableDiffusionProcessingImg2Img(
+#         prompt=prompt,
+#         negative_prompt=negative_prompt,
+#         styles=styles,
+#         sampler_name=sampler_name,
+#         batch_size=batch_size,
+#         n_iter=n_iter,
+#         steps=steps,
+#         cfg_scale=cfg_scale,
+#         width=width,
+#         height=height,
+#         init_images=init_images,
+#         mask=create_binary_mask(mask),
+#         mask_blur=mask_blur,
+#         inpainting_fill=inpainting_fill,
+#         resize_mode=resize_mode,
+#         denoising_strength=denoising_strength,
+#         image_cfg_scale=image_cfg_scale,
+#         inpaint_full_res_padding=inpaint_full_res_padding,
+#         inpainting_mask_invert=inpainting_mask_invert,
+#         clip_text_embedder=clip_text_embedder,
+#         device=device
+#     )
 
-    return sd, config, model
+#     with closing(p):
+#         image, seed = process_images(p)
 
-
-def img2img(prompt: str, negative_prompt: str, sampler_name: str, batch_size: int, n_iter: int, steps: int,
-            cfg_scale: float, width: int, height: int, mask_blur: int, inpainting_fill: int, 
-            styles, init_images, mask, resize_mode, denoising_strength,image_cfg_scale, 
-            inpaint_full_res_padding, inpainting_mask_invert, clip_text_embedder=None, device=None):
-    p = StableDiffusionProcessingImg2Img(
-        prompt=prompt,
-        negative_prompt=negative_prompt,
-        styles=styles,
-        sampler_name=sampler_name,
-        batch_size=batch_size,
-        n_iter=n_iter,
-        steps=steps,
-        cfg_scale=cfg_scale,
-        width=width,
-        height=height,
-        init_images=init_images,
-        mask=create_binary_mask(mask),
-        mask_blur=mask_blur,
-        inpainting_fill=inpainting_fill,
-        resize_mode=resize_mode,
-        denoising_strength=denoising_strength,
-        image_cfg_scale=image_cfg_scale,
-        inpaint_full_res_padding=inpaint_full_res_padding,
-        inpainting_mask_invert=inpainting_mask_invert,
-        clip_text_embedder=clip_text_embedder,
-        device=device
-    )
-
-    with closing(p):
-        image, seed = process_images(p)
-
-    return image, seed
+#     return image, seed

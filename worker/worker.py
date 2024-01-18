@@ -18,7 +18,7 @@ sys.path.insert(0, base_directory)
 
 from worker.prompt_generation.prompt_generator import run_generate_inpainting_generation_task, \
     run_generate_image_generation_task
-from worker.image_generation.scripts.inpaint_A1111 import convert_image_array_to_rgb, img2img
+from worker.image_generation.scripts.inpaint_A1111 import StableDiffusionProcessingImg2Img, convert_image_array_to_rgb, img2img
 from worker.image_generation.scripts.generate_image_from_text import generate_image_from_text
 from worker.worker_state import WorkerState
 from utility.http import generation_request
@@ -109,9 +109,7 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
     prompt_generation_policy = generation_task.task_input_dict["prompt_generation_policy"]
     top_k = generation_task.task_input_dict["top_k"]
 
-    image, seed = img2img(
-        prompt=positive_prompts,
-        negative_prompt=negative_prompts,
+    inpainting_processor = StableDiffusionProcessingImg2Img(
         sampler_name=sampler,
         batch_size=1,
         n_iter=1,
@@ -122,8 +120,6 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
         mask_blur=generation_task.task_input_dict["mask_blur"],
         inpainting_fill=generation_task.task_input_dict["inpainting_fill_mode"],
         styles=generation_task.task_input_dict["styles"],
-        init_images=[init_image],
-        mask=init_mask,
         resize_mode=generation_task.task_input_dict["resize_mode"],
         denoising_strength=generation_task.task_input_dict["denoising_strength"],
         image_cfg_scale=generation_task.task_input_dict["image_cfg_scale"],
@@ -133,18 +129,22 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
         device=worker_state.device
     )
     
+    # load sd model
+    inpainting_processor.load_model(sd=worker_state.stable_diffusion.model)
+    
+    # generate image
+    image, seed= inpainting_processor.img2img(prompt=positive_prompts, 
+                                              negative_prompt=negative_prompts, 
+                                              init_images=[init_image],
+                                              image_mask=init_mask)
+    
+    # convert image to png from RGB
+    output_file_hash, img_byte_arr=inpainting_processor.convert_image_to_png(image)
+    
     output_file_path=os.path.join("datasets", generation_task.task_input_dict['dataset'],
                              generation_task.task_input_dict['file_path'])
     generation_task.task_input_dict["seed"] = seed
     # generation_task.task_input_dict["subseed"] = subseed
-
-    # convert image to bytes arr
-    img_byte_arr = io.BytesIO()
-    image.save(img_byte_arr, format='jpeg')
-    img_byte_arr.seek(0)
-
-    # get hash from byte array
-    output_file_hash = (hashlib.sha256(img_byte_arr.getbuffer())).hexdigest()
 
     return output_file_path, output_file_hash, img_byte_arr, seed
 
