@@ -302,7 +302,6 @@ class PhraseVectorLoader:
         cmd.upload_data(self.minio_client, 'datasets', csv_path, bytes_buffer)
 
     def get_phrase_vector(self, prompt, input_type="positive"):
-
         len_vector = self.len_positive_phrase_vector
         if input_type != "positive":
             len_vector = self.len_negative_phrase_vector
@@ -315,9 +314,7 @@ class PhraseVectorLoader:
                 phrase = "more than 80 characters"
 
             if input_type == "positive":
-
                 index = self.positive_phrases_index_dict[phrase]
-
             else:
                 index = self.negative_phrases_index_dict[phrase]
 
