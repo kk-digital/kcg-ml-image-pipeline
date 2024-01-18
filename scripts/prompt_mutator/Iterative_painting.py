@@ -14,7 +14,7 @@ sys.path.insert(0, os.getcwd())
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from stable_diffusion.model.clip_image_encoder.clip_image_encoder import CLIPImageEncoder
-from worker.image_generation.scripts.inpaint_A1111 import get_model, img2img
+from worker.image_generation.scripts.inpaint_A1111 import StableDiffusionProcessingImg2Img
 from scripts.prompt_mutator.greedy_substitution_search_v1 import PromptSubstitutionGenerator
 from utility.minio import cmd
 from utility.clip import clip
@@ -86,6 +86,25 @@ class IterativePainter:
         self.image_embedder.load_clip()
 
         self.scoring_model= self.load_scoring_model()
+
+        self.inpainting_processor= StableDiffusionProcessingImg2Img(
+            sampler_name="ddim", 
+            batch_size=1, 
+            n_iter=1, 
+            steps=20, 
+            cfg_scale=7.0, 
+            width=self.context_size, 
+            height=self.context_size, 
+            mask_blur=4.0, 
+            inpainting_fill=1, 
+            styles=None, 
+            resize_mode=0, 
+            denoising_strength=0.75, 
+            image_cfg_scale=None, 
+            inpaint_full_res_padding=0, 
+            inpainting_mask_invert=0,
+            clip_text_embedder=self.text_embedder, 
+            device=self.device)
 
     # load elm or linear scoring models
     def load_scoring_model(self):
@@ -202,12 +221,7 @@ class IterativePainter:
         draw.rectangle(self.center_area, fill=255)  # Unmasked (white) center area
 
         # Generate the image
-        image, seed = img2img(
-            prompt=prompt, negative_prompt="", sampler_name="ddim", batch_size=1, n_iter=1, 
-            steps=20, cfg_scale=7.0, width=self.context_size, height=self.context_size, mask_blur=4.0, 
-            inpainting_fill=1, styles=None, init_images=init_images, mask=mask, resize_mode=0, 
-            denoising_strength=0.75, image_cfg_scale=None, inpaint_full_res_padding=0, inpainting_mask_invert=0,
-            clip_text_embedder=self.text_embedder, device=self.device)
+        image, seed = self.inpainting_processor.img2img(prompt=prompt, negative_prompt="", init_images=init_images, image_mask=mask)
 
         cropped_image = image.crop(self.center_area)
 
@@ -219,13 +233,7 @@ class IterativePainter:
         mask= Image.new("L", (512, 512), 255)
 
         # Generate the image
-        init_image, seed = img2img(
-            prompt=prompt, negative_prompt="", sampler_name="ddim", batch_size=1, n_iter=1, 
-            steps=20, cfg_scale=12.0, width=self.context_size, height=self.context_size, mask_blur=0, 
-            inpainting_fill=0, styles=None, init_images=white_background, mask=mask, resize_mode=0, 
-            denoising_strength=0.75, image_cfg_scale=None, inpaint_full_res_padding=0, inpainting_mask_invert=0,
-            clip_text_embedder=self.text_embedder, device=self.device)
-        
+        init_image, seed = self.inpainting_processor.img2img(prompt=prompt, negative_prompt="", init_images=white_background, image_mask=mask)
 
         draw = ImageDraw.Draw(init_image)
         draw.rectangle(self.center_area, fill="white")  # Unmasked (white) center area
