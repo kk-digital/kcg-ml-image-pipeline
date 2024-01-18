@@ -641,6 +641,13 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
 
         return output_file_hash, img_byte_arr
 
+    def save_image_to_disk(self, image_data, output_file_path, minio_client):
+        # get bucket name and file path from output path
+        bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
+        
+        # upload image data to minIO
+        cmd.upload_data(minio_client, bucket_name, file_path, image_data)    
+
 
 def apply_color_correction(correction, original_image):
     logging.info("Applying color correction.")
@@ -684,37 +691,3 @@ def create_binary_mask(image):
     else:
         image = image.convert('L')
     return image
-
-
-# def img2img(prompt: str, negative_prompt: str, sampler_name: str, batch_size: int, n_iter: int, steps: int,
-#             cfg_scale: float, width: int, height: int, mask_blur: int, inpainting_fill: int, 
-#             styles, init_images, mask, resize_mode, denoising_strength,image_cfg_scale, 
-#             inpaint_full_res_padding, inpainting_mask_invert, clip_text_embedder=None, device=None):
-#     p = StableDiffusionProcessingImg2Img(
-#         prompt=prompt,
-#         negative_prompt=negative_prompt,
-#         styles=styles,
-#         sampler_name=sampler_name,
-#         batch_size=batch_size,
-#         n_iter=n_iter,
-#         steps=steps,
-#         cfg_scale=cfg_scale,
-#         width=width,
-#         height=height,
-#         init_images=init_images,
-#         mask=create_binary_mask(mask),
-#         mask_blur=mask_blur,
-#         inpainting_fill=inpainting_fill,
-#         resize_mode=resize_mode,
-#         denoising_strength=denoising_strength,
-#         image_cfg_scale=image_cfg_scale,
-#         inpaint_full_res_padding=inpaint_full_res_padding,
-#         inpainting_mask_invert=inpainting_mask_invert,
-#         clip_text_embedder=clip_text_embedder,
-#         device=device
-#     )
-
-#     with closing(p):
-#         image, seed = process_images(p)
-
-#     return image, seed
