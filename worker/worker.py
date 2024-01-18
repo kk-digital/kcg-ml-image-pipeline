@@ -18,7 +18,7 @@ sys.path.insert(0, base_directory)
 
 from worker.prompt_generation.prompt_generator import run_generate_inpainting_generation_task, \
     run_generate_image_generation_task
-from worker.image_generation.scripts.inpaint_A1111 import StableDiffusionProcessingImg2Img, convert_image_array_to_rgb, img2img
+from worker.image_generation.scripts.inpaint_A1111 import StableDiffusionProcessingImg2Img
 from worker.image_generation.scripts.generate_image_from_text import generate_image_from_text
 from worker.worker_state import WorkerState
 from utility.http import generation_request
@@ -128,7 +128,7 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
         clip_text_embedder=worker_state.clip_text_embedder,
         device=worker_state.device
     )
-    
+
     # load sd model
     inpainting_processor.load_model(sd=worker_state.stable_diffusion.model)
     
