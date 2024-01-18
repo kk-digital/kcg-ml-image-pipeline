@@ -144,14 +144,15 @@ class IndependentApproximationDatasetLoader:
         prompt_target = image_pair[2]
 
         phrase_vector_img_1 = self.phrase_vector_loader.get_phrase_vector(prompt_img_1, input_type=self.input_type)
-        phrase_vector_img_1 = np.array(phrase_vector_img_1, dtype=bool)
+        phrase_vector_img_1 = np.fromiter(phrase_vector_img_1, dtype=bool)
         phrase_vector_img_1 = sp.sparse.coo_array(phrase_vector_img_1)
 
         phrase_vector_img_2 = self.phrase_vector_loader.get_phrase_vector(prompt_img_2, input_type=self.input_type)
-        phrase_vector_img_2 = np.array(phrase_vector_img_2, dtype=bool)
+        phrase_vector_img_2 = np.fromiter(phrase_vector_img_2, dtype=bool)
         phrase_vector_img_2 = sp.sparse.coo_array(phrase_vector_img_2)
 
         new_image_pair = (phrase_vector_img_1, phrase_vector_img_2, prompt_target)
+
         return new_image_pair, index
 
     def convert_training_data_to_phrase_vector_pairs(self):

@@ -383,7 +383,7 @@ class ABRankingIndependentApproximationV1Model:
 
                         # loss penalty = (relu(-x-1) + relu(x-1))
                         # https://www.wolframalpha.com/input?i=graph+for+x%3D-5+to+x%3D5%2C++relu%28+-x+-+1.0%29+%2B+ReLu%28x+-+1.0%29
-                        loss_penalty = torch.relu(-predicted_score_images_x - 1.0) + torch.relu(predicted_score_images_x - 1.0) * 10
+                        loss_penalty = torch.relu(-predicted_score_images_x - 1.0) + torch.relu(predicted_score_images_x - 1.0)
                         loss = torch.add(loss, loss_penalty)
 
 
@@ -440,7 +440,7 @@ class ABRankingIndependentApproximationV1Model:
                         # loss penalty = (relu(-x-1) + relu(x-1))
                         # https://www.wolframalpha.com/input?i=graph+for+x%3D-5+to+x%3D5%2C++relu%28+-x+-+1.0%29+%2B+ReLu%28x+-+1.0%29
                         loss_penalty = torch.relu(-predicted_score_image_x - 1.0) + torch.relu(
-                            predicted_score_image_x - 1.0) * 10
+                            predicted_score_image_x - 1.0)
                         validation_loss = torch.add(validation_loss, loss_penalty)
 
                     # validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
