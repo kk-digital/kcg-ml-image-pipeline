@@ -4,7 +4,7 @@ import json
 import time
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
+from datetime import datetime, timedelta
 from pytz import timezone
 import io
 import csv
@@ -48,6 +48,9 @@ class PhraseVectorLoader:
         self.negative_phrases_index_dict = {}
         self.index_negative_phrases_dict = {}
 
+        self.len_positive_phrase_vector = 0
+        self.len_negative_phrase_vector = 0
+
     def get_data_paths(self):
         print("Getting paths for dataset: {}...".format(self.dataset_name))
         all_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', self.dataset_name)
@@ -72,9 +75,112 @@ class PhraseVectorLoader:
 
         return positive_prompt_phrases, negative_prompt_phrases
 
+    def load_dataset_phrases_from_csv(self, csv_filename):
+        csv_data = get_object(self.minio_client, csv_filename)
+        csv_data = csv_data.decode(encoding='utf-8')
+        lines = csv_data.splitlines()
+        csv_reader = csv.reader(lines, delimiter=',')
+
+        line_count = 0
+        for row in csv_reader:
+            if line_count == 0:
+                print(f'Column names are {", ".join(row)}')
+            else:
+                if "positive" in csv_filename:
+                    positive_index = int(row[0])
+                    phrase = row[1]
+                    num_occurrences = int(row[2])
+                    token_length = int(row[3])
+                    self.positive_phrases_index_dict[phrase] = positive_index
+                    self.index_positive_phrases_dict[positive_index] = phrase
+                    prompt_info = PromptPhraseInformation(phrase,
+                                                          num_occurrences,
+                                                          token_length)
+                    self.index_positive_prompt_phrase_info[positive_index] = prompt_info
+                else:
+                    negative_index = int(row[0])
+                    phrase = row[1]
+                    num_occurrences = int(row[2])
+                    token_length = int(row[3])
+                    self.negative_phrases_index_dict[phrase] = negative_index
+                    self.index_negative_phrases_dict[negative_index] = phrase
+                    prompt_info = PromptPhraseInformation(phrase,
+                                                          num_occurrences,
+                                                          token_length)
+                    self.index_negative_prompt_phrase_info[negative_index] = prompt_info
+
+            line_count += 1
+
+    def load_recent_phrases_csv(self):
+        # for positive
+        count = 0
+        while True:
+            # try current date
+            date_now = datetime.now(tz=timezone("Asia/Hong_Kong")) - timedelta(days=count)
+            date_now = date_now.strftime('%Y-%m-%d')
+            full_path = os.path.join(self.dataset_name, "output/phrases-csv", "{}-positive-phrases.csv".format(date_now))
+            print(f"Getting positive phrases csv: ", full_path)
+
+            # check if exists
+            if  cmd.is_object_exists(self.minio_client, "datasets", full_path):
+                self.load_dataset_phrases_from_csv(full_path)
+
+                print("Positive phrases csv data loaded...")
+                break
+
+            count += 1
+
+        # for negative
+        count = 0
+        while True:
+            # try current date
+            date_now = datetime.now(tz=timezone("Asia/Hong_Kong")) - timedelta(days=count)
+            date_now = date_now.strftime('%Y-%m-%d')
+            full_path = os.path.join(self.dataset_name, "output/phrases-csv",
+                                     "{}-negative-phrases.csv".format(date_now))
+            print(f"Getting negative phrases csv: ", full_path)
+
+            # check if exists
+            if cmd.is_object_exists(self.minio_client, "datasets", full_path):
+                self.load_dataset_phrases_from_csv(full_path)
+
+                print("Negative phrases csv data loaded...")
+                break
+
+            count += 1
+
     def load_dataset_phrases(self):
         start_time = time.time()
         print("Loading dataset references...")
+
+        # check first for current data available
+        phrases_csv_prefix = os.path.join(self.dataset_name, "output/phrases-csv")
+        all_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', phrases_csv_prefix)
+        if len(all_objects) != 0:
+            # then load phrase embeddings
+            self.load_recent_phrases_csv()
+        else:
+            self.load_dataset_phrases_from_msgpacks()
+            self.upload_csv()
+
+        # get and assign lengths
+        positive_len_vector = len(self.positive_phrases_index_dict)
+        if self.index_positive_phrases_dict.get(-1) is not None:
+            positive_len_vector -= 1
+
+        self.len_positive_phrase_vector = positive_len_vector
+
+        negative_len_vector = len(self.negative_phrases_index_dict)
+        if self.index_negative_phrases_dict.get(-1) is not None:
+            negative_len_vector -= 1
+
+        self.len_negative_phrase_vector = negative_len_vector
+
+        print("Data loaded...")
+        print("Time elapsed: {0}s".format(format(time.time() - start_time, ".2f")))
+
+    def load_dataset_phrases_from_msgpacks(self):
+        print("Loading dataset references from msgpacks...")
 
         dataset_list = get_datasets(self.minio_client)
         if self.dataset_name not in dataset_list:
@@ -156,58 +262,6 @@ class PhraseVectorLoader:
                         prompt_phrase_info.occurrences = count
                         self.index_negative_prompt_phrase_info[phrase_index] = prompt_phrase_info
 
-        print("Dataset loaded...")
-        print("Time elapsed: {0}s".format(format(time.time() - start_time, ".2f")))
-
-    def load_dataset_phrases_from_csv(self, csv_filename):
-        start_time = time.time()
-        print("Loading dataset references from csv...")
-
-        full_path = os.path.join(self.dataset_name, "output/phrases-csv", csv_filename)
-
-        # check if exists
-        if not cmd.is_object_exists(self.minio_client, "datasets", full_path):
-            raise Exception("{} doesnt exist in minio server...".format(full_path))
-
-        csv_data = get_object(self.minio_client,full_path)
-        csv_data = csv_data.decode(encoding='utf-8')
-        lines = csv_data.splitlines()
-        csv_reader = csv.reader(lines, delimiter=',')
-
-        line_count = 0
-        for row in csv_reader:
-            if line_count == 0:
-                print(f'Column names are {", ".join(row)}')
-            else:
-                if "positive" in csv_filename:
-                    positive_index = int(row[0])
-                    phrase = row[1]
-                    num_occurrences = int(row[2])
-                    token_length = int(row[3])
-                    self.positive_phrases_index_dict[phrase] = positive_index
-                    self.index_positive_phrases_dict[positive_index] = phrase
-                    prompt_info = PromptPhraseInformation(phrase,
-                                                          num_occurrences,
-                                                          token_length)
-                    self.index_positive_prompt_phrase_info[positive_index] = prompt_info
-                else:
-                    negative_index = int(row[0])
-                    phrase = row[1]
-                    num_occurrences = int(row[2])
-                    token_length = int(row[3])
-                    self.negative_phrases_index_dict[phrase] = negative_index
-                    self.index_negative_phrases_dict[negative_index] = phrase
-                    prompt_info = PromptPhraseInformation(phrase,
-                                                          num_occurrences,
-                                                          token_length)
-                    self.index_negative_prompt_phrase_info[negative_index] = prompt_info
-
-            line_count += 1
-
-
-        print("Dataset loaded...")
-        print("Time elapsed: {0}s".format(format(time.time() - start_time, ".2f")))
-
     def upload_csv(self):
         print("Saving phrases csv...")
         csv_header = ["index", "phrase", "occurrences", "token length"]
@@ -248,17 +302,13 @@ class PhraseVectorLoader:
         cmd.upload_data(self.minio_client, 'datasets', csv_path, bytes_buffer)
 
     def get_phrase_vector(self, prompt, input_type="positive"):
-        if input_type == "positive":
-            len_vector = len(self.positive_phrases_index_dict)
-            if self.index_positive_phrases_dict.get(-1) is not None:
-                len_vector -= 1
-        else:
-            len_vector = len(self.negative_phrases_index_dict)
-            if self.index_negative_phrases_dict.get(-1) is not None:
-                len_vector -= 1
+        len_vector = self.len_positive_phrase_vector
+        if input_type != "positive":
+            len_vector = self.len_negative_phrase_vector
 
         phrase_vector = [False] * len_vector
         phrases = get_phrases_from_prompt(prompt)
+
         for phrase in phrases:
             if len(phrase) > 80:
                 phrase = "more than 80 characters"

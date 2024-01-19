@@ -219,6 +219,55 @@ def get_list_completed_jobs_by_dataset(request: Request, dataset):
 
     return jobs
 
+@router.get("/queue/image-generation/list-by-date", response_class=PrettyJSONResponse)
+def get_list_completed_jobs_by_date(
+    request: Request, 
+    start_date: str = Query(..., description="Start date for filtering jobs"), 
+    end_date: str = Query(..., description="End date for filtering jobs"),
+    min_clip_sigma_score: float = Query(None, description="Minimum CLIP sigma score to filter jobs")
+):
+    print(f"Start Date: {start_date}, End Date: {end_date}")
+
+    query = {
+        "task_creation_time": {
+            "$gte": start_date,
+            "$lt": end_date
+        }
+    }
+
+    # Add condition to filter by min_clip_sigma_score if provided
+    if min_clip_sigma_score is not None:
+        query["task_attributes_dict.image_clip_sigma_score"] = {"$gte": min_clip_sigma_score}
+
+    jobs = list(request.app.completed_jobs_collection.find(query))
+
+    datasets = {}
+    for job in jobs:
+        dataset_name = job.get("task_input_dict", {}).get("dataset")
+        job_uuid = job.get("uuid")
+        file_path = job.get("task_output_file_dict", {}).get("output_file_path")
+        clip_sigma_score = job.get("task_attributes_dict",{}).get("image_clip_sigma_score")
+
+        if not dataset_name or not job_uuid or not file_path:
+            continue
+
+        if dataset_name not in datasets:
+            datasets[dataset_name] = []
+
+        job_info = {
+            "job_uuid": job_uuid,
+            "file_path": file_path, 
+            "clip_sigma_score": clip_sigma_score
+        }
+
+        datasets[dataset_name].append(job_info)
+
+    return datasets
+
+
+
+
+
 
 @router.get("/queue/image-generation/list-failed", response_class=PrettyJSONResponse)
 def get_list_failed_jobs(request: Request):

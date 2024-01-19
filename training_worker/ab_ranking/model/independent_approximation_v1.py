@@ -21,15 +21,14 @@ from data_loader.independent_approximation_dataset_loader import IndependentAppr
 from utility.minio import cmd
 
 
-def get_zero_mean_unit_variance(energy_vector):
-    std = torch.std(energy_vector)
-    # mean = torch.mean(energy_vector)
-    # zero_mean = energy_vector - mean
-    # unit_variance = zero_mean / std
+def get_mean_absolute_deviation(energy_vector):
+    mean = energy_vector.mean()
+    mean_absolute = energy_vector - mean
+    abs_mean_absolute = mean_absolute.abs()
+    mean_absolute_deviation = abs_mean_absolute.mean()
 
-    unit_variance = energy_vector / std
-
-    return unit_variance
+    energy_vector_mad = energy_vector / mean_absolute_deviation
+    return energy_vector_mad
 
 
 class IndependentApproximationV1Model(nn.Module):
@@ -40,13 +39,16 @@ class IndependentApproximationV1Model(nn.Module):
         self.inputs_shape = inputs_shape
         self.token_length_vector = token_length_vector
 
-        initial_energy_vector = torch.rand((1, inputs_shape), dtype=torch.float32)
+        range_low = -1.0
+        range_high = 1.0
+        initial_energy_vector = (range_high - range_low) * torch.rand((1, inputs_shape), dtype=torch.float32) + range_low
         self.energy_vector = nn.Parameter(data=initial_energy_vector, requires_grad=True)
 
         initial_prompt_phrase_average_weight = torch.zeros(1, dtype=torch.float32)
         self.prompt_phrase_average_weight = nn.Parameter(data=initial_prompt_phrase_average_weight, requires_grad=True)
 
-        self.l1_loss = nn.L1Loss()
+        # self.l1_loss = nn.L1Loss()
+        self.bce_loss = nn.BCELoss()
 
     # for score
     def forward(self, input):
@@ -56,7 +58,7 @@ class IndependentApproximationV1Model(nn.Module):
         average_weight_param_product = torch.sum(input, dim=1) * self.prompt_phrase_average_weight
 
         # phrase score
-        sigma_energy_vector = get_zero_mean_unit_variance(self.energy_vector)
+        sigma_energy_vector = get_mean_absolute_deviation(self.energy_vector)
         energy_per_token = torch.mul(input, sigma_energy_vector)
         energy_per_phrase = torch.mul(self.token_length_vector, energy_per_token)
         prompt_energy = torch.sum(energy_per_phrase, dim=1)
@@ -208,7 +210,7 @@ class ABRankingIndependentApproximationV1Model:
                 if -1 in index_phrase_dict:
                     has_negative_index = True
 
-                sigma_energy_vector = get_zero_mean_unit_variance(param.cpu().detach().squeeze())
+                sigma_energy_vector = get_mean_absolute_deviation(param.cpu().detach().squeeze())
                 sigma_energy_vector = sigma_energy_vector.numpy()
 
                 for i in range(len(energy_vector)):
@@ -371,13 +373,19 @@ class ABRankingIndependentApproximationV1Model:
                     if debug_asserts:
                         assert batch_pred_probabilities.shape == batch_targets.shape
 
-                    loss = self.model.l1_loss(batch_pred_probabilities, batch_targets)
+                    loss = self.model.bce_loss(batch_pred_probabilities, batch_targets)
 
                     if add_loss_penalty:
                         # add loss penalty
-                        neg_score = torch.multiply(predicted_score_images_x, -1.0)
-                        negative_score_loss_penalty = torch.relu(neg_score)
-                        loss = torch.add(loss, negative_score_loss_penalty)
+                        # neg_score = torch.multiply(predicted_score_images_x, -1.0)
+                        # negative_score_loss_penalty = torch.relu(neg_score)
+                        # loss = torch.add(loss, negative_score_loss_penalty)
+
+                        # loss penalty = (relu(-x-1) + relu(x-1))
+                        # https://www.wolframalpha.com/input?i=graph+for+x%3D-5+to+x%3D5%2C++relu%28+-x+-+1.0%29+%2B+ReLu%28x+-+1.0%29
+                        loss_penalty = torch.relu(-predicted_score_images_x - 1.0) + torch.relu(predicted_score_images_x - 1.0)
+                        loss = torch.add(loss, loss_penalty)
+
 
                     loss.backward()
                     optimizer.step()
@@ -421,13 +429,19 @@ class ABRankingIndependentApproximationV1Model:
                     if debug_asserts:
                         assert validation_pred_probabilities.shape == validation_target.shape
 
-                    validation_loss = self.model.l1_loss(validation_pred_probabilities, validation_target)
+                    validation_loss = self.model.bce_loss(validation_pred_probabilities, validation_target)
 
                     if add_loss_penalty:
                         # add loss penalty
-                        neg_score = torch.multiply(predicted_score_image_x, -1.0)
-                        negative_score_loss_penalty = torch.relu(neg_score)
-                        validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
+                        # neg_score = torch.multiply(predicted_score_image_x, -1.0)
+                        # negative_score_loss_penalty = torch.relu(neg_score)
+                        # validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
+
+                        # loss penalty = (relu(-x-1) + relu(x-1))
+                        # https://www.wolframalpha.com/input?i=graph+for+x%3D-5+to+x%3D5%2C++relu%28+-x+-+1.0%29+%2B+ReLu%28x+-+1.0%29
+                        loss_penalty = torch.relu(-predicted_score_image_x - 1.0) + torch.relu(
+                            predicted_score_image_x - 1.0)
+                        validation_loss = torch.add(validation_loss, loss_penalty)
 
                     # validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
                     validation_loss_arr.append(validation_loss.detach().cpu())
@@ -634,7 +648,7 @@ def forward_bradley_terry(predicted_score_images_x, predicted_score_images_y, us
 
         # prob = sigmoid( (x-y) / 100 )
         diff_predicted_score = torch.sub(predicted_score_images_x, predicted_score_images_y)
-        res_predicted_score = torch.div(diff_predicted_score, 1.0)
+        res_predicted_score = torch.div(diff_predicted_score, 0.1)
         pred_probabilities = torch.sigmoid(res_predicted_score)
     else:
         epsilon = 0.000001

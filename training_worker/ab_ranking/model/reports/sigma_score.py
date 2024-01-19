@@ -117,14 +117,13 @@ def get_chronological_sigma_scores(training_targets,
     x_chronological_image_hashes = [None] * int(len(training_targets) + len(validation_targets))
     y_chronological_sigma_scores = [None] * int(len(training_targets) + len(validation_targets))
 
-    count = 0
     for i in range(len(training_targets)):
         if training_targets[i] == [1.0]:
             x_img_hash = training_image_hashes[i]
             x_img_score = training_pred_scores_img_x[i].item()
             x_img_sigma_score = (x_img_score - x_mean) / x_standard_deviation
 
-            chronological_index = training_shuffled_indices_origin[count]
+            chronological_index = training_shuffled_indices_origin[i]
             x_chronological_sigma_scores[chronological_index] = x_img_sigma_score
             x_chronological_image_hashes[chronological_index] = x_img_hash
 
@@ -132,16 +131,13 @@ def get_chronological_sigma_scores(training_targets,
             y_img_sigma_score = (y_img_score - y_mean) / y_standard_deviation
             y_chronological_sigma_scores[chronological_index] = y_img_sigma_score
 
-            count += 1
-
-    count = 0
     for i in range(len(validation_targets)):
         if validation_targets[i] == [1.0]:
             x_img_hash = validation_image_hashes[i]
             x_img_score = validation_pred_scores_img_x[i].item()
             x_img_sigma_score = (x_img_score - x_mean) / x_standard_deviation
 
-            chronological_index = validation_shuffled_indices_origin[count]
+            chronological_index = validation_shuffled_indices_origin[i]
             x_chronological_sigma_scores[chronological_index] = x_img_sigma_score
             x_chronological_image_hashes[chronological_index] = x_img_hash
 
@@ -149,7 +145,6 @@ def get_chronological_sigma_scores(training_targets,
             y_img_sigma_score = (y_img_score - y_mean) / y_standard_deviation
             y_chronological_sigma_scores[chronological_index] = y_img_sigma_score
 
-            count += 1
 
     cleaned_x_chronological_sigma_scores = []
     cleaned_x_chronological_image_hashes = []

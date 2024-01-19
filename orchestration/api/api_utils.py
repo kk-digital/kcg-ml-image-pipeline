@@ -8,6 +8,40 @@ import time
 from fastapi import Request
 from typing import TypeVar, Generic, List
 from pydantic import BaseModel
+from .mongo_schemas import TagDefinition, TagCategory
+from datetime import datetime
+from dateutil import parser
+
+
+
+class RechableResponse(BaseModel):
+    reachable: bool
+
+class VectorIndexUpdateRequest(BaseModel):
+    vector_index: int
+
+class WasPresentResponse(BaseModel):
+    wasPresent: bool
+
+class TagsCategoryListResponse(BaseModel):
+    tag_categories: List[TagCategory]
+
+class TagsListResponse(BaseModel):
+    tags: List[TagDefinition]
+
+class GetClipPhraseResponse(BaseModel):
+    phrase : str
+    clip_vector: List[List[float]]
+
+def validate_date_format(date_str: str):
+    try:
+        # Attempt to parse the date string using dateutil.parser
+        parsed_date = parser.parse(date_str)
+        # If parsing succeeds, return the original date string
+        return date_str
+    except ValueError:
+        # If parsing fails, return None
+        return None
 
 
 class PrettyJSONResponse(Response):
@@ -22,10 +56,12 @@ class PrettyJSONResponse(Response):
             separators=(", ", ": "),
         ).encode("utf-8")
 
+
 class ErrorCode(Enum):
     OTHER_ERROR = 1
     ELEMENT_NOT_FOUND = 2
     INVALID_PARAMS = 3
+
 
 T = TypeVar('T')
 class StandardSuccessResponse(BaseModel, Generic[T]):
@@ -33,11 +69,13 @@ class StandardSuccessResponse(BaseModel, Generic[T]):
     duration: int
     response: T
 
+
 class StandardErrorResponse(BaseModel):
     url: str
     duration: int
     errorCode: int
     errorString: str
+
 
 class ApiResponseHandler:
     def __init__(self, request: Request):
