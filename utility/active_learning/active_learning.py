@@ -162,9 +162,6 @@ class ActiveLearningPipeline:
         
         if(len(vision_embs)>1):
             vision_embs = np.concatenate(vision_embs, axis=0)
-        elif len(vision_embs) == 1:
-            # Reshape the single array to maintain a consistent format
-            vision_embs = np.expand_dims(vision_embs[0], axis=0)
         else:
             vision_embs= None
         
@@ -350,7 +347,6 @@ def main():
     # get list of pairs
     pair_list=pipeline.get_image_pairs()
 
-    # print(pair_list)
     print(f"created {len(pair_list)} pairs")
 
     # send list to active learning
