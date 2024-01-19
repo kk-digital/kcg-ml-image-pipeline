@@ -324,6 +324,36 @@ class PhraseVectorLoader:
 
         return phrase_vector
 
+    def get_phrase_vector_compressed(self, prompt, input_type="positive"):
+        compressed_phrase_vector = []
+        phrases = get_phrases_from_prompt(prompt)
+
+        for phrase in phrases:
+            if len(phrase) > 80:
+                phrase = "more than 80 characters"
+
+            if input_type == "positive":
+                index = self.positive_phrases_index_dict[phrase]
+            else:
+                index = self.negative_phrases_index_dict[phrase]
+
+            if index == -1:
+                continue
+            compressed_phrase_vector.append(index)
+
+        return compressed_phrase_vector
+
+    def get_phrase_vector_from_compressed(self, compressed_phrase_vector, input_type="positive"):
+        len_vector = self.len_positive_phrase_vector
+        if input_type != "positive":
+            len_vector = self.len_negative_phrase_vector
+
+        phrase_vector = [False] * len_vector
+        for index in compressed_phrase_vector:
+            phrase_vector[index] = True
+
+        return phrase_vector
+
     def get_token_length_vector(self, input_type="positive"):
         token_length_vector = []
 
