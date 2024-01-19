@@ -111,6 +111,9 @@ class ActiveLearningPipeline:
 
         npz = np.load(pca_model_path)
 
+        # Print all available keys in the npz file
+        print("Keys in NPZ file:", npz.files)
+
         self.pca_components = npz['components']
         
         self.n_pca_components = 24
