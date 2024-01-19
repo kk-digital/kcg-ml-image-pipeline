@@ -192,6 +192,9 @@ class ActiveLearningPipeline:
         merged_list= []
 
         for dataset in jobs_list:
+            if dataset=='test-generations':
+                continue
+
             print(f"Calculating pairs for the {dataset} dataset.........")
             # get jobs dataset
             jobs= jobs_list[dataset]
@@ -204,7 +207,7 @@ class ActiveLearningPipeline:
             
             # return empty list in case all images were filtered
             if vision_embs is None:
-                return []
+                continue
 
             cluster_ids_48, cluster_ids_1024, cluster_ids_4096 = self.get_cluster_ids(vision_embs)
 
