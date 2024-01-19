@@ -50,12 +50,9 @@ class Tagger:
         tag_emb_indices = self.index_list[tag_index]
 
         # Calculate cosine similarity for the specific tag embeddings
-        similarities = cosine_similarity(text_emb.reshape(1, -1), self.tag_embs[tag_emb_indices])
+        similarities = cosine_similarity(text_emb.reshape(1, -1), [self.tag_embs[index] for index in tag_emb_indices])
 
         # Aggregate the similarities (e.g., by taking the maximum similarity)
         aggregated_similarity = np.max(similarities)
-
-        # Apply softmax to the aggregated similarity (after scaling)
-        probability = softmax(np.array([aggregated_similarity * 100]))
 
         return aggregated_similarity
