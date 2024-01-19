@@ -13,7 +13,7 @@ from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 from data_loader.generated_image_data import GeneratedImageData
 from data_loader.prompt_embedding import PromptEmbedding
-from data_loader.generate_latent import LatentData
+from data_loader.image_latent import LatentData
 from utility.clip.clip_text_embedder import tensor_attention_pooling, tensor_max_pooling, tensor_max_abs_pooling
 from torchvision.transforms import ToTensor
 from diffusers import AutoPipelineForText2Image
