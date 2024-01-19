@@ -313,7 +313,7 @@ def parse_args():
     parser.add_argument("--min-sigma-score", type=float, 
                         help="minimum sigma score when filtering images", default=0)
     parser.add_argument("--min-variance", type=float, 
-                        help="minimum sigma score when filtering images", default=0.02)
+                        help="minimum sigma score when filtering images", default=0.01)
     
     parser.add_argument("--minio-addr", type=str, default=None,
                         help="The minio server ip address")
