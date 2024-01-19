@@ -350,8 +350,8 @@ def main():
     # get list of pairs
     pair_list=pipeline.get_image_pairs()
 
-    print(pair_list)
-    print(f"created {pair_list} pairs")
+    # print(pair_list)
+    print(f"created {len(pair_list)} pairs")
 
     # send list to active learning
     # pipeline.upload_pairs_to_queue(pair_list)
