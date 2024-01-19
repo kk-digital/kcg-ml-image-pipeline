@@ -55,7 +55,7 @@ class ActiveLearningPipeline:
         end_date = (today + timedelta(days=1)).strftime('%Y-%m-%d')
 
         print('Loading image file paths for', today, '..........')
-        response = requests.get(f'{API_URL}/queue/image-generation/list-by-date?start_date=2023-12-29&end_date=2023-12-30')
+        response = requests.get(f'{API_URL}/queue/image-generation/list-by-date?start_date={start_date}&end_date={end_date}')
         
         jobs = json.loads(response.content)
 
@@ -164,9 +164,6 @@ class ActiveLearningPipeline:
             vision_embs = np.concatenate(vision_embs, axis=0)
         else:
             vision_embs= None
-        
-        print(f"average score: {score_mean/len(jobs)}")
-        print(f"average variance: {variance_mean/len(jobs)}")
         
         return vision_embs, sigma_scores, filtered_jobs
 
@@ -314,9 +311,9 @@ def parse_args():
     parser.add_argument("--bin-type", type=str, default='quantile',
                         help="The binning method: fixed-range or quantile")
     parser.add_argument("--min-sigma-score", type=float, 
-                        help="minimum sigma score when filtering images", default=1)
+                        help="minimum sigma score when filtering images", default=0)
     parser.add_argument("--min-variance", type=float, 
-                        help="minimum sigma score when filtering images", default=0.5)
+                        help="minimum sigma score when filtering images", default=0.02)
     
     parser.add_argument("--minio-addr", type=str, default=None,
                         help="The minio server ip address")
