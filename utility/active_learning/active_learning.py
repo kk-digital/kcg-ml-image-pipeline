@@ -261,7 +261,7 @@ class ActiveLearningPipeline:
                 if pair not in merged_list:
                     merged_list.append({
                         "pair": pair,
-                        "policy": f"same_embedding_cluster_100"
+                        "policy": f"same_embedding_cluster_48"
                     })
            
             # merge pairs by sigma score and by cluster
@@ -269,7 +269,7 @@ class ActiveLearningPipeline:
                 if pair not in merged_list:
                     merged_list.append({
                         "pair": pair,
-                        "policy": f"same_embedding_cluster_100"
+                        "policy": f"same_embedding_cluster_1024"
                     })
             
             # merge pairs by sigma score and by cluster
@@ -277,7 +277,7 @@ class ActiveLearningPipeline:
                 if pair not in merged_list:
                     merged_list.append({
                         "pair": pair,
-                        "policy": f"same_embedding_cluster_100"
+                        "policy": f"same_embedding_cluster_4096"
                     })
                 
         return merged_list
