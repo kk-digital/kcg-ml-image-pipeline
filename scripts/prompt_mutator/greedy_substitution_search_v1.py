@@ -582,18 +582,22 @@ class PromptSubstitutionGenerator:
         prompts_substitution_choices=[]
         # Filter with rejection sampling
         for index, sigma_score in enumerate(predictions):
+            phrase_position=substitution_positions[index]
+            substituted_embedding=prompts[prompt_index].positive_phrase_embeddings[phrase_position]
+            substitute_phrase= sampled_phrases[index]
+            substitute_embedding= sampled_embeddings[index]
+            topic= prompts[prompt_index].topic
+
             # only take substitutions that increase score by more then a set threshold
-            topic_probability= self.tagger.get_tag_similarity(prompts[prompt_index].topic, 
-                                                        sampled_phrases[index])
-            # if (sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold)
+            topic_similarity= self.tagger.get_tag_similarity(topic, substitute_embedding)
+            current_topic_similarity= self.tagger.get_tag_similarity(topic, substituted_embedding)
             
-            if topic_probability>20 and (sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold):
-                phrase_position=substitution_positions[index]
+            if topic_similarity>=current_topic_similarity and (sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold):
                 substitution_data={
                     'position':phrase_position,
-                    'substitute_phrase':sampled_phrases[index],
-                    'substitute_embedding':sampled_embeddings[index],
-                    'substituted_embedding':prompts[prompt_index].positive_phrase_embeddings[phrase_position],
+                    'substitute_phrase':substitute_phrase,
+                    'substitute_embedding':substitute_embedding,
+                    'substituted_embedding':substituted_embedding,
                     'score':sigma_score
                 }
                 current_prompt_substitution_choices.append(substitution_data)
