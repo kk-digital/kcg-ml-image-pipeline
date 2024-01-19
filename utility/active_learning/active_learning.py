@@ -49,7 +49,7 @@ class ActiveLearningPipeline:
         today = datetime.now().strftime('%Y-%m-%d')
 
         print('Loading image file paths for', today, '..........')
-        response = requests.get(f'{API_URL}/queue/image-generation/list-by-date?start_date=2024-01-07&end_date=2024-01-08')
+        response = requests.get(f'{API_URL}/queue/image-generation/list-by-date?start_date=2023-12-29&end_date=2023-12-30')
         
         jobs = json.loads(response.content)
 
