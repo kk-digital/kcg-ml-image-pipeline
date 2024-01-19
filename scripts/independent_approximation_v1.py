@@ -21,9 +21,6 @@ def parse_arguments():
     parser.add_argument('--input-type', type=str,
                         help="'positive' or 'negative' phrases",
                         default='positive')
-    parser.add_argument('--phrases-csv-name', type=str,
-                        help="Add csv value if will read phrases from a csv in minio",
-                        default=None)
     parser.add_argument('--epochs', type=int, default=8)
     parser.add_argument('--learning-rate', type=float, default=0.05)
     parser.add_argument('--train-percent', type=float, default=0.9)
@@ -49,7 +46,6 @@ if __name__ == '__main__':
                       minio_secret_key=args.minio_secret_key,
                       dataset_name=dataset_name,
                       input_type=args.input_type,
-                      phrases_csv_name=args.phrases_csv_name,
                       epochs=args.epochs,
                       learning_rate=args.learning_rate,
                       train_percent=args.train_percent,
@@ -74,7 +70,6 @@ if __name__ == '__main__':
                               minio_secret_key=args.minio_secret_key,
                               dataset_name=dataset,
                               input_type=args.input_type,
-                              phrases_csv_name=args.phrases_csv_name,
                               epochs=args.epochs,
                               learning_rate=args.learning_rate,
                               train_percent=args.train_percent,

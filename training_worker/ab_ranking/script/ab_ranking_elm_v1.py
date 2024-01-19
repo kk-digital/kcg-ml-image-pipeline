@@ -75,7 +75,7 @@ def train_ranking(dataset_name: str,
     while True:
         filename = "{}-{:02}-{}-{}-{}".format(date_now, sequence, output_type, network_type, input_type)
         exists = cmd.is_object_exists(dataset_loader.minio_client, bucket_name,
-                                      os.path.join(output_path, filename + ".pth"))
+                                      os.path.join(output_path, filename + ".safetensors"))
         if not exists:
             break
 

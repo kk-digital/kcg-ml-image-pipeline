@@ -138,6 +138,52 @@ class IndependentApproximationDatasetLoader:
 
         return selected_index_0_count, selected_index_1_count, total_count
 
+    def get_phrase_vector_of_image_pair(self, image_pair, index):
+        prompt_img_1 = image_pair[0]
+        prompt_img_2 = image_pair[1]
+        prompt_target = image_pair[2]
+
+        phrase_vector_img_1 = self.phrase_vector_loader.get_phrase_vector(prompt_img_1, input_type=self.input_type)
+        phrase_vector_img_1 = np.fromiter(phrase_vector_img_1, dtype=bool)
+        phrase_vector_img_1 = sp.sparse.coo_array(phrase_vector_img_1)
+
+        phrase_vector_img_2 = self.phrase_vector_loader.get_phrase_vector(prompt_img_2, input_type=self.input_type)
+        phrase_vector_img_2 = np.fromiter(phrase_vector_img_2, dtype=bool)
+        phrase_vector_img_2 = sp.sparse.coo_array(phrase_vector_img_2)
+
+        new_image_pair = (phrase_vector_img_1, phrase_vector_img_2, prompt_target)
+
+        return new_image_pair, index
+
+    def convert_training_data_to_phrase_vector_pairs(self):
+        print("Converting training data to phrase vector pairs...")
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = []
+
+            count = 0
+            for pair in self.training_image_pair_data_arr:
+                futures.append(executor.submit(self.get_phrase_vector_of_image_pair, image_pair=pair, index=count))
+                count += 1
+
+            for future in tqdm(as_completed(futures), total=len(futures)):
+                new_image_pair, index  = future.result()
+                self.training_image_pair_data_arr[index] = new_image_pair
+
+    def convert_validation_data_to_phrase_vector_pairs(self):
+        print("Converting validation data to phrase vector pairs...")
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = []
+
+            count = 0
+            for pair in self.validation_image_pair_data_arr:
+                futures.append(executor.submit(self.get_phrase_vector_of_image_pair, image_pair=pair, index=count))
+                count += 1
+
+            for future in tqdm(as_completed(futures), total=len(futures)):
+                new_image_pair, index  = future.result()
+                self.validation_image_pair_data_arr[index] = new_image_pair
+
+
     def get_selection_datapoint_image_pair(self, dataset, index=0):
         image_pairs = []
         ab_data = dataset
@@ -162,10 +208,7 @@ class IndependentApproximationDatasetLoader:
         else:
             prompt_img_1 = generated_image_data_1.negative_prompt
 
-        phrase_vector = self.phrase_vector_loader.get_phrase_vector(prompt_img_1, input_type=self.input_type)
-        phrase_vector = np.array(phrase_vector, dtype=bool)
-        phrase_vector = sp.sparse.coo_array(phrase_vector)
-        features_vector_img_1 = phrase_vector
+        features_vector_img_1 = prompt_img_1
 
         features_img_2_data = get_object(self.minio_client, features_path_img_2)
         generated_image_data_2 = GeneratedImageData.from_msgpack_string(features_img_2_data)
@@ -174,10 +217,7 @@ class IndependentApproximationDatasetLoader:
         else:
             prompt_img_2 = generated_image_data_2.negative_prompt
 
-        phrase_vector = self.phrase_vector_loader.get_phrase_vector(prompt_img_2, input_type=self.input_type)
-        phrase_vector = np.array(phrase_vector, dtype=bool)
-        phrase_vector = sp.sparse.coo_array(phrase_vector)
-        features_vector_img_2 = phrase_vector
+        features_vector_img_2 = prompt_img_2
 
         # if image 1 is the selected
         if selected_image_index == 0:
@@ -266,6 +306,9 @@ class IndependentApproximationDatasetLoader:
             self.training_image_hashes = shuffled_training_image_hashes
 
         self.training_data_total = len_training_data_paths
+
+        self.convert_training_data_to_phrase_vector_pairs()
+
         time_elapsed = time.time() - start_time
         print("Time elapsed: {0}s".format(format(time_elapsed, ".2f")))
         self.datapoints_per_sec = len_training_data_paths / time_elapsed
@@ -314,6 +357,8 @@ class IndependentApproximationDatasetLoader:
         self.validation_image_pair_data_arr = shuffled_validation_data
         self.validation_data_total = len_validation_data_paths
         self.validation_image_hashes = shuffle_validation_image_hashes
+
+        self.convert_validation_data_to_phrase_vector_pairs()
 
         time_elapsed = time.time() - start_time
         print("Time elapsed: {0}s".format(format(time_elapsed, ".2f")))
