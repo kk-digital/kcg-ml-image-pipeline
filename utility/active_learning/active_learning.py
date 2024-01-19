@@ -234,7 +234,7 @@ class ActiveLearningPipeline:
                 scores = sigma_scores, 
                 max_pairs = self.pairs, 
                 n_bins = self.bins, 
-                use_quantiles = (self.bin_type == 'quantile')
+                use_quantities = (self.bin_type == 'quantile')
             )
 
             cluster_pairs_48 = get_candidate_pairs_within_category(
