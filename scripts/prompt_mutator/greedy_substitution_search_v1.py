@@ -14,7 +14,6 @@ import pandas as pd
 import torch
 import msgpack
 from tqdm import tqdm
-from scripts.prompt_mutator.tagger import Tagger
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -30,7 +29,7 @@ from utility.boltzman.boltzman_phrase_scores_loader import BoltzmanPhraseScoresL
 from data_loader.phrase_embedding_loader import PhraseEmbeddingLoader
 from utility.boltzman.boltzman import find_first_element_binary_search, get_cumulative_probability_arr_without_upload
 from utility.minio import cmd
-
+from scripts.prompt_mutator.tagger import Tagger
 from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix, load_base_prompts, generate_inpainting_job
 
 GENERATION_POLICY="greedy-substitution-search-v1"
