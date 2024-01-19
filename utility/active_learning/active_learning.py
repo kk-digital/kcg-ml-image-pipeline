@@ -158,7 +158,7 @@ class ActiveLearningPipeline:
             mean=float(model.mean)
             std=float(model.standard_deviation)
             with torch.no_grad():
-                score = model(torch.tensor(vision_emb).cuda()).item()
+                score = model.predict_clip(torch.tensor(vision_emb).cuda()).item()
             
             score=(score - mean)/std
             sigma_scores.append(score)
