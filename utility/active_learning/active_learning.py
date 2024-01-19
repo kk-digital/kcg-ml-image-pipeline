@@ -55,7 +55,7 @@ class ActiveLearningPipeline:
         end_date = (today + timedelta(days=1)).strftime('%Y-%m-%d')
 
         print('Loading image file paths for', today, '..........')
-        response = requests.get(f'{API_URL}/queue/image-generation/list-by-date?start_date={start_date}&end_date={end_date}')
+        response = requests.get(f'{API_URL}/queue/image-generation/list-by-date?start_date=2023-12-29&end_date=2023-12-30')
         
         jobs = json.loads(response.content)
 
