@@ -111,9 +111,6 @@ class ActiveLearningPipeline:
 
         npz = np.load(pca_model_path)
 
-        # Print all available keys in the npz file
-        print("Keys in NPZ file:", npz.files)
-
         self.pca_components = npz['components']
         
         self.n_pca_components = 24
@@ -282,9 +279,9 @@ def parse_args():
 
     # Required parameters
     parser.add_argument("--pca-model-path", type=str,
-                        help="The path to PCA model npz file", default="input/model/active_learning/kmeans.npz")
+                        help="The path to PCA model npz file", default="input/model/active_learning/pca.npz")
     parser.add_argument("--kmeans-model-path", type=str,
-                        help="The path to KMeans model npz file", default="input/model/active_learning/pca.npz")
+                        help="The path to KMeans model npz file", default="input/model/active_learning/kmeans.npz")
     parser.add_argument("--pairs", type=int, default=1000,
                         help="The number of pairs")
     parser.add_argument("--bins", type=int, default=10,
