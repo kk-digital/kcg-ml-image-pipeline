@@ -559,7 +559,6 @@ def remove_image_tag(
     return {"status": "success"}
 
 @router.delete("/tags/remove_tag_from_image/{tag_id}", 
-               tags=["tags"], 
                status_code=200,
                description="Remove image tag",
                response_model=StandardSuccessResponse[WasPresentResponse],
@@ -584,7 +583,7 @@ def remove_image_tag(
         )
 
     # Return standard success response with wasPresent: true using response_handler
-    return response_handler.create_success_response({"wasPresent": True})
+    return response_handler.create_success_response({"wasPresent": True}, 200)
 
 @router.delete("/tags/remove_tag_from_image-v1", response_class=PrettyJSONResponse)
 def remove_image_tag(request: Request, image_hash: str, tag_id: int):
