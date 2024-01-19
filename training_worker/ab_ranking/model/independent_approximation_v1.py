@@ -47,8 +47,8 @@ class IndependentApproximationV1Model(nn.Module):
         initial_prompt_phrase_average_weight = torch.zeros(1, dtype=torch.float32)
         self.prompt_phrase_average_weight = nn.Parameter(data=initial_prompt_phrase_average_weight, requires_grad=True)
 
-        # self.l1_loss = nn.L1Loss()
-        self.bce_loss = nn.BCELoss()
+        self.l1_loss = nn.L1Loss()
+        # self.bce_loss = nn.BCELoss()
 
     # for score
     def forward(self, input):
@@ -313,7 +313,8 @@ class ABRankingIndependentApproximationV1Model:
               weight_decay=0.00,
               add_loss_penalty=True,
               randomize_data_per_epoch=True,
-              debug_asserts=True):
+              debug_asserts=True,
+              penalty_range=100.00):
         training_loss_per_epoch = []
         validation_loss_per_epoch = []
 
@@ -373,7 +374,7 @@ class ABRankingIndependentApproximationV1Model:
                     if debug_asserts:
                         assert batch_pred_probabilities.shape == batch_targets.shape
 
-                    loss = self.model.bce_loss(batch_pred_probabilities, batch_targets)
+                    loss = self.model.l1_loss(batch_pred_probabilities, batch_targets)
 
                     if add_loss_penalty:
                         # add loss penalty
@@ -383,7 +384,7 @@ class ABRankingIndependentApproximationV1Model:
 
                         # loss penalty = (relu(-x-1) + relu(x-1))
                         # https://www.wolframalpha.com/input?i=graph+for+x%3D-5+to+x%3D5%2C++relu%28+-x+-+1.0%29+%2B+ReLu%28x+-+1.0%29
-                        loss_penalty = torch.relu(-predicted_score_images_x - 1.0) + torch.relu(predicted_score_images_x - 1.0)
+                        loss_penalty = torch.relu(-predicted_score_images_x - penalty_range) + torch.relu(predicted_score_images_x - penalty_range)
                         loss = torch.add(loss, loss_penalty)
 
 
@@ -429,7 +430,7 @@ class ABRankingIndependentApproximationV1Model:
                     if debug_asserts:
                         assert validation_pred_probabilities.shape == validation_target.shape
 
-                    validation_loss = self.model.bce_loss(validation_pred_probabilities, validation_target)
+                    validation_loss = self.model.l1_loss(validation_pred_probabilities, validation_target)
 
                     if add_loss_penalty:
                         # add loss penalty
@@ -439,8 +440,8 @@ class ABRankingIndependentApproximationV1Model:
 
                         # loss penalty = (relu(-x-1) + relu(x-1))
                         # https://www.wolframalpha.com/input?i=graph+for+x%3D-5+to+x%3D5%2C++relu%28+-x+-+1.0%29+%2B+ReLu%28x+-+1.0%29
-                        loss_penalty = torch.relu(-predicted_score_image_x - 1.0) + torch.relu(
-                            predicted_score_image_x - 1.0)
+                        loss_penalty = torch.relu(-predicted_score_image_x - penalty_range) + torch.relu(
+                            predicted_score_image_x - penalty_range)
                         validation_loss = torch.add(validation_loss, loss_penalty)
 
                     # validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
@@ -648,7 +649,7 @@ def forward_bradley_terry(predicted_score_images_x, predicted_score_images_y, us
 
         # prob = sigmoid( (x-y) / 100 )
         diff_predicted_score = torch.sub(predicted_score_images_x, predicted_score_images_y)
-        res_predicted_score = torch.div(diff_predicted_score, 0.1)
+        res_predicted_score = torch.div(diff_predicted_score, 1.0)
         pred_probabilities = torch.sigmoid(res_predicted_score)
     else:
         epsilon = 0.000001
