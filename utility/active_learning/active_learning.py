@@ -354,7 +354,7 @@ def main():
     print(f"created {len(pair_list)} pairs")
 
     # send list to active learning
-    # pipeline.upload_pairs_to_queue(pair_list)
+    pipeline.upload_pairs_to_queue(pair_list)
     
 
 if __name__ == '__main__':
