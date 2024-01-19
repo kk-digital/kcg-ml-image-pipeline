@@ -13,7 +13,11 @@ from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 from data_loader.generated_image_data import GeneratedImageData
 from data_loader.prompt_embedding import PromptEmbedding
+from data_loader.generate_latent import LatentData
 from utility.clip.clip_text_embedder import tensor_attention_pooling, tensor_max_pooling, tensor_max_abs_pooling
+from torchvision.transforms import ToTensor
+from diffusers import AutoPipelineForText2Image
+
 
 
 def calculate_sha256(tensor):
@@ -78,6 +82,42 @@ def save_image_data_to_minio(minio_client, job_uuid, creation_time, dataset, fil
     buffer.seek(0)
 
     cmd.upload_data(minio_client, bucket_name, file_path.replace('.jpg', '_data.msgpack'), buffer)
+
+model_path = '/input/models/runwayml-stable-diffusion-inpainting/'
+stable_diffusion = AutoPipelineForText2Image.from_pretrained(
+    model_path, local_files_only=True, torch_dtype=torch.float16, variant="fp16"
+)
+stable_diffusion.vae.eval().cuda()
+
+def save_latent_to_minio(minio_client, bucket_name, job_uuid, file_hash, file_path):
+    # Load and process the image
+    image = Image.open(file_path).convert('RGB')
+    to_tensor_transform = ToTensor()
+    image_tensor = to_tensor_transform(image).half().cuda()  # Assuming use of CUDA
+    image_tensor = (image_tensor - 0.5) * 2.0  # Normalization
+
+    # Generate latent representation
+    with torch.no_grad():
+        latent = stable_diffusion.vae.encode(image_tensor.unsqueeze(0)).latent_dist.mean.detach().cpu().numpy()
+
+    # Create an instance of the LatentData class
+    latent_data = LatentData(job_uuid, file_hash, latent.tolist())
+
+    # Serialize the latent data to a msgpack string
+    msgpack_string = latent_data.get_msgpack_string()
+
+    # Create a buffer for the serialized data
+    buffer = io.BytesIO()
+    buffer.write(msgpack_string)
+    buffer.seek(0)
+
+    # Define the file path for the latent data in MinIO
+    latent_file_path = file_path.replace('.jpg', '_latent.msgpack')
+
+    # Upload the data using the cmd.upload_data method
+    cmd.upload_data(minio_client, bucket_name, latent_file_path, buffer)
+
+
 
 def save_prompt_embedding_to_minio(minio_client, prompt_embedding, file_path):
     msgpack_string = prompt_embedding.get_msgpack_string()
