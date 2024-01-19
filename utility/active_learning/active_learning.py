@@ -132,6 +132,9 @@ class ActiveLearningPipeline:
         vision_embs = list()
         sigma_scores = list()
         filtered_jobs = list()
+
+        variance_mean=0
+        score_mean=0
         
         for job in tqdm(jobs, leave=False):
             
@@ -149,6 +152,9 @@ class ActiveLearningPipeline:
             # calculate score and variance
             mean_score, variance= self.get_variance(embedding, ensemble_models)
 
+            variance_mean+= variance
+            score_mean+= mean_score
+
             if (mean_score > self.min_sigma_score) and (variance > self.min_variance):
                 vision_embs.append(embedding)
                 sigma_scores.append(mean_score)
@@ -161,6 +167,9 @@ class ActiveLearningPipeline:
             vision_embs = np.expand_dims(vision_embs[0], axis=0)
         else:
             vision_embs= None
+        
+        print(f"average score: {score_mean/len(jobs)}")
+        print(f"average variance: {variance_mean/len(jobs)}")
         
         return vision_embs, sigma_scores, filtered_jobs
 
