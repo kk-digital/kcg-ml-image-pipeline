@@ -143,13 +143,8 @@ class IndependentApproximationDatasetLoader:
         prompt_img_2 = image_pair[1]
         prompt_target = image_pair[2]
 
-        phrase_vector_img_1 = self.phrase_vector_loader.get_phrase_vector(prompt_img_1, input_type=self.input_type)
-        phrase_vector_img_1 = np.fromiter(phrase_vector_img_1, dtype=bool)
-        phrase_vector_img_1 = sp.sparse.coo_array(phrase_vector_img_1)
-
-        phrase_vector_img_2 = self.phrase_vector_loader.get_phrase_vector(prompt_img_2, input_type=self.input_type)
-        phrase_vector_img_2 = np.fromiter(phrase_vector_img_2, dtype=bool)
-        phrase_vector_img_2 = sp.sparse.coo_array(phrase_vector_img_2)
+        phrase_vector_img_1 = self.phrase_vector_loader.get_phrase_vector_compressed(prompt_img_1, input_type=self.input_type)
+        phrase_vector_img_2 = self.phrase_vector_loader.get_phrase_vector_compressed(prompt_img_2, input_type=self.input_type)
 
         new_image_pair = (phrase_vector_img_1, phrase_vector_img_2, prompt_target)
 
@@ -157,7 +152,7 @@ class IndependentApproximationDatasetLoader:
 
     def convert_training_data_to_phrase_vector_pairs(self):
         print("Converting training data to phrase vector pairs...")
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        with ThreadPoolExecutor(max_workers=1) as executor:
             futures = []
 
             count = 0
@@ -171,7 +166,7 @@ class IndependentApproximationDatasetLoader:
 
     def convert_validation_data_to_phrase_vector_pairs(self):
         print("Converting validation data to phrase vector pairs...")
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        with ThreadPoolExecutor(max_workers=1) as executor:
             futures = []
 
             count = 0
@@ -391,18 +386,22 @@ class IndependentApproximationDatasetLoader:
             image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
                 training_image_pair_data)
 
-            # since we're using sparsed tensor
-            # we have to convert input to to_dense first
-            image_x_feature_vector = image_x_feature_vector.todense()
-            image_y_feature_vector = image_y_feature_vector.todense()
+            # since we're using compressed phrase vector
+            # we have to convert input first
+            image_x_feature_vector = self.phrase_vector_loader.get_phrase_vector_from_compressed(image_x_feature_vector,
+                                                                                                 self.input_type)
+            image_y_feature_vector = self.phrase_vector_loader.get_phrase_vector_from_compressed(image_y_feature_vector,
+                                                                                                 self.input_type)
 
+            image_x_feature_vector = np.fromiter(image_x_feature_vector, dtype=bool)
+            image_y_feature_vector = np.fromiter(image_y_feature_vector, dtype=bool)
             image_x_feature_vectors.append(image_x_feature_vector)
             image_y_feature_vectors.append(image_y_feature_vector)
             target_probabilities.append(target_probability)
             self.current_training_data_index += 1
 
-        image_x_feature_vectors = np.array(image_x_feature_vectors)
-        image_y_feature_vectors = np.array(image_y_feature_vectors)
+        image_x_feature_vectors = np.array(image_x_feature_vectors, dtype=bool)
+        image_y_feature_vectors = np.array(image_y_feature_vectors, dtype=bool)
 
         image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.bool)
         image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.bool)
@@ -430,18 +429,20 @@ class IndependentApproximationDatasetLoader:
             image_x_feature_vector, image_y_feature_vector, target_probability = split_ab_data_vectors(
                 validation_image_pair_data)
 
-            # since we're using sparsed tensor
-            # we have to convert input to to_dense first
-            image_x_feature_vector = image_x_feature_vector.todense()
-            image_y_feature_vector = image_y_feature_vector.todense()
+            # since we're using compressed phrase vector
+            # we have to convert input first
+            image_x_feature_vector = self.phrase_vector_loader.get_phrase_vector_from_compressed(image_x_feature_vector, self.input_type)
+            image_y_feature_vector = self.phrase_vector_loader.get_phrase_vector_from_compressed(image_y_feature_vector, self.input_type)
+            image_x_feature_vector = np.fromiter(image_x_feature_vector, dtype=bool)
+            image_y_feature_vector = np.fromiter(image_y_feature_vector, dtype=bool)
 
             image_x_feature_vectors.append(image_x_feature_vector)
             image_y_feature_vectors.append(image_y_feature_vector)
 
             target_probabilities.append(target_probability)
 
-        image_x_feature_vectors = np.array(image_x_feature_vectors)
-        image_y_feature_vectors = np.array(image_y_feature_vectors)
+        image_x_feature_vectors = np.array(image_x_feature_vectors, dtype=bool)
+        image_y_feature_vectors = np.array(image_y_feature_vectors, dtype=bool)
 
         image_x_feature_vectors = torch.tensor(image_x_feature_vectors).to(torch.bool)
         image_y_feature_vectors = torch.tensor(image_y_feature_vectors).to(torch.bool)
