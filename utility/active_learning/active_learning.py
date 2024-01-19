@@ -147,8 +147,9 @@ class ActiveLearningPipeline:
                 vision_embs.append(embedding)
                 sigma_scores.append(mean_score)
                 filtered_jobs.append(job)
-
-        vision_embs = np.concatenate(vision_embs, axis=0)
+        
+        if(len(vision_embs)>1):
+            vision_embs = np.concatenate(vision_embs, axis=0)
         
         return vision_embs, sigma_scores, filtered_jobs
 
@@ -189,6 +190,7 @@ class ActiveLearningPipeline:
             print(f"Calculating pairs for the {dataset} dataset.........")
             # get jobs dataset
             jobs= jobs_list[dataset]
+            print(f"{len(jobs)} jobs")
             # get ensemble model for dataset
             ensemble_models= self.get_ensemble_models(dataset=dataset)
             
