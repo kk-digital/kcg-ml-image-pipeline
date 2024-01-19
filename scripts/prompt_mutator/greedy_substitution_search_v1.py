@@ -267,7 +267,7 @@ class PromptSubstitutionGenerator:
         tag_info = json.load(open('input/tagging/environmental.json', 'rt'))
         subtags = sum([i['subtags'] for i in tag_info], start=[])
         tag_embs = self.get_prompt_embedding(subtags)
-        tag_embs= [self.get_mean_pooled_embedding(emb).unsqueeze(0) for emb in tag_embs]
+        tag_embs= [self.get_mean_pooled_embedding(emb.unsqueeze(0)) for emb in tag_embs]
 
         self.tagger= Tagger(tag_info, tag_embs)
         self.tag_list= self.tagger.tag_names
