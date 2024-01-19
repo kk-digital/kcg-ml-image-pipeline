@@ -183,6 +183,7 @@ class ActiveLearningPipeline:
     
     def get_image_pairs(self):
         jobs_list= self.get_latest_jobs()
+        merged_list= []
 
         for dataset in jobs_list:
             print(f"Calculating pairs for the {dataset} dataset.........")
@@ -224,15 +225,12 @@ class ActiveLearningPipeline:
                 max_pairs = self.pairs
             )
 
-            merged_list= []
-
             # merge pairs by sigma score and by cluster
             for pair in sigma_score_pairs:
-                if pair not in merged_list:
-                    merged_list.append({
-                        "pair": pair,
-                        "policy": f"same_sigma_score_bin_{self.bins}"
-                    })
+                merged_list.append({
+                    "pair": pair,
+                    "policy": f"same_sigma_score_bin_{self.bins}"
+                })
 
             # merge pairs by sigma score and by cluster
             for pair in cluster_pairs_48:
