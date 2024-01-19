@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import io
 import json
 import sys
@@ -46,10 +46,16 @@ class ActiveLearningPipeline:
 
     def get_latest_jobs(self):
         # Get today's date
-        today = datetime.now().strftime('%Y-%m-%d')
+        today = datetime.now()
+
+        # Format today's date as a string
+        start_date = today.strftime('%Y-%m-%d')
+
+        # Add one day to today's date and format as a string
+        end_date = (today + timedelta(days=1)).strftime('%Y-%m-%d')
 
         print('Loading image file paths for', today, '..........')
-        response = requests.get(f'{API_URL}/queue/image-generation/list-by-date?start_date=2023-12-29&end_date=2023-12-30')
+        response = requests.get(f'{API_URL}/queue/image-generation/list-by-date?start_date={start_date}&end_date={end_date}')
         
         jobs = json.loads(response.content)
 
@@ -334,11 +340,9 @@ def main():
 
     # get list of pairs
     pair_list=pipeline.get_image_pairs()
-    print(pair_list)
-    print(f"{len(pair_list)} pairs were created")
 
     # send list to active learning
-    # pipeline.upload_pairs_to_queue(pair_list)
+    pipeline.upload_pairs_to_queue(pair_list)
     
 
 if __name__ == '__main__':
