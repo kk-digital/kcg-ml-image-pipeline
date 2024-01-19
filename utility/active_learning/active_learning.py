@@ -150,6 +150,11 @@ class ActiveLearningPipeline:
         
         if(len(vision_embs)>1):
             vision_embs = np.concatenate(vision_embs, axis=0)
+        elif len(vision_embs) == 1:
+            # Reshape the single array to maintain a consistent format
+            vision_embs = np.expand_dims(vision_embs[0], axis=0)
+        else:
+            vision_embs= None
         
         return vision_embs, sigma_scores, filtered_jobs
 
@@ -196,6 +201,11 @@ class ActiveLearningPipeline:
             
             # filter by sigma score and variance and cluster embeddings
             vision_embs, sigma_scores, filtered_jobs = self.filter_by_score_and_variance(jobs=jobs, ensemble_models=ensemble_models)
+            
+            # return empty list in case all images were filtered
+            if vision_embs is None:
+                return []
+
             cluster_ids_48, cluster_ids_1024, cluster_ids_4096 = self.get_cluster_ids(vision_embs)
 
             job_uuids = [d["job_uuid"] for d in filtered_jobs]  
