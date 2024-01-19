@@ -2,9 +2,9 @@ import argparse
 import csv
 from datetime import datetime
 import io
+import json
 import os
 import random
-import re
 import sys
 import time
 import traceback
@@ -14,6 +14,7 @@ import pandas as pd
 import torch
 import msgpack
 from tqdm import tqdm
+from scripts.prompt_mutator.tagger import Tagger
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -74,6 +75,7 @@ class PromptData:
                  negative_embedding,
                  positive_score,
                  variance_score,
+                 topic,
                  positive_phrase_embeddings=None,
                  positive_phrase_token_lengths=None):
         
@@ -83,6 +85,7 @@ class PromptData:
         self.negative_embedding= negative_embedding
         self.positive_score= positive_score
         self.variance_score= variance_score
+        self.topic= topic
         self.positive_phrase_embeddings= positive_phrase_embeddings
         self.positive_phrase_token_lengths= positive_phrase_token_lengths
 
@@ -260,6 +263,15 @@ class PromptSubstitutionGenerator:
         # create a dictionarry for base prompts
         self.base_prompt_embeddings={phrase: self.get_mean_pooled_embedding(self.get_prompt_embedding(phrase)) for phrase in base_prompts}
         self.base_prompt_token_lengths={phrase: self.get_token_length(phrase) for phrase in base_prompts}
+
+        # load topic tags
+        tag_info = json.load(open('input/tagging/environmental.json', 'rt'))
+        subtags = sum([i['subtags'] for i in tag_info], start=[])
+        tag_embs = self.get_prompt_embedding(subtags)
+        tag_embs= [self.get_mean_pooled_embedding(emb) for emb in tag_embs]
+
+        self.tagger= Tagger(tag_info, tag_embs)
+        self.tag_list= self.tagger.tag_names
 
         end=time.time()
         # log time taken for each step
@@ -572,7 +584,11 @@ class PromptSubstitutionGenerator:
         # Filter with rejection sampling
         for index, sigma_score in enumerate(predictions):
             # only take substitutions that increase score by more then a set threshold
-            if sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold:
+            topic_probability= self.tagger.get_tag_similarity(prompts[prompt_index].topic, 
+                                                        sampled_phrases[index])
+            # if (sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold)
+            
+            if topic_probability>20 and (sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold):
                 phrase_position=substitution_positions[index]
                 substitution_data={
                     'position':phrase_position,
@@ -703,6 +719,9 @@ class PromptSubstitutionGenerator:
             entropy, variance, mean= self.get_prompt_entropy(prompt.positive_embedding, prompt.negative_embedding)
            
             # sending a job to generate an image with the mutated prompt
+            task_uuid = -1
+            task_time = -1
+
             if self.send_job:
                 try:
                     if self.model_dataset in ["environmental", "propaganda-poster", "waifu"]:
@@ -772,6 +791,7 @@ class PromptSubstitutionGenerator:
                     'entropy': entropy,
                     'variance': variance,
                     'mean': mean,
+                    'topic': prompt.topic,
                     'positive_prompt': prompt.positive_prompt,
                     'negative_prompt': prompt.negative_prompt,
                     'generation_policy_string': GENERATION_POLICY,
@@ -1132,6 +1152,9 @@ class PromptSubstitutionGenerator:
                 # Strip whitespace and filter out empty phrases
                 positive_prompt = [phrase for phrase in prompt.positive_prompt_str.split(', ') if phrase!=""]
                 prompt.positive_prompt_str = ', '.join(positive_prompt)
+                
+                # choose random topic to optimise the prompt for
+                topic= random.choice(self.tag_list)
 
                 # save prompt data
                 prompt_data.append(PromptData(
@@ -1140,7 +1163,8 @@ class PromptSubstitutionGenerator:
                     positive_embedding=positive_embedding,
                     negative_embedding=negative_embedding,
                     positive_score=positive_score,
-                    variance_score=variance_score
+                    variance_score=variance_score,
+                    topic=topic
                 ))
            
         # Sort and select prompts
