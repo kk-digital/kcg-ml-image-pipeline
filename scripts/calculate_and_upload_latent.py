@@ -27,9 +27,9 @@ stable_diffusion = AutoPipelineForText2Image.from_pretrained(
 )
 stable_diffusion.vae.eval().cuda()
 
-MINIO_ADDRESS = '192.168.3.5:9000'
-ACCESS_KEY = 'v048BpXpWrsVIHUfdAix'
-SECRET_KEY = '4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu'
+minio_ip_addr = '192.168.3.5:9000'
+access_key = 'v048BpXpWrsVIHUfdAix'
+secret_key = '4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu'
 BUCKET_NAME = 'datasets'
 
 
@@ -79,5 +79,5 @@ def worker(dataset_name, minio_client):
             cmd.upload_data(minio_client, BUCKET_NAME, latent_file_path, buffer)
 
 if __name__ == "__main__":
-    minio_client = cmd.connect_to_minio_client()
+    minio_client = cmd.connect_to_minio_client(minio_ip_addr, access_key, secret_key)
     worker('test-generations', minio_client)
