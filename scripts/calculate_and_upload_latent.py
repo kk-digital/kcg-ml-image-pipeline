@@ -32,6 +32,14 @@ access_key = 'v048BpXpWrsVIHUfdAix'
 secret_key = '4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu'
 BUCKET_NAME = 'datasets'
 
+def list_datasets(minio_client, bucket_name):
+    """
+    List all directories in the bucket, assuming each directory is a dataset.
+    """
+    objects = minio_client.list_objects(bucket_name, recursive=False)
+    for obj in objects:
+        if obj.is_dir:
+            yield obj.object_name.rstrip('/')
 
 def check_if_file_exists(minio_client, bucket_name, file_path):
     try:
@@ -80,4 +88,6 @@ def worker(dataset_name, minio_client):
 
 if __name__ == "__main__":
     minio_client = cmd.connect_to_minio_client(minio_ip_addr, access_key, secret_key)
-    worker('test-generations', minio_client)
+    for dataset in list_datasets(minio_client, BUCKET_NAME):
+        print(f"Processing dataset: {dataset}")
+        worker(dataset, minio_client)
