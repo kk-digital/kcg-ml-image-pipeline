@@ -393,8 +393,6 @@ class IndependentApproximationDatasetLoader:
             image_y_feature_vector = self.phrase_vector_loader.get_phrase_vector_from_compressed(image_y_feature_vector,
                                                                                                  self.input_type)
 
-            image_x_feature_vector = np.fromiter(image_x_feature_vector, dtype=bool)
-            image_y_feature_vector = np.fromiter(image_y_feature_vector, dtype=bool)
             image_x_feature_vectors.append(image_x_feature_vector)
             image_y_feature_vectors.append(image_y_feature_vector)
             target_probabilities.append(target_probability)
@@ -433,8 +431,6 @@ class IndependentApproximationDatasetLoader:
             # we have to convert input first
             image_x_feature_vector = self.phrase_vector_loader.get_phrase_vector_from_compressed(image_x_feature_vector, self.input_type)
             image_y_feature_vector = self.phrase_vector_loader.get_phrase_vector_from_compressed(image_y_feature_vector, self.input_type)
-            image_x_feature_vector = np.fromiter(image_x_feature_vector, dtype=bool)
-            image_y_feature_vector = np.fromiter(image_y_feature_vector, dtype=bool)
 
             image_x_feature_vectors.append(image_x_feature_vector)
             image_y_feature_vectors.append(image_y_feature_vector)

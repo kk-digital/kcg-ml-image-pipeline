@@ -9,6 +9,7 @@ from pytz import timezone
 import io
 import csv
 import tiktoken
+import numpy as np
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -348,9 +349,8 @@ class PhraseVectorLoader:
         if input_type != "positive":
             len_vector = self.len_negative_phrase_vector
 
-        phrase_vector = [False] * len_vector
-        for index in compressed_phrase_vector:
-            phrase_vector[index] = True
+        phrase_vector = np.zeros(len_vector, dtype=bool)
+        phrase_vector[compressed_phrase_vector] = True
 
         return phrase_vector
 
