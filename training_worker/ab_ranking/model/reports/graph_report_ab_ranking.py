@@ -187,7 +187,7 @@ def get_graph_report(training_loss,
     loss_per_epoch.plot(epochs_x_axis, validation_losses,
                         label="Validation Loss", c="#14e33a", zorder=0)
 
-    loss_per_epoch.set_ylim(bottom=0, top=1.0)
+    # loss_per_epoch.set_ylim(bottom=0, top=1.0)
     loss_per_epoch.set_xlabel("Epoch")
     loss_per_epoch.set_ylabel("Loss")
     loss_per_epoch.set_title("Loss Per Epoch")
