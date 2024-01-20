@@ -102,15 +102,16 @@ def worker(dataset_name, minio_client, to_tensor_transform):
             image_tensor = to_tensor_transform(image).half().to(device)
 
             batch_images.append(image_tensor)
-            batch_names.append(latent_file_path)
+            batch_names.append(obj.object_name)
 
             if len(batch_images) == BATCH_SIZE:
-                process_batch(batch_images, batch_names, minio_client, to_tensor_transform)
+                process_batch(batch_images, batch_names, minio_client, to_tensor_transform, stable_diffusion, BUCKET_NAME)
                 batch_images = []
                 batch_names = []
 
     if batch_images:  # Process the remaining images if they don't make up a full batch
-        process_batch(batch_images, batch_names, minio_client, to_tensor_transform)
+        process_batch(batch_images, batch_names, minio_client, to_tensor_transform, stable_diffusion, BUCKET_NAME)
+
 
 if __name__ == "__main__":
     minio_client = cmd.connect_to_minio_client(minio_ip_addr, access_key, secret_key)
