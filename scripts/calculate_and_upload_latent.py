@@ -17,7 +17,9 @@ from utility.minio import cmd
 if not torch.cuda.is_available():
     print("GPU is not available. Exiting.")
     sys.exit(1)
+
 device = 'cuda'
+
 # Stable Diffusion model setup
 model_path = '/input/models/runwayml-stable-diffusion-inpainting/'
 stable_diffusion = AutoPipelineForText2Image.from_pretrained(
@@ -38,6 +40,7 @@ def list_datasets(minio_client, bucket_name):
     for obj in objects:
         if obj.is_dir:
             yield obj.object_name.rstrip('/')
+
 def check_if_file_exists(minio_client, bucket_name, file_path):
     try:
         return minio_client.stat_object(bucket_name, file_path) is not None
@@ -63,25 +66,25 @@ def worker(dataset_name, minio_client):
             image_tensor = to_tensor_transform(image).half().cuda()
             image_tensor = (image_tensor - 0.5) * 2.0
 
-    with torch.no_grad():
-        latent = stable_diffusion.vae.encode(image_tensor.unsqueeze(0)).latent_dist.mean.detach().cpu().numpy()
+            with torch.no_grad():
+                latent = stable_diffusion.vae.encode(image_tensor.unsqueeze(0)).latent_dist.mean.detach().cpu().numpy()
 
-        data_msgpack_name = obj.object_name.replace('.jpg', '_data.msgpack')
-        data_msgpack_data = minio_client.get_object(BUCKET_NAME, data_msgpack_name)
-        data = msgpack.unpackb(data_msgpack_data.read(), raw=False)
+            data_msgpack_name = obj.object_name.replace('.jpg', '_data.msgpack')
+            data_msgpack_data = minio_client.get_object(BUCKET_NAME, data_msgpack_name)
+            data = msgpack.unpackb(data_msgpack_data.read(), raw=False)
 
-        new_data = {
-            'job_uuid': data['job_uuid'],
-            'file_hash': data['file_hash'],
-            'latent': latent.tolist()
-        }
+            new_data = {
+                'job_uuid': data['job_uuid'],
+                'file_hash': data['file_hash'],
+                'latent': latent.tolist()
+            }
 
-        buffer = io.BytesIO()
-        msgpack.pack(new_data, buffer)
-        buffer.seek(0)
+            buffer = io.BytesIO()
+            msgpack.pack(new_data, buffer)
+            buffer.seek(0)
 
-        # Upload _latent.msgpack to MinIO
-        cmd.upload_data(minio_client, BUCKET_NAME, latent_file_path, buffer)
+            # Upload _latent.msgpack to MinIO
+            cmd.upload_data(minio_client, BUCKET_NAME, latent_file_path, buffer)
 
 if __name__ == "__main__":
     minio_client = cmd.connect_to_minio_client(minio_ip_addr, access_key, secret_key)
