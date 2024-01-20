@@ -7,12 +7,13 @@ from tqdm.auto import tqdm
 from diffusers import AutoPipelineForText2Image
 import msgpack
 from minio import Minio
+base_directory = "./"
+sys.path.insert(0, base_directory)
 from utility.minio import cmd
 
 # Settings
 BATCH_SIZE = 8  # Adjust this based on your GPU memory and model requirements
-base_directory = "./"
-sys.path.insert(0, base_directory)
+
 
 # Check for GPU availability
 if not torch.cuda.is_available():
