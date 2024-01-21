@@ -465,6 +465,9 @@ class PromptSubstitutionGenerator:
         # Get CLIP embeddings
         clip_output = self.embedder.transformer(input_ids=tokens)
 
+        if len(prompts)==1:
+            clip_output=clip_output.squeeze(0)
+
         return clip_output.pooler_output.detach().cpu().numpy()
 
     # get linear or elm positive score of an embedding
