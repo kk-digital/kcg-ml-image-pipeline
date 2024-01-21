@@ -465,7 +465,7 @@ class PromptSubstitutionGenerator:
         # Get CLIP embeddings
         clip_output = self.embedder.transformer(input_ids=tokens)
 
-        if len(prompts)==1:
+        if not isinstance(prompts, list):
             clip_output=clip_output.squeeze(0)
 
         return clip_output.pooler_output.detach().cpu().numpy()
