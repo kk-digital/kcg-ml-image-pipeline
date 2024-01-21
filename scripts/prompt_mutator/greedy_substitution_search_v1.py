@@ -664,7 +664,7 @@ class PromptSubstitutionGenerator:
                     #calculate modified prompt embedding and sigma score
                     # modified_prompt_embedding=self.get_prompt_embedding(modified_prompt_str)
                     # modified_prompt_embedding=self.get_mean_pooled_embedding(modified_prompt_embedding)
-                    modified_prompt_embedding= self.embedder.compute_embeddings(modified_prompt_str)
+                    modified_prompt_embedding= self.compute_embeddings(modified_prompt_str)
                     modified_prompt_score= self.get_positive_score(modified_prompt_embedding)
                     modified_prompt_score= (modified_prompt_score - self.positive_mean) / self.positive_std
 
@@ -1151,8 +1151,8 @@ class PromptSubstitutionGenerator:
 
             # Get embeddings for the batch
             start=time.time()
-            positive_embeddings= self.embedder.compute_embeddings(valid_positive_prompts)
-            negative_embeddings= self.embedder.compute_embeddings(valid_negative_prompts)
+            positive_embeddings= self.compute_embeddings(valid_positive_prompts)
+            negative_embeddings= self.compute_embeddings(valid_negative_prompts)
             end= time.time()
 
             clip_time+= end-start
