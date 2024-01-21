@@ -455,7 +455,7 @@ class PromptSubstitutionGenerator:
  
     def compute_embeddings(self, prompts):
         # Tokenize the prompts
-        batch_encoding = self.embedder.tokenizer(prompts, truncation=False, max_length=self.max_length, return_length=True,
+        batch_encoding = self.embedder.tokenizer(prompts, truncation=False, max_length=MAX_LENGTH, return_length=True,
                                         return_overflowing_tokens=False, padding="max_length", return_tensors="pt")
 
         # Get token ids and move to device
