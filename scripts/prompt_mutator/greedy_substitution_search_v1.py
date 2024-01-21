@@ -466,9 +466,11 @@ class PromptSubstitutionGenerator:
         clip_output = self.embedder.transformer(input_ids=tokens)
 
         if not isinstance(prompts, list):
-            clip_output=clip_output.squeeze(0)
+            pooler_output=clip_output.pooler_output.squeeze(0)
+        else:
+            pooler_output=clip_output.pooler_output
 
-        return clip_output.pooler_output.detach().cpu().numpy()
+        return pooler_output.detach().cpu().numpy()
 
     # get linear or elm positive score of an embedding
     def get_positive_score(self, embedding):
