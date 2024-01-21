@@ -610,10 +610,10 @@ class PromptSubstitutionGenerator:
             topic= prompts[prompt_index].topic
 
             # only take substitutions that increase score by more then a set threshold
-            topic_similarity= self.tagger.get_tag_similarity(topic, substitute_embedding)
-            current_topic_similarity= self.tagger.get_tag_similarity(topic, substituted_embedding)
+            # topic_similarity= self.tagger.get_tag_similarity(topic, substitute_embedding)
+            # current_topic_similarity= self.tagger.get_tag_similarity(topic, substituted_embedding)
             
-            if topic_similarity>=current_topic_similarity and (sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold):
+            if sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold:
                 substitution_data={
                     'position':phrase_position,
                     'substitute_phrase':substitute_phrase,
