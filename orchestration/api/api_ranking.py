@@ -316,3 +316,29 @@ def delete_all_ranking_data_points(request: Request):
         raise HTTPException(status_code=404, detail="No documents found in the collection")
 
     return {"message": "All documents deleted successfully"}
+
+
+@router.post("/update/add-residual-data", 
+             status_code=200,
+             description="Add Residual Data to Images")
+def add_residual_data(request: Request, selected_img_hash: str, residual: float):
+    try:
+        # Fetching the MongoDB collection
+        image_collection = request.app.image_pair_ranking_collection  
+
+        # Finding and updating documents
+        query = {"selected_image_hash": selected_img_hash}
+        update = {"$set": {"model_data.residual": residual}}
+        
+        # Update all documents matching the query
+        result = image_collection.update_many(query, update)
+
+        # Check if documents were updated
+        if result.modified_count == 0:
+            return {"message": "No documents found or updated."}
+        
+        return {"message": f"Successfully updated {result.modified_count} documents."}
+
+    except Exception as e:
+        return {"error": f"An error occurred: {str(e)}"}
+
