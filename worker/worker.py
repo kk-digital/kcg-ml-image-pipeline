@@ -347,7 +347,7 @@ def process_jobs(worker_state):
                         prompt_embedding_signed_max_pooled,))
                     thread.start()
 
-                elif task_type == 'image_generation_task':
+                elif task_type == 'image_generation_task_test':
                     output_file_path, output_file_hash, img_data, latent, seed = run_image_generation_task(worker_state,
                                                                                                    generation_task)
 
