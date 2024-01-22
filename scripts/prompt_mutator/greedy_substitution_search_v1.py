@@ -661,7 +661,7 @@ class PromptSubstitutionGenerator:
                     topic_similarity= self.tagger.get_tag_similarity(prompts[index].topic, modified_prompt_embedding)
                     topic_score= (topic_similarity+1) / 2
                     quality_score= 1 / (1 + math.exp(-variance_score)) 
-                    combined_score= topic_score + quality_score
+                    combined_score= 10 * topic_score + quality_score
 
                     if(self.self_training):
                         # collect self training data
@@ -679,7 +679,7 @@ class PromptSubstitutionGenerator:
                         self_training_data.append(prompt_data)
 
                     # check if score improves
-                    if(prompts[index].variance_score < combined_score):
+                    if(prompts[index].variance_score < topic_score):
                         # if it does improve, the new prompt is saved and it jumps to the next iteration
                         prompts[index].positive_prompt= modified_prompt_str
                         prompts[index].positive_embedding= modified_prompt_embedding
