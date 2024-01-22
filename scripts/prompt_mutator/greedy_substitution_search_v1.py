@@ -3,6 +3,7 @@ import csv
 from datetime import datetime
 import io
 import json
+import math
 import os
 import random
 import sys
@@ -586,21 +587,22 @@ class PromptSubstitutionGenerator:
             substituted_embedding=prompts[prompt_index].positive_phrase_embeddings[phrase_position]
             substitute_phrase= sampled_phrases[index]
             substitute_embedding= sampled_embeddings[index]
-            # topic= prompts[prompt_index].topic
+            topic= prompts[prompt_index].topic
 
-            # only take substitutions that increase score by more then a set threshold
-            # topic_similarity= self.tagger.get_tag_similarity(topic, substitute_embedding)
-            # current_topic_similarity= self.tagger.get_tag_similarity(topic, substituted_embedding)
             
-            if sigma_score > prompts[prompt_index].positive_score + self.sigma_threshold:
-                substitution_data={
-                    'position':phrase_position,
-                    'substitute_phrase':substitute_phrase,
-                    'substitute_embedding':substitute_embedding,
-                    'substituted_embedding':substituted_embedding,
-                    'score':sigma_score
-                }
-                current_prompt_substitution_choices.append(substitution_data)
+            topic_similarity= self.tagger.get_tag_similarity(topic, substitute_embedding)
+            topic_score= (topic_similarity+1) / 2
+            quality_score= 1 / (1 + math.exp(-sigma_score)) 
+            combined_score= topic_score + quality_score
+            
+            substitution_data={
+                'position':phrase_position,
+                'substitute_phrase':substitute_phrase,
+                'substitute_embedding':substitute_embedding,
+                'substituted_embedding':substituted_embedding,
+                'score':combined_score
+            }
+            current_prompt_substitution_choices.append(substitution_data)
             
             if(choices_count == num_choices):
                 prompt_index+=1
@@ -654,6 +656,12 @@ class PromptSubstitutionGenerator:
                     variance_score= self.get_variance_score(modified_prompt_embedding,
                                                             prompts[index].negative_embedding,
                                                             modified_prompt_score)
+                    
+                    # get topic score
+                    topic_similarity= self.tagger.get_tag_similarity(prompts[index].topic, modified_prompt_embedding)
+                    topic_score= (topic_similarity+1) / 2
+                    quality_score= 1 / (1 + math.exp(-variance_score)) 
+                    combined_score= topic_score + quality_score
 
                     if(self.self_training):
                         # collect self training data
@@ -671,13 +679,13 @@ class PromptSubstitutionGenerator:
                         self_training_data.append(prompt_data)
 
                     # check if score improves
-                    if(prompts[index].variance_score < variance_score):
+                    if(prompts[index].variance_score < combined_score):
                         # if it does improve, the new prompt is saved and it jumps to the next iteration
                         prompts[index].positive_prompt= modified_prompt_str
                         prompts[index].positive_embedding= modified_prompt_embedding
                         prompts[index].positive_phrase_embeddings[position]= substitute_embedding
                         prompts[index].positive_score= modified_prompt_score
-                        prompts[index].variance_score= variance_score
+                        prompts[index].variance_score= combined_score
                         break
                 
                 self.average_score_by_iteration[i]+=prompts[index].positive_score
