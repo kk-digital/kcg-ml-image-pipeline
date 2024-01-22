@@ -1,0 +1,94 @@
+[
+    {
+        "name": "Terrestrial Forests",
+        "subtags": [ "forest", "woods", "jungle", "rainforest", "trees", "bamboo grove"]
+    },
+    {
+        "name": "Desert Landscapes",
+        "subtags": [ "desert", "dunes", "oasis", "dry lake"]
+    },
+    {
+        "name": "Tropical Locales",
+        "subtags": [ "sandy beach", "tropical island"]
+    },
+    {
+        "name": "Aerial Views",
+        "subtags": [ "sky", "cloudscape", "skyscape"]
+    },
+    {
+        "name": "Mountainous Terrains",
+        "subtags": [ "mountain", "hill", "cliff", "canyon"]
+    },
+    {
+        "name": "Grassland Biomes",
+        "subtags": [ "grassland", "prairie", "savanna"]
+    },
+    {
+        "name": "Wetland Ecosystems",
+        "subtags": [ "wetland", "swamp", "waterlogged area"]
+    },
+    {
+        "name": "Freshwater Bodies",
+        "subtags": [ "lake", "river", "waterfall", "pond", "spring water"]
+    },
+    {
+        "name": "Marine Landscapes",
+        "subtags": [ "ocean", "sea", "bay", "cove", "coast"]
+    },
+    {
+        "name": "Underwater Worlds",
+        "subtags": [ "seabed", "underwater world", "coral reef", "sunken ship", "sunken civilization"]
+    },
+    {
+        "name": "Polar Regions",
+        "subtags": [ "polar region", "arctic", "iceberg", "glacier"]
+    },
+    {
+        "name": "Geothermal Features",
+        "subtags": [ "volcano", "lava"]
+    },
+    {
+        "name": "Subterranean Habitats",
+        "subtags": [ "underground city", "cave",  "tunnel", "sewer", "subterranean world"]
+    },
+    {
+        "name": "Futuristic",
+        "subtags": [ "futuristic city", "cyberpunk world", "cyberspace"]
+    },
+    {
+        "name": "Religious and Spiritual Sites",
+        "subtags": [ "castle", "palace", "temple", "shrine", "church", "mosque", "cathedral", "synagogue", "monastery", "pagoda", "stupa"]
+    },
+    {
+        "name": "Fantasy and Mythical Realms",
+        "subtags": [ "fairy tale world", "mythical land", "hell", "heaven", "dream world", "nightmare world", "paradise", "wonderland"]
+    },
+    {
+        "name": "Space and Extraterrestrial Locations",
+        "subtags": [ "space station", "space ship", "alien planet", "space colony", "galaxy", "digestive tract"]
+    },
+    {
+        "name": "Military Areas",
+        "subtags": [ "military base", "military camp", "battlefield", "war zone", "bunker"]
+    },
+    {
+        "name": "Historical and Abandoned Sites",
+        "subtags": [ "abandoned place", "ancient ruin", "post-nuclear environment", "haunted house", "graveyard", "junkyard", "scrapyard", "garbage dump"]
+    },
+    {
+        "name": "Urban and Rural Environments",
+        "subtags": [ "city", "metropolis", "street", "alley", "highway", "countryside", "farm", "farmland", "pasture", "rural village", "greenhouse"]
+    },
+    {
+        "name": "Recreational Areas",   
+        "subtags": [ "zoo", "aquarium",  "stadium", "arena", "playground", "park", "festival", "carnival", "market"]
+    },
+    {
+        "name": "Industrial Sites",
+        "subtags": [ "industrial area", "factory", "warehouse", "power plant", "oil rig", "mine", "workshop", "airport", "station", "port", "harbor", "carriage", "deck", "cabin", "cockpit", "cab"]
+    },
+    {
+        "name": "Indoors",
+        "subtags": [ "library", "school campus", "observatory", "court", "prison", "lab",  "hospital", "nursing home",  "cinema", "museum", "restaurant", "bar", "inn", "room", "house", "attic", "office", "elevator", "staircase", "shop"]
+    }
+]
