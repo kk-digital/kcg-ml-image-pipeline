@@ -3,6 +3,7 @@ FROM docker.io/nvidia/cuda:11.3.1-cudnn8-runtime-ubuntu20.04
 # Copy repo
 WORKDIR /training_worker
 COPY ./training_worker /training_worker/training_worker
+COPY ./input/model/active_learning /training_worker/input/model/active_learning
 COPY ./scripts/ab_ranking_elm_v1.py /training_worker/scripts/ab_ranking_elm_v1.py
 COPY ./scripts/ab_ranking_linear.py /training_worker/scripts/ab_ranking_linear.py
 COPY ./scripts/ab_ranking_xgboost_pairwise.py /training_worker/scripts/ab_ranking_xgboost_pairwise.py
