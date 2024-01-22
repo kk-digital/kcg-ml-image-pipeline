@@ -102,7 +102,7 @@ def save_latent_to_minio(minio_client, bucket_name, job_uuid, file_hash, latent,
     buffer.seek(0)
 
     # Upload the data using the cmd.upload_data method
-    cmd.upload_data(minio_client, bucket_name, file_path.replace('.jpg', '_latent.msgpack'), buffer)
+    cmd.upload_data(minio_client, bucket_name, file_path.replace('.jpg', '_vae_latent.msgpack'), buffer)
 
 
 
