@@ -20,7 +20,7 @@ from utility.minio import cmd
 from utility.minio.cmd import connect_to_minio_client
 from utility.active_learning.pairs import get_candidate_pairs_by_score, get_candidate_pairs_within_category
 
-API_URL = "http://123.176.98.90:8764"
+API_URL = "http://192.168.3.1:8111"
 
 class ActiveLearningPipeline:
 
@@ -55,7 +55,7 @@ class ActiveLearningPipeline:
         end_date = (today + timedelta(days=1)).strftime('%Y-%m-%d')
 
         print('Loading image file paths for', today, '..........')
-        response = requests.get(f'{API_URL}/queue/image-generation/list-by-date?start_date=2024-01-05&end_date=2024-01-06')
+        response = requests.get(f'{API_URL}/queue/image-generation/list-by-date?start_date={start_date}&end_date={end_date}')
         
         jobs = json.loads(response.content)
 
@@ -313,7 +313,7 @@ def parse_args():
     parser.add_argument("--min-sigma-score", type=float, 
                         help="minimum sigma score when filtering images", default=0)
     parser.add_argument("--min-variance", type=float, 
-                        help="minimum sigma score when filtering images", default=0.02)
+                        help="minimum sigma score when filtering images", default=0.01)
     
     parser.add_argument("--minio-addr", type=str, default=None,
                         help="The minio server ip address")
