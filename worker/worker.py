@@ -342,7 +342,7 @@ def process_jobs(worker_state):
                                                                           worker_state.clip_text_embedder)
                     # spawn upload data and update job thread
                     thread = threading.Thread(target=upload_image_data_and_update_job_status, args=(
-                        worker_state, job, generation_task, -1, output_file_path, output_file_hash, job_completion_time,
+                        worker_state, job, generation_task, -1, latent, output_file_path, output_file_hash, job_completion_time,
                         img_data, prompt_embedding, prompt_embedding_average_pooled, prompt_embedding_max_pooled,
                         prompt_embedding_signed_max_pooled,))
                     thread.start()
@@ -369,8 +369,8 @@ def process_jobs(worker_state):
 
                     # spawn upload data and update job thread
                     thread = threading.Thread(target=upload_image_data_and_update_job_status, args=(
-                        worker_state, job, generation_task, seed, output_file_path, output_file_hash,
-                        job_completion_time, img_data,latent, prompt_embedding, prompt_embedding_average_pooled,
+                        worker_state, job, generation_task, seed, latent, output_file_path, output_file_hash,
+                        job_completion_time, img_data, prompt_embedding, prompt_embedding_average_pooled,
                         prompt_embedding_max_pooled, prompt_embedding_signed_max_pooled,))
                     thread.start()
 
