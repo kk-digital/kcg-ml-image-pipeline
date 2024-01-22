@@ -593,7 +593,7 @@ class PromptSubstitutionGenerator:
             topic_similarity= self.tagger.get_tag_similarity(topic, substitute_embedding)
             topic_score= (topic_similarity+1) / 2
             quality_score= 1 / (1 + math.exp(-sigma_score)) 
-            combined_score= topic_score + quality_score
+            combined_score= (10 * topic_score) + quality_score
             
             substitution_data={
                 'position':phrase_position,
@@ -660,8 +660,7 @@ class PromptSubstitutionGenerator:
                     # get topic score
                     topic_similarity= self.tagger.get_tag_similarity(prompts[index].topic, modified_prompt_embedding)
                     topic_score= (topic_similarity+1) / 2
-                    quality_score= 1 / (1 + math.exp(-variance_score)) 
-                    combined_score= 10 * topic_score + quality_score
+                    combined_score= (10 * topic_score) + modified_prompt_score
 
                     if(self.self_training):
                         # collect self training data
