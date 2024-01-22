@@ -1,5 +1,7 @@
 import os
 import sys
+base_directory = "./"
+sys.path.insert(0, base_directory)
 from minio import Minio
 from utility.minio import cmd
 from tqdm import tqdm
