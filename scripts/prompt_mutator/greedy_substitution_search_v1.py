@@ -590,9 +590,8 @@ class PromptSubstitutionGenerator:
             topic= prompts[prompt_index].topic
 
             
-            topic_similarity= self.tagger.get_tag_similarity(topic, substitute_embedding)
-            topic_score= (topic_similarity+1) / 2
-            combined_score= (10 * topic_score) + sigma_score
+            topic_score= self.tagger.get_tag_probability(topic, substitute_embedding)
+            combined_score= (topic_score * 10) + sigma_score
             
             substitution_data={
                 'position':phrase_position,
@@ -657,8 +656,7 @@ class PromptSubstitutionGenerator:
                                                             modified_prompt_score)
                     
                     # get topic score
-                    topic_similarity= self.tagger.get_tag_similarity(prompts[index].topic, modified_prompt_embedding)
-                    topic_score= (topic_similarity+1) / 2
+                    topic_score= self.tagger.get_tag_probability(prompts[index].topic, modified_prompt_embedding)
                     combined_score= (10 * topic_score) + modified_prompt_score
 
                     if(self.self_training):
@@ -736,7 +734,7 @@ class PromptSubstitutionGenerator:
                     if self.model_dataset in ["environmental", "propaganda-poster", "waifu"]:
                         response = generate_image_generation_jobs(
                             positive_prompt=prompt.positive_prompt,
-                            negative_prompt="",
+                            negative_prompt=prompt.negative_prompt,
                             prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
                             prompt_score=prompt_score,
                             prompt_generation_policy=GENERATION_POLICY,
@@ -747,7 +745,7 @@ class PromptSubstitutionGenerator:
                     elif self.model_dataset in ["icons"]:
                         response = generate_inpainting_job(
                             positive_prompt=prompt.positive_prompt,
-                            negative_prompt="",
+                            negative_prompt=prompt.negative_prompt,
                             prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
                             prompt_score=prompt_score,
                             prompt_generation_policy=GENERATION_POLICY,
@@ -760,7 +758,7 @@ class PromptSubstitutionGenerator:
                     elif self.model_dataset in ["mech"]:
                         response = generate_inpainting_job(
                             positive_prompt=prompt.positive_prompt,
-                            negative_prompt="",
+                            negative_prompt=prompt.negative_prompt,
                             prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
                             prompt_score=prompt_score,
                             prompt_generation_policy=GENERATION_POLICY,
@@ -773,7 +771,7 @@ class PromptSubstitutionGenerator:
                     elif self.model_dataset in ["character"]:
                         response = generate_inpainting_job(
                             positive_prompt=prompt.positive_prompt,
-                            negative_prompt="",
+                            negative_prompt=prompt.negative_prompt,
                             prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
                             prompt_score=prompt_score,
                             prompt_generation_policy=GENERATION_POLICY,
