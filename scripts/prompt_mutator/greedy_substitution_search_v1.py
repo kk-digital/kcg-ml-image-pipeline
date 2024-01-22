@@ -592,15 +592,16 @@ class PromptSubstitutionGenerator:
             
             topic_score= self.tagger.get_tag_probability(topic, substitute_embedding)
             combined_score= (topic_score * 10) + sigma_score
-            
-            substitution_data={
-                'position':phrase_position,
-                'substitute_phrase':substitute_phrase,
-                'substitute_embedding':substitute_embedding,
-                'substituted_embedding':substituted_embedding,
-                'score':combined_score
-            }
-            current_prompt_substitution_choices.append(substitution_data)
+
+            if combined_score > (prompt[prompt_index].variance_score + self.sigma_threshold):            
+                substitution_data={
+                    'position':phrase_position,
+                    'substitute_phrase':substitute_phrase,
+                    'substitute_embedding':substitute_embedding,
+                    'substituted_embedding':substituted_embedding,
+                    'score':combined_score
+                }
+                current_prompt_substitution_choices.append(substitution_data)
             
             if(choices_count == num_choices):
                 prompt_index+=1
