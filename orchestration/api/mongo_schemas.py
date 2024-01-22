@@ -426,18 +426,6 @@ class ActiveLearningQueuePair(BaseModel):
         }
 
 
-class NewSelection(BaseModel):
-    Selection: Selection
-    selected_residual: Union[selected_residual, None] = None
-
-    def to_dict(self):
-        selected_residual_data = self.selected_residual.to_dict() if self.selected_residual else {}
-        return {
-            "ranking_image_pair": self.Selection.to_dict(),
-            "selected_residual": selected_residual_data
-        }
-
-
 class PhraseModel(BaseModel):
     phrase: str
 

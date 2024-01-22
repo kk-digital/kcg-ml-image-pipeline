@@ -4,8 +4,8 @@ from utility.minio import cmd
 import os
 import json
 from io import BytesIO
-from orchestration.api.mongo_schemas import Selection, RelevanceSelection, NewSelection
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode
+from orchestration.api.mongo_schemas import Selection, RelevanceSelection
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, ApiResponseHandler
 import random
 from collections import OrderedDict
 from bson import ObjectId
@@ -138,47 +138,66 @@ def add_relevancy_selection_datapoint(request: Request, relevance_selection: Rel
     return True
 
 
-@router.post("/rank/add-ranking-data-point-v1")
-def add_selection_datapoint(request: Request, selection: NewSelection):
-    current_time = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
-    file_name = f"{current_time}-{selection.Selection.username}.json"
-    dataset = selection.Selection.image_1_metadata.file_path.split('/')[1]
-    selection.Selection.datetime = current_time
+@router.post("/rank/add-ranking-data-point-v1", 
+             status_code=201,
+             description="Add Selection Datapoint",
+             response_model=StandardSuccessResponse[Selection],
+             responses=ApiResponseHandler.listErrors([422, 500]))
+def add_selection_datapoint(request: Request, selection: Selection):
+    api_handler = ApiResponseHandler(request)
+    
+    try:
+        current_time = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
+        file_name = f"{current_time}-{selection.username}.json"
+        dataset = selection.image_1_metadata.file_path.split('/')[1]
+        selection.datetime = current_time
 
-    dict_data = selection.to_dict()
+        dict_data = selection.to_dict()
 
-    # Prepare ordered data for MongoDB insertion
-    mongo_data = OrderedDict([
-        ("_id", ObjectId()),  # Generate new ObjectId
-        ("file_name", file_name),
-        ("dataset", dataset),
-        *dict_data.items()  # Unpack the rest of dict_data
-    ])
+        # Prepare ordered data for MongoDB insertion
+        mongo_data = OrderedDict([
+            ("_id", ObjectId()),  # Generate new ObjectId
+            ("file_name", file_name),
+            ("dataset", dataset),
+            *dict_data.items()  # Unpack the rest of dict_data
+        ])
 
-    # Insert the ordered data into MongoDB
-    request.app.image_pair_ranking_collection.insert_one(mongo_data)
+        # Insert the ordered data into MongoDB
+        request.app.image_pair_ranking_collection.insert_one(mongo_data)
 
-    # Prepare data for MinIO upload (excluding the '_id' field)
-    minio_data = mongo_data.copy()
-    minio_data.pop("_id")
-    path = "data/ranking/aggregate"
-    full_path = os.path.join(dataset, path, file_name)
-    json_data = json.dumps(minio_data, indent=4).encode('utf-8')
-    data = BytesIO(json_data)
+        # Prepare data for MinIO upload (excluding the '_id' field)
+        minio_data = mongo_data.copy()
+        minio_data.pop("_id")
+        minio_data.pop("file_name")
+        minio_data.pop("dataset")
+        path = "data/ranking/aggregate"
+        full_path = os.path.join(dataset, path, file_name)
+        json_data = json.dumps(minio_data, indent=4).encode('utf-8')
+        data = BytesIO(json_data)
 
-    # Upload data to MinIO
-    cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
+        # Upload data to MinIO
+        cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
 
-    image_1_hash = selection.Selection.image_1_metadata.file_hash
-    image_2_hash = selection.Selection.image_2_metadata.file_hash
+        image_1_hash = selection.image_1_metadata.file_hash
+        image_2_hash = selection.image_2_metadata.file_hash
 
-    # Update rank count for images
-    for img_hash in [image_1_hash, image_2_hash]:
-        update_image_rank_use_count(request, img_hash)
+        # Update rank count for images
+        for img_hash in [image_1_hash, image_2_hash]:
+            update_image_rank_use_count(request, img_hash)
 
-    return True
+        # Return a success response
+        return api_handler.create_success_response(
+            response_data=minio_data,
+            http_status_code=201
+        )
 
+    except Exception as e:
 
+        return api_handler.create_error_response(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string="Internal Server Error",
+            http_status_code=500
+        )
 
 
 @router.get("/rank/list-ranking-data", response_class=PrettyJSONResponse)
