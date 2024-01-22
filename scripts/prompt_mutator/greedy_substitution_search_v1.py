@@ -441,7 +441,7 @@ class PromptSubstitutionGenerator:
             prompts = [prompts]
 
         with torch.no_grad():
-            embeddings, _, _= self.embedder.forward_return_all(prompts)
+            embeddings= self.embedder.forward(prompts)
         
         embeddings= embeddings.unsqueeze(1)
         embeddings=embeddings.to(self.device)
