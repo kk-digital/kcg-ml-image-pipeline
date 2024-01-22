@@ -85,6 +85,7 @@ def save_image_data_to_minio(minio_client, job_uuid, creation_time, dataset, fil
 
 
 def save_latent_to_minio(minio_client, bucket_name, job_uuid, file_hash, latent, file_path):
+    bucket_name, file_path = separate_bucket_and_file_path(file_path)
     # Convert the latent Tensor to a list or NumPy array
     if isinstance(latent, torch.Tensor):
         latent = latent.cpu().numpy().tolist()
@@ -100,11 +101,8 @@ def save_latent_to_minio(minio_client, bucket_name, job_uuid, file_hash, latent,
     buffer.write(msgpack_string)
     buffer.seek(0)
 
-    # Define the file path for the latent data in MinIO
-    latent_file_path = file_path.replace('.jpg', '_latent.msgpack')
-
     # Upload the data using the cmd.upload_data method
-    cmd.upload_data(minio_client, bucket_name, latent_file_path, buffer)
+    cmd.upload_data(minio_client, bucket_name, file_path.replace('.jpg', '_latent.msgpack'), buffer)
 
 
 
