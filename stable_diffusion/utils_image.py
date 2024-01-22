@@ -83,25 +83,10 @@ def save_image_data_to_minio(minio_client, job_uuid, creation_time, dataset, fil
 
     cmd.upload_data(minio_client, bucket_name, file_path.replace('.jpg', '_data.msgpack'), buffer)
 
-model_path = '/input/models/runwayml-stable-diffusion-inpainting/'
-stable_diffusion = AutoPipelineForText2Image.from_pretrained(
-    model_path, local_files_only=True, torch_dtype=torch.float16, variant="fp16"
-)
-stable_diffusion.vae.eval().cuda()
 
-def save_latent_to_minio(minio_client, bucket_name, job_uuid, file_hash, file_path):
-    # Load and process the image
-    image = Image.open(file_path).convert('RGB')
-    to_tensor_transform = ToTensor()
-    image_tensor = to_tensor_transform(image).half().cuda()  # Assuming use of CUDA
-    image_tensor = (image_tensor - 0.5) * 2.0  # Normalization
-
-    # Generate latent representation
-    with torch.no_grad():
-        latent = stable_diffusion.vae.encode(image_tensor.unsqueeze(0)).latent_dist.mean.detach().cpu().numpy()
-
-    # Create an instance of the LatentData class
-    latent_data = LatentData(job_uuid, file_hash, latent.tolist())
+def save_latent_to_minio(minio_client, bucket_name, job_uuid, file_hash, latent, file_path):
+    # Create an instance of the LatentData class with the provided latent representation
+    latent_data = LatentData(job_uuid, file_hash, latent)
 
     # Serialize the latent data to a msgpack string
     msgpack_string = latent_data.get_msgpack_string()
@@ -112,11 +97,11 @@ def save_latent_to_minio(minio_client, bucket_name, job_uuid, file_hash, file_pa
     buffer.seek(0)
 
     # Define the file path for the latent data in MinIO
+    # Make sure the file_path passed to the function has the image file extension
     latent_file_path = file_path.replace('.jpg', '_latent.msgpack')
 
     # Upload the data using the cmd.upload_data method
     cmd.upload_data(minio_client, bucket_name, latent_file_path, buffer)
-
 
 
 def save_prompt_embedding_to_minio(minio_client, prompt_embedding, file_path):
