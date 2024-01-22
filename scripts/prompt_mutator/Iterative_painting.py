@@ -115,7 +115,7 @@ class IterativePainter:
 
         self.pipeline = StableDiffusionInpaintPipeline.from_pretrained(
             "runwayml/stable-diffusion-inpainting",
-            torch_dtype=torch.float16, local_files_only=True
+            torch_dtype=torch.float16
         ).to("cuda")
 
     # load elm or linear scoring models
