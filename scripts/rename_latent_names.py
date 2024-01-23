@@ -20,24 +20,23 @@ def list_datasets(minio_client, bucket_name):
         if obj.is_dir:
             yield obj.object_name.rstrip('/')
 
-def rename_files_in_dataset(minio_client, bucket_name, dataset_name):
+def delete_files_in_dataset(minio_client, bucket_name, dataset_name):
     """
-    Rename all _latent.msgpack files to _vae_latent.msgpack in a specific dataset.
+    Delete all _latent.msgpack files in a specific dataset.
     """
     prefix = f'{dataset_name}/'
     objects = minio_client.list_objects(bucket_name, prefix=prefix, recursive=True)
-    for obj in tqdm(objects, desc=f"Renaming in {dataset_name}", unit="file"):
+    for obj in tqdm(objects, desc=f"Deleting in {dataset_name}", unit="file"):
         if obj.object_name.endswith('_latent.msgpack'):
-            new_name = obj.object_name.replace('_latent.msgpack', '_vae_latent.msgpack')
-            minio_client.copy_object(bucket_name, new_name, f"{bucket_name}/{obj.object_name}")
+            # Delete the file
             minio_client.remove_object(bucket_name, obj.object_name)
-            print(f"Renamed {obj.object_name} to {new_name}")
+            print(f"Deleted {obj.object_name}")
 
 def main():
-    minio_client = cmd.connect_to_minio_client(minio_ip_addr, access_key, secret_key)
+    minio_client = Minio(minio_ip_addr, access_key, secret_key, secure=False)
     for dataset in list_datasets(minio_client, BUCKET_NAME):
         print(f"Processing dataset: {dataset}")
-        rename_files_in_dataset(minio_client, BUCKET_NAME, dataset)
+        delete_files_in_dataset(minio_client, BUCKET_NAME, dataset)
 
 if __name__ == "__main__":
     main()
