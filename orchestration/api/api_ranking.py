@@ -1,4 +1,4 @@
-from fastapi import Request, APIRouter, Query, HTTPException
+from fastapi import Request, APIRouter, Query, HTTPException, Body
 from datetime import datetime
 from utility.minio import cmd
 import os
@@ -342,3 +342,24 @@ def add_residual_data(request: Request, selected_img_hash: str, residual: float)
     except Exception as e:
         return {"error": f"An error occurred: {str(e)}"}
 
+
+
+@router.put("/job/add-selected-residual", description="Adds the selected_residual to a completed job.")
+def add_selected_residual(
+    request: Request,
+    image_hash: str = Body(...),
+    model_type: str = Body(...),
+    score: float = Body(...)
+):
+    query = {"selected_image_hash": image_hash}
+    update_query = {"$set": {f"selected_residual.{model_type}": score}}
+
+    result = request.app.image_pair_ranking_collection.update_one(query, update_query)
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=304, detail="Job not updated, possibly no change in data")
+
+    return {"message": "Job selected residual updated successfully."}

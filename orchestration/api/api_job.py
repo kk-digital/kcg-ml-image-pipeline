@@ -1,4 +1,4 @@
-from fastapi import Request, APIRouter, HTTPException, Query
+from fastapi import Request, APIRouter, HTTPException, Query, Body
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 import uuid
@@ -501,29 +501,42 @@ def get_job_by_job_id(request: Request, job_id: str, fields: List[str] = Query(N
 
 
 # --------------- Add completed job attributes ---------------------
+
 @router.put("/job/add-attributes", description="Adds the attributes to a completed job.")
-def add_attributes_job_completed(request: Request,
-                                 image_hash,
-                                 image_clip_score,
-                                 image_clip_percentile,
-                                 image_clip_sigma_score,
-                                 text_embedding_score,
-                                 text_embedding_percentile,
-                                 text_embedding_sigma_score,
-                                 delta_sigma_score):
+def add_attributes_job_completed(
+    request: Request,
+    image_hash: str = Body(..., embed=True),
+    model_type: str = Body(..., embed=True),
+    image_clip_score: float = Body(..., embed=True),
+    image_clip_percentile: float = Body(..., embed=True),
+    image_clip_sigma_score: float = Body(..., embed=True),
+    text_embedding_score: float = Body(..., embed=True),
+    text_embedding_percentile: float = Body(..., embed=True),
+    text_embedding_sigma_score: float = Body(..., embed=True),
+    delta_sigma_score: float = Body(..., embed=True)
+):
     query = {"task_output_file_dict.output_file_hash": image_hash}
 
-    update_query = {"$set": {"task_attributes_dict.image_clip_score": image_clip_score,
-                             "task_attributes_dict.image_clip_percentile": image_clip_percentile,
-                             "task_attributes_dict.image_clip_sigma_score": image_clip_sigma_score,
-                             "task_attributes_dict.text_embedding_score": text_embedding_score,
-                             "task_attributes_dict.text_embedding_percentile": text_embedding_percentile,
-                             "task_attributes_dict.text_embedding_sigma_score": text_embedding_sigma_score,
-                             "task_attributes_dict.delta_sigma_score": delta_sigma_score}}
+    update_query = {"$set": {
+        f"task_attributes_dict.{model_type}.image_clip_score": image_clip_score,
+        f"task_attributes_dict.{model_type}.image_clip_percentile": image_clip_percentile,
+        f"task_attributes_dict.{model_type}.image_clip_sigma_score": image_clip_sigma_score,
+        f"task_attributes_dict.{model_type}.text_embedding_score": text_embedding_score,
+        f"task_attributes_dict.{model_type}.text_embedding_percentile": text_embedding_percentile,
+        f"task_attributes_dict.{model_type}.text_embedding_sigma_score": text_embedding_sigma_score,
+        f"task_attributes_dict.{model_type}.delta_sigma_score": delta_sigma_score
+    }}
 
-    request.app.completed_jobs_collection.update_one(query, update_query)
+    result = request.app.completed_jobs_collection.update_one(query, update_query)
 
-    return True
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=304, detail="Job not updated, possibly no change in data")
+
+    return {"message": "Job attributes updated successfully."}
+
 
 
 @router.post("/worker-stats", response_class=PrettyJSONResponse)

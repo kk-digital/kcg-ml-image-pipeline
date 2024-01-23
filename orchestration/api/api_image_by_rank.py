@@ -1,9 +1,49 @@
 from fastapi import Request, APIRouter, Query, HTTPException
-from .api_utils import PrettyJSONResponse
 from datetime import datetime, timedelta
-
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardErrorResponse, StandardSuccessResponse
+from .mongo_schemas import Task
 
 router = APIRouter()
+
+
+
+@router.get("/tasks/attributes", 
+         responses=ApiResponseHandler.listErrors([404,500]),
+         description="List fields from task_attribute_dict")
+def list_task_attributes(request: Request):
+    api_handler = ApiResponseHandler(request)
+    try:
+        # Fetch data from the database
+        tasks_cursor = request.app.completed_jobs_collection.find({}, {'task_attribute_dict': 1})
+        
+        # Use a set to hold unique field names
+        field_names = set()
+        
+        # Iterate through cursor and add unique field names
+        for task in tasks_cursor:
+            task_attr_dict = task.get('task_attribute_dict', {})
+            field_names.update(task_attr_dict.keys())
+
+        # Convert set to a list to make it JSON serializable
+        field_names_list = list(field_names)
+
+        # Return success response
+        return api_handler.create_success_response(field_names_list, 200)
+    except HTTPException as http_exc:
+        # If an HTTPException is raised, create and return an error response
+        return api_handler.create_error_response(
+            ErrorCode.INVALID_PARAMS,
+            str(http_exc.detail),
+            http_exc.status_code
+        )
+    except Exception as exc:
+        # For any other exception, create and return a generic error response
+        return api_handler.create_error_response(
+            ErrorCode.OTHER_ERROR,
+            "Internal Server Error",
+            500
+        )
+
 
 
 @router.get("/image_by_rank/image-list-sorted-by-score", response_class=PrettyJSONResponse)
@@ -82,6 +122,69 @@ def image_list_sorted_by_score(
 
     return images_data
 
+
+@router.get("/image_by_rank/image-list-sorted-by-score-v1", 
+            response_model=StandardSuccessResponse[Task],
+            status_code = 200,
+            responses=ApiResponseHandler.listErrors([500]),
+            description="List sorted images from jobs collection" )
+def image_list_sorted_by_score_v1(
+    request: Request,
+    dataset: str = Query(...),
+    limit: int = Query(20),
+    offset: int = Query(0),
+    start_date: str = Query(None),
+    end_date: str = Query(None),
+    sort_order: str = Query('asc'),
+    score_field: str = Query(...),
+    min_score: float = Query(None),
+    max_score: float = Query(None),
+    time_interval: int = Query(None),
+    time_unit: str = Query("minutes")
+):
+    api_handler = ApiResponseHandler(request)
+    try:
+        # Calculate the time threshold based on the current time and the specified interval
+        threshold_time = None
+        if time_interval is not None:
+            current_time = datetime.utcnow()
+            delta = timedelta(minutes=time_interval) if time_unit == "minutes" else timedelta(hours=time_interval)
+            threshold_time = current_time - delta
+
+        # Construct query based on filters
+        imgs_query = {"task_input_dict.dataset": dataset}
+        if start_date and end_date:
+            imgs_query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
+        elif start_date:
+            imgs_query['task_creation_time'] = {'$gte': start_date}
+        elif end_date:
+            imgs_query['task_creation_time'] = {'$lte': end_date}
+        elif threshold_time:
+            imgs_query['task_creation_time'] = {'$gte': threshold_time.strftime("%Y-%m-%dT%H:%M:%S")}
+
+        # Fetch data from the database
+        completed_jobs = list(request.app.completed_jobs_collection.find(imgs_query))
+
+        # Process and filter data
+        images_scores = []
+        for job in completed_jobs:
+            task_attr = job.get('task_attribute_dict', {})
+            score = task_attr.get(score_field)
+            if score is not None and (min_score is None or score >= min_score) and (max_score is None or score <= max_score):
+                images_scores.append({
+                    'image_path': job['task_output_file_dict']['output_file_path'],
+                    'image_hash': job['task_output_file_dict']['output_file_hash'],
+                    **{score_field: score}  # Unpacks the {score_field: score} dict into the current dict
+                })
+
+        # Sort and paginate data
+        images_scores.sort(key=lambda x: x['score'], reverse=(sort_order == 'desc'))
+        images_data = images_scores[offset:offset+limit]
+
+        # Return success response
+        return api_handler.create_success_response(images_data, 200)
+    except Exception as exc:
+        return api_handler.create_error_response(ErrorCode.OTHER_ERROR, "Interval Server Error", 500)
 
 @router.get("/image_by_rank/image-list-sorted-by-percentile", response_class=PrettyJSONResponse)
 def image_list_sorted_by_percentile(
