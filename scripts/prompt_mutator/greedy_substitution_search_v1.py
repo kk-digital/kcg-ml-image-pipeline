@@ -75,7 +75,7 @@ class PromptData:
                  negative_embedding,
                  positive_score,
                  variance_score,
-                 topic,
+                 # topic,
                  positive_phrase_embeddings=None,
                  positive_phrase_token_lengths=None):
         
@@ -85,7 +85,7 @@ class PromptData:
         self.negative_embedding= negative_embedding
         self.positive_score= positive_score
         self.variance_score= variance_score
-        self.topic= topic
+        # self.topic= topic
         self.positive_phrase_embeddings= positive_phrase_embeddings
         self.positive_phrase_token_lengths= positive_phrase_token_lengths
 
@@ -1320,7 +1320,7 @@ class PromptSubstitutionGenerator:
                 prompt.positive_prompt_str = ', '.join(positive_prompt)
                 
                 # choose random topic to optimise the prompt for
-                topic= random.choice(self.tag_list)
+                #topic= random.choice(self.tag_list)
 
                 # save prompt data
                 prompt_data.append(PromptData(
@@ -1330,7 +1330,7 @@ class PromptSubstitutionGenerator:
                     negative_embedding=negative_embedding,
                     positive_score=positive_score,
                     variance_score=variance_score,
-                    topic=topic
+                    #topic=topic
                 ))
            
         # Sort and select prompts
