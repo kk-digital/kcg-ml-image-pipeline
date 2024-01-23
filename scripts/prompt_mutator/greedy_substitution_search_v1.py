@@ -629,7 +629,7 @@ class PromptSubstitutionGenerator:
 
         for prompt in prompts:
             # get number of phrases
-            prompt_list = prompt.get_phrases()
+            prompt_list = prompt.positive_prompt.split(', ')
             num_phrases= len(prompt_list)
 
             # create a substitution for each position in the prompt
@@ -803,7 +803,7 @@ class PromptSubstitutionGenerator:
                     predicted_score=substitution['score']
 
                     #Create a modified prompt with the substitution
-                    prompt_list = prompts[index].get_phrases()
+                    prompt_list = prompts[index].positive_prompt.split(', ')
                     prompt_list[position] = substitute_phrase
                     modified_prompt_str = ", ".join(prompt_list)
 
