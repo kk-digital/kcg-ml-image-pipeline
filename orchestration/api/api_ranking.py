@@ -349,10 +349,10 @@ def add_selected_residual(
     request: Request,
     image_hash: str = Body(...),
     model_type: str = Body(...),
-    score: float = Body(...)
+    residual: float = Body(...)
 ):
     query = {"selected_image_hash": image_hash}
-    update_query = {"$set": {f"selected_residual.{model_type}": score}}
+    update_query = {"$set": {f"selected_residual.{model_type}": residual}}
 
     result = request.app.image_pair_ranking_collection.update_one(query, update_query)
 
