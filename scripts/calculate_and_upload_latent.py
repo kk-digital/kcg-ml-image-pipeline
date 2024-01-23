@@ -76,7 +76,7 @@ def worker(dataset_name, minio_client):
             new_data = {
                 'job_uuid': data['job_uuid'],
                 'file_hash': data['file_hash'],
-                'latent': latent.tolist()
+                'latent_vector': latent.tolist()
             }
 
             buffer = io.BytesIO()

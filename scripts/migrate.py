@@ -53,8 +53,7 @@ def migrate_json_to_mongodb(minio_client, mongo_collection, datasets):
             ordered_data = OrderedDict([
                 ("file_name", json_filename),
                 ("dataset", dataset),
-                ("ranking_image_pair", original_data),
-                ("selected_residual", {}) 
+                *original_data.items()
             ])
 
             mongo_collection.insert_one(ordered_data)
