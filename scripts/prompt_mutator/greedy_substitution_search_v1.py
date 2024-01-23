@@ -224,7 +224,7 @@ class PromptSubstitutionGenerator:
             print(self.positive_phrase_scores_csv)
 
             # loading positive phrase scores to use for rejection sampling
-            phrase_loader=BoltzmanPhraseScoresLoader(dataset_name="environmental",
+            phrase_loader=BoltzmanPhraseScoresLoader(dataset_name=self.model_dataset,
                                                     phrase_scores_csv=self.positive_phrase_scores_csv,
                                                     minio_client=self.minio_client)
             phrase_loader.load_dataset()
