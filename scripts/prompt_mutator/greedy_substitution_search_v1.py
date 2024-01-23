@@ -235,7 +235,7 @@ class PromptSubstitutionGenerator:
             self.phrase_token_lengths=[self.phrase_score_data[i].token_length for i in range(len(self.phrase_score_data))]
             # get embeddings of the phrases
 
-            phrase_embedding_loader= PhraseEmbeddingLoader(dataset_name=self.model_dataset,
+            phrase_embedding_loader= PhraseEmbeddingLoader(dataset_name="environmental",
                                                            minio_access_key=minio_access_key,
                                                            minio_secret_key=minio_secret_key,
                                                            minio_ip_addr=minio_ip_addr)
