@@ -113,8 +113,8 @@ class IterativePainter:
         # # load stable diffusion model for inpainting
         # self.inpainting_processor.load_model()
 
-        self.pipeline = StableDiffusionInpaintPipeline.from_pretrained(
-            "runwayml/stable-diffusion-inpainting",
+        self.pipeline = StableDiffusionInpaintPipeline.from_single_file(
+            "https://huggingface.co/runwayml/stable-diffusion-inpainting/blob/main/sd-v1-5-inpainting.ckpt",
             torch_dtype=torch.float16
         ).to("cuda")
 
