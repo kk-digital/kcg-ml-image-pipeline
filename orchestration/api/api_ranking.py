@@ -237,6 +237,18 @@ def list_ranking_data(
 
     return ranking_data
 
+@router.get("/rank/count-ranking-data", response_class=PrettyJSONResponse)
+def count_ranking_data(request: Request):
+    try:
+        # Get the count of documents in the image_pair_ranking_collection
+        count = request.app.image_pair_ranking_collection.count_documents({})
+
+        return {"count": count}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.delete("/rank/delete-ranking-data-point-from-mongo")
 def delete_ranking_data_point(request: Request, id: str):
     try:
@@ -363,3 +375,58 @@ def add_selected_residual(
         raise HTTPException(status_code=304, detail="Job not updated, possibly no change in data")
 
     return {"message": "Job selected residual updated successfully."}
+
+
+@router.post("/migrate/minio-to-mongodb", status_code=202, description="Migrate datapoints from Minio to MongoDB.")
+def migrate_datapoints_from_minio_to_mongodb(request: Request, minio_bucket: str = 'datasets'):
+    api_handler = ApiResponseHandler(request)
+    
+    try:
+        migrate_json_to_mongodb(request.app.minio_client, request.app.image_pair_ranking_collection, minio_bucket)
+        return api_handler.create_success_response(
+            response_data={"message": "Migration completed successfully."},
+            http_status_code=202
+        )
+    except Exception as e:
+        return api_handler.create_error_response(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+
+def migrate_json_to_mongodb(minio_client, mongo_collection, minio_bucket):
+    for dataset in list_datasets(minio_client, minio_bucket):
+        folder_name = f'{dataset}/data/ranking/aggregate'
+        print(f"Processing dataset '{dataset}' located at '{folder_name}' in bucket '{minio_bucket}'...")
+        objects = minio_client.list_objects(minio_bucket, prefix=folder_name, recursive=True)
+        for obj in objects:
+            if obj.is_dir:
+                continue
+
+            json_filename = obj.object_name.split('/')[-1]
+            if mongo_collection.count_documents({"file_name": json_filename}) > 0:
+                print(f"Skipping '{json_filename}', already exists in MongoDB.")
+                continue
+
+            print(f"Found object '{obj.object_name}' in dataset '{dataset}'...")
+            response = minio_client.get_object(minio_bucket, obj.object_name)
+            data = response.read()
+            original_data = json.loads(data.decode('utf-8'))
+            ordered_data = OrderedDict([
+                ("file_name", json_filename),
+                ("dataset", dataset),
+                *original_data.items()
+            ])
+
+            mongo_collection.insert_one(ordered_data)
+            print(f"Migrated '{json_filename}' to MongoDB.")
+            
+def list_datasets(minio_client, bucket_name):
+    datasets = set()
+    objects = minio_client.list_objects(bucket_name, recursive=False)
+    for obj in objects:
+        if obj.is_dir:
+            dataset_name = obj.object_name.strip('/').split('/')[0]
+            datasets.add(dataset_name)
+    return list(datasets)
+
