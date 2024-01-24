@@ -111,6 +111,7 @@ class IterativePainter:
         # self.inpainting_processor.load_model()
 
         self.pipeline = StableDiffusionInpaintingPipeline()
+        self.pipeline.load_models()
 
     # load elm or linear scoring models
     def load_scoring_model(self):
