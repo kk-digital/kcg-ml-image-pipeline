@@ -280,7 +280,7 @@ class PromptSubstitutionGenerator:
         # Filter relevant model files
         relevant_models = [
             model_file for model_file in model_files
-            if model_file.endswith(f"score-elm-v1-embedding.pth")
+            if model_file.endswith(f"score-elm-v1-embedding.safetensors")
         ]
 
         # Sort the model files by timestamp (assuming the file names include a timestamp)
@@ -303,7 +303,7 @@ class PromptSubstitutionGenerator:
 
             # Load the model
             embedding_model = model_class(768*2)
-            embedding_model.load_pth(byte_buffer)
+            embedding_model.load_safetensors(byte_buffer)
             embedding_model.model=embedding_model.model.to(self.device)
 
             loaded_models.append(embedding_model)
@@ -377,9 +377,9 @@ class PromptSubstitutionGenerator:
             file_name=f"score-linear-embedding"
         
         if(embedding_type=="positive" or embedding_type=="negative"):
-            file_name+=f"-{embedding_type}.pth"
+            file_name+=f"-{embedding_type}.safetensors"
         else:
-            file_name+=".pth"
+            file_name+=".safetensors"
 
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
         most_recent_model = None
@@ -403,7 +403,7 @@ class PromptSubstitutionGenerator:
         # Reset the buffer's position to the beginning
         byte_buffer.seek(0)
 
-        embedding_model.load_pth(byte_buffer)
+        embedding_model.load_safetensors(byte_buffer)
         embedding_model.model=embedding_model.model.to(self.device)
 
         return embedding_model

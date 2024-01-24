@@ -50,7 +50,7 @@ def parse_args():
     return parser.parse_args()
 
 class IterativePainter:
-    def __init__(self, prompt_generator):
+    def __init__(self, prompt_generator=None):
         
         self.max_iterations=100
         self.image_size=1024 
@@ -76,9 +76,9 @@ class IterativePainter:
         self.pipeline = StableDiffusionInpaintingPipeline(model_type="dreamshaper")
         self.pipeline.load_models()
 
-        self.prompt_generator= prompt_generator
-        self.minio_client = self.prompt_generator.minio_client
-        self.text_embedder=self.prompt_generator.embedder
+        # self.prompt_generator= prompt_generator
+        # self.minio_client = self.prompt_generator.minio_client
+        # self.text_embedder=self.prompt_generator.embedder
 
         if torch.cuda.is_available():
             self.device = 'cuda'
@@ -204,25 +204,28 @@ class IterativePainter:
 
         return cropped_image
 
-    # def test(self):
-    #     prompt="environmental 2D, 2D environmental, steampunkcyberpunk, 2D environmental art side scrolling, broken trees, undewear, muscular, wide, child chest, urban jungle, dark ruins in background, loki steampunk style, ancient trees"
-    #     context_image= Image.open("input/background_image.jpg").convert("RGB")
+    def test(self):
+        prompt="environmental 2D, 2D environmental, steampunkcyberpunk, 2D environmental art side scrolling, broken trees, undewear, muscular, wide, child chest, urban jungle, dark ruins in background, loki steampunk style, ancient trees"
+        context_image= Image.new("RGB", (512,512), "white")
+        mask= Image.new('L', (512,512), 255)
 
-    #     draw = ImageDraw.Draw(context_image)
-    #     draw.rectangle(self.center_area, fill="white")  # Unmasked (white) center area
+        context_image= self.pipeline.inpaint(prompt=prompt, initial_image=context_image, image_mask=mask)
+
+        draw = ImageDraw.Draw(context_image)
+        draw.rectangle(self.center_area, fill="white")  # Unmasked (white) center area
         
-    #     img_byte_arr = io.BytesIO()
-    #     context_image.save(img_byte_arr, format="png")
-    #     img_byte_arr.seek(0)  # Move to the start of the byte array
-    #     cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/initial_image.png" , img_byte_arr) 
+        img_byte_arr = io.BytesIO()
+        context_image.save(img_byte_arr, format="png")
+        img_byte_arr.seek(0)  # Move to the start of the byte array
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/initial_image.png" , img_byte_arr) 
 
-    #     generated_image= self.generate_image(context_image, prompt)
+        generated_image= self.generate_image(context_image, prompt)
         
-    #     img_byte_arr = io.BytesIO()
-    #     generated_image.save(img_byte_arr, format="png")
-    #     img_byte_arr.seek(0)  # Move to the start of the byte array
+        img_byte_arr = io.BytesIO()
+        generated_image.save(img_byte_arr, format="png")
+        img_byte_arr.seek(0)  # Move to the start of the byte array
 
-    #     cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/test.png" , img_byte_arr)
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/test.png" , img_byte_arr)
 
 
 def main():
@@ -240,32 +243,32 @@ def main():
    elif(args.model_dataset=="environmental"):  
         csv_base_prompts='input/dataset-config/environmental/base-prompts-environmental.csv'
 
-   prompt_generator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
-                                  minio_secret_key=args.minio_secret_key,
-                                  minio_ip_addr=args.minio_addr,
-                                  csv_phrase=args.csv_phrase,
-                                  csv_base_prompts=csv_base_prompts,
-                                  model_dataset=args.model_dataset,
-                                  substitution_model=args.substitution_model,
-                                  scoring_model=args.scoring_model,
-                                  max_iterations=args.max_iterations,
-                                  sigma_threshold=args.sigma_threshold,
-                                  variance_weight=args.variance_weight,
-                                  boltzman_temperature=args.boltzman_temperature,
-                                  boltzman_k=args.boltzman_k,
-                                  dataset_name=args.dataset_name,
-                                  store_embeddings=args.store_embeddings,
-                                  store_token_lengths=args.store_token_lengths,
-                                  self_training=args.self_training,
-                                  send_job=args.send_job,
-                                  save_csv=args.save_csv,
-                                  initial_generation_policy=args.initial_generation_policy,
-                                  top_k=args.top_k,
-                                  num_choices_per_iteration=args.num_choices,
-                                  clip_batch_size=args.clip_batch_size,
-                                  substitution_batch_size=args.substitution_batch_size)
+#    prompt_generator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
+#                                   minio_secret_key=args.minio_secret_key,
+#                                   minio_ip_addr=args.minio_addr,
+#                                   csv_phrase=args.csv_phrase,
+#                                   csv_base_prompts=csv_base_prompts,
+#                                   model_dataset=args.model_dataset,
+#                                   substitution_model=args.substitution_model,
+#                                   scoring_model=args.scoring_model,
+#                                   max_iterations=args.max_iterations,
+#                                   sigma_threshold=args.sigma_threshold,
+#                                   variance_weight=args.variance_weight,
+#                                   boltzman_temperature=args.boltzman_temperature,
+#                                   boltzman_k=args.boltzman_k,
+#                                   dataset_name=args.dataset_name,
+#                                   store_embeddings=args.store_embeddings,
+#                                   store_token_lengths=args.store_token_lengths,
+#                                   self_training=args.self_training,
+#                                   send_job=args.send_job,
+#                                   save_csv=args.save_csv,
+#                                   initial_generation_policy=args.initial_generation_policy,
+#                                   top_k=args.top_k,
+#                                   num_choices_per_iteration=args.num_choices,
+#                                   clip_batch_size=args.clip_batch_size,
+#                                   substitution_batch_size=args.substitution_batch_size)
    
-   Painter= IterativePainter(prompt_generator=prompt_generator)
+   Painter= IterativePainter()
    Painter.paint_image()
 
 if __name__ == "__main__":
