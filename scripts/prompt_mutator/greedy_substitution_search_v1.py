@@ -423,7 +423,7 @@ class PromptSubstitutionGenerator:
 
     # get path for phrase score csv files
     def get_boltzman_scores_csv(self):
-        score_csvs=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', 'environmental/output/phrases-score-csv')
+        score_csvs=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', f'{self.model_dataset}/output/phrases-score-csv')
         positive_score_csv = None
         negative_score_csv = None
 
@@ -957,7 +957,6 @@ class PromptSubstitutionGenerator:
                     'entropy': entropy,
                     'variance': variance,
                     'mean': mean,
-                    'topic': prompt.topic,
                     'positive_prompt': prompt.positive_prompt,
                     'negative_prompt': prompt.negative_prompt,
                     'generation_policy_string': GENERATION_POLICY,
