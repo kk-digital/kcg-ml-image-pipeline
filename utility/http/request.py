@@ -98,11 +98,11 @@ def http_add_sigma_score(sigma_score_data):
 
 
 def http_add_residual(residual_data):
-    url = SERVER_ADDRESS + "/residual/set-image-rank-residual"
+    url = SERVER_ADDRESS + "/job/add-selected-residual"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
 
     try:
-        response = requests.post(url, json=residual_data, headers=headers)
+        response = requests.put(url, json=residual_data, headers=headers)
 
         if response.status_code != 200:
             print(f"request failed with status code: {response.status_code}: {str(response.content)}")
@@ -174,7 +174,8 @@ def http_get_completed_job_by_image_hash(image_hash):
     return None
 
 
-def http_add_score_attributes(img_hash,
+def http_add_score_attributes(model_type,
+                              img_hash,
                               image_clip_score,
                               image_clip_percentile,
                               image_clip_sigma_score,
@@ -182,19 +183,24 @@ def http_add_score_attributes(img_hash,
                               text_embedding_percentile,
                               text_embedding_sigma_score,
                               delta_sigma_score):
-    endpoint = "/job/add-attributes?image_hash={}&image_clip_score={}&image_clip_percentile={}&image_clip_sigma_score={}&text_embedding_score={}&text_embedding_percentile={}&text_embedding_sigma_score={}&delta_sigma_score={}".format(
-        img_hash,
-        image_clip_score,
-        image_clip_percentile,
-        image_clip_sigma_score,
-        text_embedding_score,
-        text_embedding_percentile,
-        text_embedding_sigma_score,
-        delta_sigma_score)
-    url = SERVER_ADDRESS + endpoint
+    data = {
+        "image_hash": img_hash,
+        "model_type": model_type,
+        "image_clip_score": image_clip_score,
+        "image_clip_percentile": image_clip_percentile,
+        "image_clip_sigma_score": image_clip_sigma_score,
+        "text_embedding_score": text_embedding_score,
+        "text_embedding_percentile": text_embedding_percentile,
+        "text_embedding_sigma_score": text_embedding_sigma_score,
+        "delta_sigma_score": delta_sigma_score
+
+    }
+
+    url = SERVER_ADDRESS + "/job/add-attributes"
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
 
     try:
-        response = requests.put(url)
+        response = requests.put(url, json=data, headers=headers)
 
         if response.status_code != 200:
             print(f"request failed with status code: {response.status_code}: {str(response.content)}")
