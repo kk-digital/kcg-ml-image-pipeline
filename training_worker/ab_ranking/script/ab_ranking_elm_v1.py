@@ -289,7 +289,7 @@ def train_ranking(dataset_name: str,
     cmd.upload_data(dataset_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
 
     # add model card
-    # model_id = score_residual.add_model_card(model_card)
+    model_id = score_residual.add_model_card(model_card)
     model_type = "elm-v1"
     # upload residuals
     score_residual.upload_score_residual(model_type=model_type,
