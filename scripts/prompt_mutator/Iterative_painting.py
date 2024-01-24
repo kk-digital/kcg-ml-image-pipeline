@@ -84,7 +84,7 @@ class IterativePainter:
         self.image_embedder= clip.ClipModel(device=torch.device(self.device))
         self.image_embedder.load_clip()
 
-        self.scoring_model= self.load_scoring_model()
+        # self.scoring_model= self.load_scoring_model()
 
         # self.inpainting_processor= StableDiffusionProcessingImg2Img(
         #     sampler_name="ddim", 
