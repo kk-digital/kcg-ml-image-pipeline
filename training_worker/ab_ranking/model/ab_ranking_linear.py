@@ -31,14 +31,21 @@ class ABRankingLinearModel(nn.Module):
         self.l1_loss = nn.L1Loss()
         self.tanh = nn.Tanh()
 
+        initial_scaling_factor = torch.zeros(1, dtype=torch.float32)
+        self.scaling_factor = nn.Parameter(data=initial_scaling_factor, requires_grad=True)
+
     # for score
     def forward(self, input):
+        # make sure input shape is (1, self.inputs_shape)
+        # we currently don't support batching
         assert input.shape == (1, self.inputs_shape)
 
         output = self.linear(input)
+        scaled_output = torch.multiply(output, self.scaling_factor)
 
-        assert output.shape == (1,1)
-        return output
+        # make sure input shape is (1, score)
+        assert scaled_output.shape == (1,1)
+        return scaled_output
 
 
 class ABRankingModel:
@@ -227,7 +234,8 @@ class ABRankingModel:
               weight_decay=0.00,
               add_loss_penalty=True,
               randomize_data_per_epoch=True,
-              debug_asserts=True):
+              debug_asserts=True,
+              penalty_range=5.00):
         training_loss_per_epoch = []
         validation_loss_per_epoch = []
 
@@ -295,10 +303,11 @@ class ABRankingModel:
                     loss = self.model.l1_loss(batch_pred_probabilities, batch_targets)
 
                     if add_loss_penalty:
-                        # add loss penalty
-                        neg_score = torch.multiply(predicted_score_images_x, -1.0)
-                        negative_score_loss_penalty = torch.relu(neg_score)
-                        loss = torch.add(loss, negative_score_loss_penalty)
+                        # loss penalty = (relu(-x-1) + relu(x-1))
+                        # https://www.wolframalpha.com/input?i=graph+for+x%3D-5+to+x%3D5%2C++relu%28+-x+-+1.0%29+%2B+ReLu%28x+-+1.0%29
+                        loss_penalty = torch.relu(-predicted_score_images_x - penalty_range) + torch.relu(
+                            predicted_score_images_x - penalty_range)
+                        loss = torch.add(loss, loss_penalty)
 
                     loss.backward()
                     optimizer.step()
@@ -340,10 +349,11 @@ class ABRankingModel:
                     validation_loss = self.model.l1_loss(validation_pred_probabilities, validation_target)
 
                     if add_loss_penalty:
-                        # add loss penalty
-                        neg_score = torch.multiply(predicted_score_image_x, -1.0)
-                        negative_score_loss_penalty = torch.relu(neg_score)
-                        validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
+                        # loss penalty = (relu(-x-1) + relu(x-1))
+                        # https://www.wolframalpha.com/input?i=graph+for+x%3D-5+to+x%3D5%2C++relu%28+-x+-+1.0%29+%2B+ReLu%28x+-+1.0%29
+                        loss_penalty = torch.relu(-predicted_score_image_x - penalty_range) + torch.relu(
+                            predicted_score_image_x - penalty_range)
+                        validation_loss = torch.add(validation_loss, loss_penalty)
 
                     # validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
                     validation_loss_arr.append(validation_loss.detach().cpu())
@@ -548,7 +558,7 @@ def forward_bradley_terry(predicted_score_images_x, predicted_score_images_y, us
 
         # prob = sigmoid( (x-y) / 100 )
         diff_predicted_score = torch.sub(predicted_score_images_x, predicted_score_images_y)
-        res_predicted_score = torch.div(diff_predicted_score, 50.0)
+        res_predicted_score = torch.div(diff_predicted_score, 1.0)
         pred_probabilities = torch.sigmoid(res_predicted_score)
     else:
         epsilon = 0.000001
