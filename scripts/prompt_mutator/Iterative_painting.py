@@ -50,7 +50,12 @@ def parse_args():
     return parser.parse_args()
 
 class IterativePainter:
-    def __init__(self, prompt_generator=None):
+    def __init__(self,
+                 minio_access_key,
+                 minio_secret_key,
+                 minio_ip_addr,
+                 prompt_generator=None):
+        
         self.max_iterations=100
         self.image_size=1024 
         self.context_size=512 
@@ -76,7 +81,9 @@ class IterativePainter:
         # self.minio_client = self.prompt_generator.minio_client
         # self.text_embedder=self.prompt_generator.embedder
 
-        self.minio_client = cmd.connect_to_minio_client()
+        self.minio_client = cmd.get_minio_client(minio_access_key,
+                                                 minio_secret_key,
+                                                 minio_ip_addr)
 
         if torch.cuda.is_available():
             self.device = 'cuda'
@@ -315,7 +322,9 @@ def main():
 #                                   clip_batch_size=args.clip_batch_size,
 #                                   substitution_batch_size=args.substitution_batch_size)
    
-   Painter= IterativePainter()
+   Painter= IterativePainter(minio_access_key=args.minio_access_key,
+                             minio_secret_key=args.minio_secret_key,
+                             minio_ip_addr=args.minio_addr)
    Painter.test()
 
 if __name__ == "__main__":
