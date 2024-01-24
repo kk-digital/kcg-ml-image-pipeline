@@ -106,7 +106,6 @@ def http_add_residual(residual_data):
 
         if response.status_code != 200:
             print(f"request failed with status code: {response.status_code}: {str(response.content)}")
-            print("res data=", residual_data)
     except Exception as e:
         print('request exception ', e)
 
