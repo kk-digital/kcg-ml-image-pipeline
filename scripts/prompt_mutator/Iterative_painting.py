@@ -50,7 +50,7 @@ def parse_args():
     return parser.parse_args()
 
 class IterativePainter:
-    def __init__(self, prompt_generator):
+    def __init__(self, prompt_generator=None):
         self.max_iterations=100
         self.image_size=1024 
         self.context_size=512 
@@ -289,32 +289,32 @@ def main():
    elif(args.model_dataset=="environmental"):  
         csv_base_prompts='input/dataset-config/environmental/base-prompts-environmental.csv'
 
-   prompt_generator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
-                                  minio_secret_key=args.minio_secret_key,
-                                  minio_ip_addr=args.minio_addr,
-                                  csv_phrase=args.csv_phrase,
-                                  csv_base_prompts=csv_base_prompts,
-                                  model_dataset=args.model_dataset,
-                                  substitution_model=args.substitution_model,
-                                  scoring_model=args.scoring_model,
-                                  max_iterations=args.max_iterations,
-                                  sigma_threshold=args.sigma_threshold,
-                                  variance_weight=args.variance_weight,
-                                  boltzman_temperature=args.boltzman_temperature,
-                                  boltzman_k=args.boltzman_k,
-                                  dataset_name=args.dataset_name,
-                                  store_embeddings=args.store_embeddings,
-                                  store_token_lengths=args.store_token_lengths,
-                                  self_training=args.self_training,
-                                  send_job=args.send_job,
-                                  save_csv=args.save_csv,
-                                  initial_generation_policy=args.initial_generation_policy,
-                                  top_k=args.top_k,
-                                  num_choices_per_iteration=args.num_choices,
-                                  clip_batch_size=args.clip_batch_size,
-                                  substitution_batch_size=args.substitution_batch_size)
+#    prompt_generator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
+#                                   minio_secret_key=args.minio_secret_key,
+#                                   minio_ip_addr=args.minio_addr,
+#                                   csv_phrase=args.csv_phrase,
+#                                   csv_base_prompts=csv_base_prompts,
+#                                   model_dataset=args.model_dataset,
+#                                   substitution_model=args.substitution_model,
+#                                   scoring_model=args.scoring_model,
+#                                   max_iterations=args.max_iterations,
+#                                   sigma_threshold=args.sigma_threshold,
+#                                   variance_weight=args.variance_weight,
+#                                   boltzman_temperature=args.boltzman_temperature,
+#                                   boltzman_k=args.boltzman_k,
+#                                   dataset_name=args.dataset_name,
+#                                   store_embeddings=args.store_embeddings,
+#                                   store_token_lengths=args.store_token_lengths,
+#                                   self_training=args.self_training,
+#                                   send_job=args.send_job,
+#                                   save_csv=args.save_csv,
+#                                   initial_generation_policy=args.initial_generation_policy,
+#                                   top_k=args.top_k,
+#                                   num_choices_per_iteration=args.num_choices,
+#                                   clip_batch_size=args.clip_batch_size,
+#                                   substitution_batch_size=args.substitution_batch_size)
    
-   Painter= IterativePainter(prompt_generator=prompt_generator)
+   Painter= IterativePainter()
    Painter.test()
 
 if __name__ == "__main__":
