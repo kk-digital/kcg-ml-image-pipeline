@@ -89,8 +89,9 @@ if __name__ == "__main__":
     
     with section("Downloading Dreamshaper model"):
         # download Dreamshaper inpainting model
-        dreamshaper_path = config.get_model('dreamshaper-8', check_existence=False)
+        dreamshaper_path = config.get_model('inpainting/dreamshaper-8', check_existence=False)
 
         bucket_name = "models"
         object_name = "dreamshaper/dreamshaper-8-inpainting-AC84E05D50.safetensors"
         download_from_minio(minio_client, bucket_name, object_name, dreamshaper_path)
+
