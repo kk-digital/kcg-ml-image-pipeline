@@ -1,11 +1,11 @@
-from fastapi import Request, APIRouter, Query, HTTPException
+from fastapi import Request, APIRouter, Query, HTTPException, Body
 from datetime import datetime
 from utility.minio import cmd
 import os
 import json
 from io import BytesIO
-from orchestration.api.mongo_schemas import Selection, RelevanceSelection, NewSelection
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode
+from orchestration.api.mongo_schemas import Selection, RelevanceSelection
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, ApiResponseHandler
 import random
 from collections import OrderedDict
 from bson import ObjectId
@@ -138,47 +138,66 @@ def add_relevancy_selection_datapoint(request: Request, relevance_selection: Rel
     return True
 
 
-@router.post("/rank/add-ranking-data-point-v1")
-def add_selection_datapoint(request: Request, selection: NewSelection):
-    current_time = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
-    file_name = f"{current_time}-{selection.Selection.username}.json"
-    dataset = selection.Selection.image_1_metadata.file_path.split('/')[1]
-    selection.Selection.datetime = current_time
+@router.post("/rank/add-ranking-data-point-v1", 
+             status_code=201,
+             description="Add Selection Datapoint",
+             response_model=StandardSuccessResponse[Selection],
+             responses=ApiResponseHandler.listErrors([422, 500]))
+def add_selection_datapoint(request: Request, selection: Selection):
+    api_handler = ApiResponseHandler(request)
+    
+    try:
+        current_time = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
+        file_name = f"{current_time}-{selection.username}.json"
+        dataset = selection.image_1_metadata.file_path.split('/')[1]
+        selection.datetime = current_time
 
-    dict_data = selection.to_dict()
+        dict_data = selection.to_dict()
 
-    # Prepare ordered data for MongoDB insertion
-    mongo_data = OrderedDict([
-        ("_id", ObjectId()),  # Generate new ObjectId
-        ("file_name", file_name),
-        ("dataset", dataset),
-        *dict_data.items()  # Unpack the rest of dict_data
-    ])
+        # Prepare ordered data for MongoDB insertion
+        mongo_data = OrderedDict([
+            ("_id", ObjectId()),  # Generate new ObjectId
+            ("file_name", file_name),
+            ("dataset", dataset),
+            *dict_data.items()  # Unpack the rest of dict_data
+        ])
 
-    # Insert the ordered data into MongoDB
-    request.app.image_pair_ranking_collection.insert_one(mongo_data)
+        # Insert the ordered data into MongoDB
+        request.app.image_pair_ranking_collection.insert_one(mongo_data)
 
-    # Prepare data for MinIO upload (excluding the '_id' field)
-    minio_data = mongo_data.copy()
-    minio_data.pop("_id")
-    path = "data/ranking/aggregate"
-    full_path = os.path.join(dataset, path, file_name)
-    json_data = json.dumps(minio_data, indent=4).encode('utf-8')
-    data = BytesIO(json_data)
+        # Prepare data for MinIO upload (excluding the '_id' field)
+        minio_data = mongo_data.copy()
+        minio_data.pop("_id")
+        minio_data.pop("file_name")
+        minio_data.pop("dataset")
+        path = "data/ranking/aggregate"
+        full_path = os.path.join(dataset, path, file_name)
+        json_data = json.dumps(minio_data, indent=4).encode('utf-8')
+        data = BytesIO(json_data)
 
-    # Upload data to MinIO
-    cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
+        # Upload data to MinIO
+        cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
 
-    image_1_hash = selection.Selection.image_1_metadata.file_hash
-    image_2_hash = selection.Selection.image_2_metadata.file_hash
+        image_1_hash = selection.image_1_metadata.file_hash
+        image_2_hash = selection.image_2_metadata.file_hash
 
-    # Update rank count for images
-    for img_hash in [image_1_hash, image_2_hash]:
-        update_image_rank_use_count(request, img_hash)
+        # Update rank count for images
+        for img_hash in [image_1_hash, image_2_hash]:
+            update_image_rank_use_count(request, img_hash)
 
-    return True
+        # Return a success response
+        return api_handler.create_success_response(
+            response_data=minio_data,
+            http_status_code=201
+        )
 
+    except Exception as e:
 
+        return api_handler.create_error_response(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string="Internal Server Error",
+            http_status_code=500
+        )
 
 
 @router.get("/rank/list-ranking-data", response_class=PrettyJSONResponse)
@@ -217,6 +236,18 @@ def list_ranking_data(
         raise HTTPException(status_code=500, detail=str(e))
 
     return ranking_data
+
+@router.get("/rank/count-ranking-data", response_class=PrettyJSONResponse)
+def count_ranking_data(request: Request):
+    try:
+        # Get the count of documents in the image_pair_ranking_collection
+        count = request.app.image_pair_ranking_collection.count_documents({})
+
+        return {"count": count}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.delete("/rank/delete-ranking-data-point-from-mongo")
 def delete_ranking_data_point(request: Request, id: str):
@@ -297,3 +328,105 @@ def delete_all_ranking_data_points(request: Request):
         raise HTTPException(status_code=404, detail="No documents found in the collection")
 
     return {"message": "All documents deleted successfully"}
+
+
+@router.post("/update/add-residual-data", 
+             status_code=200,
+             description="Add Residual Data to Images")
+def add_residual_data(request: Request, selected_img_hash: str, residual: float):
+    try:
+        # Fetching the MongoDB collection
+        image_collection = request.app.image_pair_ranking_collection  
+
+        # Finding and updating documents
+        query = {"selected_image_hash": selected_img_hash}
+        update = {"$set": {"model_data.residual": residual}}
+        
+        # Update all documents matching the query
+        result = image_collection.update_many(query, update)
+
+        # Check if documents were updated
+        if result.modified_count == 0:
+            return {"message": "No documents found or updated."}
+        
+        return {"message": f"Successfully updated {result.modified_count} documents."}
+
+    except Exception as e:
+        return {"error": f"An error occurred: {str(e)}"}
+
+
+
+@router.put("/job/add-selected-residual", description="Adds the selected_residual to a completed job.")
+def add_selected_residual(
+    request: Request,
+    image_hash: str = Body(...),
+    model_type: str = Body(...),
+    residual: float = Body(...)
+):
+    query = {"selected_image_hash": image_hash}
+    update_query = {"$set": {f"selected_residual.{model_type}": residual}}
+
+    result = request.app.image_pair_ranking_collection.update_one(query, update_query)
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=304, detail="Job not updated, possibly no change in data")
+
+    return {"message": "Job selected residual updated successfully."}
+
+
+@router.post("/migrate/minio-to-mongodb", status_code=202, description="Migrate datapoints from Minio to MongoDB.")
+def migrate_datapoints_from_minio_to_mongodb(request: Request, minio_bucket: str = 'datasets'):
+    api_handler = ApiResponseHandler(request)
+    
+    try:
+        migrate_json_to_mongodb(request.app.minio_client, request.app.image_pair_ranking_collection, minio_bucket)
+        return api_handler.create_success_response(
+            response_data={"message": "Migration completed successfully."},
+            http_status_code=202
+        )
+    except Exception as e:
+        return api_handler.create_error_response(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+
+def migrate_json_to_mongodb(minio_client, mongo_collection, minio_bucket):
+    for dataset in list_datasets(minio_client, minio_bucket):
+        folder_name = f'{dataset}/data/ranking/aggregate'
+        print(f"Processing dataset '{dataset}' located at '{folder_name}' in bucket '{minio_bucket}'...")
+        objects = minio_client.list_objects(minio_bucket, prefix=folder_name, recursive=True)
+        for obj in objects:
+            if obj.is_dir:
+                continue
+
+            json_filename = obj.object_name.split('/')[-1]
+            if mongo_collection.count_documents({"file_name": json_filename}) > 0:
+                print(f"Skipping '{json_filename}', already exists in MongoDB.")
+                continue
+
+            print(f"Found object '{obj.object_name}' in dataset '{dataset}'...")
+            response = minio_client.get_object(minio_bucket, obj.object_name)
+            data = response.read()
+            original_data = json.loads(data.decode('utf-8'))
+            ordered_data = OrderedDict([
+                ("file_name", json_filename),
+                ("dataset", dataset),
+                *original_data.items()
+            ])
+
+            mongo_collection.insert_one(ordered_data)
+            print(f"Migrated '{json_filename}' to MongoDB.")
+            
+def list_datasets(minio_client, bucket_name):
+    datasets = set()
+    objects = minio_client.list_objects(bucket_name, recursive=False)
+    for obj in objects:
+        if obj.is_dir:
+            dataset_name = obj.object_name.strip('/').split('/')[0]
+            datasets.add(dataset_name)
+    return list(datasets)
+

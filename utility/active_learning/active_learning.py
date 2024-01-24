@@ -20,7 +20,7 @@ from utility.minio import cmd
 from utility.minio.cmd import connect_to_minio_client
 from utility.active_learning.pairs import get_candidate_pairs_by_score, get_candidate_pairs_within_category
 
-API_URL = "http://123.176.98.90:8764"
+API_URL = "http://192.168.3.1:8111"
 
 class ActiveLearningPipeline:
 

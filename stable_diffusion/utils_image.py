@@ -13,7 +13,11 @@ from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 from data_loader.generated_image_data import GeneratedImageData
 from data_loader.prompt_embedding import PromptEmbedding
+from data_loader.image_latent import LatentData
 from utility.clip.clip_text_embedder import tensor_attention_pooling, tensor_max_pooling, tensor_max_abs_pooling
+from torchvision.transforms import ToTensor
+from diffusers import AutoPipelineForText2Image
+
 
 
 def calculate_sha256(tensor):
@@ -78,6 +82,29 @@ def save_image_data_to_minio(minio_client, job_uuid, creation_time, dataset, fil
     buffer.seek(0)
 
     cmd.upload_data(minio_client, bucket_name, file_path.replace('.jpg', '_data.msgpack'), buffer)
+
+
+def save_latent_to_minio(minio_client, bucket_name, job_uuid, file_hash, latent, file_path):
+    bucket_name, file_path = separate_bucket_and_file_path(file_path)
+    # Convert the latent Tensor to a list or NumPy array
+    if isinstance(latent, torch.Tensor):
+        latent = latent.cpu().numpy().tolist()
+
+    # Create an instance of the LatentData class with the provided latent representation
+    latent_data = LatentData(job_uuid, file_hash, latent)
+
+    # Serialize the latent data to a msgpack string
+    msgpack_string = latent_data.get_msgpack_string()
+
+    # Create a buffer for the serialized data
+    buffer = io.BytesIO()
+    buffer.write(msgpack_string)
+    buffer.seek(0)
+
+    # Upload the data using the cmd.upload_data method
+    cmd.upload_data(minio_client, bucket_name, file_path.replace('.jpg', '_vae_latent.msgpack'), buffer)
+
+
 
 def save_prompt_embedding_to_minio(minio_client, prompt_embedding, file_path):
     msgpack_string = prompt_embedding.get_msgpack_string()

@@ -285,6 +285,19 @@ def train_ranking(dataset_name: str,
 
     # add model card
     model_id = score_residual.add_model_card(model_card)
+    model_type = "linear"
+    # upload residuals
+    score_residual.upload_score_residual(model_type=model_type,
+                                         train_prob_predictions=training_predicted_probabilities,
+                                         training_targets=training_target_probabilities,
+                                         validation_prob_predictions=validation_predicted_probabilities,
+                                         validation_targets=validation_target_probabilities,
+                                         training_pred_scores_img_x=training_predicted_score_images_x,
+                                         validation_pred_scores_img_x=validation_predicted_score_images_x,
+                                         training_image_hashes=dataset_loader.training_image_hashes,
+                                         validation_image_hashes=dataset_loader.validation_image_hashes,
+                                         training_shuffled_indices_origin=training_shuffled_indices_origin,
+                                         validation_shuffled_indices_origin=validation_shuffled_indices_origin)
 
     return model_output_path, report_output_path, graph_output_path
 
