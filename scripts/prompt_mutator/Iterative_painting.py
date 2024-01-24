@@ -7,18 +7,13 @@ from PIL import Image, ImageDraw
 import numpy as np
 import torch
 
-from diffusers import StableDiffusionInpaintPipeline
-from diffusers import StableDiffusionXLInpaintPipeline
-from torchvision import transforms
-
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
-from stable_diffusion.model.clip_image_encoder.clip_image_encoder import CLIPImageEncoder
-from worker.image_generation.scripts.inpaint_A1111 import StableDiffusionProcessingImg2Img
+from worker.image_generation.scripts.inpainting_pipeline import StableDiffusionInpaintingPipeline
 from scripts.prompt_mutator.greedy_substitution_search_v1 import PromptSubstitutionGenerator
 from utility.minio import cmd
 from utility.clip import clip
@@ -113,10 +108,7 @@ class IterativePainter:
         # # load stable diffusion model for inpainting
         # self.inpainting_processor.load_model()
 
-        self.pipeline = StableDiffusionInpaintPipeline.from_single_file(
-            "https://huggingface.co/runwayml/stable-diffusion-inpainting/blob/main/sd-v1-5-inpainting.ckpt",
-            torch_dtype=torch.float16
-        ).to("cuda")
+        self.pipeline = StableDiffusionInpaintingPipeline()
 
     # load elm or linear scoring models
     def load_scoring_model(self):
@@ -249,12 +241,8 @@ class IterativePainter:
         draw = ImageDraw.Draw(mask)
         draw.rectangle(self.center_area, fill=255)  # Unmasked (white) center area
 
-        with torch.no_grad():
-            image = self.pipeline(
-                prompt=prompt, image=context_image, mask_image=mask, num_inference_steps=40, strength=0.75, guidance_scale=7.5
-            )
+        result_image= self.pipeline.inpaint(prompt=prompt, image=context_image, image_mask= mask)
         
-        result_image=image.images[0]
         cropped_image = result_image.crop(self.center_area)
 
         return cropped_image
@@ -265,11 +253,7 @@ class IterativePainter:
         mask= Image.new("L", (512, 512), 255)
 
         # Generate the image
-        #init_image, seed = self.pipe(prompt=prompt, negative_prompt="", init_images=white_background, image_mask=mask)
-        with torch.no_grad():
-            init_image = self.pipeline(
-                prompt=prompt, image=white_background, mask_image=mask, num_inference_steps=40, strength=0.75, guidance_scale=7.5
-            )
+        init_image = self.pipeline.inpaint(prompt=prompt, image=white_background, image_mask= mask)
 
         draw = ImageDraw.Draw(init_image)
         draw.rectangle(self.center_area, fill="white")  # Unmasked (white) center area
