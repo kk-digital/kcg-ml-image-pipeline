@@ -259,21 +259,17 @@ class IterativePainter:
 
     def test(self):
         prompt="2D side scrolling, forest, electric atmosphere, mechanical ascension cyberpunk, tropical jungle theme, undewear, ruined walls, beastly, ruined cityscape, mechanical, ruins in a jungle, deep jungle, showchest, bad chest, adventurer, a ruin"
-        white_background= Image.new("RGB", (512, 512), "white")
-        mask= Image.new("L", (512, 512), 255)
+        context_image= Image.open("input/background_image.jpg").convert("RGB").resize()
 
-        # Generate the image
-        init_image = self.pipeline.inpaint(prompt=prompt, image=white_background, image_mask= mask)
-
-        draw = ImageDraw.Draw(init_image)
+        draw = ImageDraw.Draw(context_image)
         draw.rectangle(self.center_area, fill="white")  # Unmasked (white) center area
         
         img_byte_arr = io.BytesIO()
-        init_image.save(img_byte_arr, format="png")
+        context_image.save(img_byte_arr, format="png")
         img_byte_arr.seek(0)  # Move to the start of the byte array
         cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/initial_image.png" , img_byte_arr) 
 
-        generated_image= self.generate_image(init_image, prompt)
+        generated_image= self.generate_image(context_image, prompt)
         
         img_byte_arr = io.BytesIO()
         generated_image.save(img_byte_arr, format="png")
