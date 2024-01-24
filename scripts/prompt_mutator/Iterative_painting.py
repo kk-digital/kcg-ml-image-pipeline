@@ -251,7 +251,7 @@ class IterativePainter:
 
     def test(self):
         prompt="2D side scrolling, forest, electric atmosphere, mechanical ascension cyberpunk, tropical jungle theme, undewear, ruined walls, beastly, ruined cityscape, mechanical, ruins in a jungle, deep jungle, showchest, bad chest, adventurer, a ruin"
-        white_background= [Image.new("RGB", (512, 512), "white")]
+        white_background= Image.new("RGB", (512, 512), "white")
         mask= Image.new("L", (512, 512), 255)
 
         # Generate the image
