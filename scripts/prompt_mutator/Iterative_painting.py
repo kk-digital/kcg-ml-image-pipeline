@@ -253,12 +253,12 @@ class IterativePainter:
 
         result_image= self.pipeline.inpaint(prompt=prompt, image=context_image, image_mask= mask)
         
-        cropped_image = result_image.crop(self.center_area)
+        #cropped_image = result_image.crop(self.center_area)
 
-        return cropped_image
+        return result_image
 
     def test(self):
-        prompt="2D side scrolling, forest, electric atmosphere, mechanical ascension cyberpunk, tropical jungle theme, undewear, ruined walls, beastly, ruined cityscape, mechanical, ruins in a jungle, deep jungle, showchest, bad chest, adventurer, a ruin"
+        prompt="environmental 2D, 2D environmental, steampunkcyberpunk, 2D environmental art side scrolling, broken trees, undewear, muscular, wide, child chest, urban jungle, dark ruins in background, loki steampunk style, ancient trees"
         context_image= Image.open("input/background_image.jpg").convert("RGB").resize()
 
         draw = ImageDraw.Draw(context_image)
