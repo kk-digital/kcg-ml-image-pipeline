@@ -42,7 +42,7 @@ class StableDiffusionInpaintingPipeline:
             text_encoder = CLIPTextModel.from_pretrained(text_encoder_path, local_files_only=True,
                                                              use_safetensors=True).eval().to(self.device)
             
-            self.transformer = self.transformer.to(device=self.device)
+            text_encoder = text_encoder.to(device=self.device)
             print(self.device)
             logger.debug(f"Text encoder model successfully loaded from : {text_encoder_path}")
 
