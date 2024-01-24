@@ -32,7 +32,8 @@ def get_delta_score(clip_hash_sigma_score_dict,
     return hash_delta_score_dict
 
 
-def upload_scores_attributes_to_completed_jobs(clip_hash_score_dict,
+def upload_scores_attributes_to_completed_jobs(model_type,
+                                               clip_hash_score_dict,
                                                clip_hash_sigma_score_dict,
                                                embedding_hash_score_dict,
                                                embedding_hash_sigma_score_dict,
@@ -59,6 +60,7 @@ def upload_scores_attributes_to_completed_jobs(clip_hash_score_dict,
 
 
             futures.append(executor.submit(request.http_add_score_attributes,
+                                           model_type=model_type,
                                            img_hash=img_hash,
                                            image_clip_score=clip_score,
                                            image_clip_percentile=clip_percentile,
@@ -341,6 +343,11 @@ def run_image_delta_scorer(minio_client,
 
     start_time = time.time()
 
+    # get model type
+    model_type = "linear"
+    if "elm" in clip_model_filename:
+        model_type = "elm-v1"
+
     # clip
     clip_scorer = ImageScorer(minio_client=minio_client,
                               dataset_name=dataset_name,
@@ -379,7 +386,8 @@ def run_image_delta_scorer(minio_client,
                                                     hash_delta_score_dict=hash_delta_score_dict,
                                                     )
 
-    upload_scores_attributes_to_completed_jobs(clip_hash_score_dict=clip_hash_score_dict,
+    upload_scores_attributes_to_completed_jobs(model_type=model_type,
+                                               clip_hash_score_dict=clip_hash_score_dict,
                                                clip_hash_sigma_score_dict=clip_hash_sigma_score_dict,
                                                embedding_hash_score_dict=embedding_hash_score_dict,
                                                embedding_hash_sigma_score_dict=embedding_hash_sigma_score_dict,
