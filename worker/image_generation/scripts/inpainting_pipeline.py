@@ -8,7 +8,7 @@ import torch
 
 class StableDiffusionInpaintingPipeline:
     def __init__(self,
-                 model_type="Ned",
+                 model_type="ned",
                  denoising_strength=0.75,
                  guidance_scale=7.5,
                  steps=40,
