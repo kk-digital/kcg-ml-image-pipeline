@@ -84,7 +84,7 @@ if __name__ == "__main__":
         ned_path = config.get_model('inpainting/ned-v1-22', check_existence=False)
 
         bucket_name = "models"
-        object_name = "models/never-ending-dream/ned-v1-22-inpainting-A62B4AC3A2.safetensors"
+        object_name = "never-ending-dream/ned-v1-22-inpainting-A62B4AC3A2.safetensors"
         download_from_minio(minio_client, bucket_name, object_name, ned_path)
     
     with section("Downloading Dreamshaper model"):
@@ -92,5 +92,5 @@ if __name__ == "__main__":
         dreamshaper_path = config.get_model('dreamshaper-8', check_existence=False)
 
         bucket_name = "models"
-        object_name = "models/dreamshaper/dreamshaper-8-inpainting-AC84E05D50.safetensors"
+        object_name = "dreamshaper/dreamshaper-8-inpainting-AC84E05D50.safetensors"
         download_from_minio(minio_client, bucket_name, object_name, dreamshaper_path)
