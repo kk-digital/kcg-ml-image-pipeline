@@ -66,7 +66,6 @@ class StableDiffusionInpaintingPipeline:
             print(self.device)
             logger.debug(f"Text encoder model successfully loaded from : {text_encoder_path}")
 
-        # Load inpainting model
         with section("Loading Inpainting model"):
             self.inpainting_model = StableDiffusionInpaintPipeline.from_single_file(
                 pretrained_model_link_or_path=self.inpainting_model_path,
@@ -91,15 +90,15 @@ class StableDiffusionInpaintingPipeline:
         init_image = initial_image.convert("RGB").resize((self.width, self.height))
         mask = image_mask.convert("RGB").resize((self.width, self.height))
 
-        # with torch.no_grad():
-        output = self.inpainting_model(
-            prompt=prompt, 
-            image=init_image, 
-            mask_image=mask, 
-            num_inference_steps=self.steps, 
-            strength=self.denoising_strength, 
-            guidance_scale=self.guidance_scale
-        )
+        with torch.no_grad():
+            output = self.inpainting_model(
+                prompt=prompt, 
+                image=init_image, 
+                mask_image=mask, 
+                num_inference_steps=self.steps, 
+                strength=self.denoising_strength, 
+                guidance_scale=self.guidance_scale
+            )
 
         return output.images[0]
 
