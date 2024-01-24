@@ -73,6 +73,9 @@ class IterativePainter:
         
         self.center_area=(left, top, right, bottom)
 
+        self.pipeline = StableDiffusionInpaintingPipeline(model_type="dreamshaper")
+        self.pipeline.load_models()
+
         self.prompt_generator= prompt_generator
         self.minio_client = self.prompt_generator.minio_client
         self.text_embedder=self.prompt_generator.embedder
@@ -81,12 +84,6 @@ class IterativePainter:
             self.device = 'cuda'
         else:
             self.device = 'cpu'
-
-        self.image_embedder= clip.ClipModel(device=torch.device(self.device))
-        self.image_embedder.load_clip()
-
-        self.pipeline = StableDiffusionInpaintingPipeline(model_type="dreamshaper")
-        self.pipeline.load_models()
 
     # load elm or linear scoring models
     def load_scoring_model(self):
