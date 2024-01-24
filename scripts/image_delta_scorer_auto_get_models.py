@@ -57,9 +57,8 @@ def main():
 
     # if all, train models for all existing datasets
     # get dataset name list
-    # dataset_names = request.http_get_dataset_names()
-    # print("dataset names=", dataset_names)
-    dataset_names = ["test-generations"]
+    dataset_names = request.http_get_dataset_names()
+    print("dataset names=", dataset_names)
     for dataset in dataset_names:
         print("Calculating delta score for dataset: {}".format(dataset))
         # get latest model
