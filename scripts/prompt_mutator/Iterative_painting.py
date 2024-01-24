@@ -72,9 +72,11 @@ class IterativePainter:
         
         self.center_area=(left, top, right, bottom)
 
-        self.prompt_generator= prompt_generator
-        self.minio_client = self.prompt_generator.minio_client
-        self.text_embedder=self.prompt_generator.embedder
+        # self.prompt_generator= prompt_generator
+        # self.minio_client = self.prompt_generator.minio_client
+        # self.text_embedder=self.prompt_generator.embedder
+
+        self.minio_client = cmd.connect_to_minio_client()
 
         if torch.cuda.is_available():
             self.device = 'cuda'
