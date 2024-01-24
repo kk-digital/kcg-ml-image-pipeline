@@ -1,10 +1,21 @@
+import hashlib
+import io
+import os
+import sys
 from diffusers import StableDiffusionInpaintPipeline
 from transformers import CLIPTokenizer, CLIPTextModel
 from stable_diffusion.model_paths import CLIP_TOKENIZER_DIR_PATH, CLIP_TEXT_MODEL_DIR_PATH, NED_INPAINTING_PATH, DREAMSHAPER_INPAINTING_PATH, INPAINTING_CONFIG_FILE
-from utility.labml.monit import section
-from utility.utils_logger import logger
 from PIL import Image
 import torch
+
+base_dir = "./"
+sys.path.insert(0, base_dir)
+sys.path.insert(0, os.getcwd())
+
+from utility.labml.monit import section
+from utility.minio import cmd
+from utility.path import separate_bucket_and_file_path
+from utility.utils_logger import logger
 
 class StableDiffusionInpaintingPipeline:
     def __init__(self,
@@ -15,6 +26,15 @@ class StableDiffusionInpaintingPipeline:
                  width=512,
                  height=512
                  ):
+        """
+        model_type (str): is the type of inpainting model to use, the options are "ned" and "dreamshaper"
+        denoising_strength (float): The strength of denoising applied during inpainting. A higher value enhances denoising effects.
+        guidance_scale (float): The scale of guidance for inpainting. It controls the impact of guidance on the inpainting process.
+        steps (int): The number of optimization steps to perform during inpainting. More steps may lead to finer inpainting results.
+        width (int): The width of the inpainting canvas. Specifies the horizontal dimension of the image to be inpainted.
+        height (int): The height of the inpainting canvas. Specifies the vertical dimension of the image to be inpainted.
+        """
+
         # set parameters
         self.denoising_strength=denoising_strength
         self.guidance_scale=guidance_scale
@@ -57,9 +77,18 @@ class StableDiffusionInpaintingPipeline:
             ).to(self.device)
             logger.debug(f"Inpainting model successfully loaded from : {text_encoder_path}")
     
-    def inpaint(self, prompt:str, image: Image, image_mask: Image):
+    def inpaint(self, prompt:str, initial_image: Image, image_mask: Image):
+        """
+        prompt (str): The textual prompt that guides the inpainting process. Describes the desired content or style of the inpainted image.
+        image (Image): The initial image to be inpainted. This serves as the starting point for the inpainting process.
+        image_mask (Image): The mask indicating the areas of the image that should be inpainted. Specifies regions to be filled or modified.
+        
+        Returns:
+        Image (Image): The inpainted image resulting from the application of the specified prompt and mask. Represents the final result of the inpainting process.
+        """
+
         # resizing and converting initial image and mask
-        init_image = image.convert("RGB").resize((self.width, self.height))
+        init_image = initial_image.convert("RGB").resize((self.width, self.height))
         mask = image_mask.convert("RGB").resize((self.width, self.height))
 
         # with torch.no_grad():
@@ -74,35 +103,33 @@ class StableDiffusionInpaintingPipeline:
 
         return output.images[0]
 
-# # load image & mask
-# init_image = Image.open(args.image_path).convert("RGB").resize(args.target_size)
-# mask = Image.open(args.mask_path).convert("RGB").resize(args.target_size)
+    def convert_image_to_png(self, image):
+        # convert image to bytes arr
+        img_byte_arr = io.BytesIO()
+        image.save(img_byte_arr, format='jpeg')
+        img_byte_arr.seek(0)
 
-# # Load tokenizer and text encoder
-# tokenizer = CLIPTokenizer.from_pretrained(args.tokenizer_path, local_files_only=True)
-# text_encoder = CLIPTextModel.from_pretrained(args.text_model_path, local_files_only=True).cuda().eval()
+        # get hash from byte array
+        output_file_hash = (hashlib.sha256(img_byte_arr.getbuffer())).hexdigest()
 
-# # load model
-# torch_dtype = torch.float32 if args.use_float32 else torch.float16
-# pipe = StableDiffusionInpaintPipeline.from_single_file(
-#     pretrained_model_link_or_path=args.model_file_path,
-#     config_files={'v1': args.config_file_path},
-#     text_encoder=text_encoder,
-#     tokenizer=tokenizer,
-#     local_files_only=True, use_safetensors=True, load_safety_checker=False
-# ).to('cuda')
+        return output_file_hash, img_byte_arr
 
-# # do inpainting
-# with torch.no_grad():
-#     output = pipe(
-#         prompt=args.prompt, 
-#         image=init_image, 
-#         mask_image=mask, 
-#         num_inference_steps=args.num_inference_steps, 
-#         strength=args.strength, 
-#         guidance_scale=args.guidance_scale
-#     )
+    def save_image_to_disk(self, image_data, output_file_path, minio_client):
+        # get bucket name and file path from output path
+        bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
+        
+        # upload image data to minIO
+        cmd.upload_data(minio_client, bucket_name, file_path, image_data)
 
-# # save result
-# output_image = output.images[0]
-# output_image.save(args.target_path)
+
+# Example Usage--------------------------------------------
+        
+# pipeline = StableDiffusionInpaintingPipeline(model_type="ned",
+#                                             denoising_strength=0.75,
+#                                             guidance_scale=7.5,
+#                                             steps=40,
+#                                             width=512,
+#                                             height=512)
+# pipeline.load_models()
+
+# result_image= pipeline.inpaint(prompt=prompt, initial_image=initial_image, image_mask= mask)

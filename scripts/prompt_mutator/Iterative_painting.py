@@ -93,30 +93,6 @@ class IterativePainter:
         self.image_embedder= clip.ClipModel(device=torch.device(self.device))
         self.image_embedder.load_clip()
 
-        # self.scoring_model= self.load_scoring_model()
-
-        # self.inpainting_processor= StableDiffusionProcessingImg2Img(
-        #     sampler_name="ddim", 
-        #     batch_size=1, 
-        #     n_iter=1, 
-        #     steps=20, 
-        #     cfg_scale=7.0, 
-        #     width=self.context_size, 
-        #     height=self.context_size, 
-        #     mask_blur=4.0, 
-        #     inpainting_fill=1, 
-        #     styles=None, 
-        #     resize_mode=0, 
-        #     denoising_strength=0.75, 
-        #     image_cfg_scale=None, 
-        #     inpaint_full_res_padding=0, 
-        #     inpainting_mask_invert=0,
-        #     clip_text_embedder=self.text_embedder, 
-        #     device=self.device)
-        
-        # # load stable diffusion model for inpainting
-        # self.inpainting_processor.load_model()
-
         self.pipeline = StableDiffusionInpaintingPipeline(model_type="dreamshaper")
         self.pipeline.load_models()
 
@@ -222,24 +198,6 @@ class IterativePainter:
         print(prompt_str)
 
         return prompt_str
-    
-    # def generate_image(self, context_image, prompt):
-    #     # Use the context image as an initial image
-    #     draw = ImageDraw.Draw(context_image)
-    #     draw.rectangle(self.center_area, fill="white")  # Unmasked (white) center area
-    #     init_images = [context_image]
-
-    #     # Create mask
-    #     mask = Image.new("L", (self.context_size, self.context_size), 0)  # Fully masked (black)
-    #     draw = ImageDraw.Draw(mask)
-    #     draw.rectangle(self.center_area, fill=255)  # Unmasked (white) center area
-
-    #     # Generate the image
-    #     image, seed = self.inpainting_processor.img2img(prompt=prompt, negative_prompt="", init_images=init_images, image_mask=mask)
-
-    #     cropped_image = image.crop(self.center_area)
-
-    #     return cropped_image
 
     def generate_image(self, context_image, prompt):
         # Use the context image as an initial image
@@ -251,7 +209,7 @@ class IterativePainter:
         draw = ImageDraw.Draw(mask)
         draw.rectangle(self.center_area, fill=255)  # Unmasked (white) center area
 
-        result_image= self.pipeline.inpaint(prompt=prompt, image=context_image, image_mask= mask)
+        result_image= self.pipeline.inpaint(prompt=prompt, initial_image=context_image, image_mask= mask)
         
         #cropped_image = result_image.crop(self.center_area)
 
