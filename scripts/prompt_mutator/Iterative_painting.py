@@ -259,7 +259,7 @@ class IterativePainter:
 
     def test(self):
         prompt="environmental 2D, 2D environmental, steampunkcyberpunk, 2D environmental art side scrolling, broken trees, undewear, muscular, wide, child chest, urban jungle, dark ruins in background, loki steampunk style, ancient trees"
-        context_image= Image.open("input/background_image.jpg").convert("RGB").resize()
+        context_image= Image.open("input/background_image.jpg").convert("RGB")
 
         draw = ImageDraw.Draw(context_image)
         draw.rectangle(self.center_area, fill="white")  # Unmasked (white) center area
