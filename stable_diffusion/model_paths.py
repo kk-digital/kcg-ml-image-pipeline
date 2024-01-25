@@ -24,6 +24,11 @@ class SDconfigs:
     VAE_ENCODER = 'vae/encoder'
     VAE_DECODER = 'vae/decoder'
 
+class InpaintingConfigs:
+    NEVER_ENDING_DREAM= 'inpainting/ned-v1-22'
+    DREAMSHAPER= 'inpainting/dreamshaper-8'
+    CONFIG_FILE= 'input/model/inpainting/inpainting-config.yaml'
+
 
 CLIP_TEXT_EMBEDDER_PATH = config.get_model(CLIPconfigs.TXT_EMB)
 CLIP_TOKENIZER_DIR_PATH = config.get_model_folder_path(CLIPconfigs.TXT_EMB_TOKENIZER)
@@ -41,6 +46,10 @@ VAE_PATH = config.get_model(SDconfigs.VAE)
 VAE_ENCODER_PATH = config.get_model(SDconfigs.VAE_ENCODER)
 VAE_DECODER_PATH = config.get_model(SDconfigs.VAE_DECODER)
 LATENT_DIFFUSION_PATH = config.get_model(SDconfigs.LATENT_DIFFUSION)
+
+NED_INPAINTING_PATH= config.get_model(InpaintingConfigs.NEVER_ENDING_DREAM)
+DREAMSHAPER_INPAINTING_PATH= config.get_model(InpaintingConfigs.DREAMSHAPER)
+INPAINTING_CONFIG_FILE= InpaintingConfigs.CONFIG_FILE
 
 
 class IODirectoryTree:
