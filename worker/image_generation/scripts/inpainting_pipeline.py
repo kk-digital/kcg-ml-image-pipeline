@@ -42,6 +42,10 @@ class StableDiffusionInpaintingPipeline:
         self.width=width
         self.height=height
 
+        self.tokenizer=None
+        self.text_encoder=None
+        self.inpainting_model=None
+
         # get model path
         if model_type=="ned":
             self.inpainting_model_path= NED_INPAINTING_PATH
@@ -57,12 +61,12 @@ class StableDiffusionInpaintingPipeline:
     def load_models(self, tokenizer_path=CLIP_TOKENIZER_DIR_PATH, text_encoder_path=CLIP_TEXT_MODEL_DIR_PATH):
 
         with section("Loading Tokenizer and Text encoder"):
-            tokenizer = CLIPTokenizer.from_pretrained(tokenizer_path, local_files_only=True, return_tensors="pt", padding=True, truncation=True)
+            self.tokenizer = CLIPTokenizer.from_pretrained(tokenizer_path, local_files_only=True, return_tensors="pt", padding=True, truncation=True)
             logger.debug(f"Tokenizer successfully loaded from : {tokenizer_path}")
-            text_encoder = CLIPTextModel.from_pretrained(text_encoder_path, local_files_only=True,
+            self.text_encoder = CLIPTextModel.from_pretrained(text_encoder_path, local_files_only=True,
                                                              use_safetensors=True).eval().to(self.device)
             
-            text_encoder = text_encoder.to(device=self.device)
+            self.text_encoder = self.text_encoder.to(device=self.device)
             print(self.device)
             logger.debug(f"Text encoder model successfully loaded from : {text_encoder_path}")
 
@@ -70,11 +74,27 @@ class StableDiffusionInpaintingPipeline:
             self.inpainting_model = StableDiffusionInpaintPipeline.from_single_file(
                 pretrained_model_link_or_path=self.inpainting_model_path,
                 config_files={'v1': INPAINTING_CONFIG_FILE},
-                text_encoder=text_encoder,
-                tokenizer=tokenizer,
+                text_encoder=self.text_encoder,
+                tokenizer=self.tokenizer,
                 local_files_only=True, use_safetensors=True, load_safety_checker=False
             ).to(self.device)
             logger.debug(f"Inpainting model successfully loaded from : {text_encoder_path}")
+    
+    def unload_models(self):
+        if self.tokenizer is not None:
+            self.tokenizer
+            del self.tokenizer
+            self.tokenizer = None
+        if self.text_encoder is not None:
+            self.text_encoder.to("cpu")
+            del self.text_encoder
+            self.text_encoder = None
+        if self.inpainting_model is not None:
+            self.inpainting_model.to("cpu")
+            del self.inpainting_model
+            self.inpainting_model = None
+
+        torch.cuda.empty_cache()
     
     def inpaint(self, prompt:str, initial_image: Image, image_mask: Image):
         """

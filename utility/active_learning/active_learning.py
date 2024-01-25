@@ -49,10 +49,10 @@ class ActiveLearningPipeline:
         today = datetime.now()
 
         # Format today's date as a string
-        start_date = today.strftime('%Y-%m-%d')
+        end_date = today.strftime('%Y-%m-%d')
 
         # Add one day to today's date and format as a string
-        end_date = (today + timedelta(days=1)).strftime('%Y-%m-%d')
+        start_date = (today - timedelta(days=1)).strftime('%Y-%m-%d')
 
         print('Loading image file paths for', today, '..........')
         response = requests.get(f'{API_URL}/queue/image-generation/list-by-date?start_date={start_date}&end_date={end_date}')
