@@ -47,7 +47,7 @@ def list_task_attributes(request: Request, dataset: str = Query(..., description
         # For any other exception, create and return a generic error response
         return api_handler.create_error_response(
             ErrorCode.OTHER_ERROR,
-            "Internal Server Error",
+            str(exc),
             500
         )
 
@@ -195,7 +195,7 @@ def image_list_sorted_by_score_v1(
         # Return success response
         return api_handler.create_success_response(images_data, 200)
     except Exception as exc:
-        return api_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal Server Error", 500)
+        return api_handler.create_error_response(ErrorCode.OTHER_ERROR, str(exc), 500)
 
 
 @router.get("/image_by_rank/image-list-sorted-by-percentile", response_class=PrettyJSONResponse)
