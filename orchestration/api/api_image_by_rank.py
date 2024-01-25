@@ -28,10 +28,11 @@ def list_task_attributes(request: Request, dataset: str = Query(..., description
         # Iterate through cursor and add unique score field names and model names
         for task in tasks:
             task_attr_dict = task.get('task_attributes_dict', {})
-            for model, scores in task_attr_dict.items():
-                if model not in model_names:
-                    model_names.append(model)
-                score_fields.update(scores.keys())
+            if isinstance(task_attr_dict, dict):  # Check if task_attr_dict is a dictionary
+                for model, scores in task_attr_dict.items():
+                    if model not in model_names:
+                        model_names.append(model)
+                    score_fields.update(scores.keys())
 
         # Convert set to a list to make it JSON serializable
         score_fields_list = list(score_fields)
