@@ -15,7 +15,7 @@ def list_task_attributes(request: Request, dataset: str = Query(..., description
     try:
         # Fetch data from the database for the specified dataset
         tasks_cursor = request.app.completed_jobs_collection.find(
-            {"task_input_dict.dataset": dataset},
+            {"task_input_dict.dataset": dataset, "task_attributes_dict": {"$exists": True, "$ne": {}}},
             {'task_attributes_dict': 1}
         )
 
@@ -50,6 +50,7 @@ def list_task_attributes(request: Request, dataset: str = Query(..., description
             str(exc),
             500
         )
+
 
 
 
@@ -162,7 +163,8 @@ def image_list_sorted_by_score_v1(
             threshold_time = current_time - delta
 
         # Construct query based on filters
-        imgs_query = {"task_input_dict.dataset": dataset}
+        imgs_query = {"task_input_dict.dataset": dataset,
+                      f"task_attributes_dict.{model_type}.{score_field}": {"$exists": True}}
         
         if start_date and end_date:
             imgs_query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
