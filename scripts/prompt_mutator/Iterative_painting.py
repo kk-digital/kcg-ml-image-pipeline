@@ -50,7 +50,11 @@ def parse_args():
     return parser.parse_args()
 
 class IterativePainter:
-    def __init__(self, prompt_generator):
+    def __init__(self,
+                minio_access_key,
+                minio_secret_key,
+                minio_ip_addr,  
+                prompt_generator=None):
         
         self.max_iterations=100
         self.image_size=1024 
@@ -63,7 +67,10 @@ class IterativePainter:
         self.paint_matrix= np.zeros((self.end - self.start, self.end - self.start))
         self.max_repaints=3
         self.painted_centers=[]
-        self.image= Image.new("RGB", (1024, 1024), "white")
+        # Generate random noise array (range [0, 255])
+        random_noise = np.random.randint(0, 256, (self.image_size, self.image_size, 3), dtype=np.uint8)
+        # Create PIL Image from the random noise array
+        self.image = Image.fromarray(random_noise, 'RGB')
         self.num_prompts=10
 
         left = (self.context_size - self.paint_size) // 2
@@ -73,9 +80,13 @@ class IterativePainter:
         
         self.center_area=(left, top, right, bottom)
 
-        self.prompt_generator= prompt_generator
-        self.minio_client = self.prompt_generator.minio_client
-        self.text_embedder=self.prompt_generator.embedder
+        # self.prompt_generator= prompt_generator
+        # self.minio_client = self.prompt_generator.minio_client
+        # self.text_embedder=self.prompt_generator.embedder
+
+        self.minio_client = cmd.get_minio_client(minio_access_key,
+                                                minio_secret_key,
+                                                minio_ip_addr)
 
         if torch.cuda.is_available():
             self.device = 'cuda'
@@ -137,7 +148,7 @@ class IterativePainter:
         return sorted_prompts[0].positive_prompt
 
     def paint_image(self):
-        prompt= self.get_seed_prompts()
+        prompt="environmental 2D, 2D environmental, steampunkcyberpunk, 2D environmental art side scrolling, broken trees, undewear, muscular, wide, child chest, urban jungle, dark ruins in background, loki steampunk style, ancient trees"
 
         index=0
         while(True):
@@ -243,32 +254,34 @@ def main():
    elif(args.model_dataset=="environmental"):  
         csv_base_prompts='input/dataset-config/environmental/base-prompts-environmental.csv'
 
-   prompt_generator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
-                                  minio_secret_key=args.minio_secret_key,
-                                  minio_ip_addr=args.minio_addr,
-                                  csv_phrase=args.csv_phrase,
-                                  csv_base_prompts=csv_base_prompts,
-                                  model_dataset=args.model_dataset,
-                                  substitution_model=args.substitution_model,
-                                  scoring_model=args.scoring_model,
-                                  max_iterations=args.max_iterations,
-                                  sigma_threshold=args.sigma_threshold,
-                                  variance_weight=args.variance_weight,
-                                  boltzman_temperature=args.boltzman_temperature,
-                                  boltzman_k=args.boltzman_k,
-                                  dataset_name=args.dataset_name,
-                                  store_embeddings=args.store_embeddings,
-                                  store_token_lengths=args.store_token_lengths,
-                                  self_training=args.self_training,
-                                  send_job=args.send_job,
-                                  save_csv=args.save_csv,
-                                  initial_generation_policy=args.initial_generation_policy,
-                                  top_k=args.top_k,
-                                  num_choices_per_iteration=args.num_choices,
-                                  clip_batch_size=args.clip_batch_size,
-                                  substitution_batch_size=args.substitution_batch_size)
+#    prompt_generator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
+#                                   minio_secret_key=args.minio_secret_key,
+#                                   minio_ip_addr=args.minio_addr,
+#                                   csv_phrase=args.csv_phrase,
+#                                   csv_base_prompts=csv_base_prompts,
+#                                   model_dataset=args.model_dataset,
+#                                   substitution_model=args.substitution_model,
+#                                   scoring_model=args.scoring_model,
+#                                   max_iterations=args.max_iterations,
+#                                   sigma_threshold=args.sigma_threshold,
+#                                   variance_weight=args.variance_weight,
+#                                   boltzman_temperature=args.boltzman_temperature,
+#                                   boltzman_k=args.boltzman_k,
+#                                   dataset_name=args.dataset_name,
+#                                   store_embeddings=args.store_embeddings,
+#                                   store_token_lengths=args.store_token_lengths,
+#                                   self_training=args.self_training,
+#                                   send_job=args.send_job,
+#                                   save_csv=args.save_csv,
+#                                   initial_generation_policy=args.initial_generation_policy,
+#                                   top_k=args.top_k,
+#                                   num_choices_per_iteration=args.num_choices,
+#                                   clip_batch_size=args.clip_batch_size,
+#                                   substitution_batch_size=args.substitution_batch_size)
    
-   Painter= IterativePainter(prompt_generator=prompt_generator)
+   Painter= IterativePainter(minio_access_key=args.minio_access_key,
+                            minio_secret_key=args.minio_secret_key,
+                            minio_ip_addr=args.minio_addr)
    Painter.paint_image()
 
 if __name__ == "__main__":
