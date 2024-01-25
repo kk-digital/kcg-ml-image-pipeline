@@ -78,7 +78,7 @@ class IterativePainter:
 
         self.scoring_model= self.load_scoring_model()
 
-        self.pipeline = StableDiffusionInpaintingPipeline(model_type="dreamshaper")
+        self.pipeline = StableDiffusionInpaintingPipeline(model_type="ned")
         self.pipeline.load_models()
 
     # load elm or linear scoring models
@@ -125,9 +125,12 @@ class IterativePainter:
         prompts_data, _= self.prompt_generator.mutate_prompts(prompt_list)
 
         sorted_prompts= sorted(prompts_data, key=lambda data: data.positive_score, reverse=True)
-        print(sorted_prompts[0].positive_prompt)
 
-        return sorted_prompts[0].positive_prompt
+        chosen_scored_prompts = sorted_prompts[:self.num_prompts]
+
+        seed_prompts= [prompt.positive_prompt for prompt in chosen_scored_prompts]
+
+        return seed_prompts
 
     def paint_image(self):
         initial_prompts = self.get_seed_prompts()
