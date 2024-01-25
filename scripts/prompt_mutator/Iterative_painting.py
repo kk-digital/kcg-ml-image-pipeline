@@ -60,34 +60,18 @@ class IterativePainter:
         self.image_size=1024 
         self.context_size=512 
         self.paint_size=128
-        self.start= int((self.context_size - self.paint_size)/2)
-        self.end=self.image_size - self.start
-        self.painted_areas= int((self.end - self.start) / self.paint_size)
-        self.current_score=0
-        self.paint_matrix= np.zeros((self.end - self.start, self.end - self.start))
+        self.paint_matrix= np.zeros((self.image_size, self.image_size))
         self.max_repaints=3
-        self.painted_centers=[]
         # Generate random noise array (range [0, 255])
         random_noise = np.random.randint(0, 256, (self.image_size, self.image_size, 3), dtype=np.uint8)
         # Create PIL Image from the random noise array
         self.image = Image.fromarray(random_noise, 'RGB')
         self.num_prompts=10
 
-        left = (self.context_size - self.paint_size) // 2
-        top = (self.context_size - self.paint_size) // 2
-        right = left + self.paint_size
-        bottom = top + self.paint_size
+        self.prompt_generator= prompt_generator
+        self.minio_client = self.prompt_generator.minio_client
+        self.text_embedder=self.prompt_generator.embedder
         
-        self.center_area=(left, top, right, bottom)
-
-        # self.prompt_generator= prompt_generator
-        # self.minio_client = self.prompt_generator.minio_client
-        # self.text_embedder=self.prompt_generator.embedder
-
-        self.minio_client = cmd.get_minio_client(minio_access_key,
-                                                minio_secret_key,
-                                                minio_ip_addr)
-
         if torch.cuda.is_available():
             self.device = 'cuda'
         else:
@@ -95,6 +79,8 @@ class IterativePainter:
 
         self.image_embedder= clip.ClipModel(device=torch.device(self.device))
         self.image_embedder.load_clip()
+
+        self.scoring_model= self.load_scoring_model()
 
         self.pipeline = StableDiffusionInpaintingPipeline(model_type="dreamshaper")
         self.pipeline.load_models()
@@ -148,7 +134,7 @@ class IterativePainter:
         return sorted_prompts[0].positive_prompt
 
     def paint_image(self):
-        prompt = "environmental 2D, Video game, 2D art side scrolling, Cyberpunk city, neon lights, steampunk vibe, Tech wonders, dark alleys, urban decay, cyber attire, City skyline with holographic billboards, futuristic"
+        initial_prompts = self.get_seed_prompts()
 
         index=0
         while(True):
@@ -157,10 +143,10 @@ class IterativePainter:
             y = random.randint(0, self.image_size - self.paint_size)
             
             paint_area = (x, y, x + self.paint_size, y + self.paint_size)
-            context_area, inpainting_area= self.get_context_area(paint_area)
+            context_area, unmasked_area= self.get_context_area(paint_area)
 
             context_image= self.image.crop(context_area)
-            generated_image= self.generate_image(context_image, inpainting_area, prompt)
+            generated_image= self.choose_best_prompt(initial_prompts, context_image, unmasked_area, paint_area)
 
             # paste generated image in the main image
             self.image.paste(generated_image, paint_area)
@@ -168,9 +154,7 @@ class IterativePainter:
             # increment counter for each pixel that was counted
             for i in range(x, x+self.paint_size):
                 for j in range(y, y+self.paint_size):
-                    row= i - self.start 
-                    col= j - self.start
-                    self.paint_matrix[row][col]+=1
+                    self.paint_matrix[i][j]+=1
             
             if index % 100==0:
                 # save image state in current step
@@ -184,6 +168,25 @@ class IterativePainter:
             
             if np.all(self.paint_matrix > self.max_repaints):
                 break
+    
+    def choose_best_prompt(self, initial_prompts, context_image, unmasked_area, paint_area):
+        scores= []
+        generated_images=[]
+        for prompt in initial_prompts:
+            inpainted_image= self.generate_image(context_image, unmasked_area, prompt)
+            current_image= self.image.copy()
+            current_image.paste(inpainted_image, paint_area)
+
+            with torch.no_grad():
+                image_embedding= self.image_embedder.get_image_features(current_image)
+                image_score = self.scoring_model.predict_clip(image_embedding).item()
+                
+            scores.append(image_score)
+            generated_images.append(inpainted_image)
+        
+        best_image= generated_images[np.argmax(scores)]
+
+        return best_image
  
     def get_context_area(self, paint_area):
         # get surrounding context
@@ -212,16 +215,6 @@ class IterativePainter:
 
         return context_area, inpainting_area
 
-    def generate_prompt(self):
-        # generate a prompt
-        prompt_list = self.prompt_generator.generate_initial_prompts_with_fixed_probs(1)
-        prompt, _= self.prompt_generator.mutate_prompts(prompt_list)
-
-        prompt_str= prompt[0].positive_prompt
-        print(prompt_str)
-
-        return prompt_str
-
     def generate_image(self, context_image, inpainting_area, prompt):
         # Use the context image as an initial image
         draw = ImageDraw.Draw(context_image)
@@ -233,8 +226,8 @@ class IterativePainter:
         draw.rectangle(inpainting_area, fill=255)  # Unmasked (white) center area
 
         result_image= self.pipeline.inpaint(prompt=prompt, initial_image=context_image, image_mask= mask)
-        
-        cropped_image = result_image.crop(self.center_area)
+
+        cropped_image= result_image.crop(inpainting_area)
 
         return cropped_image
 
@@ -274,34 +267,32 @@ def main():
    elif(args.model_dataset=="environmental"):  
         csv_base_prompts='input/dataset-config/environmental/base-prompts-environmental.csv'
 
-#    prompt_generator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
-#                                   minio_secret_key=args.minio_secret_key,
-#                                   minio_ip_addr=args.minio_addr,
-#                                   csv_phrase=args.csv_phrase,
-#                                   csv_base_prompts=csv_base_prompts,
-#                                   model_dataset=args.model_dataset,
-#                                   substitution_model=args.substitution_model,
-#                                   scoring_model=args.scoring_model,
-#                                   max_iterations=args.max_iterations,
-#                                   sigma_threshold=args.sigma_threshold,
-#                                   variance_weight=args.variance_weight,
-#                                   boltzman_temperature=args.boltzman_temperature,
-#                                   boltzman_k=args.boltzman_k,
-#                                   dataset_name=args.dataset_name,
-#                                   store_embeddings=args.store_embeddings,
-#                                   store_token_lengths=args.store_token_lengths,
-#                                   self_training=args.self_training,
-#                                   send_job=args.send_job,
-#                                   save_csv=args.save_csv,
-#                                   initial_generation_policy=args.initial_generation_policy,
-#                                   top_k=args.top_k,
-#                                   num_choices_per_iteration=args.num_choices,
-#                                   clip_batch_size=args.clip_batch_size,
-#                                   substitution_batch_size=args.substitution_batch_size)
+   prompt_generator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
+                                  minio_secret_key=args.minio_secret_key,
+                                  minio_ip_addr=args.minio_addr,
+                                  csv_phrase=args.csv_phrase,
+                                  csv_base_prompts=csv_base_prompts,
+                                  model_dataset=args.model_dataset,
+                                  substitution_model=args.substitution_model,
+                                  scoring_model=args.scoring_model,
+                                  max_iterations=args.max_iterations,
+                                  sigma_threshold=args.sigma_threshold,
+                                  variance_weight=args.variance_weight,
+                                  boltzman_temperature=args.boltzman_temperature,
+                                  boltzman_k=args.boltzman_k,
+                                  dataset_name=args.dataset_name,
+                                  store_embeddings=args.store_embeddings,
+                                  store_token_lengths=args.store_token_lengths,
+                                  self_training=args.self_training,
+                                  send_job=args.send_job,
+                                  save_csv=args.save_csv,
+                                  initial_generation_policy=args.initial_generation_policy,
+                                  top_k=args.top_k,
+                                  num_choices_per_iteration=args.num_choices,
+                                  clip_batch_size=args.clip_batch_size,
+                                  substitution_batch_size=args.substitution_batch_size)
    
-   Painter= IterativePainter(minio_access_key=args.minio_access_key,
-                            minio_secret_key=args.minio_secret_key,
-                            minio_ip_addr=args.minio_addr)
+   Painter= IterativePainter(prompt_generator= prompt_generator)
    Painter.paint_image()
 
 if __name__ == "__main__":
