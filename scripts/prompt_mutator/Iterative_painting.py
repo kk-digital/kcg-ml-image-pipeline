@@ -131,6 +131,7 @@ class IterativePainter:
 
     def paint_image(self):
         initial_prompts = self.get_seed_prompts()
+        print(initial_prompts)
 
         index=0
         while(True):
