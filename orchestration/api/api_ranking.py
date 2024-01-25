@@ -398,8 +398,12 @@ def migrate_json_to_mongodb(minio_client, mongo_collection, minio_bucket):
     for dataset in list_datasets(minio_client, minio_bucket):
         folder_name = f'{dataset}/data/ranking/aggregate'
         print(f"Processing dataset '{dataset}' located at '{folder_name}' in bucket '{minio_bucket}'...")
+        
+        # Fetch all objects and sort them in reverse (e.g., by filename)
         objects = minio_client.list_objects(minio_bucket, prefix=folder_name, recursive=True)
-        for obj in objects:
+        sorted_objects = sorted(objects, key=lambda obj: obj.object_name, reverse=True)
+
+        for obj in sorted_objects:
             if obj.is_dir:
                 continue
 
@@ -420,7 +424,7 @@ def migrate_json_to_mongodb(minio_client, mongo_collection, minio_bucket):
 
             mongo_collection.insert_one(ordered_data)
             print(f"Migrated '{json_filename}' to MongoDB.")
-            
+
 def list_datasets(minio_client, bucket_name):
     datasets = set()
     objects = minio_client.list_objects(bucket_name, recursive=False)
