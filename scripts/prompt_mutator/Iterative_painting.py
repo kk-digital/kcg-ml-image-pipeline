@@ -148,7 +148,7 @@ class IterativePainter:
         return sorted_prompts[0].positive_prompt
 
     def paint_image(self):
-        prompt="environmental 2D, 2D environmental, steampunkcyberpunk, 2D environmental art side scrolling, broken trees, undewear, muscular, wide, child chest, urban jungle, dark ruins in background, loki steampunk style, ancient trees"
+        prompt = "environmental 2D, Video game, 2D art side scrolling, Cyberpunk city, neon lights, steampunk vibe, Tech wonders, dark alleys, urban decay, cyber attire, City skyline with holographic billboards, futuristic"
 
         index=0
         while(True):
