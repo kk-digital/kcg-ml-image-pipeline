@@ -74,6 +74,53 @@ class ABRankingELMBaseModel(nn.Module):
             self.random_layers.append(random_layer)
 
 
+class ABRankingELMBaseModelDeprecate(nn.Module):
+    def __init__(self, inputs_shape, num_random_layers=2, elm_sparsity=0.0):
+        super(ABRankingELMBaseModelDeprecate, self).__init__()
+        self.inputs_shape = inputs_shape
+        self.output_size = 1
+
+        self.l1_loss = nn.L1Loss()
+        self.num_random_layers = num_random_layers
+        self.random_layers = []
+        self.linear_last_layer = nn.Linear(self.inputs_shape, self.output_size)
+
+        self.random_layers_init(elm_sparsity)
+
+    # for score
+    def forward(self, x):
+        assert x.shape == (1, self.inputs_shape)
+
+        # go through random layers first
+        for i in range(self.num_random_layers):
+            x = self.random_layers[i](x)
+
+        output = self.linear_last_layer(x)
+
+        assert output.shape == (1,1)
+        return output
+
+    # TODO: add bias for the layers too
+    def random_layers_init(self, elm_sparsity=0.0):
+        for _ in range(self.num_random_layers):
+            random_layer = nn.ReLU()
+            # give random weights
+            rand_weights = torch.randn(self.inputs_shape)
+
+            if elm_sparsity != 0.0:
+                # set some to zero
+                num_of_indices = round(self.inputs_shape * elm_sparsity)
+                indexes_to_zero = sample(range(0, self.inputs_shape - 1), num_of_indices)
+                for index in indexes_to_zero:
+                    rand_weights[index] = 0.0
+
+            random_layer.weight = nn.Parameter(rand_weights, requires_grad=False)
+
+            # freeze weights
+            random_layer.requires_grad_(False)
+
+            self.random_layers.append(random_layer)
+
 class ABRankingELMModel:
     def __init__(self, inputs_shape, num_random_layers=1, elm_sparsity=0.5):
         print("inputs_shape=", inputs_shape)
@@ -83,6 +130,7 @@ class ABRankingELMModel:
             device = 'cpu'
         self._device = torch.device(device)
 
+        self.inputs_shape = inputs_shape
         self.model = ABRankingELMBaseModel(inputs_shape, num_random_layers, elm_sparsity).to(self._device)
         self.model_type = 'ab-ranking-elm-v1'
         self.loss_func_name = ''
@@ -224,9 +272,15 @@ class ABRankingELMModel:
 
     def load_safetensors(self, model_buffer):
         data = model_buffer.read()
+        safetensors_data = safetensors_load(data)
+
+        # TODO: deprecate when we have 10 or more trained models on new structure
+        if "scaling_factor" not in safetensors_data:
+            self.model = ABRankingELMBaseModelDeprecate(self.inputs_shape).to(self._device)
+            print("Loading deprecated model...")
 
         # Loading state dictionary
-        self.model.load_state_dict(safetensors_load(data))
+        self.model.load_state_dict(safetensors_data)
 
         # load metadata
         n_header = data[:8]

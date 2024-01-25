@@ -47,6 +47,26 @@ class ABRankingLinearModel(nn.Module):
         assert scaled_output.shape == (1,1)
         return scaled_output
 
+class ABRankingLinearModelDeprecate(nn.Module):
+    def __init__(self, inputs_shape):
+        super(ABRankingLinearModelDeprecate, self).__init__()
+        self.inputs_shape = inputs_shape
+        self.linear = nn.Linear(inputs_shape, 1)
+        self.mse_loss = nn.MSELoss()
+        self.l1_loss = nn.L1Loss()
+        self.tanh = nn.Tanh()
+
+    # for score
+    def forward(self, input):
+        # make sure input shape is (1, self.inputs_shape)
+        # we currently don't support batching
+        assert input.shape == (1, self.inputs_shape)
+
+        output = self.linear(input)
+
+        # make sure input shape is (1, score)
+        assert output.shape == (1,1)
+        return output
 
 class ABRankingModel:
     def __init__(self, inputs_shape):
@@ -56,6 +76,7 @@ class ABRankingModel:
             device = 'cpu'
         self._device = torch.device(device)
 
+        self.inputs_shape = inputs_shape
         self.model = ABRankingLinearModel(inputs_shape).to(self._device)
         self.model_type = 'ab-ranking-linear'
         self.loss_func_name = ''
@@ -187,9 +208,15 @@ class ABRankingModel:
 
     def load_safetensors(self, model_buffer):
         data = model_buffer.read()
+        safetensors_data = safetensors_load(data)
+
+        # TODO: deprecate when we have 10 or more trained models on new structure
+        if "scaling_factor" not in safetensors_data:
+            self.model = ABRankingLinearModelDeprecate(self.inputs_shape).to(self._device)
+            print("Loading deprecated model...")
 
         # Loading state dictionary
-        self.model.load_state_dict(safetensors_load(data))
+        self.model.load_state_dict(safetensors_data)
 
         # load metadata
         n_header = data[:8]
