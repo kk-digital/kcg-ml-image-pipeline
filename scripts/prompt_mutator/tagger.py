@@ -56,3 +56,34 @@ class Tagger:
         aggregated_similarity = np.max(similarities)
 
         return aggregated_similarity
+    
+    def get_tag_probability(self, tag_name: str, text_emb: np.ndarray):
+        """
+        Calculates the probability for a specific tag after applying softmax to the cosine 
+        similarities of all tags.
+
+        :param tag_name: The name of the main tag.
+        :param text_emb: The text embedding (numpy array).
+        :return: The softmax probability for the specified tag.
+        """
+        if tag_name not in self.tag_names:
+            raise ValueError("Tag name not found in the list of tags")
+
+        all_similarities = []
+
+        # Calculate cosine similarity for each tag
+        for tag_indices in self.index_list:
+            tag_similarities = cosine_similarity(text_emb.reshape(1, -1), [self.tag_embs[index] for index in tag_indices])
+            max_similarity = np.max(tag_similarities)
+            all_similarities.append(max_similarity)
+
+        all_similarities = np.array(all_similarities)
+
+        # Apply softmax to the array of similarities
+        softmax_probabilities = np.exp(all_similarities) / np.sum(np.exp(all_similarities))
+
+        # Find the index of the specified tag
+        tag_index = self.tag_names.index(tag_name)
+
+        # Return the softmax probability for the specified tag
+        return softmax_probabilities[tag_index]
