@@ -29,9 +29,9 @@ def get_latest_model_filename(client, model_type, dataset_name):
     # get models
     for path in paths:
         if ".safetensors" in path and model_type in path:
-            if "clip" in path and clip_model_filename == "":
+            if "clip" in path and clip_model_filename == "" and "positive" not in path and "negative" not in path:
                 clip_model_filename = os.path.basename(path)
-            if "embedding" in path and embedding_model_filename == "":
+            if "embedding" in path and embedding_model_filename == "" and "positive" not in path and "negative" not in path:
                 embedding_model_filename = os.path.basename(path)
 
             if clip_model_filename != "" and embedding_model_filename != "":
