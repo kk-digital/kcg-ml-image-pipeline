@@ -114,7 +114,9 @@ def get_graph_report(training_loss,
                      elm_sparsity=-1,
                      training_shuffled_indices_origin=None,
                      validation_shuffled_indices_origin=None,
-                     total_selection_datapoints=0):
+                     total_selection_datapoints=0,
+                     loss_penalty_range=None,
+                     saved_model_epoch=None):
     train_prob_predictions_target_1, \
         train_prob_predictions_target_0, \
         validation_prob_predictions_target_1, \
@@ -187,7 +189,7 @@ def get_graph_report(training_loss,
     loss_per_epoch.plot(epochs_x_axis, validation_losses,
                         label="Validation Loss", c="#14e33a", zorder=0)
 
-    # loss_per_epoch.set_ylim(bottom=0, top=1.0)
+    loss_per_epoch.set_ylim(bottom=0, top=1.0)
     loss_per_epoch.set_xlabel("Epoch")
     loss_per_epoch.set_ylabel("Loss")
     loss_per_epoch.set_title("Loss Per Epoch")
@@ -453,6 +455,12 @@ def get_graph_report(training_loss,
     if standard_deviation == None:
         standard_deviation = "N/A"
 
+    if loss_penalty_range == None:
+        loss_penalty_range = "N/A"
+
+    if saved_model_epoch == None:
+        saved_model_epoch = "N/A"
+
     # add additional info on top left side
     plt.figtext(0, 0.55, "Date = {}\n"
                          "Dataset = {}\n"
@@ -476,6 +484,7 @@ def get_graph_report(training_loss,
                          "Normalize vectors = {}\n"
                          "num_random_layers = {}\n"
                          "add_loss_penalty = {}\n"
+                         "loss_penalty_range= {}\n"
                          "target_option = {}\n"
                          "duplicate_flip_option = {}\n"
                          "randomize_data_per_epoch = {}\n"
@@ -488,7 +497,8 @@ def get_graph_report(training_loss,
                          "Train Correct Predictions \n"
                          "= {}({:02.02f}%)\n"
                          "Validation Correct \n"
-                         "Predictions = {}({:02.02f}%)\n\n".format(date,
+                         "Predictions = {}({:02.02f}%)\n"
+                         "Saved model epoch = {}\n\n".format(date,
                                                                    dataset_name,
                                                                    network_type,
                                                                    input_type,
@@ -506,6 +516,7 @@ def get_graph_report(training_loss,
                                                                    normalize_vectors,
                                                                    num_random_layers,
                                                                    add_loss_penalty,
+                                                                   loss_penalty_range,
                                                                    target_option_str,
                                                                    duplicate_flip_option_str,
                                                                    randomize_data_per_epoch,
@@ -517,8 +528,10 @@ def get_graph_report(training_loss,
                                                                    train_sum_correct,
                                                                    (train_sum_correct / training_total_size) * 100,
                                                                    validation_sum_correct,
-                                                                   (
-                                                                               validation_sum_correct / validation_total_size) * 100)
+                                                                   (validation_sum_correct / validation_total_size) * 100,
+                                                                    saved_model_epoch
+                                                             ),
+
                 )
 
     # Save figure

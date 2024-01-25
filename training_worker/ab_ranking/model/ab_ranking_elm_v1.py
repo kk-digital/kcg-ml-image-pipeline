@@ -157,6 +157,9 @@ class ABRankingELMModel:
         self.num_random_layers = None
         self.elm_sparsity = None
 
+        # list of models per epoch
+        self.models_per_epoch = []
+
     def _hash_model(self):
         """
         Hashes the current state of the model, and stores the hash in the
@@ -235,6 +238,38 @@ class ABRankingELMModel:
 
         # upload the model
         cmd.upload_data(minio_client, datasets_bucket, model_output_path, buffer)
+
+    def add_current_model_to_list(self):
+        # get tensors and metadata of current model
+        model, metadata = self.to_safetensors()
+
+        curr_model = {"model": model,
+                      "metadata": metadata}
+        self.models_per_epoch.append(curr_model)
+
+    def save_model_with_lowest_validation_loss(self, validation_loss_per_epoch,  minio_client, datasets_bucket, model_output_path):
+        lowest_index = validation_loss_per_epoch.min(dim=0)
+        lowest_index = lowest_index.indices.item()
+        print("Saving model at Epoch:", lowest_index)
+        lowest_validation_loss_model = self.models_per_epoch[lowest_index]
+        model = lowest_validation_loss_model["model"]
+        metadata = lowest_validation_loss_model["metadata"]
+
+        # Hashing the model with its current configuration
+        self._hash_model()
+        self.file_path = model_output_path
+
+        # Saving the model to minio
+        buffer = BytesIO()
+        safetensors_buffer = safetensors_save(tensors=model,
+                                              metadata=metadata)
+        buffer.write(safetensors_buffer)
+        buffer.seek(0)
+
+        # upload the model
+        cmd.upload_data(minio_client, datasets_bucket, model_output_path, buffer)
+
+        return lowest_index
 
     def load_pth(self, model_buffer):
         # Loading state dictionary
@@ -470,6 +505,9 @@ class ABRankingELMModel:
 
             self.training_loss = epoch_training_loss.detach().cpu()
             self.validation_loss = epoch_validation_loss.detach().cpu()
+
+            # add current epoch's model
+            self.add_current_model_to_list()
 
         # Calculate model performance
         with torch.no_grad():
