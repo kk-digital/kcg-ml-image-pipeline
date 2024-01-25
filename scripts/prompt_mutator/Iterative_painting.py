@@ -42,7 +42,7 @@ def parse_args():
     parser.add_argument('--store-token-lengths', action='store_true', default=False)
     parser.add_argument('--save-csv', action='store_true', default=False)
     parser.add_argument('--initial-generation-policy', help="the generation policy used for generating the initial seed prompts", default="fixed_probabilities")
-    parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
+    parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.01)
     parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=128)
     parser.add_argument('--clip-batch-size', type=int, help="Batch size for clip embeddings", default=1000)
     parser.add_argument('--substitution-batch-size', type=int, help="Batch size for the substitution model", default=100000)
@@ -153,14 +153,14 @@ class IterativePainter:
         index=0
         while(True):
             # choose random area to paint in
-            x = random.randint(self.start, self.end - self.paint_size)
-            y = random.randint(self.start, self.end - self.paint_size)
+            x = random.randint(0, self.image_size - self.paint_size)
+            y = random.randint(0, self.image_size - self.paint_size)
             
             paint_area = (x, y, x + self.paint_size, y + self.paint_size)
-            context_box= self.get_context_area(paint_area)
+            context_area, inpainting_area= self.get_context_area(paint_area)
 
-            context_image= self.image.crop(context_box)
-            generated_image= self.generate_image(context_image, prompt)
+            context_image= self.image.crop(context_area)
+            generated_image= self.generate_image(context_image, inpainting_area, prompt)
 
             # paste generated image in the main image
             self.image.paste(generated_image, paint_area)
@@ -189,8 +189,28 @@ class IterativePainter:
         # get surrounding context
         context_x= paint_area[0] - self.context_size // 2 + self.paint_size // 2
         context_y= paint_area[1] - self.context_size // 2 + self.paint_size // 2
+
+        inpainting_x = (self.context_size - self.paint_size) // 2
+        inpainting_y = (self.context_size - self.paint_size) // 2
+
+        if context_x < 0:
+            context_x=0
+            inpainting_x= paint_area[0]
+        elif context_x > self.image_size - self.context_size:
+            context_x= self.image_size - self.context_size
+            inpainting_x= paint_area[0] - self.context_size
+
+        if context_y < 0:
+            context_y=0
+            inpainting_y= paint_area[1]
+        elif context_y > self.image_size - self.context_size:
+            context_x= self.image_size - self.context_size
+            inpainting_y= paint_area[1] - self.context_size
         
-        return (context_x, context_y, context_x + self.context_size, context_y + self.context_size)
+        context_area=(context_x, context_y, context_x + self.context_size, context_y + self.context_size)
+        inpainting_area=(inpainting_x, inpainting_y, inpainting_x + self.paint_size, inpainting_y + self.paint_size)
+
+        return context_area, inpainting_area
 
     def generate_prompt(self):
         # generate a prompt
@@ -202,15 +222,15 @@ class IterativePainter:
 
         return prompt_str
 
-    def generate_image(self, context_image, prompt):
+    def generate_image(self, context_image, inpainting_area, prompt):
         # Use the context image as an initial image
         draw = ImageDraw.Draw(context_image)
-        draw.rectangle(self.center_area, fill="white")  # Unmasked (white) center area
+        draw.rectangle(inpainting_area, fill="white")  # Unmasked (white) center area
 
         # Create mask
         mask = Image.new("L", (self.context_size, self.context_size), 0)  # Fully masked (black)
         draw = ImageDraw.Draw(mask)
-        draw.rectangle(self.center_area, fill=255)  # Unmasked (white) center area
+        draw.rectangle(inpainting_area, fill=255)  # Unmasked (white) center area
 
         result_image= self.pipeline.inpaint(prompt=prompt, initial_image=context_image, image_mask= mask)
         
