@@ -282,6 +282,64 @@ def list_ranking_files(
 
     return filtered_json_files
 
+@router.get("/datasets/rank/list-v2", response_class=PrettyJSONResponse)
+def list_ranking_files(
+    request: Request, 
+    dataset: str, 
+    model_type: str = Query(..., description="Model type to filter by, e.g., 'linear' or 'elm-v1'"),
+    start_date: str = None, 
+    end_date: str = None, 
+    list_size: int = Query(100, description="Limit for the number of files to list"),
+    offset: int = Query(0, description="Offset for pagination"),
+    order: str = Query("desc", description="Order of the files, 'asc' or 'desc'")
+):
+    # Convert start_date and end_date strings to datetime objects if they are provided
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
+
+    # Construct the path prefix for ranking
+    path_prefix = f"{dataset}/data/ranking/aggregate"
+
+    # Fetch the list of objects with the given prefix
+    objects = cmd.get_list_of_objects_with_prefix(request.app.minio_client, "datasets", path_prefix)
+
+    # Filter out non-JSON files and apply date filters
+    filtered_json_files = []
+    for obj in objects:
+        if obj.object_name.endswith('.json'):
+            # Extract date from the filename
+            file_date_str = obj.object_name.split('/')[-1].split('-')[0:3]
+            file_date_str = '-'.join(file_date_str)  # Reformat to 'YYYY-MM-DD'
+            file_date_obj = datetime.strptime(file_date_str, "%Y-%m-%d")
+
+            # Apply date filtering
+            if start_date_obj and file_date_obj < start_date_obj:
+                continue
+            if end_date_obj and file_date_obj > end_date_obj:
+                continue
+
+            # Fetch and parse JSON file content
+            file_content = cmd.get_file_content(request.app.minio_client, "datasets", obj.object_name)
+            json_data = json.loads(file_content)
+
+            # Check if the selected_residual for the given model_type is present
+            if model_type in json_data.get('selected_residual', {}):
+                filtered_json_files.append(obj.object_name)
+
+    # Apply ordering, offset, and list size limit
+    if order == "desc":
+        filtered_json_files.sort(reverse=True)
+    else:
+        filtered_json_files.sort()
+
+    start_index = offset
+    end_index = offset + list_size
+    filtered_json_files = filtered_json_files[start_index:end_index]
+
+    if not filtered_json_files:
+        return []
+    
+    return filtered_json_files
 
 
 def read_json_data(request, json_file):
