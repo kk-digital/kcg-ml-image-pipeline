@@ -47,6 +47,26 @@ class ABRankingLinearModel(nn.Module):
         assert scaled_output.shape == (1,1)
         return scaled_output
 
+class ABRankingLinearModelDeprecate(nn.Module):
+    def __init__(self, inputs_shape):
+        super(ABRankingLinearModelDeprecate, self).__init__()
+        self.inputs_shape = inputs_shape
+        self.linear = nn.Linear(inputs_shape, 1)
+        self.mse_loss = nn.MSELoss()
+        self.l1_loss = nn.L1Loss()
+        self.tanh = nn.Tanh()
+
+    # for score
+    def forward(self, input):
+        # make sure input shape is (1, self.inputs_shape)
+        # we currently don't support batching
+        assert input.shape == (1, self.inputs_shape)
+
+        output = self.linear(input)
+
+        # make sure input shape is (1, score)
+        assert output.shape == (1,1)
+        return output
 
 class ABRankingModel:
     def __init__(self, inputs_shape):
@@ -56,6 +76,7 @@ class ABRankingModel:
             device = 'cpu'
         self._device = torch.device(device)
 
+        self.inputs_shape = inputs_shape
         self.model = ABRankingLinearModel(inputs_shape).to(self._device)
         self.model_type = 'ab-ranking-linear'
         self.loss_func_name = ''
@@ -79,6 +100,9 @@ class ABRankingModel:
         self.target_option = None
         self.duplicate_flip_option = None
         self.randomize_data_per_epoch = None
+
+        # list of models per epoch
+        self.models_per_epoch = []
 
     def _hash_model(self):
         """
@@ -153,6 +177,38 @@ class ABRankingModel:
         # upload the model
         cmd.upload_data(minio_client, datasets_bucket, model_output_path, buffer)
 
+    def add_current_model_to_list(self):
+        # get tensors and metadata of current model
+        model, metadata = self.to_safetensors()
+
+        curr_model = {"model": model,
+                      "metadata": metadata}
+        self.models_per_epoch.append(curr_model)
+
+    def save_model_with_lowest_validation_loss(self, validation_loss_per_epoch,  minio_client, datasets_bucket, model_output_path):
+        lowest_index = validation_loss_per_epoch.min(dim=0)
+        lowest_index = lowest_index.indices.item()
+        print("Saving model at Epoch:", lowest_index)
+        lowest_validation_loss_model = self.models_per_epoch[lowest_index]
+        model = lowest_validation_loss_model["model"]
+        metadata = lowest_validation_loss_model["metadata"]
+
+        # Hashing the model with its current configuration
+        self._hash_model()
+        self.file_path = model_output_path
+
+        # Saving the model to minio
+        buffer = BytesIO()
+        safetensors_buffer = safetensors_save(tensors=model,
+                                              metadata=metadata)
+        buffer.write(safetensors_buffer)
+        buffer.seek(0)
+
+        # upload the model
+        cmd.upload_data(minio_client, datasets_bucket, model_output_path, buffer)
+
+        return lowest_index
+
     def load_pth(self, model_buffer):
         # Loading state dictionary
         model = torch.load(model_buffer)
@@ -187,9 +243,15 @@ class ABRankingModel:
 
     def load_safetensors(self, model_buffer):
         data = model_buffer.read()
+        safetensors_data = safetensors_load(data)
+
+        # TODO: deprecate when we have 10 or more trained models on new structure
+        if "scaling_factor" not in safetensors_data:
+            self.model = ABRankingLinearModelDeprecate(self.inputs_shape).to(self._device)
+            print("Loading deprecated model...")
 
         # Loading state dictionary
-        self.model.load_state_dict(safetensors_load(data))
+        self.model.load_state_dict(safetensors_data)
 
         # load metadata
         n_header = data[:8]
@@ -377,6 +439,9 @@ class ABRankingModel:
 
             self.training_loss = epoch_training_loss.detach().cpu()
             self.validation_loss = epoch_validation_loss.detach().cpu()
+
+            # add current epoch's model
+            self.add_current_model_to_list()
 
         # Calculate model performance
         with torch.no_grad():

@@ -36,6 +36,7 @@ def train_ranking(dataset_name: str,
                   target_option=constants.TARGET_1_AND_0,
                   duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL,
                   randomize_data_per_epoch=True,
+                  penalty_range = 5.0
                   ):
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
@@ -99,7 +100,8 @@ def train_ranking(dataset_name: str,
                                                    weight_decay=weight_decay,
                                                    add_loss_penalty=add_loss_penalty,
                                                    randomize_data_per_epoch=randomize_data_per_epoch,
-                                                   debug_asserts=debug_asserts)
+                                                   debug_asserts=debug_asserts,
+                                                   penalty_range=penalty_range)
 
     # data for chronological score graph
     training_shuffled_indices_origin = []
@@ -171,7 +173,8 @@ def train_ranking(dataset_name: str,
     # Upload model to minio
     model_name = "{}.safetensors".format(filename)
     model_output_path = os.path.join(output_path, model_name)
-    ab_model.save(dataset_loader.minio_client, bucket_name, model_output_path)
+    # ab_model.save(dataset_loader.minio_client, bucket_name, model_output_path)
+    saved_model_epoch = ab_model.save_model_with_lowest_validation_loss(validation_loss_per_epoch, dataset_loader.minio_client, bucket_name, model_output_path)
 
     train_sum_correct = 0
     for i in range(len(training_target_probabilities)):
@@ -267,7 +270,9 @@ def train_ranking(dataset_name: str,
                                     elm_sparsity=-1,
                                     training_shuffled_indices_origin=training_shuffled_indices_origin,
                                     validation_shuffled_indices_origin=validation_shuffled_indices_origin,
-                                    total_selection_datapoints=dataset_loader.total_selection_datapoints)
+                                    total_selection_datapoints=dataset_loader.total_selection_datapoints,
+                                    loss_penalty_range=penalty_range,
+                                    saved_model_epoch=saved_model_epoch)
 
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
