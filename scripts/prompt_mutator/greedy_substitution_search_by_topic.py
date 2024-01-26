@@ -568,9 +568,9 @@ class PromptSubstitutionGenerator:
                 topic= prompts[prompt_index].topic
 
                 # get topic score
-                topic_probability= self.tagger.get_tag_probability(topic, substitute_embedding)
-                print(topic_probability)
-                topic_score= (topic_probability * 100) + sigma_score
+                topic_similarity= self.tagger.get_tag_similarity(topic, substitute_embedding)
+                print(topic_similarity)
+                topic_score= (topic_similarity * 100) + sigma_score
 
                 if topic_score > (prompts[prompt_index].topic_score + self.sigma_threshold):            
                         substitution_data={
@@ -631,8 +631,8 @@ class PromptSubstitutionGenerator:
                     modified_prompt_score= (modified_prompt_score - self.positive_mean) / self.positive_std
                     
                     # get topic score
-                    topic_probability= self.tagger.get_tag_probability(prompts[index].topic, modified_prompt_embedding)
-                    topic_score= (topic_probability * 100) + modified_prompt_score
+                    topic_similarity= self.tagger.get_tag_similarity(prompts[index].topic, modified_prompt_embedding)
+                    topic_score= (topic_similarity * 10) + modified_prompt_score
 
                     if(self.self_training):
                         # collect self training data
