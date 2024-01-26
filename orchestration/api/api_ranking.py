@@ -237,6 +237,45 @@ def list_ranking_data(
 
     return ranking_data
 
+
+@router.get("/rank/list-ranking-data-v2", response_class=PrettyJSONResponse)
+def list_ranking_data(
+    request: Request,
+    model_type: str = Query(..., description="Model type to filter by, e.g., 'linear' or 'elm-v1'"),
+    start_date: str = Query(None),
+    end_date: str = Query(None),
+    skip: int = Query(0, alias="offset"),
+    limit: int = Query(10, alias="limit"),
+    order: str = Query("desc", regex="^(desc|asc)$")
+):
+    # Convert start_date and end_date strings to datetime objects, if provided
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
+
+    # Build the query filter based on dates and model_type
+    query_filter = {"selected_residual.{}".format(model_type): {"$exists": True}}
+    if start_date_obj or end_date_obj:
+        date_filter = {}
+        if start_date_obj:
+            date_filter["$gte"] = start_date_obj.strftime("%Y-%m-%d")
+        if end_date_obj:
+            date_filter["$lte"] = end_date_obj.strftime("%Y-%m-%d")
+        query_filter["datetime"] = date_filter
+
+    # Fetch data from MongoDB with pagination and ordering
+    cursor = request.app.image_pair_ranking_collection.find(query_filter).sort("file_name", -1 if order == "desc" else 1).skip(skip).limit(limit)
+
+    # Convert cursor to list of dictionaries
+    try:
+        ranking_data = []
+        for doc in cursor:
+            doc['_id'] = str(doc['_id'])  # Convert ObjectId to string
+            ranking_data.append(doc)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return ranking_data
+
 @router.get("/rank/count-ranking-data", response_class=PrettyJSONResponse)
 def count_ranking_data(request: Request):
     try:
