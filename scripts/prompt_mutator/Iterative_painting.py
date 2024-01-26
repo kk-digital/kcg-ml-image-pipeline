@@ -254,15 +254,14 @@ class IterativePainter:
     def test_image(self):
         prompt="Pixel art space adventure, 2D side scrolling game, zero-gravity challenges, Futuristic space stations, alien landscapes, Gravity-defying jumps, intergalactic exploration, Spacesuit upgrades, extraterrestrial obstacles, Navigate through pixelated starfields, Immersive gameplay, Spaceship"
         mask = Image.new("L", (self.context_size, self.context_size), 255)
-        random_noise = np.random.randint(0, 256, (self.context_size, self.context_size, 3), dtype=np.uint8)
-        context_image = Image.fromarray(random_noise, 'RGB')
+        context_image = Image.new("RGB", (self.context_size, self.context_size), "white")
         result_image= self.pipeline.inpaint(prompt=prompt, initial_image=context_image, image_mask= mask)
 
         img_byte_arr = io.BytesIO()
         result_image.save(img_byte_arr, format="png")
         img_byte_arr.seek(0)  # Move to the start of the byte array
 
-        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/test.png" , img_byte_arr)
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/test2.png" , img_byte_arr)
 
 
 
