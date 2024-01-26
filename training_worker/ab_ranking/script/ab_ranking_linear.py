@@ -173,8 +173,7 @@ def train_ranking(dataset_name: str,
     # Upload model to minio
     model_name = "{}.safetensors".format(filename)
     model_output_path = os.path.join(output_path, model_name)
-    # ab_model.save(dataset_loader.minio_client, bucket_name, model_output_path)
-    saved_model_epoch = ab_model.save_model_with_lowest_validation_loss(validation_loss_per_epoch, dataset_loader.minio_client, bucket_name, model_output_path)
+    ab_model.save(dataset_loader.minio_client, bucket_name, model_output_path)
 
     train_sum_correct = 0
     for i in range(len(training_target_probabilities)):
@@ -272,7 +271,7 @@ def train_ranking(dataset_name: str,
                                     validation_shuffled_indices_origin=validation_shuffled_indices_origin,
                                     total_selection_datapoints=dataset_loader.total_selection_datapoints,
                                     loss_penalty_range=penalty_range,
-                                    saved_model_epoch=saved_model_epoch)
+                                    saved_model_epoch=ab_model.lowest_loss_model_epoch)
 
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
