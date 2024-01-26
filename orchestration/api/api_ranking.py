@@ -262,8 +262,12 @@ def list_ranking_data(
             date_filter["$lte"] = end_date_obj.strftime("%Y-%m-%d")
         query_filter["datetime"] = date_filter
 
-    # Fetch data from MongoDB with pagination and ordering
-    cursor = request.app.image_pair_ranking_collection.find(query_filter).sort("file_name", -1 if order == "desc" else 1).skip(skip).limit(limit)
+    # Determine the sort order
+    sort_order = -1 if order == "desc" else 1
+
+    # Fetch data from MongoDB with pagination and sorting by residual value
+    cursor = request.app.image_pair_ranking_collection.find(query_filter).sort(
+        f"selected_residual.{model_type}", sort_order).skip(skip).limit(limit)
 
     # Convert cursor to list of dictionaries
     try:

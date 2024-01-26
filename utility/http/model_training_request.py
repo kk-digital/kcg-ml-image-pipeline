@@ -22,6 +22,7 @@ def http_get_job(worker_type: str = None):
     finally:
         if response:
             response.close()
+            response.release_conn()
 
     return None
 
@@ -41,6 +42,7 @@ def http_add_job(job):
     finally:
         if response:
             response.close()
+            response.release_conn()
 
 def http_update_job_completed(job):
     url = SERVER_ADDRESS + "/training/update-completed"
@@ -57,6 +59,7 @@ def http_update_job_completed(job):
     finally:
         if response:
             response.close()
+            response.release_conn()
 
 
 
@@ -64,7 +67,7 @@ def http_update_job_failed(job):
     url = SERVER_ADDRESS + "/training/update-failed"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
     response = None
-    
+
     try:
         response = requests.put(url, json=job, headers=headers)
         if response.status_code != 200:
@@ -75,3 +78,4 @@ def http_update_job_failed(job):
     finally:
         if response:
             response.close()
+            response.release_conn()

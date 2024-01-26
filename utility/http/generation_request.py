@@ -11,7 +11,7 @@ SERVER_ADDRESS = 'http://192.168.3.1:8111'
 def http_get_job(worker_type: str = None):
     url = SERVER_ADDRESS + "/queue/image-generation/get-job"
     response = None
-    
+
     if worker_type is not None:
         url = url + "?task_type={}".format(worker_type)
 
@@ -28,6 +28,7 @@ def http_get_job(worker_type: str = None):
     finally:
         if response:
             response.close()
+            response.release_conn()
 
     return None
 
@@ -49,6 +50,7 @@ def http_add_job(job):
     finally:
         if response:
             response.close()
+            response.release_conn()
 
     return decoded_response
 
@@ -68,6 +70,7 @@ def http_update_job_completed(job):
     finally:
         if response:
             response.close()
+            response.release_conn()
 
 
 def http_update_job_failed(job):
@@ -85,3 +88,4 @@ def http_update_job_failed(job):
     finally:
         if response:
             response.close()
+            response.release_conn()
