@@ -41,6 +41,7 @@ def http_clip_server_clip_vector_from_phrase(phrase: str):
 
         if response.status_code == 200:
             result_json = response.json()
+            print(result_json)
             return result_json
 
     except Exception as e:
