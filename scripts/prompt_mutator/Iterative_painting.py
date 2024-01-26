@@ -231,25 +231,39 @@ class IterativePainter:
 
         return cropped_image
 
-    # def test(self):
-    #     prompt="environmental 2D, 2D environmental, steampunkcyberpunk, 2D environmental art side scrolling, broken trees, undewear, muscular, wide, child chest, urban jungle, dark ruins in background, loki steampunk style, ancient trees"
-    #     context_image= Image.open("input/background_image.jpg").convert("RGB")
+    def test(self):
+        prompt="environmental 2D, 2D environmental, steampunkcyberpunk, 2D environmental art side scrolling, broken trees, undewear, muscular, wide, child chest, urban jungle, dark ruins in background, loki steampunk style, ancient trees"
+        context_image= Image.open("input/background_image.jpg").convert("RGB")
 
-    #     draw = ImageDraw.Draw(context_image)
-    #     draw.rectangle(self.center_area, fill="white")  # Unmasked (white) center area
+        draw = ImageDraw.Draw(context_image)
+        draw.rectangle(self.center_area, fill="white")  # Unmasked (white) center area
         
-    #     img_byte_arr = io.BytesIO()
-    #     context_image.save(img_byte_arr, format="png")
-    #     img_byte_arr.seek(0)  # Move to the start of the byte array
-    #     cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/initial_image.png" , img_byte_arr) 
+        img_byte_arr = io.BytesIO()
+        context_image.save(img_byte_arr, format="png")
+        img_byte_arr.seek(0)  # Move to the start of the byte array
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/initial_image.png" , img_byte_arr) 
 
-    #     generated_image= self.generate_image(context_image, prompt)
+        generated_image= self.generate_image(context_image, prompt)
         
-    #     img_byte_arr = io.BytesIO()
-    #     generated_image.save(img_byte_arr, format="png")
-    #     img_byte_arr.seek(0)  # Move to the start of the byte array
+        img_byte_arr = io.BytesIO()
+        generated_image.save(img_byte_arr, format="png")
+        img_byte_arr.seek(0)  # Move to the start of the byte array
 
-    #     cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/test.png" , img_byte_arr)
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/test.png" , img_byte_arr)
+    
+    def test_image(self):
+        prompt="Pixel art space adventure, 2D side scrolling game, zero-gravity challenges, Futuristic space stations, alien landscapes, Gravity-defying jumps, intergalactic exploration, Spacesuit upgrades, extraterrestrial obstacles, Navigate through pixelated starfields, Immersive gameplay, Spaceship"
+        mask = Image.new("L", (self.context_size, self.context_size), 255)
+        random_noise = np.random.randint(0, 256, (self.context_size, self.context_size, 3), dtype=np.uint8)
+        context_image = Image.fromarray(random_noise, 'RGB')
+        result_image= self.pipeline.inpaint(prompt=prompt, initial_image=context_image, image_mask= mask)
+
+        img_byte_arr = io.BytesIO()
+        result_image.save(img_byte_arr, format="png")
+        img_byte_arr.seek(0)  # Move to the start of the byte array
+
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/test.png" , img_byte_arr)
+
 
 
 def main():
@@ -293,7 +307,7 @@ def main():
                                   substitution_batch_size=args.substitution_batch_size)
    
    Painter= IterativePainter(prompt_generator= prompt_generator)
-   Painter.paint_image()
+   Painter.test_image()
 
 if __name__ == "__main__":
     main()
