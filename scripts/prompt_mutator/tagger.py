@@ -79,6 +79,8 @@ class Tagger:
 
         all_similarities = np.array(all_similarities)
 
+        print(all_similarities)
+
         # Apply softmax to the array of similarities
         softmax_probabilities = np.exp(all_similarities) / np.sum(np.exp(all_similarities))
 
