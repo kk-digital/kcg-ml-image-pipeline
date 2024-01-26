@@ -35,7 +35,6 @@ def http_clip_server_add_phrase(phrase: str):
 
 def http_clip_server_clip_vector_from_phrase(phrase: str):
     url = CLIP_SERVER_ADDRESS + "/clip-vector?phrase=" + phrase
-    response = None
 
     try:
         response = requests.get(url)
@@ -46,11 +45,6 @@ def http_clip_server_clip_vector_from_phrase(phrase: str):
 
     except Exception as e:
         print('request exception ', e)
-
-    finally:
-        if response:
-            response.close()
-            response.release_conn()
 
     return None
 
