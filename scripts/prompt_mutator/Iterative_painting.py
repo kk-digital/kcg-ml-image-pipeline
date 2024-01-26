@@ -133,8 +133,7 @@ class IterativePainter:
         return seed_prompts
 
     def paint_image(self):
-        initial_prompts = self.get_seed_prompts()
-        print(initial_prompts)
+        prompt="Pixel art space adventure, 2D side scrolling game, zero-gravity challenges, Futuristic space stations, alien landscapes, Gravity-defying jumps, intergalactic exploration, Spacesuit upgrades, extraterrestrial obstacles, Navigate through pixelated starfields, Immersive gameplay, Spaceship"
 
         index=0
         while(True):
@@ -146,7 +145,8 @@ class IterativePainter:
             context_area, unmasked_area= self.get_context_area(paint_area)
 
             context_image= self.image.crop(context_area)
-            generated_image= self.choose_best_prompt(initial_prompts, context_image, unmasked_area, paint_area)
+            generated_image= self.generate_image(context_image, unmasked_area, prompt)
+            # generated_image= self.choose_best_prompt(initial_prompts, context_image, unmasked_area, paint_area)
 
             # paste generated image in the main image
             self.image.paste(generated_image, paint_area)
