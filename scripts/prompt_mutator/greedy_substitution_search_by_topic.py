@@ -569,6 +569,7 @@ class PromptSubstitutionGenerator:
 
                 # get topic score
                 topic_probability= self.tagger.get_tag_probability(topic, substitute_embedding)
+                print(topic_probability)
                 topic_score= (topic_probability * 10) + sigma_score
 
                 if topic_score > (prompts[prompt_index].topic_score + self.sigma_threshold):            
