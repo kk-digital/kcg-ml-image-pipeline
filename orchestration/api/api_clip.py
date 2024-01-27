@@ -19,6 +19,7 @@ router = APIRouter()
 # --------- Http requests -------------
 def http_clip_server_add_phrase(phrase: str):
     url = CLIP_SERVER_ADDRESS + "/add-phrase?phrase=" + phrase
+    response = None
     try:
         response = requests.put(url)
         if response.status_code == 200:
@@ -30,12 +31,15 @@ def http_clip_server_add_phrase(phrase: str):
         print('request exception ', e)
         # Return a 503 status code when the server is not accessible
         return 500, None
-
+    
+    finally:
+        if response:
+            response.close()
 
 
 def http_clip_server_clip_vector_from_phrase(phrase: str):
     url = CLIP_SERVER_ADDRESS + "/clip-vector?phrase=" + phrase
-    #response = None
+    response = None
     try:
         response = requests.get(url)
 
@@ -49,7 +53,6 @@ def http_clip_server_clip_vector_from_phrase(phrase: str):
     finally:
         if response:
             response.close()
-            response.release_conn()
 
     return None
 
@@ -57,7 +60,7 @@ def http_clip_server_clip_vector_from_phrase(phrase: str):
 def http_clip_server_get_cosine_similarity(image_path: str,
                                            phrase: str):
     url = f'{CLIP_SERVER_ADDRESS}/cosine-similarity?image_path={image_path}&phrase={phrase}'
-
+    response = None
     try:
         response = requests.get(url)
 
@@ -68,14 +71,17 @@ def http_clip_server_get_cosine_similarity(image_path: str,
     except Exception as e:
         print('request exception ', e)
 
+    finally:
+        if response:
+            response.close()
+
     return None
 
 def http_clip_server_get_cosine_similarity_list(image_path_list: List[str],
                                            phrase: str):
     url = f'{CLIP_SERVER_ADDRESS}/cosine-similarity-list?phrase={phrase}'
-
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
-
+    response = None
     # Use json.dumps to convert the list to a JSON-formatted string
     json_string = json.dumps(image_path_list)
 
@@ -91,6 +97,9 @@ def http_clip_server_get_cosine_similarity_list(image_path_list: List[str],
     except Exception as e:
         print('request exception ', e)
 
+    finally:
+        if response:
+            response.close()
     return None
 
 # ----------------------------------------------------------------------------
@@ -162,7 +171,7 @@ def get_clip_vector(request: Request,  phrase: str):
         return response_handler.create_success_response(vector, http_status_code=200, headers={"Cache-Control": "no-store"})
 
     except Exception as e:
-        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.get("/clip/random-image-similarity-threshold",

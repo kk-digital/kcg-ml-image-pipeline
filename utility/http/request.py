@@ -21,7 +21,7 @@ def http_get_list_completed_jobs():
     finally:
         if response:
             response.close()
-            response.release_conn()
+            
     return None
 
 # Get request to get sequential id of a dataset
@@ -41,7 +41,6 @@ def http_get_sequential_id(dataset_name: str, limit: int):
     finally:
         if response:
             response.close()
-            response.release_conn()
 
     return None
 
@@ -64,7 +63,6 @@ def http_add_model(model_card):
     finally:
         if response:
             response.close()
-            response.release_conn()
 
     return None
 
@@ -86,7 +84,6 @@ def http_get_model_id(model_hash):
     finally:
         if response:
             response.close()
-            response.release_conn()
 
     return None
 
@@ -107,7 +104,6 @@ def http_add_score(score_data):
     finally:
         if response:
             response.close()
-            response.release_conn()
 
     return None
 
@@ -128,7 +124,6 @@ def http_add_sigma_score(sigma_score_data):
     finally:
         if response:
             response.close()
-            response.release_conn()
 
     return None
 
@@ -149,7 +144,6 @@ def http_add_residual(residual_data):
     finally:
         if response:
             response.close()
-            response.release_conn()
 
     return None
 
@@ -170,7 +164,6 @@ def http_add_percentile(percentile_data):
     finally:
         if response:
             response.close()
-            response.release_conn()
 
     return None
 
@@ -191,7 +184,6 @@ def http_add_residual_percentile(residual_percentile_data):
     finally:
         if response:
             response.close()
-            response.release_conn()
 
     return None
 
@@ -214,7 +206,6 @@ def http_get_dataset_names():
     finally:
         if response:
             response.close()
-            response.release_conn()
 
     return None
 
@@ -237,7 +228,6 @@ def http_get_completed_job_by_image_hash(image_hash):
     finally:
         if response:
             response.close()
-            response.release_conn()
 
     return None
 
@@ -279,7 +269,6 @@ def http_add_score_attributes(model_type,
     finally:
         if response:
             response.close()
-            response.release_conn()
 
     return None
 
@@ -301,7 +290,6 @@ def http_get_completed_job_by_uuid(job_uuid):
     finally:
         if response:
             response.close()
-            response.release_conn()
 
     return None
 
@@ -332,6 +320,5 @@ def http_get_completed_jobs_by_uuids(job_uuids):
     finally:
         if response:
             response.close()
-            response.release_conn()
 
     return None
