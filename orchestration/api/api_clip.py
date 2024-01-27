@@ -41,7 +41,6 @@ def http_clip_server_clip_vector_from_phrase(phrase: str):
 
         if response.status_code == 200:
             result_json = response.json()
-            print(result_json)
             return result_json
 
     except Exception as e:
@@ -50,6 +49,7 @@ def http_clip_server_clip_vector_from_phrase(phrase: str):
     finally:
         if response:
             response.close()
+            response.release_conn()
 
     return None
 
@@ -162,7 +162,7 @@ def get_clip_vector(request: Request,  phrase: str):
         return response_handler.create_success_response(vector, http_status_code=200, headers={"Cache-Control": "no-store"})
 
     except Exception as e:
-        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.get("/clip/random-image-similarity-threshold",
