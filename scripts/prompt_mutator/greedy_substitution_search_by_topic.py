@@ -567,11 +567,11 @@ class PromptSubstitutionGenerator:
                 topic= prompts[prompt_index].topic
                 topic_score= prompts[prompt_index].topic_score
                 positive_score= prompts[prompt_index].positive_score
-                substitue_topic_score= self.tagger.get_tag_similarity(topic, substitute_embedding)
-                substitued_topic_score= prompts[prompt_index].topic_phrase_scores[phrase_position]
+                substitute_topic_score= self.tagger.get_tag_similarity(topic, substitute_embedding)
+                substituted_topic_score= prompts[prompt_index].topic_phrase_scores[phrase_position]
 
                 # get topic score
-                topic_score= topic_score - substitued_topic_score + substitue_topic_score
+                topic_score= topic_score - substituted_topic_score + substitute_topic_score
                 combined_score= positive_score + topic_score
 
                 if prompts[prompt_index].combined_score > combined_score:            
@@ -580,7 +580,9 @@ class PromptSubstitutionGenerator:
                                 'substitute_phrase':substitute_phrase,
                                 'substitute_embedding':substitute_embedding,
                                 'substituted_embedding':substituted_embedding,
-                                'score':topic_score
+                                'substitute_topic_score': substitute_topic_score,
+                                'topic_score': topic_score,
+                                'score':combined_score
                         }
                         current_prompt_substitution_choices.append(substitution_data)
                 
@@ -619,6 +621,8 @@ class PromptSubstitutionGenerator:
                     substitute_phrase=substitution['substitute_phrase']
                     substitute_embedding=substitution['substitute_embedding']
                     substituted_embedding=substitution['substituted_embedding']
+                    substitute_topic_score=substitution['substitute_topic_score']
+                    new_topic_score=substitution['topic_score']
                     predicted_score=substitution['score']
 
                     #Create a modified prompt with the substitution
@@ -631,14 +635,9 @@ class PromptSubstitutionGenerator:
                     modified_prompt_embedding=self.get_mean_pooled_embedding(modified_prompt_embedding)
                     modified_prompt_score= self.get_positive_score(modified_prompt_embedding)
                     modified_prompt_score= (modified_prompt_score - self.positive_mean) / self.positive_std
-                    
-                    # get topic score
-                    substitue_topic_score= self.tagger.get_tag_similarity(prompts[index].topic, substitute_embedding)
-                    substitued_topic_score= prompts[index].topic_phrase_scores[position]
 
                     # get topic score
-                    topic_score= prompts[index].topic_score - substitued_topic_score + substitue_topic_score
-                    combined_score= modified_prompt_score + topic_score
+                    new_score= modified_prompt_score + new_topic_score
 
                     if(self.self_training):
                         # collect self training data
@@ -656,16 +655,16 @@ class PromptSubstitutionGenerator:
                         self_training_data.append(prompt_data)
 
                     # check if score improves
-                    if(prompts[index].combined_score < combined_score):
+                    if(prompts[index].combined_score < new_score):
                         # if it does improve, the new prompt is saved and it jumps to the next iteration
                         prompts[index].positive_prompt= modified_prompt_str
                         prompts[index].positive_embedding= modified_prompt_embedding
                         prompts[index].positive_phrase_embeddings[position]= substitute_embedding
                         prompts[index].positive_phrase_embeddings[position]= substitute_embedding
-                        prompts[index].topic_phrase_scores[position]= substitue_topic_score
+                        prompts[index].topic_phrase_scores[position]= substitute_topic_score
                         prompts[index].positive_score= modified_prompt_score
-                        prompts[index].topic_score= topic_score
-                        prompts[index].combined_score= combined_score
+                        prompts[index].topic_score= new_topic_score
+                        prompts[index].combined_score= new_score
                         break
                 
                 self.average_score_by_iteration[i]+=prompts[index].positive_score
