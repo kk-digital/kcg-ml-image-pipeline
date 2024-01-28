@@ -637,7 +637,7 @@ class PromptSubstitutionGenerator:
                     substitued_topic_score= prompts[index].topic_phrase_scores[position]
 
                     # get topic score
-                    topic_score= topic_score - substitued_topic_score + substitue_topic_score
+                    topic_score= prompts[index].topic_score - substitued_topic_score + substitue_topic_score
                     combined_score= modified_prompt_score + topic_score
 
                     if(self.self_training):
