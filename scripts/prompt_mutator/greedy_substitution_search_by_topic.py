@@ -560,6 +560,7 @@ class PromptSubstitutionGenerator:
         prompts_substitution_choices=[]
         # Filter with rejection sampling
         for index, sigma_score in enumerate(predictions):
+                num_phrases= len(prompts[prompt_index].positive_prompt.split(', '))
                 phrase_position=substitution_positions[index]
                 substituted_embedding=prompts[prompt_index].positive_phrase_embeddings[phrase_position]
                 substitute_phrase= sampled_phrases[index]
@@ -570,8 +571,8 @@ class PromptSubstitutionGenerator:
                 substituted_topic_score= prompts[prompt_index].topic_phrase_scores[phrase_position]
 
                 # get topic score
-                topic_score= topic_score - substituted_topic_score + substitute_topic_score
-                combined_score= sigma_score + topic_score
+                topic_score= topic_score + (substitute_topic_score - substituted_topic_score)/num_phrases
+                combined_score= sigma_score + (10*topic_score)
 
                 if prompts[prompt_index].topic_score < topic_score:            
                         substitution_data={
@@ -636,7 +637,7 @@ class PromptSubstitutionGenerator:
                     modified_prompt_score= (modified_prompt_score - self.positive_mean) / self.positive_std
 
                     # get topic score
-                    new_score= modified_prompt_score + new_topic_score
+                    new_score= modified_prompt_score + (10*new_topic_score)
 
                     if(self.self_training):
                         # collect self training data
@@ -990,8 +991,8 @@ class PromptSubstitutionGenerator:
             prompt.positive_phrase_embeddings = [self.load_phrase_embedding(phrase) for phrase in phrases]
             prompt.positive_phrase_token_lengths = [self.load_phrase_token_length(phrase) for phrase in phrases] 
             prompt.topic_phrase_scores = [self.tagger.get_tag_similarity(prompt.topic, embedding) for embedding in prompt.positive_phrase_embeddings] 
-            prompt.topic_score= sum(prompt.topic_phrase_scores)
-            prompt.combined_score= prompt.positive_score + prompt.topic_score
+            prompt.topic_score= np.mean(prompt.topic_phrase_scores)
+            prompt.combined_score= prompt.positive_score + (10 * prompt.topic_score)
 
         total_end=time.time() 
         self.generation_time= total_end - total_start  
