@@ -73,10 +73,7 @@ class PromptData:
                  positive_embedding,
                  negative_embedding,
                  positive_score,
-                 topic,
-                 topic_score,
-                 positive_phrase_embeddings=None,
-                 positive_phrase_token_lengths=None):
+                 topic):
         
         self.positive_prompt=positive_prompt
         self.negative_prompt=negative_prompt
@@ -84,9 +81,11 @@ class PromptData:
         self.negative_embedding= negative_embedding
         self.positive_score= positive_score
         self.topic= topic
-        self.topic_score= topic_score
-        self.positive_phrase_embeddings= positive_phrase_embeddings
-        self.positive_phrase_token_lengths= positive_phrase_token_lengths
+        self.topic_phrase_scores= None
+        self.topic_score= 0
+        self.combined_score= 0
+        self.positive_phrase_embeddings= None
+        self.positive_phrase_token_lengths= None
 
 class PromptSubstitutionGenerator:
     def __init__(
@@ -566,13 +565,16 @@ class PromptSubstitutionGenerator:
                 substitute_phrase= sampled_phrases[index]
                 substitute_embedding= sampled_embeddings[index]
                 topic= prompts[prompt_index].topic
+                topic_score= prompts[prompt_index].topic_score
+                positive_score= prompts[prompt_index].positive_score
+                substitue_topic_score= self.tagger.get_tag_similarity(topic, substitute_embedding)
+                substitued_topic_score= prompts[prompt_index].topic_phrase_scores[phrase_position]
 
                 # get topic score
-                topic_similarity= self.tagger.get_tag_similarity(topic, substitute_embedding)
-                print(topic_similarity)
-                topic_score= (topic_similarity * 100) + sigma_score
+                topic_score= topic_score - substitued_topic_score + substitue_topic_score
+                combined_score= positive_score + topic_score
 
-                if topic_score > (prompts[prompt_index].topic_score + self.sigma_threshold):            
+                if prompts[prompt_index].combined_score > combined_score:            
                         substitution_data={
                                 'position':phrase_position,
                                 'substitute_phrase':substitute_phrase,
@@ -631,8 +633,12 @@ class PromptSubstitutionGenerator:
                     modified_prompt_score= (modified_prompt_score - self.positive_mean) / self.positive_std
                     
                     # get topic score
-                    topic_similarity= self.tagger.get_tag_similarity(prompts[index].topic, modified_prompt_embedding)
-                    topic_score= (topic_similarity * 10) + modified_prompt_score
+                    substitue_topic_score= self.tagger.get_tag_similarity(prompts[index].topic, substitute_embedding)
+                    substitued_topic_score= prompts[index].topic_phrase_scores[position]
+
+                    # get topic score
+                    topic_score= topic_score - substitued_topic_score + substitue_topic_score
+                    combined_score= modified_prompt_score + topic_score
 
                     if(self.self_training):
                         # collect self training data
@@ -650,13 +656,16 @@ class PromptSubstitutionGenerator:
                         self_training_data.append(prompt_data)
 
                     # check if score improves
-                    if(prompts[index].topic_score < topic_score):
+                    if(prompts[index].combined_score < combined_score):
                         # if it does improve, the new prompt is saved and it jumps to the next iteration
                         prompts[index].positive_prompt= modified_prompt_str
                         prompts[index].positive_embedding= modified_prompt_embedding
                         prompts[index].positive_phrase_embeddings[position]= substitute_embedding
+                        prompts[index].positive_phrase_embeddings[position]= substitute_embedding
+                        prompts[index].topic_phrase_scores[position]= substitue_topic_score
                         prompts[index].positive_score= modified_prompt_score
                         prompts[index].topic_score= topic_score
+                        prompts[index].combined_score= combined_score
                         break
                 
                 self.average_score_by_iteration[i]+=prompts[index].positive_score
@@ -955,8 +964,6 @@ class PromptSubstitutionGenerator:
                 positive_score = (positive_score - self.positive_mean) / self.positive_std
                 
                 topic= random.choice(self.tag_list)
-                topic_probability= self.tagger.get_tag_probability(topic, positive_embedding)
-                topic_score= (topic_probability * 10) + positive_score
 
                 # Storing prompt data
                 prompt = prompt_batch[index]
@@ -971,8 +978,7 @@ class PromptSubstitutionGenerator:
                     positive_embedding=positive_embedding,
                     negative_embedding=negative_embedding,
                     positive_score=positive_score,
-                    topic=topic,
-                    topic_score=topic_score,
+                    topic=topic
                 ))
            
         # Sort and select prompts
@@ -985,6 +991,9 @@ class PromptSubstitutionGenerator:
             phrases = prompt.positive_prompt.split(', ')
             prompt.positive_phrase_embeddings = [self.load_phrase_embedding(phrase) for phrase in phrases]
             prompt.positive_phrase_token_lengths = [self.load_phrase_token_length(phrase) for phrase in phrases] 
+            prompt.phrase_topic_scores = [self.tagger.get_tag_similarity(prompt.topic, embedding) for embedding in prompt.positive_phrase_embeddings] 
+            prompt.topic_score= sum(prompt.phrase_topic_scores)
+            prompt.combined_score= prompt.positive_score + prompt.topic_score
 
         total_end=time.time() 
         self.generation_time= total_end - total_start  
