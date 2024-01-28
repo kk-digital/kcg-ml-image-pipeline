@@ -1568,10 +1568,6 @@ def calculate_model_speedv2(modelclass, modelName, batchsize):
 ######################################################################################################
 
 
-
-
-
-
 # Best version Run here
 
 
@@ -1587,13 +1583,9 @@ def calculate_model_speedv2(modelclass, modelName, batchsize):
 # newmodel.train(modelSaveName='blabla2.pth')
 
 
-
-
-
-
 loadedmodel = TreeConnect_enhanced_BN_RF(3,10)
 loadedmodel.train(modelSaveName='blabla3.pth',epochs=20)
-loadedmodel.evalualte(model_path="blabla3.pth", batchSize=64)  # Correct call
+#loadedmodel.evalualte(model_path="blabla3.pth", batchSize=64)  # Correct call
 
 
 
