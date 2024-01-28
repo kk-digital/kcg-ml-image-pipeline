@@ -573,7 +573,7 @@ class PromptSubstitutionGenerator:
                 topic_score= topic_score - substituted_topic_score + substitute_topic_score
                 combined_score= sigma_score + topic_score
 
-                if prompts[prompt_index].combined_score > combined_score:            
+                if prompts[prompt_index].combined_score < combined_score:            
                         substitution_data={
                                 'position':phrase_position,
                                 'substitute_phrase':substitute_phrase,
