@@ -574,7 +574,7 @@ class PromptSubstitutionGenerator:
                 topic_score= topic_score + (substitute_topic_score - substituted_topic_score)/num_phrases
                 combined_score= sigma_score + (10*topic_score)
 
-                if prompts[prompt_index].topic_score < topic_score:            
+                if prompts[prompt_index].combined_score < combined_score:            
                         substitution_data={
                                 'position':phrase_position,
                                 'substitute_phrase':substitute_phrase,
@@ -655,7 +655,7 @@ class PromptSubstitutionGenerator:
                         self_training_data.append(prompt_data)
 
                     # check if score improves
-                    if(prompts[index].topic_score < new_topic_score):
+                    if(prompts[index].combined_score < new_score):
                         # if it does improve, the new prompt is saved and it jumps to the next iteration
                         prompts[index].positive_prompt= modified_prompt_str
                         prompts[index].positive_embedding= modified_prompt_embedding
