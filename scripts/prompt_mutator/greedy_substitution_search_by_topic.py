@@ -566,13 +566,12 @@ class PromptSubstitutionGenerator:
                 substitute_embedding= sampled_embeddings[index]
                 topic= prompts[prompt_index].topic
                 topic_score= prompts[prompt_index].topic_score
-                positive_score= prompts[prompt_index].positive_score
                 substitute_topic_score= self.tagger.get_tag_similarity(topic, substitute_embedding)
                 substituted_topic_score= prompts[prompt_index].topic_phrase_scores[phrase_position]
 
                 # get topic score
                 topic_score= topic_score - substituted_topic_score + substitute_topic_score
-                combined_score= positive_score + topic_score
+                combined_score= sigma_score + topic_score
 
                 if prompts[prompt_index].combined_score > combined_score:            
                         substitution_data={
