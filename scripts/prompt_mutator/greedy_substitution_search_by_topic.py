@@ -991,7 +991,7 @@ class PromptSubstitutionGenerator:
             phrases = prompt.positive_prompt.split(', ')
             prompt.positive_phrase_embeddings = [self.load_phrase_embedding(phrase) for phrase in phrases]
             prompt.positive_phrase_token_lengths = [self.load_phrase_token_length(phrase) for phrase in phrases] 
-            prompt.phrase_topic_scores = [self.tagger.get_tag_similarity(prompt.topic, embedding) for embedding in prompt.positive_phrase_embeddings] 
+            prompt.topic_phrase_scores = [self.tagger.get_tag_similarity(prompt.topic, embedding) for embedding in prompt.positive_phrase_embeddings] 
             prompt.topic_score= sum(prompt.phrase_topic_scores)
             prompt.combined_score= prompt.positive_score + prompt.topic_score
 
