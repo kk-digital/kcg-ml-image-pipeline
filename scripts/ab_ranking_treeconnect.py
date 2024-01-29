@@ -24,14 +24,14 @@ from utility.clip.clip_text_embedder import tensor_attention_pooling
 
 
 class ABRankingTreeConnectModel(nn.Module):
-    def __init__(self, input_shape, output_shape):
+    def __init__(self, inputs_shape, output_shape):
         super(ABRankingTreeConnectModel, self).__init__()
 
         # Reshape the input to (2, 768, 1, 1)
         self.reshape_input = nn.Unsqueeze(2).unsqueeze(3)
 
         # Convolutional layers with BatchNorm
-        self.conv1 = nn.Conv2d(input_shape, 64, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv2d(inputs_shape, 64, kernel_size=3, padding=1)
         self.bn1 = nn.BatchNorm2d(64)
         self.conv2 = nn.Conv2d(64, 64, kernel_size=3, padding=1)
         self.bn2 = nn.BatchNorm2d(64)
