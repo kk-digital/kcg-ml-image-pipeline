@@ -24,7 +24,7 @@ from worker.worker_state import WorkerState
 from utility.http import generation_request
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
-from stable_diffusion.utils_image import save_images_to_minio, save_image_data_to_minio, save_image_embedding_to_minio, \
+from stable_diffusion.utils_image import save_images_to_minio, save_image_data_to_minio, save_latent_to_minio, save_image_embedding_to_minio, \
     get_image_data, get_embeddings
 from worker.clip_calculation.clip_calculator import run_clip_calculation_task
 from worker.generation_task.generation_task import GenerationTask
@@ -64,7 +64,7 @@ def run_image_generation_task(worker_state, generation_task):
 
     generation_task.task_input_dict["seed"] = seed
 
-    output_file_path, output_file_hash, img_data = generate_image_from_text(
+    output_file_path, output_file_hash, img_data, latent = generate_image_from_text(
         worker_state.minio_client,
         worker_state.txt2img,
         worker_state.clip_text_embedder,
@@ -85,7 +85,7 @@ def run_image_generation_task(worker_state, generation_task):
                                  generation_task.task_input_dict[
                                      "file_path"]))
 
-    return output_file_path, output_file_hash, img_data, seed
+    return output_file_path, output_file_hash, img_data, latent, seed
 
 
 def run_inpainting_generation_task(worker_state, generation_task: GenerationTask):
@@ -133,20 +133,23 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
     inpainting_processor.load_model(sd=worker_state.stable_diffusion.model)
     
     # generate image
-    image, seed= inpainting_processor.img2img(prompt=positive_prompts, 
-                                              negative_prompt=negative_prompts, 
-                                              init_images=[init_image],
-                                              image_mask=init_mask)
-    
-    # convert image to png from RGB
-    output_file_hash, img_byte_arr=inpainting_processor.convert_image_to_png(image)
-    
-    output_file_path=os.path.join("datasets", generation_task.task_input_dict['dataset'],
-                             generation_task.task_input_dict['file_path'])
-    generation_task.task_input_dict["seed"] = seed
-    # generation_task.task_input_dict["subseed"] = subseed
+    image, seed = inpainting_processor.img2img(prompt=positive_prompts, 
+                                               negative_prompt=negative_prompts, 
+                                               init_images=[init_image],
+                                               image_mask=init_mask)
 
-    return output_file_path, output_file_hash, img_byte_arr, seed
+    # Access the latent vector
+    inpainting_latent = inpainting_processor.init_latent
+
+    # convert image to png from RGB
+    output_file_hash, img_byte_arr = inpainting_processor.convert_image_to_png(image)
+    
+    output_file_path = os.path.join("datasets", generation_task.task_input_dict['dataset'],
+                                    generation_task.task_input_dict['file_path'])
+    generation_task.task_input_dict["seed"] = seed
+
+    # Return the latent vector along with other values
+    return output_file_path, output_file_hash, img_byte_arr, seed, inpainting_latent
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Worker for image generation")
@@ -205,6 +208,7 @@ def upload_image_data_and_update_job_status(worker_state,
                                             job,
                                             generation_task,
                                             seed,
+                                            latent,
                                             output_file_path,
                                             output_file_hash,
                                             job_completion_time,
@@ -254,6 +258,14 @@ def upload_image_data_and_update_job_status(worker_state,
                              prompt_score,
                              prompt_generation_policy,
                              top_k)
+
+    save_latent_to_minio(minio_client, 
+                         bucket_name, 
+                         generation_task.uuid, 
+                         output_file_hash, 
+                         latent, 
+                         output_file_path)
+    
     # save image embedding data
     save_image_embedding_to_minio(minio_client,
                                   dataset,
@@ -313,7 +325,7 @@ def process_jobs(worker_state):
 
             try:
                 if task_type == 'inpainting_generation_task':
-                    output_file_path, output_file_hash, img_data, seed = run_inpainting_generation_task(worker_state,
+                    output_file_path, output_file_hash, img_data, seed, inpainting_latent = run_inpainting_generation_task(worker_state,
                                                                                                   generation_task)
 
                     job_completion_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -333,13 +345,13 @@ def process_jobs(worker_state):
                                                                           worker_state.clip_text_embedder)
                     # spawn upload data and update job thread
                     thread = threading.Thread(target=upload_image_data_and_update_job_status, args=(
-                        worker_state, job, generation_task, -1, output_file_path, output_file_hash, job_completion_time,
+                        worker_state, job, generation_task, -1, inpainting_latent, output_file_path, output_file_hash, job_completion_time,
                         img_data, prompt_embedding, prompt_embedding_average_pooled, prompt_embedding_max_pooled,
                         prompt_embedding_signed_max_pooled,))
                     thread.start()
 
                 elif task_type == 'image_generation_task':
-                    output_file_path, output_file_hash, img_data, seed = run_image_generation_task(worker_state,
+                    output_file_path, output_file_hash, img_data, latent, seed = run_image_generation_task(worker_state,
                                                                                                    generation_task)
 
                     job_completion_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -360,7 +372,7 @@ def process_jobs(worker_state):
 
                     # spawn upload data and update job thread
                     thread = threading.Thread(target=upload_image_data_and_update_job_status, args=(
-                        worker_state, job, generation_task, seed, output_file_path, output_file_hash,
+                        worker_state, job, generation_task, seed, latent, output_file_path, output_file_hash,
                         job_completion_time, img_data, prompt_embedding, prompt_embedding_average_pooled,
                         prompt_embedding_max_pooled, prompt_embedding_signed_max_pooled,))
                     thread.start()
