@@ -316,9 +316,32 @@ def http_get_completed_jobs_by_uuids(job_uuids):
 
     except Exception as e:
         print('request exception ', e)
-
     finally:
         if response:
             response.close()
 
     return None
+
+def http_get_tag_list():
+    url = SERVER_ADDRESS + "/tags"
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json["response"]["tags"]
+
+    except Exception as e:
+        print('request exception ', e)
+
+def http_get_tagged_images(tag_id):
+    url = SERVER_ADDRESS + "/tags/{}/images".format(tag_id)
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json["response"]["images"]
+
+    except Exception as e:
+        print('request exception ', e)
