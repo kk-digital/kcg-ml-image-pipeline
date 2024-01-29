@@ -226,8 +226,6 @@ class IterativePainter:
         draw = ImageDraw.Draw(mask)
         draw.rectangle(inpainting_area, fill=255)  # Unmasked (white) center area
 
-        context_image = masking.fill(context_image, mask)
-
         result_image= self.pipeline.inpaint(prompt=prompt, initial_image=context_image, image_mask= mask)
 
         cropped_image= result_image.crop(inpainting_area)
