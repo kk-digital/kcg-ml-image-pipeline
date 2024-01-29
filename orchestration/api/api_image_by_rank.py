@@ -2,10 +2,14 @@ from fastapi import Request, APIRouter, Query, HTTPException
 from datetime import datetime, timedelta
 from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardErrorResponse, StandardSuccessResponse, ImageData
 from .mongo_schemas import Task
+from typing import Optional
+
 
 router = APIRouter()
 
 
+CACHE = {}
+CACHE_EXPIRATION_DELTA = timedelta(hours=12)
 
 @router.get("/tasks/attributes", 
          responses=ApiResponseHandler.listErrors([404, 500]),
@@ -13,20 +17,23 @@ router = APIRouter()
 def list_task_attributes(request: Request, dataset: str = Query(..., description="Dataset to filter tasks")):
     api_handler = ApiResponseHandler(request)
     try:
+        # Check if data is in cache and not expired
+        cache_key = f"task_attributes_{dataset}"
+        if cache_key in CACHE and datetime.now() - CACHE[cache_key]['timestamp'] < CACHE_EXPIRATION_DELTA:
+            return api_handler.create_success_response(CACHE[cache_key]['data'], 200)
+
         # Fetch data from the database for the specified dataset
         tasks_cursor = request.app.completed_jobs_collection.find(
             {"task_input_dict.dataset": dataset, "task_attributes_dict": {"$exists": True, "$ne": {}}},
             {'task_attributes_dict': 1}
         )
 
-        # Debugging: Print the number of tasks found
-        tasks = list(tasks_cursor)
         # Use a set for score field names and a list for model names
         score_fields = set()
         model_names = []
 
         # Iterate through cursor and add unique score field names and model names
-        for task in tasks:
+        for task in tasks_cursor:
             task_attr_dict = task.get('task_attributes_dict', {})
             if isinstance(task_attr_dict, dict):  # Check if task_attr_dict is a dictionary
                 for model, scores in task_attr_dict.items():
@@ -37,18 +44,26 @@ def list_task_attributes(request: Request, dataset: str = Query(..., description
         # Convert set to a list to make it JSON serializable
         score_fields_list = list(score_fields)
 
+        # Store data in cache with timestamp
+        CACHE[cache_key] = {
+            'timestamp': datetime.now(),
+            'data': {
+                "Models": model_names,
+                "Scores": score_fields_list
+            }
+        }
+
         # Return success response
         return api_handler.create_success_response({
             "Models": model_names,
             "Scores": score_fields_list
         }, 200)
+
     except Exception as exc:
-        # Debugging: Print the exception message
         print(f"Exception occurred: {exc}")
-        # For any other exception, create and return a generic error response
         return api_handler.create_error_response(
             ErrorCode.OTHER_ERROR,
-            str(exc),
+            "Internal Server Error",
             500
         )
 
@@ -198,8 +213,79 @@ def image_list_sorted_by_score_v1(
         # Return success response
         return api_handler.create_success_response(images_data, 200)
     except Exception as exc:
-        return api_handler.create_error_response(ErrorCode.OTHER_ERROR, str(exc), 500)
+        return api_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal Server Error", 500)
 
+
+@router.get("/image_by_rank/image-list-sampled-sorted", 
+            response_model=StandardSuccessResponse[ImageData],
+            status_code=200,
+            responses=ApiResponseHandler.listErrors([500]),
+            description="List randomly sampled and sorted images from jobs collection")
+def image_list_sampled_sorted(
+    request: Request,
+    model_type: str = Query(..., description="Model type to filter the scores, e.g., 'linear' or 'elm-v1'"),
+    score_field: str = Query(..., description="Score field to sort by"),
+    dataset: str = Query(..., description="Dataset to filter the images"),
+    sampling_size: Optional[int] = Query(None, description="Number of images to randomly sample"),
+    start_date: str = Query(None, description="Start date for filtering images"),
+    end_date: str = Query(None, description="End date for filtering images"),
+    sort_order: str = Query('asc', description="Sort order: 'asc' for ascending, 'desc' for descending"),
+    min_score: float = Query(None, description="Minimum score for filtering"),
+    max_score: float = Query(None, description="Maximum score for filtering"),
+    time_interval: int = Query(None, description="Time interval in minutes or hours for filtering"),
+    time_unit: str = Query("minutes", description="Time unit, either 'minutes' or 'hours'")
+):
+    api_handler = ApiResponseHandler(request)
+    try:
+        # Construct query based on filters
+        imgs_query = {"task_input_dict.dataset": dataset,
+                      f"task_attributes_dict.{model_type}.{score_field}": {"$exists": True}}
+
+        # Calculate the time threshold based on the current time and the specified interval
+        threshold_time = None
+        if time_interval is not None:
+            current_time = datetime.utcnow()
+            delta = timedelta(minutes=time_interval) if time_unit == "minutes" else timedelta(hours=time_interval)
+            threshold_time = current_time - delta
+
+        # Date range filtering
+        if start_date and end_date:
+            imgs_query['task_creation_time'] = {'$gte': start_date, '$lte': end_date}
+        elif start_date:
+            imgs_query['task_creation_time'] = {'$gte': start_date}
+        elif end_date:
+            imgs_query['task_creation_time'] = {'$lte': end_date}
+        elif threshold_time:
+            imgs_query['task_creation_time'] = {'$gte': threshold_time.strftime("%Y-%m-%dT%H:%M:%S")}
+
+        # Build aggregation pipeline
+        aggregation_pipeline = [{"$match": imgs_query}]
+        if sampling_size is not None:
+            aggregation_pipeline.append({"$sample": {"size": sampling_size}})
+
+        # Fetch data using the aggregation pipeline
+        jobs = list(request.app.completed_jobs_collection.aggregate(aggregation_pipeline))
+
+        # Process and filter data
+        images_scores = []
+        for job in jobs:
+            task_attr = job.get('task_attributes_dict', {}).get(model_type, {})
+            score = task_attr.get(score_field)
+            if score is not None and (min_score is None or score >= min_score) and (max_score is None or score <= max_score):
+                images_scores.append({
+                    'image_path': job['task_output_file_dict']['output_file_path'],
+                    'image_hash': job['task_output_file_dict']['output_file_hash'],
+                    score_field: score
+                })
+
+        # Sort data
+        images_scores.sort(key=lambda x: x[score_field], reverse=(sort_order == 'desc'))
+
+        # Return success response
+        return api_handler.create_success_response(images_scores, 200)
+    except Exception as exc:
+        return api_handler.create_error_response(ErrorCode.OTHER_ERROR, str(exc), 500)
+    
 
 @router.get("/image_by_rank/image-list-sorted-by-percentile", response_class=PrettyJSONResponse)
 def image_list_sorted_by_percentile(
