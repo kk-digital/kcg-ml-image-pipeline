@@ -239,7 +239,7 @@ def list_ranking_data(
     return ranking_data
 
 
-@router.get("/rank/sor-ranking-data-by-residual", response_class=PrettyJSONResponse)
+@router.get("/rank/sort-ranking-data-by-residual", response_class=PrettyJSONResponse)
 def list_ranking_data(
     request: Request,
     model_type: str = Query(..., description="Model type to filter by, e.g., 'linear' or 'elm-v1'"),
