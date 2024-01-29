@@ -218,7 +218,7 @@ class IterativePainter:
     def generate_image(self, context_image, inpainting_area, prompt):
         # Use the context image as an initial image
         draw = ImageDraw.Draw(context_image)
-        draw.rectangle(inpainting_area, fill="white")  # Unmasked (white) center area
+        # draw.rectangle(inpainting_area, fill="white")  # Unmasked (white) center area
 
         # Create mask
         mask = Image.new("L", (self.context_size, self.context_size), 0)  # Fully masked (black)
