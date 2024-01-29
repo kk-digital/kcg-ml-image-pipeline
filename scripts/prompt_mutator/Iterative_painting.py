@@ -17,6 +17,7 @@ from worker.image_generation.scripts.inpainting_pipeline import StableDiffusionI
 from scripts.prompt_mutator.greedy_substitution_search_v1 import PromptSubstitutionGenerator
 from utility.minio import cmd
 from utility.clip import clip
+from utility import masking
 
 OUTPUT_PATH="environmental/output/iterative_painting"
 
@@ -217,13 +218,15 @@ class IterativePainter:
 
     def generate_image(self, context_image, inpainting_area, prompt):
         # Use the context image as an initial image
-        draw = ImageDraw.Draw(context_image)
+        # draw = ImageDraw.Draw(context_image)
         # draw.rectangle(inpainting_area, fill="white")  # Unmasked (white) center area
 
         # Create mask
         mask = Image.new("L", (self.context_size, self.context_size), 0)  # Fully masked (black)
         draw = ImageDraw.Draw(mask)
         draw.rectangle(inpainting_area, fill=255)  # Unmasked (white) center area
+
+        context_image = masking.fill(context_image, mask)
 
         result_image= self.pipeline.inpaint(prompt=prompt, initial_image=context_image, image_mask= mask)
 
