@@ -306,7 +306,7 @@ def main():
                                   substitution_batch_size=args.substitution_batch_size)
    
    Painter= IterativePainter(prompt_generator= prompt_generator)
-   Painter.test_image()
+   Painter.paint_image()
 
 if __name__ == "__main__":
     main()
