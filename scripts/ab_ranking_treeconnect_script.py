@@ -322,8 +322,8 @@ def run_ab_ranking_linear_task(training_task, minio_access_key, minio_secret_key
 def test_run():
     train_ranking(dataset_name="propaganda-poster",
                   minio_ip_addr=None,  # will use defualt if none is given
-                  minio_access_key="nkjYl5jO4QnpxQU0k0M1",
-                  minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
+                  minio_access_key="D6ybtPLyUrca5IdZfCIM",
+                  minio_secret_key="2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
                   input_type="embedding-negative",
                   epochs=10,
                   learning_rate=0.05,
