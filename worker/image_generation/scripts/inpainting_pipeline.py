@@ -142,7 +142,9 @@ class StableDiffusionInpaintingPipeline:
 
 
 # Example Usage--------------------------------------------
-        
+
+# from worker.image_generation.scripts.inpainting_pipeline import StableDiffusionInpaintingPipeline
+
 # pipeline = StableDiffusionInpaintingPipeline(model_type="ned",
 #                                             denoising_strength=0.75,
 #                                             guidance_scale=7.5,
