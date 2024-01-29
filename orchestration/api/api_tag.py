@@ -493,7 +493,7 @@ def get_tag_vector_index(request: Request, tag_id: int):
     )    
 
 @router.post("/tags/add_tag_to_image", response_model=ImageTag)
-def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_created: str):
+def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: int, user_who_created: str):
     date_now = datetime.now().isoformat()
     
     # Check if the tag exists by tag_id
@@ -516,6 +516,7 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_cre
         "tag_id": tag_id,
         "file_path": file_path,  
         "image_hash": file_hash,
+        "tag_type": tag_type,
         "user_who_created": user_who_created,
         "creation_time": date_now
     }
@@ -534,7 +535,7 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_cre
     return image_tag_data
 
 @router.post("/tags/add_tag_to_image-v1", response_model=ImageTag, response_class=PrettyJSONResponse)
-def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_created: str):
+def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: int, user_who_created: str):
     response_handler = ApiResponseHandler(request)
     try:
         date_now = datetime.now().isoformat()
@@ -560,13 +561,14 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_cre
             "tag_id": tag_id,
             "file_path": file_path,  
             "image_hash": file_hash,
+            "tag_type": tag_type,
             "user_who_created": user_who_created,
             "creation_time": date_now,
             "tag_count": 1  # Since this is a new tag for this image, set count to 1
         }
         request.app.image_tags_collection.insert_one(image_tag_data)
 
-        return response_handler.create_success_response({"tag_id": tag_id, "file_path": file_path, "image_hash": file_hash, "tag_count": 1, "user_who_created": user_who_created, "creation_time": date_now}, http_status_code=200)
+        return response_handler.create_success_response({"tag_id": tag_id, "file_path": file_path, "image_hash": file_hash, "tag_type": tag_type, "tag_count": 1, "user_who_created": user_who_created, "creation_time": date_now}, http_status_code=200)
 
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
@@ -591,6 +593,7 @@ def remove_image_tag(
 
 @router.delete("/tags/remove_tag_from_image/{tag_id}", 
                status_code=200,
+               tags=["tags"], 
                description="Remove image tag",
                response_model=StandardSuccessResponse[WasPresentResponse],
                responses=ApiResponseHandler.listErrors([400, 422]))
@@ -686,6 +689,7 @@ def get_tagged_images(
                 tag_id=int(tag_data["tag_id"]),
                 file_path=tag_data["file_path"], 
                 image_hash=str(tag_data["image_hash"]),
+                tag_type =int(tag_data["tag_type"]),
                 user_who_created=tag_data["user_who_created"],
                 creation_time=tag_data.get("creation_time", None)
             ))
@@ -746,6 +750,7 @@ def get_tagged_images(
                     tag_id=int(tag_data["tag_id"]),
                     file_path=tag_data["file_path"], 
                     image_hash=str(tag_data["image_hash"]),
+                    tag_type=int(tag_data["tag_type"]),
                     user_who_created=tag_data["user_who_created"],
                     creation_time=tag_data.get("creation_time", None)
                 )
@@ -770,6 +775,7 @@ def get_all_tagged_images(request: Request):
             tag_id=int(tag_data["tag_id"]),
             file_path=tag_data["file_path"],  
             image_hash=str(tag_data["image_hash"]),
+            tag_type=int(tag_data["tag_type"]),
             user_who_created=tag_data["user_who_created"],
             creation_time=tag_data.get("creation_time", None)
         ) 
@@ -806,6 +812,7 @@ def get_all_tagged_images(request: Request):
                     tag_id=int(tag_data["tag_id"]),
                     file_path=tag_data["file_path"], 
                     image_hash=str(tag_data["image_hash"]),
+                    tag_type=int(tag_data["tag_type"]),
                     user_who_created=tag_data["user_who_created"],
                     creation_time=tag_data.get("creation_time", None)
                 )
