@@ -19,7 +19,7 @@ from utility.minio import cmd
 from utility.clip import clip
 from utility import masking
 
-OUTPUT_PATH="environmental/output/iterative_painting2"
+OUTPUT_PATH="environmental/output/iterative_painting"
 
 def parse_args():
     parser = argparse.ArgumentParser()
