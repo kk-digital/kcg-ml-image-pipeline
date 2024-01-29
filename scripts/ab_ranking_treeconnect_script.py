@@ -8,7 +8,7 @@ base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
 from utility.regression_utils import torchinfo_summary
-from training_worker.ab_ranking.model.ab_ranking_treeconnect import ABRankingTreeConnectModel
+from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from training_worker.ab_ranking.model.reports.ab_ranking_train_report import get_train_report
 from training_worker.ab_ranking.model.reports.graph_report_ab_ranking import *
 from data_loader.ab_ranking_dataset_loader import ABRankingDatasetLoader
