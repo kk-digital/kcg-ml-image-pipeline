@@ -517,6 +517,54 @@ def migrate_json_to_mongodb(minio_client, mongo_collection, minio_bucket):
             mongo_collection.insert_one(ordered_data)
             print(f"Migrated '{json_filename}' to MongoDB.")
 
+
+def compare_and_migrate(minio_client, mongo_collection, minio_bucket: str):
+    migrated_files = []
+    mongo_filenames = set(mongo_collection.find().distinct("file_name"))
+    
+    for dataset in list_datasets(minio_client, minio_bucket):
+        folder_name = f'{dataset}/data/ranking/aggregate'
+        objects = minio_client.list_objects(minio_bucket, prefix=folder_name, recursive=True)
+
+        for obj in objects:
+            if obj.is_dir or obj.object_name.endswith("/"):
+                continue
+
+            json_filename = obj.object_name.split('/')[-1]
+            if json_filename not in mongo_filenames:
+                print(f"Migrating '{json_filename}' from MinIO to MongoDB...")
+                response = minio_client.get_object(minio_bucket, obj.object_name)
+                data = response.read()
+                original_data = json.loads(data.decode('utf-8'))
+                ordered_data = OrderedDict([
+                    ("file_name", json_filename),
+                    ("dataset", dataset),
+                    *original_data.items()
+                ])
+
+                mongo_collection.insert_one(ordered_data)
+                migrated_files.append(json_filename)
+
+    return migrated_files
+
+@router.post("/migrate/minio-to-mongodb-v1", status_code=202, description="Migrate missing datapoints from Minio to MongoDB.")
+def migrate_missing_datapoints(request: Request, minio_bucket: str = 'datasets'):
+    api_handler = ApiResponseHandler(request)
+    
+    try:
+        migrated_files = compare_and_migrate(request.app.minio_client, request.app.image_pair_ranking_collection, minio_bucket)
+        return api_handler.create_success_response(
+            response_data={"message": "Migration completed successfully.", "migrated_files": migrated_files},
+            http_status_code=202
+        )
+    except Exception as e:
+        return api_handler.create_error_response(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+
+
 def list_datasets(minio_client, bucket_name):
     datasets = set()
     objects = minio_client.list_objects(bucket_name, recursive=False)
