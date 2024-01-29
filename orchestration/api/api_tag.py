@@ -166,6 +166,37 @@ def add_new_tag_definition(request: Request, tag_data: NewTagRequest):
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
     
 
+@router.get("/tags/id-by-tag-name", 
+             status_code=200,
+             tags=["tags"],
+             description="Get tag ID by tag name")
+def get_tag_id_by_name(request: Request, tag_string: str = Query(..., description="Tag name to fetch ID for")):
+    api_handler = ApiResponseHandler(request)
+
+    try:
+        # Find the tag with the provided name
+        tag = request.app.tag_definitions_collection.find_one({"tag_string": tag_string})
+
+        if tag is None:
+            return api_handler.create_error_response(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string="Tag not found",
+                http_status_code=404
+            )
+
+        tag_id = tag.get("tag_id")
+        return api_handler.create_success_response(
+            response_data={"tag_id": tag_id},
+            http_status_code=200
+        )
+
+    except Exception as e:
+        return api_handler.create_error_response(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string="Internal server error",
+            http_status_code=500
+        )
+
 @router.put("/tags/update_tag_definition")
 def update_tag_definition(request: Request, tag_id: int, update_data: TagDefinition):
     query = {"tag_id": tag_id}
