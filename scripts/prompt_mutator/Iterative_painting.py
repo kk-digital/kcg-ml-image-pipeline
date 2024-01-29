@@ -79,7 +79,7 @@ class IterativePainter:
 
         self.scoring_model= self.load_scoring_model()
 
-        self.pipeline = StableDiffusionInpaintingPipeline(model_type="dreamshaper", denoising_strength=0.5)
+        self.pipeline = StableDiffusionInpaintingPipeline(model_type="dreamshaper", denoising_strength=0.6)
         self.pipeline.load_models()
 
     # load elm or linear scoring models
