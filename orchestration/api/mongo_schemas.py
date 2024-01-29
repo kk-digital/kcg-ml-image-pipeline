@@ -251,14 +251,22 @@ class ImageTag(BaseModel):
     tag_id: Optional[int] = None
     file_path: str
     image_hash: str
+    tag_type: int = Field(..., description="1 for positive, 0 for negative")
     user_who_created: str = Field(..., description="User who created the tag")
     creation_time: Union[str, None] = None 
     
+    @validator("tag_type")
+    def validate_tag_type(cls, value):
+        if value not in [0, 1]:
+            raise ValueError("tag_type should be either 0 or 1.")
+        return value
+
     def to_dict(self):
         return {
             "tag_id": self.tag_id,
             "file_path": self.file_path,
             "image_hash": self.image_hash,
+            "tag_type": self.tag_type,
             "user_who_created": self.user_who_created,
             "creation_time": self.creation_time
         }
