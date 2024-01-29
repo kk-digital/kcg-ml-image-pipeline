@@ -24,7 +24,7 @@ from utility.clip.clip_text_embedder import tensor_attention_pooling
 
 
 class ABRankingTreeConnectModel(nn.Module):
-    def __init__(self, inputs_shape, output_shape):
+    def __init__(self, inputs_shape, outputs_shape):
         super(ABRankingTreeConnectModel, self).__init__()
 
         # Reshape the input to (2, 768, 1, 1)
@@ -55,7 +55,7 @@ class ABRankingTreeConnectModel(nn.Module):
         self.dropout2 = nn.Dropout(0.5)  # Changed probability to 0.5 for consistency
 
         # Fully connected layer
-        self.fc = nn.Linear(64 * 64, output_shape)  # Assuming output_shape is 1 for regression
+        self.fc = nn.Linear(64 * 64, outputs_shape)  # Assuming output_shape is 1 for regression
 
     def forward(self, x):
         # Reshape the input
