@@ -56,7 +56,7 @@ class ABRankingTreeConnectModel(nn.Module):
         self.dropout2 = nn.Dropout(0.5)  # Changed probability to 0.5 for consistency
 
         # Fully connected layer
-        self.fc = nn.Linear(128, 1)  # Adjusted for the output shape
+        self.fc = nn.Linear(256, 1)  # Adjusted for the output shape
 
     def forward(self, x):
         # Reshape the input
