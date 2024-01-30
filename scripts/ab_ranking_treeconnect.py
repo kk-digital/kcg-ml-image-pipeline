@@ -27,11 +27,10 @@ class ABRankingTreeConnectModel(nn.Module):
     def __init__(self, inputs_shape):
         super(ABRankingTreeConnectModel, self).__init__()
 
-        # Reshape the input to (2, 768, 1, 1)
-        #self.reshape_input = nn.Unsqueeze(2).unsqueeze(3)
+        self.inputs_shape = inputs_shape
 
         # Convolutional layers with BatchNorm
-        self.conv1 = nn.Conv2d(inputs_shape, 64, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv2d(1, 64, kernel_size=3, padding=1)
         self.bn1 = nn.BatchNorm2d(64)
         self.conv2 = nn.Conv2d(64, 64, kernel_size=3, padding=1)
         self.bn2 = nn.BatchNorm2d(64)
@@ -55,11 +54,11 @@ class ABRankingTreeConnectModel(nn.Module):
         self.dropout2 = nn.Dropout(0.5)  # Changed probability to 0.5 for consistency
 
         # Fully connected layer
-        self.fc = nn.Linear(64 * 64, 1)  # Assuming output_shape is 1 for regression
+        self.fc = nn.Linear(256 * 1 * 1, 1)  # Adjusted for the output shape
 
     def forward(self, x):
-        # Reshape the input
-        x = self.reshape_input(x)
+        # Ensure input shape is (batch_size, 1, height, width)
+        assert x.shape == (x.shape[0], 1, self.inputs_shape[0], self.inputs_shape[1])
 
         x = F.relu(self.conv1(x))
         x = self.bn1(x)
@@ -84,10 +83,13 @@ class ABRankingTreeConnectModel(nn.Module):
         x = self.dropout2(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
-        
+
+        # Ensure output shape is (batch_size, 1)
+        assert x.shape == (x.shape[0], 1)
+
         # Apply tanh activation to scale the output to the range [-5, 5]
         x = 5 * torch.tanh(x)
-        
+
         return x
 
 
