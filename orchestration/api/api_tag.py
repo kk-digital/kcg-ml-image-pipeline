@@ -3,7 +3,7 @@ from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
 from orchestration.api.mongo_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory
 from typing import Union
-from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse
+from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagResponse
 import traceback
 from bson import ObjectId
 
@@ -679,18 +679,36 @@ def remove_image_tag(request: Request, image_hash: str, tag_id: int):
 
 
 
-@router.get("/tags/get_tag_list_for_image", response_model=List[TagDefinition])
+@router.get("/tags/get_tag_list_for_image", response_model=List[TagResponse])
 def get_tag_list_for_image(request: Request, file_hash: str):
     # Fetch image tags based on image_hash
     image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash})
     
-    tag_ids = [tag_data["tag_id"] for tag_data in image_tags_cursor]
-    
-    # Fetch the actual TagDefinition using tag_ids
-    tags_cursor = request.app.tag_definitions_collection.find({"tag_id": {"$in": tag_ids}})
-    tags_list = [TagDefinition(**tag_data) for tag_data in tags_cursor]
+    # Process the results
+    tags_list = []
+    for tag_data in image_tags_cursor:
+        tag_definition = request.app.tag_definitions_collection.find_one({"tag_id": tag_data["tag_id"]})
+        
+        if tag_definition:
+            # Create a dictionary representing TagDefinition with tag_type
+            tag_definition_dict = {
+                "tag_id": tag_definition["tag_id"],
+                "tag_string": tag_definition["tag_string"],
+                "tag_type": tag_data.get("tag_type"),
+                "tag_category_id": tag_definition.get("tag_category_id"),
+                "tag_description": tag_definition["tag_description"],
+                "tag_vector_index": tag_definition.get("tag_vector_index", -1),
+                "deprecated": tag_definition.get("deprecated", False),
+                "user_who_created": tag_definition["user_who_created"],
+                "creation_time": tag_definition.get("creation_time", None)
+            }
+
+            tags_list.append(tag_definition_dict)
     
     return tags_list
+
+
+
 
 
 @router.get("/tags/get_images_by_tag", response_model=List[ImageTag], response_class=PrettyJSONResponse)
