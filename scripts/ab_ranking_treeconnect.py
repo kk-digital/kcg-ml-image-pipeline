@@ -14,6 +14,7 @@ from safetensors.torch import save as safetensors_save
 from safetensors.torch import load as safetensors_load
 from safetensors import safe_open
 from safetensors import deserialize as safetensors_deserialize
+import torch.nn.functional as F
 import json
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
