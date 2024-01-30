@@ -62,7 +62,7 @@ class ABRankingTreeConnectModel(nn.Module):
         # Reshape the input
         #x = self.reshape_input(x)
         #x = x.view(x.size(0), x.size(1))
-        x = x.view(x.size(0), 1, -1, 1)  # Reshape to [batch_size, channels, height, width]
+        x = x.view(x.size(0), 768, -1, 1)  # Reshape to [batch_size, channels, height, width]
         x = F.relu(self.conv1(x))
         x = self.bn1(x)
         x = F.relu(self.conv2(x))
