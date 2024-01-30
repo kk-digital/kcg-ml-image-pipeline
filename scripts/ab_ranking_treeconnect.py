@@ -32,10 +32,19 @@ class tree_connect_architecture_tanh_ranking(nn.Module):
     def __init__(self, inputs_shape):
         super(tree_connect_architecture_tanh_ranking, self).__init__()
         # Locally connected layers with BatchNorm and Dropout
+
+
+
+
+
+        # Ensure inputs_shape is a tuple
+        if not isinstance(inputs_shape, tuple):
+            raise ValueError("inputs_shape must be a tuple, e.g., (channels, length)")
+
         self.inputs_shape = inputs_shape
 
         # Locally connected layers with BatchNorm and Dropout
-        self.lc1 = nn.Conv1d(inputs_shape[1], 16, kernel_size=1)
+        self.lc1 = nn.Conv1d(inputs_shape[0], 16, kernel_size=1)
         self.bn_lc1 = nn.BatchNorm1d(16)
         self.dropout1 = nn.Dropout(0.5)
         self.lc2 = nn.Conv1d(16, 16, kernel_size=1)
@@ -43,7 +52,7 @@ class tree_connect_architecture_tanh_ranking(nn.Module):
         self.dropout2 = nn.Dropout(0.5)
 
         # Fully connected layer
-        self.fc = nn.Linear(inputs_shape[0] * 16, 1)  # Assuming output_shape is 1 for regression
+        self.fc = nn.Linear(16, 1)  # Assuming output_shape is 1 for regression
 
     def forward(self, x):
         # Reshape for 1D convolution
@@ -55,18 +64,18 @@ class tree_connect_architecture_tanh_ranking(nn.Module):
         x = self.bn_lc2(x)
         x = self.dropout2(x)
 
-        # Reshape back for fully connected layer
+        # Global average pooling
+        x = F.adaptive_avg_pool1d(x, 1)
         x = x.view(x.size(0), -1)
+        
         x = 5 * torch.tanh(self.fc(x))  # Apply tanh and scale
 
         return x
 
-
-
 class ABRankingTreeConnectModel(nn.Module):
     def __init__(self, inputs_shape):
         super(ABRankingTreeConnectModel, self).__init__()
-        self.linear = nn.Linear(inputs_shape, 1)
+        
         self.mse_loss = nn.MSELoss()
         self.l1_loss = nn.L1Loss()
         self.tanh = nn.Tanh()
@@ -183,7 +192,7 @@ class ABRankingModel:
         self._device = torch.device(device)
 
         self.inputs_shape = inputs_shape
-        self.model = tree_connect_architecture_tanh_ranking(inputs_shape).to(self._device)
+        self.model = ABRankingTreeConnectModel(inputs_shape).to(self._device)
         self.model_type = 'ab-ranking-treeconnect'
         self.loss_func_name = ''
         self.file_path = ''
