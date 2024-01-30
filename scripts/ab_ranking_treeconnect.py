@@ -119,8 +119,8 @@ class ABRankingTreeConnectModel(nn.Module):
         
         # Apply tanh activation to scale the output to the range [-5, 5]
         x = 5 * torch.tanh(x)
-        x = x.view(1, 1)
-        assert x.shape == (1, 1)
+        x = x.view(x.size(0), 1)
+        assert x.shape == (x.size(0), 1)
         return x
 
 
