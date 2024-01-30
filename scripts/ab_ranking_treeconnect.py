@@ -29,7 +29,7 @@ class tree_connect_architecture_tanh_ranking(nn.Module):
     def __init__(self, inputs_shape):
         super(tree_connect_architecture_tanh_ranking, self).__init__()
         # Locally connected layers with BatchNorm and Dropout
-        self.lc1 = nn.Conv1d(inputs_shape, 1, kernel_size=1)
+        self.lc1 = nn.Conv1d(inputs_shape, 16, kernel_size=1)
         self.bn_lc1 = nn.BatchNorm1d(16)
         self.dropout1 = nn.Dropout(0.5)
         self.lc2 = nn.Conv1d(16, 16, kernel_size=1)
@@ -62,9 +62,6 @@ class ABRankingTreeConnectModel(nn.Module):
     def __init__(self, inputs_shape):
         super(ABRankingTreeConnectModel, self).__init__()
 
-        # Reshape the input to (2, 768, 1, 1)
-        #self.reshape_input = nn.Unsqueeze(2).unsqueeze(3)
-
         # Convolutional layers with BatchNorm
         self.conv1 = nn.Conv2d(inputs_shape, 64, kernel_size=3, padding=1)
         self.bn1 = nn.BatchNorm2d(64)
@@ -93,10 +90,9 @@ class ABRankingTreeConnectModel(nn.Module):
         self.fc = nn.Linear(64 * 64, 1)  # Assuming output_shape is 1 for regression
 
     def forward(self, x):
-        # Reshape the input
-        #x = self.reshape_input(x)
-        #x = x.view(x.size(0), x.size(1))
-        x = x.view(x.size(0), 768, -1, 1)  # Reshape to [batch_size, channels, height, width]
+        # Reshape the input to [batch_size, channels, height, width]
+        x = x.view(x.size(0), 768, -1, 1)
+        
         x = F.relu(self.conv1(x))
         x = self.bn1(x)
         x = F.relu(self.conv2(x))
@@ -125,7 +121,6 @@ class ABRankingTreeConnectModel(nn.Module):
         x = 5 * torch.tanh(x)
         
         return x
-
 
 
 
@@ -159,8 +154,8 @@ class ABRankingModel:
         self._device = torch.device(device)
 
         self.inputs_shape = inputs_shape
-        self.model = tree_connect_architecture_tanh_ranking(inputs_shape).to(self._device)
-        self.model_type = 'ab-ranking-linear'
+        self.model = ABRankingTreeConnectModel(inputs_shape).to(self._device)
+        self.model_type = 'ab-ranking-treeconnect'
         self.loss_func_name = ''
         self.file_path = ''
         self.model_hash = ''
