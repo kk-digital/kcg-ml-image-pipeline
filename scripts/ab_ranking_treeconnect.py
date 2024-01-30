@@ -29,7 +29,7 @@ class tree_connect_architecture_tanh_ranking(nn.Module):
     def __init__(self, inputs_shape):
         super(tree_connect_architecture_tanh_ranking, self).__init__()
         # Locally connected layers with BatchNorm and Dropout
-        self.lc1 = nn.Conv1d(inputs_shape, 16, kernel_size=1)
+        self.lc1 = nn.Conv1d(inputs_shape, 1, kernel_size=1)
         self.bn_lc1 = nn.BatchNorm1d(16)
         self.dropout1 = nn.Dropout(0.5)
         self.lc2 = nn.Conv1d(16, 16, kernel_size=1)
