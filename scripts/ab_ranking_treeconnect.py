@@ -4,7 +4,6 @@ import hashlib
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
 import copy
 from datetime import datetime
 import math
@@ -24,47 +23,16 @@ from utility.minio import cmd
 from utility.clip.clip_text_embedder import tensor_attention_pooling
 
 
-
-class tree_connect_architecture_tanh_ranking(nn.Module):
-    def __init__(self, inputs_shape):
-        super(tree_connect_architecture_tanh_ranking, self).__init__()
-        # Locally connected layers with BatchNorm and Dropout
-        self.lc1 = nn.Conv1d(inputs_shape, 16, kernel_size=1)
-        self.bn_lc1 = nn.BatchNorm1d(16)
-        self.dropout1 = nn.Dropout(0.5)
-        self.lc2 = nn.Conv1d(16, 16, kernel_size=1)
-        self.bn_lc2 = nn.BatchNorm1d(16)
-        self.dropout2 = nn.Dropout(0.5)
-
-
-        # Fully connected layer
-        self.fc = nn.Linear(inputs_shape, 1)  # Output is a single scalar value
-
-
-    def forward(self, x):
-        # Reshape for 1D convolution
-        x = x.view(x.size(0), x.size(1), -1)
-        x = F.relu(self.lc1(x))
-        x = self.bn_lc1(x)
-        x = self.dropout1(x)
-        x = F.relu(self.lc2(x))
-        x = self.bn_lc2(x)
-        x = self.dropout2(x)
-
-
-        # Reshape back for fully connected layer
-        x = x.view(x.size(0), -1)      
-        x = 5 * torch.tanh(self.fc(x))  # Apply tanh and scale
-        return x
-
-
 class ABRankingTreeConnectModel(nn.Module):
     def __init__(self, inputs_shape):
         super(ABRankingTreeConnectModel, self).__init__()
 
+        # Reshape the input to (2, 768, 1, 1)
+        #self.reshape_input = nn.Unsqueeze(2).unsqueeze(3)
+
         # Convolutional layers with BatchNorm
         self.conv1 = nn.Conv2d(inputs_shape, 64, kernel_size=3, padding=1)
-        #self.bn1 = nn.BatchNorm2d(64)
+        self.bn1 = nn.BatchNorm2d(64)
         self.conv2 = nn.Conv2d(64, 64, kernel_size=3, padding=1)
         self.bn2 = nn.BatchNorm2d(64)
         self.conv3 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
@@ -90,9 +58,9 @@ class ABRankingTreeConnectModel(nn.Module):
         self.fc = nn.Linear(64 * 64, 1)  # Assuming output_shape is 1 for regression
 
     def forward(self, x):
-        # Reshape the input to [batch_size, channels, height, width]
-        x = x.view(x.size(0), 768, -1, 1)
-        
+        # Reshape the input
+        x = self.reshape_input(x)
+
         x = F.relu(self.conv1(x))
         x = self.bn1(x)
         x = F.relu(self.conv2(x))
@@ -119,9 +87,9 @@ class ABRankingTreeConnectModel(nn.Module):
         
         # Apply tanh activation to scale the output to the range [-5, 5]
         x = 5 * torch.tanh(x)
-        x = x.view(x.size(0), 1)
-        assert x.shape == (x.size(0), 1)
+        
         return x
+
 
 
 
@@ -156,7 +124,7 @@ class ABRankingModel:
 
         self.inputs_shape = inputs_shape
         self.model = ABRankingTreeConnectModel(inputs_shape).to(self._device)
-        self.model_type = 'ab-ranking-treeconnect'
+        self.model_type = 'ab-ranking-linear'
         self.loss_func_name = ''
         self.file_path = ''
         self.model_hash = ''
