@@ -79,7 +79,7 @@ class IterativePainter:
 
         self.scoring_model= self.load_scoring_model()
 
-        self.pipeline = StableDiffusionInpaintingPipeline(model_type="dreamshaper", denoising_strength=1)
+        self.pipeline = StableDiffusionInpaintingPipeline(model_type="dreamshaper")
         self.pipeline.load_models()
 
     # load elm or linear scoring models
@@ -158,8 +158,6 @@ class IterativePainter:
                     self.paint_matrix[i][j]+=1
             
             if index % 100==0:
-                if self.pipeline.denoising_strength>0.7:
-                    self.pipeline.denoising_strength-=0.1
                 # save image state in current step
                 img_byte_arr = io.BytesIO()
                 self.image.save(img_byte_arr, format="png")
