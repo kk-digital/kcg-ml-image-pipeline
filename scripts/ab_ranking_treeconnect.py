@@ -34,17 +34,18 @@ class ABRankingTreeConnectModel(nn.Module):
         self.bn1 = nn.BatchNorm2d(64)
         self.conv2 = nn.Conv2d(64, 64, kernel_size=3, padding=1)
         self.bn2 = nn.BatchNorm2d(64)
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1)
         self.bn3 = nn.BatchNorm2d(128)
-        self.conv4 = nn.Conv2d(128, 128, kernel_size=4, stride=2, padding=1)
+        self.conv4 = nn.Conv2d(128, 128, kernel_size=3, stride=2, padding=1)
         self.bn4 = nn.BatchNorm2d(128)
         self.conv5 = nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1)
         self.bn5 = nn.BatchNorm2d(128)
         self.conv6 = nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1)
         self.bn6 = nn.BatchNorm2d(256)
-        self.conv7 = nn.Conv2d(256, 128, kernel_size=4, stride=2, padding=1)
+        self.conv7 = nn.Conv2d(256, 128, kernel_size=3, stride=2, padding=1)
         self.bn7 = nn.BatchNorm2d(128)
 
+        
         # Locally connected layers with BatchNorm and Dropout
         self.lc1 = nn.Conv2d(128, 64, kernel_size=1, groups=2)  # Adjusted 2
         self.bn_lc1 = nn.BatchNorm2d(64)
