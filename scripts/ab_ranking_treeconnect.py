@@ -111,9 +111,6 @@ class ABRankingTreeConnectModel(nn.Module):
 
 
 
-
-
-
 class ABRankingLinearModelDeprecate(nn.Module):
     def __init__(self, inputs_shape):
         super(ABRankingLinearModelDeprecate, self).__init__()
