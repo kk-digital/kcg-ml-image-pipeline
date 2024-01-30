@@ -536,14 +536,12 @@ def compare_and_migrate(minio_client, mongo_collection, minio_bucket: str):
 
             if json_filename not in mongo_filenames:
                 missing_files.append(json_filename)  # Add to missing_files if not in MongoDB
-                # Remove the migration logic since we only want to track missing files
 
     mongo_file_count = mongo_collection.count_documents({})
 
     print("Missing Files:", missing_files)  # Print the filenames that are present in MinIO but not in MongoDB
 
     return migrated_files, missing_files, len(missing_files), mongo_file_count
-
 
 
 
@@ -580,3 +578,31 @@ def list_datasets(minio_client, bucket_name):
             datasets.add(dataset_name)
     return list(datasets)
 
+
+@router.get("/find-duplicates", response_description="Find duplicate filenames")
+async def find_duplicates(request: Request):
+    try:
+        duplicates = find_duplicate_filenames_in_mongo(request.app.image_pair_ranking_collection)
+        return {
+            "status": "success",
+            "message": "Duplicate filenames found",
+            "duplicates": duplicates
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def find_duplicate_filenames_in_mongo(collection):
+    pipeline = [
+        {"$group": {
+            "_id": "$file_name",
+            "count": {"$sum": 1}
+        }},
+        {"$match": {
+            "count": {"$gt": 1}
+        }},
+        {"$project": {
+            "file_name": "$_id",
+            "_id": 0
+        }}
+    ]
+    return [doc['file_name'] for doc in collection.aggregate(pipeline)]
