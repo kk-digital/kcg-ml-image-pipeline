@@ -64,21 +64,26 @@ class tree_connect_architecture_tanh_ranking(nn.Module):
         # Reshape for 1D convolution
         x = x.view(x.size(0), x.size(1), -1)
         x = F.relu(self.lc1(x))
-        x = self.bn_lc1(x)
-        x = self.dropout1(x)
+
+        # Skip BatchNorm and Dropout if there's only one value per channel
+        if x.size(-1) > 1:
+            x = self.bn_lc1(x)
+            x = self.dropout1(x)
+
         x = F.relu(self.lc2(x))
-        x = self.bn_lc2(x)
-        x = self.dropout2(x)
+
+        # Skip BatchNorm and Dropout if there's only one value per channel
+        if x.size(-1) > 1:
+            x = self.bn_lc2(x)
+            x = self.dropout2(x)
 
         # Global average pooling
         x = F.adaptive_avg_pool1d(x, 1)
         x = x.view(x.size(0), -1)
-        
+
         x = 5 * torch.tanh(self.fc(x))  # Apply tanh and scale
 
         return x
-
-
 
 
 
