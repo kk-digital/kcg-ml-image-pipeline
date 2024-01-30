@@ -57,9 +57,11 @@ class ABRankingTreeConnectModel(nn.Module):
         self.fc = nn.Linear(256 * 1 * 1, 1)  # Adjusted for the output shape
 
     def forward(self, x):
-        # Ensure input shape is (batch_size, 1, height, width)
-        x = x.view(-1, 1, self.inputs_shape[0], self.inputs_shape[1])
+        # Reshape the input
+        x = x.view(-1, 1, self.inputs_shape, self.inputs_shape)
 
+        # Ensure input shape is (batch_size, 1, height, width)
+        assert x.shape == (x.shape[0], 1, self.inputs_shape, self.inputs_shape)
 
         x = F.relu(self.conv1(x))
         x = self.bn1(x)
@@ -92,7 +94,6 @@ class ABRankingTreeConnectModel(nn.Module):
         x = 5 * torch.tanh(x)
 
         return x
-
 
 
 
