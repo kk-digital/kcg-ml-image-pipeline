@@ -390,7 +390,7 @@ class ABRankingModel:
 
         # TODO: deprecate when we have 10 or more trained models on new structure
         if "scaling_factor" not in safetensors_data:
-            self.model = ABRankingLinearModelDeprecate(self.inputs_shape).to(self._device)
+            self.model = ABRankingTreeConnectModel(self.inputs_shape).to(self._device)
             print("Loading deprecated model...")
 
         # Loading state dictionary
