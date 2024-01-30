@@ -35,7 +35,9 @@ class tree_connect_architecture_tanh_ranking(nn.Module):
 
 
 
-
+        self.mse_loss = nn.MSELoss()
+        self.l1_loss = nn.L1Loss()
+        self.tanh = nn.Tanh()
 
         # Ensure inputs_shape is a tuple
         if not isinstance(inputs_shape, tuple):
@@ -192,7 +194,7 @@ class ABRankingModel:
         self._device = torch.device(device)
 
         self.inputs_shape = inputs_shape
-        self.model = ABRankingTreeConnectModel(inputs_shape).to(self._device)
+        self.model = tree_connect_architecture_tanh_ranking(inputs_shape).to(self._device)
         self.model_type = 'ab-ranking-treeconnect'
         self.loss_func_name = ''
         self.file_path = ''
