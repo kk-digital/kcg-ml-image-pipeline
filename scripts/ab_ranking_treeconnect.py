@@ -64,7 +64,7 @@ class ABRankingTreeConnectModel(nn.Module):
 
         # Convolutional layers with BatchNorm
         self.conv1 = nn.Conv2d(inputs_shape, 64, kernel_size=3, padding=1)
-        self.bn1 = nn.BatchNorm2d(64)
+        #self.bn1 = nn.BatchNorm2d(64)
         self.conv2 = nn.Conv2d(64, 64, kernel_size=3, padding=1)
         self.bn2 = nn.BatchNorm2d(64)
         self.conv3 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
