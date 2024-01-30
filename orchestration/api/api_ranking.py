@@ -341,6 +341,17 @@ def count_ranking_data(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/rank/count-selected-residual-data", response_class=PrettyJSONResponse)
+def count_ranking_data(request: Request):
+    try:
+        # Count documents that contain the 'selected_residual' field
+        count = request.app.image_pair_ranking_collection.count_documents({"selected_residual": {"$exists": True}})
+
+        return {"count": count}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.delete("/rank/delete-ranking-data-point-from-mongo")
 def delete_ranking_data_point(request: Request, id: str):
     try:
