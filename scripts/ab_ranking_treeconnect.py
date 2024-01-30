@@ -39,9 +39,13 @@ class tree_connect_architecture_tanh_ranking(nn.Module):
         self.l1_loss = nn.L1Loss()
         self.tanh = nn.Tanh()
 
+        # Check if inputs_shape is an integer (length only)
+        if isinstance(inputs_shape, int):
+            inputs_shape = (1, inputs_shape)  # Assuming 1 channel
+
         # Ensure inputs_shape is a tuple
-        if not isinstance(inputs_shape, tuple):
-            raise ValueError("inputs_shape must be a tuple, e.g., (channels, length)")
+        if not isinstance(inputs_shape, tuple) or len(inputs_shape) != 2:
+            raise ValueError("inputs_shape must be a tuple with two elements, e.g., (channels, length)")
 
         self.inputs_shape = inputs_shape
 
@@ -73,6 +77,13 @@ class tree_connect_architecture_tanh_ranking(nn.Module):
         x = 5 * torch.tanh(self.fc(x))  # Apply tanh and scale
 
         return x
+
+
+
+
+
+
+
 
 class ABRankingTreeConnectModel(nn.Module):
     def __init__(self, inputs_shape):
