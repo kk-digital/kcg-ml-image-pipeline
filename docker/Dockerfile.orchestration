@@ -2,6 +2,7 @@ FROM python:3.8
 
 WORKDIR /orchestration
 COPY ./requirements_orchestration.txt /orchestration/requirements.txt
+RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 RUN pip install -r /orchestration/requirements.txt
 COPY ./orchestration /orchestration/orchestration
 COPY ./utility /orchestration/utility
