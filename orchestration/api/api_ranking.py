@@ -521,6 +521,7 @@ def migrate_json_to_mongodb(minio_client, mongo_collection, minio_bucket):
 
 def compare_and_migrate(minio_client, mongo_collection, minio_bucket: str):
     migrated_files = []
+    missing_files = []  # Keep track of files in MinIO but not in MongoDB
     mongo_filenames = set(mongo_collection.find().distinct("file_name"))
     minio_file_count = 0
 
@@ -548,10 +549,15 @@ def compare_and_migrate(minio_client, mongo_collection, minio_bucket: str):
 
                 mongo_collection.insert_one(ordered_data)
                 migrated_files.append(json_filename)
+            else:
+                missing_files.append(json_filename)
 
     mongo_file_count = mongo_collection.count_documents({})
 
-    return migrated_files, minio_file_count, mongo_file_count
+    print("Missing Files:", missing_files)  # Print the filenames that are present in MinIO but not in MongoDB
+
+    return migrated_files, missing_files, minio_file_count, mongo_file_count
+
 
 
 @router.post("/migrate/minio-to-mongodb-v1", status_code=202, description="Migrate missing datapoints from Minio to MongoDB.")
@@ -559,11 +565,12 @@ def migrate_missing_datapoints(request: Request, minio_bucket: str = 'datasets')
     api_handler = ApiResponseHandler(request)
     
     try:
-        migrated_files, minio_count, mongo_count = compare_and_migrate(request.app.minio_client, request.app.image_pair_ranking_collection, minio_bucket)
+        migrated_files, missing_files, minio_count, mongo_count = compare_and_migrate(request.app.minio_client, request.app.image_pair_ranking_collection, minio_bucket)
         return api_handler.create_success_response(
             response_data={
                 "message": "Migration completed successfully.",
                 "migrated_files": migrated_files,
+                "missing_files": missing_files,
                 "minio_object_count": minio_count,
                 "mongodb_object_count": mongo_count
             },
