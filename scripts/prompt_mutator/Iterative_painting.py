@@ -245,7 +245,7 @@ class IterativePainter:
 
         #result_image= self.pipeline.inpaint(prompt=prompt, initial_image=context_image, image_mask= mask)
         # Generate the image
-        result_image, seed = self.inpainting_processor.img2img(prompt=prompt, negative_prompt="", init_images=context_image, image_mask=mask)
+        result_image, seed = self.inpainting_processor.img2img(prompt=prompt, negative_prompt="", init_images=[context_image], image_mask=mask)
 
         cropped_image= result_image.crop(inpainting_area)
 
