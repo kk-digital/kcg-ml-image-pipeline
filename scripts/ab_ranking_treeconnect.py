@@ -58,7 +58,8 @@ class ABRankingTreeConnectModel(nn.Module):
 
     def forward(self, x):
         # Ensure input shape is (batch_size, 1, height, width)
-        assert x.shape == (x.shape[0], 1, self.inputs_shape[0], self.inputs_shape[1])
+        x = x.view(-1, 1, self.inputs_shape[0], self.inputs_shape[1])
+
 
         x = F.relu(self.conv1(x))
         x = self.bn1(x)
