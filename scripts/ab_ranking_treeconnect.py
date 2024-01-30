@@ -232,7 +232,7 @@ class ABRankingModel:
         self._device = torch.device(device)
 
         self.inputs_shape = inputs_shape
-        self.model = ABRankingLinearModel(inputs_shape).to(self._device)
+        self.model = ABRankingTreeConnectModel(inputs_shape).to(self._device)
         self.model_type = 'ab-ranking-treeconnect'
         self.loss_func_name = ''
         self.file_path = ''
