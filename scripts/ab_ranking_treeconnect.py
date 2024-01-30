@@ -27,6 +27,8 @@ from utility.clip.clip_text_embedder import tensor_attention_pooling
 class ABRankingTreeConnectModel(nn.Module):
     def __init__(self, inputs_shape):
         super(ABRankingTreeConnectModel, self).__init__()
+
+
         self.inputs_shape = inputs_shape
 
         # Convolutional layers with BatchNorm
@@ -54,7 +56,7 @@ class ABRankingTreeConnectModel(nn.Module):
         self.dropout2 = nn.Dropout(0.5)  # Changed probability to 0.5 for consistency
 
         # Fully connected layer
-        self.fc = nn.Linear(256 * 1 * 1, 1)  # Adjusted for the output shape
+        self.fc = nn.Linear(128, 1)  # Adjusted for the output shape
 
     def forward(self, x):
         # Reshape the input
@@ -84,7 +86,11 @@ class ABRankingTreeConnectModel(nn.Module):
         x = F.relu(self.lc2(x))
         x = self.bn_lc2(x)
         x = self.dropout2(x)
+        
+        # Global average pooling
+        x = F.adaptive_avg_pool2d(x, (1, 1))
         x = x.view(x.size(0), -1)
+        
         x = self.fc(x)
 
         # Ensure output shape is (batch_size, 1)
@@ -94,6 +100,21 @@ class ABRankingTreeConnectModel(nn.Module):
         x = 5 * torch.tanh(x)
 
         return x
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 class ABRankingLinearModelDeprecate(nn.Module):
     def __init__(self, inputs_shape):
