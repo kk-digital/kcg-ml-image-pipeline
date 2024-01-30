@@ -85,7 +85,7 @@ def train_ranking(dataset_name: str,
     training_total_size = dataset_loader.get_len_training_ab_data()
     validation_total_size = dataset_loader.get_len_validation_ab_data()
 
-    ab_model = ABRankingModel(inputs_shape=input_shape)
+    ab_model = ABRankingTreeConnectModel(inputs_shape=input_shape)
     training_predicted_score_images_x, \
         training_predicted_score_images_y, \
         training_predicted_probabilities, \
