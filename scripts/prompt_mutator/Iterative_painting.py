@@ -7,8 +7,6 @@ from PIL import Image, ImageDraw
 import numpy as np
 import torch
 
-from worker.image_generation.scripts.inpaint_A1111 import StableDiffusionProcessingImg2Img
-
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
@@ -17,6 +15,7 @@ from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from worker.image_generation.scripts.inpainting_pipeline import StableDiffusionInpaintingPipeline
 from scripts.prompt_mutator.greedy_substitution_search_v1 import PromptSubstitutionGenerator
+from worker.image_generation.scripts.inpaint_A1111 import StableDiffusionProcessingImg2Img
 from utility.minio import cmd
 from utility.clip import clip
 from utility import masking
