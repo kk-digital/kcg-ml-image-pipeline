@@ -81,7 +81,7 @@ class tree_connect_architecture_tanh_ranking(nn.Module):
         #x = F.adaptive_avg_pool1d(x, 1)
         x = x.view(x.size(0), -1)
 
-        x = 5 * torch.tanh(self.fc(x))  # Apply tanh and scale
+        #x = 5 * torch.tanh(self.fc(x))  # Apply tanh and scale
 
         return x
 
