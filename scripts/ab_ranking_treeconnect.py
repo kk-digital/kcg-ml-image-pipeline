@@ -32,26 +32,18 @@ class tree_connect_architecture_tanh_ranking(nn.Module):
     def __init__(self, inputs_shape):
         super(tree_connect_architecture_tanh_ranking, self).__init__()
         # Locally connected layers with BatchNorm and Dropout
-
-
-        self.linear = nn.Linear(inputs_shape, 1)
-        self.mse_loss = nn.MSELoss()
-        self.l1_loss = nn.L1Loss()
-        self.tanh = nn.Tanh()
-
         self.inputs_shape = inputs_shape
 
-        self.lc1 = nn.Conv1d(inputs_shape, 16, kernel_size=1)
+        # Locally connected layers with BatchNorm and Dropout
+        self.lc1 = nn.Conv1d(inputs_shape[1], 16, kernel_size=1)
         self.bn_lc1 = nn.BatchNorm1d(16)
         self.dropout1 = nn.Dropout(0.5)
         self.lc2 = nn.Conv1d(16, 16, kernel_size=1)
         self.bn_lc2 = nn.BatchNorm1d(16)
         self.dropout2 = nn.Dropout(0.5)
 
-
         # Fully connected layer
-        self.fc = nn.Linear(inputs_shape, 1)  # Output is a single scalar value
-
+        self.fc = nn.Linear(inputs_shape[0] * 16, 1)  # Assuming output_shape is 1 for regression
 
     def forward(self, x):
         # Reshape for 1D convolution
@@ -63,13 +55,11 @@ class tree_connect_architecture_tanh_ranking(nn.Module):
         x = self.bn_lc2(x)
         x = self.dropout2(x)
 
-
         # Reshape back for fully connected layer
-        x = x.view(x.size(0), -1)      
+        x = x.view(x.size(0), -1)
         x = 5 * torch.tanh(self.fc(x))  # Apply tanh and scale
+
         return x
-
-
 
 
 
