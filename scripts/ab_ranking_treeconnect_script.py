@@ -8,9 +8,10 @@ base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
 
-from ab_ranking_treeconnect import ABRankingTreeConnectModel
+from ab_ranking_treeconnect import ABRankingModel
 from utility.regression_utils import torchinfo_summary
-from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
+#from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
+
 from training_worker.ab_ranking.model.reports.ab_ranking_train_report import get_train_report
 from training_worker.ab_ranking.model.reports.graph_report_ab_ranking import *
 from data_loader.ab_ranking_dataset_loader import ABRankingDatasetLoader
@@ -85,7 +86,7 @@ def train_ranking(dataset_name: str,
     training_total_size = dataset_loader.get_len_training_ab_data()
     validation_total_size = dataset_loader.get_len_validation_ab_data()
 
-    ab_model = ABRankingTreeConnectModel(inputs_shape=input_shape)
+    ab_model = ABRankingModel(inputs_shape=input_shape)
     training_predicted_score_images_x, \
         training_predicted_score_images_y, \
         training_predicted_probabilities, \
