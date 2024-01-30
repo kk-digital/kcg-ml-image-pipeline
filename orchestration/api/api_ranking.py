@@ -1,4 +1,4 @@
-from fastapi import Request, APIRouter, Query, HTTPException
+from fastapi import Request, APIRouter, Query, HTTPException, Body
 from datetime import datetime
 from utility.minio import cmd
 import os
@@ -9,6 +9,7 @@ from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, Standa
 import random
 from collections import OrderedDict
 from bson import ObjectId
+from typing import Optional
 
 router = APIRouter()
 
@@ -237,6 +238,109 @@ def list_ranking_data(
 
     return ranking_data
 
+
+@router.get("/rank/sor-ranking-data-by-residual", response_class=PrettyJSONResponse)
+def list_ranking_data(
+    request: Request,
+    model_type: str = Query(..., description="Model type to filter by, e.g., 'linear' or 'elm-v1'"),
+    dataset: Optional[str] = Query(None, description="Dataset to filter by"),
+    start_date: str = Query(None),
+    end_date: str = Query(None),
+    skip: int = Query(0, alias="offset"),
+    limit: int = Query(10, alias="limit"),
+    order: str = Query("desc", regex="^(desc|asc)$")
+):
+    # Convert start_date and end_date strings to datetime objects, if provided
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
+
+    # Build the query filter based on dates, model_type, and dataset
+    query_filter = {"selected_residual.{}".format(model_type): {"$exists": True}}
+    if dataset:
+        query_filter["dataset"] = dataset
+    if start_date_obj or end_date_obj:
+        date_filter = {}
+        if start_date_obj:
+            date_filter["$gte"] = start_date_obj.strftime("%Y-%m-%d")
+        if end_date_obj:
+            date_filter["$lte"] = end_date_obj.strftime("%Y-%m-%d")
+        query_filter["file_name"] = date_filter
+
+    # Determine the sort order
+    sort_order = -1 if order == "desc" else 1
+
+    # Fetch data from MongoDB with pagination and sorting by residual value
+    cursor = request.app.image_pair_ranking_collection.find(query_filter).sort(
+        f"selected_residual.{model_type}", sort_order).skip(skip).limit(limit)
+
+    # Convert cursor to list of dictionaries
+    try:
+        ranking_data = []
+        for doc in cursor:
+            doc['_id'] = str(doc['_id'])  # Convert ObjectId to string
+            ranking_data.append(doc)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return ranking_data
+
+@router.get("/rank/sort-ranking-data-by-date", response_class=PrettyJSONResponse)
+def list_ranking_data(
+    request: Request,
+    model_type: str = Query(..., description="Model type to filter by, e.g., 'linear' or 'elm-v1'"),
+    dataset: Optional[str] = Query(None, description="Dataset to filter by"),
+    start_date: str = Query(None),
+    end_date: str = Query(None),
+    skip: int = Query(0, alias="offset"),
+    limit: int = Query(10, alias="limit"),
+    order: str = Query("desc", regex="^(desc|asc)$")
+):
+    # Convert start_date and end_date strings to datetime objects, if provided
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
+
+    # Build the query filter based on dates, model_type, and dataset
+    query_filter = {"selected_residual.{}".format(model_type): {"$exists": True}}
+    if dataset:
+        query_filter["dataset"] = dataset
+    if start_date_obj or end_date_obj:
+        date_filter = {}
+        if start_date_obj:
+            date_filter["$gte"] = start_date_obj.strftime("%Y-%m-%d")
+        if end_date_obj:
+            date_filter["$lte"] = end_date_obj.strftime("%Y-%m-%d")
+        query_filter["file_name"] = date_filter
+
+    # Determine the sort order
+    sort_order = -1 if order == "desc" else 1
+
+    # Fetch data from MongoDB with pagination and sorting by date
+    cursor = request.app.image_pair_ranking_collection.find(query_filter).sort(
+        "file_name", sort_order).skip(skip).limit(limit)
+
+    # Convert cursor to list of dictionaries
+    try:
+        ranking_data = []
+        for doc in cursor:
+            doc['_id'] = str(doc['_id'])  # Convert ObjectId to string
+            ranking_data.append(doc)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return ranking_data
+
+@router.get("/rank/count-ranking-data", response_class=PrettyJSONResponse)
+def count_ranking_data(request: Request):
+    try:
+        # Get the count of documents in the image_pair_ranking_collection
+        count = request.app.image_pair_ranking_collection.count_documents({})
+
+        return {"count": count}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.delete("/rank/delete-ranking-data-point-from-mongo")
 def delete_ranking_data_point(request: Request, id: str):
     try:
@@ -316,3 +420,109 @@ def delete_all_ranking_data_points(request: Request):
         raise HTTPException(status_code=404, detail="No documents found in the collection")
 
     return {"message": "All documents deleted successfully"}
+
+
+@router.post("/update/add-residual-data", 
+             status_code=200,
+             description="Add Residual Data to Images")
+def add_residual_data(request: Request, selected_img_hash: str, residual: float):
+    try:
+        # Fetching the MongoDB collection
+        image_collection = request.app.image_pair_ranking_collection  
+
+        # Finding and updating documents
+        query = {"selected_image_hash": selected_img_hash}
+        update = {"$set": {"model_data.residual": residual}}
+        
+        # Update all documents matching the query
+        result = image_collection.update_many(query, update)
+
+        # Check if documents were updated
+        if result.modified_count == 0:
+            return {"message": "No documents found or updated."}
+        
+        return {"message": f"Successfully updated {result.modified_count} documents."}
+
+    except Exception as e:
+        return {"error": f"An error occurred: {str(e)}"}
+
+
+
+@router.put("/job/add-selected-residual", description="Adds the selected_residual to a completed job.")
+def add_selected_residual(
+    request: Request,
+    image_hash: str = Body(...),
+    model_type: str = Body(...),
+    residual: float = Body(...)
+):
+    query = {"selected_image_hash": image_hash}
+    update_query = {"$set": {f"selected_residual.{model_type}": residual}}
+
+    result = request.app.image_pair_ranking_collection.update_one(query, update_query)
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=304, detail="Job not updated, possibly no change in data")
+
+    return {"message": "Job selected residual updated successfully."}
+
+
+@router.post("/migrate/minio-to-mongodb", status_code=202, description="Migrate datapoints from Minio to MongoDB.")
+def migrate_datapoints_from_minio_to_mongodb(request: Request, minio_bucket: str = 'datasets'):
+    api_handler = ApiResponseHandler(request)
+    
+    try:
+        migrate_json_to_mongodb(request.app.minio_client, request.app.image_pair_ranking_collection, minio_bucket)
+        return api_handler.create_success_response(
+            response_data={"message": "Migration completed successfully."},
+            http_status_code=202
+        )
+    except Exception as e:
+        return api_handler.create_error_response(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+
+def migrate_json_to_mongodb(minio_client, mongo_collection, minio_bucket):
+    for dataset in list_datasets(minio_client, minio_bucket):
+        folder_name = f'{dataset}/data/ranking/aggregate'
+        print(f"Processing dataset '{dataset}' located at '{folder_name}' in bucket '{minio_bucket}'...")
+        
+        # Fetch all objects and sort them in reverse (e.g., by filename)
+        objects = minio_client.list_objects(minio_bucket, prefix=folder_name, recursive=True)
+        sorted_objects = sorted(objects, key=lambda obj: obj.object_name, reverse=True)
+
+        for obj in sorted_objects:
+            if obj.is_dir:
+                continue
+
+            json_filename = obj.object_name.split('/')[-1]
+            if mongo_collection.count_documents({"file_name": json_filename}) > 0:
+                print(f"Skipping '{json_filename}', already exists in MongoDB.")
+                continue
+
+            print(f"Found object '{obj.object_name}' in dataset '{dataset}'...")
+            response = minio_client.get_object(minio_bucket, obj.object_name)
+            data = response.read()
+            original_data = json.loads(data.decode('utf-8'))
+            ordered_data = OrderedDict([
+                ("file_name", json_filename),
+                ("dataset", dataset),
+                *original_data.items()
+            ])
+
+            mongo_collection.insert_one(ordered_data)
+            print(f"Migrated '{json_filename}' to MongoDB.")
+
+def list_datasets(minio_client, bucket_name):
+    datasets = set()
+    objects = minio_client.list_objects(bucket_name, recursive=False)
+    for obj in objects:
+        if obj.is_dir:
+            dataset_name = obj.object_name.strip('/').split('/')[0]
+            datasets.add(dataset_name)
+    return list(datasets)
+

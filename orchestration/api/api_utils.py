@@ -33,6 +33,11 @@ class GetClipPhraseResponse(BaseModel):
     phrase : str
     clip_vector: List[List[float]]
 
+class ImageData(BaseModel):
+    image_path: str
+    image_hash: str
+    score: float
+
 def validate_date_format(date_str: str):
     try:
         # Attempt to parse the date string using dateutil.parser
