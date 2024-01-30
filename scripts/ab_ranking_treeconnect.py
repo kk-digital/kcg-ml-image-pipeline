@@ -171,7 +171,30 @@ class ABRankingTreeConnectModel(nn.Module):
 
 
 
+class ABRankingLinearModel(nn.Module):
+    def __init__(self, inputs_shape):
+        super(ABRankingLinearModel, self).__init__()
+        self.inputs_shape = inputs_shape
+        self.linear = nn.Linear(inputs_shape, 1)
+        self.mse_loss = nn.MSELoss()
+        self.l1_loss = nn.L1Loss()
+        self.tanh = nn.Tanh()
 
+        initial_scaling_factor = torch.zeros(1, dtype=torch.float32)
+        self.scaling_factor = nn.Parameter(data=initial_scaling_factor, requires_grad=True)
+
+    # for score
+    def forward(self, input):
+        # make sure input shape is (1, self.inputs_shape)
+        # we currently don't support batching
+        assert input.shape == (1, self.inputs_shape)
+
+        output = self.linear(input)
+        scaled_output = torch.multiply(output, self.scaling_factor)
+
+        # make sure input shape is (1, score)
+        assert scaled_output.shape == (1,1)
+        return scaled_output
 
 
 
@@ -209,7 +232,7 @@ class ABRankingModel:
         self._device = torch.device(device)
 
         self.inputs_shape = inputs_shape
-        self.model = ABRankingTreeConnectModel(inputs_shape).to(self._device)
+        self.model = ABRankingLinearModel(inputs_shape).to(self._device)
         self.model_type = 'ab-ranking-treeconnect'
         self.loss_func_name = ''
         self.file_path = ''
