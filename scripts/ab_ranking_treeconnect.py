@@ -28,7 +28,7 @@ class ABRankingTreeConnectModel(nn.Module):
         super(ABRankingTreeConnectModel, self).__init__()
 
         # Reshape the input to (2, 768, 1, 1)
-        self.reshape_input = nn.Unsqueeze(2).unsqueeze(3)
+        #self.reshape_input = nn.Unsqueeze(2).unsqueeze(3)
 
         # Convolutional layers with BatchNorm
         self.conv1 = nn.Conv2d(inputs_shape, 64, kernel_size=3, padding=1)
@@ -60,7 +60,7 @@ class ABRankingTreeConnectModel(nn.Module):
     def forward(self, x):
         # Reshape the input
         #x = self.reshape_input(x)
-
+        x = x.view(x.size(0), x.size(1), 1, 1)
         x = F.relu(self.conv1(x))
         x = self.bn1(x)
         x = F.relu(self.conv2(x))
