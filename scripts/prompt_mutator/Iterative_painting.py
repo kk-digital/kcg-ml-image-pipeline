@@ -7,6 +7,8 @@ from PIL import Image, ImageDraw
 import numpy as np
 import torch
 
+from worker.image_generation.scripts.inpaint_A1111 import StableDiffusionProcessingImg2Img
+
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
@@ -79,8 +81,27 @@ class IterativePainter:
 
         self.scoring_model= self.load_scoring_model()
 
-        self.pipeline = StableDiffusionInpaintingPipeline(model_type="dreamshaper")
-        self.pipeline.load_models()
+        self.inpainting_processor= StableDiffusionProcessingImg2Img(
+            sampler_name="ddim", 
+            batch_size=1, 
+            n_iter=1, 
+            steps=20, 
+            cfg_scale=7.0, 
+            width=self.context_size, 
+            height=self.context_size, 
+            mask_blur=4.0, 
+            inpainting_fill=1, 
+            styles=None, 
+            resize_mode=0, 
+            denoising_strength=0.75, 
+            image_cfg_scale=None, 
+            inpaint_full_res_padding=192, 
+            inpainting_mask_invert=0,
+            clip_text_embedder=self.text_embedder, 
+            device=self.device)
+        
+        # load stable diffusion model for inpainting
+        self.inpainting_processor.load_model()
 
     # load elm or linear scoring models
     def load_scoring_model(self):
@@ -223,7 +244,9 @@ class IterativePainter:
         draw = ImageDraw.Draw(mask)
         draw.rectangle(inpainting_area, fill=255)  # Unmasked (white) center area
 
-        result_image= self.pipeline.inpaint(prompt=prompt, initial_image=context_image, image_mask= mask)
+        #result_image= self.pipeline.inpaint(prompt=prompt, initial_image=context_image, image_mask= mask)
+        # Generate the image
+        result_image, seed = self.inpainting_processor.img2img(prompt=prompt, negative_prompt="", init_images=context_image, image_mask=mask)
 
         cropped_image= result_image.crop(inpainting_area)
 
