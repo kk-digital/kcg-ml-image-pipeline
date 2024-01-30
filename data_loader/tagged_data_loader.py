@@ -48,6 +48,14 @@ class TaggedDatasetLoader:
         self.negative_training_features = None
         self.negative_validation_features = None
 
+        # sizes
+        self.positive_dataset_total_size = None
+        self.negative_dataset_total_size = None
+        self.training_positive_size = None
+        self.validation_positive_size = None
+        self.training_negative_size = None
+        self.validation_negative_size = None
+
     def get_tagged_data(self, path, index=0):
         input_type_extension = "-text-embedding.msgpack"
         if self.input_type == constants.CLIP:
@@ -56,7 +64,7 @@ class TaggedDatasetLoader:
             # replace with new /embeddings
             splits = path.split("/")
             dataset_name = splits[1]
-            print("dataset_name=", dataset_name)
+
             path = path.replace(dataset_name, os.path.join(dataset_name, "embeddings/text-embedding"))
 
             input_type_extension = "-text-embedding.msgpack"
@@ -82,11 +90,16 @@ class TaggedDatasetLoader:
         if self.input_type == constants.CLIP:
             features_vector.extend(features_data["clip-feature-vector"])
 
-        features_vector = np.array(features_vector)
+        features_vector = np.array(features_vector, dtype=np.float32)
+        features_vector = torch.tensor(features_vector).to(torch.float)
+
+        # concatenate if len more than 2
+        features_vector = features_vector.reshape(1, -1)
+        features_vector = features_vector.squeeze()
 
         # check if feature is nan
-        if np.isnan(features_vector).all():
-            raise Exception("Features from {} is nan.".format(path))
+        if torch.isnan(features_vector).all():
+            raise Exception("Features from {} is nan or has nan values.".format(path))
 
         return features_vector, index
 
@@ -161,8 +174,10 @@ class TaggedDatasetLoader:
         negative_tagged_dataset = []
         for data in tagged_images:
             # separate data into two, positive and negative
-            positive_tagged_dataset.append(data["file_path"])
-            negative_tagged_dataset.append(data["file_path"])
+            if data["tag_type"] == 1:
+                positive_tagged_dataset.append(data["file_path"])
+            else:
+                negative_tagged_dataset.append(data["file_path"])
 
         # make sure positive and negative have the same length
         # for now we want them to be 50/50
@@ -179,23 +194,43 @@ class TaggedDatasetLoader:
         (self.negative_training_features,
          self.negative_validation_features) = self.separate_training_and_validation_features(negative_tagged_features)
 
+        # len
+        self.positive_dataset_total_size = min_length
+        self.negative_dataset_total_size = min_length
+        self.training_positive_size = len(self.positive_training_features)
+        self.validation_positive_size = len(self.positive_validation_features)
+        self.training_negative_size = len(self.negative_training_features)
+        self.validation_negative_size = len(self.negative_validation_features)
+
 
     def get_training_positive_features(self, target=1.0):
         # return positive training data
-        target_features = [target] * len(self.positive_training_features)
-        return self.positive_training_features, target_features
+        target_features = [torch.tensor(target)] * len(self.positive_training_features)
+        return torch.stack(self.positive_training_features), torch.stack(target_features)
 
     def get_validation_positive_features(self, target=1.0):
         # return positive validation data
-        target_features = [target] * len(self.positive_validation_features)
-        return self.positive_validation_features, target_features
+        target_features = [torch.tensor(target)] * len(self.positive_validation_features)
+        return torch.stack(self.positive_validation_features), torch.stack(target_features)
 
     def get_training_negative_features(self, target=0.0):
         # return negative training data
-        target_features = [target] * len(self.negative_training_features)
-        return self.negative_training_features, target_features
+        target_features = [torch.tensor(target)] * len(self.negative_training_features)
+        return torch.stack(self.negative_training_features), torch.stack(target_features)
 
     def get_validation_negative_features(self, target=0.0):
         # return negative validation data
-        target_features = [target] * len(self.negative_validation_features)
-        return self.negative_validation_features, target_features
+        target_features = [torch.tensor(target)] * len(self.negative_validation_features)
+        return torch.stack(self.negative_validation_features), torch.stack(target_features)
+
+    def get_shuffled_positive_and_negative(self, positive_features, positive_targets, negative_features, negative_targets):
+        stacked_features = torch.cat((positive_features, negative_features))
+        stacked_targets = torch.cat((positive_targets, negative_targets))
+
+        shuffled_idx = torch.randperm(len(stacked_features))
+        stacked_features = stacked_features[shuffled_idx]
+        stacked_targets = stacked_targets[shuffled_idx]
+
+        stacked_targets = stacked_targets.unsqueeze(1)
+
+        return stacked_features, stacked_targets
