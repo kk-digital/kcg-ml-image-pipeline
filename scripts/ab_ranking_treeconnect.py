@@ -47,7 +47,7 @@ class SimpleNeuralNetwork_Architecture(nn.Module):
 
         # Output layer with tanh activation to scale between -5 and 5
         #x = torch.tanh(self.fc3(x)) * 5.0
-
+        x = self.fc3(x)
         return x
 
 
