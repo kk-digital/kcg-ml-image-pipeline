@@ -256,7 +256,7 @@ class ABRankingModel:
         self._device = torch.device(device)
 
         self.inputs_shape = inputs_shape
-        self.model = tree_connect_architecture_tanh_ranking(inputs_shape).to(self._device)
+        self.model = ABRankingTreeConnectModel(inputs_shape).to(self._device)
         self.model_type = 'ab-ranking-treeconnect'
         self.loss_func_name = ''
         self.file_path = ''
@@ -414,7 +414,7 @@ class ABRankingModel:
 
         # TODO: deprecate when we have 10 or more trained models on new structure
         if "scaling_factor" not in safetensors_data:
-            self.model = tree_connect_architecture_tanh_ranking(self.inputs_shape).to(self._device)
+            self.model = ABRankingTreeConnectModel(self.inputs_shape).to(self._device)
             print("Loading deprecated model...")
 
         # Loading state dictionary
