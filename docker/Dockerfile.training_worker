@@ -6,7 +6,7 @@ COPY ./training_worker /training_worker/training_worker
 COPY ./input/model/active_learning /training_worker/input/model/active_learning
 COPY ./scripts /training_worker/scripts
 COPY ./prompt_job_generator /training_worker/prompt_job_generator
-COPT ./worker /training_worker/worker
+COPY ./worker /training_worker/worker
 COPY ./utility /training_worker/utility
 COPY ./data_loader /training_worker/data_loader
 COPY ./stable_diffusion /training_worker/stable_diffusion
