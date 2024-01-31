@@ -51,8 +51,6 @@ class StableDiffusionInpaintingPipeline:
             self.inpainting_model_path= NED_INPAINTING_PATH
         elif model_type=="dreamshaper":
             self.inpainting_model_path= DREAMSHAPER_INPAINTING_PATH
-        elif model_type=="kandinsky":
-            self.inpainting_model_path= "kandinsky"
 
 
         # get device
@@ -74,20 +72,14 @@ class StableDiffusionInpaintingPipeline:
             logger.debug(f"Text encoder model successfully loaded from : {text_encoder_path}")
 
         with section("Loading Inpainting model"):
-            if(self.inpainting_model_path == "kandinsky"):
-                self.inpainting_model = AutoPipelineForInpainting.from_pretrained(
-                    "kandinsky-community/kandinsky-2-2-decoder-inpaint", 
-                    torch_dtype=torch.float16
-                ).to('cuda')
-            else:
-                self.inpainting_model = StableDiffusionInpaintPipeline.from_single_file(
-                    pretrained_model_link_or_path=self.inpainting_model_path,
-                    config_files={'v1': INPAINTING_CONFIG_FILE},
-                    text_encoder=self.text_encoder,
-                    tokenizer=self.tokenizer,
-                    local_files_only=True, use_safetensors=True, load_safety_checker=False
-                ).to(self.device)
-            logger.debug(f"Inpainting model successfully loaded from : {text_encoder_path}")
+            self.inpainting_model = StableDiffusionInpaintPipeline.from_single_file(
+                pretrained_model_link_or_path=self.inpainting_model_path,
+                config_files={'v1': INPAINTING_CONFIG_FILE},
+                text_encoder=self.text_encoder,
+                tokenizer=self.tokenizer,
+                local_files_only=True, use_safetensors=True, load_safety_checker=False
+            ).to(self.device)
+            logger.debug(f"Inpainting model successfully loaded from : {self.inpainting_model_path}")
     
     def unload_models(self):
         if self.tokenizer is not None:
