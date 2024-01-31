@@ -29,7 +29,7 @@ from utility.boltzman.boltzman_phrase_scores_loader import BoltzmanPhraseScoresL
 from data_loader.phrase_embedding_loader import PhraseEmbeddingLoader
 from utility.boltzman.boltzman import find_first_element_binary_search, get_cumulative_probability_arr_without_upload
 from utility.minio import cmd
-
+from utility.http import request
 from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix, load_base_prompts, generate_inpainting_job
 
 GENERATION_POLICY="greedy-substitution-search-v1"
@@ -1521,47 +1521,102 @@ def main():
 
     # set the minio data path
     global DATA_MINIO_DIRECTORY
-    DATA_MINIO_DIRECTORY= f"{args.model_dataset}/" + DATA_MINIO_DIRECTORY
+    model_dataset = args.model_dataset
+    if args.dataset_name != "all":
+        DATA_MINIO_DIRECTORY= f"{model_dataset}/" + DATA_MINIO_DIRECTORY
 
-    # set the base prompts csv path
-    if(args.model_dataset=="icons"):
-        csv_base_prompts='input/dataset-config/icon/base-prompts-dsp.csv'
-    elif(args.model_dataset=="propaganda-poster"):
-        csv_base_prompts='input/dataset-config/propaganda-poster/base-prompts-propaganda-poster.csv'
-    elif(args.model_dataset=="mech"):
-        csv_base_prompts='input/dataset-config/mech/base-prompts-dsp.csv'
-    elif(args.model_dataset=="character" or args.model_dataset=="waifu"):
-        csv_base_prompts='input/dataset-config/character/base-prompts-waifu.csv'
-    elif(args.model_dataset=="environmental"):  
-        csv_base_prompts='input/dataset-config/environmental/base-prompts-environmental.csv'
+        # set the base prompts csv path
+        if(model_dataset=="icons"):
+            csv_base_prompts='input/dataset-config/icon/base-prompts-dsp.csv'
+        elif(model_dataset=="propaganda-poster"):
+            csv_base_prompts='input/dataset-config/propaganda-poster/base-prompts-propaganda-poster.csv'
+        elif(model_dataset=="mech"):
+            csv_base_prompts='input/dataset-config/mech/base-prompts-dsp.csv'
+        elif(model_dataset=="character" or model_dataset=="waifu"):
+            csv_base_prompts='input/dataset-config/character/base-prompts-waifu.csv'
+        elif(model_dataset=="environmental"):
+            csv_base_prompts='input/dataset-config/environmental/base-prompts-environmental.csv'
 
-    prompt_mutator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
-                                  minio_secret_key=args.minio_secret_key,
-                                  minio_ip_addr=args.minio_addr,
-                                  csv_phrase=args.csv_phrase,
-                                  csv_base_prompts=csv_base_prompts,
-                                  model_dataset=args.model_dataset,
-                                  substitution_model=args.substitution_model,
-                                  scoring_model=args.scoring_model,
-                                  max_iterations=args.max_iterations,
-                                  sigma_threshold=args.sigma_threshold,
-                                  variance_weight=args.variance_weight,
-                                  boltzman_temperature=args.boltzman_temperature,
-                                  boltzman_k=args.boltzman_k,
-                                  dataset_name=args.dataset_name,
-                                  store_embeddings=args.store_embeddings,
-                                  store_token_lengths=args.store_token_lengths,
-                                  self_training=args.self_training,
-                                  send_job=args.send_job,
-                                  save_csv=args.save_csv,
-                                  initial_generation_policy=args.initial_generation_policy,
-                                  top_k=args.top_k,
-                                  num_choices_per_iteration=args.num_choices,
-                                  clip_batch_size=args.clip_batch_size,
-                                  substitution_batch_size=args.substitution_batch_size)
-    
-    # generate n number of images
-    prompt_mutator.generate_images(num_images=args.n_data)
-    
+        prompt_mutator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
+                                      minio_secret_key=args.minio_secret_key,
+                                      minio_ip_addr=args.minio_addr,
+                                      csv_phrase=args.csv_phrase,
+                                      csv_base_prompts=csv_base_prompts,
+                                      model_dataset=model_dataset,
+                                      substitution_model=args.substitution_model,
+                                      scoring_model=args.scoring_model,
+                                      max_iterations=args.max_iterations,
+                                      sigma_threshold=args.sigma_threshold,
+                                      variance_weight=args.variance_weight,
+                                      boltzman_temperature=args.boltzman_temperature,
+                                      boltzman_k=args.boltzman_k,
+                                      dataset_name=args.dataset_name,
+                                      store_embeddings=args.store_embeddings,
+                                      store_token_lengths=args.store_token_lengths,
+                                      self_training=args.self_training,
+                                      send_job=args.send_job,
+                                      save_csv=args.save_csv,
+                                      initial_generation_policy=args.initial_generation_policy,
+                                      top_k=args.top_k,
+                                      num_choices_per_iteration=args.num_choices,
+                                      clip_batch_size=args.clip_batch_size,
+                                      substitution_batch_size=args.substitution_batch_size)
+
+        # generate n number of images
+        prompt_mutator.generate_images(num_images=args.n_data)
+    else:
+        # if all, train models for all existing datasets
+        # get dataset name list
+        dataset_names = request.http_get_dataset_names()
+        print("dataset names=", dataset_names)
+        for dataset in dataset_names:
+            try:
+                print("Training model for {}...".format(dataset))
+                model_dataset = dataset
+                DATA_MINIO_DIRECTORY = f"{model_dataset}/" + DATA_MINIO_DIRECTORY
+
+                # set the base prompts csv path
+                if (model_dataset == "icons"):
+                    csv_base_prompts = 'input/dataset-config/icon/base-prompts-dsp.csv'
+                elif (model_dataset == "propaganda-poster"):
+                    csv_base_prompts = 'input/dataset-config/propaganda-poster/base-prompts-propaganda-poster.csv'
+                elif (model_dataset == "mech"):
+                    csv_base_prompts = 'input/dataset-config/mech/base-prompts-dsp.csv'
+                elif (model_dataset == "character" or model_dataset == "waifu"):
+                    csv_base_prompts = 'input/dataset-config/character/base-prompts-waifu.csv'
+                elif (model_dataset == "environmental"):
+                    csv_base_prompts = 'input/dataset-config/environmental/base-prompts-environmental.csv'
+
+                prompt_mutator = PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
+                                                             minio_secret_key=args.minio_secret_key,
+                                                             minio_ip_addr=args.minio_addr,
+                                                             csv_phrase=args.csv_phrase,
+                                                             csv_base_prompts=csv_base_prompts,
+                                                             model_dataset=model_dataset,
+                                                             substitution_model=args.substitution_model,
+                                                             scoring_model=args.scoring_model,
+                                                             max_iterations=args.max_iterations,
+                                                             sigma_threshold=args.sigma_threshold,
+                                                             variance_weight=args.variance_weight,
+                                                             boltzman_temperature=args.boltzman_temperature,
+                                                             boltzman_k=args.boltzman_k,
+                                                             dataset_name=dataset,
+                                                             store_embeddings=args.store_embeddings,
+                                                             store_token_lengths=args.store_token_lengths,
+                                                             self_training=args.self_training,
+                                                             send_job=args.send_job,
+                                                             save_csv=args.save_csv,
+                                                             initial_generation_policy=args.initial_generation_policy,
+                                                             top_k=args.top_k,
+                                                             num_choices_per_iteration=args.num_choices,
+                                                             clip_batch_size=args.clip_batch_size,
+                                                             substitution_batch_size=args.substitution_batch_size)
+
+                # generate n number of images
+                prompt_mutator.generate_images(num_images=args.n_data)
+            except Exception as e:
+                print("Error training model for {}: {}".format(dataset, e))
+
+
 if __name__ == "__main__":
     main()
