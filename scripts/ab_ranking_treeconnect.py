@@ -75,7 +75,7 @@ class tree_connect_architecture_tanh_ranking_big(nn.Module):
         self.lc1 = nn.Conv1d(inputs_shape[1], 64, kernel_size=1)
         self.bn_lc1 = nn.BatchNorm1d(64)
         self.dropout1 = nn.Dropout(0.5)
-        self.lc2 = nn.Conv1d(32, 32, kernel_size=1)
+        self.lc2 = nn.Conv1d(64, 32, kernel_size=1)
         self.bn_lc2 = nn.BatchNorm1d(32)
         self.dropout2 = nn.Dropout(0.5)
 
