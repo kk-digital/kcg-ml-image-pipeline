@@ -24,7 +24,31 @@ from utility.minio import cmd
 from utility.clip.clip_text_embedder import tensor_attention_pooling
 
 
+# --------------------------- Simple NN ---------------------------
 
+class SimpleNeuralNetwork_Architecture(nn.Module):
+    def __init__(self, inputs_shape, output_shape):
+        super(SimpleNeuralNetwork_Architecture, self).__init__()
+        self.mse_loss = nn.MSELoss()
+        self.l1_loss = nn.L1Loss()
+        self.tanh = nn.Tanh()
+        # Fully connected layers
+        self.fc1 = nn.Linear(inputs_shape, 32)
+        self.fc2 = nn.Linear(32, 16)
+        self.fc3 = nn.Linear(16, output_shape)
+
+    def forward(self, x):
+        # Flatten the input
+        x = x.view(x.size(0), -1)
+
+        # Fully connected layers with ReLU activations
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+
+        # Output layer with tanh activation to scale between -5 and 5
+        x = torch.tanh(self.fc3(x)) * 5.0
+
+        return x
 
 
 
@@ -232,7 +256,7 @@ class ABRankingModel:
         self._device = torch.device(device)
 
         self.inputs_shape = inputs_shape
-        self.model = ABRankingTreeConnectModel(inputs_shape).to(self._device)
+        self.model = SimpleNeuralNetwork_Architecture(inputs_shape).to(self._device)
         self.model_type = 'ab-ranking-treeconnect'
         self.loss_func_name = ''
         self.file_path = ''
@@ -390,7 +414,7 @@ class ABRankingModel:
 
         # TODO: deprecate when we have 10 or more trained models on new structure
         if "scaling_factor" not in safetensors_data:
-            self.model = ABRankingTreeConnectModel(self.inputs_shape).to(self._device)
+            self.model = SimpleNeuralNetwork_Architecture(self.inputs_shape).to(self._device)
             print("Loading deprecated model...")
 
         # Loading state dictionary
