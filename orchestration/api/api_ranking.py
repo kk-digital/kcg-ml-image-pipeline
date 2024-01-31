@@ -655,14 +655,11 @@ def find_duplicate_filenames_in_mongo(collection):
     return [doc['file_name'] for doc in collection.aggregate(pipeline)]
 
 
-from bson import json_util
-
-router = APIRouter()
-
 @router.get("/selection/list-selection-data-with-scores", response_description="List selection datapoints with detailed scores")
 def list_selection_data_with_scores(
     request: Request,
-    model_type: str = Query,
+    model_type: str = Query(..., regex="^(linear|elm-v1)$"),
+    dataset: str = Query(None),  # Dataset parameter for filtering
     limit: int = Query(10, alias="limit")
 ):
     try:
@@ -670,13 +667,14 @@ def list_selection_data_with_scores(
         ranking_collection = request.app.image_pair_ranking_collection
         jobs_collection = request.app.completed_jobs_collection
 
+        # Build query filter based on dataset
+        query_filter = {"dataset": dataset} if dataset else {}
+
         # Fetch data from image_pair_ranking_collection with pagination
-        cursor = ranking_collection.find().limit(limit)
+        cursor = ranking_collection.find(query_filter).limit(limit)
 
         selection_data = []
         for doc in cursor:
-            doc = json.loads(json_util.dumps(doc))  # Serialization for MongoDB ObjectId
-
             selected_image_hash = doc["selected_image_hash"]
             # Determine unselected image hash based on selected_image_index
             unselected_image_hash = doc["image_2_metadata"]["file_hash"] if doc["selected_image_index"] == 0 else doc["image_1_metadata"]["file_hash"]
@@ -685,9 +683,13 @@ def list_selection_data_with_scores(
             selected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
             unselected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
 
+            # Check if task_attributes_dict exists for both jobs
+            if not selected_image_job or "task_attributes_dict" not in selected_image_job or not unselected_image_job or "task_attributes_dict" not in unselected_image_job:
+                continue  # Skip this job if task_attributes_dict is missing
+
             # Extract scores for both images
-            selected_image_scores = selected_image_job["task_attributes_dict"][model_type] if selected_image_job else {}
-            unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type] if unselected_image_job else {}
+            selected_image_scores = selected_image_job["task_attributes_dict"][model_type]
+            unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type]
             
             delta_score = abs(selected_image_scores.get("image_clip_sigma_score", 0) - unselected_image_scores.get("image_clip_sigma_score", 0))
 
@@ -702,11 +704,13 @@ def list_selection_data_with_scores(
                     "image_clip_sigma_score": unselected_image_scores.get("image_clip_sigma_score", None),
                     "text_embedding_sigma_score": unselected_image_scores.get("text_embedding_sigma_score", None)
                 },
-
                 "delta_score": delta_score
             })
 
-        return selection_data
+        # Sort selection_data by delta_score
+        sorted_selection_data = sorted(selection_data, key=lambda x: x["delta_score"], reverse=True)
+
+        return sorted_selection_data
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
