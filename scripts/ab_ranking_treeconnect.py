@@ -27,7 +27,7 @@ from utility.clip.clip_text_embedder import tensor_attention_pooling
 # --------------------------- Simple NN ---------------------------
 
 class SimpleNeuralNetwork_Architecture(nn.Module):
-    def __init__(self, inputs_shape, output_shape):
+    def __init__(self, inputs_shape):
         super(SimpleNeuralNetwork_Architecture, self).__init__()
         self.mse_loss = nn.MSELoss()
         self.l1_loss = nn.L1Loss()
@@ -35,7 +35,7 @@ class SimpleNeuralNetwork_Architecture(nn.Module):
         # Fully connected layers
         self.fc1 = nn.Linear(inputs_shape, 32)
         self.fc2 = nn.Linear(32, 16)
-        self.fc3 = nn.Linear(16, output_shape)
+        self.fc3 = nn.Linear(16, 1)
 
     def forward(self, x):
         # Flatten the input
