@@ -80,7 +80,7 @@ class IterativePainter:
 
         self.scoring_model= self.load_scoring_model()
 
-        pipeline = StableDiffusionInpaintingPipeline(model_type="kadinsky",
+        pipeline = StableDiffusionInpaintingPipeline(model_type="kandinsky",
                                                     denoising_strength=0.75,
                                                     guidance_scale=7.5,
                                                     steps=40,
