@@ -16,6 +16,7 @@ from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from worker.image_generation.scripts.inpainting_pipeline import StableDiffusionInpaintingPipeline
 from scripts.prompt_mutator.greedy_substitution_search_v1 import PromptSubstitutionGenerator
 from worker.image_generation.scripts.inpaint_A1111 import StableDiffusionProcessingImg2Img
+from worker.image_generation.scripts.inpaint_kandinsky import KandinskyInpaintingPipeline
 from utility.minio import cmd
 from utility.clip import clip
 from utility import masking
@@ -80,13 +81,12 @@ class IterativePainter:
 
         self.scoring_model= self.load_scoring_model()
 
-        pipeline = StableDiffusionInpaintingPipeline(model_type="kandinsky",
-                                                    denoising_strength=0.75,
+        self.pipeline = KandinskyInpaintingPipeline(denoising_strength=0.75,
                                                     guidance_scale=7.5,
                                                     steps=40,
                                                     width=512,
                                                     height=512)
-        pipeline.load_models()
+        self.pipeline.load_models()
 
     # load elm or linear scoring models
     def load_scoring_model(self):
