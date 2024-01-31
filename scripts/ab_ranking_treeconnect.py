@@ -50,6 +50,65 @@ class SimpleNeuralNetwork_Architecture(nn.Module):
         x = self.fc3(x)
         return x
 
+class tree_connect_architecture_tanh_ranking_big(nn.Module):
+    def __init__(self, inputs_shape):
+        super(tree_connect_architecture_tanh_ranking_big, self).__init__()
+        # Locally connected layers with BatchNorm and Dropout
+
+
+
+        self.mse_loss = nn.MSELoss()
+        self.l1_loss = nn.L1Loss()
+        self.tanh = nn.Tanh()
+
+       # Check if inputs_shape is an integer (length only)
+        if isinstance(inputs_shape, int):
+            inputs_shape = (1, inputs_shape)  # Assuming 1 channel
+
+        # Ensure inputs_shape is a tuple
+        if not isinstance(inputs_shape, tuple) or len(inputs_shape) != 2:
+            raise ValueError("inputs_shape must be a tuple with two elements, e.g., (channels, length)")
+
+        self.inputs_shape = inputs_shape
+
+        # Locally connected layers with BatchNorm and Dropout
+        self.lc1 = nn.Conv1d(inputs_shape[1], 64, kernel_size=1)
+        self.bn_lc1 = nn.BatchNorm1d(64)
+        self.dropout1 = nn.Dropout(0.5)
+        self.lc2 = nn.Conv1d(32, 32, kernel_size=1)
+        self.bn_lc2 = nn.BatchNorm1d(32)
+        self.dropout2 = nn.Dropout(0.5)
+
+        # Fully connected layer
+        self.fc = nn.Linear(32, 1)  # Assuming output_shape is 1 for regression
+
+    def forward(self, x):
+        # Reshape for 1D convolution
+        x = x.view(x.size(0), x.size(1), -1)
+        x = F.relu(self.lc1(x))
+
+        # Skip BatchNorm and Dropout if there's only one value per channel
+        if x.size(-1) > 1:
+            x = self.bn_lc1(x)
+            x = self.dropout1(x)
+
+        x = F.relu(self.lc2(x))
+
+        # Skip BatchNorm and Dropout if there's only one value per channel
+        if x.size(-1) > 1:
+            x = self.bn_lc2(x)
+            x = self.dropout2(x)
+
+        # Global average pooling
+        x = F.adaptive_avg_pool1d(x, 1)
+        x = x.view(x.size(0), -1)
+
+        #x = 5 * torch.tanh(self.fc(x))  # Apply tanh and scale
+        x = self.fc(x)
+        return x
+    
+
+
 
 
 class tree_connect_architecture_tanh_ranking(nn.Module):
@@ -256,7 +315,7 @@ class ABRankingModel:
         self._device = torch.device(device)
 
         self.inputs_shape = inputs_shape
-        self.model = ABRankingTreeConnectModel(inputs_shape).to(self._device)
+        self.model = tree_connect_architecture_tanh_ranking_big(inputs_shape).to(self._device)
         self.model_type = 'ab-ranking-treeconnect'
         self.loss_func_name = ''
         self.file_path = ''
@@ -414,7 +473,7 @@ class ABRankingModel:
 
         # TODO: deprecate when we have 10 or more trained models on new structure
         if "scaling_factor" not in safetensors_data:
-            self.model = ABRankingTreeConnectModel(self.inputs_shape).to(self._device)
+            self.model = tree_connect_architecture_tanh_ranking_big(self.inputs_shape).to(self._device)
             print("Loading deprecated model...")
 
         # Loading state dictionary
