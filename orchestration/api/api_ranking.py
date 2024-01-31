@@ -469,7 +469,7 @@ def add_selected_residual(
     query = {"selected_image_hash": image_hash}
     update_query = {"$set": {f"selected_residual.{model_type}": residual}}
 
-    result = request.app.image_pair_ranking_collection.update_one(query, update_query)
+    result = request.app.image_pair_ranking_collection.update_many(query, update_query)
 
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -477,7 +477,8 @@ def add_selected_residual(
     if result.modified_count == 0:
         raise HTTPException(status_code=304, detail="Job not updated, possibly no change in data")
 
-    return {"message": "Job selected residual updated successfully."}
+    return {"message": f"Updated {result.modified_count} job(s) selected residual successfully."}
+
 
 
 @router.post("/migrate/minio-to-mongodb", status_code=202, description="Migrate datapoints from Minio to MongoDB.")
