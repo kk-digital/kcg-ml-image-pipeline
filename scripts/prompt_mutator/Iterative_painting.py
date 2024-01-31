@@ -179,7 +179,7 @@ class IterativePainter:
                 )
                 
                 img_byte_arr.seek(0)  # Move to the start of the byte array
-                cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/step_{index}.png" , img_byte_arr)
+                cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/inpainting_progression.gif" , img_byte_arr)
             
             index+=1
             
