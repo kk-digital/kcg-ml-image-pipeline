@@ -151,6 +151,11 @@ def startup_db_client():
     app.image_tags_collection = app.mongodb_db["image_tags"]
     app.tag_categories_collection = app.mongodb_db["tag_categories"]
 
+    # pseudo tags
+    app.pseudo_tag_definitions_collection = app.mongodb_db["pseudo_tag_definitions"]
+    app.pseudo_image_tags_collection = app.mongodb_db["pseudo_image_tags"]
+    app.pseudo_tag_categories_collection = app.mongodb_db["pseudo_tag_categories"]
+
     # models
     app.models_collection = app.mongodb_db["models"]
 

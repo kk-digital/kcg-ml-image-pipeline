@@ -469,7 +469,7 @@ def add_selected_residual(
     query = {"selected_image_hash": image_hash}
     update_query = {"$set": {f"selected_residual.{model_type}": residual}}
 
-    result = request.app.image_pair_ranking_collection.update_one(query, update_query)
+    result = request.app.image_pair_ranking_collection.update_many(query, update_query)
 
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -477,7 +477,43 @@ def add_selected_residual(
     if result.modified_count == 0:
         raise HTTPException(status_code=304, detail="Job not updated, possibly no change in data")
 
-    return {"message": "Job selected residual updated successfully."}
+    return {"message": f"Updated {result.modified_count} job(s) selected residual successfully."}
+
+
+
+@router.put("/job/add-selected-residual-pair-v1", description="Adds the selected_residual for a pair of images based on their selection status in a job.")
+def add_selected_residual_pair(
+    request: Request,
+    selected_image_hash: str = Body(...),
+    unselected_image_hash: str = Body(...),
+    model_type: str = Body(...),
+    selected_residual: float = Body(...)
+):
+    try:
+        # Build the query based on selected_image_index and the unselected_image_hash
+        query = {
+            "$or": [
+                {"selected_image_hash": selected_image_hash, "image_2_metadata.file_hash": unselected_image_hash, "selected_image_index": 0},
+                {"selected_image_hash": selected_image_hash, "image_1_metadata.file_hash": unselected_image_hash, "selected_image_index": 1}
+            ]
+        }
+
+        # Update query for the selected image residual
+        update_query = {"$set": {f"selected_residual.{model_type}": selected_residual}}
+
+        # Perform the update for the matching object
+        result = request.app.image_pair_ranking_collection.update_one(query, update_query)
+
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Matching job not found for the image pair")
+
+        return {
+            "message": "Selected residual updated successfully for the image pair.",
+            "updated_count": result.modified_count
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/migrate/minio-to-mongodb", status_code=202, description="Migrate datapoints from Minio to MongoDB.")
@@ -617,3 +653,60 @@ def find_duplicate_filenames_in_mongo(collection):
         }}
     ]
     return [doc['file_name'] for doc in collection.aggregate(pipeline)]
+
+
+from bson import json_util
+
+router = APIRouter()
+
+@router.get("/selection/list-selection-data-with-scores", response_description="List selection datapoints with detailed scores")
+def list_selection_data_with_scores(
+    request: Request,
+    model_type: str = Query,
+    limit: int = Query(10, alias="limit")
+):
+    try:
+        # Connect to the MongoDB collections
+        ranking_collection = request.app.image_pair_ranking_collection
+        jobs_collection = request.app.completed_jobs_collection
+
+        # Fetch data from image_pair_ranking_collection with pagination
+        cursor = ranking_collection.find().limit(limit)
+
+        selection_data = []
+        for doc in cursor:
+            doc = json.loads(json_util.dumps(doc))  # Serialization for MongoDB ObjectId
+
+            selected_image_hash = doc["selected_image_hash"]
+            # Determine unselected image hash based on selected_image_index
+            unselected_image_hash = doc["image_2_metadata"]["file_hash"] if doc["selected_image_index"] == 0 else doc["image_1_metadata"]["file_hash"]
+
+            # Fetch scores from completed_jobs_collection for both images
+            selected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
+            unselected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
+
+            # Extract scores for both images
+            selected_image_scores = selected_image_job["task_attributes_dict"][model_type] if selected_image_job else {}
+            unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type] if unselected_image_job else {}
+            
+            delta_score = abs(selected_image_scores.get("image_clip_sigma_score", 0) - unselected_image_scores.get("image_clip_sigma_score", 0))
+
+            selection_data.append({
+                "selected_image": {
+                    "hash": selected_image_hash,
+                    "image_clip_sigma_score": selected_image_scores.get("image_clip_sigma_score", None),
+                    "text_embedding_sigma_score": selected_image_scores.get("text_embedding_sigma_score", None)
+                },
+                "unselected_image": {
+                    "hash": unselected_image_hash,
+                    "image_clip_sigma_score": unselected_image_scores.get("image_clip_sigma_score", None),
+                    "text_embedding_sigma_score": unselected_image_scores.get("text_embedding_sigma_score", None)
+                },
+
+                "delta_score": delta_score
+            })
+
+        return selection_data
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
