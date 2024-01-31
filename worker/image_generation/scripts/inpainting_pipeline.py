@@ -77,8 +77,7 @@ class StableDiffusionInpaintingPipeline:
             if(self.inpainting_model_path == "kandinsky"):
                 self.inpainting_model = AutoPipelineForInpainting.from_pretrained(
                     "kandinsky-community/kandinsky-2-2-decoder-inpaint", 
-                    torch_dtype=torch.float16,
-                    use_safetensors=True
+                    torch_dtype=torch.float16
                 ).to('cuda')
             else:
                 self.inpainting_model = StableDiffusionInpaintPipeline.from_single_file(
