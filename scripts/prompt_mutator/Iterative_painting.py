@@ -80,27 +80,13 @@ class IterativePainter:
 
         self.scoring_model= self.load_scoring_model()
 
-        self.inpainting_processor= StableDiffusionProcessingImg2Img(
-            sampler_name="ddim", 
-            batch_size=1, 
-            n_iter=1, 
-            steps=20, 
-            cfg_scale=7.0, 
-            width=self.context_size, 
-            height=self.context_size, 
-            mask_blur=4.0, 
-            inpainting_fill=1, 
-            styles=None, 
-            resize_mode=0, 
-            denoising_strength=0.75, 
-            image_cfg_scale=None, 
-            inpaint_full_res_padding=192, 
-            inpainting_mask_invert=0,
-            clip_text_embedder=self.text_embedder, 
-            device=self.device)
-        
-        # load stable diffusion model for inpainting
-        self.inpainting_processor.load_model()
+        pipeline = StableDiffusionInpaintingPipeline(model_type="kadinsky",
+                                                    denoising_strength=0.75,
+                                                    guidance_scale=7.5,
+                                                    steps=40,
+                                                    width=512,
+                                                    height=512)
+        pipeline.load_models()
 
     # load elm or linear scoring models
     def load_scoring_model(self):
@@ -157,6 +143,7 @@ class IterativePainter:
         prompt="Pixel art space adventure, 2D side scrolling game, zero-gravity challenges, Futuristic space stations, alien landscapes, Gravity-defying jumps, intergalactic exploration, Spacesuit upgrades, extraterrestrial obstacles, Navigate through pixelated starfields, Immersive gameplay, Spaceship"
 
         index=0
+        image_progression=[]
         while(True):
             # choose random area to paint in
             x = random.randint(0, self.image_size - self.paint_size)
@@ -177,12 +164,21 @@ class IterativePainter:
                 for j in range(y, y+self.paint_size):
                     self.paint_matrix[i][j]+=1
             
+            # add it to image progression list
+            image_progression.append(self.image.copy())
+
             if index % 100==0:
                 # save image state in current step
                 img_byte_arr = io.BytesIO()
-                self.image.save(img_byte_arr, format="png")
-                img_byte_arr.seek(0)  # Move to the start of the byte array
 
+                image_progression[0].save(
+                    img_byte_arr,
+                    format="gif",
+                    save_all=True, append_images=image_progression[1:], 
+                    optimize=False, duration=200, loop=1
+                )
+                
+                img_byte_arr.seek(0)  # Move to the start of the byte array
                 cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/step_{index}.png" , img_byte_arr)
             
             index+=1
@@ -243,9 +239,7 @@ class IterativePainter:
         draw = ImageDraw.Draw(mask)
         draw.rectangle(inpainting_area, fill=255)  # Unmasked (white) center area
 
-        #result_image= self.pipeline.inpaint(prompt=prompt, initial_image=context_image, image_mask= mask)
-        # Generate the image
-        result_image, seed = self.inpainting_processor.img2img(prompt=prompt, negative_prompt="", init_images=[context_image], image_mask=mask)
+        result_image= self.pipeline.inpaint(prompt=prompt, initial_image=context_image, image_mask= mask)
 
         cropped_image= result_image.crop(inpainting_area)
 
