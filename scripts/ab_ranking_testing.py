@@ -325,7 +325,7 @@ def test_run():
                   minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
                   input_type="embedding-negative",
-                  epochs=10,
+                  epochs=30,
                   learning_rate=0.05,
                   train_percent=0.9,
                   training_batch_size=1,
