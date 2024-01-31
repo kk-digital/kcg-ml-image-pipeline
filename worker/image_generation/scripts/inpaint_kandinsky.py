@@ -3,9 +3,11 @@ import io
 import os
 import sys
 import torch
-from kandinsky2 import get_kandinsky2
-from PIL import Image
-import numpy as np
+from diffusers import KandinskyV22PriorPipeline, KandinskyV22InpaintPipeline
+from transformers import CLIPVisionModelWithProjection
+from diffusers.models import UNet2DConditionModel
+from transformers import CLIPVisionModelWithProjection
+from diffusers.models import UNet2DConditionModel
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -15,6 +17,7 @@ from utility.labml.monit import section
 from utility.path import separate_bucket_and_file_path
 from utility.utils_logger import logger
 from utility.minio import cmd
+
 
 class KandinskyInpaintingPipeline:
     def __init__(self,
@@ -48,42 +51,60 @@ class KandinskyInpaintingPipeline:
         else:
             self.device = 'cpu'
 
-    def load_models(self):
+    def load_models(self, image_encoder_path, unet_path, prior_path, decoder_path):
         with section("Loading Inpainting model"):
-            self.inpainting_model= get_kandinsky2(self.device, task_type='inpainting', model_version='2.2', use_flash_attention=False)
+            self.image_encoder = CLIPVisionModelWithProjection.from_pretrained(image_encoder_path, 
+                                                                                local_files_only=True,
+                                                                                use_safetensors=True).to(torch.float16).to(self.device)
+            
+            self.unet = UNet2DConditionModel.from_pretrained(unet_path, local_files_only=True,
+                                                                        use_safetensors=True).to(torch.float16).to(self.device)
+            
+            self.prior = KandinskyV22PriorPipeline.from_pretrained(prior_path, 
+                                                                   local_files_only=True,
+                                                                   use_safetensors=True, 
+                                                                   image_encoder=self.image_encoder, 
+                                                                   torch_dtype=torch.float16).to(self.device)
+            
+            self.decoder = KandinskyV22InpaintPipeline.from_pretrained(decoder_path, 
+                                                                   local_files_only=True,
+                                                                   use_safetensors=True, 
+                                                                   unet=self.unet, 
+                                                                   torch_dtype=torch.float16).to(self.device)
             logger.debug(f"Kandinsky Inpainting model successfully loaded")
    
     def unload_models(self):
-        if self.inpainting_model is not None:
-            self.inpainting_model.to("cpu")
-            del self.inpainting_model
-            self.inpainting_model = None
+        pass
 
-        torch.cuda.empty_cache()
-
-    def inpaint(self, prompt:str, initial_image: Image, image_mask: Image):
-        """
-        prompt (str): The textual prompt that guides the inpainting process. Describes the desired content or style of the inpainted image.
-        image (Image): The initial image to be inpainted. This serves as the starting point for the inpainting process.
-        image_mask (Image): The mask indicating the areas of the image that should be inpainted. Specifies regions to be filled or modified.
+    def generate_inpainting(
+        self,
+        prompt,
+        initial_img,
+        img_mask,
+        batch_size=1,
+        decoder_steps=50,
+        prior_steps=25,
+        decoder_guidance_scale=4,
+        prior_guidance_scale=4,
+        h=512,
+        w=512,
+        negative_prior_prompt="",
+        negative_decoder_prompt="",
+    ):
         
-        Returns:
-        Image (Image): The inpainted image resulting from the application of the specified prompt and mask. Represents the final result of the inpainting process.
-        """
-
-        images = self.inpainting_model.generate_inpainting(
-                prompt,
-                initial_image, 
-                image_mask, 
-                num_steps=self.steps,
-                batch_size=1, 
-                guidance_scale=self.guidance_scale,
-                h=self.height, w=self.width,
-                sampler='p_sampler', 
-                prior_cf_scale=4,
-                prior_steps="5"
-                )
-
+        img_emb = self.prior(prompt=prompt, num_inference_steps=prior_steps,
+                        num_images_per_prompt=batch_size, guidance_scale=prior_guidance_scale,
+                        negative_prompt=negative_prior_prompt)
+        negative_emb = self.prior(prompt=negative_prior_prompt, num_inference_steps=prior_steps,
+                             num_images_per_prompt=batch_size, guidance_scale=prior_guidance_scale)
+        if negative_decoder_prompt == "":
+            negative_emb = negative_emb.negative_image_embeds
+        else:
+            negative_emb = negative_emb.image_embeds
+        images = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
+                         num_inference_steps=decoder_steps, height=h,
+                         width=w, guidance_scale=decoder_guidance_scale,
+                         image=initial_img, mask_image=img_mask).images
         return images[0]
 
     def convert_image_to_png(self, image):
