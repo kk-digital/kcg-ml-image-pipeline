@@ -11,13 +11,13 @@ from bson import ObjectId
 router = APIRouter()
 
 
-@router.post("/tags", 
+@router.post("/pseudotags", 
              status_code=201,
              tags=["pseudo_tags"],
              description="Adds a new tag",
              response_model=StandardSuccessResponse[TagDefinition],
              responses=ApiResponseHandler.listErrors([400, 422, 500]))
-def add_new_tag_definition(request: Request, tag_data: NewTagRequest):
+def add_new_pseudo_tag_definition(request: Request, tag_data: NewTagRequest):
     response_handler = ApiResponseHandler(request)
 
     try:
@@ -86,11 +86,11 @@ def add_new_tag_definition(request: Request, tag_data: NewTagRequest):
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
     
 
-@router.get("/tags/id-by-tag-name", 
+@router.get("/tags/id-by-pseudotag-name", 
              status_code=200,
              tags=["pseudo_tags"],
              description="Get tag ID by tag name")
-def get_tag_id_by_name(request: Request, tag_string: str = Query(..., description="Tag name to fetch ID for")):
+def get_pseudo_tag_id_by_name(request: Request, tag_string: str = Query(..., description="Tag name to fetch ID for")):
     api_handler = ApiResponseHandler(request)
 
     try:
@@ -118,13 +118,13 @@ def get_tag_id_by_name(request: Request, tag_string: str = Query(..., descriptio
         )
 
 
-@router.patch("/tags/{tag_id}", 
+@router.patch("/pseudotags/{tag_id}", 
               tags=["pseudo_tags"],
               status_code=200,
               description="Update tag definitions",
               response_model=StandardSuccessResponse[TagDefinition], 
               responses=ApiResponseHandler.listErrors([400, 404, 422, 500]))
-def update_tag_definition(request: Request, tag_id: int, update_data: NewTagRequest):
+def update_pseudo_tag_definition(request: Request, tag_id: int, update_data: NewTagRequest):
     response_handler = ApiResponseHandler(request)
 
     query = {"tag_id": tag_id}
@@ -171,13 +171,13 @@ def update_tag_definition(request: Request, tag_id: int, update_data: NewTagRequ
     return response_handler.create_success_response(updated_tag, 200)
 
 
-@router.delete("/tags/{tag_id}", 
+@router.delete("/pseudotags/{tag_id}", 
                response_model=StandardSuccessResponse[WasPresentResponse], 
                description="remove tag with tag_id", 
                tags=["pseudo_tags"], 
                status_code=200,
                responses=ApiResponseHandler.listErrors([400, 422, 500]))
-def remove_tag(request: Request, tag_id: int):
+def remove_pseudo_tag(request: Request, tag_id: int):
     response_handler = ApiResponseHandler(request)
 
     # Check if the tag exists
@@ -207,13 +207,13 @@ def remove_tag(request: Request, tag_id: int):
     return response_handler.create_success_delete_response({"wasPresent": True})
 
 
-@router.get("/tags", 
+@router.get("/pseudotags", 
             response_model=StandardSuccessResponse[TagsListResponse],
             description="list tags",
             tags=["pseudo_tags"],
             status_code=200,
             responses=ApiResponseHandler.listErrors([500]))
-def list_tag_definitions(request: Request):
+def list_pseudo_tag_definitions(request: Request):
     response_handler = ApiResponseHandler(request)
     try:
         # Query all the tag definitions
@@ -229,13 +229,13 @@ def list_tag_definitions(request: Request):
         print(f"Exception Traceback:\n{traceback_str}")
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
-@router.put("/tags/{tag_id}/vector-index", 
+@router.put("/pseudotags/{tag_id}/vector-index", 
             tags=["pseudo_tags"], 
             status_code=200,
             description="Set vector index to tag definition",
             response_model=StandardSuccessResponse[VectorIndexUpdateRequest],
             responses=ApiResponseHandler.listErrors([400, 422, 500]))
-def set_tag_vector_index(request: Request, tag_id: int, update_data: VectorIndexUpdateRequest):
+def set_pseudo_tag_vector_index(request: Request, tag_id: int, update_data: VectorIndexUpdateRequest):
     response_handler = ApiResponseHandler(request)
 
     # Find the tag definition using the provided tag_id
@@ -265,12 +265,12 @@ def set_tag_vector_index(request: Request, tag_id: int, update_data: VectorIndex
     )
 
 
-@router.get("/tags/{tag_id}/vector-index", 
+@router.get("/pseudotags/{tag_id}/vector-index", 
             tags=["pseudo_tags"], 
             status_code=200,
             response_model=StandardSuccessResponse[VectorIndexUpdateRequest],
             responses=ApiResponseHandler.listErrors([400, 422, 500]))
-def get_tag_vector_index(request: Request, tag_id: int):
+def get_pseudo_tag_vector_index(request: Request, tag_id: int):
     response_handler = ApiResponseHandler(request)
 
     # Find the tag definition using the provided tag_id
@@ -287,8 +287,8 @@ def get_tag_vector_index(request: Request, tag_id: int):
         {"tag_vector_index": vector_index}, 200
     )    
 
-@router.post("/tags/add_tag_to_image", response_model=ImageTag)
-def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: int, user_who_created: str):
+@router.post("/pseudotags/add_tag_to_image", response_model=ImageTag)
+def add_pseudo_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: int, user_who_created: str):
     date_now = datetime.now().isoformat()
     
     # Check if the tag exists by tag_id
@@ -329,8 +329,8 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: in
 
     return image_tag_data
 
-@router.post("/tags/add_tag_to_image-v1", response_model=ImageTag, response_class=PrettyJSONResponse)
-def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: int, user_who_created: str):
+@router.post("/pseudotags/add_tag_to_image-v1", response_model=ImageTag, response_class=PrettyJSONResponse)
+def add_pseudo_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: int, user_who_created: str):
     response_handler = ApiResponseHandler(request)
     try:
         date_now = datetime.now().isoformat()
@@ -369,13 +369,13 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: in
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
 
-@router.delete("/tags/remove_tag_from_image/{tag_id}", 
+@router.delete("/pseudotags/remove_tag_from_image/{tag_id}", 
                status_code=200,
                tags=["pseudo_tags"], 
                description="Remove image tag",
                response_model=StandardSuccessResponse[WasPresentResponse],
                responses=ApiResponseHandler.listErrors([400, 422]))
-def remove_image_tag(
+def remove_image_pseudo_tag(
     request: Request,
     image_hash: str,  
     tag_id: int  # Now as a path parameter
@@ -398,8 +398,8 @@ def remove_image_tag(
     return response_handler.create_success_response({"wasPresent": True}, 200)
 
 
-@router.get("/tags/get_tag_list_for_image", response_model=List[TagResponse])
-def get_tag_list_for_image(request: Request, file_hash: str):
+@router.get("/pseudotags/get_tag_list_for_image", response_model=List[TagResponse])
+def get_pseudo_tag_list_for_image(request: Request, file_hash: str):
     # Fetch image tags based on image_hash
     image_tags_cursor = request.app.pseudo_image_tags_collection.find({"image_hash": file_hash})
     
@@ -429,13 +429,13 @@ def get_tag_list_for_image(request: Request, file_hash: str):
 
 
 
-@router.get("/tags/{tag_id}/images", 
+@router.get("/pseudotags/{tag_id}/images", 
             tags=["pseudo_tags"], 
             status_code=200,
             description="Get images by tag_id",
             response_model=StandardSuccessResponse[ImageTag], 
             responses=ApiResponseHandler.listErrors([400, 422, 500]))
-def get_tagged_images(
+def get_pseudo_tagged_images(
     request: Request, 
     tag_id: int,
     start_date: str = None,
@@ -497,13 +497,13 @@ def get_tagged_images(
         )
 
 
-@router.get("/tags/images", 
+@router.get("/pseudotags/images", 
             tags=["pseudo_tags"], 
             status_code=200,
             description="Get all tagged images",
             response_model=StandardSuccessResponse[ImageTag], 
             responses=ApiResponseHandler.listErrors([400, 422, 500]))
-def get_all_tagged_images(request: Request):
+def get_all_pseudo_tagged_images(request: Request):
     response_handler = ApiResponseHandler(request)
 
     try:
@@ -534,13 +534,13 @@ def get_all_tagged_images(request: Request):
         )
 
 
-@router.post("/tag-categories",
+@router.post("/pseudotag-categories",
              status_code=201, 
              tags=["tag-categories"], 
              description="Add Tag Category",
              response_model=StandardSuccessResponse[TagCategory],
              responses=ApiResponseHandler.listErrors([422, 500]))
-def add_tag_category(request: Request, tag_category_data: NewTagCategory):
+def add_pseudo_tag_category(request: Request, tag_category_data: NewTagCategory):
     response_handler = ApiResponseHandler(request)
     try:
         # Assign new tag_category_id
@@ -574,13 +574,13 @@ def add_tag_category(request: Request, tag_category_data: NewTagCategory):
 
 
 
-@router.patch("/tag-categories/{tag_category_id}", 
+@router.patch("/pseudotag-categories/{tag_category_id}", 
               tags=["tag-categories"],
               status_code=200,
               description="Update tag category",
               response_model=StandardSuccessResponse[TagCategory],
               responses=ApiResponseHandler.listErrors([400, 404, 422, 500]))
-def update_tag_category(
+def update_pseudo_tag_category(
     request: Request, 
     tag_category_id: int,
     update_data: NewTagCategory
@@ -617,13 +617,13 @@ def update_tag_category(
     return response_handler.create_success_response(ordered_response, 200)
 
 
-@router.delete("/tag-categories/{tag_category_id}", 
+@router.delete("/pseudotag-categories/{tag_category_id}", 
                tags=["tag-categories"], 
                description="Remove tag category with tag_category_id", 
                status_code=200,
                response_model=StandardSuccessResponse[WasPresentResponse],
                responses=ApiResponseHandler.listErrors([400, 422, 500]))
-def delete_tag_category(request: Request, tag_category_id: int):
+def delete_pseudo_tag_category(request: Request, tag_category_id: int):
     response_handler = ApiResponseHandler(request)
 
     # Check if the tag category exists
@@ -653,13 +653,13 @@ def delete_tag_category(request: Request, tag_category_id: int):
     return response_handler.create_success_delete_response({"wasPresent": True})
 
 
-@router.get("/tag-categories", 
+@router.get("/pseudotag-categories", 
             tags=["tag-categories"], 
             description="List tag categories",
             status_code=200,
             response_model=StandardSuccessResponse[TagsCategoryListResponse],
             responses=ApiResponseHandler.listErrors([500]))
-def list_tag_categories(request: Request):
+def list_pseudo_tag_categories(request: Request):
     response_handler = ApiResponseHandler(request)
     try:
         # Query all the tag categories

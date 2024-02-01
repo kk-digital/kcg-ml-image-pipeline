@@ -49,6 +49,10 @@ class TagResponse(BaseModel):
     user_who_created: str
     creation_time: str
 
+class AddJob(BaseModel):
+    uuid: str
+    creation_time: str
+
 def validate_date_format(date_str: str):
     try:
         # Attempt to parse the date string using dateutil.parser
