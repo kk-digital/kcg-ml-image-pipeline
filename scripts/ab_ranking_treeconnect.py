@@ -105,7 +105,7 @@ class TreeConnectArchitectureTanhRankingBig(nn.Module):
         # Global average pooling
         x = F.adaptive_avg_pool1d(x, 1)
         x = x.view(x.size(0), -1)
-        print(x.shape())
+        print("the shape is ",x.shape)
 
         #x = 5 * torch.tanh(self.fc(x))  # Apply tanh and scale
         x = self.fc(x)
