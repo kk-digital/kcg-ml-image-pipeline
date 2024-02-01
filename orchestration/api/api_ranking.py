@@ -670,59 +670,56 @@ def list_score_fields(request: Request):
 @router.get("/selection/list-selection-data-with-scores", response_description="List selection datapoints with detailed scores")
 def list_selection_data_with_scores(
     request: Request,
-    model_type: str = Query(...),
+    model_type: str = Query(..., regex="^(linear|elm-v1)$"),
     dataset: str = Query(None),  # Dataset parameter for filtering
-    limit: int = Query(10, alias="limit"),
-    sort_by: str = Query("delta_score")  # Default sorting parameter
+    limit: int = Query(10, alias="limit")
 ):
-    response_handler = ApiResponseHandler(request)
     try:
-        print("Starting API call.")
+        # Connect to the MongoDB collections
         ranking_collection = request.app.image_pair_ranking_collection
         jobs_collection = request.app.completed_jobs_collection
-
+        # Build query filter based on dataset
         query_filter = {"dataset": dataset} if dataset else {}
-        query_filter["flagged"] = {"$ne": True}
-        print(f"Query filter applied: {query_filter}")
-
+        # Fetch data from image_pair_ranking_collection with pagination
         cursor = ranking_collection.find(query_filter).limit(limit)
-        document_count = ranking_collection.count_documents(query_filter)
-        print(f"Documents found: {document_count}")
-
-        hashes = []
-        for doc in cursor:
-            print(f"Processing document ID: {doc['_id']}")
-            unselected_image_hash = (doc["image_2_metadata"]["file_hash"] if doc["selected_image_index"] == 0
-                                     else doc["image_1_metadata"]["file_hash"])
-            hashes.extend([doc["selected_image_hash"], unselected_image_hash])
-
-        print(f"Fetched {len(hashes) // 2} document pairs for processing.")
-        jobs = {job["task_output_file_dict"]["output_file_hash"]: job for job in jobs_collection.find({"task_output_file_dict.output_file_hash": {"$in": hashes}})}
-        print(f"Fetched {len(jobs)} jobs based on image hashes.")
 
         selection_data = []
-        for doc in cursor.rewind():
-            print(f"Revisiting document ID: {doc['_id']} for scoring data extraction.")
-            selected_image_job = jobs.get(doc["selected_image_hash"])
-            unselected_image_hash = (doc["image_2_metadata"]["file_hash"] if doc["selected_image_index"] == 0
-                                     else doc["image_1_metadata"]["file_hash"])
-            unselected_image_job = jobs.get(unselected_image_hash)
+        for doc in cursor:
+            selected_image_hash = doc["selected_image_hash"]
+            # Determine unselected image hash based on selected_image_index
+            unselected_image_hash = doc["image_2_metadata"]["file_hash"] if doc["selected_image_index"] == 0 else doc["image_1_metadata"]["file_hash"]
 
+            # Fetch scores from completed_jobs_collection for both images
+            selected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
+            unselected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
+
+            # Check if task_attributes_dict exists for both jobs
             if not selected_image_job or "task_attributes_dict" not in selected_image_job or not unselected_image_job or "task_attributes_dict" not in unselected_image_job:
-                print(f"Skipping document {doc['_id']} due to missing task_attributes_dict.")
-                continue
+                continue  # Skip this job if task_attributes_dict is missing
 
-            selected_image_scores = selected_image_job["task_attributes_dict"].get(model_type, {})
-            unselected_image_scores = unselected_image_job["task_attributes_dict"].get(model_type, {})
-            print(f"Scores extracted for document ID: {doc['_id']}")
+            # Extract scores for both images
+            selected_image_scores = selected_image_job["task_attributes_dict"][model_type]
+            unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type]
 
-            # Code for appending data to selection_data remains unchanged...
+            delta_score = abs(selected_image_scores.get("image_clip_sigma_score", 0) - unselected_image_scores.get("image_clip_sigma_score", 0))
+            selection_data.append({
+                "selected_image": {
+                    "hash": selected_image_hash,
+                    "image_clip_sigma_score": selected_image_scores.get("image_clip_sigma_score", None),
+                    "text_embedding_sigma_score": selected_image_scores.get("text_embedding_sigma_score", None)
+                },
+                "unselected_image": {
+                    "hash": unselected_image_hash,
+                    "image_clip_sigma_score": unselected_image_scores.get("image_clip_sigma_score", None),
+                    "text_embedding_sigma_score": unselected_image_scores.get("text_embedding_sigma_score", None)
+                },
+                "delta_score": delta_score
+            })
 
-        sorted_selection_data = sorted(selection_data, key=lambda x: x.get(sort_by) or 0, reverse=True)
-        print("Sorting completed. Preparing response.")
+        # Sort selection_data by delta_score
+        sorted_selection_data = sorted(selection_data, key=lambda x: x["delta_score"], reverse=True)
 
-        return response_handler.create_success_response(sorted_selection_data, 200)
+        return sorted_selection_data
 
     except Exception as e:
-        print(f"Error processing selection data: {str(e)}")
-        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, str(e), 500)
+        raise HTTPException(status_code=500, detail=str(e))
