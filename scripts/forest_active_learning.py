@@ -52,7 +52,11 @@ class ForestActiveLearningPipeline:
 
     def get_jobs(self):
         print('Loading image file paths for environmntal dataset.........')
-        response = requests.get(f'{API_URL}/queue/image-generation/list-by-date')
+        
+        start_date = datetime(year=1, month=1, day=1).strftime('%Y-%m-%d')
+        end_date= datetime.now().strftime('%Y-%m-%d')
+
+        response = requests.get(f'{API_URL}/queue/image-generation/list-by-date?start_date={start_date}&end_date={end_date}')
         
         jobs = json.loads(response.content)
 
