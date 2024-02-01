@@ -673,7 +673,7 @@ def list_selection_data_with_scores(
     model_type: str = Query(..., regex="^(linear|elm-v1)$"),
     dataset: str = Query(None),  # Dataset parameter for filtering
     limit: int = Query(10, alias="limit"),
-    sort_by: str = Query()
+    sort_by: str = Query("delta_score")
 ):
     response_handler = ApiResponseHandler(request)
     try:
