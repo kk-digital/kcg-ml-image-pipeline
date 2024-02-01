@@ -1,4 +1,3 @@
-import json
 import os
 import sys
 import hashlib
@@ -9,121 +8,114 @@ import copy
 from datetime import datetime
 import math
 import threading
-from safetensors.torch import save as safetensors_save
-from safetensors.torch import load as safetensors_load
 from io import BytesIO
 from tqdm import tqdm
-from random import sample
+from safetensors.torch import save as safetensors_save
+from safetensors.torch import load as safetensors_load
+from safetensors import safe_open
+from safetensors import deserialize as safetensors_deserialize
+import json
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
 from data_loader.ab_ranking_dataset_loader import ABRankingDatasetLoader
 from utility.minio import cmd
-# from utility.clip.clip_text_embedder import tensor_attention_pooling
+from utility.clip.clip_text_embedder import tensor_attention_pooling
 
-class ABRankingELMBaseModel(nn.Module):
-    def __init__(self, inputs_shape, num_random_layers=2, elm_sparsity=0.0):
-        super(ABRankingELMBaseModel, self).__init__()
+
+class ABRankingTreeConnectModel(nn.Module):
+    def __init__(self, inputs_shape):
+        super(ABRankingTreeConnectModel, self).__init__()
+
+        # Reshape the input to (2, 768, 1, 1)
+        #self.reshape_input = nn.Unsqueeze(2).unsqueeze(3)
+
+        # Convolutional layers with BatchNorm
+        self.conv1 = nn.Conv2d(inputs_shape, 64, kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm2d(64)
+        self.conv2 = nn.Conv2d(64, 64, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm2d(64)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
+        self.bn3 = nn.BatchNorm2d(128)
+        self.conv4 = nn.Conv2d(128, 128, kernel_size=4, stride=2, padding=1)
+        self.bn4 = nn.BatchNorm2d(128)
+        self.conv5 = nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1)
+        self.bn5 = nn.BatchNorm2d(128)
+        self.conv6 = nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1)
+        self.bn6 = nn.BatchNorm2d(256)
+        self.conv7 = nn.Conv2d(256, 128, kernel_size=4, stride=2, padding=1)
+        self.bn7 = nn.BatchNorm2d(128)
+
+        # Locally connected layers with BatchNorm and Dropout
+        self.lc1 = nn.Conv2d(128, 64, kernel_size=1, groups=2)  # Adjusted 2
+        self.bn_lc1 = nn.BatchNorm2d(64)
+        self.dropout1 = nn.Dropout(0.5)  # Changed probability to 0.5 for consistency
+        self.lc2 = nn.Conv2d(64, 256, kernel_size=1, groups=4)  # Adjusted for 4
+        self.bn_lc2 = nn.BatchNorm2d(256)
+        self.dropout2 = nn.Dropout(0.5)  # Changed probability to 0.5 for consistency
+
+        # Fully connected layer
+        self.fc = nn.Linear(64 * 64, 1)  # Assuming output_shape is 1 for regression
+
+    def forward(self, x):
+        # Reshape the input
+        x = self.reshape_input(x)
+
+        x = F.relu(self.conv1(x))
+        x = self.bn1(x)
+        x = F.relu(self.conv2(x))
+        x = self.bn2(x)
+        x = F.relu(self.conv3(x))
+        x = self.bn3(x)
+        x = F.relu(self.conv4(x))
+        x = self.bn4(x)
+        x = F.relu(self.conv5(x))
+        x = self.bn5(x)
+        x = F.relu(self.conv6(x))
+        x = self.bn6(x)
+        x = F.relu(self.conv7(x))
+        x = self.bn7(x)
+
+        x = F.relu(self.lc1(x))
+        x = self.bn_lc1(x)
+        x = self.dropout1(x)
+        x = F.relu(self.lc2(x))
+        x = self.bn_lc2(x)
+        x = self.dropout2(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+        
+        # Apply tanh activation to scale the output to the range [-5, 5]
+        x = 5 * torch.tanh(x)
+        
+        return x
+
+
+
+
+class ABRankingLinearModelDeprecate(nn.Module):
+    def __init__(self, inputs_shape):
+        super(ABRankingLinearModelDeprecate, self).__init__()
         self.inputs_shape = inputs_shape
-        self.output_size = 1
-
+        self.linear = nn.Linear(inputs_shape, 1)
+        self.mse_loss = nn.MSELoss()
         self.l1_loss = nn.L1Loss()
-        self.num_random_layers = num_random_layers
-        self.random_layers = []
-        self.linear_last_layer = nn.Linear(self.inputs_shape, self.output_size)
-
-        self.random_layers_init(elm_sparsity)
-
-        initial_scaling_factor = torch.zeros(1, dtype=torch.float32)
-        self.scaling_factor = nn.Parameter(data=initial_scaling_factor, requires_grad=True)
+        self.tanh = nn.Tanh()
 
     # for score
-    def forward(self, x):
-        assert x.shape == (1, self.inputs_shape)
+    def forward(self, input):
+        # make sure input shape is (1, self.inputs_shape)
+        # we currently don't support batching
+        assert input.shape == (1, self.inputs_shape)
 
-        # go through random layers first
-        for i in range(self.num_random_layers):
-            x = self.random_layers[i](x)
+        output = self.linear(input)
 
-        output = self.linear_last_layer(x)
-        scaled_output = torch.multiply(output, self.scaling_factor)
-
-
-        assert scaled_output.shape == (1,1)
-        return scaled_output
-
-    # TODO: add bias for the layers too
-    def random_layers_init(self, elm_sparsity=0.0):
-        for _ in range(self.num_random_layers):
-            random_layer = nn.ReLU()
-            # give random weights
-            rand_weights = torch.randn(self.inputs_shape)
-
-            if elm_sparsity != 0.0:
-                # set some to zero
-                num_of_indices = round(self.inputs_shape * elm_sparsity)
-                indexes_to_zero = sample(range(0, self.inputs_shape - 1), num_of_indices)
-                for index in indexes_to_zero:
-                    rand_weights[index] = 0.0
-
-            random_layer.weight = nn.Parameter(rand_weights, requires_grad=False)
-
-            # freeze weights
-            random_layer.requires_grad_(False)
-
-            self.random_layers.append(random_layer)
-
-
-class ABRankingELMBaseModelDeprecate(nn.Module):
-    def __init__(self, inputs_shape, num_random_layers=2, elm_sparsity=0.0):
-        super(ABRankingELMBaseModelDeprecate, self).__init__()
-        self.inputs_shape = inputs_shape
-        self.output_size = 1
-
-        self.l1_loss = nn.L1Loss()
-        self.num_random_layers = num_random_layers
-        self.random_layers = []
-        self.linear_last_layer = nn.Linear(self.inputs_shape, self.output_size)
-
-        self.random_layers_init(elm_sparsity)
-
-    # for score
-    def forward(self, x):
-        assert x.shape == (1, self.inputs_shape)
-
-        # go through random layers first
-        for i in range(self.num_random_layers):
-            x = self.random_layers[i](x)
-
-        output = self.linear_last_layer(x)
-
+        # make sure input shape is (1, score)
         assert output.shape == (1,1)
         return output
 
-    # TODO: add bias for the layers too
-    def random_layers_init(self, elm_sparsity=0.0):
-        for _ in range(self.num_random_layers):
-            random_layer = nn.ReLU()
-            # give random weights
-            rand_weights = torch.randn(self.inputs_shape)
-
-            if elm_sparsity != 0.0:
-                # set some to zero
-                num_of_indices = round(self.inputs_shape * elm_sparsity)
-                indexes_to_zero = sample(range(0, self.inputs_shape - 1), num_of_indices)
-                for index in indexes_to_zero:
-                    rand_weights[index] = 0.0
-
-            random_layer.weight = nn.Parameter(rand_weights, requires_grad=False)
-
-            # freeze weights
-            random_layer.requires_grad_(False)
-
-            self.random_layers.append(random_layer)
-
-class ABRankingELMModel:
-    def __init__(self, inputs_shape, num_random_layers=1, elm_sparsity=0.5):
-        print("inputs_shape=", inputs_shape)
+class ABRankingModel:
+    def __init__(self, inputs_shape):
         if torch.cuda.is_available():
             device = 'cuda'
         else:
@@ -131,8 +123,8 @@ class ABRankingELMModel:
         self._device = torch.device(device)
 
         self.inputs_shape = inputs_shape
-        self.model = ABRankingELMBaseModel(inputs_shape, num_random_layers, elm_sparsity).to(self._device)
-        self.model_type = 'ab-ranking-elm-v1'
+        self.model = ABRankingTreeConnectModel(inputs_shape).to(self._device)
+        self.model_type = 'ab-ranking-linear'
         self.loss_func_name = ''
         self.file_path = ''
         self.model_hash = ''
@@ -154,8 +146,6 @@ class ABRankingELMModel:
         self.target_option = None
         self.duplicate_flip_option = None
         self.randomize_data_per_epoch = None
-        self.num_random_layers = None
-        self.elm_sparsity = None
 
         # list of models per epoch
         self.models_per_epoch = []
@@ -179,9 +169,7 @@ class ABRankingELMModel:
                                    add_loss_penalty,
                                    target_option,
                                    duplicate_flip_option,
-                                   randomize_data_per_epoch,
-                                   num_random_layers,
-                                   elm_sparsity):
+                                   randomize_data_per_epoch):
         self.epochs = epochs
         self.learning_rate = learning_rate
         self.train_percent = train_percent
@@ -192,8 +180,6 @@ class ABRankingELMModel:
         self.target_option = target_option
         self.duplicate_flip_option = duplicate_flip_option
         self.randomize_data_per_epoch = randomize_data_per_epoch
-        self.num_random_layers = num_random_layers
-        self.elm_sparsity = elm_sparsity
 
     def to_safetensors(self):
         metadata = {
@@ -209,14 +195,12 @@ class ABRankingELMModel:
             "learning-rate": "{}".format(self.learning_rate),
             "train-percent": "{}".format(self.train_percent),
             "training-batch-size": "{}".format(self.training_batch_size),
-            "weight-decay": "{}".format(self.weight_decay),
+            "weight-decay": "{}".format( self.weight_decay),
             "pooling-strategy": "{}".format(self.pooling_strategy),
             "add-loss-penalty": "{}".format(self.add_loss_penalty),
             "target-option": "{}".format(self.target_option),
             "duplicate-flip-option": "{}".format(self.duplicate_flip_option),
             "randomize-data-per-epoch": "{}".format(self.randomize_data_per_epoch),
-            "num-random-layers": "{}".format(self.num_random_layers),
-            "elm-sparsity": "{}".format(self.elm_sparsity),
         }
 
         model = self.model.state_dict()
@@ -290,8 +274,6 @@ class ABRankingELMModel:
             self.target_option = model['target-option']
             self.duplicate_flip_option = model['duplicate-flip-option']
             self.randomize_data_per_epoch = model['randomize-data-per-epoch']
-            self.num_random_layers = model['num-random-layers']
-            self.elm_sparsity = model['elm-sparsity']
 
     def load_safetensors(self, model_buffer):
         data = model_buffer.read()
@@ -299,7 +281,7 @@ class ABRankingELMModel:
 
         # TODO: deprecate when we have 10 or more trained models on new structure
         if "scaling_factor" not in safetensors_data:
-            self.model = ABRankingELMBaseModelDeprecate(self.inputs_shape).to(self._device)
+            self.model = ABRankingLinearModelDeprecate(self.inputs_shape).to(self._device)
             print("Loading deprecated model...")
 
         # Loading state dictionary
@@ -339,13 +321,11 @@ class ABRankingELMModel:
             self.target_option = model['target-option']
             self.duplicate_flip_option = model['duplicate-flip-option']
             self.randomize_data_per_epoch = model['randomize-data-per-epoch']
-            self.num_random_layers = model['num-random-layers']
-            self.elm_sparsity = model['elm-sparsity']
 
     def train(self,
               dataset_loader: ABRankingDatasetLoader,
               training_batch_size=1,
-              epochs=8,
+              epochs=10,
               learning_rate=0.05,
               weight_decay=0.00,
               add_loss_penalty=True,
@@ -356,7 +336,7 @@ class ABRankingELMModel:
         validation_loss_per_epoch = []
 
         optimizer = optim.AdamW(self.model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-        self.model_type = 'image-pair-ranking-elm-v1'
+        self.model_type = 'image-pair-ranking-linear'
         self.loss_func_name = "L1"
 
         # get validation data
@@ -369,7 +349,7 @@ class ABRankingELMModel:
 
         if debug_asserts:
             torch.autograd.set_detect_anomaly(True)
-            
+
         # get number of batches to do per epoch
         training_num_batches = math.ceil(num_features / training_batch_size)
         for epoch in tqdm(range(epochs), desc="Training epoch"):
@@ -406,6 +386,7 @@ class ABRankingELMModel:
                         predicted_score_images_y = self.model.forward(batch_features_y)
 
                     optimizer.zero_grad()
+
                     predicted_score_images_x = self.model.forward(batch_features_x)
 
                     predicted_score_images_y_copy = predicted_score_images_y.clone().requires_grad_(True).to(self._device)
@@ -426,15 +407,13 @@ class ABRankingELMModel:
 
                     loss.backward()
                     optimizer.step()
-
                     training_loss_arr.append(loss.detach().cpu())
 
                 if debug_asserts:
                     for name, param in self.model.named_parameters():
-                        if param.grad is not None:
-                            if torch.isnan(param.grad).any():
-                                print("nan gradient found")
-                                raise SystemExit
+                        if torch.isnan(param.grad).any():
+                            print("nan gradient found")
+                            raise SystemExit
                         # print("param={}, grad={}".format(name, param.grad))
 
                 if randomize_data_per_epoch:
@@ -472,6 +451,7 @@ class ABRankingELMModel:
                             predicted_score_image_x - penalty_range)
                         validation_loss = torch.add(validation_loss, loss_penalty)
 
+                    # validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
                     validation_loss_arr.append(validation_loss.detach().cpu())
 
             # calculate epoch loss
@@ -610,6 +590,7 @@ class ABRankingELMModel:
 
             return outputs
 
+
     def predict_average_pooling(self,
                                 positive_input,
                                 negative_input,
@@ -639,7 +620,6 @@ class ABRankingELMModel:
 
 
     def predict_positive_or_negative_only(self, inputs):
-
         # do average pooling
         inputs = torch.mean(inputs, dim=2)
 
@@ -660,6 +640,7 @@ class ABRankingELMModel:
             outputs = self.model.forward(inputs).squeeze()
 
             return outputs
+
 
     def predict_clip(self, inputs):
         # concatenate
