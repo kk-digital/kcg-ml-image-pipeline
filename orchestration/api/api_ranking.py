@@ -658,10 +658,10 @@ def find_duplicate_filenames_in_mongo(collection):
 @router.get("/ranking/list-score-fields")
 def list_score_fields(request: Request):
     # hard code score fields for now
-    fields = ["image_1_clip_sigma_score",
-              "image_1_text_embedding_sigma_score",
-              "image_2_clip_sigma_score",
-              "image_2_text_embedding_sigma_score",
+    fields = ["selected_image_clip_sigma_score",
+              "selected_text_embedding_sigma_score",
+              "unselected_image_clip_sigma_score",
+              "unselected_text_embedding_sigma_score",
               "delta_score"]
 
     return fields
@@ -672,66 +672,85 @@ def list_selection_data_with_scores(
     request: Request,
     model_type: str = Query(..., regex="^(linear|elm-v1)$"),
     dataset: str = Query(None),  # Dataset parameter for filtering
+    include_flagged: bool = Query(False),  # Parameter to include or exclude flagged documents
     limit: int = Query(10, alias="limit"),
-    sort_by: str = Query("delta_score")  # Default sorting parameter
+    sort_by: str = Query("delta_score"),  # Default sorting parameter
+    order: str = Query("desc")  # Parameter for sort order
 ):
     response_handler = ApiResponseHandler(request)
+    
     try:
+        # Connect to the MongoDB collections
         ranking_collection = request.app.image_pair_ranking_collection
         jobs_collection = request.app.completed_jobs_collection
 
-        # Filter to exclude flagged documents and match the dataset if provided
-        query_filter = {"dataset": dataset} if dataset else {}
-        query_filter["flagged"] = {"$ne": True}
+        # Build query filter based on dataset
+        query_filter = {}
+        if dataset:
+            query_filter["dataset"] = dataset
+            
+        # Adjust the query filter based on the include_flagged parameter
+        if include_flagged:
+            # If include_flagged is True, there's no need to filter out flagged documents
+            # This means flagged documents are included in the results
+            pass
+        else:
+            # If include_flagged is False, ensure to exclude flagged documents
+            query_filter["flagged"] = {"$ne": True}
 
+        # Fetch data from image_pair_ranking_collection with pagination
         cursor = ranking_collection.find(query_filter).limit(limit)
 
-        hashes = []
-        for doc in cursor:
-            # Determine the hash of the unselected image
-            unselected_image_hash = (doc["image_2_metadata"]["file_hash"] if doc["selected_image_index"] == 0
-                                     else doc["image_1_metadata"]["file_hash"])
-            hashes.extend([doc["selected_image_hash"], unselected_image_hash])
-
-        # Fetch relevant jobs using collected hashes
-        jobs = {job["task_output_file_dict"]["output_file_hash"]: job for job in jobs_collection.find({"task_output_file_dict.output_file_hash": {"$in": hashes}})}
 
         selection_data = []
-        for doc in cursor.rewind():
-            if "flagged" in doc:
-                continue  # Skip processing for flagged documents
+        for doc in cursor:
+            selected_image_index = doc["selected_image_index"]
+            selected_image_hash = doc["selected_image_hash"]
+            selected_image_path = doc["image_1_metadata"]["file_path"] if selected_image_index == 0 else doc["image_2_metadata"]["file_path"]
+            # Determine unselected image hash and path based on selected_image_index
+            if selected_image_index == 0:
+                unselected_image_hash = doc["image_2_metadata"]["file_hash"]
+                unselected_image_path = doc["image_2_metadata"]["file_path"]
+            else:
+                unselected_image_hash = doc["image_1_metadata"]["file_hash"]
+                unselected_image_path = doc["image_1_metadata"]["file_path"]
 
-            selected_image_job = jobs.get(doc["selected_image_hash"])
-            unselected_image_hash = (doc["image_2_metadata"]["file_hash"] if doc["selected_image_index"] == 0
-                                     else doc["image_1_metadata"]["file_hash"])
-            unselected_image_job = jobs.get(unselected_image_hash)
+            # Fetch scores from completed_jobs_collection for both images
+            selected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
+            unselected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
 
-            # Skip if either job lacks task_attributes_dict
+            # Skip this job if task_attributes_dict is missing
             if not selected_image_job or "task_attributes_dict" not in selected_image_job or not unselected_image_job or "task_attributes_dict" not in unselected_image_job:
                 continue
 
-            selected_image_scores = selected_image_job["task_attributes_dict"].get(model_type, {})
-            unselected_image_scores = unselected_image_job["task_attributes_dict"].get(model_type, {})
+            # Extract scores for both images
+            selected_image_scores = selected_image_job["task_attributes_dict"][model_type]
+            unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type]
 
-            # Prepare data entry, ensuring scores default to None if missing
-            entry = {
-                "image_1_hash": doc["selected_image_hash"],
-                "image_1_file_path": doc["image_1_metadata"]["file_path"],
-                "image_1_clip_sigma_score": selected_image_scores.get("image_clip_sigma_score"),
-                "image_1_text_embedding_sigma_score": selected_image_scores.get("text_embedding_sigma_score"),
-                "image_2_hash": unselected_image_hash,
-                "image_2_file_path": doc["image_2_metadata"]["file_path"],
-                "image_2_clip_sigma_score": unselected_image_scores.get("image_clip_sigma_score"),
-                "image_2_text_embedding_sigma_score": unselected_image_scores.get("text_embedding_sigma_score"),
-                "delta_score": abs(selected_image_scores.get("image_clip_sigma_score", 0) - unselected_image_scores.get("image_clip_sigma_score", 0))
-            }
-            selection_data.append(entry)
+            delta_score = abs(selected_image_scores.get("image_clip_sigma_score", 0) - unselected_image_scores.get("image_clip_sigma_score", 0))
+            selection_data.append({
+                "selected_image": {
+                    "selected_image_path": selected_image_path,
+                    "selected_image_hash": selected_image_hash,
+                    "selected_image_clip_sigma_score": selected_image_scores.get("image_clip_sigma_score", None),
+                    "selected_text_embedding_sigma_score": selected_image_scores.get("text_embedding_sigma_score", None)
+                },
+                "unselected_image": {
+                    "unselected_image_path": unselected_image_path,
+                    "unselected_image_hash": unselected_image_hash,
+                    "unselected_image_clip_sigma_score": unselected_image_scores.get("image_clip_sigma_score", None),
+                    "unselected_text_embedding_sigma_score": unselected_image_scores.get("text_embedding_sigma_score", None)
+                },
+                "delta_score": delta_score
+            })
 
-        # Implement sorting based on the sort_by parameter
-        if sort_by in ["image_1_clip_sigma_score", "image_1_text_embedding_sigma_score", "image_2_clip_sigma_score", "image_2_text_embedding_sigma_score", "delta_score"]:
-            sorted_selection_data = sorted(selection_data, key=lambda x: x.get(sort_by) or 0, reverse=True)
+        # Adjust sorting logic based on 'order' parameter
+        if order == "asc":
+            # Sort ascending
+            sorted_selection_data = sorted(selection_data, key=lambda x: x[sort_by], reverse=False)
         else:
-            sorted_selection_data = selection_data  # Fallback to no sorting if sort_by is not recognized
+            # Sort descending (default)
+            sorted_selection_data = sorted(selection_data, key=lambda x: x[sort_by], reverse=True)
 
         return response_handler.create_success_response(
             sorted_selection_data,
@@ -739,4 +758,4 @@ def list_selection_data_with_scores(
         )
 
     except Exception as e:
-        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, str(e), 500)
+        raise HTTPException(status_code=500, detail=str(e))
