@@ -34,14 +34,20 @@ class ForestActiveLearningPipeline:
             device = 'cpu'
         self.device = torch.device(device)
 
-        # Define thresholds for high and low cosine similarity
+        # Define thresholds for high and low cosine similarity and quality
         self.high_cosine_threshold = high_cosine_threshold  
         self.low_cosine_threshold = low_cosine_threshold
         self.quality_threshold = quality_threshold 
         
+        # connect to minio
         self.connect_to_minio_client(minio_addr, minio_access_key, minio_secret_key)
+        # load clip scoring model
         self.load_scoring_model()
+        # load clip model
         self.clip_model = ClipModel(device=device)
+        self.clip_model.load_clip()
+        self.clip_model.load_tokenizer()
+        # calculate clip embedding for forest
         self.text_clip=self.compute_clip_vector("forest")
 
     def get_jobs(self):
