@@ -673,9 +673,9 @@ def list_selection_data_with_scores(
     model_type: str = Query(..., regex="^(linear|elm-v1)$"),
     dataset: str = Query(None),  # Dataset parameter for filtering
     limit: int = Query(10, alias="limit"),
-    sort_by: str = Query("delta_score")  # Default sorting parameter
+    sort_by: str = Query("delta_score"),  # Default sorting parameter
+    include_tagged: bool = Query(None)  # Optional: Include, Exclude, or Indifferent to tagged documents
 ):
-    
     response_handler = ApiResponseHandler(request)
     
     try:
@@ -683,11 +683,16 @@ def list_selection_data_with_scores(
         ranking_collection = request.app.image_pair_ranking_collection
         jobs_collection = request.app.completed_jobs_collection
 
-        # Build query filter based on dataset
+        # Build query filter based on dataset, excluding flagged documents by default
         query_filter = {"dataset": dataset, "flagged": {"$exists": False}} if dataset else {"flagged": {"$exists": False}}
+
+        # Adjust query filter based on the "include_tagged" parameter
+        if include_tagged is not None:
+            query_filter["tagged"] = include_tagged
 
         # Fetch data from image_pair_ranking_collection with pagination
         cursor = ranking_collection.find(query_filter).limit(limit)
+
 
         selection_data = []
         for doc in cursor:
@@ -740,4 +745,20 @@ def list_selection_data_with_scores(
         )
 
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/image-pair-ranking/count", response_description="Count documents with 'ranking_image_pair'")
+def count_ranking_image_pairs(request: Request):
+    try:
+        # Connect to the image_pair_ranking_collection
+        collection = request.app.image_pair_ranking_collection
+        
+        # Count documents where 'ranking_image_pair' field exists
+        count = collection.count_documents({"ranking_image_pair": {"$exists": True}})
+        
+        # Return the count
+        return {"count": count}
+
+    except Exception as e:
+        # Handle unexpected errors
         raise HTTPException(status_code=500, detail=str(e))
