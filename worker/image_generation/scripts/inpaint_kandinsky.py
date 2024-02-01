@@ -113,7 +113,25 @@ class KandinskyInpaintingPipeline:
             logger.debug(f"Kandinsky Inpainting model successfully loaded")
    
     def unload_models(self):
-        pass
+        if self.image_encoder is not None:
+            self.image_encoder.to("cpu")
+            del self.image_encoder
+            self.image_encoder = None
+        
+        if self.unet is not None:
+            self.unet.to("cpu")
+            del self.unet
+            self.unet = None
+        
+        if self.prior is not None:
+            self.prior.to("cpu")
+            del self.prior
+            self.prior = None
+        
+        if self.decoder is not None:
+            self.decoder.to("cpu")
+            del self.decoder
+            self.decoder = None
 
     def get_new_h_w(self, h, w):
         new_h = h // 64
