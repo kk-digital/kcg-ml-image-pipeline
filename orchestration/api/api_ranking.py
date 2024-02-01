@@ -672,9 +672,10 @@ def list_selection_data_with_scores(
     request: Request,
     model_type: str = Query(..., regex="^(linear|elm-v1)$"),
     dataset: str = Query(None),  # Dataset parameter for filtering
+    include_tagged: bool = Query(None),  # Optional: Include, Exclude, or Indifferent to tagged documents
     limit: int = Query(10, alias="limit"),
-    sort_by: str = Query("delta_score"),  # Default sorting parameter
-    include_tagged: bool = Query(None)  # Optional: Include, Exclude, or Indifferent to tagged documents
+    sort_by: str = Query("delta_score"),
+    order: str = Query("desc")  # Added parameter for sort order  # Default sorting parameter
 ):
     response_handler = ApiResponseHandler(request)
     
@@ -736,8 +737,13 @@ def list_selection_data_with_scores(
                 "delta_score": delta_score
             })
 
-        # Sort selection_data by delta_score
-        sorted_selection_data = sorted(selection_data, key=lambda x: x[sort_by], reverse=True)
+        # Adjust sorting logic based on 'order' parameter
+        if order == "asc":
+            # Sort ascending
+            sorted_selection_data = sorted(selection_data, key=lambda x: x[sort_by], reverse=False)
+        else:
+            # Sort descending (default)
+            sorted_selection_data = sorted(selection_data, key=lambda x: x[sort_by], reverse=True)
 
         return response_handler.create_success_response(
             sorted_selection_data,
