@@ -52,15 +52,14 @@ class ForestActiveLearningPipeline:
 
     def get_jobs(self):
         print('Loading image file paths for environmntal dataset.........')
-        
-        start_date = datetime(year=1, month=1, day=1).strftime('%Y-%m-%d')
-        end_date= datetime.now().strftime('%Y-%m-%d')
 
-        response = requests.get(f'{API_URL}/queue/image-generation/list-by-date?start_date={start_date}&end_date={end_date}')
+        response = requests.get(f'{API_URL}/queue/image-generation/list-completed-by-dataset?dataset=environmental')
         
         jobs = json.loads(response.content)
 
-        return jobs['environmental']
+        print(jobs)
+
+        return jobs
 
     def connect_to_minio_client(self, minio_addr: str, minio_access_key: str, minio_secret_key: str):
 
