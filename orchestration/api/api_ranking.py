@@ -655,6 +655,7 @@ def find_duplicate_filenames_in_mongo(collection):
     return [doc['file_name'] for doc in collection.aggregate(pipeline)]
 
 
+
 @router.get("/selection/list-selection-data-with-scores", response_description="List selection datapoints with detailed scores")
 def list_selection_data_with_scores(
     request: Request,
@@ -662,6 +663,7 @@ def list_selection_data_with_scores(
     dataset: str = Query(None),  # Dataset parameter for filtering
     limit: int = Query(10, alias="limit")
 ):
+    response_handler = ApiResponseHandler(request)
     try:
         # Connect to the MongoDB collections
         ranking_collection = request.app.image_pair_ranking_collection
@@ -673,21 +675,27 @@ def list_selection_data_with_scores(
         # Fetch data from image_pair_ranking_collection with pagination
         cursor = ranking_collection.find(query_filter).limit(limit)
 
-        selection_data = []
+        # Build a list of hashes
+        hashes = []
         for doc in cursor:
+            hashes.append(doc["selected_image_hash"])
+            unselected_hash = doc["image_2_metadata"]["file_hash"] if doc["selected_image_index"] == 0 else doc["image_1_metadata"]["file_hash"]
+            hashes.append(unselected_hash)
+
+        # Fetch all relevant jobs in one query
+        jobs = {job["task_output_file_dict"]["output_file_hash"]: job for job in jobs_collection.find({"task_output_file_dict.output_file_hash": {"$in": hashes}})}
+
+        selection_data = []
+        for doc in cursor.rewind():
             selected_image_hash = doc["selected_image_hash"]
-            # Determine unselected image hash based on selected_image_index
             unselected_image_hash = doc["image_2_metadata"]["file_hash"] if doc["selected_image_index"] == 0 else doc["image_1_metadata"]["file_hash"]
 
-            # Fetch scores from completed_jobs_collection for both images
-            selected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
-            unselected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
+            selected_image_job = jobs.get(selected_image_hash)
+            unselected_image_job = jobs.get(unselected_image_hash)
 
-            # Check if task_attributes_dict exists for both jobs
             if not selected_image_job or "task_attributes_dict" not in selected_image_job or not unselected_image_job or "task_attributes_dict" not in unselected_image_job:
-                continue  # Skip this job if task_attributes_dict is missing
+                continue
 
-            # Extract scores for both images
             selected_image_scores = selected_image_job["task_attributes_dict"][model_type]
             unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type]
             
@@ -696,21 +704,25 @@ def list_selection_data_with_scores(
             selection_data.append({
                 "selected_image": {
                     "hash": selected_image_hash,
+                    "file_path": doc["image_1_metadata"]["file_path"] if doc["selected_image_index"] == 0 else doc["image_2_metadata"]["file_path"],
                     "image_clip_sigma_score": selected_image_scores.get("image_clip_sigma_score", None),
                     "text_embedding_sigma_score": selected_image_scores.get("text_embedding_sigma_score", None)
                 },
                 "unselected_image": {
                     "hash": unselected_image_hash,
+                    "file_path": doc["image_2_metadata"]["file_path"] if doc["selected_image_index"] == 0 else doc["image_1_metadata"]["file_path"],
                     "image_clip_sigma_score": unselected_image_scores.get("image_clip_sigma_score", None),
                     "text_embedding_sigma_score": unselected_image_scores.get("text_embedding_sigma_score", None)
                 },
                 "delta_score": delta_score
             })
 
-        # Sort selection_data by delta_score
         sorted_selection_data = sorted(selection_data, key=lambda x: x["delta_score"], reverse=True)
 
-        return sorted_selection_data
+        return response_handler.create_success_response(
+            sorted_selection_data,
+            200
+        )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
