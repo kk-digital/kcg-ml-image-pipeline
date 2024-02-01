@@ -173,32 +173,6 @@ class ELMRegression():
         # upload the model
         cmd.upload_data(minio_client, datasets_bucket, model_output_path, buffer)
 
-    def load_model(self, model_path):
-        if not os.path.exists(model_path):
-            raise Exception("Model path cannot be found")
-
-        checkpoint = torch.load(model_path)
-
-        self.model_type = checkpoint['model-type']
-        self.tag_string = checkpoint['tag-string']
-        self.model_file_path = checkpoint['model-file-path']
-        self.model_hash = checkpoint['model-hash']
-        self.date = checkpoint['date']
-
-        self._input_size = checkpoint['input-size']
-        self._hidden_layer_neuron_count = checkpoint['hidden-layer-neuron-count']
-        self._output_size = checkpoint['output-size']
-
-        self._weight = checkpoint['weight']
-        self._beta = checkpoint['beta']
-        self._bias = checkpoint['bias']
-
-        self.loss_func_name = checkpoint['loss-func']
-        self.activation_func_name = checkpoint['activation-func']
-        self._activation = self.get_activation_func(self.activation_func_name)
-
-        print("Model loaded: {}".format(model_path))
-
     def load_safetensors(self, model_buffer):
         data = model_buffer.read()
         safetensors_data = safetensors_load(data)
