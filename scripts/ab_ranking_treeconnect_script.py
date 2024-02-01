@@ -343,6 +343,14 @@ def test_run():
                   randomize_data_per_epoch=True,
                   )
 
-
+import time
+# Record the start
+start_time = time.time()
 if __name__ == '__main__':
     test_run()
+# Record the end time
+end_time = time.time()
+
+# Calculate and print the elapsed time
+elapsed_time = end_time - start_time
+print(f"Elapsed Time: {elapsed_time} seconds")

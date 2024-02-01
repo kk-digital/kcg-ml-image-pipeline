@@ -109,7 +109,7 @@ class TreeConnectArchitectureTanhRankingBig(nn.Module):
 
         #x = 5 * torch.tanh(self.fc(x))  # Apply tanh and scale
         x = self.fc(x)
-        print("the shape is ",x.shape)
+        
         return x
     
 
