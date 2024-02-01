@@ -18,13 +18,14 @@ sys.path.insert(0, os.getcwd())
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from utility.minio import cmd
 from utility.minio.cmd import connect_to_minio_client
-from clip_server.server_state import ClipServer
+from utility.clip.clip import ClipModel
 
 API_URL = "http://192.168.3.1:8111"
 
 class ForestActiveLearningPipeline:
 
-    def __init__(self, minio_addr: str, minio_access_key: str, minio_secret_key: str):
+    def __init__(self, minio_addr: str, minio_access_key: str, minio_secret_key: str,
+                 high_cosine_threshold: float, low_cosine_threshold: float, quality_threshold: float):
 
         # get device
         if torch.cuda.is_available():
@@ -34,13 +35,14 @@ class ForestActiveLearningPipeline:
         self.device = torch.device(device)
 
         # Define thresholds for high and low cosine similarity
-        self.high_cosine_threshold = 0.19  
-        self.low_cosine_threshold = 0.15
-        self.quality_threshold = 0.5 
+        self.high_cosine_threshold = high_cosine_threshold  
+        self.low_cosine_threshold = low_cosine_threshold
+        self.quality_threshold = quality_threshold 
         
         self.connect_to_minio_client(minio_addr, minio_access_key, minio_secret_key)
         self.load_scoring_model()
-        self.similarity_calculator= ClipServer(device=self.device, minio_client= self.client)
+        self.clip_model = ClipModel(device=device)
+        self.text_clip=self.compute_clip_vector("forest")
 
     def get_jobs(self):
         print('Loading image file paths for environmntal dataset.........')
@@ -59,6 +61,52 @@ class ForestActiveLearningPipeline:
         )
 
         self.bucket_name = 'datasets'
+    
+    # compute text clip vector
+    def compute_clip_vector(self, text):
+        clip_vector_gpu = self.clip_model.get_text_features(text)
+        clip_vector_cpu = clip_vector_gpu.cpu()
+
+        del clip_vector_gpu
+
+        clip_vector = clip_vector_cpu.tolist()
+        return clip_vector
+    
+    # compute clip similarity
+    def compute_cosine_match_value(self, image_clip):
+
+        # convert numpy array to tensors
+        phrase_clip_vector = torch.tensor(self.text_clip, dtype=torch.float32, device=self.device)
+        image_clip_vector = torch.tensor(image_clip, dtype=torch.float32, device=self.device)
+
+        #check the vector size
+        assert phrase_clip_vector.size() == (1, 768), f"Expected size (1, 768), but got {phrase_clip_vector.size()}"
+        assert image_clip_vector.size() == (1, 768), f"Expected size (1, 768), but got {image_clip_vector.size()}"
+
+        # removing the extra dimension
+        # from shape (1, 768) => (768)
+        phrase_clip_vector = phrase_clip_vector.squeeze(0)
+        image_clip_vector = image_clip_vector.squeeze(0)
+
+        # Normalizing the tensor
+        normalized_phrase_clip_vector = torch.nn.functional.normalize(phrase_clip_vector.unsqueeze(0), p=2, dim=1)
+        normalized_image_clip_vector = torch.nn.functional.normalize(image_clip_vector.unsqueeze(0), p=2, dim=1)
+
+        # removing the extra dimension
+        # from shape (1, 768) => (768)
+        normalized_phrase_clip_vector = normalized_phrase_clip_vector.squeeze(0)
+        normalized_image_clip_vector = normalized_image_clip_vector.squeeze(0)
+
+        # cosine similarity
+        similarity = torch.dot(normalized_phrase_clip_vector, normalized_image_clip_vector)
+
+        # cleanup
+        del phrase_clip_vector
+        del image_clip_vector
+        del normalized_phrase_clip_vector
+        del normalized_image_clip_vector
+
+        return similarity.item()
     
     # load elm scoring model
     def load_scoring_model(self):
@@ -94,7 +142,6 @@ class ForestActiveLearningPipeline:
         self.mean=float(self.ranking_model.mean)
         self.std=float(self.ranking_model.standard_deviation)
 
-
     def get_score(self, vision_emb):
         with torch.no_grad():
             score = self.ranking_model.predict_clip(torch.tensor(vision_emb).cuda()).item()
@@ -126,7 +173,7 @@ class ForestActiveLearningPipeline:
 
             # calculate score and clip similarity
             image_score = self.get_score(embedding)
-            image_similarity = self.similarity_calculator.compute_cosine_match_value("forest", file_path)
+            image_similarity = self.compute_cosine_match_value(image_clip=embedding)
 
             # store job data
             job_data.append({
@@ -186,20 +233,12 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     # Required parameters
-    parser.add_argument("--pca-model-path", type=str,
-                        help="The path to PCA model npz file", default="input/model/active_learning/pca.npz")
-    parser.add_argument("--kmeans-model-path", type=str,
-                        help="The path to KMeans model npz file", default="input/model/active_learning/kmeans.npz")
-    parser.add_argument("--pairs", type=int, default=1000,
-                        help="The number of pairs")
-    parser.add_argument("--bins", type=int, default=10,
-                        help="The number of bins")
-    parser.add_argument("--bin-type", type=str, default='quantile',
-                        help="The binning method: fixed-range or quantile")
-    parser.add_argument("--min-sigma-score", type=float, 
-                        help="minimum sigma score when filtering images", default=0)
-    parser.add_argument("--min-variance", type=float, 
-                        help="minimum sigma score when filtering images", default=0.01)
+    parser.add_argument("--quality-threshold", type=float,
+                        help="threshold of difference in quality between pairs", default=0.5)
+    parser.add_argument("--high-cosine-threshold", type=float,
+                        help="Min cosine similarity for forest related images", default=0.19)
+    parser.add_argument("--low-cosine-threshold", type=float,
+                        help="Max cosine similaritiy for non-forest related images", default=0.15)
     
     parser.add_argument("--minio-addr", type=str, default=None,
                         help="The minio server ip address")
@@ -217,7 +256,10 @@ def main():
     pipeline = ForestActiveLearningPipeline(
         minio_addr=args.minio_addr,
         minio_access_key=args.minio_access_key,
-        minio_secret_key=args.minio_secret_key
+        minio_secret_key=args.minio_secret_key,
+        high_cosine_threshold=args.high_cosine_threshold,
+        low_cosine_threshold=args.low_cosine_threshold,
+        quality_threshold=args.quality_threshold,
     )
 
     # get list of pairs
