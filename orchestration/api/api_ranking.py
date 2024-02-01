@@ -677,40 +677,44 @@ def list_selection_data_with_scores(
 ):
     response_handler = ApiResponseHandler(request)
     try:
-         # Connect to the MongoDB collections
         ranking_collection = request.app.image_pair_ranking_collection
         jobs_collection = request.app.completed_jobs_collection
 
-        # Build query filter based on dataset
+        # Filter to exclude flagged documents and match the dataset if provided
         query_filter = {"dataset": dataset} if dataset else {}
+        query_filter["flagged"] = {"$ne": True}
 
-        # Fetch data from image_pair_ranking_collection with pagination
         cursor = ranking_collection.find(query_filter).limit(limit)
 
-        # Build a list of hashes
         hashes = []
         for doc in cursor:
-            hashes.extend([doc["selected_image_hash"], doc.get("image_2_metadata", {}).get("file_hash", "")])
+            # Determine the hash of the unselected image
+            unselected_image_hash = (doc["image_2_metadata"]["file_hash"] if doc["selected_image_index"] == 0
+                                     else doc["image_1_metadata"]["file_hash"])
+            hashes.extend([doc["selected_image_hash"], unselected_image_hash])
 
-        # Fetch all relevant jobs in one query
+        # Fetch relevant jobs using collected hashes
         jobs = {job["task_output_file_dict"]["output_file_hash"]: job for job in jobs_collection.find({"task_output_file_dict.output_file_hash": {"$in": hashes}})}
 
         selection_data = []
         for doc in cursor.rewind():
+            if "flagged" in doc:
+                continue  # Skip processing for flagged documents
+
             selected_image_job = jobs.get(doc["selected_image_hash"])
-            unselected_image_hash = doc["image_2_metadata"]["file_hash"] if doc["selected_image_index"] == 0 else doc["image_1_metadata"]["file_hash"]
+            unselected_image_hash = (doc["image_2_metadata"]["file_hash"] if doc["selected_image_index"] == 0
+                                     else doc["image_1_metadata"]["file_hash"])
             unselected_image_job = jobs.get(unselected_image_hash)
 
-            # Skip if task_attributes_dict does not exist for either job
+            # Skip if either job lacks task_attributes_dict
             if not selected_image_job or "task_attributes_dict" not in selected_image_job or not unselected_image_job or "task_attributes_dict" not in unselected_image_job:
                 continue
 
-            # Extract scores, ensuring a default of None if not present
-            selected_image_scores = selected_image_job.get("task_attributes_dict", {}).get(model_type, {})
-            unselected_image_scores = unselected_image_job.get("task_attributes_dict", {}).get(model_type, {})
+            selected_image_scores = selected_image_job["task_attributes_dict"].get(model_type, {})
+            unselected_image_scores = unselected_image_job["task_attributes_dict"].get(model_type, {})
 
-            # Default scores to None if they are missing
-            selection_data.append({
+            # Prepare data entry, ensuring scores default to None if missing
+            entry = {
                 "image_1_hash": doc["selected_image_hash"],
                 "image_1_file_path": doc["image_1_metadata"]["file_path"],
                 "image_1_clip_sigma_score": selected_image_scores.get("image_clip_sigma_score"),
@@ -720,7 +724,8 @@ def list_selection_data_with_scores(
                 "image_2_clip_sigma_score": unselected_image_scores.get("image_clip_sigma_score"),
                 "image_2_text_embedding_sigma_score": unselected_image_scores.get("text_embedding_sigma_score"),
                 "delta_score": abs(selected_image_scores.get("image_clip_sigma_score", 0) - unselected_image_scores.get("image_clip_sigma_score", 0))
-            })
+            }
+            selection_data.append(entry)
 
         # Implement sorting based on the sort_by parameter
         if sort_by in ["image_1_clip_sigma_score", "image_1_text_embedding_sigma_score", "image_2_clip_sigma_score", "image_2_text_embedding_sigma_score", "delta_score"]:
@@ -734,4 +739,4 @@ def list_selection_data_with_scores(
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, str(e), 500)
