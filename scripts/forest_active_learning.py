@@ -181,7 +181,6 @@ class ForestActiveLearningPipeline:
                 decoded_data = msgpack.unpackb(data)
                 embedding= np.array(decoded_data['clip-feature-vector']).astype('float32')
                 
-                # Process the embedding here
                 
             except Exception as e:
                 # Handle the exception (e.g., log the error message)
