@@ -673,7 +673,7 @@ def list_selection_data_with_scores(
     model_type: str = Query(..., regex="^(linear|elm-v1)$"),
     dataset: str = Query(None),  # Dataset parameter for filtering
     limit: int = Query(10, alias="limit"),
-    sort_by: str = Query("delta_score")
+    sort_by: str = Query("delta_score")  # Default sorting parameter
 ):
     response_handler = ApiResponseHandler(request)
     try:
@@ -701,21 +701,24 @@ def list_selection_data_with_scores(
             unselected_image_hash = doc["image_2_metadata"]["file_hash"] if doc["selected_image_index"] == 0 else doc["image_1_metadata"]["file_hash"]
             unselected_image_job = jobs.get(unselected_image_hash)
 
-            if not (selected_image_job and unselected_image_job):
+            # Skip if task_attributes_dict does not exist for either job
+            if not selected_image_job or "task_attributes_dict" not in selected_image_job or not unselected_image_job or "task_attributes_dict" not in unselected_image_job:
                 continue
 
+            # Extract scores, ensuring a default of None if not present
             selected_image_scores = selected_image_job.get("task_attributes_dict", {}).get(model_type, {})
             unselected_image_scores = unselected_image_job.get("task_attributes_dict", {}).get(model_type, {})
 
+            # Default scores to None if they are missing
             selection_data.append({
                 "image_1_hash": doc["selected_image_hash"],
                 "image_1_file_path": doc["image_1_metadata"]["file_path"],
-                "image_1_clip_sigma_score": selected_image_scores.get("image_clip_sigma_score", None),
-                "image_1_text_embedding_sigma_score": selected_image_scores.get("text_embedding_sigma_score", None),
+                "image_1_clip_sigma_score": selected_image_scores.get("image_clip_sigma_score"),
+                "image_1_text_embedding_sigma_score": selected_image_scores.get("text_embedding_sigma_score"),
                 "image_2_hash": unselected_image_hash,
                 "image_2_file_path": doc["image_2_metadata"]["file_path"],
-                "image_2_clip_sigma_score": unselected_image_scores.get("image_clip_sigma_score", None),
-                "image_2_text_embedding_sigma_score": unselected_image_scores.get("text_embedding_sigma_score", None),
+                "image_2_clip_sigma_score": unselected_image_scores.get("image_clip_sigma_score"),
+                "image_2_text_embedding_sigma_score": unselected_image_scores.get("text_embedding_sigma_score"),
                 "delta_score": abs(selected_image_scores.get("image_clip_sigma_score", 0) - unselected_image_scores.get("image_clip_sigma_score", 0))
             })
 
