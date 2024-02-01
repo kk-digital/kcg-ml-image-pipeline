@@ -658,10 +658,10 @@ def find_duplicate_filenames_in_mongo(collection):
 @router.get("/ranking/list-score-fields")
 def list_score_fields(request: Request):
     # hard code score fields for now
-    fields = ["image_1_clip_sigma_score",
-              "image_1_text_embedding_sigma_score",
-              "image_2_clip_sigma_score",
-              "image_2_text_embedding_sigma_score",
+    fields = ["selected_image_clip_sigma_score",
+              "selected_text_embedding_sigma_score",
+              "unselected_image_clip_sigma_score",
+              "unselected_text_embedding_sigma_score",
               "delta_score"]
 
     return fields
@@ -670,32 +670,50 @@ def list_score_fields(request: Request):
 @router.get("/selection/list-selection-data-with-scores", response_description="List selection datapoints with detailed scores")
 def list_selection_data_with_scores(
     request: Request,
-    model_type: str = Query(..., regex="^(linear|elm-v1)$"),
+    model_type: str = Query(...),
     dataset: str = Query(None),  # Dataset parameter for filtering
-    limit: int = Query(10, alias="limit")
+    limit: int = Query(10, alias="limit"),
+    sort_by: str = Query("delta_score"),  # Default sorting parameter
+    include_tagged: bool = Query(True)  # New parameter to include/exclude tagged documents
 ):
+    response_handler = ApiResponseHandler(request)
     try:
-        # Connect to the MongoDB collections
         ranking_collection = request.app.image_pair_ranking_collection
         jobs_collection = request.app.completed_jobs_collection
-        # Build query filter based on dataset
-        query_filter = {"dataset": dataset} if dataset else {}
-        # Fetch data from image_pair_ranking_collection with pagination
+
+        # Adjust query filter based on dataset, flagged status, and tagged status
+        query_filter = {"flagged": {"$exists": False}}
+        if dataset:
+            query_filter["dataset"] = dataset
+        if include_tagged:
+            # Include documents that are tagged
+            query_filter["tagged"] = {"$exists": True, "$eq": True}
+        else:
+            # Exclude documents that are tagged
+            query_filter["tagged"] = {"$exists": False}
+
         cursor = ranking_collection.find(query_filter).limit(limit)
 
         selection_data = []
         for doc in cursor:
+            selected_image_index = doc["selected_image_index"]
             selected_image_hash = doc["selected_image_hash"]
-            # Determine unselected image hash based on selected_image_index
-            unselected_image_hash = doc["image_2_metadata"]["file_hash"] if doc["selected_image_index"] == 0 else doc["image_1_metadata"]["file_hash"]
+            selected_image_path = doc["image_1_metadata"]["file_path"] if selected_image_index == 0 else doc["image_2_metadata"]["file_path"]
+            # Determine unselected image hash and path based on selected_image_index
+            if selected_image_index == 0:
+                unselected_image_hash = doc["image_2_metadata"]["file_hash"]
+                unselected_image_path = doc["image_2_metadata"]["file_path"]
+            else:
+                unselected_image_hash = doc["image_1_metadata"]["file_hash"]
+                unselected_image_path = doc["image_1_metadata"]["file_path"]
 
             # Fetch scores from completed_jobs_collection for both images
             selected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
             unselected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
 
-            # Check if task_attributes_dict exists for both jobs
+            # Skip this job if task_attributes_dict is missing
             if not selected_image_job or "task_attributes_dict" not in selected_image_job or not unselected_image_job or "task_attributes_dict" not in unselected_image_job:
-                continue  # Skip this job if task_attributes_dict is missing
+                continue
 
             # Extract scores for both images
             selected_image_scores = selected_image_job["task_attributes_dict"][model_type]
@@ -704,22 +722,27 @@ def list_selection_data_with_scores(
             delta_score = abs(selected_image_scores.get("image_clip_sigma_score", 0) - unselected_image_scores.get("image_clip_sigma_score", 0))
             selection_data.append({
                 "selected_image": {
-                    "hash": selected_image_hash,
-                    "image_clip_sigma_score": selected_image_scores.get("image_clip_sigma_score", None),
-                    "text_embedding_sigma_score": selected_image_scores.get("text_embedding_sigma_score", None)
+                    "selected_image_path": selected_image_path,
+                    "selected_image_hash": selected_image_hash,
+                    "selected_image_clip_sigma_score": selected_image_scores.get("image_clip_sigma_score", None),
+                    "selected_text_embedding_sigma_score": selected_image_scores.get("text_embedding_sigma_score", None)
                 },
                 "unselected_image": {
-                    "hash": unselected_image_hash,
-                    "image_clip_sigma_score": unselected_image_scores.get("image_clip_sigma_score", None),
-                    "text_embedding_sigma_score": unselected_image_scores.get("text_embedding_sigma_score", None)
+                    "unselected_image_path": unselected_image_path,
+                    "unselected_image_hash": unselected_image_hash,
+                    "unselected_image_clip_sigma_score": unselected_image_scores.get("image_clip_sigma_score", None),
+                    "unselected_text_embedding_sigma_score": unselected_image_scores.get("text_embedding_sigma_score", None)
                 },
                 "delta_score": delta_score
             })
 
         # Sort selection_data by delta_score
-        sorted_selection_data = sorted(selection_data, key=lambda x: x["delta_score"], reverse=True)
+        sorted_selection_data = sorted(selection_data, key=lambda x: x[sort_by], reverse=True)
 
-        return sorted_selection_data
+        return response_handler.create_success_response(
+            sorted_selection_data,
+            200
+        )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
