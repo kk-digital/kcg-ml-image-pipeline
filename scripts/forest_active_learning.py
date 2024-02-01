@@ -169,7 +169,7 @@ class ForestActiveLearningPipeline:
 
         for job in tqdm(jobs, leave=False):
             
-            file_path= job['file_path']
+            file_path= job['task_output_file_dict']['output_file_path']
             # get clip embedding file path from image file path
             object_name = file_path.replace(f'{self.bucket_name}/', '')
             object_name = os.path.splitext(object_name.split('_')[0])[0]
@@ -186,7 +186,7 @@ class ForestActiveLearningPipeline:
 
             # store job data
             job_data.append({
-                "job_uuid": job["job_uuid"],
+                "job_uuid": job["uuid"],
                 "quality_score": image_score,
                 "cosine_similarity": image_similarity
             })
