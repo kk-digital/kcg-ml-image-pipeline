@@ -239,8 +239,8 @@ def train_ranking(dataset_name: str,
                                     validation_targets=validation_target_probabilities,
                                     training_pred_scores_img_x=training_predicted_score_images_x,
                                     training_pred_scores_img_y=training_predicted_score_images_y,
-                                    validation_pred_scores_img_x= 0, #validation_predicted_score_images_x,
-                                    validation_pred_scores_img_y= 0, #validation_predicted_score_images_y,
+                                    validation_pred_scores_img_x= validation_predicted_score_images_x,
+                                    validation_pred_scores_img_y= validation_predicted_score_images_y,
                                     training_total_size=training_total_size,
                                     validation_total_size=validation_total_size,
                                     training_losses=training_loss_per_epoch,
@@ -277,7 +277,7 @@ def train_ranking(dataset_name: str,
                                     saved_model_epoch=ab_model.lowest_loss_model_epoch)
 
     # upload the graph report
-    cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
+    #cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
 
     # get model card and upload
     model_card_name = "{}.json".format(filename)
