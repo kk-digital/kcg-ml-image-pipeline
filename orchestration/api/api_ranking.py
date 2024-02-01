@@ -670,28 +670,23 @@ def list_score_fields(request: Request):
 @router.get("/selection/list-selection-data-with-scores", response_description="List selection datapoints with detailed scores")
 def list_selection_data_with_scores(
     request: Request,
-    model_type: str = Query(...),
+    model_type: str = Query(..., regex="^(linear|elm-v1)$"),
     dataset: str = Query(None),  # Dataset parameter for filtering
     limit: int = Query(10, alias="limit"),
-    sort_by: str = Query("delta_score"),  # Default sorting parameter
-    include_tagged: bool = Query(True)  # New parameter to include/exclude tagged documents
+    sort_by: str = Query("delta_score")  # Default sorting parameter
 ):
+    
     response_handler = ApiResponseHandler(request)
+    
     try:
+        # Connect to the MongoDB collections
         ranking_collection = request.app.image_pair_ranking_collection
         jobs_collection = request.app.completed_jobs_collection
 
-        # Adjust query filter based on dataset, flagged status, and tagged status
-        query_filter = {"flagged": {"$exists": False}}
-        if dataset:
-            query_filter["dataset"] = dataset
-        if include_tagged:
-            # Include documents that are tagged
-            query_filter["tagged"] = {"$exists": True, "$eq": True}
-        else:
-            # Exclude documents that are tagged
-            query_filter["tagged"] = {"$exists": False}
+        # Build query filter based on dataset
+        query_filter = {"dataset": dataset, "flagged": {"$exists": False}} if dataset else {"flagged": {"$exists": False}}
 
+        # Fetch data from image_pair_ranking_collection with pagination
         cursor = ranking_collection.find(query_filter).limit(limit)
 
         selection_data = []
