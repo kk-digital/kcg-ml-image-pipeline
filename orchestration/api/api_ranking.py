@@ -672,10 +672,10 @@ def list_selection_data_with_scores(
     request: Request,
     model_type: str = Query(..., regex="^(linear|elm-v1)$"),
     dataset: str = Query(None),  # Dataset parameter for filtering
-    include_flagged: bool = Query(False),  # Default to False, only consider True/False conditions
+    include_flagged: bool = Query(False),  # Parameter to include or exclude flagged documents
     limit: int = Query(10, alias="limit"),
     sort_by: str = Query("delta_score"),  # Default sorting parameter
-    order: str = Query("desc")  # Added parameter for sort order
+    order: str = Query("desc")  # Parameter for sort order
 ):
     response_handler = ApiResponseHandler(request)
     
@@ -684,14 +684,18 @@ def list_selection_data_with_scores(
         ranking_collection = request.app.image_pair_ranking_collection
         jobs_collection = request.app.completed_jobs_collection
 
-        # Build query filter based on dataset and include_flagged
-        query_filter = {"dataset": dataset} if dataset else {}
-        # Adjust query to include or exclude flagged documents based on include_flagged
+        # Build query filter based on dataset
+        query_filter = {}
+        if dataset:
+            query_filter["dataset"] = dataset
+            
+        # Adjust the query filter based on the include_flagged parameter
         if include_flagged:
-            # Include documents where 'flagged' is True
-            query_filter["flagged"] = True
+            # If include_flagged is True, there's no need to filter out flagged documents
+            # This means flagged documents are included in the results
+            pass
         else:
-            # Exclude documents where 'flagged' is True or exists
+            # If include_flagged is False, ensure to exclude flagged documents
             query_filter["flagged"] = {"$ne": True}
 
         # Fetch data from image_pair_ranking_collection with pagination
