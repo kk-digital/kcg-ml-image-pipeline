@@ -101,6 +101,10 @@ class ABRankingModel:
         self.duplicate_flip_option = None
         self.randomize_data_per_epoch = None
 
+        # list of models per epoch
+        self.models_per_epoch = []
+        self.lowest_loss_model_epoch = None
+
     def _hash_model(self):
         """
         Hashes the current state of the model, and stores the hash in the
@@ -173,6 +177,25 @@ class ABRankingModel:
         
         # upload the model
         cmd.upload_data(minio_client, datasets_bucket, model_output_path, buffer)
+
+    def add_current_model_to_list(self):
+        # get tensors and metadata of current model
+        model, metadata = self.to_safetensors()
+
+        curr_model = {"model": model,
+                      "metadata": metadata}
+        self.models_per_epoch.append(curr_model)
+
+    def use_model_with_lowest_validation_loss(self, validation_loss_per_epoch):
+        lowest_index = validation_loss_per_epoch.index(min(validation_loss_per_epoch))
+        print("Using model at Epoch:", lowest_index)
+        lowest_validation_loss_model = self.models_per_epoch[lowest_index]
+        model = lowest_validation_loss_model["model"]
+
+        # load the model
+        self.model.load_state_dict(model)
+
+        self.lowest_loss_model_epoch = lowest_index
 
     def load_pth(self, model_buffer):
         # Loading state dictionary
@@ -404,6 +427,12 @@ class ABRankingModel:
 
             self.training_loss = epoch_training_loss.detach().cpu()
             self.validation_loss = epoch_validation_loss.detach().cpu()
+
+            # add current epoch's model
+            self.add_current_model_to_list()
+
+        # use lowest validation loss model
+        self.use_model_with_lowest_validation_loss(validation_loss_per_epoch)
 
         # Calculate model performance
         with torch.no_grad():

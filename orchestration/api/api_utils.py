@@ -38,6 +38,21 @@ class ImageData(BaseModel):
     image_hash: str
     score: float
 
+class TagResponse(BaseModel):
+    tag_id: int
+    tag_string: str 
+    tag_type: int
+    tag_category_id: int
+    tag_description: str  
+    tag_vector_index: int
+    deprecated: bool = False
+    user_who_created: str
+    creation_time: str
+
+class AddJob(BaseModel):
+    uuid: str
+    creation_time: str
+
 def validate_date_format(date_str: str):
     try:
         # Attempt to parse the date string using dateutil.parser

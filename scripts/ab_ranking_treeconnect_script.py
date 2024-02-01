@@ -7,6 +7,8 @@ from pytz import timezone
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
+
+from ab_ranking_treeconnect import ABRankingTreeConnectModel
 from utility.regression_utils import torchinfo_summary
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from training_worker.ab_ranking.model.reports.ab_ranking_train_report import get_train_report
@@ -42,7 +44,7 @@ def train_ranking(dataset_name: str,
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
-    network_type = "linear"
+    network_type = "treeconnect"
     output_type = "score"
     output_path = "{}/models/ranking".format(dataset_name)
 
@@ -289,7 +291,7 @@ def train_ranking(dataset_name: str,
 
     # add model card
     model_id = score_residual.add_model_card(model_card)
-    model_type = "linear"
+    model_type = "treeconnect"
     # upload residuals
     score_residual.upload_score_residual(model_type=model_type,
                                          train_prob_predictions=training_predicted_probabilities,
@@ -320,12 +322,12 @@ def run_ab_ranking_linear_task(training_task, minio_access_key, minio_secret_key
 
 
 def test_run():
-    train_ranking(dataset_name="propaganda-poster",
+    train_ranking(dataset_name="character", #environmental propaganda-poster
                   minio_ip_addr=None,  # will use defualt if none is given
-                  minio_access_key="nkjYl5jO4QnpxQU0k0M1",
-                  minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
+                  minio_access_key="D6ybtPLyUrca5IdZfCIM",
+                  minio_secret_key="2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
                   input_type="embedding-negative",
-                  epochs=10,
+                  epochs=5,
                   learning_rate=0.05,
                   train_percent=0.9,
                   training_batch_size=1,
@@ -341,5 +343,5 @@ def test_run():
                   )
 
 
-# if __name__ == '__main__':
-#     test_run()
+if __name__ == '__main__':
+    test_run()

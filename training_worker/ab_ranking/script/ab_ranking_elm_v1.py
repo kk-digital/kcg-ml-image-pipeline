@@ -38,7 +38,8 @@ def train_ranking(dataset_name: str,
                   target_option=constants.TARGET_1_AND_0,
                   duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL,
                   randomize_data_per_epoch=True,
-                  elm_sparsity=0.5):
+                  elm_sparsity=0.5,
+                  penalty_range = 5.0):
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
@@ -103,7 +104,8 @@ def train_ranking(dataset_name: str,
                                                    weight_decay=weight_decay,
                                                    add_loss_penalty=add_loss_penalty,
                                                    randomize_data_per_epoch=randomize_data_per_epoch,
-                                                   debug_asserts=debug_asserts)
+                                                   debug_asserts=debug_asserts,
+                                                   penalty_range=penalty_range)
 
     # data for chronological score graph
     training_shuffled_indices_origin = []
@@ -273,7 +275,10 @@ def train_ranking(dataset_name: str,
                                     elm_sparsity=elm_sparsity,
                                     training_shuffled_indices_origin=training_shuffled_indices_origin,
                                     validation_shuffled_indices_origin=validation_shuffled_indices_origin,
-                                    total_selection_datapoints=dataset_loader.total_selection_datapoints)
+                                    total_selection_datapoints=dataset_loader.total_selection_datapoints,
+                                    loss_penalty_range=penalty_range,
+                                    saved_model_epoch=ab_model.lowest_loss_model_epoch
+                                    )
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name, graph_output_path, graph_buffer)
 

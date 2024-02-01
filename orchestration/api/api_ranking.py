@@ -9,6 +9,7 @@ from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, Standa
 import random
 from collections import OrderedDict
 from bson import ObjectId
+from typing import Optional
 
 router = APIRouter()
 
@@ -237,6 +238,97 @@ def list_ranking_data(
 
     return ranking_data
 
+
+@router.get("/rank/sort-ranking-data-by-residual", response_class=PrettyJSONResponse)
+def list_ranking_data(
+    request: Request,
+    model_type: str = Query(..., description="Model type to filter by, e.g., 'linear' or 'elm-v1'"),
+    dataset: Optional[str] = Query(None, description="Dataset to filter by"),
+    start_date: str = Query(None),
+    end_date: str = Query(None),
+    skip: int = Query(0, alias="offset"),
+    limit: int = Query(10, alias="limit"),
+    order: str = Query("desc", regex="^(desc|asc)$")
+):
+    # Convert start_date and end_date strings to datetime objects, if provided
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
+
+    # Build the query filter based on dates, model_type, and dataset
+    query_filter = {"selected_residual.{}".format(model_type): {"$exists": True}}
+    if dataset:
+        query_filter["dataset"] = dataset
+    if start_date_obj or end_date_obj:
+        date_filter = {}
+        if start_date_obj:
+            date_filter["$gte"] = start_date_obj.strftime("%Y-%m-%d")
+        if end_date_obj:
+            date_filter["$lte"] = end_date_obj.strftime("%Y-%m-%d")
+        query_filter["file_name"] = date_filter
+
+    # Determine the sort order
+    sort_order = -1 if order == "desc" else 1
+
+    # Fetch data from MongoDB with pagination and sorting by residual value
+    cursor = request.app.image_pair_ranking_collection.find(query_filter).sort(
+        f"selected_residual.{model_type}", sort_order).skip(skip).limit(limit)
+
+    # Convert cursor to list of dictionaries
+    try:
+        ranking_data = []
+        for doc in cursor:
+            doc['_id'] = str(doc['_id'])  # Convert ObjectId to string
+            ranking_data.append(doc)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return ranking_data
+
+@router.get("/rank/sort-ranking-data-by-date", response_class=PrettyJSONResponse)
+def list_ranking_data(
+    request: Request,
+    model_type: str = Query(..., description="Model type to filter by, e.g., 'linear' or 'elm-v1'"),
+    dataset: Optional[str] = Query(None, description="Dataset to filter by"),
+    start_date: str = Query(None),
+    end_date: str = Query(None),
+    skip: int = Query(0, alias="offset"),
+    limit: int = Query(10, alias="limit"),
+    order: str = Query("desc", regex="^(desc|asc)$")
+):
+    # Convert start_date and end_date strings to datetime objects, if provided
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
+
+    # Build the query filter based on dates, model_type, and dataset
+    query_filter = {"selected_residual.{}".format(model_type): {"$exists": True}}
+    if dataset:
+        query_filter["dataset"] = dataset
+    if start_date_obj or end_date_obj:
+        date_filter = {}
+        if start_date_obj:
+            date_filter["$gte"] = start_date_obj.strftime("%Y-%m-%d")
+        if end_date_obj:
+            date_filter["$lte"] = end_date_obj.strftime("%Y-%m-%d")
+        query_filter["file_name"] = date_filter
+
+    # Determine the sort order
+    sort_order = -1 if order == "desc" else 1
+
+    # Fetch data from MongoDB with pagination and sorting by date
+    cursor = request.app.image_pair_ranking_collection.find(query_filter).sort(
+        "file_name", sort_order).skip(skip).limit(limit)
+
+    # Convert cursor to list of dictionaries
+    try:
+        ranking_data = []
+        for doc in cursor:
+            doc['_id'] = str(doc['_id'])  # Convert ObjectId to string
+            ranking_data.append(doc)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return ranking_data
+
 @router.get("/rank/count-ranking-data", response_class=PrettyJSONResponse)
 def count_ranking_data(request: Request):
     try:
@@ -248,6 +340,17 @@ def count_ranking_data(request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.get("/rank/count-selected-residual-data", response_class=PrettyJSONResponse)
+def count_ranking_data(request: Request):
+    try:
+        # Count documents that contain the 'selected_residual' field
+        count = request.app.image_pair_ranking_collection.count_documents({"selected_residual": {"$exists": True}})
+
+        return {"count": count}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/rank/delete-ranking-data-point-from-mongo")
 def delete_ranking_data_point(request: Request, id: str):
@@ -366,7 +469,7 @@ def add_selected_residual(
     query = {"selected_image_hash": image_hash}
     update_query = {"$set": {f"selected_residual.{model_type}": residual}}
 
-    result = request.app.image_pair_ranking_collection.update_one(query, update_query)
+    result = request.app.image_pair_ranking_collection.update_many(query, update_query)
 
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -374,7 +477,43 @@ def add_selected_residual(
     if result.modified_count == 0:
         raise HTTPException(status_code=304, detail="Job not updated, possibly no change in data")
 
-    return {"message": "Job selected residual updated successfully."}
+    return {"message": f"Updated {result.modified_count} job(s) selected residual successfully."}
+
+
+
+@router.put("/job/add-selected-residual-pair-v1", description="Adds the selected_residual for a pair of images based on their selection status in a job.")
+def add_selected_residual_pair(
+    request: Request,
+    selected_image_hash: str = Body(...),
+    unselected_image_hash: str = Body(...),
+    model_type: str = Body(...),
+    selected_residual: float = Body(...)
+):
+    try:
+        # Build the query based on selected_image_index and the unselected_image_hash
+        query = {
+            "$or": [
+                {"selected_image_hash": selected_image_hash, "image_2_metadata.file_hash": unselected_image_hash, "selected_image_index": 0},
+                {"selected_image_hash": selected_image_hash, "image_1_metadata.file_hash": unselected_image_hash, "selected_image_index": 1}
+            ]
+        }
+
+        # Update query for the selected image residual
+        update_query = {"$set": {f"selected_residual.{model_type}": selected_residual}}
+
+        # Perform the update for the matching object
+        result = request.app.image_pair_ranking_collection.update_one(query, update_query)
+
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Matching job not found for the image pair")
+
+        return {
+            "message": "Selected residual updated successfully for the image pair.",
+            "updated_count": result.modified_count
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/migrate/minio-to-mongodb", status_code=202, description="Migrate datapoints from Minio to MongoDB.")
@@ -398,8 +537,12 @@ def migrate_json_to_mongodb(minio_client, mongo_collection, minio_bucket):
     for dataset in list_datasets(minio_client, minio_bucket):
         folder_name = f'{dataset}/data/ranking/aggregate'
         print(f"Processing dataset '{dataset}' located at '{folder_name}' in bucket '{minio_bucket}'...")
+        
+        # Fetch all objects and sort them in reverse (e.g., by filename)
         objects = minio_client.list_objects(minio_bucket, prefix=folder_name, recursive=True)
-        for obj in objects:
+        sorted_objects = sorted(objects, key=lambda obj: obj.object_name, reverse=True)
+
+        for obj in sorted_objects:
             if obj.is_dir:
                 continue
 
@@ -420,7 +563,59 @@ def migrate_json_to_mongodb(minio_client, mongo_collection, minio_bucket):
 
             mongo_collection.insert_one(ordered_data)
             print(f"Migrated '{json_filename}' to MongoDB.")
-            
+
+
+
+def compare_and_migrate(minio_client, mongo_collection, minio_bucket: str):
+    migrated_files = []
+    missing_files = []  # Keep track of files in MinIO but not in MongoDB
+    mongo_filenames = set(mongo_collection.find().distinct("file_name"))
+
+    for dataset in list_datasets(minio_client, minio_bucket):
+        folder_name = f'{dataset}/data/ranking/aggregate'
+        objects = minio_client.list_objects(minio_bucket, prefix=folder_name, recursive=True)
+
+        for obj in objects:
+            if obj.is_dir or obj.object_name.endswith("/"):
+                continue
+
+            json_filename = obj.object_name.split('/')[-1]
+
+            if json_filename not in mongo_filenames:
+                missing_files.append(json_filename)  # Add to missing_files if not in MongoDB
+
+    mongo_file_count = mongo_collection.count_documents({})
+
+    print("Missing Files:", missing_files)  # Print the filenames that are present in MinIO but not in MongoDB
+
+    return migrated_files, missing_files, len(missing_files), mongo_file_count
+
+
+
+@router.post("/identify-missing-files/minio-mongodb", status_code=200, description="Identify missing files in MongoDB that are present in MinIO.")
+def identify_missing_files(request: Request, minio_bucket: str = 'datasets'):
+    api_handler = ApiResponseHandler(request)
+    
+    try:
+        _, missing_files, missing_file_count, mongo_count = compare_and_migrate(request.app.minio_client, request.app.image_pair_ranking_collection, minio_bucket)
+        return api_handler.create_success_response(
+            response_data={
+                "message": "Identification of missing files completed successfully.",
+                "missing_files": missing_files,
+                "missing_file_count": missing_file_count,
+                "mongodb_object_count": mongo_count
+            },
+            http_status_code=200
+        )
+    except Exception as e:
+        return api_handler.create_error_response(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+
+
+
 def list_datasets(minio_client, bucket_name):
     datasets = set()
     objects = minio_client.list_objects(bucket_name, recursive=False)
@@ -430,3 +625,137 @@ def list_datasets(minio_client, bucket_name):
             datasets.add(dataset_name)
     return list(datasets)
 
+
+@router.get("/find-duplicates", response_description="Find duplicate filenames")
+async def find_duplicates(request: Request):
+    try:
+        duplicates = find_duplicate_filenames_in_mongo(request.app.image_pair_ranking_collection)
+        return {
+            "status": "success",
+            "message": "Duplicate filenames found",
+            "duplicates": duplicates
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def find_duplicate_filenames_in_mongo(collection):
+    pipeline = [
+        {"$group": {
+            "_id": "$file_name",
+            "count": {"$sum": 1}
+        }},
+        {"$match": {
+            "count": {"$gt": 1}
+        }},
+        {"$project": {
+            "file_name": "$_id",
+            "_id": 0
+        }}
+    ]
+    return [doc['file_name'] for doc in collection.aggregate(pipeline)]
+
+
+@router.get("/ranking/list-score-fields")
+def list_score_fields(request: Request):
+    # hard code score fields for now
+    fields = ["selected_image_clip_sigma_score",
+              "selected_text_embedding_sigma_score",
+              "unselected_image_clip_sigma_score",
+              "unselected_text_embedding_sigma_score",
+              "delta_score"]
+
+    return fields
+
+
+@router.get("/selection/list-selection-data-with-scores", response_description="List selection datapoints with detailed scores")
+def list_selection_data_with_scores(
+    request: Request,
+    model_type: str = Query(..., regex="^(linear|elm-v1)$"),
+    dataset: str = Query(None),  # Dataset parameter for filtering
+    include_flagged: bool = Query(False),  # Parameter to include or exclude flagged documents
+    limit: int = Query(10, alias="limit"),
+    sort_by: str = Query("delta_score"),  # Default sorting parameter
+    order: str = Query("desc")  # Parameter for sort order
+):
+    response_handler = ApiResponseHandler(request)
+    
+    try:
+        # Connect to the MongoDB collections
+        ranking_collection = request.app.image_pair_ranking_collection
+        jobs_collection = request.app.completed_jobs_collection
+
+        # Build query filter based on dataset
+        query_filter = {}
+        if dataset:
+            query_filter["dataset"] = dataset
+            
+        # Adjust the query filter based on the include_flagged parameter
+        if include_flagged:
+            # If include_flagged is True, there's no need to filter out flagged documents
+            # This means flagged documents are included in the results
+            pass
+        else:
+            # If include_flagged is False, ensure to exclude flagged documents
+            query_filter["flagged"] = {"$ne": True}
+
+        # Fetch data from image_pair_ranking_collection with pagination
+        cursor = ranking_collection.find(query_filter).limit(limit)
+
+
+        selection_data = []
+        for doc in cursor:
+            selected_image_index = doc["selected_image_index"]
+            selected_image_hash = doc["selected_image_hash"]
+            selected_image_path = doc["image_1_metadata"]["file_path"] if selected_image_index == 0 else doc["image_2_metadata"]["file_path"]
+            # Determine unselected image hash and path based on selected_image_index
+            if selected_image_index == 0:
+                unselected_image_hash = doc["image_2_metadata"]["file_hash"]
+                unselected_image_path = doc["image_2_metadata"]["file_path"]
+            else:
+                unselected_image_hash = doc["image_1_metadata"]["file_hash"]
+                unselected_image_path = doc["image_1_metadata"]["file_path"]
+
+            # Fetch scores from completed_jobs_collection for both images
+            selected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
+            unselected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
+
+            # Skip this job if task_attributes_dict is missing
+            if not selected_image_job or "task_attributes_dict" not in selected_image_job or not unselected_image_job or "task_attributes_dict" not in unselected_image_job:
+                continue
+
+            # Extract scores for both images
+            selected_image_scores = selected_image_job["task_attributes_dict"][model_type]
+            unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type]
+
+            delta_score = abs(selected_image_scores.get("image_clip_sigma_score", 0) - unselected_image_scores.get("image_clip_sigma_score", 0))
+            selection_data.append({
+                "selected_image": {
+                    "selected_image_path": selected_image_path,
+                    "selected_image_hash": selected_image_hash,
+                    "selected_image_clip_sigma_score": selected_image_scores.get("image_clip_sigma_score", None),
+                    "selected_text_embedding_sigma_score": selected_image_scores.get("text_embedding_sigma_score", None)
+                },
+                "unselected_image": {
+                    "unselected_image_path": unselected_image_path,
+                    "unselected_image_hash": unselected_image_hash,
+                    "unselected_image_clip_sigma_score": unselected_image_scores.get("image_clip_sigma_score", None),
+                    "unselected_text_embedding_sigma_score": unselected_image_scores.get("text_embedding_sigma_score", None)
+                },
+                "delta_score": delta_score
+            })
+
+        # Adjust sorting logic based on 'order' parameter
+        if order == "asc":
+            # Sort ascending
+            sorted_selection_data = sorted(selection_data, key=lambda x: x[sort_by], reverse=False)
+        else:
+            # Sort descending (default)
+            sorted_selection_data = sorted(selection_data, key=lambda x: x[sort_by], reverse=True)
+
+        return response_handler.create_success_response(
+            sorted_selection_data,
+            200
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

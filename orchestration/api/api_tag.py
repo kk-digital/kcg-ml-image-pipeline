@@ -3,7 +3,7 @@ from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
 from orchestration.api.mongo_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory
 from typing import Union
-from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse
+from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagResponse
 import traceback
 from bson import ObjectId
 
@@ -165,6 +165,37 @@ def add_new_tag_definition(request: Request, tag_data: NewTagRequest):
 
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
     
+
+@router.get("/tags/id-by-tag-name", 
+             status_code=200,
+             tags=["tags"],
+             description="Get tag ID by tag name")
+def get_tag_id_by_name(request: Request, tag_string: str = Query(..., description="Tag name to fetch ID for")):
+    api_handler = ApiResponseHandler(request)
+
+    try:
+        # Find the tag with the provided name
+        tag = request.app.tag_definitions_collection.find_one({"tag_string": tag_string})
+
+        if tag is None:
+            return api_handler.create_error_response(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string="Tag not found",
+                http_status_code=404
+            )
+
+        tag_id = tag.get("tag_id")
+        return api_handler.create_success_response(
+            response_data={"tag_id": tag_id},
+            http_status_code=200
+        )
+
+    except Exception as e:
+        return api_handler.create_error_response(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string="Internal server error",
+            http_status_code=500
+        )
 
 @router.put("/tags/update_tag_definition")
 def update_tag_definition(request: Request, tag_id: int, update_data: TagDefinition):
@@ -462,7 +493,7 @@ def get_tag_vector_index(request: Request, tag_id: int):
     )    
 
 @router.post("/tags/add_tag_to_image", response_model=ImageTag)
-def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_created: str):
+def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: int, user_who_created: str):
     date_now = datetime.now().isoformat()
     
     # Check if the tag exists by tag_id
@@ -485,6 +516,7 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_cre
         "tag_id": tag_id,
         "file_path": file_path,  
         "image_hash": file_hash,
+        "tag_type": tag_type,
         "user_who_created": user_who_created,
         "creation_time": date_now
     }
@@ -503,7 +535,7 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_cre
     return image_tag_data
 
 @router.post("/tags/add_tag_to_image-v1", response_model=ImageTag, response_class=PrettyJSONResponse)
-def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_created: str):
+def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: int, user_who_created: str):
     response_handler = ApiResponseHandler(request)
     try:
         date_now = datetime.now().isoformat()
@@ -529,13 +561,14 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, user_who_cre
             "tag_id": tag_id,
             "file_path": file_path,  
             "image_hash": file_hash,
+            "tag_type": tag_type,
             "user_who_created": user_who_created,
             "creation_time": date_now,
             "tag_count": 1  # Since this is a new tag for this image, set count to 1
         }
         request.app.image_tags_collection.insert_one(image_tag_data)
 
-        return response_handler.create_success_response({"tag_id": tag_id, "file_path": file_path, "image_hash": file_hash, "tag_count": 1, "user_who_created": user_who_created, "creation_time": date_now}, http_status_code=200)
+        return response_handler.create_success_response({"tag_id": tag_id, "file_path": file_path, "image_hash": file_hash, "tag_type": tag_type, "tag_count": 1, "user_who_created": user_who_created, "creation_time": date_now}, http_status_code=200)
 
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
@@ -560,6 +593,7 @@ def remove_image_tag(
 
 @router.delete("/tags/remove_tag_from_image/{tag_id}", 
                status_code=200,
+               tags=["tags"], 
                description="Remove image tag",
                response_model=StandardSuccessResponse[WasPresentResponse],
                responses=ApiResponseHandler.listErrors([400, 422]))
@@ -584,6 +618,41 @@ def remove_image_tag(
 
     # Return standard success response with wasPresent: true using response_handler
     return response_handler.create_success_response({"wasPresent": True}, 200)
+
+@router.delete("/tags/remove_all_tagged_images", 
+               status_code=200,
+               tags=["tags"], 
+               description="Remove all tagged images",
+               response_model=StandardSuccessResponse[Dict[str, int]],
+               responses=ApiResponseHandler.listErrors([400, 422]))
+def remove_all_tagged_images(request: Request):
+    response_handler = ApiResponseHandler(request)
+
+    try:
+        # Query to match documents that have a 'tag_id' field
+        query = {"tag_id": {"$exists": True}}
+        result = request.app.image_tags_collection.delete_many(query)
+
+        # If no documents were found and deleted, use response_handler to indicate that
+        if result.deleted_count == 0:
+            return response_handler.create_error_response(
+                ErrorCode.ELEMENT_NOT_FOUND, 
+                "No tagged images found",
+                404
+            )
+
+        # Return standard success response with the count of deleted documents
+        return response_handler.create_success_response(
+            {"deleted_count": result.deleted_count}, 
+            http_status_code=200
+        )
+
+    except Exception as e:
+        return response_handler.create_error_response(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
 
 @router.delete("/tags/remove_tag_from_image-v1", response_class=PrettyJSONResponse)
 def remove_image_tag(request: Request, image_hash: str, tag_id: int):
@@ -610,18 +679,36 @@ def remove_image_tag(request: Request, image_hash: str, tag_id: int):
 
 
 
-@router.get("/tags/get_tag_list_for_image", response_model=List[TagDefinition])
+@router.get("/tags/get_tag_list_for_image", response_model=List[TagResponse])
 def get_tag_list_for_image(request: Request, file_hash: str):
     # Fetch image tags based on image_hash
     image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash})
     
-    tag_ids = [tag_data["tag_id"] for tag_data in image_tags_cursor]
-    
-    # Fetch the actual TagDefinition using tag_ids
-    tags_cursor = request.app.tag_definitions_collection.find({"tag_id": {"$in": tag_ids}})
-    tags_list = [TagDefinition(**tag_data) for tag_data in tags_cursor]
+    # Process the results
+    tags_list = []
+    for tag_data in image_tags_cursor:
+        tag_definition = request.app.tag_definitions_collection.find_one({"tag_id": tag_data["tag_id"]})
+        
+        if tag_definition:
+            # Create a dictionary representing TagDefinition with tag_type
+            tag_definition_dict = {
+                "tag_id": tag_definition["tag_id"],
+                "tag_string": tag_definition["tag_string"],
+                "tag_type": tag_data.get("tag_type"),
+                "tag_category_id": tag_definition.get("tag_category_id"),
+                "tag_description": tag_definition["tag_description"],
+                "tag_vector_index": tag_definition.get("tag_vector_index", -1),
+                "deprecated": tag_definition.get("deprecated", False),
+                "user_who_created": tag_definition["user_who_created"],
+                "creation_time": tag_definition.get("creation_time", None)
+            }
+
+            tags_list.append(tag_definition_dict)
     
     return tags_list
+
+
+
 
 
 @router.get("/tags/get_images_by_tag", response_model=List[ImageTag], response_class=PrettyJSONResponse)
@@ -655,6 +742,7 @@ def get_tagged_images(
                 tag_id=int(tag_data["tag_id"]),
                 file_path=tag_data["file_path"], 
                 image_hash=str(tag_data["image_hash"]),
+                tag_type =int(tag_data["tag_type"]),
                 user_who_created=tag_data["user_who_created"],
                 creation_time=tag_data.get("creation_time", None)
             ))
@@ -715,6 +803,7 @@ def get_tagged_images(
                     tag_id=int(tag_data["tag_id"]),
                     file_path=tag_data["file_path"], 
                     image_hash=str(tag_data["image_hash"]),
+                    tag_type=int(tag_data["tag_type"]),
                     user_who_created=tag_data["user_who_created"],
                     creation_time=tag_data.get("creation_time", None)
                 )
@@ -739,6 +828,7 @@ def get_all_tagged_images(request: Request):
             tag_id=int(tag_data["tag_id"]),
             file_path=tag_data["file_path"],  
             image_hash=str(tag_data["image_hash"]),
+            tag_type=int(tag_data["tag_type"]),
             user_who_created=tag_data["user_who_created"],
             creation_time=tag_data.get("creation_time", None)
         ) 
@@ -775,6 +865,7 @@ def get_all_tagged_images(request: Request):
                     tag_id=int(tag_data["tag_id"]),
                     file_path=tag_data["file_path"], 
                     image_hash=str(tag_data["image_hash"]),
+                    tag_type=int(tag_data["tag_type"]),
                     user_who_created=tag_data["user_who_created"],
                     creation_time=tag_data.get("creation_time", None)
                 )
