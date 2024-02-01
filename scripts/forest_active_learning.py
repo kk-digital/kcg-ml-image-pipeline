@@ -175,10 +175,18 @@ class ForestActiveLearningPipeline:
             object_name = os.path.splitext(object_name.split('_')[0])[0]
             object_name = f'{object_name}_clip.msgpack'
     
-            # get clip embedding    
-            data = self.client.get_object(self.bucket_name, object_name).data
-            decoded_data = msgpack.unpackb(data)
-            embedding= np.array(decoded_data['clip-feature-vector']).astype('float32')
+            try:
+                # get clip embedding    
+                data = self.client.get_object(self.bucket_name, object_name).data
+                decoded_data = msgpack.unpackb(data)
+                embedding= np.array(decoded_data['clip-feature-vector']).astype('float32')
+                
+                # Process the embedding here
+                
+            except Exception as e:
+                # Handle the exception (e.g., log the error message)
+                print(f"Error loading embedding for {object_name}: {e}")
+                continue  # Continue the loop in case of failure
 
             # calculate score and clip similarity
             image_score = self.get_score(embedding)
