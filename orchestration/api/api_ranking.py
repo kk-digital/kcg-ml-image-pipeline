@@ -752,19 +752,3 @@ def list_selection_data_with_scores(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-@router.delete("/image-pair-ranking/delete", response_description="Delete documents with 'ranking_image_pair'")
-def delete_ranking_image_pairs(request: Request):
-    try:
-        # Connect to the image_pair_ranking_collection
-        collection = request.app.image_pair_ranking_collection
-        
-        # Delete documents where 'ranking_image_pair' field exists
-        result = collection.delete_many({"ranking_image_pair": {"$exists": True}})
-        
-        # Return the count of deleted documents
-        return {"deleted_count": result.deleted_count}
-
-    except Exception as e:
-        # Handle unexpected errors
-        raise HTTPException(status_code=500, detail=str(e))
