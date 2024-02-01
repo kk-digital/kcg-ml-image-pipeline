@@ -26,9 +26,9 @@ from utility.clip.clip_text_embedder import tensor_attention_pooling
 
 # --------------------------- Simple NN ---------------------------
 
-class SimpleNeuralNetwork_Architecture(nn.Module):
+class SimpleNeuralNetworkArchitecture(nn.Module):
     def __init__(self, inputs_shape):
-        super(SimpleNeuralNetwork_Architecture, self).__init__()
+        super(SimpleNeuralNetworkArchitecture, self).__init__()
         self.mse_loss = nn.MSELoss()
         self.l1_loss = nn.L1Loss()
         self.tanh = nn.Tanh()
@@ -50,9 +50,12 @@ class SimpleNeuralNetwork_Architecture(nn.Module):
         x = self.fc3(x)
         return x
 
-class tree_connect_architecture_tanh_ranking_big(nn.Module):
+
+
+# ---------------------------  Conv1d Based Tree Connect (big version) ---------------------------
+class TreeConnectArchitectureTanhRankingBig(nn.Module):
     def __init__(self, inputs_shape):
-        super(tree_connect_architecture_tanh_ranking_big, self).__init__()
+        super(TreeConnectArchitectureTanhRankingBig, self).__init__()
         # Locally connected layers with BatchNorm and Dropout
 
 
@@ -110,10 +113,11 @@ class tree_connect_architecture_tanh_ranking_big(nn.Module):
 
 
 
+# ---------------------------  Conv1d Based Tree Connect (Small version) ?---------------------------
 
-class tree_connect_architecture_tanh_ranking(nn.Module):
+class TreeConnectArchitectureTanhRanking(nn.Module):
     def __init__(self, inputs_shape):
-        super(tree_connect_architecture_tanh_ranking, self).__init__()
+        super(TreeConnectArchitectureTanhRanking, self).__init__()
         # Locally connected layers with BatchNorm and Dropout
 
 
@@ -171,6 +175,7 @@ class tree_connect_architecture_tanh_ranking(nn.Module):
 
 
 
+# ---------------------------  Conv2d Based Tree Connect ---------------------------
 
 class ABRankingTreeConnectModel(nn.Module):
     def __init__(self, inputs_shape):
@@ -254,6 +259,8 @@ class ABRankingTreeConnectModel(nn.Module):
 
 
 
+# ---------------------------  Original LinearModel ---------------------------
+
 class ABRankingLinearModel(nn.Module):
     def __init__(self, inputs_shape):
         super(ABRankingLinearModel, self).__init__()
@@ -284,7 +291,7 @@ class ABRankingLinearModel(nn.Module):
 
 
 
-
+# ---------------------------  Original LinearModel ---------------------------
 class ABRankingLinearModelDeprecate(nn.Module):
     def __init__(self, inputs_shape):
         super(ABRankingLinearModelDeprecate, self).__init__()
@@ -305,7 +312,13 @@ class ABRankingLinearModelDeprecate(nn.Module):
         # make sure input shape is (1, score)
         assert output.shape == (1,1)
         return output
+    
 
+
+
+
+
+# ------------------------ True Class
 class ABRankingModel:
     def __init__(self, inputs_shape):
         if torch.cuda.is_available():
@@ -315,7 +328,7 @@ class ABRankingModel:
         self._device = torch.device(device)
 
         self.inputs_shape = inputs_shape
-        self.model = tree_connect_architecture_tanh_ranking_big(inputs_shape).to(self._device)
+        self.model = TreeConnectArchitectureTanhRankingBig(inputs_shape).to(self._device)
         self.model_type = 'ab-ranking-treeconnect'
         self.loss_func_name = ''
         self.file_path = ''
@@ -473,7 +486,7 @@ class ABRankingModel:
 
         # TODO: deprecate when we have 10 or more trained models on new structure
         if "scaling_factor" not in safetensors_data:
-            self.model = tree_connect_architecture_tanh_ranking_big(self.inputs_shape).to(self._device)
+            self.model = TreeConnectArchitectureTanhRankingBig(self.inputs_shape).to(self._device)
             print("Loading deprecated model...")
 
         # Loading state dictionary
