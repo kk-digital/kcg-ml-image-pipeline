@@ -672,10 +672,10 @@ def list_selection_data_with_scores(
     request: Request,
     model_type: str = Query(..., regex="^(linear|elm-v1)$"),
     dataset: str = Query(None),  # Dataset parameter for filtering
-    include_tagged: bool = Query(None),  # Optional: Include, Exclude, or Indifferent to tagged documents
+    include_flagged: bool = Query(False),  # Default to False, only consider True/False conditions
     limit: int = Query(10, alias="limit"),
-    sort_by: str = Query("delta_score"),
-    order: str = Query("desc")  # Added parameter for sort order  # Default sorting parameter
+    sort_by: str = Query("delta_score"),  # Default sorting parameter
+    order: str = Query("desc")  # Added parameter for sort order
 ):
     response_handler = ApiResponseHandler(request)
     
@@ -684,12 +684,15 @@ def list_selection_data_with_scores(
         ranking_collection = request.app.image_pair_ranking_collection
         jobs_collection = request.app.completed_jobs_collection
 
-        # Build query filter based on dataset, excluding flagged documents by default
-        query_filter = {"dataset": dataset, "flagged": {"$exists": False}} if dataset else {"flagged": {"$exists": False}}
-
-        # Adjust query filter based on the "include_tagged" parameter
-        if include_tagged is not None:
-            query_filter["tagged"] = include_tagged
+        # Build query filter based on dataset and include_flagged
+        query_filter = {"dataset": dataset} if dataset else {}
+        # Adjust query to include or exclude flagged documents based on include_flagged
+        if include_flagged:
+            # Include documents where 'flagged' is True
+            query_filter["flagged"] = True
+        else:
+            # Exclude documents where 'flagged' is True or exists
+            query_filter["flagged"] = {"$ne": True}
 
         # Fetch data from image_pair_ranking_collection with pagination
         cursor = ranking_collection.find(query_filter).limit(limit)
