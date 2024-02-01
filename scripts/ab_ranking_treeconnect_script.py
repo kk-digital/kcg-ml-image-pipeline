@@ -20,7 +20,6 @@ from utility.minio import cmd
 from training_worker.ab_ranking.model import constants
 from training_worker.ab_ranking.model.reports import score_residual, sigma_score
 
-
 def train_ranking(dataset_name: str,
                   minio_ip_addr=None,
                   minio_access_key=None,
@@ -327,7 +326,7 @@ def test_run():
                   minio_ip_addr=None,  # will use defualt if none is given
                   minio_access_key="D6ybtPLyUrca5IdZfCIM",
                   minio_secret_key="2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
-                  input_type="“clip”", # “clip” "embedding-negative"
+                  input_type= constants.CLIP  #"“clip”", # “clip” "embedding-negative"
                   epochs=150,
                   learning_rate=0.001,
                   train_percent=0.9,
