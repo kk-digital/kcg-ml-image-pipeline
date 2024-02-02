@@ -50,7 +50,15 @@ class ForestActiveLearningPipeline:
         self.clip_model.load_clip()
         self.clip_model.load_tokenizer()
         # calculate clip embedding for forest
-        self.text_clip=self.compute_clip_vector("forest")
+        self.text_embs= self.get_forest_text_embs()
+
+    def get_forest_text_embs(self):
+        topic_phrase_list=[
+            "jungle", "forest", "topical", "tree", "grass"
+        ]
+        text_embs= [self.compute_clip_vector(phrase) for phrase in topic_phrase_list]
+
+        return text_embs
 
     def get_jobs(self):
         print('Loading image file paths for environmntal dataset.........')
@@ -84,10 +92,10 @@ class ForestActiveLearningPipeline:
         return clip_vector
     
     # compute clip similarity
-    def compute_cosine_match_value(self, image_clip):
+    def compute_cosine_value(self, image_clip, phrase_emb):
 
         # convert numpy array to tensors
-        phrase_clip_vector = torch.tensor(self.text_clip, dtype=torch.float32, device=self.device)
+        phrase_clip_vector = torch.tensor(phrase_emb, dtype=torch.float32, device=self.device)
         image_clip_vector = torch.tensor(image_clip, dtype=torch.float32, device=self.device)
 
         #check the vector size
@@ -118,6 +126,13 @@ class ForestActiveLearningPipeline:
         del normalized_image_clip_vector
 
         return similarity.item()
+    
+    # calculate max cosine similarity for a list of phrases
+    def max_cosine_similarity(self, image_clip):
+        all_similarities= [self.compute_cosine_value(image_clip, phrase_emb) for phrase_emb in self.text_embs]
+        max_similarity= max(all_similarities)
+
+        return max_similarity
     
     # load elm scoring model
     def load_scoring_model(self):
@@ -191,7 +206,7 @@ class ForestActiveLearningPipeline:
 
             # calculate score and clip similarity
             image_score = self.get_score(embedding)
-            image_similarity = self.compute_cosine_match_value(image_clip=embedding)
+            image_similarity = self.max_cosine_similarity(image_clip=embedding)
 
             # store job data
             job_data.append({
