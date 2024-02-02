@@ -153,10 +153,6 @@ class LinearRegression:
         validation_loss_per_epoch = []
         optimizer = optim.SGD(self.model.parameters(), lr=self.learning_rate)
 
-        # Creating feature tensors
-        training_targets = torch.tensor(training_targets).unsqueeze(1)
-        validation_targets = torch.tensor(validation_targets).unsqueeze(1)
-
         if self.normalize_feature_vectors:
             training_inputs = normalize_feature_vector(training_inputs)
             training_targets = normalize_feature_vector(training_targets)
