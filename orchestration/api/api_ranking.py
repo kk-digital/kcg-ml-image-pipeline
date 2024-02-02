@@ -202,30 +202,6 @@ def add_selection_datapoint(request: Request, selection: Selection):
         )
 
 
-@router.get("/tags/count/{tag_id}", 
-            status_code=200,
-            tags=["tags"], 
-            description="Get count of images with a specific tag",
-            response_model=TagCountResponse,
-            responses=ApiResponseHandler.listErrors([400, 422]))
-def get_image_count_by_tag(
-    request: Request,
-    tag_id: int
-):
-    response_handler = ApiResponseHandler(request)
-
-    # Assuming each image document has an 'tags' array field
-    query = {"tags": tag_id}
-    count = request.app.image_tags_collection.count_documents(query)
-    
-    if count == 0:
-        # If no images found with the tag, consider how you want to handle this. 
-        # For example, you might still want to return a success response with a count of 0.
-        return response_handler.create_success_response({"tag_id": tag_id, "count": 0}, 200)
-
-    # Return standard success response with the count
-    return response_handler.create_success_response({"tag_id": tag_id, "count": count}, 200)
-
 @router.get("/rank/list-ranking-data", response_class=PrettyJSONResponse)
 def list_ranking_data(
     request: Request,
