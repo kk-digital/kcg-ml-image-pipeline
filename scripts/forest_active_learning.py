@@ -1,3 +1,4 @@
+import csv
 from datetime import datetime, timedelta
 import io
 import json
@@ -21,6 +22,7 @@ from utility.minio.cmd import connect_to_minio_client
 from utility.clip.clip import ClipModel
 
 API_URL = "http://192.168.3.1:8111"
+OUTPUT_PATH="environmental/output/forest_vs_non_forest_pairs"
 
 class ForestActiveLearningPipeline:
 
@@ -200,9 +202,38 @@ class ForestActiveLearningPipeline:
         
 
         pairs = self.pair_images(job_data)
-                
+        self.write_pairs_to_csv(pairs)
+
         return pairs
     
+
+    def write_pairs_to_csv(self, pairs):
+        local_file_path = "forest_vs_non_forest_pairs.csv"
+        # Open the file in write mode
+        with open(local_file_path, mode='w', newline='') as file:
+            # Create a CSV writer
+            writer = csv.writer(file)
+            
+            # Write the header
+            writer.writerow(['Image1_UUID', 'Image2_UUID'])
+            
+            # Write each pair
+            for pair in pairs:
+                writer.writerow([pair[0], pair[1]])
+        
+        # Read the contents of the .npz file
+        with open(local_file_path, 'rb') as file:
+            content = file.read()
+
+        # Upload the local file to MinIO
+        buffer = io.BytesIO(content)
+        buffer.seek(0)
+
+        minio_path=OUTPUT_PATH + f"/{local_file_path}"
+        cmd.upload_data(self.client, 'datasets', minio_path, buffer)
+
+        # Remove the temporary file
+        os.remove(local_file_path)
 
     def pair_images(self, image_jobs):
         # Separate images into two lists based on cosine similarity
@@ -212,6 +243,9 @@ class ForestActiveLearningPipeline:
         # Sort the lists
         # High cosine images sorted by cosine similarity descending
         high_cosine_images.sort(key=lambda x: x['cosine_similarity'], reverse=True)
+
+        # print percentage of forest related images
+        print(len(high_cosine_images)/len(image_jobs))
         
         # Low cosine, high score images sorted by quality score descending
         low_cosine_high_score_images.sort(key=lambda x: x['quality_score'], reverse=True)
@@ -282,7 +316,6 @@ def main():
     pair_list=pipeline.get_image_pairs()
 
     print(f"created {len(pair_list)} pairs")
-    print(pair_list[:10])
 
     # send list to active learning
     # pipeline.upload_pairs_to_queue(pair_list)
