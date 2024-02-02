@@ -6,6 +6,7 @@ base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
 from training_worker.classifiers.scripts.elm_regression import train_classifier
+from utility.http.request import http_get_tag_list
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -25,15 +26,38 @@ def parse_arguments():
 if __name__ == '__main__':
     args = parse_arguments()
 
-    # try:
-    print("Training model for tag: ...".format(args.tag_name))
-    train_classifier(minio_ip_addr=None,
-                     minio_access_key=args.minio_access_key,
-                     minio_secret_key=args.minio_secret_key,
-                     input_type=args.input_type,
-                     tag_name=args.tag_name,
-                     hidden_layer_neuron_count=args.hidden_layer_neuron_count,
-                     pooling_strategy=args.pooling_strategy,
-                     train_percent=args.train_percent)
-    # except Exception as e:
-    #     print("Error training model for {}: {}".format(dataset_name, e))
+    if args.tag_name != "all":
+        try:
+            print("Training model for tag: {}".format(args.tag_name))
+            train_classifier(minio_ip_addr=None,
+                             minio_access_key=args.minio_access_key,
+                             minio_secret_key=args.minio_secret_key,
+                             input_type=args.input_type,
+                             tag_name=args.tag_name,
+                             hidden_layer_neuron_count=args.hidden_layer_neuron_count,
+                             pooling_strategy=args.pooling_strategy,
+                             train_percent=args.train_percent)
+        except Exception as e:
+            print("Error training model for tag {}: {}".format(tag_name, e))
+    else:
+        # train for all
+        tags = http_get_tag_list()
+        tag_string_list = []
+        for tag in tags:
+            tag_string_list.append(tag["tag_string"])
+
+        print("tags found = ", tag_string_list)
+        for tag_name in tag_string_list:
+            try:
+                print("Training model for tag: {}".format(tag_name))
+                train_classifier(minio_ip_addr=None,
+                                 minio_access_key=args.minio_access_key,
+                                 minio_secret_key=args.minio_secret_key,
+                                 input_type=args.input_type,
+                                 tag_name=tag_name,
+                                 hidden_layer_neuron_count=args.hidden_layer_neuron_count,
+                                 pooling_strategy=args.pooling_strategy,
+                                 train_percent=args.train_percent)
+            except Exception as e:
+                print("Error training model for tag {}: {}".format(tag_name, e))
+            print("==============================================================================")
