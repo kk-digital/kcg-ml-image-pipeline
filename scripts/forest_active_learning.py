@@ -67,8 +67,6 @@ class ForestActiveLearningPipeline:
         
         jobs = json.loads(response.content)
 
-        print(jobs)
-
         return jobs
 
     def connect_to_minio_client(self, minio_addr: str, minio_access_key: str, minio_secret_key: str):
