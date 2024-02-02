@@ -35,9 +35,9 @@ def set_image_rank_score(request: Request, ranking_score: RankingScore):
     if count > 0:
         # Using ApiResponseHandler for standardized error response
         return api_response_handler.create_error_response(
-            error_code=ErrorCode.INVALID_PARAMS,
-            error_string="Score for specific model_id and image_hash already exists.",
-            http_status_code=400
+            ErrorCode.INVALID_PARAMS,
+            "Score for specific model_id and image_hash already exists.",
+            400
         )
 
     # Insert the new ranking score
@@ -45,8 +45,8 @@ def set_image_rank_score(request: Request, ranking_score: RankingScore):
 
     # Using ApiResponseHandler for standardized success response
     return api_response_handler.create_success_response(
-        response_data=ranking_score.dict(),
-        http_status_code=200  
+        ranking_score.dict(),
+        200  
     )
 
 
@@ -82,9 +82,9 @@ def get_image_rank_score_by_hash(request: Request, image_hash: str, model_id: st
     if item is None:
         # Return a standardized error response if not found
         return api_response_handler.create_error_response(
-            error_code=ErrorCode.INVALID_PARAMS,
-            error_string="Score for specified model_id and image_hash does not exist.",
-            http_status_code=404
+            ErrorCode.INVALID_PARAMS,
+            "Score for specified model_id and image_hash does not exist.",
+            404
         )
 
     # Remove the auto generated '_id' field before returning
@@ -92,8 +92,8 @@ def get_image_rank_score_by_hash(request: Request, image_hash: str, model_id: st
 
     # Return a standardized success response
     return api_response_handler.create_success_response(
-        response_data=item,
-        http_status_code=200
+        item,
+        200
     )
 
 
@@ -131,9 +131,9 @@ def get_image_rank_scores_by_model_id(request: Request, model_id: str):
     if not items:
         # If no items found, use ApiResponseHandler to return a standardized error response
         return api_response_handler.create_error_response(
-            error_code=ErrorCode.INVALID_PARAMS,
-            error_string="No scores found for specified model_id.",
-            http_status_code=400
+            ErrorCode.INVALID_PARAMS,
+            "No scores found for specified model_id.",
+            400
         )
     
     score_data = []
@@ -163,8 +163,8 @@ def delete_image_rank_scores_by_model_id(request: Request, model_id: int):
                description="Delete all image rank scores by model id.",
                status_code=200,
                tags=["score"],  
-               response_model=WasPresentResponse,
-               responses=ApiResponseHandler.listErrors([400,422]))
+               response_model=StandardSuccessResponse[WasPresentResponse],
+               responses=ApiResponseHandler.listErrors([422]))
 def delete_image_rank_scores_by_model_id(request: Request, model_id: str):
     api_response_handler = ApiResponseHandler(request)
     
@@ -182,8 +182,8 @@ def delete_image_rank_scores_by_model_id(request: Request, model_id: str):
 @router.delete("/score/image-rank-score-by-hash", 
                description="Delete image rank score by specific hash.",
                status_code=200,
-               response_model=WasPresentResponse,
-               responses=ApiResponseHandler.listErrors([400, 500]))
+               response_model=StandardSuccessResponse[WasPresentResponse],
+               responses=ApiResponseHandler.listErrors([422]))
 def delete_image_rank_score_by_hash(request: Request, image_hash: str, model_id: str):
     api_response_handler = ApiResponseHandler(request)
     
