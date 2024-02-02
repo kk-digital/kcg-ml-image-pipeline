@@ -51,7 +51,7 @@ def train_classifier(dataset_name: str,
     bucket_name = "datasets"
     network_type = "linear-regression"
     output_type = "score"
-    output_path = "{}/models/classifiers".format(dataset_name)
+    output_path = "{}/models/classifiers/{}".format(dataset_name, tag_name)
 
     # check input type
     if input_type not in constants.ALLOWED_INPUT_TYPES:
@@ -91,11 +91,11 @@ def train_classifier(dataset_name: str,
 
     # get final filename
     sequence = 0
-    filename = "{}-{:02}-{}-{}-{}".format(date_now, sequence, output_type, network_type, input_type)
+    filename = "{}-{:02}-{}-{}-{}-{}".format(date_now, sequence, tag_name, output_type, network_type, input_type)
 
     # if exist, increment sequence
     while True:
-        filename = "{}-{:02}-{}-{}-{}".format(date_now, sequence, output_type, network_type, input_type)
+        filename = "{}-{:02}-{}-{}-{}-{}".format(date_now, sequence, tag_name, output_type, network_type, input_type)
         exists = cmd.is_object_exists(tag_loader.minio_client, bucket_name,
                                       os.path.join(output_path, filename + ".safetensors"))
         if not exists:
@@ -116,9 +116,9 @@ def train_classifier(dataset_name: str,
     (train_pred,
      validation_pred,
      training_loss_per_epoch,
-     validation_loss_per_epoch) = classifier_model.train(training_feature_vector=training_features,
+     validation_loss_per_epoch) = classifier_model.train(training_inputs=training_features,
                                                          training_targets=training_targets,
-                                                         validation_feature_vector=validation_features,
+                                                         validation_inputs=validation_features,
                                                          validation_targets=validation_targets)
 
     # save model
@@ -128,7 +128,7 @@ def train_classifier(dataset_name: str,
     classifier_model.save_model(tag_loader.minio_client, bucket_name, model_output_path)
 
     # Generate report
-    data_for_summary = torch.tensor(training_features + validation_features)
+    data_for_summary = training_features
     nn_summary = torchinfo_summary(classifier_model.model, data_for_summary)
     report_str = get_train_txt_report(model_class=classifier_model,
                                       validation_predictions=validation_pred,
@@ -149,10 +149,10 @@ def train_classifier(dataset_name: str,
     # save graph report
     # upload the graph report
     graph_buffer = get_graph_report(model_class=classifier_model,
-                                    train_predictions=train_pred.cpu().numpy(),
-                                    training_targets=training_targets.cpu().numpy(),
-                                    validation_predictions=validation_pred.cpu().numpy(),
-                                    validation_targets=validation_targets.cpu().numpy(),
+                                    train_predictions=train_pred.detach().cpu().numpy(),
+                                    training_targets=training_targets.detach().cpu().numpy(),
+                                    validation_predictions=validation_pred.detach().cpu().numpy(),
+                                    validation_targets=validation_targets.detach().cpu().numpy(),
                                     date=date_now,
                                     dataset_name=dataset_name,
                                     network_type=network_type,

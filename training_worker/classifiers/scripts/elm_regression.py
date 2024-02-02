@@ -30,7 +30,7 @@ def train_classifier(dataset_name: str,
     bucket_name = "datasets"
     network_type = "elm-regression"
     output_type = "score"
-    output_path = "{}/models/classifiers".format(dataset_name)
+    output_path = "{}/models/classifiers/{}".format(dataset_name, tag_name)
 
     # check input type
     if input_type not in constants.ALLOWED_INPUT_TYPES:
@@ -70,11 +70,11 @@ def train_classifier(dataset_name: str,
 
     # get final filename
     sequence = 0
-    filename = "{}-{:02}-{}-{}-{}".format(date_now, sequence, output_type, network_type, input_type)
+    filename = "{}-{:02}-{}-{}-{}-{}".format(date_now, sequence, tag_name, output_type, network_type, input_type)
 
     # if exist, increment sequence
     while True:
-        filename = "{}-{:02}-{}-{}-{}".format(date_now, sequence, output_type, network_type, input_type)
+        filename = "{}-{:02}-{}-{}-{}-{}".format(date_now, sequence, tag_name, output_type, network_type, input_type)
         exists = cmd.is_object_exists(tag_loader.minio_client, bucket_name,
                                       os.path.join(output_path, filename + ".safetensors"))
         if not exists:

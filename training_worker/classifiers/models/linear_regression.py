@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.optim as optim
 from datetime import datetime
 import os
 import sys
@@ -87,12 +88,12 @@ class LinearRegression:
             'tag-string': self.tag_string,
             'input-size': "{}".format(self.input_size),
             'output-size': "{}".format(self.output_size),
-            'epochs': self.epochs,
-            'learning-rate': self.learning_rate,
+            'epochs': "{}".format(self.epochs),
+            'learning-rate': "{}".format(self.learning_rate),
             'loss-func': self.loss_func_name,
-            'normalize-feature-vectors': self.normalize_feature_vectors,
-            'training-loss': self.training_loss,
-            'validation-loss': self.validation_loss,
+            'normalize-feature-vectors': "{}".format(self.normalize_feature_vectors),
+            'training-loss': "{}".format(self.training_loss),
+            'validation-loss': "{}".format(self.validation_loss),
         }
 
         model = self.model.state_dict()

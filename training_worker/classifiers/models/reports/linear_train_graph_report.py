@@ -74,7 +74,6 @@ def get_graph_report(model_class,
                                len(validation_predictions_target_0)),
                            c="#f4ff2b", s=5)
 
-    predicted_score.text(-58, 39, "hidden layer neuron={0}".format(hidden_layer_neuron_count), {'fontsize': 10})
     predicted_score.set_xlabel("Sample")
     predicted_score.set_ylabel("Predicted Score")
     predicted_score.set_title("Sample vs Predicted Score")
