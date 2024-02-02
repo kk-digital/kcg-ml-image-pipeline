@@ -13,9 +13,6 @@ def parse_arguments():
 
     parser.add_argument('--minio-access-key', type=str, help='Minio access key')
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
-    parser.add_argument('--dataset-name', type=str,
-                        help="The dataset name to use for training, use 'all' to train models for all datasets",
-                        default='environmental')
     parser.add_argument('--input-type', type=str, default="embedding")
     parser.add_argument('--tag-name', type=str)
     parser.add_argument('--pooling-strategy', type=int, default=0)
@@ -30,12 +27,10 @@ def parse_arguments():
 
 if __name__ == '__main__':
     args = parse_arguments()
-    dataset_name = args.dataset_name
 
     # try:
-    print("Training model for {}: Tag: ...".format(dataset_name, args.tag_name))
-    train_classifier(dataset_name=dataset_name,
-                     minio_ip_addr=None,
+    print("Training model for tag: ...".format(args.tag_name))
+    train_classifier(minio_ip_addr=None,
                      minio_access_key=args.minio_access_key,
                      minio_secret_key=args.minio_secret_key,
                      input_type=args.input_type,

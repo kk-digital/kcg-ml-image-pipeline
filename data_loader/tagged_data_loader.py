@@ -56,6 +56,10 @@ class TaggedDatasetLoader:
         self.training_negative_size = None
         self.validation_negative_size = None
 
+        # we currently get dataset name based on a sample image path
+        # since image tag instance doesn't have dataset name value
+        self.dataset_name = None
+
     def get_tagged_data(self, path, index=0):
         input_type_extension = "-text-embedding.msgpack"
         if self.input_type == constants.CLIP:
@@ -178,6 +182,11 @@ class TaggedDatasetLoader:
                 positive_tagged_dataset.append(data["file_path"])
             else:
                 negative_tagged_dataset.append(data["file_path"])
+
+        # get dataset name from a sample path
+        splits = positive_tagged_dataset[0].split("/")
+        dataset_name = splits[1]
+        self.dataset_name = dataset_name
 
         # make sure positive and negative have the same length
         # for now we want them to be 50/50

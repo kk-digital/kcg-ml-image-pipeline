@@ -33,8 +33,7 @@ def torchinfo_summary(model, data):
 
     return summary_string
 
-def train_classifier(dataset_name: str,
-                     minio_ip_addr=None,
+def train_classifier(minio_ip_addr=None,
                      minio_access_key=None,
                      minio_secret_key=None,
                      input_type="embedding",
@@ -51,7 +50,6 @@ def train_classifier(dataset_name: str,
     bucket_name = "datasets"
     network_type = "linear-regression"
     output_type = "score"
-    output_path = "{}/models/classifiers/{}".format(dataset_name, tag_name)
 
     # check input type
     if input_type not in constants.ALLOWED_INPUT_TYPES:
@@ -74,6 +72,10 @@ def train_classifier(dataset_name: str,
     validation_positive_features, validation_positive_targets = tag_loader.get_validation_positive_features()
     training_negative_features, training_negative_targets = tag_loader.get_training_negative_features()
     validation_negative_features, validation_negative_targets = tag_loader.get_validation_negative_features()
+
+    # get dataset name
+    dataset_name = tag_loader.dataset_name
+    output_path = "{}/models/classifiers/{}".format(dataset_name, tag_name)
 
     # mix training positive and negative
     training_features, training_targets = tag_loader.get_shuffled_positive_and_negative(
