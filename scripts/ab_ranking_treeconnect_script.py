@@ -291,7 +291,7 @@ def train_ranking(dataset_name: str,
 
     # add model card
     model_id = score_residual.add_model_card(model_card)
-    model_type = "treeconnect"
+    model_type = "treeconnect-small"
     # upload residuals
     score_residual.upload_score_residual(model_type=model_type,
                                          train_prob_predictions=training_predicted_probabilities,
@@ -341,12 +341,21 @@ def test_run():
                   duplicate_flip_option=constants.DUPLICATE_AND_FLIP_RANDOM,
                   randomize_data_per_epoch=True,
                   )
+    
+# def test_run_v2():
+#     run_ab_ranking_linear_task(
+#         training_task,
+#         minio_access_key,
+#         minio_secret_key
+#         )
+
 
 import time
 # Record the start
 start_time = time.time()
 if __name__ == '__main__':
     test_run()
+    
 # Record the end time
 end_time = time.time()
 
