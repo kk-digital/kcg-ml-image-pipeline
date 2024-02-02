@@ -265,6 +265,7 @@ class ForestActiveLearningPipeline:
         
         # Initialize pairs list
         pairs = []
+        num_pairs=0
         
         # Pairing logic
         for high_cosine_img in high_cosine_images:
@@ -274,8 +275,12 @@ class ForestActiveLearningPipeline:
                     pairs.append((high_cosine_img['job_uuid'], low_cosine_high_score_img['job_uuid']))
                     # Once paired, remove the low_cosine_high_score_img to avoid reusing it
                     low_cosine_high_score_images.remove(low_cosine_high_score_img)
+
+                    num_pairs+=1
                     break  # move to the next high_cosine_img
-                    
+            if(num_pairs==10000):
+                break
+    
         return pairs
     
     def upload_pairs_to_queue(self, pair_list):
@@ -331,7 +336,7 @@ def main():
     print(f"created {len(pair_list)} pairs")
 
     # send list to active learning
-    # pipeline.upload_pairs_to_queue(pair_list)
+    pipeline.upload_pairs_to_queue(pair_list)
     
 
 if __name__ == '__main__':
