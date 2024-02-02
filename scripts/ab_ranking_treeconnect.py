@@ -331,7 +331,7 @@ class ABRankingModel:
         self._device = torch.device(device)
 
         self.inputs_shape = inputs_shape
-        self.model = TreeConnectArchitectureTanhRanking(inputs_shape).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking
+        self.model = TreeConnectArchitectureTanhRankingBig(inputs_shape).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking
         self.model_type = 'ab-ranking-treeconnect'
         self.loss_func_name = ''
         self.file_path = ''
@@ -489,7 +489,7 @@ class ABRankingModel:
 
         # TODO: deprecate when we have 10 or more trained models on new structure
         if "scaling_factor" not in safetensors_data:
-            self.model = TreeConnectArchitectureTanhRanking(self.inputs_shape).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
+            self.model = TreeConnectArchitectureTanhRankingBig(self.inputs_shape).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
             print("Loading deprecated model...")
 
         # Loading state dictionary
@@ -630,6 +630,8 @@ class ABRankingModel:
                 dataset_loader.current_training_data_index = 0
 
             # Calculate Validation Loss
+            import time   
+            start_time_val = time.time()    
             with torch.no_grad():
                 for i in range(len(validation_features_x)):
                     validation_feature_x = validation_features_x[i]
@@ -661,6 +663,9 @@ class ABRankingModel:
 
                     # validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
                     validation_loss_arr.append(validation_loss.detach().cpu())
+            end_time_val = time.time()
+            elapsed_time_val = end_time_val - start_time_val
+            print(f"Elapsed Time: {elapsed_time_val} seconds")
 
             # calculate epoch loss
             # epoch's training loss

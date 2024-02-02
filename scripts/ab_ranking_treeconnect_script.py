@@ -19,6 +19,7 @@ from training_worker.ab_ranking.model.reports.get_model_card import get_model_ca
 from utility.minio import cmd
 from training_worker.ab_ranking.model import constants
 from training_worker.ab_ranking.model.reports import score_residual, sigma_score
+from ab_ranking_treeconnect import TreeConnectArchitectureTanhRankingBig
 
 def train_ranking(dataset_name: str,
                   minio_ip_addr=None,
@@ -348,6 +349,53 @@ def test_run():
 #         minio_access_key,
 #         minio_secret_key
 #         )
+
+
+# from utility.minio.cmd import connect_to_minio_client
+
+# client = connect_to_minio_client(
+#             None, 
+#             "D6ybtPLyUrca5IdZfCIM", 
+#             "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V"
+#         )
+
+# # load elm scoring model
+# def load_scoring_model(self):
+#     input_path=f"propaganda-poster/models/ranking/"
+    
+#     ranking_model = TreeConnectArchitectureTanhRankingBig()
+
+#     # Get all model files
+#     model_files = cmd.get_list_of_objects_with_prefix(client, 'datasets', input_path)
+
+#     for model_file in model_files:
+#         if model_file.endswith("2treeconnect-clip.txt.safetensors"):
+#             most_recent_model = model_file
+
+#     if most_recent_model:
+#         model_file_data =cmd.get_file_from_minio(client, 'datasets', most_recent_model)
+#     else:
+#         print("No .safetensors files found in the list.")
+#         return
+    
+#     print(most_recent_model)
+
+#     # Create a BytesIO object and write the downloaded content into it
+#     byte_buffer = BytesIO()
+#     for data in model_file_data.stream(amt=8192):
+#         byte_buffer.write(data)
+#     # Reset the buffer's position to the beginning
+#     byte_buffer.seek(0)
+
+#     ranking_model.load_safetensors(byte_buffer)
+#     ranking_model.model=self.ranking_model.model.to(self.device)
+
+#     mean=float(self.ranking_model.mean)
+#     std=float(self.ranking_model.standard_deviation)
+
+#     return ranking_model
+
+
 
 
 import time
