@@ -30,6 +30,10 @@ def get_phrase_str_arr(index_phrase_dict, phrase_vector_indices):
         phrase = index_phrase_dict[index.item()]
         phrase_str_arr.append(phrase)
 
+    if len(phrase_str_arr) == 0:
+        # TODO: remove this, fix and make sure phrase str arr is not None
+        phrase_str_arr.append("None")
+
     return phrase_str_arr
 
 
@@ -61,7 +65,7 @@ class PhraseSmoothingModel(nn.Module):
         # input is phrase embedding
         self.linear = nn.Linear(768, 1)
         initial_energy_offset = torch.zeros(1, dtype=torch.float32)
-        self.energy_offset = nn.Parameter(data=initial_energy_offset, requires_grad=False)
+        self.energy_offset = nn.Parameter(data=initial_energy_offset, requires_grad=True)
 
         self.l1_loss = nn.L1Loss()
 
@@ -86,7 +90,7 @@ class PhraseSmoothingModel(nn.Module):
         # get phrase embeddings array
         phrase_embeddings = self.phrase_embedding_loader.get_embeddings(phrase_str_arr)
         phrase_embeddings = numpy.array(phrase_embeddings)
-        phrase_embeddings = torch.from_numpy(phrase_embeddings).to(self._device)
+        phrase_embeddings = torch.from_numpy(phrase_embeddings).float().to(self._device)
 
         # input phrase embedding to linear network
         phrases_energy_per_token = self.linear(phrase_embeddings)
@@ -267,9 +271,16 @@ class ScorePhraseSmoothingModel:
                 phrase_info = index_phrase_info[index]
                 occurrences = phrase_info.occurrences
                 token_length = phrase_info.token_length
-                phrase_embedding = self.phrase_embedding_loader.get_embedding(phrase)
-                phrase_embedding = torch.tensor(phrase_embedding).to(self._device)
-                energy_per_token = self.model.linear(phrase_embedding).item()
+                if phrase in self.phrase_embedding_loader.phrase_index_dict:
+                    phrase_embedding = self.phrase_embedding_loader.get_embedding(phrase)
+                    phrase_embedding = numpy.array(phrase_embedding)
+                    phrase_embedding = torch.from_numpy(phrase_embedding).float().to(self._device)
+                    energy_per_token = self.model.linear(phrase_embedding)
+                    energy_per_token = energy_per_token.squeeze()
+                    energy_per_token = energy_per_token.item()
+                else:
+                    energy_per_token = 0
+
                 energy_per_phrase = energy_per_token * token_length
                 phrase_scores_vector.append(energy_per_phrase)
                 writer.writerow([index,
