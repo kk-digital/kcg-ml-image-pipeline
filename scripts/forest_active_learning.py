@@ -286,8 +286,8 @@ class ForestActiveLearningPipeline:
     def upload_pairs_to_queue(self, pair_list):
         
         for pair in tqdm(pair_list):
-            job_uuid_1= pair['pair'][0]
-            job_uuid_2= pair['pair'][1]
+            job_uuid_1= pair[0]
+            job_uuid_2= pair[1]
 
             endpoint_url = f"{API_URL}/ranking-queue/add-image-pair-to-queue?job_uuid_1={job_uuid_1}&job_uuid_2={job_uuid_2}&policy=forest_vs_non_forest_related"
             response = requests.post(endpoint_url)
