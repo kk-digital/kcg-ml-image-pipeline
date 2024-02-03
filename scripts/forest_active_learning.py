@@ -296,30 +296,6 @@ class ForestActiveLearningPipeline:
                 print(f"Successfully processed job pair: UUID1: {job_uuid_1}, UUID2: {job_uuid_2}")
             else:
                 print(f"Failed to process job pair: UUID1: {job_uuid_1}, UUID2: {job_uuid_2}. Response: {response.status_code} - {response.text}")
-    
-
-def process_pairs(filename):
-    # Open the CSV file
-    with open(filename, mode='r') as file:
-        # Create a CSV reader
-        reader = csv.reader(file)
-        
-        # Skip the header
-        next(reader)
-        
-        # Loop through each row (pair) in the CSV
-        for row in reader:
-            job_uuid_1, job_uuid_2 = row
-
-            endpoint_url = f"{API_URL}/ranking-queue/add-image-pair-to-queue?job_uuid_1={job_uuid_1}&job_uuid_2={job_uuid_2}&policy=forest_vs_non_forest_related"
-            response = requests.post(endpoint_url)
-
-            if response.status_code == 200:
-                print(f"Successfully processed job pair: UUID1: {job_uuid_1}, UUID2: {job_uuid_2}")
-            else:
-                print(f"Failed to process job pair: UUID1: {job_uuid_1}, UUID2: {job_uuid_2}. Response: {response.status_code} - {response.text}")
-    
-        
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -343,24 +319,24 @@ def parse_args():
 
 def main():
     
-    # args = parse_args()
+    args = parse_args()
 
-    # pipeline = ForestActiveLearningPipeline(
-    #     minio_addr=args.minio_addr,
-    #     minio_access_key=args.minio_access_key,
-    #     minio_secret_key=args.minio_secret_key,
-    #     high_cosine_threshold=args.high_cosine_threshold,
-    #     low_cosine_threshold=args.low_cosine_threshold,
-    #     quality_threshold=args.quality_threshold,
-    # )
+    pipeline = ForestActiveLearningPipeline(
+        minio_addr=args.minio_addr,
+        minio_access_key=args.minio_access_key,
+        minio_secret_key=args.minio_secret_key,
+        high_cosine_threshold=args.high_cosine_threshold,
+        low_cosine_threshold=args.low_cosine_threshold,
+        quality_threshold=args.quality_threshold,
+    )
 
-    # # get list of pairs
-    # pair_list=pipeline.get_image_pairs()
+    # get list of pairs
+    pair_list=pipeline.get_image_pairs()
 
-    # print(f"created {len(pair_list)} pairs")
+    print(f"created {len(pair_list)} pairs")
 
     # send list to active learning
-    process_pairs("input/forest_vs_non_forest_pairs.csv")
+    pipeline.upload_pairs_to_queue(pair_list)
     
 
 if __name__ == '__main__':
