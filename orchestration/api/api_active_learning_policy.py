@@ -5,7 +5,7 @@ import random
 import pymongo
 from utility.minio import cmd
 from orchestration.api.mongo_schemas import  ActiveLearningPolicy, RequestActiveLearningPolicy
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse
 import os
 from datetime import datetime, timezone
 from typing import List
@@ -302,3 +302,31 @@ def list_active_learning_policies(request: Request):
     except Exception as e:
         return api_response_handler.create_error_response(ErrorCode.OTHER_ERROR, str(e), 500)
     
+
+@router.delete("/active-learning-queue/policy/remove/{policy_id}", 
+               response_model=StandardSuccessResponse[WasPresentResponse],
+               status_code=200,
+               tags=["active learning policy"],
+               description="Removing an existing policy by ID",
+               responses=ApiResponseHandler.listErrors([422, 500]))
+def delete_active_learning_policy(request: Request, policy_id: int ):
+    response_handler = ApiResponseHandler(request)
+    
+    try:
+        was_present = False
+
+        # Check if the policy is being used by any queue pairs
+        if request.app.active_learning_queue_pairs_collection.find_one({"active_learning_policy_id": policy_id}):
+            return response_handler.create_error_response(ErrorCode.INVALID_PARAMS, "Cannot delete policy: It is being used by one or more queue pairs", 400)
+
+        # Check if the policy exists and delete it
+        policy = request.app.active_learning_policies_collection.find_one({"active_learning_policy_id": policy_id})
+        if policy:
+            was_present = True
+            request.app.active_learning_policies_collection.delete_one({"active_learning_policy_id": policy_id})
+
+        # Return a success response indicating if the policy was deleted
+        return response_handler.create_success_response({"wasPresent": was_present}, 200)
+    except Exception as e:
+        # Handle any unexpected errors
+        return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
