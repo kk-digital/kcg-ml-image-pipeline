@@ -605,14 +605,16 @@ class ABRankingModel:
                         assert batch_pred_probabilities.shape == batch_targets.shape
 
                     loss = self.model.l1_loss(batch_pred_probabilities, batch_targets)
-
+                    print("#############################  the loss shape after pn is : ", loss.shape)
+                    print("  the loss  before pn is : ", loss)
                     if add_loss_penalty:
                         # loss penalty = (relu(-x-1) + relu(x-1))
                         # https://www.wolframalpha.com/input?i=graph+for+x%3D-5+to+x%3D5%2C++relu%28+-x+-+1.0%29+%2B+ReLu%28x+-+1.0%29
                         loss_penalty = torch.relu(-predicted_score_images_x - penalty_range) + torch.relu(
                             predicted_score_images_x - penalty_range)
                         loss = torch.add(loss, loss_penalty)
-                        print("the loss shape is : ", loss.shape)
+                        print("############################# the loss shape after pn is : ", loss.shape)
+                        print("  the loss  after pn is : ", loss)
 
                     loss.backward()
                     optimizer.step()
