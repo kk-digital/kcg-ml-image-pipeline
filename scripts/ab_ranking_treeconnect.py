@@ -46,8 +46,6 @@ class SimpleNeuralNetworkArchitecture(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
 
-        # Output layer with tanh activation to scale between -5 and 5
-        #x = torch.tanh(self.fc3(x)) * 5.0
         x = self.fc3(x)
         return x
 

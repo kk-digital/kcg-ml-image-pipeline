@@ -328,10 +328,10 @@ def test_run():
                   minio_access_key="D6ybtPLyUrca5IdZfCIM",
                   minio_secret_key="2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
                   input_type= constants.CLIP,  #"“clip”", # “clip” "embedding-negative"
-                  epochs=150,
+                  epochs=50,
                   learning_rate=0.001,
                   train_percent=0.9,
-                  training_batch_size=1,
+                  training_batch_size=64,
                   weight_decay=0.001,
                   load_data_to_ram=True,
                   debug_asserts=False,
