@@ -612,6 +612,7 @@ class ABRankingModel:
                         # https://www.wolframalpha.com/input?i=graph+for+x%3D-5+to+x%3D5%2C++relu%28+-x+-+1.0%29+%2B+ReLu%28x+-+1.0%29
                         loss_penalty = torch.relu(-predicted_score_images_x - penalty_range) + torch.relu(
                             predicted_score_images_x - penalty_range)
+                        loss_penalty = loss_penalty.mean()
                         loss = torch.add(loss, loss_penalty)
                         print("############################# the loss shape after pn is : ", loss.shape)
                         #print("  the loss  after pn is : ", loss)
