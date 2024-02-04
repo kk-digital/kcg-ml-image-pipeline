@@ -614,7 +614,7 @@ class ABRankingModel:
                             predicted_score_images_x - penalty_range)
                         loss = torch.add(loss, loss_penalty)
                         print("############################# the loss shape after pn is : ", loss.shape)
-                        print("  the loss  after pn is : ", loss)
+                        #print("  the loss  after pn is : ", loss)
 
                     loss.backward()
                     optimizer.step()
