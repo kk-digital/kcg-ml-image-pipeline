@@ -331,7 +331,7 @@ def test_run():
                   epochs=50,
                   learning_rate=0.001,
                   train_percent=0.9,
-                  training_batch_size=1,
+                  training_batch_size=64,
                   weight_decay=0.001,
                   load_data_to_ram=True,
                   debug_asserts=False,
