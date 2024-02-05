@@ -845,11 +845,9 @@ def clear_delta_scores(request: Request):
     
 
 @router.get("/queue/image-generation/count-task")
-def count_completed(request: Request, dataset: str = None):
+def count_completed(request: Request):
 
-    jobs = list(request.app.completed_jobs_collection.find({
-        'task_input_dict.dataset': dataset
-    }))
+    jobs = list(request.app.completed_jobs_collection.find())
 
     total_count = len(jobs)
     with_task_attributes_dict_count = 0
