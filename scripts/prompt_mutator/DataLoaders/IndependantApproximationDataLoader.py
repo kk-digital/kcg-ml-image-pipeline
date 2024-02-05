@@ -11,11 +11,13 @@ MAX_LENGTH=77
 class IndependantApproximationDataLoader:
     def __init__(self,
                  dataset_name,
+                 phrase_csv,
                  text_encoder=None,
                  minio_ip_addr=None,
                  minio_access_key=None,
                  minio_secret_key=None,):
         self.dataset_name = dataset_name
+        self.phrase_csv= phrase_csv
         self.text_encoder= text_encoder
         self.phrase_list=[]
         self.token_length_dict={}
@@ -29,11 +31,9 @@ class IndependantApproximationDataLoader:
    
 
     def load_phrases(self):
-        # load latest csv file name from minio
-        positive_phrase_scores_csv =self.load_boltzman_scores_csv()
         # loading positive phrase scores to use for rejection sampling
         phrase_loader=BoltzmanPhraseScoresLoader(dataset_name=self.dataset_name,
-                                                phrase_scores_csv=positive_phrase_scores_csv,
+                                                phrase_scores_csv=self.phrase_csv,
                                                 minio_client=self.minio_client)
         phrase_loader.load_dataset()
         phrase_score_data= phrase_loader.index_phrase_score_data
@@ -77,14 +77,4 @@ class IndependantApproximationDataLoader:
         
         return phrase_embed
 
-    # get path for phrase score csv files
-    def load_boltzman_scores_csv(self):
-        score_csvs=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', f'{self.dataset_name}/output/phrases-score-csv')
-        positive_score_csv = None
-
-        for csv_file in score_csvs:
-            if csv_file.endswith('positive-phrases-score.csv'):
-                positive_score_csv = csv_file.split("/")[-1]
-        
-        return positive_score_csv
     

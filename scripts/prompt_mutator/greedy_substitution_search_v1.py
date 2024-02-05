@@ -204,7 +204,11 @@ class PromptSubstitutionGenerator:
                                                             minio_access_key=minio_access_key,
                                                             minio_secret_key=minio_secret_key)
         else:
+            # get list of boltzman phrase score
+            self.positive_phrase_scores_csv,self.negative_phrase_scores_csv=self.get_boltzman_scores_csv()
+
             self.data_loader= IndependantApproximationDataLoader(dataset_name,
+                                                            self.positive_phrase_scores_csv,
                                                             text_encoder=self.embedder,
                                                             minio_ip_addr=minio_ip_addr,
                                                             minio_access_key=minio_access_key,
@@ -224,7 +228,7 @@ class PromptSubstitutionGenerator:
         self.mutation_time=0
         self.clip_speed=0
         self.inference_speed=0
-    
+
     # load ensemble elm model for entropy calculation
     def get_ensemble_models(self):
         input_path = f"{self.model_dataset}/models/ranking/"
