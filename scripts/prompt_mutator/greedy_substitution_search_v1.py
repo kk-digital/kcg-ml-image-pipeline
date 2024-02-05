@@ -62,7 +62,7 @@ def parse_args():
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
     parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=128)
     parser.add_argument('--clip-batch-size', type=int, help="Batch size for clip embeddings", default=256)
-    parser.add_argument('--substitution-batch-size', type=int, help="Batch size for the substitution model", default=100000)
+    parser.add_argument('--substitution-batch-size', type=int, help="Batch size for the substitution model", default=10000)
 
     return parser.parse_args()
 
