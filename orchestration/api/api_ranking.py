@@ -776,8 +776,14 @@ async def calculate_delta_scores(request: Request, model_type: str):
     delta_scores_collection = request.app.datapoints_delta_score_collection
 
     cursor = ranking_collection.find({})
+    # For async operations, replace with an appropriate async count method
+    total_documents = ranking_collection.count_documents({})  
+    processed_documents = 0
 
     for doc in cursor:
+        file_name = doc["file_name"]
+        if delta_scores_collection.find_one({"file_name": file_name}):
+            continue
 
         selected_image_index = doc["selected_image_index"]
         selected_image_hash = doc["selected_image_hash"]
@@ -787,28 +793,31 @@ async def calculate_delta_scores(request: Request, model_type: str):
         else:
             unselected_image_hash = doc["image_1_metadata"]["file_hash"]
 
-        # Fetch score data for both images
         selected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
         unselected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
 
-        if selected_image_job and unselected_image_job and "task_attributes_dict" in selected_image_job and "task_attributes_dict" in unselected_image_job:
+        if selected_image_job and unselected_image_job:
+            # Make sure task_attributes_dict and image_clip_sigma_score checks are appropriate
             selected_image_scores = selected_image_job["task_attributes_dict"][model_type]
             unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type]
 
             if "image_clip_sigma_score" in selected_image_scores and "image_clip_sigma_score" in unselected_image_scores:
                 delta_score = abs(selected_image_scores["image_clip_sigma_score"] - unselected_image_scores["image_clip_sigma_score"])
 
-                # Create DatapointDeltaScore object
                 delta_score_entry = DatapointDeltaScore(
                     model_type=model_type,
-                    file_name=doc["file_name"],
+                    file_name=file_name,
                     delta_score=delta_score
                 )
-
-                # Insert the delta score into the collection
                 delta_scores_collection.insert_one(delta_score_entry.to_dict())
 
-    return {"message": "Delta scores calculated and stored successfully."}
+        processed_documents += 1
+
+    return {
+        "message": "Delta scores calculation attempt complete.",
+        "total_documents": total_documents,
+        "processed_documents": processed_documents
+    }
 
 
 @router.get("/delta-score", response_class=PrettyJSONResponse)
