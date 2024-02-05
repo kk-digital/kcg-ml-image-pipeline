@@ -25,6 +25,97 @@ from utility.minio import cmd
 from utility.clip.clip_text_embedder import tensor_attention_pooling
 
 
+
+
+
+# --------------------------- SparseNeuralNetworkArchitectureMM  ---------------------------
+
+class SparseNeuralNetworkArchitectureMM(nn.Module):
+    def __init__(self, inputs_shape, sparsity_factor=0.5):
+        super(SparseNeuralNetworkArchitectureMM, self).__init__()
+        self.mse_loss = nn.MSELoss()
+        self.l1_loss = nn.L1Loss()
+        self.tanh = nn.Tanh()
+        self.sparsity_factor = sparsity_factor
+
+        # Define fully connected layers without bias
+        self.fc1 = nn.Linear(inputs_shape, 64, bias=False)
+        self.fc2 = nn.Linear(64, 64, bias=False)
+        self.fc3 = nn.Linear(64, 1, bias=False)
+
+        # Create a sparse mask during initialization
+        self.custom_mask = self.generate_sparse_mask()
+
+    def generate_sparse_mask(self):
+        mask_fc1 = torch.rand_like(self.fc1.weight) < self.sparsity_factor
+        mask_fc2 = torch.rand_like(self.fc2.weight) < self.sparsity_factor
+        mask_fc3 = torch.rand_like(self.fc3.weight) < self.sparsity_factor
+
+        # Combine masks to create a single sparse mask
+        combined_mask = mask_fc1.float() * mask_fc2.float() * mask_fc3.float()
+
+        # Convert the combined mask to the COO format
+        indices = combined_mask.nonzero(as_tuple=False).t()
+        values = combined_mask[indices[0], indices[1]].bool()  # Ensure BoolTensor type
+        size = combined_mask.size()
+        sparse_mask = torch.sparse.BoolTensor(indices, values, size)
+
+        return sparse_mask
+
+    def forward(self, x):
+        # Flatten the input
+        x = x.view(x.size(0), -1)
+
+        # Sparse tensor multiplication with ReLU activations
+        x = F.relu(torch.sparse.mm(self.custom_mask, self.fc1.weight.t(), x.t()).t())
+        x = F.relu(torch.sparse.mm(self.custom_mask, self.fc2.weight.t(), x.t()).t())
+
+        # Sparse tensor multiplication for the final layer
+        x = torch.sparse.mm(self.custom_mask, self.fc3.weight.t(), x.t()).t()
+
+        return x
+
+# --------------------------- SparseNeuralNetworkArchitecture  ---------------------------
+
+class SparseNeuralNetworkArchitecture(nn.Module):
+    def __init__(self, inputs_shape, sparsity_factor=0.5):
+        super(SparseNeuralNetworkArchitecture, self).__init__()
+        self.mse_loss = nn.MSELoss()
+        self.l1_loss = nn.L1Loss()
+        self.tanh = nn.Tanh()
+        
+        self.sparsity_factor = sparsity_factor
+
+        # Define fully connected layers with sparse connections
+        self.fc1 = nn.Linear(inputs_shape, 64, bias=False)
+        self.fc2 = nn.Linear(64, 64, bias=False)
+        self.fc3 = nn.Linear(64, 1, bias=False)
+
+        self.initialize_sparse_connections()
+
+    def initialize_sparse_connections(self):
+        # Initialize a random binary mask for each connection with sparsity_factor
+        mask_fc1 = torch.rand_like(self.fc1.weight) < self.sparsity_factor
+        mask_fc2 = torch.rand_like(self.fc2.weight) < self.sparsity_factor
+        mask_fc3 = torch.rand_like(self.fc3.weight) < self.sparsity_factor
+
+        # Apply masks to weights
+        self.fc1.weight.data *= mask_fc1.float()
+        self.fc2.weight.data *= mask_fc2.float()
+        self.fc3.weight.data *= mask_fc3.float()
+
+    def forward(self, x):
+        # Flatten the input
+        x = x.view(x.size(0), -1)
+
+        # Fully connected layers with ReLU activations
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+
+        x = self.fc3(x)
+        return x
+
+
 # --------------------------- Simple NN ---------------------------
 
 class SimpleNeuralNetworkArchitecture(nn.Module):
@@ -34,9 +125,9 @@ class SimpleNeuralNetworkArchitecture(nn.Module):
         self.l1_loss = nn.L1Loss()
         self.tanh = nn.Tanh()
         # Fully connected layers
-        self.fc1 = nn.Linear(inputs_shape, 32)
-        self.fc2 = nn.Linear(32, 16)
-        self.fc3 = nn.Linear(16, 1)
+        self.fc1 = nn.Linear(inputs_shape, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, 1)
 
     def forward(self, x):
         # Flatten the input
@@ -330,7 +421,7 @@ class ABRankingModel:
 
         self.inputs_shape = inputs_shape
         # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking SimpleNeuralNetworkArchitecture
-        self.model = TreeConnectArchitectureTanhRankingBig(inputs_shape).to(self._device) 
+        self.model = SimpleNeuralNetworkArchitecture(inputs_shape).to(self._device) 
         self.model_type = 'ab-ranking-treeconnect'
         self.loss_func_name = ''
         self.file_path = ''
@@ -489,7 +580,7 @@ class ABRankingModel:
         # TODO: deprecate when we have 10 or more trained models on new structure
         if "scaling_factor" not in safetensors_data:
         # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking SimpleNeuralNetworkArchitecture
-            self.model = TreeConnectArchitectureTanhRankingBig(self.inputs_shape).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
+            self.model = SimpleNeuralNetworkArchitecture(self.inputs_shape).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
             print("Loading deprecated model...")
 
         # Loading state dictionary
@@ -754,6 +845,7 @@ class ABRankingModel:
                 validation_predicted_score_images_x.append(predicted_score_image_x)
                 validation_predicted_score_images_y.append(predicted_score_image_y)
                 validation_predicted_probabilities.append(pred_probability)
+                
         print("validation loss: ",validation_loss_per_epoch)
         print("training loss: ",training_loss_per_epoch)
 
