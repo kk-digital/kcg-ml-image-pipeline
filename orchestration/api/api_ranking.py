@@ -687,6 +687,7 @@ def list_selection_data_with_scores(
         # Connect to the MongoDB collections
         ranking_collection = request.app.image_pair_ranking_collection
         jobs_collection = request.app.completed_jobs_collection
+        delta_score_collection = request.app.state.datapoints_delta_score_collection
 
         # Build query filter based on dataset
         query_filter = {}
@@ -709,6 +710,13 @@ def list_selection_data_with_scores(
         selection_data = []
         for doc in cursor:
 
+            delta_score_doc = delta_score_collection.find_one({
+                "model_type": model_type,
+                "file_name": doc["file_name"]  # Assuming file_name matches
+            })
+
+            delta_score = delta_score_doc["delta_score"] if delta_score_doc else None
+            
             # Check if the document is flagged
             is_flagged = doc.get("flagged", False)
             selection_file_name = doc["file_name"]
@@ -735,7 +743,6 @@ def list_selection_data_with_scores(
             selected_image_scores = selected_image_job["task_attributes_dict"][model_type]
             unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type]
 
-            delta_score = abs(selected_image_scores.get("image_clip_sigma_score", 0) - unselected_image_scores.get("image_clip_sigma_score", 0))
             selection_data.append({
                 "selected_image": {
                     "selected_image_path": selected_image_path,
