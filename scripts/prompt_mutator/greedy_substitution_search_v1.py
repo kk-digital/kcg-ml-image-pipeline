@@ -216,7 +216,7 @@ class PromptSubstitutionGenerator:
             
         # load phrase data
         self.data_loader.load_phrases()
-
+        self.phrase_list= self.data_loader.phrase_list
 
         # get base prompt list
         base_prompts = load_base_prompts(self.csv_base_prompts)
