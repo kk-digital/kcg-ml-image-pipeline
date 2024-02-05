@@ -53,7 +53,7 @@ class PartiallyConnectedNetwork(nn.Module):
 
     def forward(self, x):
         # Reshape input for 1D convolutions
-        x = x.view(x.size(0), 1, -1)  # Assuming a single input channel
+        #x = x.view(x.size(0), 1, -1)  # Assuming a single input channel
 
         # Partially connected layers with ReLU activations
         x = F.relu(self.conv1(x))
