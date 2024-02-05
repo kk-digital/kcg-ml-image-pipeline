@@ -304,6 +304,9 @@ def train_ranking(dataset_name: str,
     # add model card
     model_id = score_residual.add_model_card(model_card)
     model_type = "treeconnect-small"
+
+    print("validation loss: ",validation_loss_per_epoch)
+    print("training loss: ",training_loss_per_epoch)
     # upload residuals
     score_residual.upload_score_residual(model_type=model_type,
                                          train_prob_predictions=training_predicted_probabilities,
