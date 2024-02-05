@@ -47,7 +47,7 @@ class IndependantApproximationDataLoader:
         # get embeddings of the phrases
         self.phrase_embedding_loader= PhraseEmbeddingLoader(dataset_name=self.dataset_name,
                                                         minio_access_key=self.minio_access_key,
-                                                        minio_secret_key=self.minio_access_key,
+                                                        minio_secret_key=self.minio_secret_key,
                                                         minio_ip_addr=self.minio_ip_addr)
         self.phrase_embedding_loader.load_dataset_phrases()
         self.phrase_embedding_loader.text_embedder= self.text_encoder
