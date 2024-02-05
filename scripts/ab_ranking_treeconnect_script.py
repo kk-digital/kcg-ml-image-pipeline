@@ -334,7 +334,7 @@ def run_ab_ranking_linear_task(training_task, minio_access_key, minio_secret_key
 
 
 def test_run():
-    train_ranking(dataset_name="propaganda-poster ", #environmental propaganda-poster environmental
+    train_ranking(dataset_name="propaganda-poster", #environmental propaganda-poster environmental
                   minio_ip_addr=None,  # will use defualt if none is given
                   minio_access_key="D6ybtPLyUrca5IdZfCIM",
                   minio_secret_key="2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
