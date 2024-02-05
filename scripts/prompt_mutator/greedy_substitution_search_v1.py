@@ -29,7 +29,8 @@ from data_loader.phrase_embedding_loader import PhraseEmbeddingLoader
 from utility.boltzman.boltzman import find_first_element_binary_search, get_cumulative_probability_arr_without_upload
 from utility.minio import cmd
 from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix, load_base_prompts, generate_inpainting_job
-from scripts.prompt_mutator.DataLoaders import FixedProbabilitiesDataLoader, IndependantApproximationDataLoader
+from scripts.prompt_mutator.DataLoaders.FixedProbabilitiesDataLoader import FixedProbabilitiesDataLoader
+from scripts.prompt_mutator.DataLoaders.IndependantApproximationDataLoader import IndependantApproximationDataLoader
 
 GENERATION_POLICY="greedy-substitution-search-v1"
 DATA_MINIO_DIRECTORY="data/prompt-generator/substitution"
