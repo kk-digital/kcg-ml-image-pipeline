@@ -30,9 +30,10 @@ class FixedProbabilitiesDataLoader:
 
         self.minio_access_key = minio_access_key
         self.minio_secret_key = minio_secret_key
+        self.minio_ip_addr= minio_ip_addr
         self.minio_client = cmd.get_minio_client(minio_access_key=self.minio_access_key,
                                                  minio_secret_key=self.minio_secret_key,
-                                                 minio_ip_addr=minio_ip_addr)
+                                                 minio_ip_addr=self.minio_ip_addr)
         
     def load_phrases(self):
         # get list of phrases and their token lengths
