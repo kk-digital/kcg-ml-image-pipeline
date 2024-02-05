@@ -47,13 +47,13 @@ class PartiallyConnectedNetwork(nn.Module):
         print(" yeah bbbbbbbbbbb oi ", inputs_shape)
 
         # Partially connected layers using 1D convolutions
-        self.conv1 = nn.Conv1d(inputs_shape[1], 64, kernel_size=3, padding=1)  # Adjust kernel size and padding as needed
-        self.conv2 = nn.Conv1d(64, 64, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv1d(inputs_shape[1], 64, kernel_size=1, padding=1)  # Adjust kernel size and padding as needed
+        self.conv2 = nn.Conv1d(64, 64, kernel_size=1, padding=1)
         self.fc3 = nn.Linear(64, 1)
 
     def forward(self, x):
         # Reshape input for 1D convolutions
-        #x = x.view(x.size(0), 1, -1)  # Assuming a single input channel
+        x = x.view(x.size(0), 1, -1)  # Assuming a single input channel
 
         # Partially connected layers with ReLU activations
         x = F.relu(self.conv1(x))
