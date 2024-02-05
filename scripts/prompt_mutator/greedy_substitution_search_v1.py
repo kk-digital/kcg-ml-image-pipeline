@@ -1099,7 +1099,7 @@ class PromptSubstitutionGenerator:
         # get the phrase index
         phrase_embedding=self.data_loader.get_phrase_embedding(phrase)
 
-        if phrase is not None:
+        if phrase_embedding is not None:
             return phrase_embedding
         else:
             return self.base_prompt_embeddings[phrase]
