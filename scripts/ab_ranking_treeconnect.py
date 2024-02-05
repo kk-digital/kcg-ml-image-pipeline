@@ -680,6 +680,8 @@ class ABRankingModel:
 
             if epoch_training_loss is None:
                 epoch_training_loss = epoch_validation_loss
+ 
+
             print(
                 f"Epoch {epoch}/{epochs} | Loss: {epoch_training_loss:.4f} | Validation Loss: {epoch_validation_loss:.4f}")
             training_loss_per_epoch.append(epoch_training_loss)
@@ -752,6 +754,9 @@ class ABRankingModel:
                 validation_predicted_score_images_x.append(predicted_score_image_x)
                 validation_predicted_score_images_y.append(predicted_score_image_y)
                 validation_predicted_probabilities.append(pred_probability)
+                
+        print("validation loss: ",validation_loss_per_epoch)
+        print("training loss: ",training_loss_per_epoch)
 
         return training_predicted_score_images_x, \
             training_predicted_score_images_y, \
@@ -763,6 +768,9 @@ class ABRankingModel:
             validation_targets, \
             training_loss_per_epoch, \
             validation_loss_per_epoch
+
+
+
 
     # Deprecate: This will be replaced by
     # predict_average_pooling
