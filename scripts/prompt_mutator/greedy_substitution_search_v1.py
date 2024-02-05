@@ -61,8 +61,8 @@ def parse_args():
     parser.add_argument('--initial-generation-policy', help="the generation policy used for generating the initial seed prompts", default="independant_approximation")
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
     parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=128)
-    parser.add_argument('--clip-batch-size', type=int, help="Batch size for clip embeddings", default=1000)
-    parser.add_argument('--substitution-batch-size', type=int, help="Batch size for the substitution model", default=100000)
+    parser.add_argument('--clip-batch-size', type=int, help="Batch size for clip embeddings", default=256)
+    parser.add_argument('--substitution-batch-size', type=int, help="Batch size for the substitution model", default=10000)
 
     return parser.parse_args()
 
@@ -496,6 +496,9 @@ class PromptSubstitutionGenerator:
         end=time.time()
         self.inference_speed+= (num_choices * len(prompts))/ (end-start)
 
+        # Clear the arrays as they are no longer needed
+        del substitution_inputs
+
         prompt_index=0
         choices_count=1
         current_prompt_substitution_choices=[]
@@ -523,6 +526,10 @@ class PromptSubstitutionGenerator:
                 current_prompt_substitution_choices=[]
             
             choices_count+=1
+        
+        del sampled_phrases
+        del sampled_embeddings
+        del substitution_positions
         
         return prompts_substitution_choices
 
@@ -592,8 +599,14 @@ class PromptSubstitutionGenerator:
                         prompts[index].variance_score= variance_score
                         break
                 
+                # After handling each prompt, clear substitution_choices if it's not needed further
+                del substitution_choices
+
                 self.average_score_by_iteration[i]+=prompts[index].positive_score
                 index+=1
+            
+            # Clear prompt_substitutions after processing all prompts
+            del prompt_substitutions
             
             # save average score for current iteration
             self.average_score_by_iteration[i]=self.average_score_by_iteration[i] / num_prompts
@@ -958,6 +971,11 @@ class PromptSubstitutionGenerator:
             valid_positive_prompts = [positive_prompts[i] for i in valid_positive_indices]
             valid_negative_prompts = [negative_prompts[i] for i in valid_negative_indices]
 
+            del positive_prompts
+            del negative_prompts
+            del positive_token_lengths
+            del negative_token_lengths
+
             # Get embeddings for the batch
             start=time.time()
             positive_embeddings = self.get_prompt_embedding(valid_positive_prompts)
@@ -965,6 +983,9 @@ class PromptSubstitutionGenerator:
             end= time.time()
 
             clip_time+= end-start
+
+            del valid_positive_prompts
+            del valid_negative_prompts
 
             # Normalize scores and calculate mean pooled embeddings for the batch
             for i, index in enumerate(valid_positive_indices):
@@ -990,9 +1011,18 @@ class PromptSubstitutionGenerator:
                     variance_score=variance_score
                 ))
            
+            del prompt_batch
+            del valid_positive_indices
+            del valid_negative_indices
+            del positive_embeddings
+            del negative_embeddings
+
+        del prompts
+            
         # Sort and select prompts
         sorted_scored_prompts = sorted(prompt_data, key=lambda data: data.positive_score, reverse=True)
         chosen_scored_prompts = sorted_scored_prompts[:num_prompts]
+        del sorted_scored_prompts
 
         # Calculate phrase embeddings and token lengths for chosen prompts
         print("Calculating phrase embeddings and token lengths for each phrase in each prompt")
@@ -1004,6 +1034,8 @@ class PromptSubstitutionGenerator:
         total_end=time.time() 
         self.generation_time= total_end - total_start  
         self.clip_speed= (num_prompts * 2) / clip_time
+
+        del prompt_data
 
         return chosen_scored_prompts
 
@@ -1042,6 +1074,11 @@ class PromptSubstitutionGenerator:
             valid_positive_prompts = [positive_prompts[i] for i in valid_positive_indices]
             valid_negative_prompts = [negative_prompts[i] for i in valid_negative_indices]
 
+            del positive_prompts
+            del negative_prompts
+            del positive_token_lengths
+            del negative_token_lengths
+
             # Get embeddings for the batch
             start=time.time()
             positive_embeddings = self.get_prompt_embedding(valid_positive_prompts)
@@ -1049,6 +1086,9 @@ class PromptSubstitutionGenerator:
             end= time.time()
 
             clip_time+= end-start
+
+            del valid_positive_prompts
+            del valid_negative_prompts
 
             # Normalize scores and calculate mean pooled embeddings for the batch
             for i, index in enumerate(valid_positive_indices):
@@ -1076,10 +1116,20 @@ class PromptSubstitutionGenerator:
                     positive_score=positive_score,
                     variance_score=variance_score
                 ))
-           
+            
+            del prompt_batch
+            del valid_positive_indices
+            del valid_negative_indices
+            del positive_embeddings
+            del negative_embeddings
+
+        del prompts
+
         # Sort and select prompts
         sorted_scored_prompts = sorted(prompt_data, key=lambda data: data.positive_score, reverse=True)
         chosen_scored_prompts = sorted_scored_prompts[:num_prompts]
+
+        del sorted_scored_prompts
 
         # Calculate phrase embeddings and token lengths for chosen prompts
         print("Calculating phrase embeddings and token lengths for each phrase in each prompt")
@@ -1091,6 +1141,7 @@ class PromptSubstitutionGenerator:
         total_end=time.time() 
         self.generation_time= total_end - total_start  
         self.clip_speed= (num_prompts * 2) / clip_time
+        del prompt_data
 
         return chosen_scored_prompts
 
