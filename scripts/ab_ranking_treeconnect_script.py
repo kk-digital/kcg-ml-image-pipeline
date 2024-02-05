@@ -276,7 +276,7 @@ def train_ranking(dataset_name: str,
                                     loss_penalty_range=penalty_range,
                                     saved_model_epoch=ab_model.lowest_loss_model_epoch)
 
-    upload the graph report
+    # #upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
 
     # get model card and upload
