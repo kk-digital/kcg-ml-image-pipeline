@@ -755,7 +755,7 @@ def list_selection_data_with_scores(
             })
 
         return response_handler.create_success_response(
-            sorted_selection_data,
+            selection_data,
             200
         )
 
