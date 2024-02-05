@@ -303,7 +303,7 @@ def train_ranking(dataset_name: str,
 
     # add model card
     model_id = score_residual.add_model_card(model_card)
-    model_type = "treeconnect-small"
+    model_type = "FC-big"
 
     print("validation loss: ",validation_loss_per_epoch)
     print("training loss: ",training_loss_per_epoch)
@@ -337,7 +337,7 @@ def run_ab_ranking_linear_task(training_task, minio_access_key, minio_secret_key
 
 
 def test_run():
-    train_ranking(dataset_name="propaganda-poster", #environmental propaganda-poster environmental
+    train_ranking(dataset_name="environmental", #environmental propaganda-poster environmental
                   minio_ip_addr=None,  # will use defualt if none is given
                   minio_access_key="D6ybtPLyUrca5IdZfCIM",
                   minio_secret_key="2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",

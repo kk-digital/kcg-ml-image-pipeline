@@ -422,7 +422,7 @@ class ABRankingModel:
         self.inputs_shape = inputs_shape
         # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking SimpleNeuralNetworkArchitecture
         self.model = SimpleNeuralNetworkArchitecture(inputs_shape).to(self._device) 
-        self.model_type = 'ab-ranking-treeconnect'
+        self.model_type = 'ab-ranking-fc-big'
         self.loss_func_name = ''
         self.file_path = ''
         self.model_hash = ''
@@ -846,8 +846,8 @@ class ABRankingModel:
                 validation_predicted_score_images_y.append(predicted_score_image_y)
                 validation_predicted_probabilities.append(pred_probability)
                 
-        print("validation loss: ",validation_loss_per_epoch)
-        print("training loss: ",training_loss_per_epoch)
+        # print("validation loss: ",validation_loss_per_epoch)
+        # print("training loss: ",training_loss_per_epoch)
 
         return training_predicted_score_images_x, \
             training_predicted_score_images_y, \
