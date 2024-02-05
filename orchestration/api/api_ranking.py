@@ -797,21 +797,22 @@ async def calculate_delta_scores(request: Request, model_type: str):
         unselected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
 
         if selected_image_job and unselected_image_job and "task_attributes_dict" in selected_image_job and "task_attributes_dict" in unselected_image_job:
-            selected_image_scores = selected_image_job["task_attributes_dict"][model_type]
-            unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type]
+            if model_type in selected_image_job["task_attributes_dict"] and model_type in unselected_image_job["task_attributes_dict"]:
+                selected_image_scores = selected_image_job["task_attributes_dict"][model_type]
+                unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type]
 
-            if "image_clip_sigma_score" in selected_image_scores and "image_clip_sigma_score" in unselected_image_scores:
-                delta_score = abs(selected_image_scores["image_clip_sigma_score"] - unselected_image_scores["image_clip_sigma_score"])
+                if "image_clip_sigma_score" in selected_image_scores and "image_clip_sigma_score" in unselected_image_scores:
+                    delta_score = abs(selected_image_scores["image_clip_sigma_score"] - unselected_image_scores["image_clip_sigma_score"])
 
-                # Create DatapointDeltaScore object
-                delta_score_entry = DatapointDeltaScore(
-                    model_type=model_type,
-                    file_name=doc["file_name"],
-                    delta_score=delta_score
-                )
+                    # Create DatapointDeltaScore object
+                    delta_score_entry = DatapointDeltaScore(
+                        model_type=model_type,
+                        file_name=doc["file_name"],
+                        delta_score=delta_score
+                    )
 
-                # Insert the delta score into the collection
-                delta_scores_collection.insert_one(delta_score_entry.to_dict())
+                    # Insert the delta score into the collection
+                    delta_scores_collection.insert_one(delta_score_entry.to_dict())
 
     end_time = time.time()  # Capture end time
     total_time = end_time - start_time  # Calculate duration
