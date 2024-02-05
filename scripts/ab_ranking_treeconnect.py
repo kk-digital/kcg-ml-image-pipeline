@@ -35,7 +35,7 @@ class PartiallyConnectedNetwork(nn.Module):
         self.tanh = nn.Tanh()
 
         # Partially connected layers using 1D convolutions
-        self.conv1 = nn.Conv1d(inputs_shape, 64, kernel_size=3, padding=1)  # Adjust kernel size and padding as needed
+        self.conv1 = nn.Conv1d(inputs_shape[1], 64, kernel_size=3, padding=1)  # Adjust kernel size and padding as needed
         self.conv2 = nn.Conv1d(64, 64, kernel_size=3, padding=1)
         self.fc3 = nn.Linear(64, 1)
 
