@@ -709,21 +709,18 @@ def list_selection_data_with_scores(
 
             # Check if the document is flagged
             is_flagged = doc.get("flagged", False)
-
+            selection_file_name = doc["file_name"]
             selected_image_index = doc["selected_image_index"]
             selected_image_hash = doc["selected_image_hash"]
             selected_image_path = doc["image_1_metadata"]["file_path"] if selected_image_index == 0 else doc["image_2_metadata"]["file_path"]
-            selected_image_file_name = os.path.basename(doc["image_1_metadata"]["file_name"] if selected_image_index == 0 else doc["image_2_metadata"]["file_name"])
             # Determine unselected image hash and path based on selected_image_index
             if selected_image_index == 0:
                 unselected_image_hash = doc["image_2_metadata"]["file_hash"]
                 unselected_image_path = doc["image_2_metadata"]["file_path"]
-                unselected_image_file_name = os.path.basename(doc["image_2_metadata"]["file_name"])
             else:
                 unselected_image_hash = doc["image_1_metadata"]["file_hash"]
                 unselected_image_path = doc["image_1_metadata"]["file_path"]
-                unselected_image_file_name = os.path.basename(doc["image_1_metadata"]["file_name"])
-
+                
             # Fetch scores from completed_jobs_collection for both images
             selected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
             unselected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
@@ -739,19 +736,18 @@ def list_selection_data_with_scores(
             delta_score = abs(selected_image_scores.get("image_clip_sigma_score", 0) - unselected_image_scores.get("image_clip_sigma_score", 0))
             selection_data.append({
                 "selected_image": {
-                    "selected_image_file_name": selected_image_file_name,
                     "selected_image_path": selected_image_path,
                     "selected_image_hash": selected_image_hash,
                     "selected_image_clip_sigma_score": selected_image_scores.get("image_clip_sigma_score", None),
                     "selected_text_embedding_sigma_score": selected_image_scores.get("text_embedding_sigma_score", None)
                 },
                 "unselected_image": {
-                    "unselected_image_file_name": unselected_image_file_name,
                     "unselected_image_path": unselected_image_path,
                     "unselected_image_hash": unselected_image_hash,
                     "unselected_image_clip_sigma_score": unselected_image_scores.get("image_clip_sigma_score", None),
                     "unselected_text_embedding_sigma_score": unselected_image_scores.get("text_embedding_sigma_score", None)
                 },
+                "selection_datapoint_file_name": selection_file_name,
                 "delta_score": delta_score,
                 "flagged": is_flagged 
             })
