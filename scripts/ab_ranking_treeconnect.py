@@ -31,12 +31,11 @@ from utility.clip.clip_text_embedder import tensor_attention_pooling
 # --------------------------- SparseNeuralNetworkArchitectureMM  ---------------------------
 
 class SparseNeuralNetworkArchitectureMM(nn.Module):
-    def __init__(self, inputs_shape, sparsity_factor=0.5, custom_mask=None):
+    def __init__(self, inputs_shape, sparsity_factor=0.5):
         super(SparseNeuralNetworkArchitectureMM, self).__init__()
         self.mse_loss = nn.MSELoss()
         self.l1_loss = nn.L1Loss()
         self.tanh = nn.Tanh()
-
         self.sparsity_factor = sparsity_factor
 
         # Define fully connected layers without bias
@@ -44,22 +43,23 @@ class SparseNeuralNetworkArchitectureMM(nn.Module):
         self.fc2 = nn.Linear(64, 64, bias=False)
         self.fc3 = nn.Linear(64, 1, bias=False)
 
-        if custom_mask is not None:
-            self.custom_mask = custom_mask
-        else:
-            self.custom_mask = self.generate_sparse_mask()
+        # Create a sparse mask during initialization
+        self.custom_mask = self.generate_sparse_mask()
 
     def generate_sparse_mask(self):
-        # Generate a random binary mask for each connection with sparsity_factor
         mask_fc1 = torch.rand_like(self.fc1.weight) < self.sparsity_factor
         mask_fc2 = torch.rand_like(self.fc2.weight) < self.sparsity_factor
         mask_fc3 = torch.rand_like(self.fc3.weight) < self.sparsity_factor
 
-        # Combine masks to create a single custom mask
-        custom_mask = mask_fc1.float() * mask_fc2.float() * mask_fc3.float()
-        # Adjust the mask size to match the size of the weights
-        custom_mask = custom_mask.expand_as(self.fc1.weight)
-        return custom_mask
+        # Combine masks to create a single sparse mask
+        combined_mask = mask_fc1.float() * mask_fc2.float() * mask_fc3.float()
+
+        # Create a sparse mask using COO format
+        indices = combined_mask.nonzero(as_tuple=False).t()
+        values = combined_mask[indices[0], indices[1]]
+        sparse_mask = torch.sparse_coo_tensor(indices, values, combined_mask.size())
+
+        return sparse_mask
 
     def forward(self, x):
         # Flatten the input
