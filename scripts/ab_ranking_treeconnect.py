@@ -25,6 +25,34 @@ from utility.minio import cmd
 from utility.clip.clip_text_embedder import tensor_attention_pooling
 
 
+# --------------------------- PartiallyConnectedNetwork  ---------------------------
+
+class PartiallyConnectedNetwork(nn.Module):
+    def __init__(self, inputs_shape):
+        super(PartiallyConnectedNetwork, self).__init__()
+        self.mse_loss = nn.MSELoss()
+        self.l1_loss = nn.L1Loss()
+        self.tanh = nn.Tanh()
+
+        # Partially connected layers using 1D convolutions
+        self.conv1 = nn.Conv1d(inputs_shape, 64, kernel_size=3, padding=1)  # Adjust kernel size and padding as needed
+        self.conv2 = nn.Conv1d(64, 64, kernel_size=3, padding=1)
+        self.fc3 = nn.Linear(64, 1)
+
+    def forward(self, x):
+        # Reshape input for 1D convolutions
+        x = x.view(x.size(0), 1, -1)  # Assuming a single input channel
+
+        # Partially connected layers with ReLU activations
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+
+        # Flatten output before the final linear layer
+        x = x.view(x.size(0), -1)
+        x = self.fc3(x)
+        return x
+
+
 # --------------------------- Simple NN ---------------------------
 
 class SimpleNeuralNetworkArchitecture(nn.Module):
@@ -330,7 +358,7 @@ class ABRankingModel:
 
         self.inputs_shape = inputs_shape
         # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking SimpleNeuralNetworkArchitecture
-        self.model = TreeConnectArchitectureTanhRankingBig(inputs_shape).to(self._device) 
+        self.model = PartiallyConnectedNetwork(inputs_shape).to(self._device) 
         self.model_type = 'ab-ranking-treeconnect'
         self.loss_func_name = ''
         self.file_path = ''
@@ -489,7 +517,7 @@ class ABRankingModel:
         # TODO: deprecate when we have 10 or more trained models on new structure
         if "scaling_factor" not in safetensors_data:
         # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking SimpleNeuralNetworkArchitecture
-            self.model = TreeConnectArchitectureTanhRankingBig(self.inputs_shape).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
+            self.model = PartiallyConnectedNetwork(self.inputs_shape).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
             print("Loading deprecated model...")
 
         # Loading state dictionary
