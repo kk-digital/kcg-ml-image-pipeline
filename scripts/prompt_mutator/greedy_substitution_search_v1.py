@@ -197,7 +197,7 @@ class PromptSubstitutionGenerator:
         self.substitution_model.load_model()
         
         if(self.initial_generation_policy=="fixed_probabilities"):
-            self.data_loader= FixedProbabilitiesDataLoader(dataset_name,
+            self.data_loader= FixedProbabilitiesDataLoader(model_dataset,
                                                             self.csv_phrase,
                                                             text_encoder=self.embedder,
                                                             minio_ip_addr=minio_ip_addr,
@@ -207,7 +207,7 @@ class PromptSubstitutionGenerator:
             # get list of boltzman phrase score
             self.positive_phrase_scores_csv,self.negative_phrase_scores_csv=self.get_boltzman_scores_csv()
 
-            self.data_loader= IndependantApproximationDataLoader(dataset_name,
+            self.data_loader= IndependantApproximationDataLoader(model_dataset,
                                                             self.positive_phrase_scores_csv,
                                                             text_encoder=self.embedder,
                                                             minio_ip_addr=minio_ip_addr,
