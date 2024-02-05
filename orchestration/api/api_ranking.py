@@ -713,16 +713,16 @@ def list_selection_data_with_scores(
             selected_image_index = doc["selected_image_index"]
             selected_image_hash = doc["selected_image_hash"]
             selected_image_path = doc["image_1_metadata"]["file_path"] if selected_image_index == 0 else doc["image_2_metadata"]["file_path"]
-            selected_image_file_name = doc["image_1_metadata"]["file_name"] if selected_image_index == 0 else doc["image_2_metadata"]["file_name"]
+            selected_image_file_name = os.path.basename(doc["image_1_metadata"]["file_name"] if selected_image_index == 0 else doc["image_2_metadata"]["file_name"])
             # Determine unselected image hash and path based on selected_image_index
             if selected_image_index == 0:
                 unselected_image_hash = doc["image_2_metadata"]["file_hash"]
                 unselected_image_path = doc["image_2_metadata"]["file_path"]
-                unselected_image_file_name = doc["image_2_metadata"]["file_name"]
+                unselected_image_file_name = os.path.basename(doc["image_2_metadata"]["file_name"])
             else:
                 unselected_image_hash = doc["image_1_metadata"]["file_hash"]
                 unselected_image_path = doc["image_1_metadata"]["file_path"]
-                unselected_image_file_name = doc["image_1_metadata"]["file_name"]
+                unselected_image_file_name = os.path.basename(doc["image_1_metadata"]["file_name"])
 
             # Fetch scores from completed_jobs_collection for both images
             selected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
