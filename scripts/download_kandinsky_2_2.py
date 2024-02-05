@@ -1,3 +1,4 @@
+import gc
 import os
 from pathlib import Path
 import torch
@@ -5,11 +6,6 @@ from diffusers import AutoPipelineForInpainting
 
 TARGET_DIR = Path('hub_folder')
 TARGET_DIR.mkdir(exist_ok=True)
-
-def clear_memory(pipe):
-    del pipe
-    torch.cuda.empty_cache()
-    print("Memory cleared")
 
 # Function to save the components of the prior model
 def save_prior_components(pipe, prior_folder):
@@ -36,7 +32,11 @@ prior_folder = TARGET_DIR / 'kandinsky-2-2-prior'
 decoder_folder = TARGET_DIR / 'kandinsky-2-2-decoder'
 save_prior_components(pipe, prior_folder)
 save_decoder_components(pipe, decoder_folder)
-clear_memory(pipe)
+
+del pipe
+torch.cuda.empty_cache()
+gc.collect()  # Collect garbage in CPU memory
+print("Memory cleared")
 
 # Download and save the kandinsky-2-2-decoder-inpaint
 pipe = AutoPipelineForInpainting.from_pretrained(
@@ -46,7 +46,11 @@ pipe = AutoPipelineForInpainting.from_pretrained(
 )
 decoder_inpaint_folder = TARGET_DIR / 'kandinsky-2-2-decoder-inpaint'
 save_decoder_components(pipe, decoder_inpaint_folder)
-clear_memory(pipe)
+
+del pipe
+torch.cuda.empty_cache()
+gc.collect()  # Collect garbage in CPU memory
+print("Memory cleared")
 
 # Step 2: pack folders
 os.system(f'cd {TARGET_DIR} && zip -r kandinsky-2-2.zip kandinsky-2-2-prior kandinsky-2-2-decoder kandinsky-2-2-decoder-inpaint')
