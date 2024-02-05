@@ -414,6 +414,15 @@ class ActiveLearningPolicy(BaseModel):
             "creation_time": self.creation_time
         }
 
+class RequestActiveLearningPolicy(BaseModel):
+    active_learning_policy: str
+    active_learning_policy_description: str
+
+    def to_dict(self):
+        return{
+            "active_learning_policy": self.active_learning_policy,
+            "active_learning_policy_description": self.active_learning_policy_description,
+        }
 
 class ActiveLearningQueuePair(BaseModel):
     image1_job_uuid: str
@@ -441,3 +450,15 @@ class PhraseModel(BaseModel):
         return{
             "phrase": self.phrase
         }
+    
+class DatapointDeltaScore(BaseModel):
+    model_type: str
+    file_name: str
+    delta_score: float
+
+    def to_dict(self):
+        return{
+            "model_type": self.model_type,
+            "file_name": self.file_name,
+            "delta_score": self.delta_score
+        }    

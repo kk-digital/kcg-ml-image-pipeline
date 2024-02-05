@@ -29,6 +29,10 @@ class TagsCategoryListResponse(BaseModel):
 class TagsListResponse(BaseModel):
     tags: List[TagDefinition]
 
+class TagCountResponse(BaseModel):
+    tag_id: int
+    count: int
+
 class GetClipPhraseResponse(BaseModel):
     phrase : str
     clip_vector: List[List[float]]

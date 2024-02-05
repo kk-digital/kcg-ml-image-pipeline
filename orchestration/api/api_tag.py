@@ -3,7 +3,7 @@ from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
 from orchestration.api.mongo_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory
 from typing import Union
-from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagResponse
+from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagResponse, TagCountResponse
 import traceback
 from bson import ObjectId
 
@@ -942,6 +942,29 @@ def add_tag_category(request: Request, tag_category_data: NewTagCategory):
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
+@router.get("/tags/count/{tag_id}", 
+            status_code=200,
+            tags=["tags"], 
+            description="Get count of images with a specific tag",
+            response_model=TagCountResponse,
+            responses=ApiResponseHandler.listErrors([400, 422]))
+def get_image_count_by_tag(
+    request: Request,
+    tag_id: int
+):
+    response_handler = ApiResponseHandler(request)
+
+    # Assuming each image document has an 'tags' array field
+    query = {"tag_id": tag_id}
+    count = request.app.image_tags_collection.count_documents(query)
+    
+    if count == 0:
+        # If no images found with the tag, consider how you want to handle this. 
+        # For example, you might still want to return a success response with a count of 0.
+        return response_handler.create_success_response({"tag_id": tag_id, "count": 0}, 200)
+
+    # Return standard success response with the count
+    return response_handler.create_success_response({"tag_id": tag_id, "count": count}, 200)
 
 @router.put("/tags/update_tag_category", response_class=PrettyJSONResponse)
 def update_tag_category(request: Request, tag_category_id: int, tag_category_update: TagCategory):
