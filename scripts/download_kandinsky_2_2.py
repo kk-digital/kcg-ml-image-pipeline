@@ -6,7 +6,7 @@ TARGET_DIR = './hub_folder/'
 
 os.makedirs(TARGET_DIR, exist_ok=True)
 
-# Step 1: download weights
+# Step 1: download weights & export folders
 
 pipe = AutoPipelineForInpainting.from_pretrained(
     "kandinsky-community/kandinsky-2-2-decoder", 
@@ -14,37 +14,72 @@ pipe = AutoPipelineForInpainting.from_pretrained(
     resume_download=True
 )
 
+pipe.prior_scheduler.save_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-prior', 'scheduler'))
+pipe.prior_prior.save_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-prior', 'prior'))
+pipe.prior_image_processor.save_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-prior', 'image_processor'))
+pipe.prior_image_encoder.save_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-prior', 'image_encoder'))
+pipe.prior_tokenizer.save_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-prior', 'tokenizer'))
+pipe.prior_text_encoder.save_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-prior', 'text_encoder'))
+
+pipe.scheduler.save_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-decoder', 'scheduler'))
+pipe.unet.save_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-decoder', 'unet'))
+pipe.movq.save_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-decoder', 'movq'))
+
 pipe = AutoPipelineForInpainting.from_pretrained(
     "kandinsky-community/kandinsky-2-2-decoder-inpaint", 
     torch_dtype=torch.float16,
     resume_download=True
 )
 
-# Step 2: export folders
+pipe.scheduler.save_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-decoder-inpaint', 'scheduler'))
+pipe.unet.save_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-decoder-inpaint', 'unet'))
+pipe.movq.save_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-decoder-inpaint', 'movq'))
 
-os.system(f'cp -r ~/.cache/huggingface/hub/models--kandinsky-community--* {TARGET_DIR}')
+# Step 2: pack folders
 
-# Step 3: pack folders
+os.system(r'cd {TARGET_DIR} | zip -rq kandinsky-2-2.zip kandinsky-2-2-prior kandinsky-2-2-decoder kandinsky-2-2-decoder-inpaint')
 
-# I don't know if this step is necessary. 
-# If minio or torrent supports uploading the entire folder, 
-# this step is not needed.
+# Step 3: load from folders
 
-os.system(f'cd {TARGET_DIR} | zip -r kandinsky-2-2.zip models--kandinsky-community--kandinsky-2-2-prior/ models--kandinsky-community--kandinsky-2-2-decoder/ models--kandinsky-community--kandinsky-2-2-decoder-inpaint/')
+from diffusers import DDPMScheduler, UNet2DConditionModel, VQModel, PriorTransformer, UnCLIPScheduler
+from diffusers import KandinskyV22CombinedPipeline, KandinskyV22InpaintCombinedPipeline
+from transformers import CLIPVisionModelWithProjection, CLIPTextModelWithProjection, CLIPTokenizer, CLIPImageProcessor
 
-# Step 4: load from folders
+prior_scheduler = UnCLIPScheduler.from_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-prior', 'scheduler'))
+prior_prior = PriorTransformer.from_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-prior', 'prior'))
+prior_image_encoder = CLIPVisionModelWithProjection.from_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-prior', 'image_encoder'))
+prior_text_encoder = CLIPTextModelWithProjection.from_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-prior', 'text_encoder'))
+prior_tokenizer = CLIPTokenizer.from_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-prior', 'tokenizer'))
+prior_image_processor = CLIPImageProcessor.from_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-prior', 'image_processor'))
 
-pipe = AutoPipelineForInpainting.from_pretrained(
-    "kandinsky-community/kandinsky-2-2-decoder", 
-    torch_dtype=torch.float16,
-    cache_dir=TARGET_DIR,
-    local_files_only=True
+scheduler = DDPMScheduler.from_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-decoder', 'scheduler'))
+unet = UNet2DConditionModel.from_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-decoder', 'unet'))
+movq = VQModel.from_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-decoder', 'movq'))
+
+pipe = KandinskyV22CombinedPipeline(
+    prior_scheduler=prior_scheduler,
+    prior_prior=prior_prior,
+    prior_image_encoder=prior_image_encoder,
+    prior_text_encoder=prior_text_encoder,
+    prior_tokenizer=prior_tokenizer,
+    prior_image_processor=prior_image_processor,
+    scheduler=scheduler,
+    unet=unet,
+    movq=movq,
 )
 
-pipe = AutoPipelineForInpainting.from_pretrained(
-    "kandinsky-community/kandinsky-2-2-decoder-inpaint", 
-    torch_dtype=torch.float16,
-    cache_dir=TARGET_DIR,
-    local_files_only=True
-)
+scheduler = DDPMScheduler.from_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-decoder-inpaint', 'scheduler'))
+unet = UNet2DConditionModel.from_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-decoder-inpaint', 'unet'))
+movq = VQModel.from_pretrained(os.path.join(TARGET_DIR, 'kandinsky-2-2-decoder-inpaint', 'movq'))
 
+pipe = KandinskyV22InpaintCombinedPipeline(
+    prior_scheduler=prior_scheduler,
+    prior_prior=prior_prior,
+    prior_image_encoder=prior_image_encoder,
+    prior_text_encoder=prior_text_encoder,
+    prior_tokenizer=prior_tokenizer,
+    prior_image_processor=prior_image_processor,
+    scheduler=scheduler,
+    unet=unet,
+    movq=movq,
+)
