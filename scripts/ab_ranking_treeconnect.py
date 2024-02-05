@@ -44,6 +44,7 @@ class PartiallyConnectedNetwork(nn.Module):
             raise ValueError("inputs_shape must be a tuple with two elements, e.g., (channels, length)")
 
         self.inputs_shape = inputs_shape
+        print(" yeah bbbbbbbbbbb oi ", inputs_shape)
 
         # Partially connected layers using 1D convolutions
         self.conv1 = nn.Conv1d(inputs_shape[1], 64, kernel_size=3, padding=1)  # Adjust kernel size and padding as needed
