@@ -842,3 +842,27 @@ def clear_delta_scores(request: Request):
         return {"message": "All delta scores have been successfully deleted."}
     else:
         raise HTTPException(status_code=500, detail="Failed to delete delta scores.")
+    
+
+@router.get("/queue/image-generation/count-completed")
+def count_completed(request: Request, dataset: str = None):
+
+    jobs = list(request.app.completed_jobs_collection.find({
+        'task_input_dict.dataset': dataset
+    }))
+
+    total_count = len(jobs)
+    with_task_attributes_dict_count = 0
+    with_linear_field_count = 0
+
+    for job in jobs:
+        if 'task_attributes_dict' in job:
+            with_task_attributes_dict_count += 1
+            if 'linear' in job['task_attributes_dict']:
+                with_linear_field_count += 1
+
+    return {
+        "total_count": total_count,
+        "with_task_attributes_dict_count": with_task_attributes_dict_count,
+        "with_linear_field_count": with_linear_field_count
+    }
