@@ -687,7 +687,7 @@ def list_selection_data_with_scores(
         # Connect to the MongoDB collections
         ranking_collection = request.app.image_pair_ranking_collection
         jobs_collection = request.app.completed_jobs_collection
-        delta_score_collection = request.app.state.datapoints_delta_score_collection
+        delta_score_collection = request.app.datapoints_delta_score_collection
 
         # Build query filter based on dataset
         query_filter = {}
@@ -716,7 +716,7 @@ def list_selection_data_with_scores(
             })
 
             delta_score = delta_score_doc["delta_score"] if delta_score_doc else None
-            
+
             # Check if the document is flagged
             is_flagged = doc.get("flagged", False)
             selection_file_name = doc["file_name"]
