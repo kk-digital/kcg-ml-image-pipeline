@@ -854,9 +854,10 @@ def count_completed(request: Request):
     with_linear_field_count = 0
 
     for job in jobs:
-        if 'task_attributes_dict' in job and job['task_attributes_dict'] is not None:
+        task_attributes_dict = job.get('task_attributes_dict', None)
+        if task_attributes_dict is not None:
             with_task_attributes_dict_count += 1
-            if 'linear' in job['task_attributes_dict']:
+            if 'linear' in task_attributes_dict:
                 with_linear_field_count += 1
 
     return {
