@@ -1,3 +1,4 @@
+import csv
 from datetime import datetime, timedelta
 import io
 import json
@@ -21,6 +22,7 @@ from utility.minio.cmd import connect_to_minio_client
 from utility.clip.clip import ClipModel
 
 API_URL = "http://192.168.3.1:8111"
+OUTPUT_PATH="environmental/output/forest_vs_non_forest_pairs"
 
 class ForestActiveLearningPipeline:
 
@@ -48,7 +50,15 @@ class ForestActiveLearningPipeline:
         self.clip_model.load_clip()
         self.clip_model.load_tokenizer()
         # calculate clip embedding for forest
-        self.text_clip=self.compute_clip_vector("forest")
+        self.text_embs= self.get_forest_text_embs()
+
+    def get_forest_text_embs(self):
+        topic_phrase_list=[
+            "jungle", "forest", "topical", "tree", "grass"
+        ]
+        text_embs= [self.compute_clip_vector(phrase) for phrase in topic_phrase_list]
+
+        return text_embs
 
     def get_jobs(self):
         print('Loading image file paths for environmntal dataset.........')
@@ -56,8 +66,6 @@ class ForestActiveLearningPipeline:
         response = requests.get(f'{API_URL}/queue/image-generation/list-completed-by-dataset?dataset=environmental')
         
         jobs = json.loads(response.content)
-
-        print(jobs)
 
         return jobs
 
@@ -82,10 +90,10 @@ class ForestActiveLearningPipeline:
         return clip_vector
     
     # compute clip similarity
-    def compute_cosine_match_value(self, image_clip):
+    def compute_cosine_value(self, image_clip, phrase_emb):
 
         # convert numpy array to tensors
-        phrase_clip_vector = torch.tensor(self.text_clip, dtype=torch.float32, device=self.device)
+        phrase_clip_vector = torch.tensor(phrase_emb, dtype=torch.float32, device=self.device)
         image_clip_vector = torch.tensor(image_clip, dtype=torch.float32, device=self.device)
 
         #check the vector size
@@ -116,6 +124,13 @@ class ForestActiveLearningPipeline:
         del normalized_image_clip_vector
 
         return similarity.item()
+    
+    # calculate max cosine similarity for a list of phrases
+    def max_cosine_similarity(self, image_clip):
+        all_similarities= [self.compute_cosine_value(image_clip, phrase_emb) for phrase_emb in self.text_embs]
+        max_similarity= max(all_similarities)
+
+        return max_similarity
     
     # load elm scoring model
     def load_scoring_model(self):
@@ -189,7 +204,7 @@ class ForestActiveLearningPipeline:
 
             # calculate score and clip similarity
             image_score = self.get_score(embedding)
-            image_similarity = self.compute_cosine_match_value(image_clip=embedding)
+            image_similarity = self.max_cosine_similarity(image_clip=embedding)
 
             # store job data
             job_data.append({
@@ -200,9 +215,38 @@ class ForestActiveLearningPipeline:
         
 
         pairs = self.pair_images(job_data)
-                
+        self.write_pairs_to_csv(pairs)
+
         return pairs
     
+
+    def write_pairs_to_csv(self, pairs):
+        local_file_path = "forest_vs_non_forest_pairs.csv"
+        # Open the file in write mode
+        with open(local_file_path, mode='w', newline='') as file:
+            # Create a CSV writer
+            writer = csv.writer(file)
+            
+            # Write the header
+            writer.writerow(['Image1_UUID', 'Image2_UUID'])
+            
+            # Write each pair
+            for pair in pairs:
+                writer.writerow([pair[0], pair[1]])
+        
+        # Read the contents of the .npz file
+        with open(local_file_path, 'rb') as file:
+            content = file.read()
+
+        # Upload the local file to MinIO
+        buffer = io.BytesIO(content)
+        buffer.seek(0)
+
+        minio_path=OUTPUT_PATH + f"/{local_file_path}"
+        cmd.upload_data(self.client, 'datasets', minio_path, buffer)
+
+        # Remove the temporary file
+        os.remove(local_file_path)
 
     def pair_images(self, image_jobs):
         # Separate images into two lists based on cosine similarity
@@ -212,12 +256,16 @@ class ForestActiveLearningPipeline:
         # Sort the lists
         # High cosine images sorted by cosine similarity descending
         high_cosine_images.sort(key=lambda x: x['cosine_similarity'], reverse=True)
+
+        # print percentage of forest related images
+        print(len(high_cosine_images)/len(image_jobs))
         
         # Low cosine, high score images sorted by quality score descending
         low_cosine_high_score_images.sort(key=lambda x: x['quality_score'], reverse=True)
         
         # Initialize pairs list
         pairs = []
+        num_pairs=0
         
         # Pairing logic
         for high_cosine_img in high_cosine_images:
@@ -227,15 +275,19 @@ class ForestActiveLearningPipeline:
                     pairs.append((high_cosine_img['job_uuid'], low_cosine_high_score_img['job_uuid']))
                     # Once paired, remove the low_cosine_high_score_img to avoid reusing it
                     low_cosine_high_score_images.remove(low_cosine_high_score_img)
+
+                    num_pairs+=1
                     break  # move to the next high_cosine_img
-                    
+            if(num_pairs==10000):
+                break
+    
         return pairs
     
     def upload_pairs_to_queue(self, pair_list):
         
         for pair in tqdm(pair_list):
-            job_uuid_1= pair['pair'][0]
-            job_uuid_2= pair['pair'][1]
+            job_uuid_1= pair[0]
+            job_uuid_2= pair[1]
 
             endpoint_url = f"{API_URL}/ranking-queue/add-image-pair-to-queue?job_uuid_1={job_uuid_1}&job_uuid_2={job_uuid_2}&policy=forest_vs_non_forest_related"
             response = requests.post(endpoint_url)
@@ -282,10 +334,9 @@ def main():
     pair_list=pipeline.get_image_pairs()
 
     print(f"created {len(pair_list)} pairs")
-    print(pair_list[:10])
 
     # send list to active learning
-    # pipeline.upload_pairs_to_queue(pair_list)
+    pipeline.upload_pairs_to_queue(pair_list)
     
 
 if __name__ == '__main__':
