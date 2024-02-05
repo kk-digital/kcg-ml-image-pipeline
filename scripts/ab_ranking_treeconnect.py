@@ -25,42 +25,43 @@ from utility.minio import cmd
 from utility.clip.clip_text_embedder import tensor_attention_pooling
 
 
-# --------------------------- PartiallyConnectedNetwork  ---------------------------
+# --------------------------- SparseNeuralNetworkArchitecture  ---------------------------
 
-class PartiallyConnectedNetwork(nn.Module):
-    def __init__(self, inputs_shape):
-        super(PartiallyConnectedNetwork, self).__init__()
+class SparseNeuralNetworkArchitecture(nn.Module):
+    def __init__(self, inputs_shape, sparsity_factor=0.5):
+        super(SparseNeuralNetworkArchitecture, self).__init__()
         self.mse_loss = nn.MSELoss()
         self.l1_loss = nn.L1Loss()
         self.tanh = nn.Tanh()
+        
+        self.sparsity_factor = sparsity_factor
 
+        # Define fully connected layers with sparse connections
+        self.fc1 = nn.Linear(inputs_shape, 64, bias=False)
+        self.fc2 = nn.Linear(64, 64, bias=False)
+        self.fc3 = nn.Linear(64, 1, bias=False)
 
-       # Check if inputs_shape is an integer (length only)
-        if isinstance(inputs_shape, int):
-            inputs_shape = (1, inputs_shape)  # Assuming 1 channel
+        self.initialize_sparse_connections()
 
-        # Ensure inputs_shape is a tuple
-        if not isinstance(inputs_shape, tuple) or len(inputs_shape) != 2:
-            raise ValueError("inputs_shape must be a tuple with two elements, e.g., (channels, length)")
+    def initialize_sparse_connections(self):
+        # Initialize a random binary mask for each connection with sparsity_factor
+        mask_fc1 = torch.rand_like(self.fc1.weight) < self.sparsity_factor
+        mask_fc2 = torch.rand_like(self.fc2.weight) < self.sparsity_factor
+        mask_fc3 = torch.rand_like(self.fc3.weight) < self.sparsity_factor
 
-        self.inputs_shape = inputs_shape
-        print(" yeah bbbbbbbbbbb oi ", inputs_shape)
-
-        # Partially connected layers using 1D convolutions
-        self.conv1 = nn.Conv1d(inputs_shape[1], 64, kernel_size=1, padding=1)  # Adjust kernel size and padding as needed
-        self.conv2 = nn.Conv1d(64, 64, kernel_size=1, padding=1)
-        self.fc3 = nn.Linear(64, 1)
+        # Apply masks to weights
+        self.fc1.weight.data *= mask_fc1.float()
+        self.fc2.weight.data *= mask_fc2.float()
+        self.fc3.weight.data *= mask_fc3.float()
 
     def forward(self, x):
-        # Reshape input for 1D convolutions
-        x = x.view(x.size(0), 1, -1)  # Assuming a single input channel
-
-        # Partially connected layers with ReLU activations
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-
-        # Flatten output before the final linear layer
+        # Flatten the input
         x = x.view(x.size(0), -1)
+
+        # Fully connected layers with ReLU activations
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+
         x = self.fc3(x)
         return x
 
@@ -370,7 +371,7 @@ class ABRankingModel:
 
         self.inputs_shape = inputs_shape
         # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking SimpleNeuralNetworkArchitecture
-        self.model = PartiallyConnectedNetwork(inputs_shape).to(self._device) 
+        self.model = SparseNeuralNetworkArchitecture(inputs_shape).to(self._device) 
         self.model_type = 'ab-ranking-treeconnect'
         self.loss_func_name = ''
         self.file_path = ''
@@ -529,7 +530,7 @@ class ABRankingModel:
         # TODO: deprecate when we have 10 or more trained models on new structure
         if "scaling_factor" not in safetensors_data:
         # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking SimpleNeuralNetworkArchitecture
-            self.model = PartiallyConnectedNetwork(self.inputs_shape).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
+            self.model = SparseNeuralNetworkArchitecture(self.inputs_shape).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
             print("Loading deprecated model...")
 
         # Loading state dictionary
