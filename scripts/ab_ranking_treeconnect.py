@@ -767,7 +767,7 @@ class ABRankingModel:
             validation_targets, \
             training_loss_per_epoch, \
             validation_loss_per_epoch
-a
+
 
 
 
