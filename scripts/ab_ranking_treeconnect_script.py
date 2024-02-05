@@ -45,7 +45,7 @@ def train_ranking(dataset_name: str,
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
-    network_type = "treeconnect"
+    network_type = "linear"
     output_type = "score"
     output_path = "{}/models/ranking".format(dataset_name)
 
