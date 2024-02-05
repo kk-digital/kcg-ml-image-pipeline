@@ -6,41 +6,49 @@ from diffusers import AutoPipelineForInpainting
 TARGET_DIR = Path('hub_folder')
 TARGET_DIR.mkdir(exist_ok=True)
 
-# Step 1: download weights & export folders
+def clear_memory(pipe):
+    del pipe
+    torch.cuda.empty_cache()
+    print("Memory cleared")
 
+# Function to save the components of the prior model
+def save_prior_components(pipe, prior_folder):
+    pipe.prior_scheduler.save_pretrained(prior_folder / 'scheduler')
+    pipe.prior_prior.save_pretrained(prior_folder / 'prior')
+    pipe.prior_image_processor.save_pretrained(prior_folder / 'image_processor')
+    pipe.prior_image_encoder.save_pretrained(prior_folder / 'image_encoder')
+    pipe.prior_tokenizer.save_pretrained(prior_folder / 'tokenizer')
+    pipe.prior_text_encoder.save_pretrained(prior_folder / 'text_encoder')
+
+# Function to save the components of the decoder model
+def save_decoder_components(pipe, decoder_folder):
+    pipe.scheduler.save_pretrained(decoder_folder / 'scheduler')
+    pipe.unet.save_pretrained(decoder_folder / 'unet')
+    pipe.movq.save_pretrained(decoder_folder / 'movq')
+
+# Download and save the kandinsky-2-2-decoder
 pipe = AutoPipelineForInpainting.from_pretrained(
     "kandinsky-community/kandinsky-2-2-decoder", 
     torch_dtype=torch.float16,
     resume_download=True
 )
-
 prior_folder = TARGET_DIR / 'kandinsky-2-2-prior'
 decoder_folder = TARGET_DIR / 'kandinsky-2-2-decoder'
-decoder_inpaint_folder = TARGET_DIR /'kandinsky-2-2-decoder-inpaint'
+save_prior_components(pipe, prior_folder)
+save_decoder_components(pipe, decoder_folder)
+clear_memory(pipe)
 
-pipe.prior_scheduler.save_pretrained(prior_folder / 'scheduler')
-pipe.prior_prior.save_pretrained(prior_folder / 'prior')
-pipe.prior_image_processor.save_pretrained(prior_folder / 'image_processor')
-pipe.prior_image_encoder.save_pretrained(prior_folder / 'image_encoder')
-pipe.prior_tokenizer.save_pretrained(prior_folder / 'tokenizer')
-pipe.prior_text_encoder.save_pretrained(prior_folder / 'text_encoder')
-
-pipe.scheduler.save_pretrained(decoder_folder / 'scheduler')
-pipe.unet.save_pretrained(decoder_folder / 'unet')
-pipe.movq.save_pretrained(decoder_folder / 'movq')
-
+# Download and save the kandinsky-2-2-decoder-inpaint
 pipe = AutoPipelineForInpainting.from_pretrained(
     "kandinsky-community/kandinsky-2-2-decoder-inpaint", 
     torch_dtype=torch.float16,
     resume_download=True
 )
-
-pipe.scheduler.save_pretrained(decoder_inpaint_folder / 'scheduler')
-pipe.unet.save_pretrained(decoder_inpaint_folder / 'unet')
-pipe.movq.save_pretrained(decoder_inpaint_folder / 'movq')
+decoder_inpaint_folder = TARGET_DIR / 'kandinsky-2-2-decoder-inpaint'
+save_decoder_components(pipe, decoder_inpaint_folder)
+clear_memory(pipe)
 
 # Step 2: pack folders
-
 os.system(f'cd {TARGET_DIR} && zip -r kandinsky-2-2.zip kandinsky-2-2-prior kandinsky-2-2-decoder kandinsky-2-2-decoder-inpaint')
 
 # Step 3: load from folders
