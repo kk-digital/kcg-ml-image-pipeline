@@ -72,7 +72,7 @@ def delete_image_rank_sigma_scores_by_model_id(request: Request, model_id: int):
              tags=["sigma score"],
              response_model=StandardSuccessResponse[RankingSigmaScore],
              responses=ApiResponseHandler.listErrors([400, 422]))
-async def set_image_rank_sigma_score(request: Request, ranking_sigma_score: RankingSigmaScore):
+def set_image_rank_sigma_score(request: Request, ranking_sigma_score: RankingSigmaScore):
     response_handler = ApiResponseHandler(request)
     query = {"image_hash": ranking_sigma_score.image_hash, "model_id": ranking_sigma_score.model_id}
     count = request.app.image_sigma_scores_collection.count_documents(query)
@@ -139,7 +139,7 @@ def image_rank_sigma_scores_by_model_id(request: Request, model_id: int):
                tags=["sigma score"],
                response_model=StandardSuccessResponse[WasPresentResponse],
                responses=ApiResponseHandler.listErrors([404, 422]))
-async def delete_image_rank_sigma_scores_by_model_id(request: Request, model_id: int):
+def delete_image_rank_sigma_scores_by_model_id(request: Request, model_id: int):
     response_handler = ApiResponseHandler(request)
     query = {"model_id": model_id}
     

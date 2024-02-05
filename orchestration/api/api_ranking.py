@@ -677,7 +677,7 @@ def list_selection_data_with_scores(
     limit: int = Query(10, alias="limit"),
     offset: int = Query(0, alias="offset"),  # Added for pagination
     sort_by: str = Query("delta_score"),  # Default sorting parameter
-    order: str = Query("desc")  # Parameter for sort order
+    order: str = Query("asc")  # Parameter for sort order
 ):
     response_handler = ApiResponseHandler(request)
     
@@ -761,7 +761,7 @@ def list_selection_data_with_scores(
             # Sort ascending
             sorted_selection_data = sorted(selection_data, key=lambda x: x[sort_by], reverse=False)
         else:
-            # Sort descending (default)
+            # Sort descending 
             sorted_selection_data = sorted(selection_data, key=lambda x: x[sort_by], reverse=True)
 
         return response_handler.create_success_response(
