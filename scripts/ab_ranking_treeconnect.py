@@ -34,6 +34,17 @@ class PartiallyConnectedNetwork(nn.Module):
         self.l1_loss = nn.L1Loss()
         self.tanh = nn.Tanh()
 
+
+       # Check if inputs_shape is an integer (length only)
+        if isinstance(inputs_shape, int):
+            inputs_shape = (1, inputs_shape)  # Assuming 1 channel
+
+        # Ensure inputs_shape is a tuple
+        if not isinstance(inputs_shape, tuple) or len(inputs_shape) != 2:
+            raise ValueError("inputs_shape must be a tuple with two elements, e.g., (channels, length)")
+
+        self.inputs_shape = inputs_shape
+
         # Partially connected layers using 1D convolutions
         self.conv1 = nn.Conv1d(inputs_shape[1], 64, kernel_size=3, padding=1)  # Adjust kernel size and padding as needed
         self.conv2 = nn.Conv1d(64, 64, kernel_size=3, padding=1)
