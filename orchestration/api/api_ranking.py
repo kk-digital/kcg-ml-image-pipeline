@@ -686,6 +686,8 @@ def list_selection_data_with_scores(
         ranking_collection = request.app.image_pair_ranking_collection
         jobs_collection = request.app.completed_jobs_collection
 
+        sort_direction = 1 if order == "asc" else -1
+
         # Build query filter based on dataset
         query_filter = {}
         if dataset:
@@ -701,7 +703,7 @@ def list_selection_data_with_scores(
             query_filter["flagged"] = {"$ne": True}
 
         # Fetch data from image_pair_ranking_collection with pagination
-        cursor = ranking_collection.find(query_filter).skip(offset).limit(limit)
+        cursor = ranking_collection.find(query_filter).sort(sort_by, sort_direction).skip(offset).limit(limit)
 
 
         selection_data = []
@@ -751,14 +753,6 @@ def list_selection_data_with_scores(
                 "delta_score": delta_score,
                 "flagged": is_flagged 
             })
-
-        # Adjust sorting logic based on 'order' parameter
-        if order == "asc":
-            # Sort ascending
-            sorted_selection_data = sorted(selection_data, key=lambda x: x[sort_by], reverse=False)
-        else:
-            # Sort descending 
-            sorted_selection_data = sorted(selection_data, key=lambda x: x[sort_by], reverse=True)
 
         return response_handler.create_success_response(
             sorted_selection_data,
