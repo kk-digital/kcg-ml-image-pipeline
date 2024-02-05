@@ -74,10 +74,10 @@ class TreeConnectArchitectureTanhRankingBig(nn.Module):
         self.inputs_shape = inputs_shape
 
         # Locally connected layers with BatchNorm and Dropout
-        self.lc1 = nn.Conv1d(inputs_shape[1], 64, kernel_size=1)
+        self.lc1 = nn.Conv1d(inputs_shape[1], 64, kernel_size=2)
         self.bn_lc1 = nn.BatchNorm1d(64)
         self.dropout1 = nn.Dropout(0.5)
-        self.lc2 = nn.Conv1d(64, 32, kernel_size=1)
+        self.lc2 = nn.Conv1d(64, 32, kernel_size=2)
         self.bn_lc2 = nn.BatchNorm1d(32)
         self.dropout2 = nn.Dropout(0.5)
 
@@ -330,7 +330,7 @@ class ABRankingModel:
 
         self.inputs_shape = inputs_shape
         # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking SimpleNeuralNetworkArchitecture
-        self.model = SimpleNeuralNetworkArchitecture(inputs_shape).to(self._device) 
+        self.model = TreeConnectArchitectureTanhRankingBig(inputs_shape).to(self._device) 
         self.model_type = 'ab-ranking-treeconnect'
         self.loss_func_name = ''
         self.file_path = ''
@@ -489,7 +489,7 @@ class ABRankingModel:
         # TODO: deprecate when we have 10 or more trained models on new structure
         if "scaling_factor" not in safetensors_data:
         # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking SimpleNeuralNetworkArchitecture
-            self.model = SimpleNeuralNetworkArchitecture(self.inputs_shape).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
+            self.model = TreeConnectArchitectureTanhRankingBig(self.inputs_shape).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
             print("Loading deprecated model...")
 
         # Loading state dictionary
