@@ -56,9 +56,9 @@ class SparseNeuralNetworkArchitectureMM(nn.Module):
 
         # Convert the combined mask to the COO format
         indices = combined_mask.nonzero(as_tuple=False).t()
-        values = combined_mask[indices[0], indices[1]]
+        values = combined_mask[indices[0], indices[1]].bool()  # Ensure BoolTensor type
         size = combined_mask.size()
-        sparse_mask = torch.sparse_coo_tensor(indices, values, size)
+        sparse_mask = torch.sparse.BoolTensor(indices, values, size)
 
         return sparse_mask
 
@@ -66,23 +66,12 @@ class SparseNeuralNetworkArchitectureMM(nn.Module):
         # Flatten the input
         x = x.view(x.size(0), -1)
 
-        # Convert the weights to the COO format
-        weight_fc1 = torch.sparse_coo_tensor(self.fc1.weight.nonzero(as_tuple=False).t(),
-                                             self.fc1.weight[self.fc1.weight.nonzero(as_tuple=False).t()],
-                                             self.fc1.weight.size())
-        weight_fc2 = torch.sparse_coo_tensor(self.fc2.weight.nonzero(as_tuple=False).t(),
-                                             self.fc2.weight[self.fc2.weight.nonzero(as_tuple=False).t()],
-                                             self.fc2.weight.size())
-        weight_fc3 = torch.sparse_coo_tensor(self.fc3.weight.nonzero(as_tuple=False).t(),
-                                             self.fc3.weight[self.fc3.weight.nonzero(as_tuple=False).t()],
-                                             self.fc3.weight.size())
-
         # Sparse tensor multiplication with ReLU activations
-        x = F.relu(torch.sparse.mm(self.custom_mask, weight_fc1.t(), x.t()).t())
-        x = F.relu(torch.sparse.mm(self.custom_mask, weight_fc2.t(), x.t()).t())
+        x = F.relu(torch.sparse.mm(self.custom_mask, self.fc1.weight.t(), x.t()).t())
+        x = F.relu(torch.sparse.mm(self.custom_mask, self.fc2.weight.t(), x.t()).t())
 
         # Sparse tensor multiplication for the final layer
-        x = torch.sparse.mm(self.custom_mask, weight_fc3.t(), x.t()).t()
+        x = torch.sparse.mm(self.custom_mask, self.fc3.weight.t(), x.t()).t()
 
         return x
 
