@@ -213,6 +213,9 @@ class PromptSubstitutionGenerator:
                                                             minio_ip_addr=minio_ip_addr,
                                                             minio_access_key=minio_access_key,
                                                             minio_secret_key=minio_secret_key)
+            
+        # load phrase data
+        self.data_loader.load_phrases()
 
 
         # get base prompt list
