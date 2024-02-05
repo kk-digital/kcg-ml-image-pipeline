@@ -12,16 +12,12 @@ pipe = AutoPipelineForInpainting.from_pretrained(
     "kandinsky-community/kandinsky-2-2-decoder", 
     torch_dtype=torch.float16,
     resume_download=True
-    # cache_dir='/home/user/',
-    # local_files_only=True
 )
 
 pipe = AutoPipelineForInpainting.from_pretrained(
     "kandinsky-community/kandinsky-2-2-decoder-inpaint", 
     torch_dtype=torch.float16,
     resume_download=True
-    # cache_dir='/home/user/',
-    # local_files_only=True
 )
 
 # Step 2: export folders
@@ -34,9 +30,7 @@ os.system(f'cp -r ~/.cache/huggingface/hub/models--kandinsky-community--* {TARGE
 # If minio or torrent supports uploading the entire folder, 
 # this step is not needed.
 
-os.system(r'cd {TARGET_DIR} | zip -rq kandinsky-2-2-prior.zip models--kandinsky-community--kandinsky-2-2-prior')
-os.system(r'cd {TARGET_DIR} | zip -rq kandinsky-2-2-decoder.zip models--kandinsky-community--kandinsky-2-2-decoder')
-os.system(r'cd {TARGET_DIR} | zip -rq kandinsky-2-2-decoder-inpaint.zip models--kandinsky-community--kandinsky-2-2-decoder-inpaint')
+os.system(f'cd {TARGET_DIR} | zip -r kandinsky-2-2.zip models--kandinsky-community--kandinsky-2-2-prior/ models--kandinsky-community--kandinsky-2-2-decoder/ models--kandinsky-community--kandinsky-2-2-decoder-inpaint/')
 
 # Step 4: load from folders
 
