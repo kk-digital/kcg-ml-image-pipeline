@@ -10,6 +10,8 @@ import random
 from collections import OrderedDict
 from bson import ObjectId
 from typing import Optional
+import time
+
 
 
 router = APIRouter()
@@ -771,6 +773,9 @@ def list_selection_data_with_scores(
 
 @router.post("/calculate-delta-scores/{model_type}", status_code=200)
 async def calculate_delta_scores(request: Request, model_type: str):
+
+    start_time = time.time() 
+
     ranking_collection = request.app.image_pair_ranking_collection
     jobs_collection = request.app.completed_jobs_collection
     delta_scores_collection = request.app.datapoints_delta_score_collection
@@ -808,7 +813,10 @@ async def calculate_delta_scores(request: Request, model_type: str):
                 # Insert the delta score into the collection
                 delta_scores_collection.insert_one(delta_score_entry.to_dict())
 
-    return {"message": "Delta scores calculated and stored successfully."}
+    end_time = time.time()  # Capture end time
+    total_time = end_time - start_time  # Calculate duration
+
+    return {"message": "Delta scores calculated and stored successfully.", "total_time": f"{total_time:.2f} seconds"}
 
 
 @router.get("/delta-score", response_class=PrettyJSONResponse)
