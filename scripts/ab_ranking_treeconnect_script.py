@@ -106,15 +106,22 @@ def train_ranking(dataset_name: str,
                                                    debug_asserts=debug_asserts,
                                                    penalty_range=penalty_range)
 
+    pindext=0
+    pindexv=0
     # data for chronological score graph
     training_shuffled_indices_origin = []
     for index in dataset_loader.training_data_paths_indices_shuffled:
         training_shuffled_indices_origin.append(index)
+        pindext = index
+
+    print("################################## pindext is ",pindext)
 
     validation_shuffled_indices_origin = []
     for index in dataset_loader.validation_data_paths_indices_shuffled:
         validation_shuffled_indices_origin.append(index)
+        pindexv = index
 
+    print("################################## pindexv is ",pindexv)
     # Generate report
     nn_summary = torchinfo_summary(ab_model.model)
 
@@ -328,7 +335,7 @@ def test_run():
                   minio_access_key="D6ybtPLyUrca5IdZfCIM",
                   minio_secret_key="2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
                   input_type= constants.CLIP,  #"“clip”", # “clip” "embedding-negative"
-                  epochs=50,
+                  epochs=10,
                   learning_rate=0.001,
                   train_percent=0.9,
                   training_batch_size=64,
