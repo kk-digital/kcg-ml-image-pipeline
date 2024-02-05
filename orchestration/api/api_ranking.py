@@ -844,7 +844,7 @@ def clear_delta_scores(request: Request):
         raise HTTPException(status_code=500, detail="Failed to delete delta scores.")
     
 
-@router.get("/queue/image-generation/count-completed")
+@router.get("/queue/image-generation/count-task")
 def count_completed(request: Request, dataset: str = None):
 
     jobs = list(request.app.completed_jobs_collection.find({
