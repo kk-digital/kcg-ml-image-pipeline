@@ -158,6 +158,9 @@ def startup_db_client():
     app.pseudo_image_tags_collection = app.mongodb_db["pseudo_image_tags"]
     app.pseudo_tag_categories_collection = app.mongodb_db["pseudo_tag_categories"]
 
+    # delta score
+    app.datapoints_delta_score_collection = app.mongodb_db["datapoints_delta_score"]
+
     # models
     app.models_collection = app.mongodb_db["models"]
 

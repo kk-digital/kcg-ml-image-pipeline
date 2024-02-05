@@ -450,3 +450,15 @@ class PhraseModel(BaseModel):
         return{
             "phrase": self.phrase
         }
+    
+class DatapointDeltaScore(BaseModel):
+    model_type: str
+    file_name: str
+    delta_score: float
+
+    def to_dict(self):
+        return{
+            "model_type": self.model_type,
+            "file_name": self.file_name,
+            "delta_score": self.delta_score
+        }    
