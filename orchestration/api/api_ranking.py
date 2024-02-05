@@ -4,7 +4,7 @@ from utility.minio import cmd
 import os
 import json
 from io import BytesIO
-from orchestration.api.mongo_schemas import Selection, RelevanceSelection
+from orchestration.api.mongo_schemas import Selection, RelevanceSelection, DatapointDeltaScore
 from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, ApiResponseHandler, TagCountResponse
 import random
 from collections import OrderedDict
@@ -686,8 +686,6 @@ def list_selection_data_with_scores(
         ranking_collection = request.app.image_pair_ranking_collection
         jobs_collection = request.app.completed_jobs_collection
 
-        sort_direction = 1 if order == "asc" else -1
-
         # Build query filter based on dataset
         query_filter = {}
         if dataset:
@@ -703,7 +701,7 @@ def list_selection_data_with_scores(
             query_filter["flagged"] = {"$ne": True}
 
         # Fetch data from image_pair_ranking_collection with pagination
-        cursor = ranking_collection.find(query_filter).sort(sort_by, sort_direction).skip(offset).limit(limit)
+        cursor = ranking_collection.find(query_filter).skip(offset).limit(limit)
 
 
         selection_data = []
@@ -754,10 +752,70 @@ def list_selection_data_with_scores(
                 "flagged": is_flagged 
             })
 
+        # Adjust sorting logic based on 'order' parameter
+        if order == "asc":
+            # Sort ascending
+            sorted_selection_data = sorted(selection_data, key=lambda x: x[sort_by], reverse=False)
+        else:
+            # Sort descending 
+            sorted_selection_data = sorted(selection_data, key=lambda x: x[sort_by], reverse=True)
+
         return response_handler.create_success_response(
-            selection_data,
+            sorted_selection_data,
             200
         )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/calculate-delta-scores/{model_type}", status_code=200)
+async def calculate_delta_scores(request: Request, model_type: str):
+    ranking_collection = request.app.image_pair_ranking_collection
+    jobs_collection = request.app.completed_jobs_collection
+    delta_scores_collection = request.app.datapoints_delta_score_collection
+
+    cursor = ranking_collection.find({})
+
+    for doc in cursor:
+
+        selected_image_index = doc["selected_image_index"]
+        selected_image_hash = doc["selected_image_hash"]
+
+        if selected_image_index == 0:
+            unselected_image_hash = doc["image_2_metadata"]["file_hash"]
+        else:
+            unselected_image_hash = doc["image_1_metadata"]["file_hash"]
+
+        # Fetch score data for both images
+        selected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
+        unselected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
+
+        if selected_image_job and unselected_image_job and "task_attributes_dict" in selected_image_job and "task_attributes_dict" in unselected_image_job:
+            selected_image_scores = selected_image_job["task_attributes_dict"][model_type]
+            unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type]
+
+            if "image_clip_sigma_score" in selected_image_scores and "image_clip_sigma_score" in unselected_image_scores:
+                delta_score = abs(selected_image_scores["image_clip_sigma_score"] - unselected_image_scores["image_clip_sigma_score"])
+
+                # Create DatapointDeltaScore object
+                delta_score_entry = DatapointDeltaScore(
+                    model_type=model_type,
+                    file_name=doc["file_name"],
+                    delta_score=delta_score
+                )
+
+                # Insert the delta score into the collection
+                delta_scores_collection.insert_one(delta_score_entry.to_dict())
+
+    return {"message": "Delta scores calculated and stored successfully."}
+
+
+@router.get("/delta-score", response_class=PrettyJSONResponse)
+def get_list_delta_score(request: Request):
+    jobs = list(request.app.datapoints_delta_score_collection.find({}))
+
+    for job in jobs:
+        job.pop('_id', None)
+
+    return jobs
