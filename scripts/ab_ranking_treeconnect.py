@@ -57,7 +57,8 @@ class SparseNeuralNetworkArchitectureMM(nn.Module):
 
         # Combine masks to create a single custom mask
         custom_mask = mask_fc1.float() * mask_fc2.float() * mask_fc3.float()
-
+        # Adjust the mask size to match the size of the weights
+        custom_mask = custom_mask.expand_as(self.fc1.weight)
         return custom_mask
 
     def forward(self, x):
