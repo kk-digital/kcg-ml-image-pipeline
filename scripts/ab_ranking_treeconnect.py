@@ -34,6 +34,10 @@ class SparseLinearV(nn.Module):
     def __init__(self, in_features, out_features, sparse_ratio=0.1):
         super(SparseLinearV, self).__init__()
 
+        # Convert in_features and out_features to integers
+        in_features = int(in_features)
+        out_features = int(out_features)
+
         # Compute the number of non-zero elements in the weight tensor
         nnz = int(in_features * out_features * sparse_ratio)
 
@@ -47,7 +51,8 @@ class SparseLinearV(nn.Module):
 
     def forward(self, x):
         return torch.sparse.mm(self.weight_sparse, x) + self.bias
-   
+
+
 class SparseNeuralNetworkV(nn.Module):
     def __init__(self, inputs_shape):
         super(SparseNeuralNetworkV, self).__init__()
