@@ -35,6 +35,7 @@ from utility.clip.clip_text_embedder import tensor_attention_pooling
 class SparseSimpleNeuralNetworkArchitectureY(nn.Module):
     def __init__(self, inputs_shape):
         super(SparseSimpleNeuralNetworkArchitectureY, self).__init__()
+         super(SparseSimpleNeuralNetworkArchitecture, self).__init__()
         self.mse_loss = nn.MSELoss()
         self.l1_loss = nn.L1Loss()
         self.tanh = nn.Tanh()
@@ -60,18 +61,18 @@ class SparseSimpleNeuralNetworkArchitectureY(nn.Module):
         # Initialize the sparse tensors on the current device (GPU if available)
         device = self.fc1_weight_data.device
         self.fc1_weight_sparse = torch.sparse.FloatTensor(
-            torch.cat((self.fc1_weight_idx[:, 0].unsqueeze(1), self.fc1_weight_idx[:, 1].unsqueeze(1)), dim=1).to(device),
-            self.fc1_weight_data_flat[self.fc1_weight_idx].to(device),
+            torch.cat((torch.arange(inputs_shape, device=device).unsqueeze(1), self.fc1_weight_idx[:, 1].unsqueeze(1)), dim=1),
+            self.fc1_weight_data_flat[self.fc1_weight_idx[:, 0]].to(device),
             torch.Size([inputs_shape, 64])
         ).to_sparse()
         self.fc2_weight_sparse = torch.sparse.FloatTensor(
-            torch.cat((self.fc2_weight_idx[:, 0].unsqueeze(1), self.fc2_weight_idx[:, 1].unsqueeze(1)), dim=1).to(device),
-            self.fc2_weight_data_flat[self.fc2_weight_idx].to(device),
+            torch.cat((torch.arange(64, device=device).unsqueeze(1), self.fc2_weight_idx[:, 1].unsqueeze(1)), dim=1),
+            self.fc2_weight_data_flat[self.fc2_weight_idx[:, 0]].to(device),
             torch.Size([64, 64])
         ).to_sparse()
         self.fc3_weight_sparse = torch.sparse.FloatTensor(
-            torch.cat((self.fc3_weight_idx[:, 0].unsqueeze(1), self.fc3_weight_idx[:, 1].unsqueeze(1)), dim=1).to(device),
-            self.fc3_weight_data_flat[self.fc3_weight_idx].to(device),
+            torch.cat((torch.arange(64, device=device).unsqueeze(1), self.fc3_weight_idx[:, 1].unsqueeze(1)), dim=1),
+            self.fc3_weight_data_flat[self.fc3_weight_idx[:, 0]].to(device),
             torch.Size([64, 1])
         ).to_sparse()
 
