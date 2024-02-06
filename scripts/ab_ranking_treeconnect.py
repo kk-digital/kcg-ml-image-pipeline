@@ -421,8 +421,8 @@ class ABRankingModel:
 
         self.inputs_shape = inputs_shape
         # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking SimpleNeuralNetworkArchitecture
-        self.model = TreeConnectArchitectureTanhRankingBig(inputs_shape).to(self._device) 
-        self.model_type = 'ab-ranking-tc-big'
+        self.model = SparseNeuralNetworkArchitectureMM(inputs_shape).to(self._device) 
+        self.model_type = 'ab-ranking-Sparse'
         self.loss_func_name = ''
         self.file_path = ''
         self.model_hash = ''
@@ -580,7 +580,7 @@ class ABRankingModel:
         # TODO: deprecate when we have 10 or more trained models on new structure
         if "scaling_factor" not in safetensors_data:
         # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking SimpleNeuralNetworkArchitecture
-            self.model = TreeConnectArchitectureTanhRankingBig(self.inputs_shape).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
+            self.model = SparseNeuralNetworkArchitectureMM(self.inputs_shape).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
             print("Loading deprecated model...")
 
         # Loading state dictionary
