@@ -785,10 +785,11 @@ def calculate_delta_scores(request: Request):
     cursor = ranking_collection.find({})
     for doc in cursor:
         # Directly check if delta_scores for all model_types exist
-        if all(f"delta_score.{model_type}" in doc.get("delta_score", {}) for model_type in model_types):
+        if all(f"{model_type}" in doc.get("delta_score", {}) for model_type in model_types):
             print(f"Skipping document {doc['_id']} as delta_score already exists for all model types.")
             skipped_count += 1
             continue  # Skip the rest of the processing for this document
+
 
         selected_image_index = doc["selected_image_index"]
         selected_image_hash = doc["selected_image_hash"]
