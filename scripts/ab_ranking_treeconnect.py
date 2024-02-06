@@ -27,6 +27,60 @@ from utility.clip.clip_text_embedder import tensor_attention_pooling
 
 
 
+
+
+
+class SparseLinearV(nn.Module):
+    def __init__(self, in_features, out_features, sparse_ratio=0.1):
+        super(SparseLinearV, self).__init__()
+
+        # Compute the number of non-zero elements in the weight tensor
+        nnz = int(in_features * out_features * sparse_ratio)
+
+        # Initialize the weight and bias tensors as sparse and dense tensors, respectively
+        self.weight_sparse = torch.sparse_coo_tensor(
+            torch.cat((torch.randperm(in_features, n=nnz)[:, None], torch.randperm(out_features, n=nnz)[None, :]), dim=1),
+            torch.randn(nnz, out_features),
+            size=(in_features, out_features)
+        )
+        self.bias = nn.Parameter(torch.randn(out_features))
+
+    def forward(self, x):
+        return torch.sparse.mm(self.weight_sparse, x) + self.bias
+    
+class SparseNeuralNetworkV(nn.Module):
+    def __init__(self, input_shape):
+        super(SparseNeuralNetworkV, self).__init__()
+
+        # Define the first sparse fully connected layer with input shape [1, 768] and output shape [1, 64]
+        self.fc1 = SparseLinearV(input_shape[1], 64)
+
+        # Define the second sparse fully connected layer with input shape [1, 64] and output shape [1, 32]
+        self.fc2 = SparseLinearV(64, 32)
+
+        # Define the third sparse fully connected layer with input shape [1, 32] and output shape [1]
+        self.fc3 = SparseLinearV(32, 1)
+
+        # Define the activation function as the hyperbolic tangent function
+        self.activation = nn.Tanh()
+
+    def forward(self, x):
+        # Pass the input tensor through each sparse fully connected layer with the activation function
+        x = self.fc1(x)
+        x = self.activation(x)
+        x = self.fc2(x)
+        x = self.activation(x)
+        x = self.fc3(x)
+
+        return x
+
+
+
+
+
+
+
+# #####
 class SparseSimpleNeuralNetworkArchitectureZ(nn.Module):
     def __init__(self, inputs_shape):
         super(SparseSimpleNeuralNetworkArchitectureZ, self).__init__()
@@ -578,7 +632,7 @@ class ABRankingModel:
         self.inputs_shape = inputs_shape
         # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking SimpleNeuralNetworkArchitecture
         #  0.5 sparse_indices_fc1 = 0.5 , sparse_indices_fc2 = 0.5, sparse_indices_fc3 = 0.5
-        self.model = SparseSimpleNeuralNetworkArchitectureZ(inputs_shape).to(self._device) 
+        self.model = SparseNeuralNetworkV(inputs_shape).to(self._device) 
         self.model_type = 'ab-ranking-Sparse'
         self.loss_func_name = ''
         self.file_path = ''
@@ -737,7 +791,7 @@ class ABRankingModel:
         # TODO: deprecate when we have 10 or more trained models on new structure
         if "scaling_factor" not in safetensors_data:
         # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking SimpleNeuralNetworkArchitecture
-            self.model = SparseSimpleNeuralNetworkArchitectureZ(self.inputs_shape).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
+            self.model = SparseNeuralNetworkV(self.inputs_shape).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
             print("Loading deprecated model...")
 
         # Loading state dictionary
