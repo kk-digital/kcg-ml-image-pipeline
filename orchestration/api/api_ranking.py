@@ -767,46 +767,57 @@ def list_selection_data_with_scores(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/calculate-delta-scores/{model_type}", status_code=200)
-async def calculate_delta_scores(request: Request, model_type: str):
+@router.post("/calculate-delta-scores", status_code=200)
+async def calculate_delta_scores(request: Request):
     start_time = time.time()
+
+    # Define the model types for which you want to calculate delta_scores
+    model_types = ["linear", "elm-v1"]
 
     # Access collections
     ranking_collection = request.app.image_pair_ranking_collection
     jobs_collection = request.app.completed_jobs_collection
 
+    processed_count = 0
+    skipped_count = 0
+
     # Fetch all documents from ranking_collection
     for doc in ranking_collection.find({}):
 
+        # Skip documents where delta_score already exists for all model_types
+        if all(f"{model_type}" in doc.get("delta_score", {}) for model_type in model_types):
+            print(f"Skipping document {doc['_id']} as delta_score already exists for all model types.")
+            skipped_count += 1
+            continue
+
         selected_image_index = doc["selected_image_index"]
         selected_image_hash = doc["selected_image_hash"]
-
-        # Determine unselected image hash based on selected image index
         unselected_image_hash = doc["image_2_metadata"]["file_hash"] if selected_image_index == 0 else doc["image_1_metadata"]["file_hash"]
 
-        # Fetch score data for both selected and unselected images
-        selected_image_job =  jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
-        unselected_image_job =  jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
+        for model_type in model_types:
+            # Proceed only if the delta_score for this model_type does not exist
+            if f"delta_score.{model_type}" not in doc:
+                print(f"Processing document {doc['_id']} for model type '{model_type}'.")
+                selected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
+                unselected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
 
-        # Check if both jobs exist and contain the required scores
-        if selected_image_job and unselected_image_job and "task_attributes_dict" in selected_image_job and "task_attributes_dict" in unselected_image_job:
-            if model_type in selected_image_job["task_attributes_dict"] and model_type in unselected_image_job["task_attributes_dict"]:
-                selected_image_scores = selected_image_job["task_attributes_dict"][model_type]
-                unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type]
+                if selected_image_job and unselected_image_job and "task_attributes_dict" in selected_image_job and "task_attributes_dict" in unselected_image_job:
+                    if model_type in selected_image_job["task_attributes_dict"] and model_type in unselected_image_job["task_attributes_dict"]:
+                        selected_image_scores = selected_image_job["task_attributes_dict"][model_type]
+                        unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type]
 
-                # Calculate delta_score if both scores exist
-                if "image_clip_sigma_score" in selected_image_scores and "image_clip_sigma_score" in unselected_image_scores:
-                    delta_score = abs(selected_image_scores["image_clip_sigma_score"] - unselected_image_scores["image_clip_sigma_score"])
+                        if "image_clip_sigma_score" in selected_image_scores and "image_clip_sigma_score" in unselected_image_scores:
+                            delta_score = abs(selected_image_scores["image_clip_sigma_score"] - unselected_image_scores["image_clip_sigma_score"])
 
-                    # Update the document in ranking_collection with the new delta_score under the specific model_type
-                    update_field = f"delta_score.{model_type}"  # Construct the field path for the model-specific score
-                    ranking_collection.update_one(
-                        {"_id": doc["_id"]},
-                        {"$set": {update_field: delta_score}}
-                    )
+                            # Update the document in ranking_collection with the new delta_score under the specific model_type
+                            update_field = f"delta_score.{model_type}"
+                            ranking_collection.update_one(
+                                {"_id": doc["_id"]},
+                                {"$set": {update_field: delta_score}}
+                            )
+                            processed_count += 1
 
     end_time = time.time()
     total_time = end_time - start_time
 
-    # Return a success message with the total processing time
-    return {"message": "Delta scores calculated and updated successfully for model_type: " + model_type, "total_time": f"{total_time:.2f} seconds"}
+    return {"message": f"Delta scores calculation and update complete. Processed: {processed_count}, Skipped: {skipped_count}.", "total_time": f"{total_time:.2f} seconds"}
