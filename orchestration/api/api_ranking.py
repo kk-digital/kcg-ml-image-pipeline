@@ -711,8 +711,10 @@ def list_selection_data_with_scores(
         cursor = ranking_collection.find(query_filter).sort(sort_query).skip(offset).limit(limit)
 
         selection_data = []
+        doc_count = 0
         for doc in cursor:
-
+            doc_count += 1
+            print(f"Processing document {doc['_id']}")
             # Check if the document is flagged
             is_flagged = doc.get("flagged", False)
             selection_file_name = doc["file_name"]
