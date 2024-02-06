@@ -780,95 +780,44 @@ def list_selection_data_with_scores(
 
 @router.post("/calculate-delta-scores/{model_type}", status_code=200)
 async def calculate_delta_scores(request: Request, model_type: str):
+    start_time = time.time()
 
-    start_time = time.time() 
-
+    # Access collections
     ranking_collection = request.app.image_pair_ranking_collection
     jobs_collection = request.app.completed_jobs_collection
-    delta_scores_collection = request.app.datapoints_delta_score_collection
 
-    cursor = ranking_collection.find({})
-
-    for doc in cursor:
+    # Fetch all documents from ranking_collection
+    for doc in ranking_collection.find({}):
 
         selected_image_index = doc["selected_image_index"]
         selected_image_hash = doc["selected_image_hash"]
 
-        if selected_image_index == 0:
-            unselected_image_hash = doc["image_2_metadata"]["file_hash"]
-        else:
-            unselected_image_hash = doc["image_1_metadata"]["file_hash"]
+        # Determine unselected image hash based on selected image index
+        unselected_image_hash = doc["image_2_metadata"]["file_hash"] if selected_image_index == 0 else doc["image_1_metadata"]["file_hash"]
 
-        # Fetch score data for both images
-        selected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
-        unselected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
+        # Fetch score data for both selected and unselected images
+        selected_image_job =  jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
+        unselected_image_job =  jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
 
+        # Check if both jobs exist and contain the required scores
         if selected_image_job and unselected_image_job and "task_attributes_dict" in selected_image_job and "task_attributes_dict" in unselected_image_job:
             if model_type in selected_image_job["task_attributes_dict"] and model_type in unselected_image_job["task_attributes_dict"]:
                 selected_image_scores = selected_image_job["task_attributes_dict"][model_type]
                 unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type]
 
+                # Calculate delta_score if both scores exist
                 if "image_clip_sigma_score" in selected_image_scores and "image_clip_sigma_score" in unselected_image_scores:
                     delta_score = abs(selected_image_scores["image_clip_sigma_score"] - unselected_image_scores["image_clip_sigma_score"])
 
-                    # Create DatapointDeltaScore object
-                    delta_score_entry = DatapointDeltaScore(
-                        model_type=model_type,
-                        file_name=doc["file_name"],
-                        delta_score=delta_score
+                    # Update the document in ranking_collection with the new delta_score under the specific model_type
+                    update_field = f"delta_score.{model_type}"  # Construct the field path for the model-specific score
+                    await ranking_collection.update_one(
+                        {"_id": doc["_id"]},
+                        {"$set": {update_field: delta_score}}
                     )
 
-                    # Insert the delta score into the collection
-                    delta_scores_collection.insert_one(delta_score_entry.to_dict())
+    end_time = time.time()
+    total_time = end_time - start_time
 
-    end_time = time.time()  # Capture end time
-    total_time = end_time - start_time  # Calculate duration
-
-    return {"message": "Delta scores calculated and stored successfully.", "total_time": f"{total_time:.2f} seconds"}
-
-
-@router.get("/delta-score", response_class=PrettyJSONResponse)
-def get_list_delta_score(request: Request):
-    jobs = list(request.app.datapoints_delta_score_collection.find({}))
-
-    for job in jobs:
-        job.pop('_id', None)
-
-    return jobs
-
-@router.get("/delta-score-count", response_class=PrettyJSONResponse)
-def get_delta_score_count(request: Request):
-    count = request.app.datapoints_delta_score_collection.count_documents({})
-    return {"count": count}
-
-
-@router.delete("/clear-delta-scores", status_code=204)
-def clear_delta_scores(request: Request):
-    result = request.app.datapoints_delta_score_collection.delete_many({})
-    if result.acknowledged:
-        return {"message": "All delta scores have been successfully deleted."}
-    else:
-        raise HTTPException(status_code=500, detail="Failed to delete delta scores.")
-    
-
-@router.get("/queue/image-generation/count-task")
-def count_completed(request: Request):
-
-    jobs = list(request.app.completed_jobs_collection.find())
-
-    total_count = len(jobs)
-    with_task_attributes_dict_count = 0
-    with_linear_field_count = 0
-
-    for job in jobs:
-        task_attributes_dict = job.get('task_attributes_dict', None)
-        if task_attributes_dict is not None:
-            with_task_attributes_dict_count += 1
-            if 'linear' in task_attributes_dict:
-                with_linear_field_count += 1
-
-    return {
-        "total_count": total_count,
-        "with_task_attributes_dict_count": with_task_attributes_dict_count,
-        "with_linear_field_count": with_linear_field_count
-    }
+    # Return a success message with the total processing time
+    return {"message": "Delta scores calculated and updated successfully for model_type: " + model_type, "total_time": f"{total_time:.2f} seconds"}
