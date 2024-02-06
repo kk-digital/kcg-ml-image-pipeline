@@ -44,7 +44,6 @@ def parse_args():
     parser.add_argument('--csv-phrase', help='CSV containing phrases, must have "phrase str" column', default='input/civitai_phrases_database_v7_no_nsfw.csv')
     parser.add_argument('--n-data', type=int, help='Number of data samples to generate', default=20)
     parser.add_argument('--send-job', action='store_true', default=False)
-    parser.add_argument('--update-prompts', action='store_true', default=False)
     parser.add_argument('--dataset-name', default='test-generations')
     parser.add_argument('--model-dataset', default='environmental')
     parser.add_argument('--substitution-model', help="substitution model type: xgboost or linear", default='xgboost')
@@ -55,8 +54,6 @@ def parse_args():
     parser.add_argument('--boltzman-k', type=float, default=1.0)
     parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=80)
     parser.add_argument('--self-training', action='store_true', default=False)
-    parser.add_argument('--store-embeddings', action='store_true', default=False)
-    parser.add_argument('--store-token-lengths', action='store_true', default=False)
     parser.add_argument('--save-csv', action='store_true', default=False)
     parser.add_argument('--initial-generation-policy', help="the generation policy used for generating the initial seed prompts", default="independant_approximation")
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
@@ -93,7 +90,6 @@ class PromptSubstitutionGenerator:
         minio_secret_key,
         minio_ip_addr,
         csv_phrase,
-        csv_base_prompts,
         model_dataset,
         substitution_model,
         scoring_model,
@@ -103,8 +99,6 @@ class PromptSubstitutionGenerator:
         boltzman_temperature,
         boltzman_k,
         dataset_name,
-        store_embeddings,
-        store_token_lengths,
         self_training,
         send_job,
         save_csv,
@@ -154,8 +148,6 @@ class PromptSubstitutionGenerator:
         self.clip_batch_size= clip_batch_size
         # batch size for xgboost inference
         self.substitution_batch_size=substitution_batch_size
-        # get list of base prompts
-        self.csv_base_prompts=csv_base_prompts
 
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key,
@@ -185,11 +177,11 @@ class PromptSubstitutionGenerator:
         self.ensemble_models=self.get_ensemble_models()
 
         # load the substitution model 
-        if(self.model_type=="xgboost"):
+        if(self.model_dataset!="environmental"):
             self.substitution_model= XgboostSubstitutionModel(minio_client=self.minio_client, 
                                                           ranking_model=self.scoring_model, 
                                                           dataset=self.model_dataset)
-        elif(self.model_type=="linear"):
+        else:
             self.substitution_model= LinearSubstitutionModel(minio_client=self.minio_client, 
                                                           ranking_model=self.scoring_model, 
                                                           dataset=self.model_dataset)
@@ -218,8 +210,20 @@ class PromptSubstitutionGenerator:
         self.data_loader.load_phrases()
         self.phrase_list= self.data_loader.phrase_list
 
+        # set the base prompts csv path
+        if(self.model_dataset=="icons"):
+            csv_base_prompts='input/dataset-config/icon/base-prompts-dsp.csv'
+        elif(self.model_dataset=="propaganda-poster"):
+            csv_base_prompts='input/dataset-config/propaganda-poster/base-prompts-propaganda-poster.csv'
+        elif(self.model_dataset=="mech"):
+            csv_base_prompts='input/dataset-config/mech/base-prompts-dsp.csv'
+        elif(self.model_dataset=="character" or self.model_dataset=="waifu"):
+            csv_base_prompts='input/dataset-config/character/base-prompts-waifu.csv'
+        elif(self.model_dataset=="environmental"):  
+            csv_base_prompts='input/dataset-config/environmental/base-prompts-environmental.csv'
+
         # get base prompt list
-        base_prompts = load_base_prompts(self.csv_base_prompts)
+        base_prompts = load_base_prompts(csv_base_prompts)
         # create a dictionarry for base prompts
         self.base_prompt_embeddings={phrase: self.get_mean_pooled_embedding(self.get_prompt_embedding(phrase)) for phrase in base_prompts}
         self.base_prompt_token_lengths={phrase: self.get_token_length(phrase) for phrase in base_prompts}
@@ -1343,23 +1347,10 @@ def main():
     global DATA_MINIO_DIRECTORY
     DATA_MINIO_DIRECTORY= f"{args.model_dataset}/" + DATA_MINIO_DIRECTORY
 
-    # set the base prompts csv path
-    if(args.model_dataset=="icons"):
-        csv_base_prompts='input/dataset-config/icon/base-prompts-dsp.csv'
-    elif(args.model_dataset=="propaganda-poster"):
-        csv_base_prompts='input/dataset-config/propaganda-poster/base-prompts-propaganda-poster.csv'
-    elif(args.model_dataset=="mech"):
-        csv_base_prompts='input/dataset-config/mech/base-prompts-dsp.csv'
-    elif(args.model_dataset=="character" or args.model_dataset=="waifu"):
-        csv_base_prompts='input/dataset-config/character/base-prompts-waifu.csv'
-    elif(args.model_dataset=="environmental"):  
-        csv_base_prompts='input/dataset-config/environmental/base-prompts-environmental.csv'
-
     prompt_mutator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
                                   minio_secret_key=args.minio_secret_key,
                                   minio_ip_addr=args.minio_addr,
                                   csv_phrase=args.csv_phrase,
-                                  csv_base_prompts=csv_base_prompts,
                                   model_dataset=args.model_dataset,
                                   substitution_model=args.substitution_model,
                                   scoring_model=args.scoring_model,
@@ -1369,8 +1360,6 @@ def main():
                                   boltzman_temperature=args.boltzman_temperature,
                                   boltzman_k=args.boltzman_k,
                                   dataset_name=args.dataset_name,
-                                  store_embeddings=args.store_embeddings,
-                                  store_token_lengths=args.store_token_lengths,
                                   self_training=args.self_training,
                                   send_job=args.send_job,
                                   save_csv=args.save_csv,
