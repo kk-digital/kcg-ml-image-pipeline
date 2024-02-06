@@ -782,22 +782,17 @@ async def calculate_delta_scores(request: Request):
     skipped_count = 0
 
     # Fetch all documents from ranking_collection
-    for doc in ranking_collection.find({}):
-
-        # Skip documents where delta_score already exists for all model_types
-        if all(f"delta_score.{model_type}" in doc for model_type in model_types):
-            print(f"Skipping document {doc['_id']} as delta_score already exists for all model types.")
-            skipped_count += 1
-            continue
+    async for doc in ranking_collection.find({}):
+        doc_skipped = True  # Assume the document will be skipped initially
 
         selected_image_index = doc["selected_image_index"]
         selected_image_hash = doc["selected_image_hash"]
         unselected_image_hash = doc["image_2_metadata"]["file_hash"] if selected_image_index == 0 else doc["image_1_metadata"]["file_hash"]
 
         for model_type in model_types:
-            # Proceed only if the delta_score for this model_type does not exist
+            # Check if delta_score for this model_type does not exist and proceed
             if f"delta_score.{model_type}" not in doc:
-                print(f"Processing document {doc['_id']} for model type '{model_type}'.")
+                doc_skipped = False  # Document has at least one model_type to process
                 selected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
                 unselected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
 
@@ -809,13 +804,18 @@ async def calculate_delta_scores(request: Request):
                         if "image_clip_sigma_score" in selected_image_scores and "image_clip_sigma_score" in unselected_image_scores:
                             delta_score = abs(selected_image_scores["image_clip_sigma_score"] - unselected_image_scores["image_clip_sigma_score"])
 
-                            # Update the document in ranking_collection with the new delta_score under the specific model_type
+                            # Update the document with the new delta_score for the missing model_type
                             update_field = f"delta_score.{model_type}"
                             ranking_collection.update_one(
                                 {"_id": doc["_id"]},
                                 {"$set": {update_field: delta_score}}
                             )
+                            print(f"Updated document {doc['_id']} with delta_score for '{model_type}'.")
                             processed_count += 1
+        
+        if doc_skipped:
+            print(f"Skipped document {doc['_id']} as delta_score already exists for all model types.")
+            skipped_count += 1
 
     end_time = time.time()
     total_time = end_time - start_time
