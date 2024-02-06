@@ -38,9 +38,9 @@ class SparseLinear(nn.Module):
     def forward(self, x):
         return torch.sparse.admm(self.bias, self.weight, x, 1., 1.)
 
-class SparseNeuralNetworkArchitecture(nn.Module):
+class SparseNeuralNetworkArchitectureX(nn.Module):
     def __init__(self, inputs_shape, sparsity_factor_fc1, sparsity_factor_fc2, sparsity_factor_fc3):
-        super(SparseNeuralNetworkArchitecture, self).__init__()
+        super(SparseNeuralNetworkArchitectureX, self).__init__()
 
         # Generate sparse indices based on sparsity factors
         sparse_indices_fc1 = generate_sparse_indices(inputs_shape, 64, sparsity_factor_fc1)
@@ -466,7 +466,7 @@ class ABRankingModel:
         self.inputs_shape = inputs_shape
         # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking SimpleNeuralNetworkArchitecture
         #  0.5 sparse_indices_fc1 = 0.5 , sparse_indices_fc2 = 0.5, sparse_indices_fc3 = 0.5
-        self.model = SparseNeuralNetworkArchitecture(inputs_shape,  0.5 ,   0.5,   0.5).to(self._device) 
+        self.model = SparseNeuralNetworkArchitectureX(inputs_shape,  0.5 ,   0.5,   0.5).to(self._device) 
         self.model_type = 'ab-ranking-Sparse'
         self.loss_func_name = ''
         self.file_path = ''
@@ -625,7 +625,7 @@ class ABRankingModel:
         # TODO: deprecate when we have 10 or more trained models on new structure
         if "scaling_factor" not in safetensors_data:
         # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking SimpleNeuralNetworkArchitecture
-            self.model = SparseNeuralNetworkArchitecture(self.inputs_shape, 0.5 , 0.5,  0.5).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
+            self.model = SparseNeuralNetworkArchitectureX(self.inputs_shape, 0.5 , 0.5,  0.5).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
             print("Loading deprecated model...")
 
         # Loading state dictionary
