@@ -27,7 +27,57 @@ from utility.clip.clip_text_embedder import tensor_attention_pooling
 
 
 
-# --------------------------- SparseNeuralNetworkArchitecture  ---------------------------
+
+
+# --------------------------- SparseNeuralNetworkArchitecture DNW ---------------------------
+
+class SparseSimpleNeuralNetworkArchitectureY(nn.Module):
+    def __init__(self, inputs_shape):
+        super(SparseSimpleNeuralNetworkArchitectureY, self).__init__()
+        self.mse_loss = nn.MSELoss()
+        self.l1_loss = nn.L1Loss()
+        self.tanh = nn.Tanh()
+
+        # Define sparse weights and biases for the first fully connected layer
+        self.fc1_weight = nn.Parameter(torch.randn(inputs_shape, 64), requires_grad=True)
+        self.fc1_bias = nn.Parameter(torch.randn(64), requires_grad=True)
+
+        # Define sparse weights and biases for the second fully connected layer
+        self.fc2_weight = nn.Parameter(torch.randn(64, 64), requires_grad=True)
+        self.fc2_bias = nn.Parameter(torch.randn(64), requires_grad=True)
+
+        # Define sparse weights and biases for the third fully connected layer
+        self.fc3_weight = nn.Parameter(torch.randn(64, 1), requires_grad=True)
+        self.fc3_bias = nn.Parameter(torch.randn(1), requires_grad=True)
+
+        # Initialize the sparse tensors on the current device (GPU if available)
+        self.fc1_weight_sparse = nn.functional.sparse(self.fc1_weight.data)
+        self.fc2_weight_sparse = nn.functional.sparse(self.fc2_weight.data)
+        self.fc3_weight_sparse = nn.functional.sparse(self.fc3_weight.data)
+
+    def forward(self, x):
+        # Move the input tensor to the same device as the sparse tensors
+        device = self.fc1_weight.device
+        x = x.to(device)
+
+        # Perform sparse matrix multiplication with the first fully connected layer
+        x = torch.sparse.mm(self.fc1_weight_sparse, x) + self.fc1_bias
+
+        # Apply the activation function
+        x = F.relu(x)
+
+        # Perform sparse matrix multiplication with the second fully connected layer
+        x = torch.sparse.mm(self.fc2_weight_sparse, x) + self.fc2_bias
+
+        # Apply the activation function
+        x = F.relu(x)
+
+        # Perform sparse matrix multiplication with the third fully connected layer
+        x = torch.sparse.mm(self.fc3_weight_sparse, x) + self.fc3_bias
+
+        return x
+
+# --------------------------- SparseNeuralNetworkArchitecture DNW ---------------------------
 
 class SparseLinear(nn.Module):
     def __init__(self, in_features, out_features, sparse_indices):
@@ -466,7 +516,7 @@ class ABRankingModel:
         self.inputs_shape = inputs_shape
         # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking SimpleNeuralNetworkArchitecture
         #  0.5 sparse_indices_fc1 = 0.5 , sparse_indices_fc2 = 0.5, sparse_indices_fc3 = 0.5
-        self.model = SparseNeuralNetworkArchitectureX(inputs_shape,  0.5 ,   0.5,   0.5).to(self._device) 
+        self.model = SparseSimpleNeuralNetworkArchitectureY(inputs_shape).to(self._device) 
         self.model_type = 'ab-ranking-Sparse'
         self.loss_func_name = ''
         self.file_path = ''
@@ -625,7 +675,7 @@ class ABRankingModel:
         # TODO: deprecate when we have 10 or more trained models on new structure
         if "scaling_factor" not in safetensors_data:
         # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking SimpleNeuralNetworkArchitecture
-            self.model = SparseNeuralNetworkArchitectureX(self.inputs_shape, 0.5 , 0.5,  0.5).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
+            self.model = SparseSimpleNeuralNetworkArchitectureY(self.inputs_shape).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
             print("Loading deprecated model...")
 
         # Loading state dictionary
