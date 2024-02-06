@@ -35,22 +35,19 @@ class SparseLinearV(nn.Module):
         nnz = int(in_features * out_features * sparse_ratio)
 
         # Initialize the weight and bias tensors as sparse and dense tensors, respectively
+        indices = torch.cat((
+            torch.arange(nnz) % in_features,
+            torch.arange(nnz) // in_features
+        ), dim=0)
         self.weight_sparse = torch.sparse_coo_tensor(
-            torch.cat(
-                (
-                    torch.randperm(in_features, n=nnz)[:, None],
-                    torch.randperm(out_features, n=nnz)[None, :]
-                ),
-                dim=1
-            ),
-            torch.randn(nnz, out_features),
-            size=(in_features, out_features)
+            values=torch.ones(nnz),
+            size=(in_features, out_features),
+            indices=indices
         )
         self.bias = nn.Parameter(torch.randn(out_features))
 
     def forward(self, x):
         return torch.sparse.mm(self.weight_sparse, x) + self.bias
-    
 
 class SparseNeuralNetworkV(nn.Module):
     def __init__(self, inputs_shape):
