@@ -787,7 +787,11 @@ async def calculate_delta_scores(request: Request):
     # Fetch all documents from ranking_collection
     for doc in ranking_collection.find({}):
 
-
+        # Skip documents where delta_score already exists for all model_types
+        if all(f"{model_type}" in doc.get("delta_score", {}) for model_type in model_types):
+            print(f"Skipping document {doc['_id']} as delta_score already exists for all model types.")
+            skipped_count += 1
+            continue
 
         selected_image_index = doc["selected_image_index"]
         selected_image_hash = doc["selected_image_hash"]
@@ -807,7 +811,6 @@ async def calculate_delta_scores(request: Request):
 
                         if "image_clip_sigma_score" in selected_image_scores and "image_clip_sigma_score" in unselected_image_scores:
                             delta_score = selected_image_scores["image_clip_sigma_score"] - unselected_image_scores["image_clip_sigma_score"]
-
 
                             # Update the document in ranking_collection with the new delta_score under the specific model_type
                             update_field = f"delta_score.{model_type}"
