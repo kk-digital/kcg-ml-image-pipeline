@@ -736,12 +736,13 @@ def list_selection_data_with_scores(
 
             # Skip this job if task_attributes_dict is missing
             if not selected_image_job or "task_attributes_dict" not in selected_image_job or not unselected_image_job or "task_attributes_dict" not in unselected_image_job:
+                print(f"Skipping document {doc['_id']} due to missing job data or task_attributes_dict.")
                 continue
 
             # Extract scores for both images
             selected_image_scores = selected_image_job["task_attributes_dict"][model_type]
             unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type]
-
+            
             selection_data.append({
                 "selected_image": {
                     "selected_image_path": selected_image_path,
@@ -759,7 +760,9 @@ def list_selection_data_with_scores(
                 "delta_score": delta_score,
                 "flagged": is_flagged 
             })
+            print(f"Finished processing document {doc['_id']}.")
 
+        print(f"Total documents processed: {doc_count}. Selection data count: {len(selection_data)}")    
         return response_handler.create_success_response(
             selection_data,
             200
