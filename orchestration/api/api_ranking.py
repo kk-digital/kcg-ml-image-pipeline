@@ -811,7 +811,7 @@ async def calculate_delta_scores(request: Request, model_type: str):
 
                     # Update the document in ranking_collection with the new delta_score under the specific model_type
                     update_field = f"delta_score.{model_type}"  # Construct the field path for the model-specific score
-                    await ranking_collection.update_one(
+                    ranking_collection.update_one(
                         {"_id": doc["_id"]},
                         {"$set": {update_field: delta_score}}
                     )
