@@ -56,8 +56,6 @@ class SparseNeuralNetworkArchitecture(nn.Module):
         x = F.relu(self.sparse_fc2(x))
 
         # Final sparse fully connected layer
-        x = self.sparse_fc3(x)
-        return x
 
 
 # --------------------------- SparseNeuralNetworkArchitectureMM  ---------------------------
@@ -454,7 +452,7 @@ class ABRankingModel:
         self.inputs_shape = inputs_shape
         # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking SimpleNeuralNetworkArchitecture
         #  0.5 sparse_indices_fc1 = 0.5 , sparse_indices_fc2 = 0.5, sparse_indices_fc3 = 0.5
-        self.model = SparseNeuralNetworkArchitecture(inputs_shape,sparse_indices_fc1 = 0.5 , sparse_indices_fc2 = 0.5, sparse_indices_fc3 = 0.5).to(self._device) 
+        self.model = SparseNeuralNetworkArchitecture(inputs_shape,  0.5 ,   0.5,   0.5).to(self._device) 
         self.model_type = 'ab-ranking-Sparse'
         self.loss_func_name = ''
         self.file_path = ''
@@ -613,7 +611,7 @@ class ABRankingModel:
         # TODO: deprecate when we have 10 or more trained models on new structure
         if "scaling_factor" not in safetensors_data:
         # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking SimpleNeuralNetworkArchitecture
-            self.model = SparseNeuralNetworkArchitecture(self.inputs_shape,sparse_indices_fc1 = 0.5 , sparse_indices_fc2 = 0.5, sparse_indices_fc3 = 0.5).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
+            self.model = SparseNeuralNetworkArchitecture(self.inputs_shape, 0.5 , 0.5,  0.5).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
             print("Loading deprecated model...")
 
         # Loading state dictionary
