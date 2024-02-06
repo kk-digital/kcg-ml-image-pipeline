@@ -39,8 +39,13 @@ class SparseLinear(nn.Module):
         return torch.sparse.admm(self.bias, self.weight, x, 1., 1.)
 
 class SparseNeuralNetworkArchitecture(nn.Module):
-    def __init__(self, inputs_shape, sparse_indices_fc1, sparse_indices_fc2, sparse_indices_fc3):
+    def __init__(self, inputs_shape, sparsity_factor_fc1, sparsity_factor_fc2, sparsity_factor_fc3):
         super(SparseNeuralNetworkArchitecture, self).__init__()
+
+        # Generate sparse indices based on sparsity factors
+        sparse_indices_fc1 = generate_sparse_indices(inputs_shape, 64, sparsity_factor_fc1)
+        sparse_indices_fc2 = generate_sparse_indices(64, 64, sparsity_factor_fc2)
+        sparse_indices_fc3 = generate_sparse_indices(64, 1, sparsity_factor_fc3)
 
         # Sparse fully connected layers
         self.sparse_fc1 = SparseLinear(inputs_shape, 64, sparse_indices_fc1)
@@ -56,6 +61,15 @@ class SparseNeuralNetworkArchitecture(nn.Module):
         x = F.relu(self.sparse_fc2(x))
 
         # Final sparse fully connected layer
+        x = self.sparse_fc3(x)
+        return x
+
+def generate_sparse_indices(in_features, out_features, sparsity_factor):
+    num_nonzero_connections = int(sparsity_factor * in_features * out_features)
+    row_indices = torch.randint(0, in_features, (num_nonzero_connections,))
+    col_indices = torch.randint(0, out_features, (num_nonzero_connections,))
+    sparse_indices = torch.stack((row_indices, col_indices))
+    return sparse_indices
 
 
 # --------------------------- SparseNeuralNetworkArchitectureMM  ---------------------------
