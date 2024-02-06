@@ -768,7 +768,7 @@ def list_selection_data_with_scores(
 
 
 @router.post("/calculate-delta-scores", status_code=200)
-def calculate_delta_scores(request: Request):
+async def calculate_delta_scores(request: Request):
     start_time = time.time()
 
     # Define the model types for which you want to calculate delta_scores
@@ -782,41 +782,40 @@ def calculate_delta_scores(request: Request):
     skipped_count = 0
 
     # Fetch all documents from ranking_collection
-    cursor = ranking_collection.find({})
-    for doc in cursor:
-        # Directly check if delta_scores for all model_types exist
+    for doc in ranking_collection.find({}):
+
+        # Skip documents where delta_score already exists for all model_types
         if all(f"{model_type}" in doc.get("delta_score", {}) for model_type in model_types):
             print(f"Skipping document {doc['_id']} as delta_score already exists for all model types.")
             skipped_count += 1
-            continue  # Skip the rest of the processing for this document
-
+            continue
 
         selected_image_index = doc["selected_image_index"]
         selected_image_hash = doc["selected_image_hash"]
         unselected_image_hash = doc["image_2_metadata"]["file_hash"] if selected_image_index == 0 else doc["image_1_metadata"]["file_hash"]
 
-        # Process each model_type
         for model_type in model_types:
-            if f"delta_score.{model_type}" not in doc.get("delta_score", {}):
+            # Proceed only if the delta_score for this model_type does not exist
+            if f"delta_score.{model_type}" not in doc:
+                print(f"Processing document {doc['_id']} for model type '{model_type}'.")
                 selected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": selected_image_hash})
                 unselected_image_job = jobs_collection.find_one({"task_output_file_dict.output_file_hash": unselected_image_hash})
 
-                if selected_image_job and unselected_image_job:
-                    selected_scores = selected_image_job.get("task_attributes_dict", {}).get(model_type, {})
-                    unselected_scores = unselected_image_job.get("task_attributes_dict", {}).get(model_type, {})
+                if selected_image_job and unselected_image_job and "task_attributes_dict" in selected_image_job and "task_attributes_dict" in unselected_image_job:
+                    if model_type in selected_image_job["task_attributes_dict"] and model_type in unselected_image_job["task_attributes_dict"]:
+                        selected_image_scores = selected_image_job["task_attributes_dict"][model_type]
+                        unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type]
 
-                    if "image_clip_sigma_score" in selected_scores and "image_clip_sigma_score" in unselected_scores:
-                        delta_score = abs(selected_scores["image_clip_sigma_score"] - unselected_scores["image_clip_sigma_score"])
+                        if "image_clip_sigma_score" in selected_image_scores and "image_clip_sigma_score" in unselected_image_scores:
+                            delta_score = abs(selected_image_scores["image_clip_sigma_score"] - unselected_image_scores["image_clip_sigma_score"])
 
-                        # Update the document with the new delta_score for the missing model_type
-                        update_field = f"delta_score.{model_type}"
-                        ranking_collection.update_one(
-                            {"_id": doc["_id"]},
-                            {"$set": {update_field: delta_score}}
-                        )
-                        print(f"Updated document {doc['_id']} with delta_score for '{model_type}'.")
-                        processed_count += 1
-                        break  # Break if any update is made to proceed to the next document
+                            # Update the document in ranking_collection with the new delta_score under the specific model_type
+                            update_field = f"delta_score.{model_type}"
+                            ranking_collection.update_one(
+                                {"_id": doc["_id"]},
+                                {"$set": {update_field: delta_score}}
+                            )
+                            processed_count += 1
 
     end_time = time.time()
     total_time = end_time - start_time
