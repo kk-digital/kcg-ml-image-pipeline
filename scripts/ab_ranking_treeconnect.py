@@ -47,9 +47,9 @@ class SparseLinearV(nn.Module):
 
     def forward(self, x):
         return torch.sparse.mm(self.weight_sparse, x) + self.bias
-    
+   
 class SparseNeuralNetworkV(nn.Module):
-    def __init__(self, input_shape):
+    def __init__(self, inputs_shape):
         super(SparseNeuralNetworkV, self).__init__()
 
        # Check if inputs_shape is an integer (length only)
@@ -57,7 +57,7 @@ class SparseNeuralNetworkV(nn.Module):
             inputs_shape = (1, inputs_shape)  # Assuming 1 channel
 
         # Define the first sparse fully connected layer with input shape [1, 768] and output shape [1, 64]
-        self.fc1 = SparseLinearV(input_shape[1], 64)
+        self.fc1 = SparseLinearV(inputs_shape, 64)
 
         # Define the second sparse fully connected layer with input shape [1, 64] and output shape [1, 32]
         self.fc2 = SparseLinearV(64, 32)
