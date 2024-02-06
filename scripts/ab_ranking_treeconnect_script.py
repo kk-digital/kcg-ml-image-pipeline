@@ -303,7 +303,7 @@ def train_ranking(dataset_name: str,
 
     # add model card
     model_id = score_residual.add_model_card(model_card)
-    model_type = "TC-small-2"
+    model_type = "TC-small-3"
 
     print("validation loss: ",validation_loss_per_epoch)
     print("training loss: ",training_loss_per_epoch)
