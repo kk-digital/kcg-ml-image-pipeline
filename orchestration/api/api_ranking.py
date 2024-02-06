@@ -687,7 +687,6 @@ def list_selection_data_with_scores(
         # Connect to the MongoDB collections
         ranking_collection = request.app.image_pair_ranking_collection
         jobs_collection = request.app.completed_jobs_collection
-        delta_score_collection = request.app.datapoints_delta_score_collection
 
         # Build query filter based on dataset
         query_filter = {}
@@ -703,23 +702,21 @@ def list_selection_data_with_scores(
             # If include_flagged is False, ensure to exclude flagged documents
             query_filter["flagged"] = {"$ne": True}
 
-        # Fetch data from image_pair_ranking_collection with pagination
-        cursor = ranking_collection.find(query_filter).skip(offset).limit(limit)
+        # Prepare sorting
+        sort_order = 1 if order == "asc" else -1
+        # Adjust sorting query for nested delta_score by model_type
+        sort_query = [("delta_score." + model_type, sort_order)] if sort_by == "delta_score" else [(sort_by, sort_order)]
 
+        # Fetch and sort data with pagination
+        cursor = ranking_collection.find(query_filter).sort(sort_query).skip(offset).limit(limit)
 
         selection_data = []
         for doc in cursor:
 
-            delta_score_doc = delta_score_collection.find_one({
-                "model_type": model_type,
-                "file_name": doc["file_name"]  # Assuming file_name matches
-            })
-
-            delta_score = delta_score_doc["delta_score"] if delta_score_doc else None
-
             # Check if the document is flagged
             is_flagged = doc.get("flagged", False)
             selection_file_name = doc["file_name"]
+            delta_score = doc.get("delta_score", {}).get(model_type, None)
             selected_image_index = doc["selected_image_index"]
             selected_image_hash = doc["selected_image_hash"]
             selected_image_path = doc["image_1_metadata"]["file_path"] if selected_image_index == 0 else doc["image_2_metadata"]["file_path"]
@@ -761,16 +758,8 @@ def list_selection_data_with_scores(
                 "flagged": is_flagged 
             })
 
-        # Adjust sorting logic based on 'order' parameter
-        if order == "asc":
-            # Sort ascending
-            sorted_selection_data = sorted(selection_data, key=lambda x: x[sort_by], reverse=False)
-        else:
-            # Sort descending 
-            sorted_selection_data = sorted(selection_data, key=lambda x: x[sort_by], reverse=True)
-
         return response_handler.create_success_response(
-            sorted_selection_data,
+            selection_data,
             200
         )
 
