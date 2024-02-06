@@ -56,17 +56,17 @@ class SparseSimpleNeuralNetworkArchitectureY(nn.Module):
         self.fc1_weight_sparse = torch.sparse.FloatTensor(
             torch.nonzero(self.fc1_weight.data).t().to(device),
             self.fc1_weight.data[torch.nonzero(self.fc1_weight.data)].to(device),
-            torch.Size((inputs_shape, 64))
+            torch.Size([inputs_shape, 64])
         ).to_sparse()
         self.fc2_weight_sparse = torch.sparse.FloatTensor(
             torch.nonzero(self.fc2_weight.data).t().to(device),
             self.fc2_weight.data[torch.nonzero(self.fc2_weight.data)].to(device),
-            torch.Size((64, 64))
+            torch.Size([64, 64])
         ).to_sparse()
         self.fc3_weight_sparse = torch.sparse.FloatTensor(
             torch.nonzero(self.fc3_weight.data).t().to(device),
             self.fc3_weight.data[torch.nonzero(self.fc3_weight.data)].to(device),
-            torch.Size((64, 1))
+            torch.Size([64, 1])
         ).to_sparse()
 
     def forward(self, x):
