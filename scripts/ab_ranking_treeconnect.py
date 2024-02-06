@@ -52,7 +52,6 @@ class SparseLinearV(nn.Module):
 
     def forward(self, x):
         return torch.sparse.mm(self.weight_sparse, x) + self.bias
-    
 
 
 class SparseNeuralNetworkV(nn.Module):
