@@ -29,7 +29,8 @@ from utility.clip.clip_text_embedder import tensor_attention_pooling
 
 
 
-# --------------------------- SparseNeuralNetworkArchitecture DNW ---------------------------
+# --------------------------- SparseNeuralNetworkArchitecture Y ---------------------------
+
 
 class SparseSimpleNeuralNetworkArchitectureY(nn.Module):
     def __init__(self, inputs_shape):
@@ -51,9 +52,9 @@ class SparseSimpleNeuralNetworkArchitectureY(nn.Module):
         self.fc3_bias = nn.Parameter(torch.randn(1), requires_grad=True)
 
         # Initialize the sparse tensors on the current device (GPU if available)
-        self.fc1_weight_sparse = nn.functional.sparse(self.fc1_weight.data)
-        self.fc2_weight_sparse = nn.functional.sparse(self.fc2_weight.data)
-        self.fc3_weight_sparse = nn.functional.sparse(self.fc3_weight.data)
+        self.fc1_weight_sparse = torch.sparse.FloatTensor(self.fc1_weight.data.cpu().nonzero(), self.fc1_weight.data.cpu().abs(), torch.Size((inputs_shape, 64)))
+        self.fc2_weight_sparse = torch.sparse.FloatTensor(self.fc2_weight.data.cpu().nonzero(), self.fc2_weight.data.cpu().abs(), torch.Size((64, 64)))
+        self.fc3_weight_sparse = torch.sparse.FloatTensor(self.fc3_weight.data.cpu().nonzero(), self.fc3_weight.data.cpu().abs(), torch.Size((64, 1)))
 
     def forward(self, x):
         # Move the input tensor to the same device as the sparse tensors
