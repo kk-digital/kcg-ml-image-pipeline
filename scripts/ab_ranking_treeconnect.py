@@ -40,38 +40,41 @@ class SparseSimpleNeuralNetworkArchitectureY(nn.Module):
         self.tanh = nn.Tanh()
 
         # Define sparse weights and biases for the first fully connected layer
-        self.fc1_weight = nn.Parameter(torch.randn(inputs_shape, 64), requires_grad=True)
+        self.fc1_weight_data = nn.Parameter(torch.randn(inputs_shape, 64), requires_grad=True)
+        self.fc1_weight_idx = torch.nonzero(self.fc1_weight_data)
         self.fc1_bias = nn.Parameter(torch.randn(64), requires_grad=True)
 
         # Define sparse weights and biases for the second fully connected layer
-        self.fc2_weight = nn.Parameter(torch.randn(64, 64), requires_grad=True)
+        self.fc2_weight_data = nn.Parameter(torch.randn(64, 64), requires_grad=True)
+        self.fc2_weight_idx = torch.nonzero(self.fc2_weight_data)
         self.fc2_bias = nn.Parameter(torch.randn(64), requires_grad=True)
 
         # Define sparse weights and biases for the third fully connected layer
-        self.fc3_weight = nn.Parameter(torch.randn(64, 1), requires_grad=True)
+        self.fc3_weight_data = nn.Parameter(torch.randn(64, 1), requires_grad=True)
+        self.fc3_weight_idx = torch.nonzero(self.fc3_weight_data)
         self.fc3_bias = nn.Parameter(torch.randn(1), requires_grad=True)
 
         # Initialize the sparse tensors on the current device (GPU if available)
-        device = self.fc1_weight.device
+        device = self.fc1_weight_data.device
         self.fc1_weight_sparse = torch.sparse.FloatTensor(
-            torch.nonzero(self.fc1_weight.data).t().to(device),
-            self.fc1_weight.data[torch.nonzero(self.fc1_weight.data)].to(device),
+            self.fc1_weight_idx.t().to(device),
+            self.fc1_weight_data[self.fc1_weight_idx].to(device),
             torch.Size([inputs_shape, 64])
         ).to_sparse()
         self.fc2_weight_sparse = torch.sparse.FloatTensor(
-            torch.nonzero(self.fc2_weight.data).t().to(device),
-            self.fc2_weight.data[torch.nonzero(self.fc2_weight.data)].to(device),
+            self.fc2_weight_idx.t().to(device),
+            self.fc2_weight_data[self.fc2_weight_idx].to(device),
             torch.Size([64, 64])
         ).to_sparse()
         self.fc3_weight_sparse = torch.sparse.FloatTensor(
-            torch.nonzero(self.fc3_weight.data).t().to(device),
-            self.fc3_weight.data[torch.nonzero(self.fc3_weight.data)].to(device),
+            self.fc3_weight_idx.t().to(device),
+            self.fc3_weight_data[self.fc3_weight_idx].to(device),
             torch.Size([64, 1])
         ).to_sparse()
 
     def forward(self, x):
         # Move the input tensor to the same device as the sparse tensors
-        device = self.fc1_weight.device
+        device = self.fc1_weight_data.device
         x = x.to(device)
 
         # Perform sparse matrix multiplication with the first fully connected layer
@@ -90,7 +93,6 @@ class SparseSimpleNeuralNetworkArchitectureY(nn.Module):
         x = torch.sparse.mm(self.fc3_weight_sparse, x) + self.fc3_bias
 
         return x
-
 # --------------------------- SparseNeuralNetworkArchitecture DNW ---------------------------
 
 class SparseLinear(nn.Module):
