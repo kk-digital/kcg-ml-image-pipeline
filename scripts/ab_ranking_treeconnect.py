@@ -35,6 +35,7 @@ from utility.clip.clip_text_embedder import tensor_attention_pooling
 class SparseSimpleNeuralNetworkArchitectureY(nn.Module):
     def __init__(self, inputs_shape):
         super(SparseSimpleNeuralNetworkArchitectureY, self).__init__()
+
         self.mse_loss = nn.MSELoss()
         self.l1_loss = nn.L1Loss()
         self.tanh = nn.Tanh()
