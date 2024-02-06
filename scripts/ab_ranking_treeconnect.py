@@ -36,7 +36,7 @@ class SparseLinear(nn.Module):
         self.bias = nn.Parameter(data=torch.randn(out_features), requires_grad=True)
 
     def forward(self, x):
-        return torch.admm(self.bias, self.weight, x, 1., 1.)
+        return torch.sparse.mm(self.bias, self.weight, x, 1., 1.)
 
 class SparseNeuralNetworkArchitectureX(nn.Module):
     def __init__(self, inputs_shape, sparsity_factor_fc1, sparsity_factor_fc2, sparsity_factor_fc3):
