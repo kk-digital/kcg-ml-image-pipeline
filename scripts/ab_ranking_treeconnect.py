@@ -27,7 +27,49 @@ from utility.clip.clip_text_embedder import tensor_attention_pooling
 
 
 
+class SparseSimpleNeuralNetworkArchitectureZ(nn.Module):
+    def __init__(self, inputs_shape):
+        super(SparseSimpleNeuralNetworkArchitectureZ, self).__init__()
+        self.mse_loss = nn.MSELoss()
+        self.l1_loss = nn.L1Loss()
+        self.tanh = nn.Tanh()
 
+        # Define sparse weights and biases for each layer
+        self.fc_layers = []
+        for i, out_features in enumerate([64, 64, 1]):
+            fc_layer = nn.ParameterDict({
+                "weight_data": nn.Parameter(torch.randn(inputs_shape if i == 0 else 64, out_features), requires_grad=True),
+                "bias": nn.Parameter(torch.randn(out_features), requires_grad=True)
+            })
+            fc_layer["weight_data_flat"] = fc_layer["weight_data"].view(-1)
+            fc_layer["weight_idx"] = fc_layer["weight_data_flat"].nonzero()
+
+            # Ensure weight_idx has two columns
+            if fc_layer["weight_idx"].shape[1] == 1:
+                fc_layer["weight_idx"] = fc_layer["weight_idx"].unsqueeze(1)
+
+            self.fc_layers.append(fc_layer)
+
+        # Initialize sparse tensors on the current device
+        self.device = next(self.parameters()).device
+        for i, fc_layer in enumerate(self.fc_layers):
+            fc_layer["weight_sparse"] = torch.sparse.FloatTensor(
+                torch.cat((torch.arange(inputs_shape if i == 0 else 64, device=self.device).unsqueeze(1),
+                           fc_layer["weight_idx"][:, 1].unsqueeze(1)), dim=1),
+                fc_layer["weight_data_flat"][fc_layer["weight_idx"][:, 0]].to(self.device),
+                torch.Size([inputs_shape if i == 0 else 64, out_features])
+            ).to_sparse()
+
+    def forward(self, x):
+        # Move input tensor to the same device
+        x = x.to(self.device)
+
+        # Perform sparse matrix multiplications and activations
+        for fc_layer in self.fc_layers:
+            x = torch.sparse.mm(fc_layer["weight_sparse"], x) + fc_layer["bias"]
+            x = F.relu(x)
+
+        return x
 
 # --------------------------- SparseNeuralNetworkArchitecture Y ---------------------------
 
@@ -536,7 +578,7 @@ class ABRankingModel:
         self.inputs_shape = inputs_shape
         # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking SimpleNeuralNetworkArchitecture
         #  0.5 sparse_indices_fc1 = 0.5 , sparse_indices_fc2 = 0.5, sparse_indices_fc3 = 0.5
-        self.model = SparseSimpleNeuralNetworkArchitectureY(inputs_shape).to(self._device) 
+        self.model = SparseSimpleNeuralNetworkArchitectureZ(inputs_shape).to(self._device) 
         self.model_type = 'ab-ranking-Sparse'
         self.loss_func_name = ''
         self.file_path = ''
@@ -695,7 +737,7 @@ class ABRankingModel:
         # TODO: deprecate when we have 10 or more trained models on new structure
         if "scaling_factor" not in safetensors_data:
         # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel TreeConnectArchitectureTanhRanking SimpleNeuralNetworkArchitecture
-            self.model = SparseSimpleNeuralNetworkArchitectureY(self.inputs_shape).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
+            self.model = SparseSimpleNeuralNetworkArchitectureZ(self.inputs_shape).to(self._device) # TreeConnectArchitectureTanhRankingBig ABRankingLinearModel ABRankingTreeConnectModel
             print("Loading deprecated model...")
 
         # Loading state dictionary
