@@ -688,19 +688,16 @@ def list_selection_data_with_scores(
         ranking_collection = request.app.image_pair_ranking_collection
         jobs_collection = request.app.completed_jobs_collection
 
-        # Build query filter based on dataset
+        # Build query filter based on dataset and ensure delta_score exists for the model_type
         query_filter = {}
         if dataset:
             query_filter["dataset"] = dataset
-            
-        # Adjust the query filter based on the include_flagged parameter
-        if include_flagged:
-            # If include_flagged is True, there's no need to filter out flagged documents
-            # This means flagged documents are included in the results
-            pass
-        else:
-            # If include_flagged is False, ensure to exclude flagged documents
+
+        if not include_flagged:
             query_filter["flagged"] = {"$ne": True}
+
+        # Ensure delta_score for the model_type exists and is not null
+        query_filter[f"delta_score.{model_type}"] = {"$exists": True, "$ne": None}
 
         # Prepare sorting
         sort_order = 1 if order == "asc" else -1
@@ -709,6 +706,7 @@ def list_selection_data_with_scores(
 
         # Fetch and sort data with pagination
         cursor = ranking_collection.find(query_filter).sort(sort_query).skip(offset).limit(limit)
+
 
         selection_data = []
         doc_count = 0
