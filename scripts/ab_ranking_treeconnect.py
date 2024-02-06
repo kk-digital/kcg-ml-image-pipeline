@@ -42,19 +42,19 @@ class SparseSimpleNeuralNetworkArchitectureY(nn.Module):
         # Define sparse weights and biases for the first fully connected layer
         self.fc1_weight_data = nn.Parameter(torch.randn(inputs_shape, 64), requires_grad=True)
         self.fc1_weight_data_flat = self.fc1_weight_data.view(-1)
-        self.fc1_weight_idx = torch.nonzero(self.fc1_weight_data_flat)
+        self.fc1_weight_idx = self.fc1_weight_data_flat.nonzero()
         self.fc1_bias = nn.Parameter(torch.randn(64), requires_grad=True)
 
         # Define sparse weights and biases for the second fully connected layer
         self.fc2_weight_data = nn.Parameter(torch.randn(64, 64), requires_grad=True)
         self.fc2_weight_data_flat = self.fc2_weight_data.view(-1)
-        self.fc2_weight_idx = torch.nonzero(self.fc2_weight_data_flat)
+        self.fc2_weight_idx = self.fc2_weight_data_flat.nonzero()
         self.fc2_bias = nn.Parameter(torch.randn(64), requires_grad=True)
 
         # Define sparse weights and biases for the third fully connected layer
         self.fc3_weight_data = nn.Parameter(torch.randn(64, 1), requires_grad=True)
         self.fc3_weight_data_flat = self.fc3_weight_data.view(-1)
-        self.fc3_weight_idx = torch.nonzero(self.fc3_weight_data_flat)
+        self.fc3_weight_idx = self.fc3_weight_data_flat.nonzero()
         self.fc3_bias = nn.Parameter(torch.randn(1), requires_grad=True)
 
         # Initialize the sparse tensors on the current device (GPU if available)
@@ -96,8 +96,6 @@ class SparseSimpleNeuralNetworkArchitectureY(nn.Module):
         x = torch.sparse.mm(self.fc3_weight_sparse, x) + self.fc3_bias
 
         return x
-
-
 # --------------------------- SparseNeuralNetworkArchitecture DNW ---------------------------
 
 class SparseLinear(nn.Module):
