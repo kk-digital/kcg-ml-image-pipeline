@@ -212,18 +212,18 @@ class PromptSubstitutionGenerator:
 
         # set the base prompts csv path
         if(self.model_dataset=="icons"):
-            csv_base_prompts='input/dataset-config/icon/base-prompts-dsp.csv'
+            self.csv_base_prompts='input/dataset-config/icon/base-prompts-dsp.csv'
         elif(self.model_dataset=="propaganda-poster"):
-            csv_base_prompts='input/dataset-config/propaganda-poster/base-prompts-propaganda-poster.csv'
+            self.csv_base_prompts='input/dataset-config/propaganda-poster/base-prompts-propaganda-poster.csv'
         elif(self.model_dataset=="mech"):
-            csv_base_prompts='input/dataset-config/mech/base-prompts-dsp.csv'
+            self.csv_base_prompts='input/dataset-config/mech/base-prompts-dsp.csv'
         elif(self.model_dataset=="character" or self.model_dataset=="waifu"):
-            csv_base_prompts='input/dataset-config/character/base-prompts-waifu.csv'
+            self.csv_base_prompts='input/dataset-config/character/base-prompts-waifu.csv'
         elif(self.model_dataset=="environmental"):  
-            csv_base_prompts='input/dataset-config/environmental/base-prompts-environmental.csv'
+            self.csv_base_prompts='input/dataset-config/environmental/base-prompts-environmental.csv'
 
         # get base prompt list
-        base_prompts = load_base_prompts(csv_base_prompts)
+        base_prompts = load_base_prompts(self.csv_base_prompts)
         # create a dictionarry for base prompts
         self.base_prompt_embeddings={phrase: self.get_mean_pooled_embedding(self.get_prompt_embedding(phrase)) for phrase in base_prompts}
         self.base_prompt_token_lengths={phrase: self.get_token_length(phrase) for phrase in base_prompts}
