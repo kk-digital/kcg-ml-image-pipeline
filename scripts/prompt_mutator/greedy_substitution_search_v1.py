@@ -1,5 +1,4 @@
 import argparse
-import csv
 from datetime import datetime
 import io
 import os
