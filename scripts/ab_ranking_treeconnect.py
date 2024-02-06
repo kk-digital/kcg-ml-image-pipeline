@@ -60,17 +60,17 @@ class SparseSimpleNeuralNetworkArchitectureY(nn.Module):
         # Initialize the sparse tensors on the current device (GPU if available)
         device = self.fc1_weight_data.device
         self.fc1_weight_sparse = torch.sparse.FloatTensor(
-            self.fc1_weight_idx.to(device),
+            torch.cat((self.fc1_weight_idx[:, 0].unsqueeze(1), self.fc1_weight_idx[:, 1].unsqueeze(1)), dim=1).to(device),
             self.fc1_weight_data_flat[self.fc1_weight_idx].to(device),
             torch.Size([inputs_shape, 64])
         ).to_sparse()
         self.fc2_weight_sparse = torch.sparse.FloatTensor(
-            self.fc2_weight_idx.to(device),
+            torch.cat((self.fc2_weight_idx[:, 0].unsqueeze(1), self.fc2_weight_idx[:, 1].unsqueeze(1)), dim=1).to(device),
             self.fc2_weight_data_flat[self.fc2_weight_idx].to(device),
             torch.Size([64, 64])
         ).to_sparse()
         self.fc3_weight_sparse = torch.sparse.FloatTensor(
-            self.fc3_weight_idx.to(device),
+            torch.cat((self.fc3_weight_idx[:, 0].unsqueeze(1), self.fc3_weight_idx[:, 1].unsqueeze(1)), dim=1).to(device),
             self.fc3_weight_data_flat[self.fc3_weight_idx].to(device),
             torch.Size([64, 1])
         ).to_sparse()
