@@ -782,7 +782,7 @@ async def calculate_delta_scores(request: Request):
     skipped_count = 0
 
     # Fetch all documents from ranking_collection
-    async for doc in ranking_collection.find({}):
+    for doc in ranking_collection.find({}):
         doc_skipped = True  # Assume the document will be skipped initially
 
         selected_image_index = doc["selected_image_index"]
