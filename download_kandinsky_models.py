@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
     logger.info("Downloading models. This may take a while.")
 
-    minio_ip_addr = '123.176.98.90:9000'
+    minio_ip_addr = '192.168.3.5:9000'
     access_key = 'v048BpXpWrsVIHUfdAix'
     secret_key = '4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu'
 
