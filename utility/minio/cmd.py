@@ -6,7 +6,7 @@ from utility.utils_logger import logger
 
 # TODO: remove hardcode in the future
 #  use config file
-MINIO_ADDRESS = "192.168.3.5:9000"
+MINIO_ADDRESS = "123.176.98.90:9000"
 
 
 def get_minio_client(minio_access_key, minio_secret_key, minio_ip_addr=None):
@@ -55,7 +55,28 @@ def download_from_minio(client, bucket_name, object_name, output_path):
     else:
         logger.info(f"{object_name} already exists.")
 
+def download_folder_from_minio(client, bucket_name, folder_name, output_folder):
+    # Create the output folder if it doesn't exist
+    os.makedirs(output_folder, exist_ok=True)
+    
+    # List all objects in the Minio folder
+    objects = client.list_objects(bucket_name, prefix=folder_name, recursive=True)
+    
+    for obj in objects:
+        object_name = obj.object_name
+        relative_path = os.path.relpath(object_name, folder_name)
+        output_path = os.path.join(output_folder, relative_path)
+        
+        if not os.path.isfile(output_path):
+            # Create directories if needed
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            
+            # Download the object
+            client.fget_object(bucket_name, object_name, output_path)
+        else:
+            logger.info(f"{object_name} already exists.")
 
+            
 def get_file_from_minio(client, bucket_name, file_name):
     try:
         # Get object data
@@ -104,6 +125,7 @@ def get_list_of_objects(client, bucket_name):
         object_names.append(obj_name)
 
     return object_names
+
 
 
 def get_list_of_objects_with_prefix(client, bucket_name, prefix):
