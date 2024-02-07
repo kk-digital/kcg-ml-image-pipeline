@@ -832,20 +832,22 @@ async def calculate_delta_scores(request: Request):
     return {"message": f"Delta scores calculation and update complete. Processed: {processed_count}, Skipped: {skipped_count}.", "total_time": f"{total_time:.2f} seconds"}
 
 
-@router.get("/job-uuid", response_class=PrettyJSONResponse)
+@router.get("/job_uuid", response_class=PrettyJSONResponse)
 def get_list_completed_jobs_by_dataset(request: Request, dataset: str):
     try:
-        # Adjust the query to find jobs by dataset that do not contain the task_attribute_dict field
+        # Define the query filter to fetch jobs by dataset that do not contain the task_attributes_dict field.
         query_filter = {
             "task_input_dict.dataset": dataset,
             "task_attributes_dict": {"$exists": False}
         }
         
-        jobs_cursor = request.app.completed_jobs_collection.find(query_filter, {"job_uuid": 1, "_id": 0})
+        # Execute the query and project only the uuid field
+        jobs_cursor = request.app.completed_jobs_collection.find(query_filter, {"uuid": 1, "_id": 0})
         
-        # Extract job_uuids from the query results
-        job_uuids = [job["job_uuid"] for job in jobs_cursor]
+        # Extract uuids from the query results
+        job_uuids = [job["uuid"] for job in jobs_cursor]
         
         return job_uuids
     except Exception as e:
+        # Log the exception or handle it as needed
         raise HTTPException(status_code=500, detail=str(e))
