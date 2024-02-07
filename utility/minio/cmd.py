@@ -61,6 +61,8 @@ def download_folder_from_minio(client, bucket_name, folder_name, output_folder):
     
     # List all objects in the Minio folder
     objects = client.list_objects(bucket_name, prefix=folder_name, recursive=True)
+
+    print(objects)
     
     for obj in objects:
         object_name = obj.object_name
