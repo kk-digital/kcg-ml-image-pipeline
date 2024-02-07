@@ -669,6 +669,12 @@ def list_score_fields(request: Request):
 
     return fields
 
+@router.get("/ranking/list-score-models")
+def list_score_fields(request: Request):
+    # hard code score fields for now
+    fields = ["linear",
+              "elm-v1"]
+    return fields
 
 @router.get("/selection/list-selection-data-with-scores", response_description="List selection datapoints with detailed scores")
 def list_selection_data_with_scores(
@@ -810,7 +816,7 @@ async def calculate_delta_scores(request: Request):
                         unselected_image_scores = unselected_image_job["task_attributes_dict"][model_type]
 
                         if "image_clip_sigma_score" in selected_image_scores and "image_clip_sigma_score" in unselected_image_scores:
-                            delta_score = abs(selected_image_scores["image_clip_sigma_score"] - unselected_image_scores["image_clip_sigma_score"])
+                            delta_score = selected_image_scores["image_clip_sigma_score"] - unselected_image_scores["image_clip_sigma_score"]
 
                             # Update the document in ranking_collection with the new delta_score under the specific model_type
                             update_field = f"delta_score.{model_type}"
