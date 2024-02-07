@@ -415,6 +415,7 @@ def run_image_delta_scorer(minio_client,
     print("Dataset: {}: Total Time elapsed: {}s".format(dataset_name, format(time_elapsed, ".2f")))
 
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Image Delta Scorer")
     parser.add_argument('--minio-addr', required=False, help='Minio server address', default="192.168.3.5:9000")
@@ -452,6 +453,9 @@ def main():
                                        args.embedding_model_filename)
             except Exception as e:
                 print("Error running image scorer for {}: {}".format(dataset, e))
+    
+    # update ranking data with new delta scores
+    request.http_update_ranking_delta_scores()
 
 
 if __name__ == "__main__":
