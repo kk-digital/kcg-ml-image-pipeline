@@ -854,3 +854,47 @@ def get_job_counts(request: Request):
     except Exception as e:
         # Handle exceptions
         raise HTTPException(status_code=500, detail=str(e))
+    
+@router.get("/job_dataset_summary", response_class=JSONResponse)
+def get_job_dataset_summary(request: Request):
+    try:
+        jobs_collection = request.app.completed_jobs_collection
+
+        # Use aggregation to group by dataset, count jobs, and calculate date ranges
+        pipeline = [
+            {
+                "$group": {
+                    "_id": "$task_input_dict.dataset",  # Group by dataset
+                    "total_jobs": {"$count": {}},
+                    "jobs_without_task_attributes": {
+                        "$sum": {
+                            "$cond": [{"$not": ["$task_attributes_dict"]}, 1, 0]
+                        }
+                    },
+                    "earliest_task_creation_time": {"$min": "$task_creation_time"},
+                    "latest_task_creation_time": {"$max": "$task_creation_time"}
+                }
+            },
+            {
+                "$project": {
+                    "dataset": "$_id",
+                    "_id": 0,
+                    "total_jobs": 1,
+                    "jobs_without_task_attributes": 1,
+                    "date_range": {
+                        "earliest": "$earliest_task_creation_time",
+                        "latest": "$latest_task_creation_time"
+                    }
+                }
+            },
+            {"$sort": {"dataset": 1}}  # Optional: sort by dataset alphabetically
+        ]
+
+        summary_cursor = jobs_collection.aggregate(pipeline)
+
+        # Convert the cursor to a list to return it as a JSON response
+        summary_list = list(summary_cursor)
+
+        return summary_list
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))    
