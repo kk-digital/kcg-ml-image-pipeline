@@ -59,12 +59,17 @@ def download_from_minio(client, bucket_name, object_name, output_path):
 def download_folder_from_minio(client, bucket_name, folder_name, output_folder):
     # Create the output folder if it doesn't exist
     os.makedirs(output_folder, exist_ok=True)
+
+    print(output_folder)
     
     # List all objects in the Minio folder
     objects = client.list_objects(bucket_name, prefix=folder_name, recursive=True)
+
+    print(objects)
     
     for obj in objects:
         object_name = obj.object_name
+        print(object_name)
         relative_path = os.path.relpath(object_name, folder_name)
         output_path = os.path.join(output_folder, relative_path)
         
