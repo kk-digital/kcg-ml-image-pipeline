@@ -19,6 +19,8 @@ def parse_args():
     parser.add_argument('--minio-access-key', required=False, help='Minio access key')
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
 
+    return parser.parse_args()
+
 def create_directory_tree_folders(config):
     config.create_paths()
 
