@@ -9,7 +9,7 @@ from tqdm import tqdm
 from configs.model_config import ModelPathConfig
 from utility.utils_logger import logger
 from utility.labml.monit import section
-from utility.minio.cmd import is_minio_server_accessible, download_folder_from_minio, get_minio_client
+from utility.minio.cmd import is_minio_server_accessible, download_folder_from_minio, connect_to_minio_client
 
 config = ModelPathConfig()
 
@@ -82,8 +82,8 @@ if __name__ == "__main__":
 
     logger.info("Downloading models. This may take a while.")
 
-    minio_client = get_minio_client(minio_access_key=args.minio_access_key,
-                                        minio_secret_key=args.minio_secret_key,
+    minio_client = connect_to_minio_client(access_key=args.minio_access_key,
+                                        secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_ip_addr)
 
     with section("Downloading kandinsky prior models"):
