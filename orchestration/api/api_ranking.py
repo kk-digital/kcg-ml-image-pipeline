@@ -898,3 +898,39 @@ def get_job_dataset_summary(request: Request):
         return summary_list
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))    
+    
+
+@router.get("/job_counts_missing_attributes", response_class=PrettyJSONResponse)
+def get_job_counts_missing_attributes(request: Request):
+    try:
+        jobs_collection = request.app.completed_jobs_collection
+
+        # Use aggregation to group by task_type and count jobs missing task_attributes_dict
+        pipeline = [
+            {
+                "$match": {"task_attributes_dict": {"$exists": False}}  # Filter documents missing task_attributes_dict
+            },
+            {
+                "$group": {
+                    "_id": "$task_type",  # Group by task_type
+                    "missing_task_attributes_count": {"$count": {}}
+                }
+            },
+            {
+                "$project": {
+                    "task_type": "$_id",
+                    "_id": 0,
+                    "missing_task_attributes_count": 1
+                }
+            },
+            {"$sort": {"task_type": 1}}  # Optional: sort by task_type alphabetically
+        ]
+
+        summary_cursor = jobs_collection.aggregate(pipeline)
+
+        # Convert the cursor to a list to return it as a JSON response
+        summary_list = list(summary_cursor)
+
+        return summary_list
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))    
