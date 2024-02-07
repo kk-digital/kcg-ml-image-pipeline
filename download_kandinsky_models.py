@@ -80,14 +80,9 @@ if __name__ == "__main__":
 
     logger.info("Downloading models. This may take a while.")
 
-    # check if minio server is available
-    is_minio_accessible = is_minio_server_accessible()
-    if is_minio_accessible:
-        minio_client = get_minio_client(minio_access_key=args.minio_access_key,
+    minio_client = get_minio_client(minio_access_key=args.minio_access_key,
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_ip_addr)
-    else:
-        print("Need to be connected to minio to proceed.")
 
     with section("Downloading kandinsky prior models"):
         # download kandinsky prior model
