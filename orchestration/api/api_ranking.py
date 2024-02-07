@@ -669,6 +669,12 @@ def list_score_fields(request: Request):
 
     return fields
 
+@router.get("/ranking/list-score-models")
+def list_score_fields(request: Request):
+    # hard code score fields for now
+    fields = ["linear",
+              "elm-v1"]
+    return fields
 
 @router.get("/selection/list-selection-data-with-scores", response_description="List selection datapoints with detailed scores")
 def list_selection_data_with_scores(
