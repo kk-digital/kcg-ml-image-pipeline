@@ -90,7 +90,7 @@ def add_new_tag_definition(request: Request, tag_data: TagDefinition):
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
-@router.post("/v1/tags", 
+@router.post("v1/tags", 
              status_code=201,
              tags=["tags"],
              description="Adds a new tag",
@@ -170,6 +170,7 @@ def add_new_tag_definition(request: Request, tag_data: NewTagRequest):
 
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
+      
 
 @router.get("/tags/id-by-tag-name", 
              status_code=200,
@@ -223,7 +224,8 @@ def update_tag_definition(request: Request, tag_id: int, update_data: TagDefinit
     request.app.tag_definitions_collection.update_one(query, {"$set": update_fields})
     return {"status": "success", "message": "Tag definition updated successfully.", "tag_id": tag_id}
 
-@router.patch("/v1/tags/{tag_id}", 
+
+@router.patch("v1/tags/{tag_id}", 
               tags=["tags"],
               status_code=200,
               description="Update tag definitions",
@@ -284,7 +286,6 @@ def update_tag_definition(request: Request, tag_id: int, update_data: NewTagRequ
 
 
 
-
 @router.delete("/tags/remove_tag")
 def remove_test_tag(request: Request, tag_id: int):
     # Check if the tag exists
@@ -305,16 +306,11 @@ def remove_test_tag(request: Request, tag_id: int):
     request.app.tag_definitions_collection.delete_one(tag_query)
     return {"status": "success", "message": "Test tag removed successfully."}
 
-@router.delete("/v1/tags/{tag_id}", 
+
+@router.delete("/tags/{tag_id}", 
                response_model=StandardSuccessResponse[WasPresentResponse], 
                description="remove tag with tag_id", 
                tags=["tags"], 
-               status_code=200,
-               responses=ApiResponseHandler.listErrors([400, 422, 500]))
-@router.delete("/tags/{tag_id}", 
-               response_model=StandardSuccessResponse[WasPresentResponse], 
-               description="remove tag with tag_id, DEPRECATED: the name was changed to v1//=tags/tag_id, no other changes were introduced", 
-               tags=["deprecated"], 
                status_code=200,
                responses=ApiResponseHandler.listErrors([400, 422, 500]))
 def remove_tag(request: Request, tag_id: int):
@@ -393,16 +389,11 @@ def list_tag_definitions(request: Request):
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
-@router.get("/v1/tags", 
+
+@router.get("/tags", 
             response_model=StandardSuccessResponse[TagsListResponse],
             description="list tags",
             tags=["tags"],
-            status_code=200,
-            responses=ApiResponseHandler.listErrors([500]))
-@router.get("/tags", 
-            response_model=StandardSuccessResponse[TagsListResponse],
-            description="list tags, DEPRECATED: the name was changed to v1/tags, no other changes were introduced",
-            tags=["deprecated"],
             status_code=200,
             responses=ApiResponseHandler.listErrors([500]))
 def list_tag_definitions(request: Request):
@@ -420,7 +411,7 @@ def list_tag_definitions(request: Request):
         traceback_str = traceback.format_exc()
         print(f"Exception Traceback:\n{traceback_str}")
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
-    
+
 @router.put("/tags/set_tag_vector_index")
 def set_tag_vector_index(request: Request, tag_id: int, vector_index: int):
     # Find the tag definition using the provided tag_id
@@ -442,16 +433,10 @@ def set_tag_vector_index(request: Request, tag_id: int, vector_index: int):
 
     return {"status": "success", "message": "Tag vector index updated successfully."}
 
-@router.put("/v1/tags/{tag_id}/vector-index", 
+@router.put("/tags/{tag_id}/vector-index", 
             tags=["tags"], 
             status_code=200,
             description="Set vector index to tag definition",
-            response_model=StandardSuccessResponse[VectorIndexUpdateRequest],
-            responses=ApiResponseHandler.listErrors([400, 422, 500]))
-@router.put("/tags/{tag_id}/vector-index", 
-            tags=["deprecated"], 
-            status_code=200,
-            description="Set vector index to tag definition, DEPRECATED: the name was changed to v1/tags/tag_id/vector-index, no other changes were introduced",
             response_model=StandardSuccessResponse[VectorIndexUpdateRequest],
             responses=ApiResponseHandler.listErrors([400, 422, 500]))
 def set_tag_vector_index(request: Request, tag_id: int, update_data: VectorIndexUpdateRequest):
@@ -497,16 +482,10 @@ def get_tag_vector_index(request: Request, tag_id: int):
     vector_index = tag.get("tag_vector_index", -1)
     return {"tag_vector_index": vector_index}
 
-@router.get("/v1/tags/{tag_id}/vector-index", 
+
+@router.get("/tags/{tag_id}/vector-index", 
             tags=["tags"], 
             status_code=200,
-            description="get vector index for tag",
-            response_model=StandardSuccessResponse[VectorIndexUpdateRequest],
-            responses=ApiResponseHandler.listErrors([400, 422, 500]))
-@router.get("/tags/{tag_id}/vector-index", 
-            tags=["deprecated"], 
-            status_code=200,
-            description="get vector index for tag,DEPRECATED: the name was changed to v1/tags/tag_id/vector-index, no other changes were introduced ",
             response_model=StandardSuccessResponse[VectorIndexUpdateRequest],
             responses=ApiResponseHandler.listErrors([400, 422, 500]))
 def get_tag_vector_index(request: Request, tag_id: int):
@@ -525,7 +504,6 @@ def get_tag_vector_index(request: Request, tag_id: int):
     return response_handler.create_success_response(
         {"tag_vector_index": vector_index}, 200
     )    
-
 
 @router.post("/tags/add_tag_to_image", response_model=ImageTag)
 def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: int, user_who_created: str):
@@ -626,16 +604,10 @@ def remove_image_tag(
       
     return {"status": "success"}
 
-@router.delete("/v1/tags/remove_tag_from_image/{tag_id}", 
+@router.delete("/tags/remove_tag_from_image/{tag_id}", 
                status_code=200,
                tags=["tags"], 
                description="Remove image tag",
-               response_model=StandardSuccessResponse[WasPresentResponse],
-               responses=ApiResponseHandler.listErrors([400, 422]))
-@router.delete("/tags/remove_tag_from_image/{tag_id}", 
-               status_code=200,
-               tags=["deprecated"], 
-               description="Remove image tag,DEPRECATED: the name was changed to v1/tags/remove_tag_from_image/tag_id, no other changes were introduced ",
                response_model=StandardSuccessResponse[WasPresentResponse],
                responses=ApiResponseHandler.listErrors([400, 422]))
 def remove_image_tag(
@@ -659,7 +631,6 @@ def remove_image_tag(
 
     # Return standard success response with wasPresent: true using response_handler
     return response_handler.create_success_response({"wasPresent": True}, 200)
-
 
 @router.delete("/tags/remove_all_tagged_images", 
                status_code=200,
@@ -792,16 +763,11 @@ def get_tagged_images(
     # Return the list of images
     return image_info_list
 
-@router.get("/v1/tags/{tag_id}/images", 
+
+@router.get("/tags/{tag_id}/images", 
             tags=["tags"], 
             status_code=200,
             description="Get images by tag_id",
-            response_model=StandardSuccessResponse[ImageTag], 
-            responses=ApiResponseHandler.listErrors([400, 422, 500]))
-@router.get("/tags/{tag_id}/images", 
-            tags=["deprecated"], 
-            status_code=200,
-            description="Get images by tag_id, DEPRECATED: the name was changed to v1/tags/tag_id/images, no other changes were introduced",
             response_model=StandardSuccessResponse[ImageTag], 
             responses=ApiResponseHandler.listErrors([400, 422, 500]))
 def get_tagged_images(
@@ -865,7 +831,6 @@ def get_tagged_images(
             ErrorCode.OTHER_ERROR, "Internal Server Error", 500
         )
 
-
 @router.get("/tags/get_all_tagged_images", response_model=List[ImageTag], response_class=PrettyJSONResponse)
 def get_all_tagged_images(request: Request):
     # Fetch all tagged image details
@@ -891,16 +856,11 @@ def get_all_tagged_images(request: Request):
 
     return image_info_list
 
-@router.get("/v1/tags/images", 
+
+@router.get("/tags/images", 
             tags=["tags"], 
             status_code=200,
             description="Get all tagged images",
-            response_model=StandardSuccessResponse[ImageTag], 
-            responses=ApiResponseHandler.listErrors([400, 422, 500]))
-@router.get("/tags/images", 
-            tags=["deprecated"], 
-            status_code=200,
-            description="Get all tagged images, DEPRECATED: the name was changed to v1/tags/images, no other changes were introduced",
             response_model=StandardSuccessResponse[ImageTag], 
             responses=ApiResponseHandler.listErrors([400, 422, 500]))
 def get_all_tagged_images(request: Request):
@@ -956,16 +916,11 @@ def add_tag_category(request: Request, tag_category_data: TagCategory):
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
-@router.post("/v1/tag-categories",
+
+@router.post("/tag-categories",
              status_code=201, 
              tags=["tag-categories"], 
              description="Add Tag Category",
-             response_model=StandardSuccessResponse[TagCategory],
-             responses=ApiResponseHandler.listErrors([422, 500]))
-@router.post("/tag-categories",
-             status_code=201, 
-             tags=["deprecated"], 
-             description="Add Tag Category,DEPRECATED: the name was changed to v1/tag-categories, no other changes were introduced ",
              response_model=StandardSuccessResponse[TagCategory],
              responses=ApiResponseHandler.listErrors([422, 500]))
 def add_tag_category(request: Request, tag_category_data: NewTagCategory):
@@ -1000,16 +955,10 @@ def add_tag_category(request: Request, tag_category_data: NewTagCategory):
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
-@router.get("/v1/tags/count/{tag_id}", 
+@router.get("/tags/count/{tag_id}", 
             status_code=200,
             tags=["tags"], 
             description="Get count of images with a specific tag",
-            response_model=TagCountResponse,
-            responses=ApiResponseHandler.listErrors([400, 422]))
-@router.get("/tags/count/{tag_id}", 
-            status_code=200,
-            tags=["deprecated"], 
-            description="Get count of images with a specific tag, DEPRECATED: the name was changed to v1/tags/count/tag_id, no other changes were introduced",
             response_model=TagCountResponse,
             responses=ApiResponseHandler.listErrors([400, 422]))
 def get_image_count_by_tag(
@@ -1029,7 +978,6 @@ def get_image_count_by_tag(
 
     # Return standard success response with the count
     return response_handler.create_success_response({"tag_id": tag_id, "count": count}, 200)
-
 
 @router.put("/tags/update_tag_category", response_class=PrettyJSONResponse)
 def update_tag_category(request: Request, tag_category_id: int, tag_category_update: TagCategory):
@@ -1069,16 +1017,10 @@ def update_tag_category(request: Request, tag_category_id: int, tag_category_upd
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
-@router.patch("/v1/tag-categories/{tag_category_id}", 
+@router.patch("/tag-categories/{tag_category_id}", 
               tags=["tag-categories"],
               status_code=200,
               description="Update tag category",
-              response_model=StandardSuccessResponse[TagCategory],
-              responses=ApiResponseHandler.listErrors([400, 404, 422, 500]))
-@router.patch("/tag-categories/{tag_category_id}", 
-              tags=["deprecated"],
-              status_code=200,
-              description="Update tag category, DEPRECATED: the name was changed to v1/tag-categories/tag_category_id, no other changes were introduced",
               response_model=StandardSuccessResponse[TagCategory],
               responses=ApiResponseHandler.listErrors([400, 404, 422, 500]))
 def update_tag_category(
@@ -1118,7 +1060,6 @@ def update_tag_category(
     return response_handler.create_success_response(ordered_response, 200)
 
 
-
 @router.delete("/tags/remove_tag_category", response_class=PrettyJSONResponse)
 def remove_tag_category(request: Request, tag_category_id: int):
     response_handler = ApiResponseHandler(request)
@@ -1138,15 +1079,10 @@ def remove_tag_category(request: Request, tag_category_id: int):
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
-@router.delete("/v1/tag-categories/{tag_category_id}", 
+
+@router.delete("/tag-categories/{tag_category_id}", 
                tags=["tag-categories"], 
                description="Remove tag category with tag_category_id", 
-               status_code=200,
-               response_model=StandardSuccessResponse[WasPresentResponse],
-               responses=ApiResponseHandler.listErrors([400, 422, 500]))
-@router.delete("/tag-categories/{tag_category_id}", 
-               tags=["deprecated"], 
-               description="Remove tag category with tag_category_id, DEPRECATED: the name was changed to v1/tag-categories/tag_category_id, no other changes were introduced", 
                status_code=200,
                response_model=StandardSuccessResponse[WasPresentResponse],
                responses=ApiResponseHandler.listErrors([400, 422, 500]))
@@ -1180,7 +1116,6 @@ def delete_tag_category(request: Request, tag_category_id: int):
     return response_handler.create_success_delete_response({"wasPresent": True})
 
 
-
 @router.get("/tags/list_tag_categories", response_class=PrettyJSONResponse)
 def list_tag_categories(request: Request):
     response_handler = ApiResponseHandler(request)
@@ -1205,15 +1140,9 @@ def list_tag_categories(request: Request):
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
-@router.get("/v1/tag-categories", 
+@router.get("/tag-categories", 
             tags=["tag-categories"], 
             description="List tag categories",
-            status_code=200,
-            response_model=StandardSuccessResponse[TagsCategoryListResponse],
-            responses=ApiResponseHandler.listErrors([500]))
-@router.get("/tag-categories", 
-            tags=["deprecated"], 
-            description="List tag categories, DEPRECATED: the name was changed to v1/tag-categories, no other changes were introduced ",
             status_code=200,
             response_model=StandardSuccessResponse[TagsCategoryListResponse],
             responses=ApiResponseHandler.listErrors([500]))
