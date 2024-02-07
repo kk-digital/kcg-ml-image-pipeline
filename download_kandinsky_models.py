@@ -1,3 +1,4 @@
+import argparse
 import math
 import os
 import time
@@ -8,10 +9,15 @@ from tqdm import tqdm
 from configs.model_config import ModelPathConfig
 from utility.utils_logger import logger
 from utility.labml.monit import section
-from utility.minio.cmd import is_minio_server_accessible, connect_to_minio_client, download_folder_from_minio
+from utility.minio.cmd import is_minio_server_accessible, download_folder_from_minio, get_minio_client
 
 config = ModelPathConfig()
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--minio-ip-addr', required=False, help='Minio server address', default="192.168.3.5:9000")
+    parser.add_argument('--minio-access-key', required=False, help='Minio access key')
+    parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
 
 def create_directory_tree_folders(config):
     config.create_paths()
@@ -67,6 +73,8 @@ def download_file(url, file_path, description, update_interval=500, chunk_size=4
 
 
 if __name__ == "__main__":
+    args = parse_args()
+
     with section("Creating directory tree folders."):
         create_directory_tree_folders(config)
 
@@ -75,7 +83,9 @@ if __name__ == "__main__":
     # check if minio server is available
     is_minio_accessible = is_minio_server_accessible()
     if is_minio_accessible:
-        minio_client = connect_to_minio_client()
+        minio_client = get_minio_client(minio_access_key=args.minio_access_key,
+                                        minio_secret_key=args.minio_secret_key,
+                                        minio_ip_addr=args.minio_ip_addr)
     else:
         print("Need to be connected to minio to proceed.")
 
