@@ -72,11 +72,11 @@ def download_folder_from_minio(client, bucket_name, folder_name, output_folder):
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
             
             # Download the object
-            client.fget_object(bucket_name, object_name, output_path)
+            client.fget_object(bucket_name, object_name, output_path, progress=Progress())
         else:
             logger.info(f"{object_name} already exists.")
 
-            
+
 def get_file_from_minio(client, bucket_name, file_name):
     try:
         # Get object data
