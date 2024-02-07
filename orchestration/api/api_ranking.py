@@ -855,7 +855,7 @@ def get_job_counts(request: Request):
         # Handle exceptions
         raise HTTPException(status_code=500, detail=str(e))
     
-@router.get("/job_dataset_summary", response_class=JSONResponse)
+@router.get("/job_dataset_summary", response_class=PrettyJSONResponse)
 def get_job_dataset_summary(request: Request):
     try:
         jobs_collection = request.app.completed_jobs_collection
