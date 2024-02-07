@@ -86,14 +86,9 @@ if __name__ == "__main__":
     access_key = 'v048BpXpWrsVIHUfdAix'
     secret_key = '4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu'
 
-    # check if minio server is available
-    is_minio_accessible = is_minio_server_accessible()
-    if is_minio_accessible:
-        minio_client = connect_to_minio_client(minio_ip_addr=minio_ip_addr,
+    minio_client = connect_to_minio_client(minio_ip_addr=minio_ip_addr,
                                                access_key=access_key,
                                                secret_key=secret_key)
-    else:
-        print("Need to be connected to minio to proceed.")
 
     with section("Downloading kandinsky prior models"):
         # download kandinsky prior model
