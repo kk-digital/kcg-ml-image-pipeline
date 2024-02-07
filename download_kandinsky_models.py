@@ -82,12 +82,16 @@ if __name__ == "__main__":
 
     logger.info("Downloading models. This may take a while.")
 
+    minio_ip_addr = '192.168.3.5:9000'
+    access_key = 'v048BpXpWrsVIHUfdAix'
+    secret_key = '4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu'
+
     # check if minio server is available
     is_minio_accessible = is_minio_server_accessible()
     if is_minio_accessible:
-        minio_client = connect_to_minio_client(minio_ip_addr=args.minio_ip_addr,
-                                               access_key=args.minio_access_key,
-                                               secret_key=args.minio_secret_key)
+        minio_client = connect_to_minio_client(minio_ip_addr=minio_ip_addr,
+                                               access_key=access_key,
+                                               secret_key=secret_key)
     else:
         print("Need to be connected to minio to proceed.")
 
