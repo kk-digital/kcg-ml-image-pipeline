@@ -160,7 +160,7 @@ class KandinskyPipeline:
         images = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
                          num_inference_steps=self.decoder_steps, height=self.height,
                          width=self.width, guidance_scale=self.decoder_guidance_scale).images
-        return images
+        return images[0]
 
     def generate_img2img(
         self,
@@ -183,7 +183,7 @@ class KandinskyPipeline:
                          num_inference_steps=self.decoder_steps, height=self.height,
                          width=self.width, guidance_scale=self.decoder_guidance_scale,
                              strength=self.strength, image=image).images
-        return images
+        return images[0]
     
     def convert_image_to_png(self, image):
         # convert image to bytes arr
