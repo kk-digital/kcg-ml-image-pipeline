@@ -279,12 +279,14 @@ class IterativePainter:
         cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/text2img.png" , img_byte_arr)
     
     def test_img2img(self):
+        prompt="steampunk background, 2D environmental art side scrolling, good form, ominous lighting, last boss, lab coat, ecosystem, inside a cave, long messy twintails, extraeyes, rainforest, copper pipes, undewear, moonrays, majesty, perky nipples, thunderbolt, around crowd, no neck"
         init_image= Image.open("input/test_image.jpg")
 
         self.pipeline.unload_models()
         self.pipeline.load_models(task_type="img2img")
         
-        result_image= self.pipeline.generate_img2img(prompt="", image=init_image)
+        result_image= self.pipeline.generate_img2img(prompt=prompt, 
+                                                     image=init_image)
 
         img_byte_arr = io.BytesIO()
         result_image.save(img_byte_arr, format="png")
