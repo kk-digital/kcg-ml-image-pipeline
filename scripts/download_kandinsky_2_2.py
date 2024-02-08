@@ -5,7 +5,7 @@ from pathlib import Path
 import torch
 from diffusers import AutoPipelineForInpainting
 
-TARGET_DIR = Path("hub_folder")
+TARGET_DIR = "model/kandinsky"
 TARGET_DIR.mkdir(exist_ok=True)
 
 
@@ -56,11 +56,6 @@ torch.cuda.empty_cache()
 gc.collect()  # Collect garbage in CPU memory
 print("Memory cleared")
 
-# Step 2: pack folders
-subprocess.run(
-    f"cd {TARGET_DIR} && zip -r kandinsky-2-2.zip kandinsky-2-2-prior kandinsky-2-2-decoder kandinsky-2-2-decoder-inpaint",
-    shell=True,
-)
 
 # Step 3: load from folders
 
