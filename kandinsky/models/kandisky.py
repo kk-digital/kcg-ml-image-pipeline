@@ -20,6 +20,7 @@ from utility.labml.monit import section
 from utility.path import separate_bucket_and_file_path
 from utility.utils_logger import logger
 from utility.minio import cmd
+from kandinsky.model_paths import PRIOR_MODEL_PATH, DECODER_MODEL_PATH, INPAINT_DECODER_MODEL_PATH
 
 
 class KandinskyPipeline:
@@ -61,57 +62,36 @@ class KandinskyPipeline:
         else:
             self.device = 'cpu'
 
-    def load_models(self, image_encoder_path, unet_path, inpaint_unet_path, prior_path, decoder_path, inpaint_decoder_path, task_type="inpainting"):
+    def load_models(self, prior_path=PRIOR_MODEL_PATH, decoder_path= DECODER_MODEL_PATH, 
+                    inpaint_decoder_path= INPAINT_DECODER_MODEL_PATH, task_type="inpainting"):
+        
         with section("Loading Inpainting model"):
-            self.image_encoder = CLIPVisionModelWithProjection.from_pretrained(image_encoder_path, 
-                                                                                local_files_only=True,
-                                                                                use_safetensors=True).to(torch.float16).to(self.device)
-            
-            if task_type=="inpainting":
-                self.unet = UNet2DConditionModel.from_pretrained(inpaint_unet_path, local_files_only=True,
-                                                                        use_safetensors=True).to(torch.float16).to(self.device)
+            self.image_encoder = CLIPVisionModelWithProjection.from_pretrained(prior_path, local_files_only=True,
+                                                                               use_safetensors=True, subfolder='image_encoder').to(torch.float16).to(self.device)
+            if task_type == "text2img":
+                self.unet = UNet2DConditionModel.from_pretrained(decoder_path, local_files_only=True,
+                                                                 use_safetensors=True, subfolder='unet').to(torch.float16).to(self.device)
                 
-                self.prior = KandinskyV22PriorPipeline.from_pretrained(prior_path, 
-                                                                   local_files_only=True,
-                                                                   use_safetensors=True, 
-                                                                   image_encoder=self.image_encoder, 
-                                                                   torch_dtype=torch.float16).to(self.device)
-                
-                self.decoder = KandinskyV22InpaintPipeline.from_pretrained(inpaint_decoder_path, 
-                                                                   local_files_only=True,
-                                                                   use_safetensors=True, 
-                                                                   unet=self.unet, 
-                                                                   torch_dtype=torch.float16).to(self.device)
-            elif task_type=="img2img":
-                self.unet = UNet2DConditionModel.from_pretrained(unet_path, local_files_only=True,
-                                                                        use_safetensors=True).to(torch.float16).to(self.device)
-                
-                self.prior = KandinskyV22PriorPipeline.from_pretrained(prior_path, 
-                                                                   local_files_only=True,
-                                                                   use_safetensors=True, 
-                                                                   image_encoder=self.image_encoder, 
-                                                                   torch_dtype=torch.float16).to(self.device)
-                
-                self.decoder = KandinskyV22Img2ImgPipeline.from_pretrained(decoder_path, 
-                                                                   local_files_only=True,
-                                                                   use_safetensors=True, 
-                                                                   unet=self.unet, 
-                                                                   torch_dtype=torch.float16).to(self.device)
-            elif task_type=="text2img":
-                self.unet = UNet2DConditionModel.from_pretrained(unet_path, local_files_only=True,
-                                                                        use_safetensors=True).to(torch.float16).to(self.device)
-                
-                self.prior = KandinskyV22PriorPipeline.from_pretrained(prior_path, 
-                                                                   local_files_only=True,
-                                                                   use_safetensors=True, 
-                                                                   image_encoder=self.image_encoder, 
-                                                                   torch_dtype=torch.float16).to(self.device)
-                
-                self.decoder = KandinskyV22Pipeline.from_pretrained(decoder_path, 
-                                                                   local_files_only=True,
-                                                                   use_safetensors=True, 
-                                                                   unet=self.unet, 
-                                                                   torch_dtype=torch.float16).to(self.device)
+                self.prior = KandinskyV22PriorPipeline.from_pretrained(prior_path, local_files_only=True, use_safetensors=True, 
+                                                                       image_encoder=self.image_encoder, torch_dtype=torch.float16).to(self.device)
+                self.decoder = KandinskyV22Pipeline.from_pretrained(decoder_path, local_files_only=True, use_safetensors=True, 
+                                                                    unet=self.unet, torch_dtype=torch.float16).to(self.device)
+            elif task_type == "inpainting":
+                self.unet = UNet2DConditionModel.from_pretrained(inpaint_decoder_path, local_files_only=True,
+                                                                 use_safetensors=True, subfolder='unet').to(torch.float16).to(self.device)
+                self.prior = KandinskyV22PriorPipeline.from_pretrained(prior_path, local_files_only=True, use_safetensors=True, 
+                                                                       image_encoder=self.image_encoder, torch_dtype=torch.float16).to(self.device)
+                self.decoder = KandinskyV22InpaintPipeline.from_pretrained(inpaint_decoder_path, local_files_only=True, use_safetensors=True, 
+                                                                    unet=self.unet, torch_dtype=torch.float16).to(self.device)
+            elif task_type == "img2img":
+                self.unet = UNet2DConditionModel.from_pretrained(decoder_path, local_files_only=True,
+                                                                 use_safetensors=True, subfolder='unet').to(torch.float16).to(self.device)
+                self.prior = KandinskyV22PriorPipeline.from_pretrained(prior_path, local_files_only=True, use_safetensors=True, 
+                                                                       image_encoder=self.image_encoder, torch_dtype=torch.float16).to(self.device)
+                self.decoder = KandinskyV22Img2ImgPipeline.from_pretrained(decoder_path, local_files_only=True, use_safetensors=True, 
+                                                                    unet=self.unet, torch_dtype=torch.float16).to(self.device)
+            else:
+                raise ValueError("Only text2img, img2img, inpainting is available")
             
             logger.debug(f"Kandinsky Inpainting model successfully loaded")
    
