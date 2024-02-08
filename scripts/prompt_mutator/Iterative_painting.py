@@ -244,7 +244,7 @@ class IterativePainter:
 
         return cropped_image
 
-    def test(self):
+    def test_inpainting(self):
         prompt="environmental 2D, 2D environmental, steampunkcyberpunk, 2D environmental art side scrolling, broken trees, undewear, muscular, wide, child chest, urban jungle, dark ruins in background, loki steampunk style, ancient trees"
         context_image= Image.open("input/background_image.jpg").convert("RGB")
 
@@ -262,21 +262,29 @@ class IterativePainter:
         generated_image.save(img_byte_arr, format="png")
         img_byte_arr.seek(0)  # Move to the start of the byte array
 
-        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/test.png" , img_byte_arr)
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/test_inpainting.png" , img_byte_arr)
     
-    def test_image(self):
-        prompt="Pixel art space adventure, 2D side scrolling game, zero-gravity challenges, Futuristic space stations, alien landscapes, Gravity-defying jumps, intergalactic exploration, Spacesuit upgrades, extraterrestrial obstacles, Navigate through pixelated starfields, Immersive gameplay, Spaceship"
-        mask = Image.new("L", (self.context_size, self.context_size), 255)
-        context_image = Image.new("RGB", (self.context_size, self.context_size), "white")
-        result_image= self.pipeline.inpaint(prompt=prompt, initial_image=context_image, image_mask= mask)
+    def test_txt2img(self):
+        prompt="as a adventurer, 2D environmental side scrolling, pixel art, steampunk background, crooked, laboratory background, murky water, harmony scene, generator, towers, generated, steampunk setting, setting forest, small shelves, sturdy, armored wizard, a jungle, machines"
+        
+        result_image= self.pipeline.generate_text2img(prompt=prompt)
 
         img_byte_arr = io.BytesIO()
         result_image.save(img_byte_arr, format="png")
         img_byte_arr.seek(0)  # Move to the start of the byte array
 
-        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/test2.png" , img_byte_arr)
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/text2img.png" , img_byte_arr)
+    
+    def test_img2img(self):
+        init_image= Image.open("input/test_image.jpg")
+        
+        result_image= self.pipeline.generate_img2img(prompt="", image=init_image)
 
+        img_byte_arr = io.BytesIO()
+        result_image.save(img_byte_arr, format="png")
+        img_byte_arr.seek(0)  # Move to the start of the byte array
 
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/img2img.png" , img_byte_arr)
 
 def main():
    args = parse_args()
@@ -304,7 +312,8 @@ def main():
                                   substitution_batch_size=args.substitution_batch_size)
    
    Painter= IterativePainter(prompt_generator= prompt_generator)
-   Painter.paint_image()
+   Painter.test_txt2img()
+   Painter.test_img2img()
 
 if __name__ == "__main__":
     main()
