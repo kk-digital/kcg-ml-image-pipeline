@@ -5,7 +5,7 @@ from pathlib import Path
 import torch
 from diffusers import AutoPipelineForInpainting
 
-TARGET_DIR = "model/kandinsky"
+TARGET_DIR = "input/model/kandinsky"
 TARGET_DIR.mkdir(exist_ok=True)
 
 
