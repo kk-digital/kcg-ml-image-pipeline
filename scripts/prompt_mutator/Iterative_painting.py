@@ -161,7 +161,8 @@ class IterativePainter:
                     self.paint_matrix[i][j]+=1
             
             # add it to image progression list
-            image_progression.append(self.image.copy())
+            if(index % 10==0):
+                image_progression.append(self.image.copy())
 
             if index % 100==0:
                 # save image state in current step
@@ -220,7 +221,7 @@ class IterativePainter:
             context_y=0
             inpainting_y= paint_area[1]
         elif context_y > self.image_size - self.context_size:
-            context_x= self.image_size - self.context_size
+            context_y= self.image_size - self.context_size
             inpainting_y= paint_area[1] - self.context_size
         
         context_area=(context_x, context_y, context_x + self.context_size, context_y + self.context_size)
