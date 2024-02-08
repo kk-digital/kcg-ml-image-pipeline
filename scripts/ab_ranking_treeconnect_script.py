@@ -290,20 +290,20 @@ def train_ranking(dataset_name: str,
     # upload the graph report
     #cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
 
-    # get model card and upload
-    model_card_name = "{}.json".format(filename)
-    model_card_name_output_path = os.path.join(output_path, model_card_name)
-    model_card_buf, model_card = get_model_card_buf(ab_model,
-                                                    training_total_size,
-                                                    validation_total_size,
-                                                    graph_output_path,
-                                                    input_type,
-                                                    output_type)
-    cmd.upload_data(dataset_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
+    # # get model card and upload
+    # model_card_name = "{}.json".format(filename)
+    # model_card_name_output_path = os.path.join(output_path, model_card_name)
+    # model_card_buf, model_card = get_model_card_buf(ab_model,
+    #                                                 training_total_size,
+    #                                                 validation_total_size,
+    #                                                 graph_output_path,
+    #                                                 input_type,
+    #                                                 output_type)
+    # cmd.upload_data(dataset_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
 
     # add model card
-    model_id = score_residual.add_model_card(model_card)
-    model_type = "TC-small-3"
+    #\model_id = score_residual.add_model_card(model_card)
+    model_type = "Sparse-small-3"
 
     print("validation loss: ",validation_loss_per_epoch)
     print("training loss: ",training_loss_per_epoch)
