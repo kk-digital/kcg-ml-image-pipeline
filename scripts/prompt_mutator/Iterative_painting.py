@@ -53,7 +53,7 @@ def parse_args():
     return parser.parse_args()
 
 class IterativePainter:
-    def __init__(self, prompt_generator=None):
+    def __init__(self, prompt_generator):
         
         self.max_iterations=100
         self.image_size=1024 
@@ -67,19 +67,19 @@ class IterativePainter:
         self.image = Image.fromarray(random_noise, 'RGB')
         self.num_prompts=10
 
-        # self.prompt_generator= prompt_generator
-        # self.minio_client = self.prompt_generator.minio_client
-        # self.text_embedder=self.prompt_generator.embedder
+        self.prompt_generator= prompt_generator
+        self.minio_client = self.prompt_generator.minio_client
+        self.text_embedder=self.prompt_generator.embedder
 
         if torch.cuda.is_available():
             self.device = 'cuda'
         else:
             self.device = 'cpu'
 
-        # self.image_embedder= clip.ClipModel(device=torch.device(self.device))
-        # self.image_embedder.load_clip()
+        self.image_embedder= clip.ClipModel(device=torch.device(self.device))
+        self.image_embedder.load_clip()
 
-        # self.scoring_model= self.load_scoring_model()
+        self.scoring_model= self.load_scoring_model()
 
         self.pipeline = KandinskyPipeline()
         self.pipeline.load_models()
@@ -165,17 +165,17 @@ class IterativePainter:
 
             if index % 100==0:
                 # save image state in current step
-                #img_byte_arr = io.BytesIO()
+                img_byte_arr = io.BytesIO()
 
                 image_progression[0].save(
-                    "output/inpainting_result.gif",
+                    img_byte_arr,
                     format="gif",
                     save_all=True, append_images=image_progression[1:], 
                     optimize=False, duration=200, loop=1
                 )
                 
-                # img_byte_arr.seek(0)  # Move to the start of the byte array
-                # cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/inpainting_progression.gif" , img_byte_arr)
+                img_byte_arr.seek(0)  # Move to the start of the byte array
+                cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/inpainting_progression.gif" , img_byte_arr)
             
             index+=1
             
@@ -280,29 +280,29 @@ class IterativePainter:
 def main():
    args = parse_args()
 
-#    prompt_generator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
-#                                   minio_secret_key=args.minio_secret_key,
-#                                   minio_ip_addr=args.minio_addr,
-#                                   csv_phrase=args.csv_phrase,
-#                                   model_dataset=args.model_dataset,
-#                                   substitution_model=args.substitution_model,
-#                                   scoring_model=args.scoring_model,
-#                                   max_iterations=args.max_iterations,
-#                                   sigma_threshold=args.sigma_threshold,
-#                                   variance_weight=args.variance_weight,
-#                                   boltzman_temperature=args.boltzman_temperature,
-#                                   boltzman_k=args.boltzman_k,
-#                                   dataset_name=args.dataset_name,
-#                                   self_training=args.self_training,
-#                                   send_job=args.send_job,
-#                                   save_csv=args.save_csv,
-#                                   initial_generation_policy=args.initial_generation_policy,
-#                                   top_k=args.top_k,
-#                                   num_choices_per_iteration=args.num_choices,
-#                                   clip_batch_size=args.clip_batch_size,
-#                                   substitution_batch_size=args.substitution_batch_size)
+   prompt_generator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
+                                  minio_secret_key=args.minio_secret_key,
+                                  minio_ip_addr=args.minio_addr,
+                                  csv_phrase=args.csv_phrase,
+                                  model_dataset=args.model_dataset,
+                                  substitution_model=args.substitution_model,
+                                  scoring_model=args.scoring_model,
+                                  max_iterations=args.max_iterations,
+                                  sigma_threshold=args.sigma_threshold,
+                                  variance_weight=args.variance_weight,
+                                  boltzman_temperature=args.boltzman_temperature,
+                                  boltzman_k=args.boltzman_k,
+                                  dataset_name=args.dataset_name,
+                                  self_training=args.self_training,
+                                  send_job=args.send_job,
+                                  save_csv=args.save_csv,
+                                  initial_generation_policy=args.initial_generation_policy,
+                                  top_k=args.top_k,
+                                  num_choices_per_iteration=args.num_choices,
+                                  clip_batch_size=args.clip_batch_size,
+                                  substitution_batch_size=args.substitution_batch_size)
    
-   Painter= IterativePainter()
+   Painter= IterativePainter(prompt_generator= prompt_generator)
    Painter.paint_image()
 
 if __name__ == "__main__":
