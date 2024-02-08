@@ -147,7 +147,7 @@ class KandinskyPipeline:
         negative_prior_prompt="",
         negative_decoder_prompt=""
     ):
-        self.height, self.width = self.get_new_h_w(self.height, self.width)
+        height, width = self.get_new_h_w(self.height, self.width)
         img_emb = self.prior(prompt=prompt, num_inference_steps=self.prior_steps,
                         num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale,
                         negative_prompt=negative_prior_prompt)
@@ -158,8 +158,8 @@ class KandinskyPipeline:
         else:
             negative_emb = negative_emb.image_embeds
         images = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
-                         num_inference_steps=self.decoder_steps, height=self.height,
-                         width=self.width, guidance_scale=self.decoder_guidance_scale).images
+                         num_inference_steps=self.decoder_steps, height=height,
+                         width=width, guidance_scale=self.decoder_guidance_scale).images
         return images[0]
 
     def generate_img2img(
@@ -169,7 +169,7 @@ class KandinskyPipeline:
         negative_prior_prompt="",
         negative_decoder_prompt=""
     ):
-        self.height, self.width = self.get_new_h_w(self.height, self.width)
+        height, width = self.get_new_h_w(self.height, self.width)
         img_emb = self.prior(prompt=prompt, num_inference_steps=self.prior_steps,
                         num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale,
                         negative_prompt=negative_prior_prompt)
@@ -180,8 +180,8 @@ class KandinskyPipeline:
         else:
             negative_emb = negative_emb.image_embeds
         images = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
-                         num_inference_steps=self.decoder_steps, height=self.height,
-                         width=self.width, guidance_scale=self.decoder_guidance_scale,
+                         num_inference_steps=self.decoder_steps, height=height,
+                         width=width, guidance_scale=self.decoder_guidance_scale,
                              strength=self.strength, image=image).images
         return images[0]
     
