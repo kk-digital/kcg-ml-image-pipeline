@@ -267,6 +267,9 @@ class IterativePainter:
     def test_txt2img(self):
         prompt="as a adventurer, 2D environmental side scrolling, pixel art, steampunk background, crooked, laboratory background, murky water, harmony scene, generator, towers, generated, steampunk setting, setting forest, small shelves, sturdy, armored wizard, a jungle, machines"
         
+        self.pipeline.unload_models()
+        self.pipeline.load_models(task_type="text2img")
+
         result_image= self.pipeline.generate_text2img(prompt=prompt)
 
         img_byte_arr = io.BytesIO()
@@ -277,6 +280,9 @@ class IterativePainter:
     
     def test_img2img(self):
         init_image= Image.open("input/test_image.jpg")
+
+        self.pipeline.unload_models()
+        self.pipeline.load_models(task_type="img2img")
         
         result_image= self.pipeline.generate_img2img(prompt="", image=init_image)
 
