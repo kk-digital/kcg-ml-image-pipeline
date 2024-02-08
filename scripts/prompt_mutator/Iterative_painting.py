@@ -16,7 +16,7 @@ from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from worker.image_generation.scripts.inpainting_pipeline import StableDiffusionInpaintingPipeline
 from scripts.prompt_mutator.greedy_substitution_search_v1 import PromptSubstitutionGenerator
 from worker.image_generation.scripts.inpaint_A1111 import StableDiffusionProcessingImg2Img
-from worker.image_generation.scripts.inpaint_kandinsky import KandinskyInpaintingPipeline
+from kandinsky.models.kandisky import KandinskyPipeline
 from utility.minio import cmd
 from utility.clip import clip
 from utility import masking
@@ -81,11 +81,7 @@ class IterativePainter:
 
         self.scoring_model= self.load_scoring_model()
 
-        self.pipeline = KandinskyInpaintingPipeline(denoising_strength=0.75,
-                                                    guidance_scale=7.5,
-                                                    steps=40,
-                                                    width=512,
-                                                    height=512)
+        self.pipeline = KandinskyPipeline()
         self.pipeline.load_models()
 
     # load elm or linear scoring models
@@ -165,7 +161,8 @@ class IterativePainter:
                     self.paint_matrix[i][j]+=1
             
             # add it to image progression list
-            image_progression.append(self.image.copy())
+            if(index % 10==0):
+                image_progression.append(self.image.copy())
 
             if index % 100==0:
                 # save image state in current step
@@ -224,7 +221,7 @@ class IterativePainter:
             context_y=0
             inpainting_y= paint_area[1]
         elif context_y > self.image_size - self.context_size:
-            context_x= self.image_size - self.context_size
+            context_y= self.image_size - self.context_size
             inpainting_y= paint_area[1] - self.context_size
         
         context_area=(context_x, context_y, context_x + self.context_size, context_y + self.context_size)
@@ -247,7 +244,7 @@ class IterativePainter:
 
         return cropped_image
 
-    def test(self):
+    def test_inpainting(self):
         prompt="environmental 2D, 2D environmental, steampunkcyberpunk, 2D environmental art side scrolling, broken trees, undewear, muscular, wide, child chest, urban jungle, dark ruins in background, loki steampunk style, ancient trees"
         context_image= Image.open("input/background_image.jpg").convert("RGB")
 
@@ -265,42 +262,45 @@ class IterativePainter:
         generated_image.save(img_byte_arr, format="png")
         img_byte_arr.seek(0)  # Move to the start of the byte array
 
-        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/test.png" , img_byte_arr)
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/test_inpainting.png" , img_byte_arr)
     
-    def test_image(self):
-        prompt="Pixel art space adventure, 2D side scrolling game, zero-gravity challenges, Futuristic space stations, alien landscapes, Gravity-defying jumps, intergalactic exploration, Spacesuit upgrades, extraterrestrial obstacles, Navigate through pixelated starfields, Immersive gameplay, Spaceship"
-        mask = Image.new("L", (self.context_size, self.context_size), 255)
-        context_image = Image.new("RGB", (self.context_size, self.context_size), "white")
-        result_image= self.pipeline.inpaint(prompt=prompt, initial_image=context_image, image_mask= mask)
+    def test_txt2img(self):
+        prompt="as a adventurer, 2D environmental side scrolling, pixel art, steampunk background, crooked, laboratory background, murky water, harmony scene, generator, towers, generated, steampunk setting, setting forest, small shelves, sturdy, armored wizard, a jungle, machines"
+        
+        self.pipeline.unload_models()
+        self.pipeline.load_models(task_type="text2img")
+
+        result_image= self.pipeline.generate_text2img(prompt=prompt)
 
         img_byte_arr = io.BytesIO()
         result_image.save(img_byte_arr, format="png")
         img_byte_arr.seek(0)  # Move to the start of the byte array
 
-        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/test2.png" , img_byte_arr)
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/text2img.png" , img_byte_arr)
+    
+    def test_img2img(self):
+        prompt="steampunk background, 2D environmental art side scrolling, good form, ominous lighting, last boss, lab coat, ecosystem, inside a cave, long messy twintails, extraeyes, rainforest, copper pipes, undewear, moonrays, majesty, perky nipples, thunderbolt, around crowd, no neck"
+        init_image= Image.open("input/test_image.jpg")
 
+        self.pipeline.unload_models()
+        self.pipeline.load_models(task_type="img2img")
+        
+        result_image= self.pipeline.generate_img2img(prompt=prompt, 
+                                                     image=init_image)
 
+        img_byte_arr = io.BytesIO()
+        result_image.save(img_byte_arr, format="png")
+        img_byte_arr.seek(0)  # Move to the start of the byte array
+
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/img2img.png" , img_byte_arr)
 
 def main():
    args = parse_args()
-
-   # set the base prompts csv path
-   if(args.model_dataset=="icons"):
-        csv_base_prompts='input/dataset-config/icon/base-prompts-dsp.csv'
-   elif(args.model_dataset=="propaganda-poster"):
-        csv_base_prompts='input/dataset-config/propaganda-poster/base-prompts-propaganda-poster.csv'
-   elif(args.model_dataset=="mech"):
-        csv_base_prompts='input/dataset-config/mech/base-prompts-dsp.csv'
-   elif(args.model_dataset=="character" or args.model_dataset=="waifu"):
-        csv_base_prompts='input/dataset-config/character/base-prompts-waifu.csv'
-   elif(args.model_dataset=="environmental"):  
-        csv_base_prompts='input/dataset-config/environmental/base-prompts-environmental.csv'
 
    prompt_generator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
                                   minio_secret_key=args.minio_secret_key,
                                   minio_ip_addr=args.minio_addr,
                                   csv_phrase=args.csv_phrase,
-                                  csv_base_prompts=csv_base_prompts,
                                   model_dataset=args.model_dataset,
                                   substitution_model=args.substitution_model,
                                   scoring_model=args.scoring_model,
@@ -310,8 +310,6 @@ def main():
                                   boltzman_temperature=args.boltzman_temperature,
                                   boltzman_k=args.boltzman_k,
                                   dataset_name=args.dataset_name,
-                                  store_embeddings=args.store_embeddings,
-                                  store_token_lengths=args.store_token_lengths,
                                   self_training=args.self_training,
                                   send_job=args.send_job,
                                   save_csv=args.save_csv,
@@ -322,7 +320,8 @@ def main():
                                   substitution_batch_size=args.substitution_batch_size)
    
    Painter= IterativePainter(prompt_generator= prompt_generator)
-   Painter.paint_image()
+   Painter.test_txt2img()
+   Painter.test_img2img()
 
 if __name__ == "__main__":
     main()

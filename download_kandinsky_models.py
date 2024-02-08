@@ -89,17 +89,18 @@ if __name__ == "__main__":
     minio_client = connect_to_minio_client(minio_ip_addr=minio_ip_addr,
                                                access_key=access_key,
                                                secret_key=secret_key)
+    
+    with section("Downloading kandinsky prior models"):
+        # download kandinsky prior model
+        prior_path = config.get_model_folder_path('kandinsky/kandinsky-2-2-prior', check_existence=False)
 
-    # download kandinsky prior model
-    prior_path = config.get_model('kandinsky/kandinsky-2-2-prior', check_existence=False)
-
-    bucket_name = "models"
-    folder_name = "kandinsky/kandinsky-2-2-cache/kandinsky-2-2-prior"
-    download_folder_from_minio(minio_client, bucket_name, folder_name, prior_path)
+        bucket_name = "models"
+        folder_name = "kandinsky/kandinsky-2-2-cache/kandinsky-2-2-prior"
+        download_folder_from_minio(minio_client, bucket_name, folder_name, prior_path)
 
     with section("Downloading kandinsky decoder models"):
         # download Dreamshaper inpainting model
-        decoder_path = config.get_model('kandinsky/kandinsky-2-2-decoder', check_existence=False)
+        decoder_path = config.get_model_folder_path('kandinsky/kandinsky-2-2-decoder', check_existence=False)
 
         bucket_name = "models"
         folder_name = "kandinsky/kandinsky-2-2-cache/kandinsky-2-2-decoder"
@@ -107,7 +108,7 @@ if __name__ == "__main__":
     
     with section("Downloading kandinsky inpainting decoder models"):
         # download kandinsky inpainting decoder models
-        inpainting_decoder_path = config.get_model('kandinsky/kandinsky-2-2-decoder-inpaint', check_existence=False)
+        inpainting_decoder_path = config.get_model_folder_path('kandinsky/kandinsky-2-2-decoder-inpaint', check_existence=False)
 
         bucket_name = "models"
         folder_name = "kandinsky/kandinsky-2-2-cache/kandinsky-2-2-decoder-inpaint"

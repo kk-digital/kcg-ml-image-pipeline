@@ -20,6 +20,7 @@ from utility.labml.monit import section
 from utility.path import separate_bucket_and_file_path
 from utility.utils_logger import logger
 from utility.minio import cmd
+from kandinsky.model_paths import PRIOR_MODEL_PATH, DECODER_MODEL_PATH, INPAINT_DECODER_MODEL_PATH
 
 
 class KandinskyPipeline:
@@ -31,9 +32,7 @@ class KandinskyPipeline:
                  prior_steps=25,
                  strength=0.4,
                  decoder_guidance_scale=4,
-                 prior_guidance_scale=4,
-                 negative_prior_prompt="",
-                 negative_decoder_prompt=""
+                 prior_guidance_scale=4
                 ):
         """
         steps (int): The number of optimization steps to perform during inpainting. More steps may lead to finer inpainting results.
@@ -46,8 +45,6 @@ class KandinskyPipeline:
         self.prior_guidance_scale=prior_guidance_scale
         self.decoder_guidance_scale=decoder_guidance_scale
         self.strength=strength
-        self.negative_prior_prompt=negative_prior_prompt
-        self.negative_decoder_prompt=negative_decoder_prompt
         self.prior_steps= prior_steps
         self.decoder_steps=decoder_steps
         self.width=width
@@ -61,57 +58,32 @@ class KandinskyPipeline:
         else:
             self.device = 'cpu'
 
-    def load_models(self, image_encoder_path, unet_path, inpaint_unet_path, prior_path, decoder_path, inpaint_decoder_path, task_type="inpainting"):
+    def load_models(self, prior_path=PRIOR_MODEL_PATH, decoder_path= DECODER_MODEL_PATH, 
+                    inpaint_decoder_path= INPAINT_DECODER_MODEL_PATH, task_type="inpainting"):
+        
         with section("Loading Inpainting model"):
-            self.image_encoder = CLIPVisionModelWithProjection.from_pretrained(image_encoder_path, 
-                                                                                local_files_only=True,
-                                                                                use_safetensors=True).to(torch.float16).to(self.device)
-            
-            if task_type=="inpainting":
-                self.unet = UNet2DConditionModel.from_pretrained(inpaint_unet_path, local_files_only=True,
-                                                                        use_safetensors=True).to(torch.float16).to(self.device)
+            self.image_encoder = CLIPVisionModelWithProjection.from_pretrained(prior_path, local_files_only=True, subfolder='image_encoder').to(torch.float16).to(self.device)
+            if task_type == "text2img":
+                self.unet = UNet2DConditionModel.from_pretrained(decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
                 
-                self.prior = KandinskyV22PriorPipeline.from_pretrained(prior_path, 
-                                                                   local_files_only=True,
-                                                                   use_safetensors=True, 
-                                                                   image_encoder=self.image_encoder, 
-                                                                   torch_dtype=torch.float16).to(self.device)
-                
-                self.decoder = KandinskyV22InpaintPipeline.from_pretrained(inpaint_decoder_path, 
-                                                                   local_files_only=True,
-                                                                   use_safetensors=True, 
-                                                                   unet=self.unet, 
-                                                                   torch_dtype=torch.float16).to(self.device)
-            elif task_type=="img2img":
-                self.unet = UNet2DConditionModel.from_pretrained(unet_path, local_files_only=True,
-                                                                        use_safetensors=True).to(torch.float16).to(self.device)
-                
-                self.prior = KandinskyV22PriorPipeline.from_pretrained(prior_path, 
-                                                                   local_files_only=True,
-                                                                   use_safetensors=True, 
-                                                                   image_encoder=self.image_encoder, 
-                                                                   torch_dtype=torch.float16).to(self.device)
-                
-                self.decoder = KandinskyV22Img2ImgPipeline.from_pretrained(decoder_path, 
-                                                                   local_files_only=True,
-                                                                   use_safetensors=True, 
-                                                                   unet=self.unet, 
-                                                                   torch_dtype=torch.float16).to(self.device)
-            elif task_type=="text2img":
-                self.unet = UNet2DConditionModel.from_pretrained(unet_path, local_files_only=True,
-                                                                        use_safetensors=True).to(torch.float16).to(self.device)
-                
-                self.prior = KandinskyV22PriorPipeline.from_pretrained(prior_path, 
-                                                                   local_files_only=True,
-                                                                   use_safetensors=True, 
-                                                                   image_encoder=self.image_encoder, 
-                                                                   torch_dtype=torch.float16).to(self.device)
-                
-                self.decoder = KandinskyV22Pipeline.from_pretrained(decoder_path, 
-                                                                   local_files_only=True,
-                                                                   use_safetensors=True, 
-                                                                   unet=self.unet, 
-                                                                   torch_dtype=torch.float16).to(self.device)
+                self.prior = KandinskyV22PriorPipeline.from_pretrained(prior_path, local_files_only=True, 
+                                                                       image_encoder=self.image_encoder, torch_dtype=torch.float16).to(self.device)
+                self.decoder = KandinskyV22Pipeline.from_pretrained(decoder_path, local_files_only=True, use_safetensors=True, 
+                                                                    unet=self.unet, torch_dtype=torch.float16).to(self.device)
+            elif task_type == "inpainting":
+                self.unet = UNet2DConditionModel.from_pretrained(inpaint_decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
+                self.prior = KandinskyV22PriorPipeline.from_pretrained(prior_path, local_files_only=True, 
+                                                                       image_encoder=self.image_encoder, torch_dtype=torch.float16).to(self.device)
+                self.decoder = KandinskyV22InpaintPipeline.from_pretrained(inpaint_decoder_path, local_files_only=True, 
+                                                                    unet=self.unet, torch_dtype=torch.float16).to(self.device)
+            elif task_type == "img2img":
+                self.unet = UNet2DConditionModel.from_pretrained(decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
+                self.prior = KandinskyV22PriorPipeline.from_pretrained(prior_path, local_files_only=True,
+                                                                       image_encoder=self.image_encoder, torch_dtype=torch.float16).to(self.device)
+                self.decoder = KandinskyV22Img2ImgPipeline.from_pretrained(decoder_path, local_files_only=True,
+                                                                    unet=self.unet, torch_dtype=torch.float16).to(self.device)
+            else:
+                raise ValueError("Only text2img, img2img, inpainting is available")
             
             logger.debug(f"Kandinsky Inpainting model successfully loaded")
    
@@ -149,15 +121,17 @@ class KandinskyPipeline:
         self,
         prompt,
         initial_img,
-        img_mask
+        img_mask,
+        negative_prior_prompt="",
+        negative_decoder_prompt=""
     ):
         
         img_emb = self.prior(prompt=prompt, num_inference_steps=self.prior_steps,
                         num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale,
-                        negative_prompt=self.negative_prior_prompt)
-        negative_emb = self.prior(prompt=self.negative_prior_prompt, num_inference_steps=self.prior_steps,
+                        negative_prompt=negative_prior_prompt)
+        negative_emb = self.prior(prompt=negative_prior_prompt, num_inference_steps=self.prior_steps,
                              num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale)
-        if self.negative_decoder_prompt == "":
+        if negative_decoder_prompt == "":
             negative_emb = negative_emb.negative_image_embeds
         else:
             negative_emb = negative_emb.image_embeds
@@ -169,43 +143,47 @@ class KandinskyPipeline:
     
     def generate_text2img(
         self,
-        prompt
+        prompt,
+        negative_prior_prompt="",
+        negative_decoder_prompt=""
     ):
-        h, w = self.get_new_h_w(h, w)
+        height, width = self.get_new_h_w(self.height, self.width)
         img_emb = self.prior(prompt=prompt, num_inference_steps=self.prior_steps,
                         num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale,
-                        negative_prompt=self.negative_prior_prompt)
-        negative_emb = self.prior(prompt=self.negative_decoder_prompt, num_inference_steps=self.prior_steps,
+                        negative_prompt=negative_prior_prompt)
+        negative_emb = self.prior(prompt=negative_decoder_prompt, num_inference_steps=self.prior_steps,
                              num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale)
-        if self.negative_decoder_prompt == "":
+        if negative_decoder_prompt == "":
             negative_emb = negative_emb.negative_image_embeds
         else:
             negative_emb = negative_emb.image_embeds
         images = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
-                         num_inference_steps=self.decoder_steps, height=h,
-                         width=w, guidance_scale=self.decoder_guidance_scale).images
-        return images
+                         num_inference_steps=self.decoder_steps, height=height,
+                         width=width, guidance_scale=self.decoder_guidance_scale).images
+        return images[0]
 
     def generate_img2img(
         self,
-        prompt,
-        image
+        image,
+        prompt="",
+        negative_prior_prompt="",
+        negative_decoder_prompt=""
     ):
-        h, w = self.get_new_h_w(h, w)
+        height, width = self.get_new_h_w(self.height, self.width)
         img_emb = self.prior(prompt=prompt, num_inference_steps=self.prior_steps,
                         num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale,
-                        negative_prompt=self.negative_prior_prompt)
-        negative_emb = self.prior(prompt=self.negative_prior_prompt, num_inference_steps=self.prior_steps,
+                        negative_prompt=negative_prior_prompt)
+        negative_emb = self.prior(prompt=negative_prior_prompt, num_inference_steps=self.prior_steps,
                              num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale)
-        if self.negative_decoder_prompt == "":
+        if negative_decoder_prompt == "":
             negative_emb = negative_emb.negative_image_embeds
         else:
             negative_emb = negative_emb.image_embeds
         images = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
-                         num_inference_steps=self.decoder_steps, height=h,
-                         width=w, guidance_scale=self.decoder_guidance_scale,
+                         num_inference_steps=self.decoder_steps, height=height,
+                         width=width, guidance_scale=self.decoder_guidance_scale,
                              strength=self.strength, image=image).images
-        return images
+        return images[0]
     
     def convert_image_to_png(self, image):
         # convert image to bytes arr
