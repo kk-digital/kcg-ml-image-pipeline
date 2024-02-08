@@ -280,23 +280,10 @@ class IterativePainter:
 def main():
    args = parse_args()
 
-   # set the base prompts csv path
-   if(args.model_dataset=="icons"):
-        csv_base_prompts='input/dataset-config/icon/base-prompts-dsp.csv'
-   elif(args.model_dataset=="propaganda-poster"):
-        csv_base_prompts='input/dataset-config/propaganda-poster/base-prompts-propaganda-poster.csv'
-   elif(args.model_dataset=="mech"):
-        csv_base_prompts='input/dataset-config/mech/base-prompts-dsp.csv'
-   elif(args.model_dataset=="character" or args.model_dataset=="waifu"):
-        csv_base_prompts='input/dataset-config/character/base-prompts-waifu.csv'
-   elif(args.model_dataset=="environmental"):  
-        csv_base_prompts='input/dataset-config/environmental/base-prompts-environmental.csv'
-
    prompt_generator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
                                   minio_secret_key=args.minio_secret_key,
                                   minio_ip_addr=args.minio_addr,
                                   csv_phrase=args.csv_phrase,
-                                  csv_base_prompts=csv_base_prompts,
                                   model_dataset=args.model_dataset,
                                   substitution_model=args.substitution_model,
                                   scoring_model=args.scoring_model,
@@ -306,8 +293,6 @@ def main():
                                   boltzman_temperature=args.boltzman_temperature,
                                   boltzman_k=args.boltzman_k,
                                   dataset_name=args.dataset_name,
-                                  store_embeddings=args.store_embeddings,
-                                  store_token_lengths=args.store_token_lengths,
                                   self_training=args.self_training,
                                   send_job=args.send_job,
                                   save_csv=args.save_csv,
