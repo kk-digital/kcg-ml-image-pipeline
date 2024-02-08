@@ -90,11 +90,16 @@ def add_new_tag_definition(request: Request, tag_data: TagDefinition):
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
-
-@router.post("/tags", 
+@router.post("v1/tags", 
              status_code=201,
              tags=["tags"],
              description="Adds a new tag",
+             response_model=StandardSuccessResponse[TagDefinition],
+             responses=ApiResponseHandler.listErrors([400, 422, 500]))
+@router.post("/tags", 
+             status_code=201,
+             tags=["deprecated"],
+             description="Adds a new tag, DEPRECATED: the name was changed to v1/tags, no other changes were introduced",
              response_model=StandardSuccessResponse[TagDefinition],
              responses=ApiResponseHandler.listErrors([400, 422, 500]))
 def add_new_tag_definition(request: Request, tag_data: NewTagRequest):
@@ -164,7 +169,8 @@ def add_new_tag_definition(request: Request, tag_data: NewTagRequest):
     except Exception as e:
 
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
-    
+
+      
 
 @router.get("/tags/id-by-tag-name", 
              status_code=200,
@@ -219,10 +225,16 @@ def update_tag_definition(request: Request, tag_id: int, update_data: TagDefinit
     return {"status": "success", "message": "Tag definition updated successfully.", "tag_id": tag_id}
 
 
-@router.patch("/tags/{tag_id}", 
+@router.patch("v1/tags/{tag_id}", 
               tags=["tags"],
               status_code=200,
               description="Update tag definitions",
+              response_model=StandardSuccessResponse[TagDefinition], 
+              responses=ApiResponseHandler.listErrors([400, 404, 422, 500]))
+@router.patch("/tags/{tag_id}", 
+              tags=["deprecated"],
+              status_code=200,
+              description="Update tag definitions, DEPRECATED: the name was changed to v1/tags/tag_id, no other changes were introduced",
               response_model=StandardSuccessResponse[TagDefinition], 
               responses=ApiResponseHandler.listErrors([400, 404, 422, 500]))
 def update_tag_definition(request: Request, tag_id: int, update_data: NewTagRequest):
@@ -329,6 +341,7 @@ def remove_tag(request: Request, tag_id: int):
 
     # Return standard response with wasPresent: true
     return response_handler.create_success_delete_response({"wasPresent": True})
+
 
 @router.get("/tags/list_tag_definition", response_class=PrettyJSONResponse)
 def list_tag_definitions(request: Request):
