@@ -32,9 +32,7 @@ class KandinskyPipeline:
                  prior_steps=25,
                  strength=0.4,
                  decoder_guidance_scale=4,
-                 prior_guidance_scale=4,
-                 negative_prior_prompt="",
-                 negative_decoder_prompt=""
+                 prior_guidance_scale=4
                 ):
         """
         steps (int): The number of optimization steps to perform during inpainting. More steps may lead to finer inpainting results.
@@ -47,8 +45,6 @@ class KandinskyPipeline:
         self.prior_guidance_scale=prior_guidance_scale
         self.decoder_guidance_scale=decoder_guidance_scale
         self.strength=strength
-        self.negative_prior_prompt=negative_prior_prompt
-        self.negative_decoder_prompt=negative_decoder_prompt
         self.prior_steps= prior_steps
         self.decoder_steps=decoder_steps
         self.width=width
@@ -125,15 +121,17 @@ class KandinskyPipeline:
         self,
         prompt,
         initial_img,
-        img_mask
+        img_mask,
+        negative_prior_prompt="",
+        negative_decoder_prompt=""
     ):
         
         img_emb = self.prior(prompt=prompt, num_inference_steps=self.prior_steps,
                         num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale,
-                        negative_prompt=self.negative_prior_prompt)
-        negative_emb = self.prior(prompt=self.negative_prior_prompt, num_inference_steps=self.prior_steps,
+                        negative_prompt=negative_prior_prompt)
+        negative_emb = self.prior(prompt=negative_prior_prompt, num_inference_steps=self.prior_steps,
                              num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale)
-        if self.negative_decoder_prompt == "":
+        if negative_decoder_prompt == "":
             negative_emb = negative_emb.negative_image_embeds
         else:
             negative_emb = negative_emb.image_embeds
@@ -145,41 +143,45 @@ class KandinskyPipeline:
     
     def generate_text2img(
         self,
-        prompt
+        prompt,
+        negative_prior_prompt="",
+        negative_decoder_prompt=""
     ):
-        h, w = self.get_new_h_w(h, w)
+        self.height, self.width = self.get_new_h_w(self.height, self.width)
         img_emb = self.prior(prompt=prompt, num_inference_steps=self.prior_steps,
                         num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale,
-                        negative_prompt=self.negative_prior_prompt)
-        negative_emb = self.prior(prompt=self.negative_decoder_prompt, num_inference_steps=self.prior_steps,
+                        negative_prompt=negative_prior_prompt)
+        negative_emb = self.prior(prompt=negative_decoder_prompt, num_inference_steps=self.prior_steps,
                              num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale)
-        if self.negative_decoder_prompt == "":
+        if negative_decoder_prompt == "":
             negative_emb = negative_emb.negative_image_embeds
         else:
             negative_emb = negative_emb.image_embeds
         images = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
-                         num_inference_steps=self.decoder_steps, height=h,
-                         width=w, guidance_scale=self.decoder_guidance_scale).images
+                         num_inference_steps=self.decoder_steps, height=self.height,
+                         width=self.width, guidance_scale=self.decoder_guidance_scale).images
         return images
 
     def generate_img2img(
         self,
-        prompt,
-        image
+        image,
+        prompt="",
+        negative_prior_prompt="",
+        negative_decoder_prompt=""
     ):
-        h, w = self.get_new_h_w(h, w)
+        self.height, self.width = self.get_new_h_w(self.height, self.width)
         img_emb = self.prior(prompt=prompt, num_inference_steps=self.prior_steps,
                         num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale,
-                        negative_prompt=self.negative_prior_prompt)
-        negative_emb = self.prior(prompt=self.negative_prior_prompt, num_inference_steps=self.prior_steps,
+                        negative_prompt=negative_prior_prompt)
+        negative_emb = self.prior(prompt=negative_prior_prompt, num_inference_steps=self.prior_steps,
                              num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale)
-        if self.negative_decoder_prompt == "":
+        if negative_decoder_prompt == "":
             negative_emb = negative_emb.negative_image_embeds
         else:
             negative_emb = negative_emb.image_embeds
         images = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
-                         num_inference_steps=self.decoder_steps, height=h,
-                         width=w, guidance_scale=self.decoder_guidance_scale,
+                         num_inference_steps=self.decoder_steps, height=self.height,
+                         width=self.width, guidance_scale=self.decoder_guidance_scale,
                              strength=self.strength, image=image).images
         return images
     
