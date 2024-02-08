@@ -45,7 +45,7 @@ def train_ranking(dataset_name: str,
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
-    network_type = "TreeConnect-small"
+    network_type = "Normal-FC"
     output_type = "score"
     output_path = "{}/models/ranking".format(dataset_name)
 
@@ -337,7 +337,7 @@ def run_ab_ranking_linear_task(training_task, minio_access_key, minio_secret_key
 
 
 def test_run():
-    train_ranking(dataset_name="environmental", #environmental propaganda-poster environmental
+    train_ranking(dataset_name="propaganda-poster", #environmental propaganda-poster environmental
                   minio_ip_addr=None,  # will use defualt if none is given
                   minio_access_key="D6ybtPLyUrca5IdZfCIM",
                   minio_secret_key="2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
