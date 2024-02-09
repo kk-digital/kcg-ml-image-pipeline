@@ -35,5 +35,5 @@ def generate_image_from_text(minio_client, txt2img, clip_text_embedder, job_uuid
     output_file_path = output_path
     output_file_hash, img_data = get_image_data(images)
 
-    return output_file_path, output_file_hash, img_data
+    return output_file_path, output_file_hash, img_data, latent
 

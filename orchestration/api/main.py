@@ -27,6 +27,8 @@ from orchestration.api.api_image_by_rank import router as image_by_rank_router
 from orchestration.api.api_queue_ranking import router as queue_ranking
 from orchestration.api.api_active_learning import router as active_learning 
 from orchestration.api.api_active_learning_policy import router as active_learning_policy
+from orchestration.api.api_pseudo_tag import router as pseudo_tags
+from orchestration.api.api_worker import router as worker
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -60,6 +62,8 @@ app.include_router(residual_percentile_router)
 app.include_router(queue_ranking)
 app.include_router(active_learning)
 app.include_router(active_learning_policy)
+app.include_router(pseudo_tags)
+app.include_router(worker)
 
 
 def get_minio_client(minio_access_key, minio_secret_key):
@@ -150,6 +154,14 @@ def startup_db_client():
     app.tag_definitions_collection = app.mongodb_db["tag_definitions"]
     app.image_tags_collection = app.mongodb_db["image_tags"]
     app.tag_categories_collection = app.mongodb_db["tag_categories"]
+
+    # pseudo tags
+    app.pseudo_tag_definitions_collection = app.mongodb_db["pseudo_tag_definitions"]
+    app.pseudo_image_tags_collection = app.mongodb_db["pseudo_image_tags"]
+    app.pseudo_tag_categories_collection = app.mongodb_db["pseudo_tag_categories"]
+
+    # delta score
+    app.datapoints_delta_score_collection = app.mongodb_db["datapoints_delta_score"]
 
     # models
     app.models_collection = app.mongodb_db["models"]

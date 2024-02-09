@@ -8,6 +8,64 @@ import time
 from fastapi import Request
 from typing import TypeVar, Generic, List
 from pydantic import BaseModel
+from .mongo_schemas import TagDefinition, TagCategory
+from datetime import datetime
+from dateutil import parser
+
+
+
+class RechableResponse(BaseModel):
+    reachable: bool
+
+class VectorIndexUpdateRequest(BaseModel):
+    vector_index: int
+
+class WasPresentResponse(BaseModel):
+    wasPresent: bool
+
+class TagsCategoryListResponse(BaseModel):
+    tag_categories: List[TagCategory]
+
+class TagsListResponse(BaseModel):
+    tags: List[TagDefinition]
+
+class TagCountResponse(BaseModel):
+    tag_id: int
+    count: int
+
+class GetClipPhraseResponse(BaseModel):
+    phrase : str
+    clip_vector: List[List[float]]
+
+class ImageData(BaseModel):
+    image_path: str
+    image_hash: str
+    score: float
+
+class TagResponse(BaseModel):
+    tag_id: int
+    tag_string: str 
+    tag_type: int
+    tag_category_id: int
+    tag_description: str  
+    tag_vector_index: int
+    deprecated: bool = False
+    user_who_created: str
+    creation_time: str
+
+class AddJob(BaseModel):
+    uuid: str
+    creation_time: str
+
+def validate_date_format(date_str: str):
+    try:
+        # Attempt to parse the date string using dateutil.parser
+        parsed_date = parser.parse(date_str)
+        # If parsing succeeds, return the original date string
+        return date_str
+    except ValueError:
+        # If parsing fails, return None
+        return None
 
 
 class PrettyJSONResponse(Response):
@@ -22,10 +80,12 @@ class PrettyJSONResponse(Response):
             separators=(", ", ": "),
         ).encode("utf-8")
 
+
 class ErrorCode(Enum):
     OTHER_ERROR = 1
     ELEMENT_NOT_FOUND = 2
     INVALID_PARAMS = 3
+
 
 T = TypeVar('T')
 class StandardSuccessResponse(BaseModel, Generic[T]):
@@ -33,11 +93,13 @@ class StandardSuccessResponse(BaseModel, Generic[T]):
     duration: int
     response: T
 
+
 class StandardErrorResponse(BaseModel):
     url: str
     duration: int
     errorCode: int
     errorString: str
+
 
 class ApiResponseHandler:
     def __init__(self, request: Request):

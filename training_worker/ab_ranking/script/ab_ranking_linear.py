@@ -36,6 +36,7 @@ def train_ranking(dataset_name: str,
                   target_option=constants.TARGET_1_AND_0,
                   duplicate_flip_option=constants.DUPLICATE_AND_FLIP_ALL,
                   randomize_data_per_epoch=True,
+                  penalty_range = 5.0
                   ):
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
@@ -73,7 +74,7 @@ def train_ranking(dataset_name: str,
     while True:
         filename = "{}-{:02}-{}-{}-{}".format(date_now, sequence, output_type, network_type, input_type)
         exists = cmd.is_object_exists(dataset_loader.minio_client, bucket_name,
-                                      os.path.join(output_path, filename + ".pth"))
+                                      os.path.join(output_path, filename + ".safetensors"))
         if not exists:
             break
 
@@ -99,7 +100,8 @@ def train_ranking(dataset_name: str,
                                                    weight_decay=weight_decay,
                                                    add_loss_penalty=add_loss_penalty,
                                                    randomize_data_per_epoch=randomize_data_per_epoch,
-                                                   debug_asserts=debug_asserts)
+                                                   debug_asserts=debug_asserts,
+                                                   penalty_range=penalty_range)
 
     # data for chronological score graph
     training_shuffled_indices_origin = []
@@ -267,7 +269,9 @@ def train_ranking(dataset_name: str,
                                     elm_sparsity=-1,
                                     training_shuffled_indices_origin=training_shuffled_indices_origin,
                                     validation_shuffled_indices_origin=validation_shuffled_indices_origin,
-                                    total_selection_datapoints=dataset_loader.total_selection_datapoints)
+                                    total_selection_datapoints=dataset_loader.total_selection_datapoints,
+                                    loss_penalty_range=penalty_range,
+                                    saved_model_epoch=ab_model.lowest_loss_model_epoch)
 
     # upload the graph report
     cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
@@ -285,6 +289,19 @@ def train_ranking(dataset_name: str,
 
     # add model card
     model_id = score_residual.add_model_card(model_card)
+    model_type = "linear"
+    # upload residuals
+    score_residual.upload_score_residual(model_type=model_type,
+                                         train_prob_predictions=training_predicted_probabilities,
+                                         training_targets=training_target_probabilities,
+                                         validation_prob_predictions=validation_predicted_probabilities,
+                                         validation_targets=validation_target_probabilities,
+                                         training_pred_scores_img_x=training_predicted_score_images_x,
+                                         validation_pred_scores_img_x=validation_predicted_score_images_x,
+                                         training_image_hashes=dataset_loader.training_image_hashes,
+                                         validation_image_hashes=dataset_loader.validation_image_hashes,
+                                         training_shuffled_indices_origin=training_shuffled_indices_origin,
+                                         validation_shuffled_indices_origin=validation_shuffled_indices_origin)
 
     return model_output_path, report_output_path, graph_output_path
 

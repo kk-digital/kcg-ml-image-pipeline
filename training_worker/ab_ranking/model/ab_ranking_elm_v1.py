@@ -34,6 +34,59 @@ class ABRankingELMBaseModel(nn.Module):
 
         self.random_layers_init(elm_sparsity)
 
+        initial_scaling_factor = torch.zeros(1, dtype=torch.float32)
+        self.scaling_factor = nn.Parameter(data=initial_scaling_factor, requires_grad=True)
+
+    # for score
+    def forward(self, x):
+        assert x.shape == (1, self.inputs_shape)
+
+        # go through random layers first
+        for i in range(self.num_random_layers):
+            x = self.random_layers[i](x)
+
+        output = self.linear_last_layer(x)
+        scaled_output = torch.multiply(output, self.scaling_factor)
+
+
+        assert scaled_output.shape == (1,1)
+        return scaled_output
+
+    # TODO: add bias for the layers too
+    def random_layers_init(self, elm_sparsity=0.0):
+        for _ in range(self.num_random_layers):
+            random_layer = nn.ReLU()
+            # give random weights
+            rand_weights = torch.randn(self.inputs_shape)
+
+            if elm_sparsity != 0.0:
+                # set some to zero
+                num_of_indices = round(self.inputs_shape * elm_sparsity)
+                indexes_to_zero = sample(range(0, self.inputs_shape - 1), num_of_indices)
+                for index in indexes_to_zero:
+                    rand_weights[index] = 0.0
+
+            random_layer.weight = nn.Parameter(rand_weights, requires_grad=False)
+
+            # freeze weights
+            random_layer.requires_grad_(False)
+
+            self.random_layers.append(random_layer)
+
+
+class ABRankingELMBaseModelDeprecate(nn.Module):
+    def __init__(self, inputs_shape, num_random_layers=2, elm_sparsity=0.0):
+        super(ABRankingELMBaseModelDeprecate, self).__init__()
+        self.inputs_shape = inputs_shape
+        self.output_size = 1
+
+        self.l1_loss = nn.L1Loss()
+        self.num_random_layers = num_random_layers
+        self.random_layers = []
+        self.linear_last_layer = nn.Linear(self.inputs_shape, self.output_size)
+
+        self.random_layers_init(elm_sparsity)
+
     # for score
     def forward(self, x):
         assert x.shape == (1, self.inputs_shape)
@@ -68,7 +121,6 @@ class ABRankingELMBaseModel(nn.Module):
 
             self.random_layers.append(random_layer)
 
-
 class ABRankingELMModel:
     def __init__(self, inputs_shape, num_random_layers=1, elm_sparsity=0.5):
         print("inputs_shape=", inputs_shape)
@@ -78,6 +130,7 @@ class ABRankingELMModel:
             device = 'cpu'
         self._device = torch.device(device)
 
+        self.inputs_shape = inputs_shape
         self.model = ABRankingELMBaseModel(inputs_shape, num_random_layers, elm_sparsity).to(self._device)
         self.model_type = 'ab-ranking-elm-v1'
         self.loss_func_name = ''
@@ -103,6 +156,10 @@ class ABRankingELMModel:
         self.randomize_data_per_epoch = None
         self.num_random_layers = None
         self.elm_sparsity = None
+
+        # list of models per epoch
+        self.models_per_epoch = []
+        self.lowest_loss_model_epoch = None
 
     def _hash_model(self):
         """
@@ -183,6 +240,25 @@ class ABRankingELMModel:
         # upload the model
         cmd.upload_data(minio_client, datasets_bucket, model_output_path, buffer)
 
+    def add_current_model_to_list(self):
+        # get tensors and metadata of current model
+        model, metadata = self.to_safetensors()
+
+        curr_model = {"model": model,
+                      "metadata": metadata}
+        self.models_per_epoch.append(curr_model)
+
+    def use_model_with_lowest_validation_loss(self, validation_loss_per_epoch):
+        lowest_index = validation_loss_per_epoch.index(min(validation_loss_per_epoch))
+        print("Using model at Epoch:", lowest_index)
+        lowest_validation_loss_model = self.models_per_epoch[lowest_index]
+        model = lowest_validation_loss_model["model"]
+
+        # load the model
+        self.model.load_state_dict(model)
+
+        self.lowest_loss_model_epoch = lowest_index
+
     def load_pth(self, model_buffer):
         # Loading state dictionary
         model = torch.load(model_buffer)
@@ -219,9 +295,15 @@ class ABRankingELMModel:
 
     def load_safetensors(self, model_buffer):
         data = model_buffer.read()
+        safetensors_data = safetensors_load(data)
+
+        # TODO: deprecate when we have 10 or more trained models on new structure
+        if "scaling_factor" not in safetensors_data:
+            self.model = ABRankingELMBaseModelDeprecate(self.inputs_shape).to(self._device)
+            print("Loading deprecated model...")
 
         # Loading state dictionary
-        self.model.load_state_dict(safetensors_load(data))
+        self.model.load_state_dict(safetensors_data)
 
         # load metadata
         n_header = data[:8]
@@ -268,7 +350,8 @@ class ABRankingELMModel:
               weight_decay=0.00,
               add_loss_penalty=True,
               randomize_data_per_epoch=True,
-              debug_asserts=True):
+              debug_asserts=True,
+              penalty_range=5.00):
         training_loss_per_epoch = []
         validation_loss_per_epoch = []
 
@@ -335,10 +418,11 @@ class ABRankingELMModel:
                     loss = self.model.l1_loss(batch_pred_probabilities, batch_targets)
 
                     if add_loss_penalty:
-                        # add loss penalty
-                        neg_score = torch.multiply(predicted_score_images_x, -1.0)
-                        negative_score_loss_penalty = torch.relu(neg_score)
-                        loss = torch.add(loss, negative_score_loss_penalty)
+                        # loss penalty = (relu(-x-1) + relu(x-1))
+                        # https://www.wolframalpha.com/input?i=graph+for+x%3D-5+to+x%3D5%2C++relu%28+-x+-+1.0%29+%2B+ReLu%28x+-+1.0%29
+                        loss_penalty = torch.relu(-predicted_score_images_x - penalty_range) + torch.relu(
+                            predicted_score_images_x - penalty_range)
+                        loss = torch.add(loss, loss_penalty)
 
                     loss.backward()
                     optimizer.step()
@@ -382,10 +466,11 @@ class ABRankingELMModel:
                     validation_loss = self.model.l1_loss(validation_pred_probabilities, validation_target)
 
                     if add_loss_penalty:
-                        # add loss penalty
-                        neg_score = torch.multiply(predicted_score_image_x, -1.0)
-                        negative_score_loss_penalty = torch.relu(neg_score)
-                        validation_loss = torch.add(validation_loss, negative_score_loss_penalty)
+                        # loss penalty = (relu(-x-1) + relu(x-1))
+                        # https://www.wolframalpha.com/input?i=graph+for+x%3D-5+to+x%3D5%2C++relu%28+-x+-+1.0%29+%2B+ReLu%28x+-+1.0%29
+                        loss_penalty = torch.relu(-predicted_score_image_x - penalty_range) + torch.relu(
+                            predicted_score_image_x - penalty_range)
+                        validation_loss = torch.add(validation_loss, loss_penalty)
 
                     validation_loss_arr.append(validation_loss.detach().cpu())
 
@@ -408,6 +493,12 @@ class ABRankingELMModel:
 
             self.training_loss = epoch_training_loss.detach().cpu()
             self.validation_loss = epoch_validation_loss.detach().cpu()
+
+            # add current epoch's model
+            self.add_current_model_to_list()
+
+        # use lowest validation loss model
+        self.use_model_with_lowest_validation_loss(validation_loss_per_epoch)
 
         # Calculate model performance
         with torch.no_grad():
@@ -588,7 +679,7 @@ def forward_bradley_terry(predicted_score_images_x, predicted_score_images_y, us
 
         # prob = sigmoid( (x-y) / 100 )
         diff_predicted_score = torch.sub(predicted_score_images_x, predicted_score_images_y)
-        res_predicted_score = torch.div(diff_predicted_score, 50.0)
+        res_predicted_score = torch.div(diff_predicted_score, 1.0)
         pred_probabilities = torch.sigmoid(res_predicted_score)
     else:
         epsilon = 0.000001

@@ -1,89 +1,327 @@
 import argparse
+import io
 import os
+import random
 import sys
 from PIL import Image, ImageDraw
+import numpy as np
 import torch
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 
-from stable_diffusion.model.clip_text_embedder.clip_text_embedder import CLIPTextEmbedder
-from worker.image_generation.scripts.inpaint_A1111 import get_model, img2img
+from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
+from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
+from worker.image_generation.scripts.inpainting_pipeline import StableDiffusionInpaintingPipeline
+from scripts.prompt_mutator.greedy_substitution_search_v1 import PromptSubstitutionGenerator
+from worker.image_generation.scripts.inpaint_A1111 import StableDiffusionProcessingImg2Img
+from kandinsky.models.kandisky import KandinskyPipeline
 from utility.minio import cmd
+from utility.clip import clip
+from utility import masking
 
-OUTPUT_PATH="environmental/output/iterative_painting/result.png"
+OUTPUT_PATH="environmental/output/iterative_painting"
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--minio-addr', required=False, help='Minio server address', default="192.168.3.5:9000")
     parser.add_argument('--minio-access-key', required=False, help='Minio access key')
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
+    parser.add_argument('--csv-phrase', help='CSV containing phrases, must have "phrase str" column', default='input/civitai_phrases_database_v7_no_nsfw.csv')
+    parser.add_argument('--send-job', action='store_true', default=False)
+    parser.add_argument('--update-prompts', action='store_true', default=False)
+    parser.add_argument('--dataset-name', default='test-generations')
+    parser.add_argument('--model-dataset', default='environmental')
+    parser.add_argument('--substitution-model', help="substitution model type: xgboost or linear", default='linear')
+    parser.add_argument('--scoring-model', help="elm or linear", default="linear")
+    parser.add_argument('--sigma-threshold', type=float, help="threshold of rejection policy for increase of sigma score", default=-0.1)
+    parser.add_argument('--variance-weight', type=float, help="weight of variance when optimizing score", default=0)
+    parser.add_argument('--boltzman-temperature', type=int, default=11)
+    parser.add_argument('--boltzman-k', type=float, default=1.0)
+    parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=80)
+    parser.add_argument('--self-training', action='store_true', default=False)
+    parser.add_argument('--store-embeddings', action='store_true', default=False)
+    parser.add_argument('--store-token-lengths', action='store_true', default=False)
+    parser.add_argument('--save-csv', action='store_true', default=False)
+    parser.add_argument('--initial-generation-policy', help="the generation policy used for generating the initial seed prompts", default="fixed_probabilities")
+    parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.01)
+    parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=128)
+    parser.add_argument('--clip-batch-size', type=int, help="Batch size for clip embeddings", default=1000)
+    parser.add_argument('--substitution-batch-size', type=int, help="Batch size for the substitution model", default=100000)
 
     return parser.parse_args()
 
-def main():
-    args = parse_args()
+class IterativePainter:
+    def __init__(self, prompt_generator):
+        
+        self.max_iterations=100
+        self.image_size=1024 
+        self.context_size=512 
+        self.paint_size=128
+        self.paint_matrix= np.zeros((self.image_size, self.image_size))
+        self.max_repaints=3
+        # Generate random noise array (range [0, 255])
+        random_noise = np.random.randint(0, 256, (self.image_size, self.image_size, 3), dtype=np.uint8)
+        # Create PIL Image from the random noise array
+        self.image = Image.fromarray(random_noise, 'RGB')
+        self.num_prompts=10
 
-    mask = Image.new('L', (1024, 1024), 0)
-    square_start_x= 128
-    square_start_y= 128
-    square = (square_start_x, square_start_y, square_start_x + 512, square_start_y + 512) 
-    draw = ImageDraw.Draw(mask)
-    draw.rectangle(square, fill=255)
-    center_x = square_start_x + 224  # 224 = 512/2 - 64/2
-    center_y = square_start_y + 224
-    center_size=64
-    center_area = (center_x, center_y, center_x + center_size, center_y + center_size)
-    draw.rectangle(center_area, fill=0)
+        self.prompt_generator= prompt_generator
+        self.minio_client = self.prompt_generator.minio_client
+        self.text_embedder=self.prompt_generator.embedder
 
-    prompt = "A beautiful landscape"  # Example prompt
-    negative_prompt = ""  # Negative prompt (can be an empty string if not used)
-    sampler_name = "ddim"
-    batch_size = 1
-    n_iter = 1
-    steps = 20
-    cfg_scale = 7.0
-    width = 512
-    height = 512
-    mask_blur = 0
-    inpainting_fill = 0
-    outpath = "output"  # Specify the output path
-    styles = None
-    init_images = [Image.new("RGBA", (1024, 1024), "white")]
-    mask = mask
-    resize_mode = 0
-    denoising_strength = 0.75
-    image_cfg_scale = None
-    inpaint_full_res_padding = 0
-    inpainting_mask_invert = 0
+        if torch.cuda.is_available():
+            self.device = 'cuda'
+        else:
+            self.device = 'cpu'
 
-    minio_client = cmd.get_minio_client(
-            minio_access_key=args.minio_access_key,
-            minio_secret_key=args.minio_secret_key,
-            minio_ip_addr=args.minio_addr)
+        self.image_embedder= clip.ClipModel(device=torch.device(self.device))
+        self.image_embedder.load_clip()
+
+        self.scoring_model= self.load_scoring_model()
+
+        self.pipeline = KandinskyPipeline()
+        self.pipeline.load_models()
+
+    # load elm or linear scoring models
+    def load_scoring_model(self):
+        input_path=f"{self.prompt_generator.model_dataset}/models/ranking/"
+
+        if(self.prompt_generator.scoring_model=="elm"):
+            scoring_model = ABRankingELMModel(768)
+            file_name=f"score-elm-v1-clip.safetensors"
+        else:
+            scoring_model= ABRankingModel(768)
+            file_name=f"score-linear-clip.safetensors"
+
+        model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
+        most_recent_model = None
+
+        for model_file in model_files:
+            if model_file.endswith(file_name):
+                most_recent_model = model_file
+
+        if most_recent_model:
+            model_file_data =cmd.get_file_from_minio(self.minio_client, 'datasets', most_recent_model)
+        else:
+            print("No .safetensors files found in the list.")
+            return
+        
+        print(most_recent_model)
+
+        # Create a BytesIO object and write the downloaded content into it
+        byte_buffer = io.BytesIO()
+        for data in model_file_data.stream(amt=8192):
+            byte_buffer.write(data)
+        # Reset the buffer's position to the beginning
+        byte_buffer.seek(0)
+
+        scoring_model.load_safetensors(byte_buffer)
+        scoring_model.model=scoring_model.model.to(torch.device(self.device))
+
+        return scoring_model
+
+    def get_seed_prompts(self):    
+        # generate a set number of prompts
+        prompt_list = self.prompt_generator.generate_initial_prompts_with_fixed_probs(self.num_prompts)
+        prompts_data, _= self.prompt_generator.mutate_prompts(prompt_list)
+
+        sorted_prompts= sorted(prompts_data, key=lambda data: data.positive_score, reverse=True)
+
+        chosen_scored_prompts = sorted_prompts[:self.num_prompts]
+
+        seed_prompts= [prompt.positive_prompt for prompt in chosen_scored_prompts]
+
+        return seed_prompts
+
+    def paint_image(self):
+        prompt="Pixel art space adventure, 2D side scrolling game, zero-gravity challenges, Futuristic space stations, alien landscapes, Gravity-defying jumps, intergalactic exploration, Spacesuit upgrades, extraterrestrial obstacles, Navigate through pixelated starfields, Immersive gameplay, Spaceship"
+
+        index=0
+        image_progression=[]
+        while(True):
+            # choose random area to paint in
+            x = random.randint(0, self.image_size - self.paint_size)
+            y = random.randint(0, self.image_size - self.paint_size)
+            
+            paint_area = (x, y, x + self.paint_size, y + self.paint_size)
+            context_area, unmasked_area= self.get_context_area(paint_area)
+
+            context_image= self.image.crop(context_area)
+            generated_image= self.generate_image(context_image, unmasked_area, prompt)
+            # generated_image= self.choose_best_prompt(initial_prompts, context_image, unmasked_area, paint_area)
+
+            # paste generated image in the main image
+            self.image.paste(generated_image, paint_area)
+
+            # increment counter for each pixel that was counted
+            for i in range(x, x+self.paint_size):
+                for j in range(y, y+self.paint_size):
+                    self.paint_matrix[i][j]+=1
+            
+            # add it to image progression list
+            if(index % 10==0):
+                image_progression.append(self.image.copy())
+
+            if index % 100==0:
+                # save image state in current step
+                img_byte_arr = io.BytesIO()
+
+                image_progression[0].save(
+                    img_byte_arr,
+                    format="gif",
+                    save_all=True, append_images=image_progression[1:], 
+                    optimize=False, duration=200, loop=1
+                )
+                
+                img_byte_arr.seek(0)  # Move to the start of the byte array
+                cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/inpainting_progression.gif" , img_byte_arr)
+            
+            index+=1
+            
+            if np.all(self.paint_matrix > self.max_repaints):
+                break
+    
+    def choose_best_prompt(self, initial_prompts, context_image, unmasked_area, paint_area):
+        scores= []
+        generated_images=[]
+        for prompt in initial_prompts:
+            inpainted_image= self.generate_image(context_image, unmasked_area, prompt)
+            current_image= self.image.copy()
+            current_image.paste(inpainted_image, paint_area)
+
+            with torch.no_grad():
+                image_embedding= self.image_embedder.get_image_features(current_image)
+                image_score = self.scoring_model.predict_clip(image_embedding).item()
+                
+            scores.append(image_score)
+            generated_images.append(inpainted_image)
+        
+        best_image= generated_images[np.argmax(scores)]
+
+        return best_image
  
-    # Assuming the models are loaded here (sd, clip_text_embedder, model)
-    if torch.cuda.is_available():
-        device = 'cuda'
-    else:
-        device = 'cpu'
+    def get_context_area(self, paint_area):
+        # get surrounding context
+        context_x= paint_area[0] - self.context_size // 2 + self.paint_size // 2
+        context_y= paint_area[1] - self.context_size // 2 + self.paint_size // 2
 
-    sd, config, model = get_model(device, steps)
+        inpainting_x = (self.context_size - self.paint_size) // 2
+        inpainting_y = (self.context_size - self.paint_size) // 2
 
-    # Load the clip embedder model
-    embedder=CLIPTextEmbedder(device=device)
-    embedder.load_submodels()  
+        if context_x < 0:
+            context_x=0
+            inpainting_x= paint_area[0]
+        elif context_x > self.image_size - self.context_size:
+            context_x= self.image_size - self.context_size
+            inpainting_x= paint_area[0] - self.context_size
 
-    # Generate the image
-    output_file_path, output_file_hash, img_byte_arr, seed, subseed = img2img(
-        prompt, negative_prompt, sampler_name, batch_size, n_iter, steps, cfg_scale, width, height,
-        mask_blur, inpainting_fill, outpath, styles, init_images, mask, resize_mode,
-        denoising_strength, image_cfg_scale, inpaint_full_res_padding, inpainting_mask_invert,
-        sd=sd, clip_text_embedder=embedder, model=model, device=device)
+        if context_y < 0:
+            context_y=0
+            inpainting_y= paint_area[1]
+        elif context_y > self.image_size - self.context_size:
+            context_y= self.image_size - self.context_size
+            inpainting_y= paint_area[1] - self.context_size
+        
+        context_area=(context_x, context_y, context_x + self.context_size, context_y + self.context_size)
+        inpainting_area=(inpainting_x, inpainting_y, inpainting_x + self.paint_size, inpainting_y + self.paint_size)
 
-    # Display the image
-    cmd.upload_data(minio_client, 'datasets', OUTPUT_PATH , img_byte_arr) 
+        return context_area, inpainting_area
+
+    def generate_image(self, context_image, inpainting_area, prompt):
+
+        # Create mask
+        mask = Image.new("L", (self.context_size, self.context_size), 0)  # Fully masked (black)
+        draw = ImageDraw.Draw(mask)
+        draw.rectangle(inpainting_area, fill=255)  # Unmasked (white) center area
+
+        result_image= self.pipeline.generate_inpainting(prompt= prompt,
+                                                        initial_img=context_image,
+                                                        img_mask= mask)
+
+        cropped_image= result_image.crop(inpainting_area)
+
+        return cropped_image
+
+    def test_inpainting(self):
+        prompt="environmental 2D, 2D environmental, steampunkcyberpunk, 2D environmental art side scrolling, broken trees, undewear, muscular, wide, child chest, urban jungle, dark ruins in background, loki steampunk style, ancient trees"
+        context_image= Image.open("input/background_image.jpg").convert("RGB")
+
+        draw = ImageDraw.Draw(context_image)
+        draw.rectangle(self.center_area, fill="white")  # Unmasked (white) center area
+        
+        img_byte_arr = io.BytesIO()
+        context_image.save(img_byte_arr, format="png")
+        img_byte_arr.seek(0)  # Move to the start of the byte array
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/initial_image.png" , img_byte_arr) 
+
+        generated_image= self.generate_image(context_image, prompt)
+        
+        img_byte_arr = io.BytesIO()
+        generated_image.save(img_byte_arr, format="png")
+        img_byte_arr.seek(0)  # Move to the start of the byte array
+
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/test_inpainting.png" , img_byte_arr)
+    
+    def test_txt2img(self):
+        prompt="as a adventurer, 2D environmental side scrolling, pixel art, steampunk background, crooked, laboratory background, murky water, harmony scene, generator, towers, generated, steampunk setting, setting forest, small shelves, sturdy, armored wizard, a jungle, machines"
+        
+        self.pipeline.unload_models()
+        self.pipeline.load_models(task_type="text2img")
+
+        result_image= self.pipeline.generate_text2img(prompt=prompt)
+
+        img_byte_arr = io.BytesIO()
+        result_image.save(img_byte_arr, format="png")
+        img_byte_arr.seek(0)  # Move to the start of the byte array
+
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/text2img.png" , img_byte_arr)
+    
+    def test_img2img(self):
+        prompt="steampunk background, 2D environmental art side scrolling, good form, ominous lighting, last boss, lab coat, ecosystem, inside a cave, long messy twintails, extraeyes, rainforest, copper pipes, undewear, moonrays, majesty, perky nipples, thunderbolt, around crowd, no neck"
+        init_image= Image.open("input/test_image.jpg")
+
+        self.pipeline.unload_models()
+        self.pipeline.load_models(task_type="img2img")
+        
+        result_image= self.pipeline.generate_img2img(prompt=prompt, 
+                                                     image=init_image)
+
+        img_byte_arr = io.BytesIO()
+        result_image.save(img_byte_arr, format="png")
+        img_byte_arr.seek(0)  # Move to the start of the byte array
+
+        cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/img2img.png" , img_byte_arr)
+
+def main():
+   args = parse_args()
+
+   prompt_generator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
+                                  minio_secret_key=args.minio_secret_key,
+                                  minio_ip_addr=args.minio_addr,
+                                  csv_phrase=args.csv_phrase,
+                                  model_dataset=args.model_dataset,
+                                  substitution_model=args.substitution_model,
+                                  scoring_model=args.scoring_model,
+                                  max_iterations=args.max_iterations,
+                                  sigma_threshold=args.sigma_threshold,
+                                  variance_weight=args.variance_weight,
+                                  boltzman_temperature=args.boltzman_temperature,
+                                  boltzman_k=args.boltzman_k,
+                                  dataset_name=args.dataset_name,
+                                  self_training=args.self_training,
+                                  send_job=args.send_job,
+                                  save_csv=args.save_csv,
+                                  initial_generation_policy=args.initial_generation_policy,
+                                  top_k=args.top_k,
+                                  num_choices_per_iteration=args.num_choices,
+                                  clip_batch_size=args.clip_batch_size,
+                                  substitution_batch_size=args.substitution_batch_size)
+   
+   Painter= IterativePainter(prompt_generator= prompt_generator)
+   Painter.test_txt2img()
+   Painter.test_img2img()
 
 if __name__ == "__main__":
     main()

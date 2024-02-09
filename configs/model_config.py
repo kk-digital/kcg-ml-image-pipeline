@@ -17,7 +17,9 @@ class DefaultPaths:
         'sd': {'v1-5-pruned-emaonly', 'latent_diffusion'},
         'unet': {'unet'},
         'vae': {'vae', 'decoder', 'encoder'},
-        'aesthetic_scorer': {'aesthetic_scorer'}
+        'aesthetic_scorer': {'aesthetic_scorer'},
+        'inpainting': {'ned-v1-22', 'dreamshaper-8'},
+        'kandinsky': {'kandinsky-2-2-decoder', 'kandinsky-2-2-decoder-inpaint', 'kandinsky-2-2-prior'}
     }
 
 
