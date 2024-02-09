@@ -234,7 +234,7 @@ def update_tag_definition(request: Request, tag_id: int, update_data: TagDefinit
 @router.patch("/tags/{tag_id}", 
               tags=["deprecated"],
               status_code=200,
-              description="Update tag definitions, DEPRECATED: the name was changed to v1/tags/tag_id, no other changes were introduced",
+              description="Update tag definitions, DEPRECATED: the name was changed to v1/tags/{tag_id}, no other changes were introduced",
               response_model=StandardSuccessResponse[TagDefinition], 
               responses=ApiResponseHandler.listErrors([400, 404, 422, 500]))
 def update_tag_definition(request: Request, tag_id: int, update_data: NewTagRequest):
