@@ -9,9 +9,7 @@ from torch import nn
 
 sys.path.insert(0, os.getcwd())
 from utility.utils_logger import logger
-from stable_diffusion.model_paths import CLIP_IMAGE_PROCESSOR_DIR_PATH, CLIP_VISION_MODEL_DIR_PATH, \
-    CLIP_IMAGE_ENCODER_PATH, \
-    CLIPconfigs
+from kandinsky.model_paths import (IMAGE_PROCESSOR_DIR_PATH, VISION_MODEL_DIR_PATH)
 from stable_diffusion.utils_backend import get_device
 from transformers import CLIPImageProcessor, CLIPVisionModelWithProjection
 
@@ -29,14 +27,13 @@ class CLIPImageEncoder(nn.Module):
 
         self.to(self.device)
 
-    def load_submodels(self, image_processor_path=CLIP_IMAGE_PROCESSOR_DIR_PATH,
-                       vision_model_path=CLIP_VISION_MODEL_DIR_PATH):
+    def load_submodels(self, image_processor_path=IMAGE_PROCESSOR_DIR_PATH,
+                       vision_model_path=VISION_MODEL_DIR_PATH):
         try:
             self.vision_model = (CLIPVisionModelWithProjection.from_pretrained(vision_model_path,
                                                                                local_files_only=True,
-                                                                               use_safetensors=True)
-                                 .eval()
-                                 .to(self.device))
+                                                                               use_safetensors=True).eval().to(self.device))
+            
             logger.info(f"CLIP VisionModelWithProjection successfully loaded from : {vision_model_path}\n")
             self.image_processor = CLIPImageProcessor.from_pretrained(image_processor_path, local_files_only=True)
 

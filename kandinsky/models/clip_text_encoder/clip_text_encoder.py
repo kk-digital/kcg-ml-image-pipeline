@@ -9,7 +9,7 @@ from transformers import (
 )
 
 sys.path.insert(0, os.getcwd())
-from stable_diffusion.model_paths import CLIP_TEXT_EMBEDDER_PATH, CLIP_TOKENIZER_DIR_PATH, CLIP_TEXT_MODEL_DIR_PATH, CLIP_MODEL_PATH
+from kandinsky.model_paths import (TXT_EMB_MODEL_PATH, TOKENIZER_DIR_PATH)
 from stable_diffusion.utils_backend import get_device
 from utility.labml.monit import section
 from utility.utils_logger import logger
@@ -31,7 +31,7 @@ class KandinskyCLIPTextEmbedder(nn.Module):
 
         self.to(self.device)
 
-    def load_submodels(self, tokenizer_path=CLIP_TOKENIZER_DIR_PATH, transformer_path=CLIP_TEXT_MODEL_DIR_PATH):
+    def load_submodels(self, tokenizer_path=TOKENIZER_DIR_PATH, transformer_path=TXT_EMB_MODEL_PATH):
 
         with section("Loading tokenizer and transformer"):
             self.tokenizer = CLIPTokenizer.from_pretrained(tokenizer_path, local_files_only=True)
