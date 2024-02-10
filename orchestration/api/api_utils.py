@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from .mongo_schemas import TagDefinition, TagCategory
 from datetime import datetime
 from dateutil import parser
+from datetime import datetime
 
 
 
@@ -180,7 +181,7 @@ class StandardErrorResponseV1(BaseModel):
 class ApiResponseHandlerV1:
     def __init__(self, request: Request):
         self.url = str(request.url)
-        self.start_time = time.time()
+        self.start_time = datetime.now() 
 
     def _elapsed_time(self) -> float:
         return time.time() - self.start_time
