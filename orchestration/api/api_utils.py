@@ -140,7 +140,7 @@ class ApiResponseHandler:
             headers={"Cache-Control": "no-store"}
         )
 
-    def create_error_response1(self, error_code: ErrorCode, error_string: str, http_status_code: int):
+    def create_error_response(self, error_code: ErrorCode, error_string: str, http_status_code: int):
         return PrettyJSONResponse(
             status_code=http_status_code,
             content={

@@ -486,7 +486,7 @@ def add_phrase_v1(request: Request, phrase_data: PhraseModel):
             responses=ApiResponseHandlerV1.listErrors([400,404,422, 500]), 
             summary="Get Clip Vector for a Phrase", 
             description="Retrieves ced")
-def get_clip_vector(request: Request, phrase: str):
+def get_clip_vector_from_phrase(request: Request, phrase: str):
     response_handler = ApiResponseHandlerV1(request)
     try:
         vector = http_clip_server_clip_vector_from_phrase(phrase)
