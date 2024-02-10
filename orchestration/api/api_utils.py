@@ -175,7 +175,6 @@ class StandardErrorResponseV1(BaseModel):
     request_time_start: datetime 
     request_time_finished: datetime
     request_response_code: int 
-    response: T 
 
      
 class ApiResponseHandlerV1:
@@ -229,26 +228,27 @@ class ApiResponseHandlerV1:
             headers={"Cache-Control": "no-store"}
         )
 
-    def create_error_response_v1(self, 
-                              error_code: ErrorCode, 
-                              error_string: str, 
-                              http_status_code: int,
-                              request: Request,
-                              headers={"Cache-Control": "no-store"}):
+    def create_error_response_v1(
+            self,
+            error_code: ErrorCode,
+            error_string: str,
+            http_status_code: int,
+            request: Request,
+            headers: dict = {"Cache-Control": "no-store"},
+        ):
+            response_content = {
+                "request_error_string": error_string,
+                "request_error_code": error_code.name,  # Using .name for the enum member name
+                "request_url": self.url,
+                "request_dictionary": dict(request.query_params),  # Convert query params to a more usable dict format
+                "request_method": request.method,
+                "request_time_total": str(self._elapsed_time()),
+                "request_time_start": self.start_time.isoformat(),
+                "request_time_finished": datetime.now().isoformat(),
+                "request_response_code": http_status_code
+            }
+            return JSONResponse(status_code=http_status_code, content=response_content, headers=headers)
 
-        response_content = {
-            "request_error_string": error_string,
-            "request_error_code": error_code.value,
-            "request_url": self.url,
-            "request_dictionary": request.query_params,
-            "request_method": request.method,
-            "request_time_total": str(self._elapsed_time()),
-            "request_time_start": self.start_time.isoformat(),  
-            "request_time_finished": datetime.now().isoformat(), 
-            "request_response_code": http_status_code,
-            "response": None  # Or a default error structure
-        }
-        return PrettyJSONResponse(status_code=http_status_code, content=response_content,headers=headers)
             
         
 
