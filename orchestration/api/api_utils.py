@@ -223,6 +223,7 @@ class ApiResponseHandlerV1:
             error_string: str,
             request_dictionary: dict,
             http_status_code: int,
+            method:str,
             request: Request,
             headers: dict = {"Cache-Control": "no-store"},
         ):
@@ -232,7 +233,7 @@ class ApiResponseHandlerV1:
                 "request_error_code": error_code.value,  # Using .name for the enum member name
                 "request_url": self.url,
                 "request_dictionary": request_dictionary,  # Convert query params to a more usable dict format
-                "request_method": request.method,
+                "request_method": method,
                 "request_time_total": str(self._elapsed_time()),
                 "request_time_start": self.start_time.isoformat(),
                 "request_time_finished": datetime.now().isoformat(),
