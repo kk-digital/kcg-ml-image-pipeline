@@ -19,3 +19,6 @@ def main():
     print(f"prompt embedding: {prompt_embeds.shape}")
     print(f"hidden state {text_encoder_hidden_states.shape}")
     print(f"mask {text_mask.shape}")
+
+if __name__ == '__main__':
+    main()
