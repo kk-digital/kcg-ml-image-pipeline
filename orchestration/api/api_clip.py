@@ -478,3 +478,23 @@ def add_phrase_v1(request: Request, response: Response, phrase_data: PhraseModel
             http_status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             request=request
         )
+
+
+@router.get("/clip/vectors/get-clip-vector", tags=["deprecated"], 
+            response_model=StandardSuccessResponseV1[GetClipPhraseResponse], 
+            status_code = 200, 
+            responses=ApiResponseHandler.listErrors([400, 422, 500]), 
+            summary="Get Clip Vector for a Phrase", 
+            description="Retrieves ced")
+def get_clip_vector(request: Request,  phrase: str):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        vector = http_clip_server_clip_vector_from_phrase(phrase)
+        
+        if vector is None:
+            return response_handler.create_error_response_v1(ErrorCode.ELEMENT_NOT_FOUND, "Phrase not found", status.HTTP_404_NOT_FOUND)
+
+        return response_handler.create_error_response_v1(vector, http_status_code=200, headers={"Cache-Control": "no-store"}, request=request,request_dictionary=dict(request.query_params),method=request.method )
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
