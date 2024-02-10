@@ -486,14 +486,14 @@ def add_phrase_v1(request: Request, phrase_data: PhraseModel):
             summary="Get Clip Vector for a Phrase", 
             description="Retrieves ced")
 def get_clip_vector_from_phrase(request: Request, phrase: str):
-    print("Entering get_clip_vector_from_phrase")  # Print statement 1
+    
     response_handler = ApiResponseHandlerV1(request)
     try:
-        print(f"Attempting to retrieve vector for phrase: {phrase}")  # Print statement 2
+       
         vector = http_clip_server_clip_vector_from_phrase(phrase)
         
         if vector is None:
-            print("Vector is None, returning error response")  # Print statement 3
+
             return response_handler.create_error_response_v1(
                 ErrorCode.ELEMENT_NOT_FOUND,
                 "Phrase not found",
@@ -503,7 +503,6 @@ def get_clip_vector_from_phrase(request: Request, phrase: str):
                 method=request.method
             )
 
-        print("Vector found, returning success response")  # Print statement 4
         return response_handler.create_success_response_v1(
             response_data={"clip_vector": vector}, 
             http_status_code=200, 
