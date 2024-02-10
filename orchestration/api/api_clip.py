@@ -1,6 +1,6 @@
 from fastapi import Request, APIRouter, HTTPException, Response
 import requests
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardErrorResponse, StandardSuccessResponse, RechableResponse, GetClipPhraseResponse, ApiResponseHandlerV1
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardErrorResponse, StandardErrorResponseV1, StandardSuccessResponse, StandardSuccessResponseV1, RechableResponse, GetClipPhraseResponse, ApiResponseHandlerV1
 from orchestration.api.mongo_schemas import  PhraseModel
 from typing import Optional
 from typing import List
@@ -436,7 +436,9 @@ def check_clip_server_status(request: Request):
     
 @router.post("/clip/add-phrases",
              description="Adds a phrase to the clip server.",
-             tags=["clip"])
+             response_model=StandardSuccessResponseV1[None],
+             tags=["clip"],
+             responses=ApiResponseHandler.listErrors([400, 422, 500, 503]))
 def add_phrase_v1(request: Request, response: Response, phrase_data: PhraseModel):
     response_handler = ApiResponseHandlerV1(request)
 

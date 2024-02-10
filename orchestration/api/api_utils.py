@@ -233,7 +233,8 @@ class ApiResponseHandlerV1:
                               error_code: ErrorCode, 
                               error_string: str, 
                               http_status_code: int,
-                              request: Request):
+                              request: Request,
+                              headers={"Cache-Control": "no-store"}):
 
         response_content = {
             "request_error_string": error_string,
@@ -241,12 +242,13 @@ class ApiResponseHandlerV1:
             "request_url": self.url,
             "request_dictionary": request.query_params,
             "request_method": request.method,
-            "request_time_total": self._elapsed_time(),
-            "request_time_start": self.start_time,
-            "request_time_finished": datetime.now(),
+            "request_time_total": str(self._elapsed_time()),
+            "request_time_start": self.start_time.isoformat(),  
+            "request_time_finished": datetime.now().isoformat(), 
             "request_response_code": http_status_code,
             "response": None  # Or a default error structure
         }
+        return PrettyJSONResponse(status_code=http_status_code, content=response_content,headers=headers)
             
         
 
