@@ -438,8 +438,8 @@ def check_clip_server_status(request: Request):
              description="Adds a phrase to the clip server.",
              response_model=StandardSuccessResponseV1[None],
              tags=["clip"],
-             responses=ApiResponseHandler.listErrors([400, 422, 500, 503]))
-def add_phrase_v1(request: Request, response: Response, phrase_data: PhraseModel):
+             responses=ApiResponseHandlerV1.listErrors([400, 422, 500, 503]))
+def add_phrase_v1(request: Request, phrase_data: PhraseModel):
     response_handler = ApiResponseHandlerV1(request)
 
     try:
@@ -503,7 +503,7 @@ def get_clip_vector(request: Request, phrase: str):
 
         # Success Case
         return response_handler.create_success_response_v1(
-            response_data={"clip_vector": vector}, # Assuming 'vector' should be in 'response' 
+            response_data={"clip_vector": vector}, 
             http_status_code=200, 
             headers={"Cache-Control": "no-store"}, 
             request=request,
