@@ -6,6 +6,7 @@ from kandinsky.models.clip_text_encoder.clip_text_encoder import KandinskyCLIPTe
 
 def main():
     text_encoder=KandinskyCLIPTextEmbedder()
+    text_encoder.load_submodels()
 
     texts = [
     'Three blind horses listening to Mozart.',
