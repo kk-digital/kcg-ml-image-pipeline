@@ -492,9 +492,15 @@ def get_clip_vector(request: Request,  phrase: str):
         vector = http_clip_server_clip_vector_from_phrase(phrase)
         
         if vector is None:
-            return response_handler.create_error_response_v1(ErrorCode.ELEMENT_NOT_FOUND, "Phrase not found", status.HTTP_404_NOT_FOUND)
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Phrase not found",
+                http_status_code=status.HTTP_404_NOT_FOUND,
+                request=request
+            )
+
 
         return response_handler.create_error_response_v1(vector, http_status_code=200, headers={"Cache-Control": "no-store"}, request=request,request_dictionary=dict(request.query_params),method=request.method )
 
     except Exception as e:
-        return response_handler.create_error_response_v1(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return response_handler.create_error_response_v1(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR, request=request)
