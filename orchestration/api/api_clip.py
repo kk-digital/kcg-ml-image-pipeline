@@ -432,9 +432,13 @@ def check_clip_server_status(request: Request):
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "CLIP server is not reachable", 503)
 
 
-#  Apis with new names and reponses
+
+
+
+
+#  Apis with new names and reponse format
     
-@router.post("/clip/add-phrases",
+@router.post("/clip/add-phrase",
              description="Adds a phrase to the clip server.",
              response_model=StandardSuccessResponseV1[None],
              tags=["clip"],
@@ -447,8 +451,10 @@ def add_phrase_v1(request: Request, phrase_data: PhraseModel):
             return response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS, 
                 error_string="Phrase is required", 
-                http_status_code=status.HTTP_400_BAD_REQUEST,
-                request=request
+                http_status_code=400,
+                request=request,
+                request_dictionary=dict(request.query_params),
+                method=request.method
             )
 
         status_code, _ = http_clip_server_add_phrase(phrase_data.phrase)  
@@ -466,8 +472,10 @@ def add_phrase_v1(request: Request, phrase_data: PhraseModel):
             return response_handler.create_error_response_v1(
                 error_code=ErrorCode.OTHER_ERROR,
                 error_string="Clip server error", 
-                http_status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                request=request
+                http_status_code=500,
+                request=request,
+                request_dictionary=dict(request.query_params),
+                method=request.method
             )
 
     except Exception as e:
@@ -475,8 +483,10 @@ def add_phrase_v1(request: Request, phrase_data: PhraseModel):
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
             error_string="Internal server error", 
-            http_status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            request=request
+            http_status_code=500,
+            request=request,
+            request_dictionary=dict(request.query_params),
+            method=request.method
         )
 
 @router.get("/get-clip-vector-response", tags=["deprecated"], 
@@ -504,7 +514,7 @@ def get_clip_vector_from_phrase(request: Request, phrase: str):
             )
 
         return response_handler.create_success_response_v1(
-            response_data={"clip_vector": vector}, 
+            response_data= vector, 
             http_status_code=200, 
             headers={"Cache-Control": "no-store"}, 
             request=request,
@@ -520,5 +530,40 @@ def get_clip_vector_from_phrase(request: Request, phrase: str):
             http_status_code = 500, 
             request=request,
             request_dictionary=dict(request.query_params),
+            method=request.method
+        )
+
+
+@router.get("/clip/get-server-status", 
+            tags=["deprecated"], 
+            response_model=StandardSuccessResponseV1[RechableResponse],  # Ensure this is correctly defined elsewhere
+            status_code=202,  # Use FastAPI's status codes
+            responses=ApiResponseHandlerV1.listErrors([503]),  # Adapt to use ApiResponseHandlerV1
+            description="Checks the status of the CLIP server. DEPRECATED: the name was changed to v1/clip/server-status, no other changes were introduced")
+def check_clip_server_status(request: Request):
+    response_handler = ApiResponseHandlerV1(request)  
+    try:
+        # Update the URL to include '/docs'
+        response = requests.get(CLIP_SERVER_ADDRESS + "/docs")
+        reachable = response.status_code == status.HTTP_200_OK  
+        # Adjust the success response creation to match the new handler
+        return response_handler.create_success_response_v1(
+            response_data={"reachable": reachable},  
+            http_status_code=202,  
+            headers={"Cache-Control": "no-store"}, 
+            request=request,
+            request_dictionary=dict(request.query_params),  
+            method=request.method 
+        )
+    except requests.exceptions.RequestException as e:
+        # Print statement for debugging
+        print(f"Exception occurred: {e}")  
+        # Adjust the error response creation to match the new handler
+        return response_handler.create_error_response_v1(
+            ErrorCode.OTHER_ERROR, 
+            "CLIP server is not reachable", 
+            503, 
+            request=request,
+            request_dictionary=dict(request.query_params),  # Ensure this is correctly captured
             method=request.method
         )
