@@ -456,7 +456,7 @@ def add_phrase_v1(request: Request, response: Response, phrase_data: PhraseModel
 
         if 200 <= status_code < 300:
             return response_handler.create_success_response_v1(
-                response_data=[],  # Adjust according to your needs
+                None,  # Adjust according to your needs
                 http_status_code=201, 
                 headers={"Cache-Control": "no-store"},
                 request=request,
