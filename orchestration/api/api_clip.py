@@ -1,6 +1,6 @@
 from fastapi import Request, APIRouter, HTTPException, Response
 import requests
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardErrorResponse, StandardSuccessResponse, RechableResponse, GetClipPhraseResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardErrorResponse, StandardSuccessResponse, RechableResponse, GetClipPhraseResponse, ApiResponseHandlerV1
 from orchestration.api.mongo_schemas import  PhraseModel
 from typing import Optional
 from typing import List
@@ -439,13 +439,13 @@ def check_clip_server_status(request: Request):
              tags=["deprecated"],
              response_model=StandardSuccessResponse[None],
              status_code=201,
-             responses=ApiResponseHandler.listErrors([400, 422, 500, 503]))
+             responses=ApiResponseHandlerV1.listErrors([400, 422, 500, 503]))  # Update to use ApiResponseHandlerV1
 def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
-    response_handler = ApiResponseHandler(request)
+    response_handler = ApiResponseHandlerV1(request)  # Create the V1 handler
 
     try:
         if not phrase_data.phrase:
-            return response_handler.create_error_response(
+            return response_handler.create_error_response_v1(  # Use new error method
                 error_code=ErrorCode.INVALID_PARAMS, 
                 error_string="Phrase is required", 
                 http_status_code=status.HTTP_400_BAD_REQUEST,
@@ -457,15 +457,17 @@ def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
         # Check for successful status code
         if 200 <= status_code < 300:
             # Always set clip_vector to None
-            return response_handler.create_success_response(
+            return response_handler.create_success_response_v1(  # Use new success method
                 response_data=None,
                 http_status_code=201, 
                 headers={"Cache-Control": "no-store"},
-                request=request
+                request=request,
+                request_dictionary=request.query_params,
+                method=request.method 
             )
         else:
             # Handle unsuccessful response
-            return response_handler.create_error_response(
+            return response_handler.create_error_response_v1(  
                 error_code=ErrorCode.OTHER_ERROR,
                 error_string="Clip server error", 
                 http_status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -474,9 +476,9 @@ def add_phrase(request: Request, response: Response, phrase_data: PhraseModel):
 
     except Exception as e:
         traceback.print_exc()  
-        return response_handler.create_error_response(
-                error_code = ErrorCode.OTHER_ERROR,
+        return response_handler.create_error_response_v1(
+                error_code=ErrorCode.OTHER_ERROR,
                 error_string="Internal server error", 
                 http_status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 request=request
-            )    
+            )   
