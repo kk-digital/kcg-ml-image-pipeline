@@ -493,9 +493,9 @@ def get_clip_vector(request: Request, phrase: str):
         
         if vector is None:
             return response_handler.create_error_response_v1(
-                error_code=ErrorCode.ELEMENT_NOT_FOUND,
-                error_string="Phrase not found",
-                http_status_code=status.HTTP_404_NOT_FOUND,
+                ErrorCode.ELEMENT_NOT_FOUND,
+                "Phrase not found",
+                status.HTTP_404_NOT_FOUND,
                 request=request,
                 request_dictionary=dict(request.query_params),
                 method=request.method
