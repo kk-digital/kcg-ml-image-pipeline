@@ -184,7 +184,7 @@ class ApiResponseHandlerV1:
         self.start_time = datetime.now() 
 
     def _elapsed_time(self) -> float:
-        return time.time() - self.start_time
+        return datetime.now() - self.start_time
     
     @staticmethod
     def listErrors(errors: List[int]) -> dict:
