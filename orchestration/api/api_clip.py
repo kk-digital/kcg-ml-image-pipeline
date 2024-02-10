@@ -518,7 +518,7 @@ def get_clip_vector_from_phrase(request: Request, phrase: str):
             ErrorCode.OTHER_ERROR, 
             "Internal server error", 
             http_status_code = 500, 
-            request=request
+            request=request,
             request_dictionary=dict(request.query_params),
             method=request.method
         )
