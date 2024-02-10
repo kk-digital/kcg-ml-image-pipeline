@@ -22,7 +22,7 @@ class KandinskyCLIPTextEmbedder(nn.Module):
     ## CLIP Text Embedder
     """
 
-    def __init__(self, device=None, tokenizer=None, transformer=None):
+    def __init__(self, device=None, tokenizer=None, text_encoder=None):
         """
         """
         super().__init__()
@@ -30,7 +30,7 @@ class KandinskyCLIPTextEmbedder(nn.Module):
         self.device = get_device(device)
 
         self.tokenizer = tokenizer
-        self.transformer = transformer
+        self.text_encoder = text_encoder
 
         self.to(self.device)
 
@@ -39,9 +39,9 @@ class KandinskyCLIPTextEmbedder(nn.Module):
         with section("Loading tokenizer and transformer"):
             self.tokenizer = CLIPTokenizer.from_pretrained(encoder_path, subfolder="tokenizer", local_files_only=True)
             logger.debug(f"Tokenizer successfully loaded from : {encoder_path}/tokenizer")
-            self.transformer = CLIPTextModelWithProjection.from_pretrained(encoder_path, subfolder="text_encoder", use_safetensors=True, local_files_only=True).eval().to(self.device)
+            self.text_encoder = CLIPTextModelWithProjection.from_pretrained(encoder_path, subfolder="text_encoder", use_safetensors=True, local_files_only=True).eval().to(self.device)
 
-            self.transformer = self.transformer.to(device=self.device)
+            self.text_encoder = self.text_encoder.to(device=self.device)
             print(self.device)
             logger.debug(f"CLIP text model successfully loaded from : {encoder_path}/text_encoder")
 
@@ -52,10 +52,10 @@ class KandinskyCLIPTextEmbedder(nn.Module):
             self.tokenizer
             del self.tokenizer
             self.tokenizer = None
-        if self.transformer is not None:
-            self.transformer.to("cpu")
-            del self.transformer
-            self.transformer = None
+        if self.text_encoder is not None:
+            self.text_encoder.to("cpu")
+            del self.text_encoder
+            self.text_encoder = None
         torch.cuda.empty_cache()
 
     def forward(
