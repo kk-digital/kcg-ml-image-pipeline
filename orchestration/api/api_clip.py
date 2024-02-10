@@ -436,10 +436,7 @@ def check_clip_server_status(request: Request):
     
 @router.post("/clip/add-phrases",
              description="Adds a phrase to the clip server.",
-             tags=["clip"],
-             response_model=StandardSuccessResponse,
-             status_code=201,
-             responses=ApiResponseHandlerV1.listErrors([400, 422, 500, 503]))
+             tags=["clip"])
 def add_phrase_v1(request: Request, response: Response, phrase_data: PhraseModel):
     response_handler = ApiResponseHandlerV1(request)
 
