@@ -434,7 +434,7 @@ def check_clip_server_status(request: Request):
 
 #  Apis with new names and reponses
     
-@router.post("v1/clip/add-phrases",
+@router.post("/v1/clip/add-phrases",
              description="Adds a phrase to the clip server. DEPRECATED: the name was changed to v1/clip/phrases, no other changes were introduced",
              tags=["deprecated"],
              response_model=StandardSuccessResponse[None],
