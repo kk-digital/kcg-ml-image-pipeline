@@ -483,7 +483,7 @@ def add_phrase_v1(request: Request, response: Response, phrase_data: PhraseModel
 @router.get("/clip/vectors/get-clip-vector", tags=["deprecated"], 
             response_model=StandardSuccessResponseV1[GetClipPhraseResponse], 
             status_code = 200, 
-            #responses=ApiResponseHandler.listErrors([400, 422, 500]), 
+            responses=ApiResponseHandler.listErrors([400, 422, 500]), 
             summary="Get Clip Vector for a Phrase", 
             description="Retrieves ced")
 def get_clip_vector(request: Request,  phrase: str):

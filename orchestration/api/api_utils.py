@@ -189,7 +189,7 @@ class ApiResponseHandlerV1:
     def listErrors(errors: List[int]) -> dict:
         repsonse = {}
         for err in errors:
-            repsonse[err] = {"model": StandardErrorResponse}
+            repsonse[err] = {"model": StandardErrorResponseV1}
         return repsonse
 
     def create_success_response_v1(
