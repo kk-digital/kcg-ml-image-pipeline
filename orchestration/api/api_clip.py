@@ -443,11 +443,11 @@ def check_clip_server_status(request: Request):
              response_model=StandardSuccessResponseV1[None],
              tags=["clip"],
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500, 503]))
-def add_phrase_v1(request: Request, phrase_data: PhraseModel):
+def add_phrase_v1(request: Request, phrase: str):
     response_handler = ApiResponseHandlerV1(request)
 
     try:
-        if not phrase_data.phrase:
+        if not phrase:
             return response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS, 
                 error_string="Phrase is required", 
@@ -457,7 +457,7 @@ def add_phrase_v1(request: Request, phrase_data: PhraseModel):
                 method=request.method
             )
 
-        status_code, _ = http_clip_server_add_phrase(phrase_data.phrase)  
+        status_code, _ = http_clip_server_add_phrase(phrase)  
 
         if 200 <= status_code < 300:
             return response_handler.create_success_response_v1(
