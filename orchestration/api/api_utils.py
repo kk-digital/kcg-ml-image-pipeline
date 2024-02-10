@@ -247,7 +247,7 @@ class ApiResponseHandlerV1:
                 "request_time_finished": datetime.now().isoformat(),
                 "request_response_code": http_status_code
             }
-            return JSONResponse(status_code=http_status_code, content=response_content, headers=headers)
+            return PrettyJSONResponse(status_code=http_status_code, content=response_content, headers=headers)
 
             
         
