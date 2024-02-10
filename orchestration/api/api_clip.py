@@ -497,7 +497,7 @@ def get_clip_vector_from_phrase(request: Request, phrase: str):
             return response_handler.create_error_response_v1(
                 ErrorCode.ELEMENT_NOT_FOUND,
                 "Phrase not found",
-                status.HTTP_404_NOT_FOUND,
+                http_status_code=404,
                 request=request,
                 request_dictionary=dict(request.query_params),
                 method=request.method
@@ -517,6 +517,6 @@ def get_clip_vector_from_phrase(request: Request, phrase: str):
         return response_handler.create_error_response_v1(
             ErrorCode.OTHER_ERROR, 
             "Internal server error", 
-            status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            http_status_code = 500, 
             request=request
         )
