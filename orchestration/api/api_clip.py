@@ -479,19 +479,21 @@ def add_phrase_v1(request: Request, phrase_data: PhraseModel):
             request=request
         )
 
-
 @router.get("/clip/vectors/get-clip-vector1", tags=["deprecated"], 
             response_model=StandardSuccessResponseV1[GetClipPhraseResponse], 
-            status_code = 200, 
-            responses=ApiResponseHandlerV1.listErrors([400,404,422, 500]), 
+            status_code=200, 
+            responses=ApiResponseHandlerV1.listErrors([400,404,422,500]), 
             summary="Get Clip Vector for a Phrase", 
             description="Retrieves ced")
 def get_clip_vector_from_phrase(request: Request, phrase: str):
+    print("Entering get_clip_vector_from_phrase")  # Print statement 1
     response_handler = ApiResponseHandlerV1(request)
     try:
+        print(f"Attempting to retrieve vector for phrase: {phrase}")  # Print statement 2
         vector = http_clip_server_clip_vector_from_phrase(phrase)
         
         if vector is None:
+            print("Vector is None, returning error response")  # Print statement 3
             return response_handler.create_error_response_v1(
                 ErrorCode.ELEMENT_NOT_FOUND,
                 "Phrase not found",
@@ -501,7 +503,7 @@ def get_clip_vector_from_phrase(request: Request, phrase: str):
                 method=request.method
             )
 
-        # Success Case
+        print("Vector found, returning success response")  # Print statement 4
         return response_handler.create_success_response_v1(
             response_data={"clip_vector": vector}, 
             http_status_code=200, 
@@ -512,6 +514,7 @@ def get_clip_vector_from_phrase(request: Request, phrase: str):
         )
 
     except Exception as e:
+        print(f"Exception occurred: {e}")  # Print statement 5
         return response_handler.create_error_response_v1(
             ErrorCode.OTHER_ERROR, 
             "Internal server error", 
