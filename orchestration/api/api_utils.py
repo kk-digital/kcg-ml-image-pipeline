@@ -216,17 +216,6 @@ class ApiResponseHandlerV1:
             "response": response_data
         }
         return PrettyJSONResponse(status_code=http_status_code, content=response_content, headers=headers)
-    
-    def create_success_delete_response(self, reachable: bool):
-        return PrettyJSONResponse(
-            status_code=200,
-            content={
-                "url": self.url,
-                "duration": self._elapsed_time(),
-                "response": {"reachable": reachable}
-            },
-            headers={"Cache-Control": "no-store"}
-        )
 
     def create_error_response_v1(
             self,
@@ -239,7 +228,7 @@ class ApiResponseHandlerV1:
             
             response_content = {
                 "request_error_string": error_string,
-                "request_error_code": error_code.name,  # Using .name for the enum member name
+                "request_error_code": error_code.value,  # Using .name for the enum member name
                 "request_url": self.url,
                 "request_dictionary": dict(request.query_params),  # Convert query params to a more usable dict format
                 "request_method": request.method,
