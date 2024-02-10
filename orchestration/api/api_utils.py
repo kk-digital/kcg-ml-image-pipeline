@@ -230,7 +230,7 @@ class ApiResponseHandlerV1:
                 "request_error_string": error_string,
                 "request_error_code": error_code.value,  # Using .name for the enum member name
                 "request_url": self.url,
-                "request_dictionary": dict(request.query_params),  # Convert query params to a more usable dict format
+                "request_dictionary": request.query_params,  # Convert query params to a more usable dict format
                 "request_method": request.method,
                 "request_time_total": str(self._elapsed_time()),
                 "request_time_start": self.start_time.isoformat(),
