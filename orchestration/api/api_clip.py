@@ -480,7 +480,7 @@ def add_phrase_v1(request: Request, response: Response, phrase_data: PhraseModel
         )
 
 
-@router.get("/clip/vectors/get-clip-vector", tags=["deprecated"], 
+@router.get("/clip/vectors/get-clip-vector1", tags=["deprecated"], 
             response_model=StandardSuccessResponseV1[GetClipPhraseResponse], 
             status_code = 200, 
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]), 
@@ -496,7 +496,9 @@ def get_clip_vector(request: Request,  phrase: str):
                 error_code=ErrorCode.ELEMENT_NOT_FOUND,
                 error_string="Phrase not found",
                 http_status_code=status.HTTP_404_NOT_FOUND,
-                request=request
+                request=request,
+                request_dictionary=dict(request.query_params),
+                method=request.method
             )
 
 
