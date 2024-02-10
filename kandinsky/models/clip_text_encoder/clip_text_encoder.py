@@ -9,7 +9,7 @@ from transformers import (
 )
 
 sys.path.insert(0, os.getcwd())
-from kandinsky.model_paths import (TXT_EMB_MODEL_PATH, TOKENIZER_DIR_PATH)
+from kandinsky.model_paths import TXT_EMB_MODEL_PATH, TOKENIZER_DIR_PATH
 from stable_diffusion.utils_backend import get_device
 from utility.labml.monit import section
 from utility.utils_logger import logger
