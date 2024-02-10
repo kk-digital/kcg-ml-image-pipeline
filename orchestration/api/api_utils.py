@@ -89,16 +89,29 @@ class ErrorCode(Enum):
 
 T = TypeVar('T')
 class StandardSuccessResponse(BaseModel, Generic[T]):
-    url: str
-    duration: int
-    response: T
+    request_error_string: str = ""
+    request_error_code: int = -1
+    request_url: str
+    request_dictionary: dict 
+    request_method: str
+    request_time_total: float
+    request_time_start: datetime 
+    request_time_finished: datetime
+    request_response_code: int 
+    response: T 
 
 
 class StandardErrorResponse(BaseModel):
-    url: str
-    duration: int
-    errorCode: int
-    errorString: str
+    request_error_string: str = ""
+    request_error_code: int = -1
+    request_url: str
+    request_dictionary: dict 
+    request_method: str
+    request_time_total: float
+    request_time_start: datetime 
+    request_time_finished: datetime
+    request_response_code: int 
+    response: T 
 
 
 class ApiResponseHandler:
@@ -116,14 +129,29 @@ class ApiResponseHandler:
             repsonse[err] = {"model": StandardErrorResponse}
         return repsonse
 
-    def create_success_response(self, response_data: dict, http_status_code: int, headers: dict = {"Cache-Control": "no-store"}):
+    def create_success_response(
+        self, 
+        response_data: dict, 
+        http_status_code: int, 
+        request: Request, 
+        request_error_string: str, 
+        request_error_code: int,
+        headers: dict = {"Cache-Control": "no-store"},
+    ):
         # Validate the provided HTTP status code
         if not 200 <= http_status_code < 300:
             raise ValueError("Invalid HTTP status code for a success response. Must be between 200 and 299.")
 
         response_content = {
-            "url": self.url,
-            "duration": self._elapsed_time(),
+            "request_error_string":request_error_string ,
+            "request_error_code": request_error_code,
+            "request_url": self.url,
+            "request_dictionary": request.query_params,  # Or adjust how you access parameters
+            "request_method": request.method,
+            "request_time_total": self._elapsed_time(),
+            "request_time_start": self.start_time,
+            "request_time_finished": datetime.now(),
+            "request_response_code": http_status_code,
             "response": response_data
         }
         return PrettyJSONResponse(status_code=http_status_code, content=response_content, headers=headers)
@@ -139,15 +167,25 @@ class ApiResponseHandler:
             headers={"Cache-Control": "no-store"}
         )
 
-    def create_error_response(self, error_code: ErrorCode, error_string: str, http_status_code: int):
-        return PrettyJSONResponse(
-            status_code=http_status_code,
-            content={
-                "url": self.url,
-                "duration": self._elapsed_time(),
-                "errorCode": error_code.value,
-                "errorString": error_string
-            }
-        )
+    def create_error_response(self, 
+                              error_code: ErrorCode, 
+                              error_string: str, 
+                              http_status_code: int,
+                              request: Request):
+
+        response_content = {
+            "request_error_string": error_string,
+            "request_error_code": error_code.value,
+            "request_url": self.url,
+            "request_dictionary": request.query_params,
+            "request_method": request.method,
+            "request_time_total": self._elapsed_time(),
+            "request_time_start": self.start_time,
+            "request_time_finished": datetime.now(),
+            "request_response_code": http_status_code,
+            "response": None  # Or a default error structure
+        }
+            
+        
 
      
