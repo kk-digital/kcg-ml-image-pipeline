@@ -19,7 +19,9 @@ class DefaultPaths:
         'vae': {'vae', 'decoder', 'encoder'},
         'aesthetic_scorer': {'aesthetic_scorer'},
         'inpainting': {'ned-v1-22', 'dreamshaper-8'},
-        'kandinsky': {'kandinsky-2-2-decoder', 'kandinsky-2-2-decoder-inpaint', 'kandinsky-2-2-prior'}
+        'kandinsky': {'kandinsky-2-2-decoder', 'kandinsky-2-2-decoder-inpaint', 'kandinsky-2-2-prior',
+                      'kandinsky/kandinsky-2-2-prior/text_encoder', 'kandinsky/kandinsky-2-2-prior/tokenizer',
+                      'kandinsky/kandinsky-2-2-prior/image_encoder', 'kandinsky/kandinsky-2-2-prior/image_processor'}
     }
 
 
