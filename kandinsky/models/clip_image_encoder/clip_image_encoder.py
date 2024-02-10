@@ -9,12 +9,12 @@ from torch import nn
 
 sys.path.insert(0, os.getcwd())
 from utility.utils_logger import logger
-from kandinsky.model_paths import (IMAGE_PROCESSOR_DIR_PATH, VISION_MODEL_DIR_PATH)
+from kandinsky.model_paths import PRIOR_MODEL_PATH
 from stable_diffusion.utils_backend import get_device
 from transformers import CLIPImageProcessor, CLIPVisionModelWithProjection
 
 
-class CLIPImageEncoder(nn.Module):
+class KandinskyCLIPImageEncoder(nn.Module):
 
     def __init__(self, device=None, image_processor=None, vision_model=None):  # , input_mode = PIL.Image.Image):
 
@@ -27,17 +27,17 @@ class CLIPImageEncoder(nn.Module):
 
         self.to(self.device)
 
-    def load_submodels(self, image_processor_path=IMAGE_PROCESSOR_DIR_PATH,
-                       vision_model_path=VISION_MODEL_DIR_PATH):
+    def load_submodels(self, encoder_path=PRIOR_MODEL_PATH):
         try:
-            self.vision_model = (CLIPVisionModelWithProjection.from_pretrained(vision_model_path,
-                                                                               local_files_only=True,
-                                                                               use_safetensors=True).eval().to(self.device))
+            self.vision_model = (CLIPVisionModelWithProjection.from_pretrained(encoder_path,
+                                                                               subfolder="image_encoder",
+                                                                               local_files_only=True).eval().to(self.device))
             
-            logger.info(f"CLIP VisionModelWithProjection successfully loaded from : {vision_model_path}\n")
-            self.image_processor = CLIPImageProcessor.from_pretrained(image_processor_path, local_files_only=True)
+            logger.info(f"CLIP VisionModelWithProjection successfully loaded from : {encoder_path}/image_encoder \n")
 
-            logger.info(f"CLIP ImageProcessor successfully loaded from : {image_processor_path}\n")
+            self.image_processor = CLIPImageProcessor.from_pretrained(encoder_path, subfolder="image_processor", local_files_only=True)
+
+            logger.info(f"CLIP ImageProcessor successfully loaded from : {encoder_path}/image_processor \n")
             return self
         except Exception as e:
             logger.error('Error loading submodels: ', e)
