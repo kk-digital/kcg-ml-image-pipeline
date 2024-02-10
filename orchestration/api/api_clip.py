@@ -105,7 +105,7 @@ def http_clip_server_get_cosine_similarity_list(image_path_list: List[str],
 # ----------------------------------------------------------------------------
 
 
-@router.put("/clip/add-phrase",
+@router.put("/clip/add-phrase-depracated",
             response_class=PrettyJSONResponse,
             tags=["deprecated"],
             description="Adds a phrase to the clip server, DEPRECATED: the name was changed to v1/clip/phrases, changes may have been introduced")
@@ -117,7 +117,7 @@ def add_phrase(request: Request,
 
 @router.post("/v1/clip/phrases",
              description="Adds a phrase to the clip server.",
-             tags=["clip"],
+             tags=["deprecated"],
              response_model=StandardSuccessResponse[None],
              status_code=201,
              responses=ApiResponseHandler.listErrors([400, 422, 500, 503]))
@@ -159,7 +159,7 @@ def add_phrase(request: Request,
 
     return http_clip_server_clip_vector_from_phrase(phrase)
 
-@router.get("/v1/clip/vectors/{phrase}", tags=["clip"], 
+@router.get("/v1/clip/vectors/{phrase}", tags=["deprecated"], 
             response_model=StandardSuccessResponse[GetClipPhraseResponse], 
             status_code = 200, 
             responses=ApiResponseHandler.listErrors([400, 422, 500]), 
@@ -412,7 +412,7 @@ def check_clip_server_status():
         return {"status": "offline", "message": "Clip server is offline or unreachable."}
 
 @router.get("/v1/clip/server-status", 
-            tags=["clip"], 
+            tags=["deprecated"], 
             response_model=StandardSuccessResponse[RechableResponse],
             status_code=202, responses=ApiResponseHandler.listErrors([503]), 
             description="Checks the status of the CLIP server.")
@@ -489,7 +489,7 @@ def add_phrase_v1(request: Request, phrase_data: PhraseModel):
             method=request.method
         )
 
-@router.get("/get-clip-vector-response", tags=["deprecated"], 
+@router.get("/clip/get-clip-vector", tags=["clip"], 
             response_model=StandardSuccessResponseV1[GetClipPhraseResponse], 
             status_code=200, 
             responses=ApiResponseHandlerV1.listErrors([400,404,422,500]), 
@@ -535,7 +535,7 @@ def get_clip_vector_from_phrase(request: Request, phrase: str):
 
 
 @router.get("/clip/get-server-status", 
-            tags=["deprecated"], 
+            tags=["clip"], 
             response_model=StandardSuccessResponseV1[RechableResponse],  # Ensure this is correctly defined elsewhere
             status_code=202,  # Use FastAPI's status codes
             responses=ApiResponseHandlerV1.listErrors([503]),  # Adapt to use ApiResponseHandlerV1
