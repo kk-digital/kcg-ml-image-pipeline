@@ -33,6 +33,7 @@ class KandinskyCLIPTextEmbedder(nn.Module):
 
     def load_submodels(self, tokenizer_path=TOKENIZER_DIR_PATH, transformer_path=TXT_EMB_MODEL_PATH):
 
+        print(TOKENIZER_DIR_PATH, TXT_EMB_MODEL_PATH)
         with section("Loading tokenizer and transformer"):
             self.tokenizer = CLIPTokenizer.from_pretrained(tokenizer_path, local_files_only=True)
             logger.debug(f"Tokenizer successfully loaded from : {tokenizer_path}")
