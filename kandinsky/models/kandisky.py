@@ -87,6 +87,13 @@ class KandinskyPipeline:
             
             logger.debug(f"Kandinsky Inpainting model successfully loaded")
    
+    def set_models(self, image_encoder, unet, prior_model, decoder_model):
+        # setting the kandinsky submodels directly
+        self.image_encoder=image_encoder
+        self.unet = unet
+        self.prior = prior_model
+        self.decoder = decoder_model
+        
     def unload_models(self):
         if self.image_encoder is not None:
             self.image_encoder.to("cpu")
@@ -135,11 +142,11 @@ class KandinskyPipeline:
             negative_emb = negative_emb.negative_image_embeds
         else:
             negative_emb = negative_emb.image_embeds
-        images = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
+        images, latents = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
                          num_inference_steps=self.decoder_steps, height=self.height,
                          width=self.width, guidance_scale=self.decoder_guidance_scale,
                          image=initial_img, mask_image=img_mask).images
-        return images[0]
+        return images[0], latents
     
     def generate_text2img(
         self,
@@ -157,10 +164,10 @@ class KandinskyPipeline:
             negative_emb = negative_emb.negative_image_embeds
         else:
             negative_emb = negative_emb.image_embeds
-        images = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
+        images, latents = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
                          num_inference_steps=self.decoder_steps, height=height,
                          width=width, guidance_scale=self.decoder_guidance_scale).images
-        return images[0]
+        return images[0], latents
 
     def generate_img2img(
         self,

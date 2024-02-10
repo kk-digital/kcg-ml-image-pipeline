@@ -65,7 +65,7 @@ class IterativePainter:
         random_noise = np.random.randint(0, 256, (self.image_size, self.image_size, 3), dtype=np.uint8)
         # Create PIL Image from the random noise array
         self.image = Image.fromarray(random_noise, 'RGB')
-        self.num_prompts=10
+        self.num_prompts=5
 
         self.prompt_generator= prompt_generator
         self.minio_client = self.prompt_generator.minio_client
@@ -136,7 +136,9 @@ class IterativePainter:
         return seed_prompts
 
     def paint_image(self):
-        prompt="Pixel art space adventure, 2D side scrolling game, zero-gravity challenges, Futuristic space stations, alien landscapes, Gravity-defying jumps, intergalactic exploration, Spacesuit upgrades, extraterrestrial obstacles, Navigate through pixelated starfields, Immersive gameplay, Spaceship"
+        # prompt="environmental 2D, 2D environmental, steampunkcyberpunk, 2D environmental art side scrolling, broken trees, undewear, muscular, wide, child chest, urban jungle, dark ruins in background, loki steampunk style, ancient trees"
+
+        initial_prompts=self.get_seed_prompts()
 
         index=0
         image_progression=[]
@@ -149,8 +151,8 @@ class IterativePainter:
             context_area, unmasked_area= self.get_context_area(paint_area)
 
             context_image= self.image.crop(context_area)
-            generated_image= self.generate_image(context_image, unmasked_area, prompt)
-            # generated_image= self.choose_best_prompt(initial_prompts, context_image, unmasked_area, paint_area)
+            # generated_image= self.generate_image(context_image, unmasked_area, prompt)
+            generated_image= self.choose_best_prompt(initial_prompts, context_image, unmasked_area, paint_area)
 
             # paste generated image in the main image
             self.image.paste(generated_image, paint_area)
@@ -320,8 +322,7 @@ def main():
                                   substitution_batch_size=args.substitution_batch_size)
    
    Painter= IterativePainter(prompt_generator= prompt_generator)
-   Painter.test_txt2img()
-   Painter.test_img2img()
+   Painter.paint_image()
 
 if __name__ == "__main__":
     main()
