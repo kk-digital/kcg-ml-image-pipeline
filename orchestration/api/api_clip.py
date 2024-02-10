@@ -486,7 +486,7 @@ def add_phrase_v1(request: Request, response: Response, phrase_data: PhraseModel
             responses=ApiResponseHandlerV1.listErrors([400,404,422, 500]), 
             summary="Get Clip Vector for a Phrase", 
             description="Retrieves ced")
-def get_clip_vector(request: Request,  phrase: str):
+def get_clip_vector(request: Request, phrase: str):
     response_handler = ApiResponseHandlerV1(request)
     try:
         vector = http_clip_server_clip_vector_from_phrase(phrase)
@@ -501,8 +501,20 @@ def get_clip_vector(request: Request,  phrase: str):
                 method=request.method
             )
 
-
-        return response_handler.create_error_response_v1(vector, http_status_code=200, headers={"Cache-Control": "no-store"}, request=request,request_dictionary=dict(request.query_params),method=request.method )
+        # Success Case
+        return response_handler.create_success_response_v1(
+            response_data={"clip_vector": vector}, # Assuming 'vector' should be in 'response' 
+            http_status_code=200, 
+            headers={"Cache-Control": "no-store"}, 
+            request=request,
+            request_dictionary=dict(request.query_params),
+            method=request.method 
+        )
 
     except Exception as e:
-        return response_handler.create_error_response_v1(ErrorCode.OTHER_ERROR, "Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR, request=request)
+        return response_handler.create_error_response_v1(
+            ErrorCode.OTHER_ERROR, 
+            "Internal server error", 
+            status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            request=request
+        )
