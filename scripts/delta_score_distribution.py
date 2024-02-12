@@ -1,6 +1,6 @@
 from pymongo import MongoClient
 import matplotlib.pyplot as plt
-
+import numpy as np
 # Specify your database name and MongoDB connection details
 db_name = 'orchestration-job-db'
 client = MongoClient('mongodb://192.168.3.1:32017/')
@@ -40,24 +40,25 @@ if not linear_scores and not elm_v1_scores:
 
 # Plotting for Linear model
 plt.figure(figsize=(6, 4))
-plt.hist(linear_scores, bins=30, alpha=0.7, label='Linear')
+plt.hist(linear_scores, bins=np.arange(min(linear_scores), max(linear_scores) + 0.5, 0.5), alpha=0.7, label='Linear')
 plt.xlabel('Delta Score')
 plt.ylabel('Frequency')
 plt.title('Distribution of Delta Scores for Linear')
+plt.xticks(np.arange(round(min(linear_scores), 1), round(max(linear_scores), 1) + 0.5, 0.5))
 plt.tight_layout()
 plt.savefig('linear_delta_score_distribution.png')
 plt.close()
 
 # Plotting for ELM-v1 model
 plt.figure(figsize=(6, 4))
-plt.hist(elm_v1_scores, bins=100, alpha=0.7, label='ELM-v1', color='orange')
+plt.hist(elm_v1_scores, bins=np.arange(min(elm_v1_scores), max(elm_v1_scores) + 0.5, 0.5), alpha=0.7, label='ELM-v1', color='orange')
 plt.xlabel('Delta Score')
 plt.ylabel('Frequency')
 plt.title('Distribution of Delta Scores for ELM-v1')
+plt.xticks(np.arange(round(min(elm_v1_scores), 1), round(max(elm_v1_scores), 1) + 0.5, 0.5))
 plt.tight_layout()
 plt.savefig('elm_v1_delta_score_distribution.png')
 plt.close()
 
 # Close the client connection
 client.close()
-print("Disconnected from the database.")
