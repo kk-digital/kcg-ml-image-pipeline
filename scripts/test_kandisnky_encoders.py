@@ -30,7 +30,7 @@ def main():
 
     image_features= image_encoder.forward(image)
 
-    print(f"image embedding: {image_features}")
+    print(f"image embedding: {image_features.shape}")
 
 if __name__ == '__main__':
     main()
