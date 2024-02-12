@@ -361,7 +361,7 @@ def remove_tag(request: Request, tag_id: int):
         return response_handler.create_success_delete_response({"wasPresent": False})
 
     # Check if the tag is used in any images
-    image_query = {"tags": tag_id}
+    image_query = {"tag_id": tag_id}
     image_with_tag = request.app.image_tags_collection.find_one(image_query)
 
     if image_with_tag is not None:
