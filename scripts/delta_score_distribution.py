@@ -25,7 +25,7 @@ for doc in collection.find():
             elm_v1_scores.append(elm_v1_score)
 
 # Plotting for Linear model
-plt.figure(figsize=(18, 10))
+plt.figure(figsize=(8, 4))
 plt.hist(linear_scores, bins=100, alpha=0.7, label='Linear')
 plt.xlabel('Delta Score')
 plt.ylabel('Frequency')
