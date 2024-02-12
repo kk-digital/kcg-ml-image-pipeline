@@ -536,7 +536,7 @@ def get_all_pseudo_tagged_images(request: Request):
 
 @router.post("/pseudotag-categories",
              status_code=201, 
-             tags=["tag-categories"], 
+             tags=["pseudotag-categories"], 
              description="Add Tag Category",
              response_model=StandardSuccessResponse[TagCategory],
              responses=ApiResponseHandler.listErrors([422, 500]))
@@ -575,7 +575,7 @@ def add_pseudo_tag_category(request: Request, tag_category_data: NewTagCategory)
 
 
 @router.patch("/pseudotag-categories/{tag_category_id}", 
-              tags=["tag-categories"],
+              tags=["pseudotag-categories"],
               status_code=200,
               description="Update tag category",
               response_model=StandardSuccessResponse[TagCategory],
@@ -618,7 +618,7 @@ def update_pseudo_tag_category(
 
 
 @router.delete("/pseudotag-categories/{tag_category_id}", 
-               tags=["tag-categories"], 
+               tags=["pseudotag-categories"], 
                description="Remove tag category with tag_category_id", 
                status_code=200,
                response_model=StandardSuccessResponse[WasPresentResponse],
@@ -654,7 +654,7 @@ def delete_pseudo_tag_category(request: Request, tag_category_id: int):
 
 
 @router.get("/pseudotag-categories", 
-            tags=["tag-categories"], 
+            tags=["pseudotag-categories"], 
             description="List tag categories",
             status_code=200,
             response_model=StandardSuccessResponse[TagsCategoryListResponse],
@@ -674,3 +674,69 @@ def list_pseudo_tag_categories(request: Request):
         traceback_str = traceback.format_exc()
         print(f"Exception Traceback:\n{traceback_str}")
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
+
+
+@router.patch("/pseudotags/{tag_id}/deprecated", 
+              tags=["pseudo_tags"],
+              status_code=200,
+              description="the 'deprecated' status of a tag definition.",
+              response_model=StandardSuccessResponse[TagDefinition],  # Adjust if needed
+              responses=ApiResponseHandler.listErrors([400, 404, 422, 500]))
+def tag_deprecated_status(request: Request, tag_id: int):
+    response_handler = ApiResponseHandler(request)
+
+    query = {"tag_id": tag_id}
+    existing_tag = request.app.pseudo_tag_definitions_collection.find_one(query)
+
+    if existing_tag is None:
+        return response_handler.create_error_response(
+            ErrorCode.ELEMENT_NOT_FOUND, "Tag not found.", 404
+        )
+
+    # the 'deprecated' status
+    new_deprecated_status = not existing_tag.get("deprecated", False)
+
+    # Update the tag definition with the new 'deprecated' status
+    request.app.pseudo_tag_definitions_collection.update_one(query, {"$set": {"deprecated": new_deprecated_status}})
+
+    # Retrieve the updated tag to confirm the change
+    updated_tag = request.app.pseudo_tag_definitions_collection.find_one(query)
+
+    # Serialize ObjectId to string if necessary
+    updated_tag = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_tag.items()}
+
+    # Return the updated tag object
+    return response_handler.create_success_response(updated_tag, 200)
+
+
+@router.patch("/pseudotag-categories/{tag_category_id}/deprecated", 
+              tags=["pseudotag-categories"],
+              status_code=200,
+              description=" the 'deprecated' status of a tag category",
+              response_model=StandardSuccessResponse[TagCategory],  # Adjust if needed
+              responses=ApiResponseHandler.listErrors([400, 404, 422, 500]))
+def tag_category_deprecated_status(request: Request, tag_category_id: int):
+    response_handler = ApiResponseHandler(request)
+
+    query = {"tag_category_id": tag_category_id}
+    existing_tag_category = request.app.pseudo_tag_categories_collection.find_one(query)
+
+    if existing_tag_category is None:
+        return response_handler.create_error_response(
+            ErrorCode.ELEMENT_NOT_FOUND, "Tag category not found.", 404
+        )
+
+    # Toggle the 'deprecated' status
+    new_deprecated_status = not existing_tag_category.get("deprecated", False)
+
+    # Update the tag category with the new 'deprecated' status
+    request.app.pseudo_tag_categories_collection.update_one(query, {"$set": {"deprecated": new_deprecated_status}})
+
+    # Retrieve the updated tag category to confirm the change
+    updated_tag_category = request.app.pseudo_tag_categories_collection.find_one(query)
+
+    # Serialize ObjectId to string if necessary
+    updated_tag_category = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_tag_category.items()}
+
+    # Return the updated tag category object
+    return response_handler.create_success_response(updated_tag_category, 200)

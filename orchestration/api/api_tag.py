@@ -227,7 +227,7 @@ def update_tag_definition(request: Request, tag_id: int, update_data: TagDefinit
 @router.patch("/tags/{tag_id}/deprecated", 
               tags=["tags"],
               status_code=200,
-              description="Toggle the 'deprecated' status of a tag definition. DEPRECATED: Adjust as needed for naming conventions.",
+              description="the 'deprecated' status of a tag definition.",
               response_model=StandardSuccessResponse[TagDefinition],  # Adjust if needed
               responses=ApiResponseHandler.listErrors([400, 404, 422, 500]))
 def tag_deprecated_status(request: Request, tag_id: int):
@@ -987,13 +987,13 @@ def add_tag_category(request: Request, tag_category_data: NewTagCategory):
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
 
-@router.patch("/tag-categories/{tag_category_id}/toggle-deprecated", 
-              tags=["deprecated"],
+@router.patch("/tag-categories/{tag_category_id}/deprecated", 
+              tags=["tag-categories"],
               status_code=200,
-              description="Toggle the 'deprecated' status of a tag category. DEPRECATED: Adjust as needed for naming conventions.",
+              description=" the 'deprecated' status of a tag category",
               response_model=StandardSuccessResponse[TagCategory],  # Adjust if needed
               responses=ApiResponseHandler.listErrors([400, 404, 422, 500]))
-def toggle_tag_category_deprecated_status(request: Request, tag_category_id: int):
+def tag_category_deprecated_status(request: Request, tag_category_id: int):
     response_handler = ApiResponseHandler(request)
 
     query = {"tag_category_id": tag_category_id}
