@@ -30,9 +30,7 @@ plt.hist(linear_scores, bins=100, alpha=0.7, label='Linear')
 plt.xlabel('Delta Score')
 plt.ylabel('Frequency')
 plt.title('Distribution of Delta Scores for Linear')
-xmin, xmax = plt.xlim()  # Get the min and max of the current x-axis range
-plt.xticks(np.arange(start=xmin, stop=xmax, step=0.5))
-plt.tight_layout()
+plt.xticks(np.arange(start=-5, stop=5, step=0.5))
 plt.savefig('linear_delta_score_distribution.png')
 plt.close()
 
@@ -43,8 +41,7 @@ plt.xlabel('Delta Score')
 plt.ylabel('Frequency')
 plt.title('Distribution of Delta Scores for ELM-v1')
 xmin, xmax = plt.xlim()  # Get the min and max of the current x-axis range
-plt.xticks(np.arange(start=xmin, stop=xmax, step=0.5))
-plt.tight_layout()
+plt.xticks(np.arange(start=-5, stop=5, step=0.5))
 plt.savefig('elm_v1_delta_score_distribution.png')
 plt.close()
 
