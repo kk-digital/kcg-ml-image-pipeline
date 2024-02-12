@@ -19,15 +19,19 @@ router = APIRouter()
 
 # -------------------- Get -------------------------
 
-
 @router.get("/queue/image-generation/get-job")
-def get_job(request: Request, task_type: str = None):
+def get_job(request: Request, task_type= None, model_type="sd_1_5"):
     query = {}
-    if task_type != None:
-        query = {"task_type": task_type}
+
+    if task_type:
+        query["task_type"] = task_type
+
+    if model_type == "kandinsky":
+        query["task_type"] = {"$regex": "kandinsky"}
+    elif model_type == "sd":
+        query["task_type"] = {"$not": {"$regex": "kandinsky"}}
 
     # Query to find the n newest elements based on the task_completion_time
-
     job = request.app.pending_jobs_collection.find_one(query, sort=[("task_creation_time", pymongo.ASCENDING)])
 
     if job is None:
