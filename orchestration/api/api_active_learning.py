@@ -299,8 +299,8 @@ def get_ranking_comparison(
         base_score = float(first_image_score['task_attributes_dict'][model][score_type])
         print(f"Base score for comparison: {base_score}")
 
-        lower_bound = str(base_score - threshold)
-        upper_bound = str(base_score + threshold)
+        lower_bound = base_score - threshold
+        upper_bound = base_score + threshold
         print(f"Finding second image with score between {lower_bound} and {upper_bound}")
 
         # Find candidates for second image
