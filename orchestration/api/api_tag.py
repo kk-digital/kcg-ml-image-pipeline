@@ -224,6 +224,37 @@ def update_tag_definition(request: Request, tag_id: int, update_data: TagDefinit
     request.app.tag_definitions_collection.update_one(query, {"$set": update_fields})
     return {"status": "success", "message": "Tag definition updated successfully.", "tag_id": tag_id}
 
+@router.patch("/tags/{tag_id}/deprecated", 
+              tags=["tags"],
+              status_code=200,
+              description="Toggle the 'deprecated' status of a tag definition. DEPRECATED: Adjust as needed for naming conventions.",
+              response_model=StandardSuccessResponse[TagDefinition],  # Adjust if needed
+              responses=ApiResponseHandler.listErrors([400, 404, 422, 500]))
+def toggle_tag_deprecated_status(request: Request, tag_id: int):
+    response_handler = ApiResponseHandler(request)
+
+    query = {"tag_id": tag_id}
+    existing_tag = request.app.tag_definitions_collection.find_one(query)
+
+    if existing_tag is None:
+        return response_handler.create_error_response(
+            ErrorCode.ELEMENT_NOT_FOUND, "Tag not found.", 404
+        )
+
+    # the 'deprecated' status
+    new_deprecated_status = not existing_tag.get("deprecated", False)
+
+    # Update the tag definition with the new 'deprecated' status
+    request.app.tag_definitions_collection.update_one(query, {"$set": {"deprecated": new_deprecated_status}})
+
+    # Retrieve the updated tag to confirm the change
+    updated_tag = request.app.tag_definitions_collection.find_one(query)
+
+    # Serialize ObjectId to string if necessary
+    updated_tag = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_tag.items()}
+
+    # Return the updated tag object
+    return response_handler.create_success_response(updated_tag, 200)
 
 @router.patch("v1/tags/{tag_id}", 
               tags=["tags"],
