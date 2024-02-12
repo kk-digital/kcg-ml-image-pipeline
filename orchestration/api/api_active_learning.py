@@ -258,27 +258,21 @@ def get_ranking_comparison(
     max_score: float,
     threshold: float
 ):
-    print(f"Received request with dataset: {dataset}, score_type: {score_type}, model: {model}, min_score: {min_score}, max_score: {max_score}, threshold: {threshold}")  # Initial input logging
 
     # Input Validations
     if score_type not in ["image_clip_sigma_score", "text_embedding_sigma_score"]:
-        print(f"Invalid score_type parameter: {score_type}")
         raise HTTPException(status_code=422, detail="Invalid score_type parameter")
 
     if model not in ["linear", "elm-v1"]:
-        print(f"Invalid model parameter: {model}")
         raise HTTPException(status_code=422, detail="Invalid model parameter")
 
     try:
-        print(" not Converting score bounds to strings for query.")  # Before conversion
         min_score = min_score
         max_score = max_score
 
         base_score_field = f"task_attributes_dict.{model}.{score_type}"
-        print(f"Using base_score_field: {base_score_field}")  # Log base_score_field
 
         # Find first image
-        print("Finding first image...")
         first_image_cursor = request.app.completed_jobs_collection.aggregate([
             {"$match": {
                 base_score_field: {"$gte": min_score, "$lte": max_score},
@@ -297,11 +291,9 @@ def get_ranking_comparison(
             return {"images": []}
 
         base_score = float(first_image_score['task_attributes_dict'][model][score_type])
-        print(f"Base score for comparison: {base_score}")
 
         lower_bound = base_score - threshold
         upper_bound = base_score + threshold
-        print(f"Finding second image with score between {lower_bound} and {upper_bound}")
 
         # Find candidates for second image
         candidates_cursor = request.app.completed_jobs_collection.find({
@@ -311,7 +303,6 @@ def get_ranking_comparison(
         })
 
         candidates = list(candidates_cursor)
-        print(f"Found {len(candidates)} candidates for second image.")
 
         if not candidates:
             print("No candidates found for second image.")
