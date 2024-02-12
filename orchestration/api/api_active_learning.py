@@ -270,9 +270,9 @@ def get_ranking_comparison(
         raise HTTPException(status_code=422, detail="Invalid model parameter")
 
     try:
-        print("Converting score bounds to strings for query.")  # Before conversion
-        min_score = str(min_score)
-        max_score = str(max_score)
+        print(" not Converting score bounds to strings for query.")  # Before conversion
+        min_score = min_score
+        max_score = max_score
 
         base_score_field = f"task_attributes_dict.{model}.{score_type}"
         print(f"Using base_score_field: {base_score_field}")  # Log base_score_field
