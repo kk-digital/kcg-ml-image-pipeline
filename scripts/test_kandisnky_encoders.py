@@ -26,7 +26,7 @@ def main():
     image_encoder=KandinskyCLIPImageEncoder()
     image_encoder.load_submodels()
 
-    image= Image.open("test_image.jpg")
+    image= Image.open("input/test_image.jpg")
 
     image_features= image_encoder.forward(image)
 
