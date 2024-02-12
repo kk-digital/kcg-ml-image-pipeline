@@ -7,7 +7,8 @@ client = MongoClient('mongodb://192.168.3.1:32017/')
 db = client[db_name]
 
 # Access the specific collection
-collection = db.image_pair_ranking_collection
+collection = db["image_pair_ranking"]
+
 
 print("Connected to the database and collection successfully.")
 
