@@ -230,7 +230,7 @@ def update_tag_definition(request: Request, tag_id: int, update_data: TagDefinit
               description="Toggle the 'deprecated' status of a tag definition. DEPRECATED: Adjust as needed for naming conventions.",
               response_model=StandardSuccessResponse[TagDefinition],  # Adjust if needed
               responses=ApiResponseHandler.listErrors([400, 404, 422, 500]))
-def toggle_tag_deprecated_status(request: Request, tag_id: int):
+def tag_deprecated_status(request: Request, tag_id: int):
     response_handler = ApiResponseHandler(request)
 
     query = {"tag_id": tag_id}
@@ -985,6 +985,40 @@ def add_tag_category(request: Request, tag_category_data: NewTagCategory):
 
     except Exception as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
+
+
+@router.patch("/tag-categories/{tag_category_id}/toggle-deprecated", 
+              tags=["deprecated"],
+              status_code=200,
+              description="Toggle the 'deprecated' status of a tag category. DEPRECATED: Adjust as needed for naming conventions.",
+              response_model=StandardSuccessResponse[TagCategory],  # Adjust if needed
+              responses=ApiResponseHandler.listErrors([400, 404, 422, 500]))
+def toggle_tag_category_deprecated_status(request: Request, tag_category_id: int):
+    response_handler = ApiResponseHandler(request)
+
+    query = {"tag_category_id": tag_category_id}
+    existing_tag_category = request.app.tag_categories_collection.find_one(query)
+
+    if existing_tag_category is None:
+        return response_handler.create_error_response(
+            ErrorCode.ELEMENT_NOT_FOUND, "Tag category not found.", 404
+        )
+
+    # Toggle the 'deprecated' status
+    new_deprecated_status = not existing_tag_category.get("deprecated", False)
+
+    # Update the tag category with the new 'deprecated' status
+    request.app.tag_categories_collection.update_one(query, {"$set": {"deprecated": new_deprecated_status}})
+
+    # Retrieve the updated tag category to confirm the change
+    updated_tag_category = request.app.tag_categories_collection.find_one(query)
+
+    # Serialize ObjectId to string if necessary
+    updated_tag_category = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_tag_category.items()}
+
+    # Return the updated tag category object
+    return response_handler.create_success_response(updated_tag_category, 200)
+
 
 @router.get("/tags/count/{tag_id}", 
             status_code=200,
