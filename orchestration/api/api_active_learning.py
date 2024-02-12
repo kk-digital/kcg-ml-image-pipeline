@@ -253,22 +253,29 @@ def get_ranking_comparison(
     request: Request,
     dataset: str,  
     score_type: str,
+    model: str,  
     min_score: float,
     max_score: float,
     threshold: float
 ):
+
+    # Input Validations
     if score_type not in ["image_clip_sigma_score", "text_embedding_sigma_score"]:
         raise HTTPException(status_code=422, detail="Invalid score_type parameter")
-    
-    completed_jobs_collection: Collection = request.app.completed_jobs_collection
+
+    if model not in ["linear", "elm-v1"]:
+        raise HTTPException(status_code=422, detail="Invalid model parameter")
 
     try:
-
         min_score = str(min_score)
         max_score = str(max_score)
-        first_image_cursor = completed_jobs_collection.aggregate([
+
+        base_score_field = f"task_attributes_dict.{model}.{score_type}" 
+
+        # Find first image
+        first_image_cursor = request.app.completed_jobs_collection.aggregate([
             {"$match": {
-                "task_attributes_dict." + score_type: {"$gte": min_score, "$lte": max_score},
+                base_score_field: {"$gte": min_score, "$lte": max_score},
                 "task_input_dict.dataset": dataset
             }},
             {"$sample": {"size": 1}}
@@ -276,18 +283,21 @@ def get_ranking_comparison(
 
         first_image_score = next(first_image_cursor, None)
         if not first_image_score:
-            {"images": []}
+            return {"images": []} 
 
-        if 'task_attributes_dict' not in first_image_score or score_type not in first_image_score['task_attributes_dict']:
-            print("task_attributes_dict not found in the fetched document")
+        if 'task_attributes_dict' not in first_image_score or model not in first_image_score['task_attributes_dict']:
+            print(f"task_attributes_dict.{model} not found in the fetched document")
+            return {"images": []} 
 
-        base_score = float(first_image_score['task_attributes_dict'][score_type])
+        base_score = float(first_image_score['task_attributes_dict'][model][score_type])  
         print(base_score)
+
         lower_bound = str(base_score - threshold)
         upper_bound = str(base_score + threshold)
 
-        candidates_cursor = completed_jobs_collection.find({
-            "task_attributes_dict." + score_type: {"$gte": str(lower_bound), "$lte": str(upper_bound)},
+        # Find candidates for second image
+        candidates_cursor = request.app.completed_jobs_collection.find({
+            base_score_field: {"$gte": lower_bound, "$lte": upper_bound},
             "task_output_file_dict.output_file_hash": {"$ne": first_image_score['task_output_file_dict']['output_file_hash']},
             "task_input_dict.dataset": dataset
         })
@@ -295,18 +305,18 @@ def get_ranking_comparison(
         candidates = list(candidates_cursor)
 
         if not candidates:
-            {"images": []}
+            return {"images": []} 
 
         second_image_score = random.choice(candidates)
 
         images = [
             {
                 "image_hash": first_image_score['task_output_file_dict']['output_file_hash'],
-                "image_score": first_image_score['task_attributes_dict'][score_type]
+                "image_score": first_image_score['task_attributes_dict'][model][score_type] 
             },
             {
                 "image_hash": second_image_score['task_output_file_dict']['output_file_hash'],
-                "image_score": second_image_score['task_attributes_dict'][score_type]
+                "image_score": second_image_score['task_attributes_dict'][model][score_type] 
             }
         ]
 
@@ -314,5 +324,4 @@ def get_ranking_comparison(
 
     except StopIteration:
         print("Error fetching images from the database.")
-       
-
+        raise HTTPException(status_code=500, detail="Internal server error") 

@@ -10,6 +10,7 @@ from .api_utils import PrettyJSONResponse
 from typing import List
 import json
 import paramiko
+from typing import Optional
 import csv
 from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, AddJob, WasPresentResponse
 
@@ -409,8 +410,9 @@ def get_list_in_progress_jobs(request: Request):
 
 
 @router.get("/queue/image-generation/list-completed", response_class=PrettyJSONResponse)
-def get_list_completed_jobs(request: Request):
-    jobs = list(request.app.completed_jobs_collection.find({}))
+def get_list_completed_jobs(request: Request, limit: Optional[int] = Query(10, alias="limit")):
+    # Use the limit parameter in the find query to limit the results
+    jobs = list(request.app.completed_jobs_collection.find({}).limit(limit))
 
     for job in jobs:
         job.pop('_id', None)
@@ -418,8 +420,9 @@ def get_list_completed_jobs(request: Request):
     return jobs
 
 @router.get("/queue/image-generation/list-completed-by-dataset", response_class=PrettyJSONResponse)
-def get_list_completed_jobs_by_dataset(request: Request, dataset):
-    jobs = list(request.app.completed_jobs_collection.find({"task_input_dict.dataset": dataset}))
+def get_list_completed_jobs_by_dataset(request: Request, dataset, limit: Optional[int] = Query(10, alias="limit")):
+    # Use the limit parameter in the find query to limit the results
+    jobs = list(request.app.completed_jobs_collection.find({"task_input_dict.dataset": dataset}).limit(limit))
 
     for job in jobs:
         job.pop('_id', None)
