@@ -50,7 +50,7 @@ plt.close()
 
 # Plotting for ELM-v1 model
 plt.figure(figsize=(6, 4))
-plt.hist(elm_v1_scores, bins=30, alpha=0.7, label='ELM-v1', color='orange')
+plt.hist(elm_v1_scores, bins=100, alpha=0.7, label='ELM-v1', color='orange')
 plt.xlabel('Delta Score')
 plt.ylabel('Frequency')
 plt.title('Distribution of Delta Scores for ELM-v1')
