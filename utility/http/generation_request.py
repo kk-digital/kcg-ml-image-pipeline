@@ -8,12 +8,18 @@ SERVER_ADDRESS = 'http://192.168.3.1:8111'
 
 
 # Get request to get an available job
-def http_get_job(worker_type: str = None):
+def http_get_job(worker_type: str = None, model_type: str = None):
     url = SERVER_ADDRESS + "/queue/image-generation/get-job"
     response = None
+    query_params = []
 
     if worker_type is not None:
-        url = url + "?task_type={}".format(worker_type)
+        query_params.append("task_type={}".format(worker_type))
+    if model_type is not None:
+        query_params.append("model_type={}".format(model_type))
+
+    if query_params:
+        url += "?" + "&".join(query_params)
 
     try:
         response = requests.get(url)
