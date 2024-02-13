@@ -26,7 +26,7 @@ def generate_image_generation_jobs_with_kandinsky(positive_prompt,
     # generate UUID
     task_uuid = str(uuid.uuid4())
     task_type = "image_generation_kandinsky"
-    model_name = "kandinsky"
+    model_name = "kandinsky_2_2"
     model_file_name = "kandinsky-2-2-decoder"
     model_file_path = "input/model/kandinsky/kandinsky-2-2-decoder"
     task_input_dict = {
@@ -82,7 +82,7 @@ def generate_inpainting_job_with_kandinsky(positive_prompt,
 
     task_uuid = str(uuid.uuid4())
     task_type = "inpainting_kandinsky"
-    model_name = "kandinsky"
+    model_name = "kandinsky_2_2"
     model_file_name = "kandinsky-2-2-decoder-inpaint"
     model_file_path = "input/model/kandinsky/kandinsky-2-2-decoder-inpaint"
     task_input_dict = {
