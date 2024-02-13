@@ -849,15 +849,13 @@ from tqdm import tqdm  # Import tqdm
 
 # Assuming minio_client and bucket_name are initialized correctly
 
-@router.post("/update-prompt-data-from-msgpack")
-async def update_prompt_data_from_msgpack(request: Request, dataset: str):
-    # Modify the query to include a condition for the specific dataset
+@router.post("/update-prompt-data-from-msgpack/")
+async def update_prompt_data_from_msgpack(request: Request):
     documents = list(request.app.completed_jobs_collection.find({
-        "task_type": {"$in": ["image_generation_sd_1_5", "inpainting_sd_1_5"]},
-        "task_input_dict.dataset": dataset  # Filter documents by the specified dataset
+        "task_type": {"$in": ["image_generation_sd_1_5", "inpainting_sd_1_5"]}
     }))
 
-    for doc in tqdm(documents, desc=f"Updating documents for dataset {dataset}"):
+    for doc in tqdm(documents, desc="Updating documents"):
         output_file_path = doc.get("task_output_file_dict", {}).get("output_file_path")
         if not output_file_path:
             continue  # Skip if output file path is not found
@@ -891,4 +889,4 @@ async def update_prompt_data_from_msgpack(request: Request, dataset: str):
             {"$set": {"prompt_generation_data": prompt_generation_data}}
         )
 
-    return {"message": f"Update process completed for dataset {dataset}"}
+    return {"message": "Update process completed"}
