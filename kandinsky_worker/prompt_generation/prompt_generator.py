@@ -43,11 +43,13 @@ def generate_image_generation_jobs_with_kandinsky(positive_prompt,
         "decoder_steps": 50,
         "prior_steps": 25,
         "prior_guidance_scale": 4,
-        "decoder_guidance_scale": 4,
+        "decoder_guidance_scale": 4
+    }
+    prompt_generation_data={
         "prompt_scoring_model": prompt_scoring_model,
         "prompt_score": prompt_score,
         "prompt_generation_policy": prompt_generation_policy,
-        "top_k": top_k,
+        "top_k": top_k
     }
 
     generation_task = GenerationTask(uuid=task_uuid,
@@ -55,7 +57,8 @@ def generate_image_generation_jobs_with_kandinsky(positive_prompt,
                                      model_name=model_name,
                                      model_file_name=model_file_name,
                                      model_file_path=model_file_path,
-                                     task_input_dict=task_input_dict)
+                                     task_input_dict=task_input_dict,
+                                     prompt_generation_data=prompt_generation_data)
     generation_task_json = generation_task.to_dict()
 
     # add job
@@ -97,20 +100,22 @@ def generate_inpainting_job_with_kandinsky(positive_prompt,
         "decoder_steps": 50,
         "prior_steps": 25,
         "prior_guidance_scale": 4,
-        "decoder_guidance_scale": 4,
+        "decoder_guidance_scale": 4
+    }
+    prompt_generation_data={
         "prompt_scoring_model": prompt_scoring_model,
         "prompt_score": prompt_score,
         "prompt_generation_policy": prompt_generation_policy,
-        "top_k": top_k,
+        "top_k": top_k
     }
-
 
     generation_task = GenerationTask(uuid=task_uuid,
                                      task_type=task_type,
                                      model_name=model_name,
                                      model_file_name=model_file_name,
                                      model_file_path=model_file_path,
-                                     task_input_dict=task_input_dict)
+                                     task_input_dict=task_input_dict,
+                                     prompt_generation_data=prompt_generation_data)
     generation_task_json = generation_task.to_dict()
 
     # add job

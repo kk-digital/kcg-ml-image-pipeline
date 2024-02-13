@@ -22,7 +22,7 @@ from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 from kandinsky.utils_image import save_images_to_minio, save_image_data_to_minio, save_latent_to_minio, save_image_embedding_to_minio, \
     get_image_data, get_embeddings
-from kandinsky_worker.clip_calculation.clip_calculator import run_clip_calculation_task
+from worker.clip_calculation.clip_calculator import run_clip_calculation_task
 from worker.generation_task.generation_task import GenerationTask
 from kandinsky.models.kandisky import KandinskyPipeline
 
@@ -309,7 +309,7 @@ def upload_image_data_and_update_job_status(worker_state,
 
     # add clip calculation task
     clip_calculation_job = {"uuid": "",
-                            "task_type": "clip_calculation_task_kandinsky",
+                            "task_type": "clip_calculation_task",
                             "task_input_dict": {
                                 "input_file_path": output_file_path,
                                 "input_file_hash": output_file_hash
@@ -397,7 +397,7 @@ def process_jobs(worker_state):
                         prompt_embedding_max_pooled, prompt_embedding_signed_max_pooled,))
                     thread.start()
 
-                elif task_type == 'clip_calculation_task_kandinsky':
+                elif task_type == 'clip_calculation_task':
                     output_file_path, output_file_hash, clip_data = run_clip_calculation_task(worker_state,
                                                                                               generation_task)
 
