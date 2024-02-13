@@ -849,7 +849,7 @@ from tqdm import tqdm  # Import tqdm
 
 # Assuming minio_client and bucket_name are initialized correctly
 
-@router.post("/update-prompt-data-from-msgpack/{dataset_name}")
+@router.post("/update-prompt-data-from-msgpack")
 async def update_prompt_data_from_msgpack(request: Request, dataset: str):
     # Modify the query to include a condition for the specific dataset
     documents = list(request.app.completed_jobs_collection.find({
