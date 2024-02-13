@@ -247,8 +247,6 @@ def upload_image_data_and_update_job_status(worker_state,
     decoder_guidance_scale = generation_task.task_input_dict["decoder_guidance_scale"]
     dataset = generation_task.task_input_dict["dataset"]
 
-    logger.debug(f"Prompt generation data: {generation_task.prompt_generation_data}")
-
     prompt_scoring_model = generation_task.prompt_generation_data["prompt_scoring_model"]
     prompt_score = generation_task.prompt_generation_data["prompt_score"]
     prompt_generation_policy = generation_task.prompt_generation_data["prompt_generation_policy"]
@@ -341,6 +339,7 @@ def process_jobs(worker_state):
 
             job['task_start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             generation_task = GenerationTask.from_dict(job)
+            info(thread_state, f"task dict {generation_task}.")
 
             try:
                 if task_type == 'inpainting_kandinsky':
