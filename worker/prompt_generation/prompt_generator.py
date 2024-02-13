@@ -724,11 +724,14 @@ def generate_image_generation_jobs(positive_prompt,
         "image_width": 512,
         "image_height": 512,
         "sampler": "ddim",
-        "sampler_steps": 20,
+        "sampler_steps": 20
+    }
+
+    prompt_generation_data={
         "prompt_scoring_model": prompt_scoring_model,
         "prompt_score": prompt_score,
         "prompt_generation_policy": prompt_generation_policy,
-        "top_k": top_k,
+        "top_k": top_k
     }
 
     generation_task = GenerationTask(uuid=task_uuid,
@@ -736,7 +739,8 @@ def generate_image_generation_jobs(positive_prompt,
                                      model_name=model_name,
                                      model_file_name=model_file_name,
                                      model_file_path=model_file_path,
-                                     task_input_dict=task_input_dict)
+                                     task_input_dict=task_input_dict,
+                                     prompt_generation_data=prompt_generation_data)
     generation_task_json = generation_task.to_dict()
 
     # add job
@@ -777,12 +781,15 @@ def generate_image_generation_jobs_with_temperature(positive_prompt,
         "image_height": 512,
         "sampler": "ddim",
         "sampler_steps": 20,
+    }
+
+    prompt_generation_data={
         "prompt_scoring_model": prompt_scoring_model,
         "prompt_score": prompt_score,
         "prompt_generation_policy": prompt_generation_policy,
         "top_k": top_k,
         "boltzman_temperature": boltzman_temperature,
-        "boltzman_k": boltzman_k,
+        "boltzman_k": boltzman_k
     }
 
     generation_task = GenerationTask(uuid=task_uuid,
@@ -790,7 +797,8 @@ def generate_image_generation_jobs_with_temperature(positive_prompt,
                                      model_name=model_name,
                                      model_file_name=model_file_name,
                                      model_file_path=model_file_path,
-                                     task_input_dict=task_input_dict)
+                                     task_input_dict=task_input_dict,
+                                     prompt_generation_data=prompt_generation_data)
     generation_task_json = generation_task.to_dict()
 
     # add job
@@ -838,20 +846,23 @@ def generate_inpainting_job(positive_prompt,
         "denoising_strength": 0.75,
         "image_cfg_scale": 1.5,
         "inpaint_full_res_padding": 32,
-        "inpainting_mask_invert": 0,
+        "inpainting_mask_invert": 0
+    }
+
+    prompt_generation_data={
         "prompt_scoring_model": prompt_scoring_model,
         "prompt_score": prompt_score,
         "prompt_generation_policy": prompt_generation_policy,
-        "top_k": top_k,
+        "top_k": top_k
     }
-
 
     generation_task = GenerationTask(uuid=task_uuid,
                                      task_type=task_type,
                                      model_name=model_name,
                                      model_file_name=model_file_name,
                                      model_file_path=model_file_path,
-                                     task_input_dict=task_input_dict)
+                                     task_input_dict=task_input_dict,
+                                     prompt_generation_data=prompt_generation_data)
     generation_task_json = generation_task.to_dict()
 
     # add job
@@ -900,13 +911,16 @@ def generate_inpainting_job_with_temperature(positive_prompt,
         "denoising_strength": 0.75,
         "image_cfg_scale": 1.5,
         "inpaint_full_res_padding": 32,
-        "inpainting_mask_invert": 0,
+        "inpainting_mask_invert": 0,    
+    }
+
+    prompt_generation_data={
         "prompt_scoring_model": prompt_scoring_model,
         "prompt_score": prompt_score,
         "prompt_generation_policy": prompt_generation_policy,
         "top_k": top_k,
         "boltzman_temperature": boltzman_temperature,
-        "boltzman_k": boltzman_k,
+        "boltzman_k": boltzman_k
     }
 
     generation_task = GenerationTask(uuid=task_uuid,
@@ -914,7 +928,8 @@ def generate_inpainting_job_with_temperature(positive_prompt,
                                      model_name=model_name,
                                      model_file_name=model_file_name,
                                      model_file_path=model_file_path,
-                                     task_input_dict=task_input_dict)
+                                     task_input_dict=task_input_dict,
+                                     prompt_generation_data=prompt_generation_data)
     generation_task_json = generation_task.to_dict()
 
     # add job

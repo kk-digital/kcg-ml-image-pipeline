@@ -9,7 +9,7 @@ class GeneratedImageData:
     file_hash: str
     positive_prompt: str
     negative_prior_prompt: str
-    negative_encoder_prompt: str
+    negative_decoder_prompt: str
     strength: float
     prior_steps: int
     decoder_steps: int
@@ -23,7 +23,7 @@ class GeneratedImageData:
     top_k: float
 
     def __init__(self, job_uuid, creation_time, dataset, file_path, file_hash, positive_prompt,
-                    negative_prior_prompt, negative_encoder_prompt,
+                    negative_prior_prompt, negative_decoder_prompt,
                     image_width, image_height, strength, decoder_steps, prior_steps,
                     prior_guidance_scale, decoder_guidance_scale, prompt_scoring_model,
                     prompt_score, prompt_generation_policy, top_k):
@@ -35,7 +35,7 @@ class GeneratedImageData:
         self.file_hash = file_hash
         self.positive_prompt = positive_prompt
         self.negative_prior_prompt = negative_prior_prompt
-        self.negative_encoder_prompt = negative_encoder_prompt
+        self.negative_decoder_prompt = negative_decoder_prompt
         self.image_width = image_width
         self.image_height = image_height
         self.strength= strength
@@ -58,7 +58,7 @@ class GeneratedImageData:
             "file_hash": self.file_hash,
             "positive_prompt": self.positive_prompt,
             "negative_prior_prompt": self.negative_prior_prompt,
-            "negative_encoder_prompt": self.negative_encoder_prompt,
+            "negative_decoder_prompt": self.negative_decoder_prompt,
             "image_width": self.image_width,
             "image_height": self.image_height,
             "strength": self.strength,
@@ -98,7 +98,7 @@ class GeneratedImageData:
                    data["file_hash"],
                    data["positive_prompt"],
                    data["negative_prior_prompt"],
-                   data["negative_encoder_prompt"],
+                   data["negative_decoder_prompt"],
                    data["image_width"],
                    data["image_height"],
                    data["strength"],

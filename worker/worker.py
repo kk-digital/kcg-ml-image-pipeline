@@ -232,10 +232,10 @@ def upload_image_data_and_update_job_status(worker_state,
     sampler_steps = generation_task.task_input_dict["sampler_steps"]
     dataset = generation_task.task_input_dict["dataset"]
 
-    prompt_scoring_model = generation_task.task_input_dict["prompt_scoring_model"]
-    prompt_score = generation_task.task_input_dict["prompt_score"]
-    prompt_generation_policy = generation_task.task_input_dict["prompt_generation_policy"]
-    top_k = generation_task.task_input_dict["top_k"]
+    prompt_scoring_model = generation_task.prompt_generation_data["prompt_scoring_model"]
+    prompt_score = generation_task.prompt_generation_data["prompt_score"]
+    prompt_generation_policy = generation_task.prompt_generation_data["prompt_generation_policy"]
+    top_k = generation_task.prompt_generation_data["top_k"]
 
     cmd.upload_data(minio_client, bucket_name, file_path, data)
 
@@ -324,7 +324,7 @@ def process_jobs(worker_state):
             generation_task = GenerationTask.from_dict(job)
 
             try:
-                if task_type == 'inpainting_generation_task':
+                if task_type == 'inpainting_sd_1_5':
                     output_file_path, output_file_hash, img_data, seed, inpainting_latent = run_inpainting_generation_task(worker_state,
                                                                                                   generation_task)
 
@@ -350,7 +350,7 @@ def process_jobs(worker_state):
                         prompt_embedding_signed_max_pooled,))
                     thread.start()
 
-                elif task_type == 'image_generation_task':
+                elif task_type == 'image_generation_sd_1_5':
                     output_file_path, output_file_hash, img_data, latent, seed = run_image_generation_task(worker_state,
                                                                                                    generation_task)
 

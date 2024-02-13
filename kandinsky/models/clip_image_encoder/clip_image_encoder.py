@@ -79,6 +79,26 @@ class KandinskyCLIPImageEncoder(nn.Module):
             )
         
         return features
+    
+    def get_image_features(self, image):
+        # Preprocess image
+        # Compute CLIP features
+        if isinstance(image, PIL.Image.Image):
+            image = (
+                self.image_processor(image, return_tensors="pt")
+                .pixel_values[0]
+                .unsqueeze(0)
+                .to(dtype=self.vision_model.dtype, device=self.device)
+            )
+        
+        if isinstance(image, torch.Tensor):
+            features = self.vision_model(image)["image_embeds"]
+        else:
+            raise ValueError(
+                f"`image` can only contains elements to be of type `PIL.Image.Image` or `torch.Tensor`  but is {type(image)}"
+            )
+        
+        return features
 
     @staticmethod
     def compute_sha256(image_data):
