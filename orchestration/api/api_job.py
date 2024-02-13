@@ -846,44 +846,45 @@ from minio import Minio
 import os
 from tqdm import tqdm  # Import tqdm
 
-router = APIRouter()
 
 # Assuming minio_client and bucket_name are initialized correctly
 
 @router.post("/update-prompt-data-from-msgpack/")
 async def update_prompt_data_from_msgpack(request: Request):
-    # Fetch documents that need updating
     documents = list(request.app.completed_jobs_collection.find({
         "task_type": {"$in": ["image_generation_sd_1_5", "inpainting_sd_1_5"]}
     }))
 
-    # Use tqdm to wrap the documents iterator for a progress bar
     for doc in tqdm(documents, desc="Updating documents"):
         output_file_path = doc.get("task_output_file_dict", {}).get("output_file_path")
         if not output_file_path:
-            continue
+            continue  # Skip if output file path is not found
 
-        # Construct the msgpack file name and path
         base_name = os.path.splitext(os.path.basename(output_file_path))[0]
         msgpack_file_name = f"{base_name}_data.msgpack"
         msgpack_file_path = os.path.join(os.path.dirname(output_file_path), msgpack_file_name)
-        print(msgpack_file_path)
-        # Fetch and unpack the msgpack file
+
         try:
             bucket_name, msgpack_file_path = separate_bucket_and_file_path(msgpack_file_path)
-            response = cmd.get_file_from_minio(request.app.minio_client,bucket_name, msgpack_file_path)
+            response = request.app.minio_client.get_object(bucket_name, msgpack_file_path)
             data = msgpack.unpackb(response.read())
         except Exception as e:
-            print(f"Error fetching or unpacking msgpack file: {e}")
-            continue
+            continue  # Skip if there's an error fetching or unpacking msgpack file
 
-        # Extract required fields and update the document
+        # Extract required fields from msgpack data
+        new_prompt_score = data.get("prompt_score")
+
+        # Optionally print old and new prompt score for comparison
+        old_prompt_score = doc.get("task_input_dict", {}).get("prompt_score", "Not available")
+        print(f"Doc ID: {doc['_id']}, Old Prompt Score: {old_prompt_score}, New Prompt Score: {new_prompt_score}")
+
+        # Update the MongoDB document with new prompt generation data
         prompt_generation_data = {
             "prompt_generation_policy": data.get("prompt_generation_policy"),
             "prompt_scoring_model": data.get("prompt_scoring_model"),
-            "prompt_score": data.get("prompt_score")
+            "prompt_score": new_prompt_score
         }
-        update_result = request.app.completed_jobs_collection.update_one(
+        request.app.completed_jobs_collection.update_one(
             {"_id": doc["_id"]},
             {"$set": {"prompt_generation_data": prompt_generation_data}}
         )
