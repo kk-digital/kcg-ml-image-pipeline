@@ -339,7 +339,7 @@ def process_jobs(worker_state):
 
             job['task_start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             generation_task = GenerationTask.from_dict(job)
-            info(thread_state, f"task dict {generation_task.to_dict().prompt_generation_data}.")
+            info(thread_state, f"task dict {generation_task.to_dict()}.")
 
             try:
                 if task_type == 'inpainting_kandinsky':
