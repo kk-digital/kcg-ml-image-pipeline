@@ -10,6 +10,7 @@ from .api_utils import PrettyJSONResponse
 from typing import List
 import json
 import paramiko
+from typing import Optional
 import csv
 from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, AddJob, WasPresentResponse
 
@@ -411,8 +412,9 @@ def get_list_in_progress_jobs(request: Request):
 
 
 @router.get("/queue/image-generation/list-completed", response_class=PrettyJSONResponse)
-def get_list_completed_jobs(request: Request):
-    jobs = list(request.app.completed_jobs_collection.find({}))
+def get_list_completed_jobs(request: Request, limit: Optional[int] = Query(10, alias="limit")):
+    # Use the limit parameter in the find query to limit the results
+    jobs = list(request.app.completed_jobs_collection.find({}).limit(limit))
 
     for job in jobs:
         job.pop('_id', None)
@@ -420,8 +422,9 @@ def get_list_completed_jobs(request: Request):
     return jobs
 
 @router.get("/queue/image-generation/list-completed-by-dataset", response_class=PrettyJSONResponse)
-def get_list_completed_jobs_by_dataset(request: Request, dataset):
-    jobs = list(request.app.completed_jobs_collection.find({"task_input_dict.dataset": dataset}))
+def get_list_completed_jobs_by_dataset(request: Request, dataset, limit: Optional[int] = Query(10, alias="limit")):
+    # Use the limit parameter in the find query to limit the results
+    jobs = list(request.app.completed_jobs_collection.find({"task_input_dict.dataset": dataset}).limit(limit))
 
     for job in jobs:
         job.pop('_id', None)
@@ -746,44 +749,3 @@ def add_attributes_job_completed(
 
     return {"message": "Job attributes updated successfully."}
 
-
-
-@router.post("/worker-stats", response_class=PrettyJSONResponse)
-def get_worker_stats(csv_file_path: str = Query(...), ssh_key_path: str = Query(...), server_address: str = Query("123.176.98.90")):
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    
-    gpu_stats_all = []
-
-    try:
-        # Open the CSV file and read port numbers
-        with open(csv_file_path, mode='r', encoding='utf-8-sig') as csvfile:
-            csv_reader = csv.DictReader(csvfile)
-            for row in csv_reader:
-                port_number = int(row['port_numbers'])
-
-                try:
-                    # SSH connection for each port number
-                    ssh.connect(server_address, port=port_number, username='root', key_filename=ssh_key_path)
-
-                    # Command to retrieve GPU stats
-                    command = '''
-                    python -c "import json; import socket; import GPUtil; print(json.dumps([{\'id\': gpu.id, \'temperature\': gpu.temperature, \'load\': gpu.load, \'total_memory\': gpu.memoryTotal, \'used_memory\': gpu.memoryUsed, \'worker_name\': socket.gethostname()} for gpu in GPUtil.getGPUs()]))"
-                    '''
-                    stdin, stdout, stderr = ssh.exec_command(command)
-
-                    stderr_output = stderr.read().decode('utf-8')
-                    if stderr_output:
-                        print(f"Error on server {server_address}:{port_number}:", stderr_output)
-                        continue
-
-                    gpu_stats = json.loads(stdout.read().decode('utf-8'))
-                    gpu_stats_all.extend(gpu_stats)
-
-                finally:
-                    ssh.close()
-
-        return gpu_stats_all
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))

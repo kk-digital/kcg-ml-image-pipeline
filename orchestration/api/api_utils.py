@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from .mongo_schemas import TagDefinition, TagCategory
 from datetime import datetime
 from dateutil import parser
+from datetime import datetime
 
 
 
@@ -149,5 +150,98 @@ class ApiResponseHandler:
                 "errorString": error_string
             }
         )
+
+     
+
+
+class StandardSuccessResponseV1(BaseModel, Generic[T]):
+    request_url: str
+    request_dictionary: dict 
+    request_method: str
+    request_time_total: float
+    request_time_start: datetime 
+    request_time_finished: datetime
+    request_response_code: int 
+    response: T 
+
+
+class StandardErrorResponseV1(BaseModel):
+    request_error_string: str = ""
+    request_error_code: int = -1
+    request_url: str
+    request_dictionary: dict 
+    request_method: str
+    request_time_total: float
+    request_time_start: datetime 
+    request_time_finished: datetime
+    request_response_code: int 
+
+     
+class ApiResponseHandlerV1:
+    def __init__(self, request: Request):
+        self.url = str(request.url)
+        self.start_time = datetime.now() 
+
+    def _elapsed_time(self) -> float:
+        return datetime.now() - self.start_time
+    
+    @staticmethod
+    def listErrors(errors: List[int]) -> dict:
+        repsonse = {}
+        for err in errors:
+            repsonse[err] = {"model": StandardErrorResponseV1}
+        return repsonse
+
+    def create_success_response_v1(
+        self, 
+        response_data: dict,
+        request_dictionary:dict,
+        method:str,
+        http_status_code: int, 
+        request: Request, 
+        headers: dict = {"Cache-Control": "no-store"},
+    ):
+        # Validate the provided HTTP status code
+        if not 200 <= http_status_code < 300:
+            raise ValueError("Invalid HTTP status code for a success response. Must be between 200 and 299.")
+
+        response_content = {
+            "request_url": self.url,
+            "request_dictionary": request_dictionary,  # Or adjust how you access parameters
+            "request_method": method,
+            "request_time_total": str(self._elapsed_time()),
+            "request_time_start": self.start_time.isoformat(),  
+            "request_time_finished": datetime.now().isoformat(), 
+            "request_response_code": http_status_code,
+            "response": response_data
+        }
+        return PrettyJSONResponse(status_code=http_status_code, content=response_content, headers=headers)
+
+    def create_error_response_v1(
+            self,
+            error_code: ErrorCode,
+            error_string: str,
+            request_dictionary: dict,
+            http_status_code: int,
+            method:str,
+            request: Request,
+            headers: dict = {"Cache-Control": "no-store"},
+        ):
+            
+            response_content = {
+                "request_error_string": error_string,
+                "request_error_code": error_code.value,  # Using .name for the enum member name
+                "request_url": self.url,
+                "request_dictionary": request_dictionary,  # Convert query params to a more usable dict format
+                "request_method": method,
+                "request_time_total": str(self._elapsed_time()),
+                "request_time_start": self.start_time.isoformat(),
+                "request_time_finished": datetime.now().isoformat(),
+                "request_response_code": http_status_code
+            }
+            return PrettyJSONResponse(status_code=http_status_code, content=response_content, headers=headers)
+
+            
+        
 
      
