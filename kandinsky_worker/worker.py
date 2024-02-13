@@ -235,7 +235,7 @@ def upload_image_data_and_update_job_status(worker_state,
 
     positive_prompts = generation_task.task_input_dict["positive_prompt"]
     negative_prior_prompt = generation_task.task_input_dict["negative_prior_prompt"]
-    negative_encoder_prompt = generation_task.task_input_dict["negative_encoder_prompt"]
+    negative_decoder_prompt = generation_task.task_input_dict["negative_decoder_prompt"]
 
     image_width = generation_task.task_input_dict["image_width"]
     image_height = generation_task.task_input_dict["image_height"]
@@ -262,7 +262,7 @@ def upload_image_data_and_update_job_status(worker_state,
                              output_file_hash,
                              positive_prompts,
                              negative_prior_prompt,
-                             negative_encoder_prompt,
+                             negative_decoder_prompt,
                              image_width,
                              image_height,
                              strength,

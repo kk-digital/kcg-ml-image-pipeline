@@ -61,14 +61,14 @@ def save_images(images: torch.Tensor, dest_path: str, img_format: str = 'jpeg'):
 
 
 def save_image_data_to_minio(minio_client, job_uuid, creation_time, dataset, file_path, file_hash, 
-                             positive_prompt, negative_prior_prompt, negative_encoder_prompt,
+                             positive_prompt, negative_prior_prompt, negative_decoder_prompt,
                              image_width, image_height, strength, decoder_steps, prior_steps,
                              prior_guidance_scale, decoder_guidance_scale, prompt_scoring_model,
                              prompt_score, prompt_generation_policy, top_k):
     bucket_name, file_path = separate_bucket_and_file_path(file_path)
 
     generated_image_data = GeneratedImageData(job_uuid, creation_time, dataset, file_path, file_hash, positive_prompt,
-                                              negative_prior_prompt, negative_encoder_prompt,
+                                              negative_prior_prompt, negative_decoder_prompt,
                                               image_width, image_height, strength, decoder_steps, prior_steps,
                                               prior_guidance_scale, decoder_guidance_scale, prompt_scoring_model,
                                               prompt_score, prompt_generation_policy, top_k)
