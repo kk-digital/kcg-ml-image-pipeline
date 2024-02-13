@@ -259,15 +259,15 @@ def get_images_metadata(
     # Construct the initial query
     query = {
         '$or': [
-            {'task_type': 'image_generation_task'},
-            {'task_type': 'inpainting_generation_task'}
+            {'task_type': 'image_generation_sd_1_5'},
+            {'task_type': 'inpainting_sd_1_5'}
         ],
         'task_input_dict.dataset': dataset
     }
 
     # Optionally add prompt_generation_policy to the query if provided
     if prompt_generation_policy:
-        query['task_input_dict.prompt_generation_policy'] = prompt_generation_policy
+        query['prompt_generation_data.prompt_generation_policy'] = prompt_generation_policy
 
     # Update the query based on provided start_date, end_date, and threshold_time_str
     if start_date and end_date:
@@ -293,7 +293,7 @@ def get_images_metadata(
             'task_type': job.get('task_type'),
             'image_path': job['task_output_file_dict'].get('output_file_path'),
             'image_hash': job['task_output_file_dict'].get('output_file_hash'),
-            'prompt_generation_policy': job['task_input_dict'].get('prompt_generation_policy', prompt_generation_policy)  # Include the policy if present
+            'prompt_generation_policy': job['prompt_generation_data'].get('prompt_generation_policy', prompt_generation_policy)  # Include the policy if present
         }
         # If prompt_generation_policy is not a filter or if it matches the job's policy, append the metadata
         if not prompt_generation_policy or image_meta_data['prompt_generation_policy'] == prompt_generation_policy:

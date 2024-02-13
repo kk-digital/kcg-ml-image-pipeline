@@ -198,7 +198,6 @@ class ApiResponseHandlerV1:
         request_dictionary:dict,
         method:str,
         http_status_code: int, 
-        request: Request, 
         headers: dict = {"Cache-Control": "no-store"},
     ):
         # Validate the provided HTTP status code
@@ -224,7 +223,6 @@ class ApiResponseHandlerV1:
             request_dictionary: dict,
             http_status_code: int,
             method:str,
-            request: Request,
             headers: dict = {"Cache-Control": "no-store"},
         ):
             

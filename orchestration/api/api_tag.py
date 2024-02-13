@@ -3,7 +3,7 @@ from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
 from orchestration.api.mongo_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory
 from typing import Union
-from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagResponse, TagCountResponse
+from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagResponse, TagCountResponse, StandardSuccessResponseV1, ApiResponseHandlerV1
 import traceback
 from bson import ObjectId
 
@@ -1236,3 +1236,98 @@ def list_tag_categories(request: Request):
         traceback_str = traceback.format_exc()
         print(f"Exception Traceback:\n{traceback_str}")
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
+
+
+# New apis according new standards
+    
+from fastapi.encoders import jsonable_encoder
+
+
+@router.post("/add-new-tag-definition", 
+             status_code=201,
+             tags=["tags"],
+             description="Adds a new tag",
+             response_model=StandardSuccessResponseV1[TagDefinition],
+             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+def add_new_tag_definition(request: Request, tag_data: NewTagRequest):
+    response_handler = ApiResponseHandlerV1(request)
+    tag_data_dict = jsonable_encoder(tag_data)
+    try:
+        # Check for existing tag_category_id
+        if tag_data.tag_category_id is not None:
+            existing_category = request.app.tag_categories_collection.find_one(
+                {"tag_category_id": tag_data.tag_category_id}
+            )
+            if not existing_category:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS,
+                    error_string="Tag category not found",
+                    http_status_code=400,
+                    request_dictionary=tag_data_dict,
+                    method=request.method
+                )
+
+        # Check for existing tag_vector_index
+        if tag_data.tag_vector_index is not None:
+            existing_tag_with_index = request.app.tag_definitions_collection.find_one(
+                {"tag_vector_index": tag_data.tag_vector_index}
+            )
+            if existing_tag_with_index:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS,
+                    error_string= "Tag vector index already in use.",
+                    http_status_code=400,
+                    request_dictionary=tag_data_dict,
+                    method=request.method
+                )
+
+        # Generate new tag_id
+        last_entry = request.app.tag_definitions_collection.find_one({}, sort=[("tag_id", -1)])
+        new_tag_id = last_entry["tag_id"] + 1 if last_entry and "tag_id" in last_entry else 0
+
+        # Check if the tag definition exists by tag_string
+        existing_tag = request.app.tag_definitions_collection.find_one({"tag_string": tag_data.tag_string})
+        if existing_tag:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string="Tag definition already exists.",
+                http_status_code=400,
+                request_dictionary=tag_data_dict,
+                method=request.method
+            )
+
+        # Create the new tag object with only the specified fields
+        new_tag = {
+            "tag_id": new_tag_id,
+            "tag_string": tag_data.tag_string,
+            "tag_category_id": tag_data.tag_category_id,
+            "tag_description": tag_data.tag_description,
+            "tag_vector_index": tag_data.tag_vector_index if tag_data.tag_vector_index is not None else -1,
+            "deprecated": tag_data.deprecated,
+            "user_who_created": tag_data.user_who_created,
+            "creation_time": datetime.utcnow().isoformat()
+        }
+
+        # Insert new tag definition into the collection
+        inserted_id = request.app.tag_definitions_collection.insert_one(new_tag).inserted_id
+        new_tag = request.app.tag_definitions_collection.find_one({"_id": inserted_id})
+
+        new_tag = {k: str(v) if isinstance(v, ObjectId) else v for k, v in new_tag.items()}
+
+        return response_handler.create_success_response_v1(
+            response_data = new_tag,
+            http_status_code=201,
+            request_dictionary= tag_data_dict,  
+            method=request.method
+        )
+
+    except Exception as e:
+
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500,
+            request_dictionary= tag_data_dict, 
+            method=request.method
+)
+
