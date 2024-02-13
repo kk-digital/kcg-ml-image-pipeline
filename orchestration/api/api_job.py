@@ -13,6 +13,7 @@ import paramiko
 from typing import Optional
 import csv
 from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, AddJob, WasPresentResponse
+from pymongo import UpdateMany
 
 router = APIRouter()
 
@@ -747,3 +748,94 @@ def add_attributes_job_completed(
 
     return {"message": "Job attributes updated successfully."}
 
+
+@router.post("/update-tasks", status_code=200)
+async def update_task_definitions(request: Request):
+    # Define the updates for 'image_generation_task' and 'inpainting_generation_task'
+    update_operations = [
+        UpdateMany(
+            {"task_type": "image_generation_task"},
+            {
+                "$set": {
+                    "task_type": "image_generation_sd_1_5"
+                },
+                "$rename": {
+                    "sd_model_hash": "model_hash"
+                }
+            }
+        ),
+        UpdateMany(
+            {"task_type": "inpainting_generation_task"},
+            {
+                "$set": {
+                    "task_type": "inpainting_sd_1_5"
+                },
+                "$rename": {
+                    "sd_model_hash": "model_hash"
+                }
+            }
+        )
+    ]
+
+    # Perform the update operations
+    result = request.app.completed_jobs_collection.bulk_write(update_operations)
+
+    # Return the result of the update operation
+    return {
+        "matched_count": result.matched_count,
+        "modified_count": result.modified_count,
+        "acknowledged": result.acknowledged
+    }
+
+
+@router.post("/update-task-definitions/")
+async def update_task_definitions(request:Request):
+    # Update operation for 'image_generation_task'
+    image_update_result = request.app.completed_jobs_collection.update_many(
+        {"task_type": "image_generation_task"},
+        {
+            "$set": {
+                "task_type": "image_generation_sd_1_5",
+                "prompt_generation_data": {
+                    "prompt_generation_policy": "$task_input_dict.prompt_generation_policy",
+                    "prompt_scoring_model": "$task_input_dict.prompt_scoring_model",
+                    "prompt_score": "$task_input_dict.prompt_score"
+                }
+            },
+            "$rename": {"sd_model_hash": "model_hash"},
+            "$unset": {
+                "task_input_dict.prompt_generation_policy": "",
+                "task_input_dict.prompt_scoring_model": "",
+                "task_input_dict.prompt_score": ""
+            }
+        }
+    )
+    
+    # Update operation for 'inpainting_generation_task'
+    inpainting_update_result = request.app.completed_jobs_collection.update_many(
+        {"task_type": "inpainting_generation_task"},
+        {
+            "$set": {
+                "task_type": "inpainting_sd_1_5",
+                "prompt_generation_data": {
+                    "prompt_generation_policy": "$task_input_dict.prompt_generation_policy",
+                    "prompt_scoring_model": "$task_input_dict.prompt_scoring_model",
+                    "prompt_score": "$task_input_dict.prompt_score"
+                }
+            },
+            "$rename": {"sd_model_hash": "model_hash"},
+            "$unset": {
+                "task_input_dict.prompt_generation_policy": "",
+                "task_input_dict.prompt_scoring_model": "",
+                "task_input_dict.prompt_score": ""
+            }
+        }
+    )
+
+    # Return the combined result of the update operations
+    return {
+        "image_update_matched_count": image_update_result.matched_count,
+        "image_update_modified_count": image_update_result.modified_count,
+        "inpainting_update_matched_count": inpainting_update_result.matched_count,
+        "inpainting_update_modified_count": inpainting_update_result.modified_count,
+    }
