@@ -20,7 +20,7 @@ for document in documents:
         top_k_value = document['task_input_dict']['top_k']
         prompt_generation_data['top-k'] = top_k_value  # Add top-k to prompt_generation_data
         # Prepare to remove the original top_k field from task_input_dict
-        update_fields['$unset'] = {'task_input_dict.top_k': ""}
+        
     
     # Update prompt_generation_data with new values or structure
     update_fields['$set'] = {'prompt_generation_data': prompt_generation_data}
