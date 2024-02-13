@@ -98,7 +98,7 @@ def get_random_previously_ranked_image_list(
 
     match_query = {"task_input_dict.dataset": dataset, "_id": {"$nin": list(tried_ids)}}
     if prompt_generation_policy:
-        match_query["task_input_dict.prompt_generation_policy"] = prompt_generation_policy
+        match_query["prompt_generation_data.prompt_generation_policy"] = prompt_generation_policy
 
     # Apply the date/time filters
     if start_date and end_date:
@@ -177,7 +177,7 @@ def get_random_image_date_range(
 
     # Include prompt_generation_policy in the query if provided
     if prompt_generation_policy:
-        query['task_input_dict.prompt_generation_policy'] = prompt_generation_policy
+        query['prompt_generation_data.prompt_generation_policy'] = prompt_generation_policy
 
     aggregation_pipeline = [{"$match": query}]
     if size:
@@ -326,7 +326,7 @@ def get_random_image_with_time(
         "task_creation_time": {"$gte": threshold_time.strftime("%Y-%m-%dT%H:%M:%S")}
     }
     if prompt_generation_policy:
-        match_query["task_input_dict.prompt_generation_policy"] = prompt_generation_policy
+        match_query["prompt_generation_data.prompt_generation_policy"] = prompt_generation_policy
 
     # Use $match to filter documents based on dataset, creation time, and prompt_generation_policy
     documents = request.app.completed_jobs_collection.aggregate([
