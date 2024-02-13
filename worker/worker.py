@@ -232,10 +232,10 @@ def upload_image_data_and_update_job_status(worker_state,
     sampler_steps = generation_task.task_input_dict["sampler_steps"]
     dataset = generation_task.task_input_dict["dataset"]
 
-    prompt_scoring_model = generation_task.task_input_dict["prompt_scoring_model"]
-    prompt_score = generation_task.task_input_dict["prompt_score"]
-    prompt_generation_policy = generation_task.task_input_dict["prompt_generation_policy"]
-    top_k = generation_task.task_input_dict["top_k"]
+    prompt_scoring_model = generation_task.prompt_generation_data["prompt_scoring_model"]
+    prompt_score = generation_task.prompt_generation_data["prompt_score"]
+    prompt_generation_policy = generation_task.prompt_generation_data["prompt_generation_policy"]
+    top_k = generation_task.prompt_generation_data["top_k"]
 
     cmd.upload_data(minio_client, bucket_name, file_path, data)
 
