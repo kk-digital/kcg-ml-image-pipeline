@@ -25,10 +25,8 @@ def get_job(request: Request, task_type= None, model_type="sd_1_5"):
     if task_type:
         query["task_type"] = task_type
 
-    if model_type == "kandinsky":
-        query["task_type"] = {"$regex": "kandinsky"}
-    elif model_type == "sd":
-        query["task_type"] = {"$not": {"$regex": "kandinsky"}}
+    if model_type:    
+        query["task_type"] = {"$regex": model_type}
 
     # Query to find the n newest elements based on the task_completion_time
     job = request.app.pending_jobs_collection.find_one(query, sort=[("task_creation_time", pymongo.ASCENDING)])
