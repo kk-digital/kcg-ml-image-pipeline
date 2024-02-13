@@ -839,3 +839,53 @@ async def update_task_definitions(request:Request):
         "inpainting_update_matched_count": inpainting_update_result.matched_count,
         "inpainting_update_modified_count": inpainting_update_result.modified_count,
     }
+
+from pymongo import MongoClient
+import msgpack
+from minio import Minio
+import os
+from tqdm import tqdm  # Import tqdm
+
+router = APIRouter()
+
+# Assuming minio_client and bucket_name are initialized correctly
+
+@router.post("/update-prompt-data-from-msgpack/")
+async def update_prompt_data_from_msgpack(request: Request):
+    # Fetch documents that need updating
+    documents = list(request.app.completed_jobs_collection.find({
+        "task_type": {"$in": ["image_generation_sd_1_5", "inpainting_sd_1_5"]}
+    }))
+
+    # Use tqdm to wrap the documents iterator for a progress bar
+    for doc in tqdm(documents, desc="Updating documents"):
+        output_file_path = doc.get("task_output_file_dict", {}).get("output_file_path")
+        if not output_file_path:
+            continue
+
+        # Construct the msgpack file name and path
+        base_name = os.path.splitext(os.path.basename(output_file_path))[0]
+        msgpack_file_name = f"{base_name}_data.msgpack"
+        msgpack_file_path = os.path.join(os.path.dirname(output_file_path), msgpack_file_name)
+        print(msgpack_file_path)
+        # Fetch and unpack the msgpack file
+        try:
+            bucket_name, msgpack_file_path = separate_bucket_and_file_path(msgpack_file_path)
+            response = cmd.get_file_from_minio(request.app.minio_client,bucket_name, msgpack_file_path)
+            data = msgpack.unpackb(response.read())
+        except Exception as e:
+            print(f"Error fetching or unpacking msgpack file: {e}")
+            continue
+
+        # Extract required fields and update the document
+        prompt_generation_data = {
+            "prompt_generation_policy": data.get("prompt_generation_policy"),
+            "prompt_scoring_model": data.get("prompt_scoring_model"),
+            "prompt_score": data.get("prompt_score")
+        }
+        update_result = request.app.completed_jobs_collection.update_one(
+            {"_id": doc["_id"]},
+            {"$set": {"prompt_generation_data": prompt_generation_data}}
+        )
+
+    return {"message": "Update process completed"}
