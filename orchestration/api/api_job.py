@@ -875,7 +875,7 @@ async def update_prompt_data_from_msgpack(request: Request):
         new_prompt_score = data.get("prompt_score")
 
         # Optionally print old and new prompt score for comparison
-        old_prompt_score = doc.get("task_input_dict", {}).get("prompt_score", "Not available")
+        old_prompt_score = doc.get("prompt_generation_data", {}).get("prompt_score", "Not available")
         print(f"Doc ID: {doc['_id']}, Old Prompt Score: {old_prompt_score}, New Prompt Score: {new_prompt_score}")
 
         # Update the MongoDB document with new prompt generation data
