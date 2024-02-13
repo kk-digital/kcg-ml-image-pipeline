@@ -13,6 +13,7 @@ import paramiko
 from typing import Optional
 import csv
 from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, AddJob, WasPresentResponse
+from pymongo import UpdateMany
 
 router = APIRouter()
 
@@ -749,3 +750,145 @@ def add_attributes_job_completed(
 
     return {"message": "Job attributes updated successfully."}
 
+
+@router.post("/update-tasks", status_code=200)
+async def update_task_definitions(request: Request):
+    # Define the updates for 'image_generation_task' and 'inpainting_generation_task'
+    update_operations = [
+        UpdateMany(
+            {"task_type": "image_generation_task"},
+            {
+                "$set": {
+                    "task_type": "image_generation_sd_1_5"
+                },
+                "$rename": {
+                    "sd_model_hash": "model_hash"
+                }
+            }
+        ),
+        UpdateMany(
+            {"task_type": "inpainting_generation_task"},
+            {
+                "$set": {
+                    "task_type": "inpainting_sd_1_5"
+                },
+                "$rename": {
+                    "sd_model_hash": "model_hash"
+                }
+            }
+        )
+    ]
+
+    # Perform the update operations
+    result = request.app.completed_jobs_collection.bulk_write(update_operations)
+
+    # Return the result of the update operation
+    return {
+        "matched_count": result.matched_count,
+        "modified_count": result.modified_count,
+        "acknowledged": result.acknowledged
+    }
+
+
+@router.post("/update-task-definitions/")
+async def update_task_definitions(request:Request):
+    # Update operation for 'image_generation_task'
+    image_update_result = request.app.completed_jobs_collection.update_many(
+        {"task_type": "image_generation_task"},
+        {
+            "$set": {
+                "task_type": "image_generation_sd_1_5",
+                "prompt_generation_data": {
+                    "prompt_generation_policy": "$task_input_dict.prompt_generation_policy",
+                    "prompt_scoring_model": "$task_input_dict.prompt_scoring_model",
+                    "prompt_score": "$task_input_dict.prompt_score"
+                }
+            },
+            "$rename": {"sd_model_hash": "model_hash"},
+            "$unset": {
+                "task_input_dict.prompt_generation_policy": "",
+                "task_input_dict.prompt_scoring_model": "",
+                "task_input_dict.prompt_score": ""
+            }
+        }
+    )
+    
+    # Update operation for 'inpainting_generation_task'
+    inpainting_update_result = request.app.completed_jobs_collection.update_many(
+        {"task_type": "inpainting_generation_task"},
+        {
+            "$set": {
+                "task_type": "inpainting_sd_1_5",
+                "prompt_generation_data": {
+                    "prompt_generation_policy": "$task_input_dict.prompt_generation_policy",
+                    "prompt_scoring_model": "$task_input_dict.prompt_scoring_model",
+                    "prompt_score": "$task_input_dict.prompt_score"
+                }
+            },
+            "$rename": {"sd_model_hash": "model_hash"},
+            "$unset": {
+                "task_input_dict.prompt_generation_policy": "",
+                "task_input_dict.prompt_scoring_model": "",
+                "task_input_dict.prompt_score": ""
+            }
+        }
+    )
+
+    # Return the combined result of the update operations
+    return {
+        "image_update_matched_count": image_update_result.matched_count,
+        "image_update_modified_count": image_update_result.modified_count,
+        "inpainting_update_matched_count": inpainting_update_result.matched_count,
+        "inpainting_update_modified_count": inpainting_update_result.modified_count,
+    }
+
+from pymongo import MongoClient
+import msgpack
+from minio import Minio
+import os
+from tqdm import tqdm  # Import tqdm
+
+
+# Assuming minio_client and bucket_name are initialized correctly
+
+@router.post("/update-prompt-data-from-msgpack/")
+async def update_prompt_data_from_msgpack(request: Request):
+    documents = list(request.app.completed_jobs_collection.find({
+        "task_type": {"$in": ["image_generation_sd_1_5", "inpainting_sd_1_5"]}
+    }))
+
+    for doc in tqdm(documents, desc="Updating documents"):
+        output_file_path = doc.get("task_output_file_dict", {}).get("output_file_path")
+        if not output_file_path:
+            continue  # Skip if output file path is not found
+
+        base_name = os.path.splitext(os.path.basename(output_file_path))[0]
+        msgpack_file_name = f"{base_name}_data.msgpack"
+        msgpack_file_path = os.path.join(os.path.dirname(output_file_path), msgpack_file_name)
+
+        try:
+            bucket_name, msgpack_file_path = separate_bucket_and_file_path(msgpack_file_path)
+            response = request.app.minio_client.get_object(bucket_name, msgpack_file_path)
+            data = msgpack.unpackb(response.read())
+        except Exception as e:
+            continue  # Skip if there's an error fetching or unpacking msgpack file
+
+        # Extract required fields from msgpack data
+        new_prompt_score = data.get("prompt_score")
+
+        # Optionally print old and new prompt score for comparison
+        old_prompt_score = doc.get("prompt_generation_data", {}).get("prompt_score", "Not available")
+        print(f"Doc ID: {doc['_id']}, Old Prompt Score: {old_prompt_score}, New Prompt Score: {new_prompt_score}")
+
+        # Update the MongoDB document with new prompt generation data
+        prompt_generation_data = {
+            "prompt_generation_policy": data.get("prompt_generation_policy"),
+            "prompt_scoring_model": data.get("prompt_scoring_model"),
+            "prompt_score": new_prompt_score
+        }
+        request.app.completed_jobs_collection.update_one(
+            {"_id": doc["_id"]},
+            {"$set": {"prompt_generation_data": prompt_generation_data}}
+        )
+
+    return {"message": "Update process completed"}

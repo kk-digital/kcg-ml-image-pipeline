@@ -73,8 +73,8 @@ def get_number_generated_images_per_day(request: Request, start_date: str = Quer
         # Construct the query for the current day
         query = {
             '$or': [
-                {'task_type': 'image_generation_task'},
-                {'task_type': 'inpainting_generation_task'}
+                {'task_type': 'image_generation_sd_1_5'},
+                {'task_type': 'inpainting_sd_1_5'}
             ],
             'task_completion_time': {
                 '$gte': current_date.strftime("%Y-%m-%d %H:%M:%S"),
