@@ -29,6 +29,7 @@ from utility.boltzman.boltzman import find_first_element_binary_search, get_cumu
 from utility.minio import cmd
 from utility.http import request
 from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix, load_base_prompts, generate_inpainting_job
+from kandinsky_worker.prompt_generation.prompt_generator import generate_image_generation_jobs_with_kandinsky, generate_inpainting_job_with_kandinsky
 from scripts.prompt_mutator.DataLoaders.FixedProbabilitiesDataLoader import FixedProbabilitiesDataLoader
 from scripts.prompt_mutator.DataLoaders.IndependantApproximationDataLoader import IndependantApproximationDataLoader
 
@@ -855,9 +856,10 @@ class PromptSubstitutionGenerator:
                 if self.send_job:
                     try:
                         if self.model_dataset in ["environmental", "propaganda-poster", "waifu"]:
-                            response = generate_image_generation_jobs(
+                            response = generate_image_generation_jobs_with_kandinsky(
                                 positive_prompt=prompt['positive_prompt'],
-                                negative_prompt=prompt['negative_prompt'],
+                                negative_prior_prompt="",
+                                negative_decoder_prompt="",
                                 prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
                                 prompt_score=prompt_score,
                                 prompt_generation_policy=GENERATION_POLICY,
