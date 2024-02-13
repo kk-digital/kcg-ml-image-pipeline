@@ -145,7 +145,7 @@ class KandinskyPipeline:
         images, latents = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
                          num_inference_steps=self.decoder_steps, height=self.height,
                          width=self.width, guidance_scale=self.decoder_guidance_scale,
-                         image=initial_img, mask_image=img_mask).images
+                         image=initial_img, mask_image=img_mask)
         return images[0], latents
     
     def generate_text2img(
@@ -166,7 +166,7 @@ class KandinskyPipeline:
             negative_emb = negative_emb.image_embeds
         images, latents = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
                          num_inference_steps=self.decoder_steps, height=height,
-                         width=width, guidance_scale=self.decoder_guidance_scale).images
+                         width=width, guidance_scale=self.decoder_guidance_scale)
         return images[0], latents
 
     def generate_img2img(
