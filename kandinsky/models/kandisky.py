@@ -210,7 +210,7 @@ class KandinskyPipeline:
                 image=None,
                 negative_image_embeds= None,
                 image_embeds=image_embeds, 
-                guidance_scale=self.decoder_guidance_scale,
+                guidance_scale=0,
                 num_inference_steps=self.decoder_steps,
                 height=height,
                 width=width,
