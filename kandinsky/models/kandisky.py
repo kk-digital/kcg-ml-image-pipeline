@@ -212,10 +212,10 @@ class KandinskyPipeline:
                 negative_image_embeds= None,
                 image_embeds=image_embeds, 
                 guidance_scale=0,
-                num_inference_steps=self.decoder_steps,
+                num_inference_steps=0,
                 height=height,
                 width=width,
-                strength= 0,
+                strength= self.strength,
                 generator=torch.Generator(device="cuda").manual_seed(42)
             ).images
         
