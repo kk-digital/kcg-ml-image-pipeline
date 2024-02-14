@@ -77,7 +77,7 @@ class KandinskyCLIPImageEncoder(nn.Module):
         
         return features
     
-    def get_image_features(self, image, return_latents=False):
+    def get_image_features(self, image):
         # Preprocess image
         if isinstance(image, PIL.Image.Image):
             image = self.image_processor(image, return_tensors="pt")['pixel_values']
@@ -85,18 +85,13 @@ class KandinskyCLIPImageEncoder(nn.Module):
          # Compute CLIP features
         if isinstance(image, torch.Tensor):
             with torch.no_grad():
-                features = self.vision_model(pixel_values= image.to(self.device).half())
+                features = self.vision_model(pixel_values= image.to(self.device).half()).image_embeds
         else:
             raise ValueError(
                 f"`image` can only contains elements to be of type `PIL.Image.Image` or `torch.Tensor`  but is {type(image)}"
             )
         
-        image_embs= features.image_embeds.to(torch.float16)
-        if return_latents:
-            latents= features.latents.to(torch.float16)
-            return image_embs, latents
-        
-        return image_embs
+        return features.to(torch.float16)
 
     @staticmethod
     def compute_sha256(image_data):
