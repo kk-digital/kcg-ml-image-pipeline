@@ -293,7 +293,7 @@ def upload_image_data_and_update_job_status(worker_state,
 
     # add clip calculation task
     clip_calculation_job = {"uuid": "",
-                            "task_type": "clip_calculation_task",
+                            "task_type": "clip_calculation_task_sd_1_5",
                             "task_input_dict": {
                                 "input_file_path": output_file_path,
                                 "input_file_hash": output_file_hash
@@ -377,7 +377,7 @@ def process_jobs(worker_state):
                         prompt_embedding_max_pooled, prompt_embedding_signed_max_pooled,))
                     thread.start()
 
-                elif task_type == 'clip_calculation_task':
+                elif task_type == 'clip_calculation_task_sd_1_5':
                     output_file_path, output_file_hash, clip_data = run_clip_calculation_task(worker_state,
                                                                                               generation_task)
 
@@ -437,7 +437,7 @@ def main():
     worker_type_list = get_worker_type_list(args.worker_type)
 
     load_clip = False
-    if 'clip_calculation_task' in worker_type_list or len(worker_type_list) == 0:
+    if 'clip_calculation_task_sd_1_5' in worker_type_list or len(worker_type_list) == 0:
         load_clip = True
 
     # Initialize worker state
