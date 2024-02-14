@@ -80,6 +80,7 @@ class IterativePainter:
         # self.image_embedder.load_clip()
             
         self.image_embedder= KandinskyCLIPImageEncoder(device=self.device)
+        self.image_embedder.load_submodels()
 
         self.scoring_model= self.load_scoring_model()
 
