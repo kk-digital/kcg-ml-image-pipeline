@@ -284,8 +284,8 @@ class IterativePainter:
         cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/text2img.png" , img_byte_arr)
     
     def test_img2img(self):
-        init_image= Image.open("input/test_image.jpg").convert("RGB").resize((512,512))
-        guidance_img= Image.open("input/input_image.jpg").convert("RGB").resize((512,512))
+        init_image= Image.open("input/input_image.jpg")
+        guidance_img= Image.open("input/test_image.jpg")
 
         image_emb=self.image_embedder.get_image_features(guidance_img)
 
