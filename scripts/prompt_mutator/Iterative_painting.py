@@ -19,7 +19,7 @@ from worker.image_generation.scripts.inpaint_A1111 import StableDiffusionProcess
 from kandinsky.models.kandisky import KandinskyPipeline
 from utility.minio import cmd
 from utility.clip import clip
-from utility import masking
+from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
 
 OUTPUT_PATH="environmental/output/iterative_painting"
 
@@ -76,8 +76,10 @@ class IterativePainter:
         else:
             self.device = 'cpu'
 
-        self.image_embedder= clip.ClipModel(device=torch.device(self.device))
-        self.image_embedder.load_clip()
+        # self.image_embedder= clip.ClipModel(device=torch.device(self.device))
+        # self.image_embedder.load_clip()
+            
+        self.image_embedder= KandinskyCLIPImageEncoder(device=self.device)
 
         self.scoring_model= self.load_scoring_model()
 
@@ -281,14 +283,15 @@ class IterativePainter:
         cmd.upload_data(self.minio_client, 'datasets', OUTPUT_PATH + f"/text2img.png" , img_byte_arr)
     
     def test_img2img(self):
-        prompt="steampunk background, 2D environmental art side scrolling, good form, ominous lighting, last boss, lab coat, ecosystem, inside a cave, long messy twintails, extraeyes, rainforest, copper pipes, undewear, moonrays, majesty, perky nipples, thunderbolt, around crowd, no neck"
         init_image= Image.open("input/test_image.jpg")
+
+        image_emb=self.image_embedder.get_image_features(init_image)
 
         self.pipeline.unload_models()
         self.pipeline.load_models(task_type="img2img")
-        
-        result_image= self.pipeline.generate_img2img(prompt=prompt, 
-                                                     image=init_image)
+
+
+        result_image= self.pipeline.generate_img2img(image_embeds=image_emb)
 
         img_byte_arr = io.BytesIO()
         result_image.save(img_byte_arr, format="png")
@@ -322,7 +325,7 @@ def main():
                                   substitution_batch_size=args.substitution_batch_size)
    
    Painter= IterativePainter(prompt_generator= prompt_generator)
-   Painter.paint_image()
+   Painter.test_img2img()
 
 if __name__ == "__main__":
     main()
