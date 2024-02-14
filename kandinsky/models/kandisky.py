@@ -176,42 +176,30 @@ class KandinskyPipeline:
                             width=width, guidance_scale=self.decoder_guidance_scale)
         return images[0], latents
 
-    # def generate_img2img(
-    #     self,
-    #     image,
-    #     prompt="",
-    #     negative_prior_prompt="",
-    #     negative_decoder_prompt=""
-    # ):
-    #     height, width = self.get_new_h_w(self.height, self.width)
-    #     img_emb = self.prior(prompt=prompt, num_inference_steps=self.prior_steps,
-    #                     num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale,
-    #                     negative_prompt=negative_prior_prompt)
-    #     negative_emb = self.prior(prompt=negative_prior_prompt, num_inference_steps=self.prior_steps,
-    #                          num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale)
-    #     if negative_decoder_prompt == "":
-    #         negative_emb = negative_emb.negative_image_embeds
-    #     else:
-    #         negative_emb = negative_emb.image_embeds
-    #     images = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
-    #                      num_inference_steps=self.decoder_steps, height=height,
-    #                      width=width, guidance_scale=self.decoder_guidance_scale,
-    #                          strength=self.strength, image=image).images
-    #     return images[0]
+    def get_zero_embed(self, batch_size=1):
+        zero_img = torch.zeros(1, 3, self.width, self.height).to(
+            device=self.device, dtype=self.image_encoder.dtype
+        )
+        zero_image_emb = self.image_encoder(zero_img)["image_embeds"]
+        zero_image_emb = zero_image_emb.repeat(batch_size, 1)
+        return zero_image_emb
 
     def generate_img2img(
         self,
         image_embeds,
-        image
+        image,
+        negative_image_embeds=None
     ):
         height, width = self.get_new_h_w(self.height, self.width)
-
+        if negative_image_embeds==None:
+            negative_image_embeds= self.get_zero_embed()
+        
         with torch.no_grad():
             result_image = self.decoder(
                 image=image,
-                negative_image_embeds= None,
-                image_embeds=image_embeds, 
-                guidance_scale=0,
+                image_embeds=image_embeds,
+                negative_image_embeds= negative_image_embeds, 
+                guidance_scale=self.decoder_guidance_scale,
                 num_inference_steps=self.decoder_steps,
                 height=height,
                 width=width,
