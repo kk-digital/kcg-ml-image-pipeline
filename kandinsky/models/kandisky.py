@@ -215,7 +215,7 @@ class KandinskyPipeline:
                 num_inference_steps=self.decoder_steps,
                 height=height,
                 width=width,
-                strength= self.strength,
+                strength= 0,
                 generator=torch.Generator(device="cuda").manual_seed(42)
             ).images
         
