@@ -15,15 +15,19 @@ documents = list(collection.find({"task_type": {"$in": task_types_to_update}}))
 
 # Use tqdm to show progress
 for doc in tqdm(documents, desc="Updating documents"):
-    # Construct a new document with the desired field order
+    # Skip documents without 'task_attributes_dict'
+    if 'task_attributes_dict' not in doc:
+        continue
+    
+    # Construct a new document with the desired field order, safely accessing 'task_attributes_dict'
     new_doc = {
-        "_id": doc["_id"],  # Preserve the original _id
+        "_id": doc["_id"],
         "task_type": doc["task_type"],
         "uuid": doc["uuid"],
         "model_name": doc["model_name"],
         "model_file_name": doc["model_file_name"],
         "model_file_path": doc["model_file_path"],
-        "model_hash": doc.get("model_hash"),  # Place model_hash here
+        "model_hash": doc.get("model_hash"),  # Use .get() to safely access 'model_hash'
         "task_creation_time": doc["task_creation_time"],
         "task_start_time": doc["task_start_time"],
         "task_completion_time": doc["task_completion_time"],
@@ -31,7 +35,7 @@ for doc in tqdm(documents, desc="Updating documents"):
         "task_input_dict": doc["task_input_dict"],
         "task_input_file_dict": doc.get("task_input_file_dict"),
         "task_output_file_dict": doc["task_output_file_dict"],
-        "task_attributes_dict": doc["task_attributes_dict"],
+        "task_attributes_dict": doc["task_attributes_dict"],  # Already checked for existence
         "prompt_generation_data": doc.get("prompt_generation_data"),
     }
     
