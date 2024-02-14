@@ -177,7 +177,7 @@ class KandinskyPipeline:
         return images[0], latents
 
     def get_zero_embed(self, batch_size=1):
-        zero_img = torch.zeros(1, 3, self.width, self.height).to(
+        zero_img = torch.zeros(1, 3, self.image_encoder.config.image_size, self.image_encoder.config.image_size).to(
             device=self.device, dtype=self.image_encoder.dtype
         )
         zero_image_emb = self.image_encoder(zero_img)["image_embeds"]
