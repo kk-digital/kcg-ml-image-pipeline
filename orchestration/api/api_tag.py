@@ -6,6 +6,8 @@ from typing import Union
 from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagResponse, TagCountResponse, StandardSuccessResponseV1, ApiResponseHandlerV1
 import traceback
 from bson import ObjectId
+from fastapi.encoders import jsonable_encoder
+
 
 
 router = APIRouter()
@@ -172,35 +174,41 @@ def add_new_tag_definition(request: Request, tag_data: NewTagRequest):
 
       
 
-@router.get("/tags/id-by-tag-name", 
+@router.get("/tags/get-tag-id-by-tag-name", 
              status_code=200,
              tags=["tags"],
              description="Get tag ID by tag name")
 def get_tag_id_by_name(request: Request, tag_string: str = Query(..., description="Tag name to fetch ID for")):
-    api_handler = ApiResponseHandler(request)
+    api_handler = ApiResponseHandlerV1(request)
 
     try:
         # Find the tag with the provided name
         tag = request.app.tag_definitions_collection.find_one({"tag_string": tag_string})
 
         if tag is None:
-            return api_handler.create_error_response(
+            return api_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS,
                 error_string="Tag not found",
-                http_status_code=404
+                http_status_code=404,
+                request_dictionary=dict(request.query_params),
+                method=request.method
             )
 
         tag_id = tag.get("tag_id")
-        return api_handler.create_success_response(
+        return api_handler.create_success_response_v1(
             response_data={"tag_id": tag_id},
-            http_status_code=200
+            http_status_code=200,
+            request_dictionary=dict(request.query_params),
+            method=request.method
         )
 
     except Exception as e:
-        return api_handler.create_error_response(
+        return api_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
             error_string="Internal server error",
-            http_status_code=500
+            http_status_code=500,
+            request_dictionary=dict(request.query_params),
+            method=request.method
         )
 
 @router.put("/tags/update_tag_definition")
@@ -1240,7 +1248,6 @@ def list_tag_categories(request: Request):
 
 # New apis according new standards
     
-from fastapi.encoders import jsonable_encoder
 
 
 @router.post("/add-new-tag-definition", 
@@ -1331,3 +1338,77 @@ def add_new_tag_definition(request: Request, tag_data: NewTagRequest):
             method=request.method
 )
 
+
+
+
+@router.patch("/tags/update-tag-definition", 
+              tags=["deprecated"],
+              status_code=200,
+              description="Update tag definitions",
+              response_model=StandardSuccessResponse[TagDefinition], 
+              responses=ApiResponseHandler.listErrors([400, 404, 422, 500]))
+def update_tag_definition(request: Request, tag_id: int, update_data: NewTagRequest):
+    response_handler = ApiResponseHandlerV1(request)
+    tag_data_dict = jsonable_encoder(update_data)
+
+    query = {"tag_id": tag_id}
+    existing_tag = request.app.tag_definitions_collection.find_one(query)
+
+    if existing_tag is None:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+            error_string="Tag not found.", 
+            http_status_code=404,
+            request_dictionary=tag_data_dict,
+            method=request.method
+        )
+
+    # Check if the tag is deprecated
+    if existing_tag.get("deprecated", False):
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.INVALID_PARAMS, 
+            error_string="Cannot modify a deprecated tag.", 
+            http_status_code=400,
+            request_dictionary=tag_data_dict,
+            method=request.method
+        )
+
+    # Prepare update data
+    update_fields = {k: v for k, v in update_data.dict().items() if v is not None}
+
+    if not update_fields:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.INVALID_PARAMS, 
+            error_string="No fields to update.", 
+            http_status_code=400,
+            request_dictionary=tag_data_dict,
+            method=request.method
+        )
+
+    # Check if tag_vector_index is being updated and if it's already in use
+    if 'tag_vector_index' in update_fields:
+        index_query = {"tag_vector_index": update_fields['tag_vector_index']}
+        existing_tag_with_index = request.app.tag_definitions_collection.find_one(index_query)
+        if existing_tag_with_index and existing_tag_with_index['tag_id'] != tag_id:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS, 
+                error_string="Tag vector index already in use.", 
+                http_status_code=400,
+                request_dictionary=tag_data_dict,
+                method=request.method
+            )
+
+    # Update the tag definition
+    request.app.tag_definitions_collection.update_one(query, {"$set": update_fields})
+
+    # Retrieve the updated tag
+    updated_tag = request.app.tag_definitions_collection.find_one(query)
+
+    # Serialize ObjectId to string
+    updated_tag = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_tag.items()}
+
+    # Return the updated tag object
+    return response_handler.create_success_response_v1(response_data=updated_tag, 
+                                                       http_status_code=200,
+                                                       request_dictionary=tag_data_dict,
+                                                       method=request.method)

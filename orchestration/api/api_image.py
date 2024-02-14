@@ -260,7 +260,9 @@ def get_images_metadata(
     query = {
         '$or': [
             {'task_type': 'image_generation_sd_1_5'},
-            {'task_type': 'inpainting_sd_1_5'}
+            {'task_type': 'inpainting_sd_1_5'},
+            {'task_type': 'image_generation_kandinsky'},
+            {'task_type': 'inpainting_kandinsky'}
         ],
         'task_input_dict.dataset': dataset
     }

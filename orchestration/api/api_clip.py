@@ -331,7 +331,7 @@ def get_random_image_similarity_date_range(
 
     # Include prompt_generation_policy in the query if provided
     if prompt_generation_policy:
-        query['task_input_dict.prompt_generation_policy'] = prompt_generation_policy
+        query['prompt_generation_data.prompt_generation_policy'] = prompt_generation_policy
 
     aggregation_pipeline = [{"$match": query}]
     if size:
