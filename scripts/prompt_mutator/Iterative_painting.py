@@ -292,7 +292,7 @@ class IterativePainter:
         self.pipeline.load_models(task_type="img2img")
 
 
-        result_image= self.pipeline.generate_img2img(image_embeds=None, image=image_emb)
+        result_image= self.pipeline.generate_img2img(image_embeds=image_emb, image=image_emb)
 
         img_byte_arr = io.BytesIO()
         result_image.save(img_byte_arr, format="png")
