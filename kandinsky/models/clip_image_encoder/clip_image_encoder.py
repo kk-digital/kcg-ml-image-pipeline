@@ -31,6 +31,7 @@ class KandinskyCLIPImageEncoder(nn.Module):
         try:
             self.vision_model = (CLIPVisionModelWithProjection.from_pretrained(encoder_path,
                                                                                subfolder="image_encoder",
+                                                                               torch_dtype=torch.float16,
                                                                                local_files_only=True).eval().to(self.device))
             
             logger.info(f"CLIP VisionModelWithProjection successfully loaded from : {encoder_path}/image_encoder \n")
@@ -67,7 +68,8 @@ class KandinskyCLIPImageEncoder(nn.Module):
             image = self.image_processor(image, return_tensors="pt")['pixel_values']
         
         if isinstance(image, torch.Tensor):
-            features = self.vision_model(pixel_values= image.to(self.device)).image_embeds
+            with torch.no_grad():
+                features = self.vision_model(pixel_values= image.to(self.device)).image_embeds
         else:
             raise ValueError(
                 f"`image` can only contains elements to be of type `PIL.Image.Image` or `torch.Tensor`  but is {type(image)}"
@@ -82,13 +84,14 @@ class KandinskyCLIPImageEncoder(nn.Module):
         
          # Compute CLIP features
         if isinstance(image, torch.Tensor):
-            features = self.vision_model(pixel_values= image.to(self.device)).image_embeds
+            with torch.no_grad():
+                features = self.vision_model(pixel_values= image.to(self.device)).image_embeds
         else:
             raise ValueError(
                 f"`image` can only contains elements to be of type `PIL.Image.Image` or `torch.Tensor`  but is {type(image)}"
             )
         
-        return features
+        return features.to(torch.float16)
 
     @staticmethod
     def compute_sha256(image_data):
