@@ -69,7 +69,7 @@ class KandinskyCLIPImageEncoder(nn.Module):
         
         if isinstance(image, torch.Tensor):
             with torch.no_grad():
-                features = self.vision_model(pixel_values= image.to(self.device)).image_embeds
+                features = self.vision_model(pixel_values= image.to(self.device).half()).image_embeds
         else:
             raise ValueError(
                 f"`image` can only contains elements to be of type `PIL.Image.Image` or `torch.Tensor`  but is {type(image)}"
@@ -85,7 +85,7 @@ class KandinskyCLIPImageEncoder(nn.Module):
          # Compute CLIP features
         if isinstance(image, torch.Tensor):
             with torch.no_grad():
-                features = self.vision_model(pixel_values= image.to(self.device)).image_embeds
+                features = self.vision_model(pixel_values= image.to(self.device).half()).image_embeds
         else:
             raise ValueError(
                 f"`image` can only contains elements to be of type `PIL.Image.Image` or `torch.Tensor`  but is {type(image)}"
