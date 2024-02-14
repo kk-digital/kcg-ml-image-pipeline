@@ -212,7 +212,7 @@ class KandinskyPipeline:
                 negative_image_embeds= None,
                 image_embeds=image_embeds, 
                 guidance_scale=0,
-                num_inference_steps=0,
+                num_inference_steps=1,
                 height=height,
                 width=width,
                 strength= self.strength,
