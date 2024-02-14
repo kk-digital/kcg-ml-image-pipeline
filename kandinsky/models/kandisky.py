@@ -201,13 +201,14 @@ class KandinskyPipeline:
 
     def generate_img2img(
         self,
-        image_embeds
+        image_embeds,
+        image
     ):
         height, width = self.get_new_h_w(self.height, self.width)
 
         with torch.no_grad():
             result_image = self.decoder(
-                image=[],
+                image=image,
                 negative_image_embeds= None,
                 image_embeds=image_embeds, 
                 guidance_scale=0,
