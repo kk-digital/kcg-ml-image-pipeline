@@ -658,7 +658,7 @@ class PromptSubstitutionGenerator:
             if self.send_job:
                 try:
                     if self.model_dataset in ["environmental", "propaganda-poster", "waifu"]:
-                        response = generate_image_generation_jobs(
+                        response = generate_image_generation_jobs_with_kandinsky(
                             positive_prompt=prompt.positive_prompt,
                             negative_prompt=prompt.negative_prompt,
                             prompt_scoring_model=f'image-pair-ranking-{self.scoring_model}',
