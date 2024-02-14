@@ -207,7 +207,7 @@ class KandinskyPipeline:
 
         with torch.no_grad():
             result_image = self.decoder(
-                image=None,
+                image=[],
                 negative_image_embeds= None,
                 image_embeds=image_embeds, 
                 guidance_scale=0,
