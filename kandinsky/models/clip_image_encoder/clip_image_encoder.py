@@ -64,15 +64,10 @@ class KandinskyCLIPImageEncoder(nn.Module):
         # Preprocess image
         # Compute CLIP features
         if isinstance(image, PIL.Image.Image):
-            image = (
-                self.image_processor(image, return_tensors="pt")
-                .pixel_values[0]
-                .unsqueeze(0)
-                .to(dtype=self.vision_model.dtype, device=self.device)
-            )
+            image = self.image_processor(image, return_tensors="pt")['pixel_values']
         
         if isinstance(image, torch.Tensor):
-            features = self.vision_model(image)["image_embeds"]
+            features = self.vision_model(image.to(self.device).half())["image_embeds"]
         else:
             raise ValueError(
                 f"`image` can only contains elements to be of type `PIL.Image.Image` or `torch.Tensor`  but is {type(image)}"
