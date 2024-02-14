@@ -1250,7 +1250,7 @@ def list_tag_categories(request: Request):
     
 
 
-@router.post("/add-new-tag-definition", 
+@router.post("/tags/add-new-tag-definition", 
              status_code=201,
              tags=["tags"],
              description="Adds a new tag",
@@ -1342,11 +1342,11 @@ def add_new_tag_definition(request: Request, tag_data: NewTagRequest):
 
 
 @router.patch("/tags/update-tag-definition", 
-              tags=["deprecated"],
+              tags=["tags"],
               status_code=200,
               description="Update tag definitions",
-              response_model=StandardSuccessResponse[TagDefinition], 
-              responses=ApiResponseHandler.listErrors([400, 404, 422, 500]))
+              response_model=StandardSuccessResponseV1[TagDefinition], 
+              responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
 def update_tag_definition(request: Request, tag_id: int, update_data: NewTagRequest):
     response_handler = ApiResponseHandlerV1(request)
     tag_data_dict = jsonable_encoder(update_data)
@@ -1412,3 +1412,77 @@ def update_tag_definition(request: Request, tag_id: int, update_data: NewTagRequ
                                                        http_status_code=200,
                                                        request_dictionary=tag_data_dict,
                                                        method=request.method)
+
+@router.delete("/tags/remove-tag-definition", 
+               response_model=StandardSuccessResponseV1[WasPresentResponse], 
+               description="remove tag with tag_id", 
+               tags=["tags"], 
+               status_code=200,
+               responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+def remove_tag(request: Request, tag_id: int):
+    response_handler = ApiResponseHandlerV1(request)
+
+    # Check if the tag exists
+    tag_query = {"tag_id": tag_id}
+    tag = request.app.tag_definitions_collection.find_one(tag_query)
+
+    if tag is None:
+        # Return standard response with wasPresent: false
+        return response_handler.create_success_response_v1(response_data = {"wasPresent": False},
+                                                           http_status_code=201,
+                                                           request_dictionary= dict(request.query_params),
+                                                           method=request.method)
+
+    # Check if the tag is used in any images
+    image_query = {"tag_id": tag_id}
+    image_with_tag = request.app.image_tags_collection.find_one(image_query)
+
+    if image_with_tag is not None:
+        # Since it's used in images, do not delete but notify the client
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.INVALID_PARAMS,
+            error_string="Cannot remove tag, it is already used in images.",
+            http_status_code=400,
+            request_dictionary=dict(request.query_params),
+            method=request.method
+        )
+
+    # Remove the tag
+    request.app.tag_definitions_collection.delete_one(tag_query)
+
+    # Return standard response with wasPresent: true
+    return response_handler.create_success_response_v1(response_data = {"wasPresent": True},
+                                                       http_status_code=201,
+                                                       request_dictionary= dict(request.query_params),
+                                                       method=request.method)
+
+
+@router.get("/tags/list-tag-definitions", 
+            response_model=StandardSuccessResponseV1[TagsListResponse],
+            description="list tags",
+            tags=["tags"],
+            status_code=200,
+            responses=ApiResponseHandlerV1.listErrors([500]))
+def list_tag_definitions(request: Request):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        # Query all the tag definitions
+        tags_cursor = request.app.tag_definitions_collection.find({})
+
+        # Convert each tag document to TagDefinition and then to a dictionary
+        result = [TagDefinition(**tag).to_dict() for tag in tags_cursor]
+
+        return response_handler.create_success_response_v1(
+            response_data={"tags": result}, 
+            http_status_code=200,
+            request_dictionary=dict(request.query_params),
+            method=request.method)
+
+    except Exception as e:
+        traceback_str = traceback.format_exc()
+        print(f"Exception Traceback:\n{traceback_str}")
+        return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, 
+                                                         error_string="Internal server error", 
+                                                         http_status_code=500,
+                                                         request_dictionary=dict(request.query_params),
+                                                         method=request.method)
