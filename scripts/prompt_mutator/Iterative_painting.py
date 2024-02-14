@@ -285,15 +285,14 @@ class IterativePainter:
     
     def test_img2img(self):
         init_image= Image.open("input/test_image.jpg").convert("RGB").resize((512,512))
+        guidance_img= Image.open("input/input_image.jpg").convert("RGB").resize((512,512))
 
-        image_emb=self.image_embedder.get_image_features(init_image)
+        image_emb=self.image_embedder.get_image_features(guidance_img)
 
         self.pipeline.unload_models()
         self.pipeline.load_models(task_type="img2img")
         
-        latent= self.pipeline.decoder.movq.encode(init_image)["latents"]
-        print(latent.shape)
-        result_image= self.pipeline.generate_img2img(image_embeds=image_emb, image=latent)
+        result_image= self.pipeline.generate_img2img(image_embeds=image_emb, image=init_image)
 
         img_byte_arr = io.BytesIO()
         result_image.save(img_byte_arr, format="png")
