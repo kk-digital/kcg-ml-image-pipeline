@@ -215,7 +215,9 @@ def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
     embedding_data = get_object(worker_state.minio_client, image_embeddings_path)
     embedding_dict = ImageEmbedding.from_msgpack_bytes(embedding_data)
     image_embedding= embedding_dict.image_embedding.to(worker_state.device)
-    negative_image_embedding= embedding_dict.negative_image_embedding.to(worker_state.device)
+    negative_image_embedding= embedding_dict.negative_image_embedding
+    if negative_image_embedding is not None:
+        negative_image_embedding= negative_image_embedding.to(worker_state.device)
 
     # generate image
     image, latents = img2img_processor.generate_img2img(init_img=init_image,
