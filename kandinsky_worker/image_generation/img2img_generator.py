@@ -45,8 +45,8 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
     # upload the image embeddings to minIO
     image_embedding_data= ImageEmbedding(job_uuid= task_uuid,
                                          dataset= dataset_name,
-                                         image_embedding= image_embedding,
-                                         negative_image_embedding= negative_image_embedding)
+                                         image_embedding= image_embedding.detach().cpu().numpy(),
+                                         negative_image_embedding= negative_image_embedding.detach().cpu().numpy())
     
     output_file_path = os.path.join("datasets", dataset_name, task_input_dict['file_path'])
     image_embeddings_path = output_file_path.replace(".jpg", "_embedding.msgpack")
