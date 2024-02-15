@@ -210,7 +210,7 @@ def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
     )
     
     # get the input image embeddings from minIO
-    output_file_path = os.path.join("datasets", dataset, generation_task.task_input_dict['file_path'])
+    output_file_path = os.path.join(dataset, generation_task.task_input_dict['file_path'])
     image_embeddings_path = output_file_path.replace(".jpg", "_embedding.msgpack")    
     embedding_data = get_object(worker_state.minio_client, image_embeddings_path)
     embedding_dict = ImageEmbedding.from_msgpack_bytes(embedding_data)
@@ -223,6 +223,7 @@ def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
                                                         negative_image_embeds= negative_image_embedding,
                                                         seed=seed)
 
+    output_file_path = os.path.join("datasets", output_file_path)
     # convert image to png from RGB
     output_file_hash, img_byte_arr = img2img_processor.convert_image_to_png(image)
 
