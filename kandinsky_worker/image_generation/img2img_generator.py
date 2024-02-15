@@ -16,8 +16,8 @@ from kandinsky_worker.dataloaders.image_embedding import ImageEmbedding
 def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
                                                     negative_image_embedding,
                                                     dataset_name,
-                                                    init_img_path="./test/test_inpainting/white_512x512.jpg",
-                                                    minio_client=None):
+                                                    minio_client,
+                                                    init_img_path="./test/test_inpainting/white_512x512.jpg"):
 
     # get sequential ids
     sequential_ids = request.http_get_sequential_id(dataset_name, 1)
@@ -59,9 +59,6 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
     buffer = io.BytesIO()
     buffer.write(msgpack_string)
     buffer.seek(0)
-
-    if minio_client is None:
-        minio_client= connect_to_minio_client()
 
     upload_data(minio_client, "datasets", image_embeddings_path, buffer) 
 
