@@ -191,8 +191,6 @@ def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
     dataset = generation_task.task_input_dict["dataset"]
 
     image_encoder=worker_state.clip.vision_model
-    unet = worker_state.unet
-    prior_model = worker_state.prior_model
     decoder_model = worker_state.img2img_decoder
 
     img2img_processor = KandinskyPipeline(
@@ -216,8 +214,8 @@ def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
     image_embeddings_path = output_file_path.replace(".jpg", "_embedding.msgpack")    
     embedding_data = get_object(worker_state.minio_client, image_embeddings_path)
     embedding_dict = ImageEmbedding.from_msgpack_bytes(embedding_data)
-    image_embedding= embedding_dict.image_embedding
-    negative_image_embedding= embedding_dict.negative_image_embedding
+    image_embedding= embedding_dict.image_embedding.to(worker_state.device)
+    negative_image_embedding= embedding_dict.negative_image_embedding.to(worker_state.device)
 
     # generate image
     image, latents = img2img_processor.generate_img2img(init_img=init_image,
