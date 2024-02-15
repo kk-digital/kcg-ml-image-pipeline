@@ -73,7 +73,7 @@ def run_image_generation_task(worker_state, generation_task):
     decoder_guidance_scale = generation_task.task_input_dict["decoder_guidance_scale"]
     dataset = generation_task.task_input_dict["dataset"]
 
-    image_encoder=worker_state.image_encoder
+    image_encoder=worker_state.clip.vision_model
     unet = worker_state.unet
     prior_model = worker_state.prior_model
     decoder_model = worker_state.decoder_model
@@ -135,7 +135,7 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
     decoder_guidance_scale = generation_task.task_input_dict["decoder_guidance_scale"]
     dataset = generation_task.task_input_dict["dataset"]
 
-    image_encoder=worker_state.image_encoder
+    image_encoder=worker_state.clip.vision_model
     unet = worker_state.unet
     prior_model = worker_state.prior_model
     decoder_model = worker_state.inpainting_decoder_model
@@ -190,7 +190,9 @@ def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
     decoder_guidance_scale = generation_task.task_input_dict["decoder_guidance_scale"]
     dataset = generation_task.task_input_dict["dataset"]
 
-    image_encoder=worker_state.image_encoder
+    image_encoder=worker_state.clip.vision_model
+    unet = worker_state.unet
+    prior_model = worker_state.prior_model
     decoder_model = worker_state.img2img_decoder
 
     img2img_processor = KandinskyPipeline(

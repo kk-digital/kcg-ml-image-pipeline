@@ -21,7 +21,6 @@ class WorkerState:
     def __init__(self, device, minio_access_key, minio_secret_key, queue_size):
         self.device = device
         self.config = ModelPathConfig()
-        self.image_encoder= None
         self.unet= None
         self.prior_model= None
         self.decoder_model= None
