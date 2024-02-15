@@ -195,7 +195,7 @@ class KandinskyPipeline:
             negative_image_embeds= self.get_zero_embed()
         
         with torch.no_grad():
-            result_image = self.decoder(
+            images, latents = self.decoder(
                 image=image,
                 image_embeds=image_embeds,
                 negative_image_embeds= negative_image_embeds, 
@@ -203,11 +203,10 @@ class KandinskyPipeline:
                 num_inference_steps=self.decoder_steps,
                 height=height,
                 width=width,
-                strength= self.strength,
-                generator=torch.Generator(device="cuda").manual_seed(42)
-            ).images
+                strength= self.strength
+            )
         
-        return result_image[0]
+        return images[0], latents
     
     def convert_image_to_png(self, image):
         # convert image to bytes arr
