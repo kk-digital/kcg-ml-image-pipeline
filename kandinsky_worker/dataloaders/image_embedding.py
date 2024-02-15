@@ -1,5 +1,6 @@
 import msgpack
 import numpy as np
+import torch
 
 
 class ImageEmbedding:
@@ -33,8 +34,8 @@ class ImageEmbedding:
 
         return cls(data["job_uuid"],
                    data["dataset"],
-                   data["image_embedding"],
-                   negative_image_embedding)
+                   torch.from_numpy(data["image_embedding"]),
+                   torch.from_numpy(negative_image_embedding))
 
     def get_msgpack_string(self):
         serialized = self.serialize()
