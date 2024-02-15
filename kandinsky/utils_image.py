@@ -9,6 +9,7 @@ import torchvision
 from PIL import Image
 from torchvision.transforms import ToPILImage
 import os
+from kandinsky_worker.dataloaders.generated_img2img_data import GeneratedImg2imgData
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 from kandinsky_worker.dataloaders.generated_image_data import GeneratedImageData
@@ -60,15 +61,33 @@ def save_images(images: torch.Tensor, dest_path: str, img_format: str = 'jpeg'):
     return (image_list, image_hash_list)
 
 
+def save_img2img_data_to_minio(minio_client, job_uuid, creation_time, dataset, file_path, file_hash, seed,
+                             image_width, image_height, strength, decoder_steps, decoder_guidance_scale):
+    
+    bucket_name, file_path = separate_bucket_and_file_path(file_path)
+
+    generated_image_data = GeneratedImg2imgData(job_uuid, creation_time, dataset, file_path, file_hash,
+                                              seed, image_width, image_height, strength, decoder_steps, 
+                                              decoder_guidance_scale)
+
+
+    msgpack_string = generated_image_data.get_msgpack_string()
+
+    buffer = io.BytesIO()
+    buffer.write(msgpack_string)
+    buffer.seek(0)
+
+    cmd.upload_data(minio_client, bucket_name, file_path.replace('.jpg', '_data.msgpack'), buffer)
+
 def save_image_data_to_minio(minio_client, job_uuid, creation_time, dataset, file_path, file_hash, 
-                             positive_prompt, negative_prior_prompt, negative_decoder_prompt,
+                             positive_prompt, negative_prior_prompt, negative_decoder_prompt, seed,
                              image_width, image_height, strength, decoder_steps, prior_steps,
                              prior_guidance_scale, decoder_guidance_scale, prompt_scoring_model,
                              prompt_score, prompt_generation_policy, top_k):
     bucket_name, file_path = separate_bucket_and_file_path(file_path)
 
     generated_image_data = GeneratedImageData(job_uuid, creation_time, dataset, file_path, file_hash, positive_prompt,
-                                              negative_prior_prompt, negative_decoder_prompt,
+                                              negative_prior_prompt, negative_decoder_prompt, seed,
                                               image_width, image_height, strength, decoder_steps, prior_steps,
                                               prior_guidance_scale, decoder_guidance_scale, prompt_scoring_model,
                                               prompt_score, prompt_generation_policy, top_k)
@@ -282,7 +301,6 @@ def save_images_to_minio(minio_client, images: torch.Tensor, dest_path: str, img
         cmd.upload_data(minio_client, bucket_name, file_path, img_byte_arr)
 
     return output_file_hash
-
 
 def get_image_hash(img_byte_arr):
     # Calculate the hash for the given image byte array
