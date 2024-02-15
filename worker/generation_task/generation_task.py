@@ -33,7 +33,7 @@ class GenerationTask:
                  task_input_dict=None,
                  task_input_file_dict=None,
                  task_output_file_dict=None,
-                 prompt_generation_data= None
+                 prompt_generation_data= {}
                  ):
         self.uuid = uuid
         self.task_type = task_type
