@@ -51,7 +51,7 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
                                          image_embedding= image_embedding,
                                          negative_image_embedding= negative_image_embedding)
     
-    output_file_path = os.path.join("datasets", dataset_name, task_input_dict['file_path'])
+    output_file_path = os.path.join(dataset_name, task_input_dict['file_path'])
     image_embeddings_path = output_file_path.replace(".jpg", "_embedding.msgpack")
 
     msgpack_string = image_embedding_data.get_msgpack_string()
