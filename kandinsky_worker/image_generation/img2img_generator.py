@@ -25,7 +25,7 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
     count = 0
     # generate UUID
     task_uuid = str(uuid.uuid4())
-    task_type = "image_generation_kandinsky"
+    task_type = "img2img_generation_kandinsky"
     model_name = "kandinsky_2_2"
     model_file_name = "kandinsky-2-2-decoder"
     model_file_path = "input/model/kandinsky/kandinsky-2-2-decoder"
