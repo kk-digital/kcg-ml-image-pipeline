@@ -171,9 +171,9 @@ def get_job_if_exist(worker_type_list):
     job = None
     for worker_type in worker_type_list:
         if worker_type == "":
-            job = generation_request.http_get_job()
+            job = generation_request.http_get_job(model_type="sd_1_5")
         else:
-            job = generation_request.http_get_job(worker_type)
+            job = generation_request.http_get_job(worker_type, model_type="sd_1_5")
 
         if job is not None:
             break
