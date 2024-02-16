@@ -6,6 +6,7 @@ import random
 from datetime import datetime
 import argparse
 from PIL import Image
+import numpy as np
 from termcolor import colored
 import os
 import threading
@@ -181,10 +182,12 @@ def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
     seed = random.randint(0, 2 ** 24 - 1)
 
     generation_task.task_input_dict["seed"] = seed
-    init_image = Image.open(generation_task.task_input_dict["init_img"])
+    # init_image = Image.open(generation_task.task_input_dict["init_img"])
 
     image_width = generation_task.task_input_dict["image_width"]
     image_height = generation_task.task_input_dict["image_height"]
+    random_noise = np.random.randint(0, 256, (image_width, image_height, 3), dtype=np.uint8)
+    init_image=Image.fromarray(random_noise, 'RGB')
     strength = generation_task.task_input_dict["strength"]
     decoder_steps = generation_task.task_input_dict["decoder_steps"]
     decoder_guidance_scale = generation_task.task_input_dict["decoder_guidance_scale"]
