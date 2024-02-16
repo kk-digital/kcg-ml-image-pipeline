@@ -30,7 +30,7 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
     model_file_name = "kandinsky-2-2-decoder"
     model_file_path = "input/model/kandinsky/kandinsky-2-2-decoder"
     task_input_dict = {
-        "strength": 0.75,
+        "strength": 0.4,
         "seed": "",
         "dataset": dataset_name,
         "file_path": sequential_ids[count]+".jpg",
@@ -38,7 +38,7 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
         "num_images": 1,
         "image_width": 512,
         "image_height": 512,
-        "decoder_steps": 50,
+        "decoder_steps": 100,
         "decoder_guidance_scale": 12
     }
 
