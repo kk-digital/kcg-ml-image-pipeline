@@ -2,9 +2,13 @@ import argparse
 import io
 import json
 import os
+import sys
 import traceback
 import pandas as pd
 from tqdm import tqdm
+
+base_directory = "./"
+sys.path.insert(0, base_directory)
 
 from utility.minio import cmd
 from optim_utils import download_image
