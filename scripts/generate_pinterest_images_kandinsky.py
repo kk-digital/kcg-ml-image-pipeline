@@ -23,6 +23,7 @@ def parse_args():
     parser.add_argument('--minio-addr', required=False, help='Minio server address', default="192.168.3.5:9000")
     parser.add_argument('--minio-access-key', required=False, help='Minio access key')
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
+    parser.add_argument('--board', required=False, default="isometric")
     return parser.parse_args()
 
 def download_image(url):
@@ -33,7 +34,7 @@ def download_image(url):
     return Image.open(io.BytesIO(response.content)).convert("RGB")
 
 # store generated prompts in a csv file
-def store_prompts_in_csv_file(minio_client, data):
+def store_prompts_in_csv_file(minio_client, data, board):
 
     local_path="output/generated_images.csv"
     pd.DataFrame(data).to_csv(local_path, index=False)
@@ -45,7 +46,7 @@ def store_prompts_in_csv_file(minio_client, data):
     buffer = io.BytesIO(csv_content)
     buffer.seek(0)
 
-    minio_path=f"environmental/output/synth-boards-pinterest-dataset/generated_images.csv"
+    minio_path=f"environmental/output/synth-boards-pinterest-dataset/{board}_images.csv"
     cmd.upload_data(minio_client, 'datasets', minio_path, buffer)
     # Remove the temporary file
     os.remove(local_path)
@@ -69,7 +70,7 @@ def main():
             data = json.loads(line)
             board_title = data['board_title']
 
-            if board_title != "kcg-environments":
+            if board_title != args.board:
                 continue
 
             image_url = data['image_urls'][0]
@@ -108,7 +109,7 @@ def main():
     
     # Output results to CSV files
     prompts_df = pd.DataFrame(prompts)
-    store_prompts_in_csv_file(minio_client, prompts_df)
+    store_prompts_in_csv_file(minio_client, prompts_df, args.board)
     print("Processing complete!")
 
 if __name__=="__main__":
