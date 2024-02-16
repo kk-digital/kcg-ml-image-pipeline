@@ -39,7 +39,7 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
         "num_images": 1,
         "image_width": 512,
         "image_height": 512,
-        "decoder_steps": 50,
+        "decoder_steps": 100,
         "decoder_guidance_scale": 12
     }
 
