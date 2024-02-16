@@ -25,6 +25,7 @@ from kandinsky.model_paths import PRIOR_MODEL_PATH, DECODER_MODEL_PATH, INPAINT_
 
 class KandinskyPipeline:
     def __init__(self,
+                 device,
                  width=512,
                  height=512,
                  batch_size=1,
@@ -51,12 +52,8 @@ class KandinskyPipeline:
         self.height=height
 
         self.inpainting_model=None
+        self.device = device
 
-        # get device
-        if torch.cuda.is_available():
-            self.device = 'cuda'
-        else:
-            self.device = 'cpu'
 
     def load_models(self, prior_path=PRIOR_MODEL_PATH, decoder_path= DECODER_MODEL_PATH, 
                     inpaint_decoder_path= INPAINT_DECODER_MODEL_PATH, task_type="inpainting"):
