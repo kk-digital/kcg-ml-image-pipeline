@@ -6,6 +6,7 @@ import random
 from datetime import datetime
 import argparse
 from PIL import Image
+import numpy as np
 from termcolor import colored
 import os
 import threading
@@ -73,7 +74,7 @@ def run_image_generation_task(worker_state, generation_task):
     decoder_guidance_scale = generation_task.task_input_dict["decoder_guidance_scale"]
     dataset = generation_task.task_input_dict["dataset"]
 
-    image_encoder=worker_state.image_encoder
+    image_encoder=worker_state.clip.vision_model
     unet = worker_state.unet
     prior_model = worker_state.prior_model
     decoder_model = worker_state.decoder_model
@@ -135,7 +136,7 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
     decoder_guidance_scale = generation_task.task_input_dict["decoder_guidance_scale"]
     dataset = generation_task.task_input_dict["dataset"]
 
-    image_encoder=worker_state.image_encoder
+    image_encoder=worker_state.clip.vision_model
     unet = worker_state.unet
     prior_model = worker_state.prior_model
     decoder_model = worker_state.inpainting_decoder_model
@@ -190,7 +191,7 @@ def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
     decoder_guidance_scale = generation_task.task_input_dict["decoder_guidance_scale"]
     dataset = generation_task.task_input_dict["dataset"]
 
-    image_encoder=worker_state.image_encoder
+    image_encoder=worker_state.clip.vision_model
     decoder_model = worker_state.img2img_decoder
 
     img2img_processor = KandinskyPipeline(
@@ -210,12 +211,14 @@ def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
     )
     
     # get the input image embeddings from minIO
-    output_file_path = os.path.join("datasets", dataset, generation_task.task_input_dict['file_path'])
+    output_file_path = os.path.join(dataset, generation_task.task_input_dict['file_path'])
     image_embeddings_path = output_file_path.replace(".jpg", "_embedding.msgpack")    
     embedding_data = get_object(worker_state.minio_client, image_embeddings_path)
     embedding_dict = ImageEmbedding.from_msgpack_bytes(embedding_data)
-    image_embedding= embedding_dict.image_embedding
+    image_embedding= embedding_dict.image_embedding.to(worker_state.device)
     negative_image_embedding= embedding_dict.negative_image_embedding
+    if negative_image_embedding is not None:
+        negative_image_embedding= negative_image_embedding.to(worker_state.device)
 
     # generate image
     image, latents = img2img_processor.generate_img2img(init_img=init_image,
@@ -223,6 +226,7 @@ def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
                                                         negative_image_embeds= negative_image_embedding,
                                                         seed=seed)
 
+    output_file_path = os.path.join("datasets", output_file_path)
     # convert image to png from RGB
     output_file_hash, img_byte_arr = img2img_processor.convert_image_to_png(image)
 

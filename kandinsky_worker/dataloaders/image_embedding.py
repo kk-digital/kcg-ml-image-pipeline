@@ -1,5 +1,6 @@
 import msgpack
 import numpy as np
+import torch
 
 
 class ImageEmbedding:
@@ -27,13 +28,13 @@ class ImageEmbedding:
     @classmethod
     def deserialize(cls, data):
         # Convert dictionary back to object
-        negative_image_embedding = None
-        if "negative_image_embedding" in data:
-            negative_image_embedding = data["negative_image_embedding"]
+        negative_image_embedding= None
+        if data["negative_image_embedding"] is not None:
+            negative_image_embedding = torch.from_numpy(data["negative_image_embedding"])
 
         return cls(data["job_uuid"],
                    data["dataset"],
-                   data["image_embedding"],
+                   torch.from_numpy(data["image_embedding"]),
                    negative_image_embedding)
 
     def get_msgpack_string(self):

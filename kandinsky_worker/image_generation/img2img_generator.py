@@ -16,8 +16,9 @@ from kandinsky_worker.dataloaders.image_embedding import ImageEmbedding
 def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
                                                     negative_image_embedding,
                                                     dataset_name,
-                                                    init_img_path="./test/test_inpainting/white_512x512.jpg",
-                                                    minio_client=None):
+                                                    prompt_generation_policy,
+                                                    minio_client,
+                                                    init_img_path="./test/test_inpainting/white_512x512.jpg"):
 
     # get sequential ids
     sequential_ids = request.http_get_sequential_id(dataset_name, 1)
@@ -30,7 +31,7 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
     model_file_name = "kandinsky-2-2-decoder"
     model_file_path = "input/model/kandinsky/kandinsky-2-2-decoder"
     task_input_dict = {
-        "strength": 0.2,
+        "strength": 0.75,
         "seed": "",
         "dataset": dataset_name,
         "file_path": sequential_ids[count]+".jpg",
@@ -38,9 +39,16 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
         "num_images": 1,
         "image_width": 512,
         "image_height": 512,
-        "decoder_steps": 50,
-        "decoder_guidance_scale": 8
+        "decoder_steps": 100,
+        "decoder_guidance_scale": 12
     }
+
+    prompt_generation_data={
+        "prompt_generation_policy": prompt_generation_policy
+    }
+
+    image_embedding= image_embedding.detach().cpu().numpy()
+    negative_image_embedding= image_embedding.detach().cpu().numpy() if negative_image_embedding is not None else None
 
     # upload the image embeddings to minIO
     image_embedding_data= ImageEmbedding(job_uuid= task_uuid,
@@ -48,7 +56,7 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
                                          image_embedding= image_embedding,
                                          negative_image_embedding= negative_image_embedding)
     
-    output_file_path = os.path.join("datasets", dataset_name, task_input_dict['file_path'])
+    output_file_path = os.path.join(dataset_name, task_input_dict['file_path'])
     image_embeddings_path = output_file_path.replace(".jpg", "_embedding.msgpack")
 
     msgpack_string = image_embedding_data.get_msgpack_string()
@@ -56,9 +64,6 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
     buffer = io.BytesIO()
     buffer.write(msgpack_string)
     buffer.seek(0)
-
-    if minio_client is None:
-        minio_client= connect_to_minio_client()
 
     upload_data(minio_client, "datasets", image_embeddings_path, buffer) 
 
@@ -68,7 +73,8 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
                                      model_name=model_name,
                                      model_file_name=model_file_name,
                                      model_file_path=model_file_path,
-                                     task_input_dict=task_input_dict)
+                                     task_input_dict=task_input_dict,
+                                     prompt_generation_data=prompt_generation_data)
     generation_task_json = generation_task.to_dict()
 
     # add job
