@@ -80,6 +80,7 @@ def run_image_generation_task(worker_state, generation_task):
     decoder_model = worker_state.decoder_model
 
     text2img_processor = KandinskyPipeline(
+        device=worker_state.device,
         width= image_width,
         height= image_height,
         batch_size=1,
@@ -142,6 +143,7 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
     decoder_model = worker_state.inpainting_decoder_model
 
     inpainting_processor = KandinskyPipeline(
+        device=worker_state.device,
         width= image_width,
         height= image_height,
         batch_size=1,
@@ -195,6 +197,7 @@ def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
     decoder_model = worker_state.img2img_decoder
 
     img2img_processor = KandinskyPipeline(
+        device=worker_state.device,
         width= image_width,
         height= image_height,
         batch_size=1,
