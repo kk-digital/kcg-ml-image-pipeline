@@ -91,7 +91,7 @@ def main():
                             prompt_generation_policy="img2img_kandinsky",
                             minio_client= minio_client)
                 task_uuid = response['uuid']
-                file_path = response['file_path']
+                file_path = response['task_input_dict']['file_path']
             except:
                 print('Error occured:')
                 print(traceback.format_exc())
