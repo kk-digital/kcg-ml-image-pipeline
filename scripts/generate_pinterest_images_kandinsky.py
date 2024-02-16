@@ -5,13 +5,14 @@ import os
 import sys
 import traceback
 import pandas as pd
+import requests
 from tqdm import tqdm
+from PIL import Image
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from utility.minio import cmd
-from optim_utils import download_image
 from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 
@@ -23,6 +24,13 @@ def parse_args():
     parser.add_argument('--minio-access-key', required=False, help='Minio access key')
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
     return parser.parse_args()
+
+def download_image(url):
+    try:
+        response = requests.get(url)
+    except:
+        return None
+    return Image.open(io.BytesIO(response.content)).convert("RGB")
 
 # store generated prompts in a csv file
 def store_prompts_in_csv_file(minio_client, data):
