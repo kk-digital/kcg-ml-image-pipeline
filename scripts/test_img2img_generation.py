@@ -38,6 +38,7 @@ def main():
     generate_img2img_generation_jobs_with_kandinsky(image_embedding= image_embedding,
                                                     negative_image_embedding=None,
                                                     dataset_name="test-generations",
+                                                    prompt_generation_policy="img2img_kandinsky",
                                                     minio_client= minio_client)
     
 if __name__ == '__main__':

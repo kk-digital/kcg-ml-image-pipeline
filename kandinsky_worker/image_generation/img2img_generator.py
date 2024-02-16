@@ -16,6 +16,7 @@ from kandinsky_worker.dataloaders.image_embedding import ImageEmbedding
 def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
                                                     negative_image_embedding,
                                                     dataset_name,
+                                                    prompt_generation_policy,
                                                     minio_client,
                                                     init_img_path="./test/test_inpainting/white_512x512.jpg"):
 
@@ -40,6 +41,10 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
         "image_height": 512,
         "decoder_steps": 50,
         "decoder_guidance_scale": 12
+    }
+
+    prompt_generation_data={
+        "prompt_generation_policy": prompt_generation_policy
     }
 
     image_embedding= image_embedding.detach().cpu().numpy()
@@ -68,7 +73,8 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
                                      model_name=model_name,
                                      model_file_name=model_file_name,
                                      model_file_path=model_file_path,
-                                     task_input_dict=task_input_dict)
+                                     task_input_dict=task_input_dict,
+                                     prompt_generation_data=prompt_generation_data)
     generation_task_json = generation_task.to_dict()
 
     # add job
