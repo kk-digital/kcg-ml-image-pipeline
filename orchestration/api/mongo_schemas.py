@@ -287,7 +287,7 @@ class FlaggedDataUpdate(BaseModel):
 class User(BaseModel):
     username: str = Field(...)
     password: str = Field(...)
-    role: constr(pattern='^(admin|user)$') = Field(...)
+    "role: constr(pattern='^(admin|user)$') = Field(...)"
 
     def to_dict(self):
         return {
