@@ -3,10 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 import pymongo
 from bson.objectid import ObjectId
 from fastapi.responses import JSONResponse
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode,  StandardErrorResponse, StandardSuccessResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode,  StandardErrorResponseV1, StandardSuccessResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi import status, Request
 from dotenv import dotenv_values
+from datetime import datetime
 from orchestration.api.api_clip import router as clip_router
 from orchestration.api.api_dataset import router as dataset_router
 from orchestration.api.api_image import router as image_router
@@ -99,13 +100,22 @@ def create_index_if_not_exists(collection, index_key, index_name):
 # Define the exception handler
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    start_time = datetime.now()  # Assuming you capture this at the start of request processing
+    end_time = datetime.now()
+    duration = (end_time - start_time).total_seconds()
+    
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content=StandardErrorResponse(
-            url=str(request.url),
-            duration=0,  
-            errorCode=ErrorCode.INVALID_PARAMS.value,
-            errorString="Validation error"
+        content=StandardErrorResponseV1(
+            request_error_string="Validation error",
+            request_error_code=ErrorCode.INVALID_PARAMS.value,  
+            request_url=str(request.url),
+            request_dictionary=dict(request.query_params), 
+            request_method=request.method,
+            request_time_total=duration,
+            request_time_start=start_time,
+            request_time_finished=end_time,
+            request_response_code=status.HTTP_422_UNPROCESSABLE_ENTITY
         ).dict(),
     )
 
