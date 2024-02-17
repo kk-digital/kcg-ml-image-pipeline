@@ -460,6 +460,8 @@ def add_phrase_v1(request: Request, phrase: str):
 
         if 200 <= status_code < 300:
             return response_handler.create_success_response_v1(
+                error_code = ErrorCode.SUCCESS.value,
+                error_string= '',
                 response_data=None, 
                 http_status_code=201, 
                 request_dictionary=dict(request.query_params),  
