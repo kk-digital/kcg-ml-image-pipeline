@@ -234,7 +234,7 @@ def update_tag_definition(request: Request, tag_id: int, update_data: TagDefinit
     request.app.tag_definitions_collection.update_one(query, {"$set": update_fields})
     return {"status": "success", "message": "Tag definition updated successfully.", "tag_id": tag_id}
 
-@router.patch("/tags/set-deprecated", 
+@router.put("/tags/set-deprecated", 
               tags=["tags"],
               status_code=200,
               description="Set the 'deprecated' status of a tag definition to True",
@@ -1002,7 +1002,7 @@ def add_tag_category(request: Request, tag_category_data: NewTagCategory):
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "Internal server error", 500)
 
 
-@router.patch("/tag-categories/set-deprecated", 
+@router.put("/tag-categories/set-deprecated", 
               tags=["tag-categories"],
               status_code=200,
               description="Set the 'deprecated' status of a tag category to True",
@@ -1346,7 +1346,7 @@ def add_new_tag_definition(request: Request, tag_data: NewTagRequest):
 
 
 
-@router.patch("/tags/update-tag-definition", 
+@router.put("/tags/update-tag-definition", 
               tags=["tags"],
               status_code=200,
               description="Update tag definitions",
@@ -1790,7 +1790,7 @@ def get_image_count_by_tag(
                                                        request_dictionary=dict(request.query_params),
                                                        method=request.method)
 
-@router.patch("/tag-categories/update-tag-category", 
+@router.put("/tag-categories/update-tag-category", 
               tags=["tag-categories"],
               status_code=200,
               description="Update tag category",
