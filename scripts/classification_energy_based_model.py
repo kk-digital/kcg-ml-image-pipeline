@@ -41,7 +41,6 @@ from pytz import timezone
 from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10
 import torchvision.transforms as transforms
-from utility.minio import cmd
 from io import BytesIO
 import io
 import os
