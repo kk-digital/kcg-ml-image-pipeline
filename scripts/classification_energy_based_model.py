@@ -872,7 +872,7 @@ pl.seed_everything(42)
 callback = GenerateCallback(batch_size=8, vis_steps=8, num_steps=512)
 imgs_per_step = callback.generate_imgs(model)
 imgs_per_step = imgs_per_step.cpu()
-
+minio_path= minio_path + "/images_generation_sample" +date_now+".png"
 for i in range(imgs_per_step.shape[1]):
     step_size = callback.num_steps // callback.vis_steps
     imgs_to_plot = imgs_per_step[step_size-1::step_size,i]
@@ -889,7 +889,7 @@ for i in range(imgs_per_step.shape[1]):
     plt.savefig(buf, format='png')
     buf.seek(0)
 
-    minio_path= minio_path + "/images_generation_sample" +date_now+".png"
-    cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+    minio_path_i = minio_path + "/images_generation_sample_" + i +"_" +date_now+".png"
+    cmd.upload_data(minio_client, 'datasets', minio_path_i, buf)
 
 
