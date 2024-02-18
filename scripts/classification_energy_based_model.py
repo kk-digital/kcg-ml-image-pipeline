@@ -789,7 +789,7 @@ print("################ Training ended ################")
 
 
 date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d/%m/%Y %H:%M:%S')
-
+print(date_now)
 
 
 minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
