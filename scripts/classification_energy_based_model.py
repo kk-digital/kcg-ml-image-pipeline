@@ -487,9 +487,9 @@ class Sampler:
         # Loop over K (steps)
         for _ in range(steps):
             # Part 1: Add noise to the input.
-            noise.normal_(0, 0.005)
+            noise.normal_(0, 0.010) # (0, 0.005)
             inp_imgs.data.add_(noise.data)
-            inp_imgs.data.clamp_(min=-1.0, max=1.0)
+            inp_imgs.data.clamp_(min=-1.0, max=1.0) # (min=-1.0, max=1.0)
 
             # Part 2: calculate gradients for the current input.
             out_imgs = model(inp_imgs)  # Tuple containing savedx and x
@@ -556,7 +556,7 @@ class DeepEnergyModel(pl.LightningModule):
         # We add minimal noise to the original images to prevent the model from focusing on purely "clean" inputs
         real_imgs, _ = batch
         #print("the _ is ",_)
-        small_noise = torch.randn_like(real_imgs) * 0.005
+        small_noise = torch.randn_like(real_imgs) * 0.010 # 0.005
         real_imgs.add_(small_noise).clamp_(min=-1.0, max=1.0)
 
         # Obtain samples
