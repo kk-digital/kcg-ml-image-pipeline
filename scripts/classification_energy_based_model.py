@@ -885,6 +885,10 @@ for i in range(imgs_per_step.shape[1]):
     plt.xticks([(imgs_per_step.shape[-1]+2)*(0.5+j) for j in range(callback.vis_steps+1)],
                labels=[1] + list(range(step_size,imgs_per_step.shape[0]+1,step_size)))
     plt.yticks([])
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+
     minio_path= minio_path + "/images_generation_sample" +date_now+".png"
     cmd.upload_data(minio_client, 'datasets', minio_path, buf)
 
