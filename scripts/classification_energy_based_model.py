@@ -859,3 +859,33 @@ cmd.upload_data(minio_client, 'datasets', minio_path, buf)
 os.remove("output/loss_tracking_per_step.png")
 # Clear the current figure
 plt.clf()
+
+
+
+
+
+
+
+# Image generation
+model.to(device)
+pl.seed_everything(42)
+callback = GenerateCallback(batch_size=8, vis_steps=8, num_steps=512)
+imgs_per_step = callback.generate_imgs(model)
+imgs_per_step = imgs_per_step.cpu()
+
+for i in range(imgs_per_step.shape[1]):
+    step_size = callback.num_steps // callback.vis_steps
+    imgs_to_plot = imgs_per_step[step_size-1::step_size,i]
+    imgs_to_plot = torch.cat([imgs_per_step[0:1,i],imgs_to_plot], dim=0)
+    grid = torchvision.utils.make_grid(imgs_to_plot, nrow=imgs_to_plot.shape[0], normalize=True, pad_value=0.5, padding=2)
+    grid = grid.permute(1, 2, 0)
+    plt.figure(figsize=(8,8))
+    plt.imshow(grid)
+    plt.xlabel("Generation iteration")
+    plt.xticks([(imgs_per_step.shape[-1]+2)*(0.5+j) for j in range(callback.vis_steps+1)],
+               labels=[1] + list(range(step_size,imgs_per_step.shape[0]+1,step_size)))
+    plt.yticks([])
+    minio_path= minio_path + "/images_generation_sample" +date_now+".png"
+    cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+
+
