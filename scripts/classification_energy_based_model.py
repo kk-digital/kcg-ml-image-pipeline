@@ -14,8 +14,6 @@ import matplotlib
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 from mpl_toolkits.mplot3d import proj3d
 matplotlib.rcParams['lines.linewidth'] = 2.0
-import seaborn as sns
-sns.reset_orig()
 
 ## PyTorch
 import torch
