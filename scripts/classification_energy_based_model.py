@@ -13,7 +13,7 @@ from matplotlib.colors import to_rgb
 import matplotlib
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 from mpl_toolkits.mplot3d import proj3d
-matplotlib.rcParams['lines.linewidth'] = 2.0
+from torch.utils.data import random_split, DataLoader
 
 ## PyTorch
 import torch
@@ -41,6 +41,9 @@ from torchvision.datasets import CIFAR10
 import torchvision.transforms as transforms
 
 
+
+matplotlib.rcParams['lines.linewidth'] = 2.0
+
 # Path to the folder where the datasets are/should be downloaded (e.g. CIFAR10)
 DATASET_PATH = "../data"
 # Path to the folder where the pretrained models are saved
@@ -61,26 +64,26 @@ print("Device:", device)
 ######### DL old model to be removed
 import urllib.request
 from urllib.error import HTTPError
-# Github URL where saved models are stored for this tutorial
-base_url = "https://raw.githubusercontent.com/phlippe/saved_models/main/tutorial8/"
-# Files to download
-pretrained_files = ["MNIST.ckpt", "tensorboards/events.out.tfevents.MNIST"]
+# # Github URL where saved models are stored for this tutorial
+# base_url = "https://raw.githubusercontent.com/phlippe/saved_models/main/tutorial8/"
+# # Files to download
+# pretrained_files = ["MNIST.ckpt", "tensorboards/events.out.tfevents.MNIST"]
 
-# Create checkpoint path if it doesn't exist yet
-os.makedirs(CHECKPOINT_PATH, exist_ok=True)
+# # Create checkpoint path if it doesn't exist yet
+# os.makedirs(CHECKPOINT_PATH, exist_ok=True)
 
-# For each file, check whether it already exists. If not, try downloading it.
-for file_name in pretrained_files:
-    file_path = os.path.join(CHECKPOINT_PATH, file_name)
-    if "/" in file_name:
-        os.makedirs(file_path.rsplit("/",1)[0], exist_ok=True)
-    if not os.path.isfile(file_path):
-        file_url = base_url + file_name
-        print(f"Downloading {file_url}...")
-        try:
-            urllib.request.urlretrieve(file_url, file_path)
-        except HTTPError as e:
-            print("Something went wrong. Please try to download the file from the GDrive folder, or contact the author with the full output including the following error:\n", e)
+# # For each file, check whether it already exists. If not, try downloading it.
+# for file_name in pretrained_files:
+#     file_path = os.path.join(CHECKPOINT_PATH, file_name)
+#     if "/" in file_name:
+#         os.makedirs(file_path.rsplit("/",1)[0], exist_ok=True)
+#     if not os.path.isfile(file_path):
+#         file_url = base_url + file_name
+#         print(f"Downloading {file_url}...")
+#         try:
+#             urllib.request.urlretrieve(file_url, file_path)
+#         except HTTPError as e:
+#             print("Something went wrong. Please try to download the file from the GDrive folder, or contact the author with the full output including the following error:\n", e)
 
 
 # class ToGrayscale(transforms.ToTensor):
@@ -167,7 +170,7 @@ test_set = CIFAR10(root='./data', train=False, transform=transform, download=Tru
 # Note that for actually training a model, we will use different data loaders
 # with a lower batch size.
 
-from torch.utils.data import random_split, DataLoader
+
 
 # ... (your data loading and transform code)
 
@@ -681,6 +684,7 @@ class GenerateCallback(pl.Callback):
                 imgs_to_plot = imgs_per_step[step_size-1::step_size,i]
                 grid = torchvision.utils.make_grid(imgs_to_plot, nrow=imgs_to_plot.shape[0], normalize=True, range=(-1,1))
                 trainer.logger.experiment.add_image(f"generation_{i}", grid, global_step=trainer.current_epoch)
+        print("epoch ended")
 
     def generate_imgs(self, pl_module):
         pl_module.eval()
@@ -757,12 +761,13 @@ def train_model(**kwargs):
 
 from collections import namedtuple
 
+print("################ Training started ################")
 model = train_model(img_shape=(3,32,32),
                     batch_size=train_loader.batch_size,
                     lr=1e-4,
                     beta1=0.0)
 
-
+print("################ Training ended ################")
 epochs = range(1, len(total_losses) + 1)  # Assuming losses start from epoch 1
 
 # Create subplots grid (3 rows, 1 column)
