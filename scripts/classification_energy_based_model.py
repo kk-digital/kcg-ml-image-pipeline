@@ -9,8 +9,6 @@ import random
 import matplotlib.pyplot as plt
 from matplotlib import cm
 
-from IPython.display import set_matplotlib_formats
-
 from matplotlib.colors import to_rgb
 import matplotlib
 from mpl_toolkits.mplot3d.axes3d import Axes3D
