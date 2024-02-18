@@ -788,13 +788,9 @@ print("################ Training ended ################")
 ############ Graph
 
 
-# date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
-# print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
-# bucket_name = "datasets"
-# training_dataset_path = os.path.join(bucket_name, dataset_name)
-# network_type = "Normal-FC"
-# output_type = "score"
-# output_path = "{}/models/ranking".format(dataset_name)
+date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
+
+
 
 minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
             "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
@@ -857,7 +853,7 @@ plt.savefig(buf, format='png')
 buf.seek(0)
 
 # upload the graph report
-minio_path= minio_path + "/loss_tracking_per_step.png"
+minio_path= minio_path + "/loss_tracking_per_step_" +date_now+".png"
 cmd.upload_data(minio_client, 'datasets', minio_path, buf)
 # Remove the temporary file
 os.remove("output/loss_tracking_per_step.png")
