@@ -889,7 +889,7 @@ for i in range(imgs_per_step.shape[1]):
     plt.savefig(buf, format='png')
     buf.seek(0)
 
-    minio_path_i = minio_path + "/images_generation_sample_" + i +"_" +date_now+".png"
+    minio_path_i = minio_path + "/images_generation_sample_" + str(i) +"_" +date_now+".png"
     cmd.upload_data(minio_client, 'datasets', minio_path_i, buf)
 
 
