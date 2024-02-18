@@ -36,9 +36,23 @@ from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 
 
 # ADDED BY ME
+from datetime import datetime
+from pytz import timezone
 from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10
 import torchvision.transforms as transforms
+from utility.minio import cmd
+from io import BytesIO
+import io
+import os
+import sys
+base_directory = os.getcwd()
+sys.path.insert(0, base_directory)
+
+from data_loader.ab_ranking_dataset_loader import ABRankingDatasetLoader
+from utility.minio import cmd
+from utility.clip.clip_text_embedder import tensor_attention_pooling
+
 
 
 
@@ -734,7 +748,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=60,
+                         max_epochs=5,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -768,9 +782,29 @@ model = train_model(img_shape=(3,32,32),
                     beta1=0.0)
 
 print("################ Training ended ################")
-epochs = range(1, len(total_losses) + 1)  # Assuming losses start from epoch 1
 
-# Create subplots grid (3 rows, 1 column)
+
+
+
+############ Graph
+
+
+# date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
+# print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
+# bucket_name = "datasets"
+# training_dataset_path = os.path.join(bucket_name, dataset_name)
+# network_type = "Normal-FC"
+# output_type = "score"
+# output_path = "{}/models/ranking".format(dataset_name)
+
+minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
+            "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+            None)
+minio_path="environmental/output/my_test"
+
+epochs = range(1, len(total_losses) + 1)  
+
+# Create subplots grid (5 rows, 1 column)
 fig, axes = plt.subplots(5, 1, figsize=(10, 24))
 
 # Plot each loss on its own subplot
@@ -816,4 +850,17 @@ axes[4].grid(True)
 # Adjust spacing between subplots for better visualization
 plt.tight_layout()
 
-plt.show()
+plt.savefig("output/loss_tracking_per_step.png")
+
+# Save the figure to a file
+buf = io.BytesIO()
+plt.savefig(buf, format='png')
+buf.seek(0)
+
+# upload the graph report
+minio_path= minio_path + "/loss_tracking_per_step.png"
+cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+# Remove the temporary file
+os.remove("output/loss_tracking_per_step.png")
+# Clear the current figure
+plt.clf()
