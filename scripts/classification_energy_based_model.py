@@ -788,7 +788,7 @@ print("################ Training ended ################")
 ############ Graph
 
 
-date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d/%m/%Y %H:%M:%S')
+date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
 print(date_now)
 
 
