@@ -747,7 +747,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=2,
+                         max_epochs=1,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -788,7 +788,7 @@ print("################ Training ended ################")
 ############ Graph
 
 
-date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
+date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d/%m/%Y %H:%M:%S')
 
 
 
