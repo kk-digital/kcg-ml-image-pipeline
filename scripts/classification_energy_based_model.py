@@ -187,23 +187,23 @@ cat_target = 1
 not_cat_target = 0
 
 
-# Create single-value labels for cats and non-cats
-cat_new_targets = np.ones_like(cat_idx) * cat_target
-not_cat_new_targets = np.ones_like(notcat_idx) * not_cat_target
+# Caution: This modifies the original dataset directly
+for i in range(len(train_set.targets)):
+    if train_set.targets[i] == 3:  # Check for cat class (index 3)
+        train_set.targets[i] = cat_target
+    else:
+        train_set.targets[i] = not_cat_target
 
 
-# Combine datasets
-full_dataset = np.concatenate((cat_new_targets, not_cat_new_targets))
+notcat_ds = torch.utils.data.Subset(train_set, notcat_idx)
 
-notcat_ds = torch.utils.data.Subset(full_dataset, notcat_idx)
-
-num_samples = len(full_dataset)
+num_samples = len(train_set)
 print("the number of samples is ", num_samples)
 train_size = int(0.8 * num_samples)
 val_size = num_samples - train_size
 
 
-train_set, val_set = random_split(full_dataset, [train_size, val_size])
+train_set, val_set = random_split(train_set, [train_size, val_size])
 
 
 
@@ -211,7 +211,7 @@ train_loader = data.DataLoader(train_set, batch_size=64, shuffle=True, drop_last
 val_loader = data.DataLoader(val_set, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 dog_loader = data.DataLoader(notcat_ds, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
-for images, _ , x in train_loader:
+for images, _ in train_loader:
     # Unpack the batch
     images = images.squeeze(0)  # Assuming you want to print shape per image
     #print(f"Grayscale image shape: {images.shape}")
