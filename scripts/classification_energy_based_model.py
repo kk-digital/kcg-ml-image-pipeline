@@ -845,7 +845,7 @@ callback = GenerateCallback(batch_size=8, vis_steps=8, num_steps=512)
 imgs_per_step = callback.generate_imgs(model)
 imgs_per_step = imgs_per_step.cpu()
 
-fig, axes = plt.subplots(imgs_per_step.shape[1], 1, figsize=(10, 24))
+fig, axes = plt.subplots(imgs_per_step.shape[1], 1, figsize=(8, 8))
 
 for i in range(imgs_per_step.shape[1]):
     step_size = callback.num_steps // callback.vis_steps
@@ -853,7 +853,6 @@ for i in range(imgs_per_step.shape[1]):
     imgs_to_plot = torch.cat([imgs_per_step[0:1,i],imgs_to_plot], dim=0)
     grid = torchvision.utils.make_grid(imgs_to_plot, nrow=imgs_to_plot.shape[0], normalize=True, pad_value=0.5, padding=2)
     grid = grid.permute(1, 2, 0)
-    axes[i].figure(figsize=(8,8))
     axes[i].imshow(grid)
     axes[i].xlabel("Generation iteration")
     axes[i].xticks([(imgs_per_step.shape[-1]+2)*(0.5+j) for j in range(callback.vis_steps+1)],
