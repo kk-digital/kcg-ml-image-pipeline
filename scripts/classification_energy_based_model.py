@@ -337,7 +337,7 @@ class CNNModel(nn.Module):
         self.fc_energy = nn.Linear(1024, 1)  # Predict a single energy score
 
         # Classification branch
-        self.fc2 = nn.Linear(1024, 10)
+        self.fc2 = nn.Linear(1024, 1)
         self.softmax = nn.Softmax(dim=1)  # Apply softmax for class probabilities
 
     def forward(self, x):
