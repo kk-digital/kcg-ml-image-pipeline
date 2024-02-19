@@ -195,6 +195,8 @@ not_cat_new_targets = np.ones_like(notcat_idx) * not_cat_target
 # Combine datasets
 full_dataset = np.concatenate((cat_new_targets, not_cat_new_targets))
 
+notcat_ds = torch.utils.data.Subset(full_dataset, notcat_idx)
+
 num_samples = len(full_dataset)
 print("the number of samples is ", num_samples)
 train_size = int(0.8 * num_samples)
