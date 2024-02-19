@@ -338,7 +338,7 @@ class CNNModel(nn.Module):
 
         # Classification branch
         self.fc2 = nn.Linear(1024, 1)
-        self.sigmoid = nn.Sigmoid(dim=1)  # Apply softmax for class probabilities
+        self.sigmoid = nn.Sigmoid()  # Apply softmax for class probabilities
 
     def forward(self, x):
         # Feature extraction using convolutional layers
