@@ -338,7 +338,7 @@ class CNNModel(nn.Module):
 
         # Classification branch
         self.fc2 = nn.Linear(1024, 1)
-        self.softmax = nn.Softmax(dim=1)  # Apply softmax for class probabilities
+        self.sigmoid = nn.Sigmoid(dim=1)  # Apply softmax for class probabilities
 
     def forward(self, x):
         # Feature extraction using convolutional layers
@@ -354,7 +354,7 @@ class CNNModel(nn.Module):
 
         # Classification branch
         logits = self.fc2(shared_features)
-        probs = self.softmax(logits)  # Output class probabilities
+        probs = self.sigmoid(logits)  # Output class probabilities
 
         return energy, probs
     
@@ -566,7 +566,7 @@ class DeepEnergyModel(pl.LightningModule):
         cdiv_loss = fake_scores.mean() - real_scores.mean()
 
         # Calculate classification loss (assuming softmax output)
-        class_loss = nn.CrossEntropyLoss()(real_probs, _)
+        class_loss = nn.BCELoss()(real_probs, _)
 
         # regression loss
 
