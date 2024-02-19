@@ -845,51 +845,25 @@ callback = GenerateCallback(batch_size=8, vis_steps=8, num_steps=512)
 imgs_per_step = callback.generate_imgs(model)
 imgs_per_step = imgs_per_step.cpu()
 
+fig, axes = plt.subplots(imgs_per_step.shape[1], 1, figsize=(10, 24))
 
-# for i in range(imgs_per_step.shape[1]):
-#     step_size = callback.num_steps // callback.vis_steps
-#     imgs_to_plot = imgs_per_step[step_size-1::step_size,i]
-#     imgs_to_plot = torch.cat([imgs_per_step[0:1,i],imgs_to_plot], dim=0)
-#     grid = torchvision.utils.make_grid(imgs_to_plot, nrow=imgs_to_plot.shape[0], normalize=True, pad_value=0.5, padding=2)
-#     grid = grid.permute(1, 2, 0)
-#     plt.figure(figsize=(8,8))
-#     plt.imshow(grid)
-#     plt.xlabel("Generation iteration")
-#     plt.xticks([(imgs_per_step.shape[-1]+2)*(0.5+j) for j in range(callback.vis_steps+1)],
-#                labels=[1] + list(range(step_size,imgs_per_step.shape[0]+1,step_size)))
-#     plt.yticks([])
-#     buf = io.BytesIO()
-#     plt.savefig(buf, format='png')
-#     buf.seek(0)
-
-#     minio_path_i = "environmental/output/my_test/images_generation_sample_" + str(i) +"_" +date_now+".png"
-#     cmd.upload_data(minio_client, 'datasets', minio_path_i, buf)
-
-
-
-# Create an empty list to store all images
-all_images = []
-import torchvision.utils as vutils
-# Iterate through each generated image
 for i in range(imgs_per_step.shape[1]):
     step_size = callback.num_steps // callback.vis_steps
-    imgs_to_plot = imgs_per_step[step_size-1::step_size, i]
-    imgs_to_plot = torch.cat([imgs_per_step[0:1, i], imgs_to_plot], dim=0)
-
-    # Ensure uniform color scaling during normalization
-    grid = vutils.make_grid(imgs_to_plot, nrow=imgs_to_plot.shape[0], normalize=True,
-                           scale_each=True, range=(0, 1), pad_value=0.5, padding=2)
-
-    # Append the processed image to the list
-    all_images.append(grid)
-
-# Stack the images vertically using torch.cat
-stacked_images = torch.cat(all_images, dim=1)
-
-# Save the stacked image as a PNG (remove plt.show())
-stacked_images.save("stacked_images.png")  # Replace with your desired filename
+    imgs_to_plot = imgs_per_step[step_size-1::step_size,i]
+    imgs_to_plot = torch.cat([imgs_per_step[0:1,i],imgs_to_plot], dim=0)
+    grid = torchvision.utils.make_grid(imgs_to_plot, nrow=imgs_to_plot.shape[0], normalize=True, pad_value=0.5, padding=2)
+    grid = grid.permute(1, 2, 0)
+    axes[i].figure(figsize=(8,8))
+    axes[i].imshow(grid)
+    axes[i].xlabel("Generation iteration")
+    axes[i].xticks([(imgs_per_step.shape[-1]+2)*(0.5+j) for j in range(callback.vis_steps+1)],
+               labels=[1] + list(range(step_size,imgs_per_step.shape[0]+1,step_size)))
+plt.yticks([])
 buf = io.BytesIO()
-stacked_images.savefig(buf, format='png')
+plt.savefig(buf, format='png')
 buf.seek(0)
+
 minio_path_i = "environmental/output/my_test/images_generation_sample_" + str(i) +"_" +date_now+".png"
 cmd.upload_data(minio_client, 'datasets', minio_path_i, buf)
+
+
