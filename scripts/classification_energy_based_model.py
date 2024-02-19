@@ -547,7 +547,7 @@ class DeepEnergyModel(pl.LightningModule):
         # Combine losses and backpropagate
         alphaW = 0.5  # Adjust weight for cdiv_loss
         alphaY = 0.1  # Adjust weight for reg_loss
-        total_loss =  ((1 - alphaW) * cdiv_loss) + (alphaY * reg_loss)
+        total_loss =  ((1 - 0.1) * cdiv_loss) + (alphaY * reg_loss)
         #total_loss = cdiv_loss + class_loss
 
         # Logging
@@ -719,7 +719,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=15,
+                         max_epochs=60,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
