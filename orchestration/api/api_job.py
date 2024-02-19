@@ -859,6 +859,16 @@ def get_jobs_by_task_type(request: Request, task_type= None):
         "jobs": jobs
         }
 
+@router.delete("/job/delete-jobs-by-task-type", description="delete the jobs by a specific task type.")
+def delete_jobs_by_task_type(request: Request, task_type= None):
+    query = {}
+    if task_type is not None:
+        query['task_type']= task_type
+
+    request.app.completed_jobs_collection.delete_many(query)
+
+    return True
+
 # from pymongo import MongoClient
 # from minio import Minio
 # import os
