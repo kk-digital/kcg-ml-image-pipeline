@@ -944,8 +944,8 @@ def compare_images(img1, img2):
                labels=[f"Original image: {score1.item():4.2f}", f"Transformed image: {score2.item():4.2f}"])
     plt.yticks([])
 
-    print(f"Original image: {score1.item():4.2f}")
-    print(f"Transformed image: {score2.item():4.2f}")
+    print(f"Original : {score1.item():4.2f}")
+    print(f"Transformed : {score2.item():4.2f}")
     buf = io.BytesIO()
     plt.savefig(buf, format='png')
     buf.seek(0)
