@@ -566,7 +566,7 @@ class DeepEnergyModel(pl.LightningModule):
         cdiv_loss = fake_scores.mean() - real_scores.mean()
 
         # Calculate classification loss (assuming softmax output)
-        class_loss = nn.BCELoss()(real_probs, _)
+        class_loss = nn.BCELoss(real_probs, _)
 
         # regression loss
 
