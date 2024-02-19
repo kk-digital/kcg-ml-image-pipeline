@@ -566,6 +566,7 @@ class DeepEnergyModel(pl.LightningModule):
         cdiv_loss = fake_scores.mean() - real_scores.mean()
 
         target_labels = _.reshape(-1, 1)
+        target_labels = target_labels.float()  # Ensure float type
         class_loss = nn.BCELoss()(real_probs, target_labels)
         # regression loss
 
