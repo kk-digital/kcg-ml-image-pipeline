@@ -182,36 +182,18 @@ cat_idx = np.where((np.array(train_set.targets) == 3))[0]
 notcat_idx = np.where((np.array(train_set.targets) != 3) )[0]
 
 
-cat_ds = torch.utils.data.Subset(train_set, cat_idx)
-notcat_ds = torch.utils.data.Subset(train_set, notcat_idx)
+# Define cat and not-cat labels
+cat_target = 1
+not_cat_target = 0
 
 
-# Get original targets
-original_targets = np.array(train_set.targets)
+# Create single-value labels for cats and non-cats
+cat_new_targets = np.ones_like(cat_idx) * cat_target
+not_cat_new_targets = np.ones_like(notcat_idx) * not_cat_target
 
-# Create new target arrays
-new_cat_targets = np.ones_like(original_targets[cat_idx])
-new_notcat_targets = np.zeros_like(original_targets[notcat_idx])
-
-# Combine new targets with proper indexing
-combined_targets = np.concatenate((new_cat_targets, new_notcat_targets))
-
-# Remap the combined targets using original indices
-remapped_targets = np.zeros_like(original_targets)
-remapped_targets[cat_idx] = new_cat_targets
-remapped_targets[notcat_idx] = new_notcat_targets
-
-# Update cat_ds with remapped targets
-cat_ds = torch.utils.data.Subset(train_set, cat_idx, remapped_targets[cat_idx])
-
-# Update notcat_ds with remapped targets
-notcat_ds = torch.utils.data.Subset(train_set, notcat_idx, remapped_targets[notcat_idx])
-
-
-from torch.utils.data import ConcatDataset
 
 # Combine datasets
-full_dataset = ConcatDataset([cat_ds, notcat_ds])
+full_dataset = np.concatenate((cat_new_targets, not_cat_new_targets))
 
 num_samples = len(full_dataset)
 print("the number of samples is ", num_samples)
