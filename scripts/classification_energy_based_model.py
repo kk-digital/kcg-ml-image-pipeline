@@ -211,12 +211,12 @@ train_loader = data.DataLoader(train_set, batch_size=64, shuffle=True, drop_last
 val_loader = data.DataLoader(val_set, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 dog_loader = data.DataLoader(notcat_ds, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
-for images, _ in train_loader:
+for images, _ , x in train_loader:
     # Unpack the batch
     images = images.squeeze(0)  # Assuming you want to print shape per image
     #print(f"Grayscale image shape: {images.shape}")
-    break  # You oe: {images.shape}")
-    break  # You o
+    break  
+
 
 
 
