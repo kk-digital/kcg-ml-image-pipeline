@@ -547,7 +547,8 @@ class DeepEnergyModel(pl.LightningModule):
         # Combine losses and backpropagate
         alphaW = 0.5  # Adjust weight for cdiv_loss
         alphaY = 0.1  # Adjust weight for reg_loss
-        total_loss =  ((1 - 0.1) * cdiv_loss) + (alphaY * reg_loss)
+        #total_loss =  ((1 - 0.1) * cdiv_loss) + (alphaY * reg_loss)
+        total_loss = cdiv_loss
         #total_loss = cdiv_loss + class_loss
 
         # Logging
@@ -943,8 +944,8 @@ def compare_images(img1, img2):
                labels=[f"Original image: {score1.item():4.2f}", f"Transformed image: {score2.item():4.2f}"])
     plt.yticks([])
 
-    print(f"Score original image: {score1.item():4.2f}")
-    print(f"Score transformed image: {score2.item():4.2f}")
+    print(f"Original image: {score1.item():4.2f}")
+    print(f"Transformed image: {score2.item():4.2f}")
     buf = io.BytesIO()
     plt.savefig(buf, format='png')
     buf.seek(0)
