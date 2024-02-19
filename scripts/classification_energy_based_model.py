@@ -845,38 +845,23 @@ callback = GenerateCallback(batch_size=8, vis_steps=8, num_steps=512)
 imgs_per_step = callback.generate_imgs(model)
 imgs_per_step = imgs_per_step.cpu()
 
-
-# Create subplots with appropriate spacing
-rows, cols = imgs_per_step.shape[1] // 8, 8
-fig, axes = plt.subplots(rows, cols, figsize=(2 * cols, 2 * rows),
-                       gridspec_kw={'wspace': 0.05, 'hspace': 0.05})
-
 for i in range(imgs_per_step.shape[1]):
     step_size = callback.num_steps // callback.vis_steps
     imgs_to_plot = imgs_per_step[step_size-1::step_size,i]
     imgs_to_plot = torch.cat([imgs_per_step[0:1,i],imgs_to_plot], dim=0)
     grid = torchvision.utils.make_grid(imgs_to_plot, nrow=imgs_to_plot.shape[0], normalize=True, pad_value=0.5, padding=2)
     grid = grid.permute(1, 2, 0)
-    ax = axes.flat[i]
-    
-    ax.figure(figsize=(8,8))
-    ax.imshow(grid)
-    ax.xlabel("Generation iteration")
-    ax.xticks([(imgs_per_step.shape[-1]+2)*(0.5+j) for j in range(callback.vis_steps+1)],
+    plt.figure(figsize=(8,8))
+    plt.imshow(grid)
+    plt.xlabel("Generation iteration")
+    plt.xticks([(imgs_per_step.shape[-1]+2)*(0.5+j) for j in range(callback.vis_steps+1)],
                labels=[1] + list(range(step_size,imgs_per_step.shape[0]+1,step_size)))
-    ax.yticks([])
-    # Adjust layout and labels
-    ax.axis('off')
-    ax.set_aspect('equal')
-    ax.set_title(f"Generation Iteration {1 + i * step_size}")
+    plt.yticks([])
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
 
-
-
-buf = io.BytesIO()
-plt.savefig(buf, format='png')
-buf.seek(0)
-
-minio_path_i = "environmental/output/my_test/images_generation_sample_" + str(i) +"_" +date_now+".png"
-cmd.upload_data(minio_client, 'datasets', minio_path_i, buf)
+    minio_path_i = "environmental/output/my_test/images_generation_sample_" + str(i) +"_" +date_now+".png"
+    cmd.upload_data(minio_client, 'datasets', minio_path_i, buf)
 
 
