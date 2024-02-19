@@ -174,27 +174,58 @@ test_set = CIFAR10(root='./data', train=False, transform=transform, download=Tru
 
 # cat_index = np.where(train_set.reshape(-1) == 3)
 # dog_index= np.where(train_set.reshape(-1) == 5)
-cat_idx = np.where((np.array(train_set.targets) == 3))[0]
-dog_idx = np.where((np.array(train_set.targets) == 5) )[0]
 
+dog_idx = np.where((np.array(train_set.targets) == 5) )[0]
+dog_ds = torch.utils.data.Subset(train_set, dog_idx)
+
+cat_idx = np.where((np.array(train_set.targets) == 3))[0]
+notcat_idx = np.where((np.array(train_set.targets) != 3) )[0]
 
 
 cat_ds = torch.utils.data.Subset(train_set, cat_idx)
-dog_ds = torch.utils.data.Subset(train_set, dog_idx)
+notcat_ds = torch.utils.data.Subset(train_set, notcat_idx)
 
-num_samples = len(dog_ds)
+
+# Get original targets
+original_targets = np.array(train_set.targets)
+
+# Create new target arrays
+new_cat_targets = np.ones_like(original_targets[cat_idx])
+new_notcat_targets = np.zeros_like(original_targets[notcat_idx])
+
+# Combine new targets with proper indexing
+combined_targets = np.concatenate((new_cat_targets, new_notcat_targets))
+
+# Remap the combined targets using original indices
+remapped_targets = np.zeros_like(original_targets)
+remapped_targets[cat_idx] = new_cat_targets
+remapped_targets[notcat_idx] = new_notcat_targets
+
+# Update cat_ds with remapped targets
+cat_ds = torch.utils.data.Subset(train_set, cat_idx, remapped_targets[cat_idx])
+
+# Update notcat_ds with remapped targets
+notcat_ds = torch.utils.data.Subset(train_set, notcat_idx, remapped_targets[notcat_idx])
+
+
+from torch.utils.data import ConcatDataset
+
+# Combine datasets
+full_dataset = ConcatDataset([cat_ds, notcat_ds])
+
+num_samples = len(full_dataset)
 print("the number of samples is ", num_samples)
 train_size = int(0.8 * num_samples)
 val_size = num_samples - train_size
 
 
-train_set, val_set = random_split(cat_ds, [train_size, val_size])
+train_set, val_set = random_split(full_dataset, [train_size, val_size])
 
 
 
 train_loader = data.DataLoader(train_set, batch_size=64, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
 val_loader = data.DataLoader(val_set, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
-dog_loader = data.DataLoader(dog_ds, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+dog_loader = data.DataLoader(notcat_ds, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
 for images, _ in train_loader:
     # Unpack the batch
@@ -255,7 +286,52 @@ for images, _ in train_loader:
 
 
 
-# ##################### Binary Classifier V3
+# # ##################### Binary Classifier V3
+# class CNNModel(nn.Module):
+#     def __init__(self):
+#         super(CNNModel, self).__init__()
+
+#         # Convolutional layers and activation functions
+#         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
+#         self.relu1 = nn.ReLU()
+#         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+#         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
+#         self.relu2 = nn.ReLU()
+#         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+#         # Fully-connected layers and activation functions
+#         self.fc1 = nn.Linear(64 * 8 * 8, 1024)
+#         self.relu3 = nn.ReLU()
+
+#         # Energy prediction branch
+#         self.fc_energy = nn.Linear(1024, 1)  # Predict a single energy score
+
+#         # # Classification branch
+#         # self.fc2 = nn.Linear(1024, 10)
+#         # self.softmax = nn.Softmax(dim=1)  # Apply softmax for class probabilities
+
+#     def forward(self, x):
+#         # Feature extraction using convolutional layers
+#         x = self.pool1(self.relu1(self.conv1(x)))
+#         x = self.pool2(self.relu2(self.conv2(x)))
+#         x = x.view(-1, 64 * 8 * 8)
+
+#         # Feature processing for both branches
+#         shared_features = self.relu3(self.fc1(x))
+
+#         # Energy branch
+#         energy = self.fc_energy(shared_features)  # Output energy score
+
+#         # # Classification branch
+#         # logits = self.fc2(shared_features)
+#         # probs = self.softmax(logits)  # Output class probabilities
+
+#         return energy
+
+
+
+##################### NEW Classifier V2
 class CNNModel(nn.Module):
     def __init__(self):
         super(CNNModel, self).__init__()
@@ -276,9 +352,9 @@ class CNNModel(nn.Module):
         # Energy prediction branch
         self.fc_energy = nn.Linear(1024, 1)  # Predict a single energy score
 
-        # # Classification branch
-        # self.fc2 = nn.Linear(1024, 10)
-        # self.softmax = nn.Softmax(dim=1)  # Apply softmax for class probabilities
+        # Classification branch
+        self.fc2 = nn.Linear(1024, 10)
+        self.softmax = nn.Softmax(dim=1)  # Apply softmax for class probabilities
 
     def forward(self, x):
         # Feature extraction using convolutional layers
@@ -292,17 +368,17 @@ class CNNModel(nn.Module):
         # Energy branch
         energy = self.fc_energy(shared_features)  # Output energy score
 
-        # # Classification branch
-        # logits = self.fc2(shared_features)
-        # probs = self.softmax(logits)  # Output class probabilities
+        # Classification branch
+        logits = self.fc2(shared_features)
+        probs = self.softmax(logits)  # Output class probabilities
 
-        return energy
+        return energy, probs
+    
+
 
 
 ##### Get real images
- 
-
-
+    
 def get_real_images_and_labels(n_real):
   # Shuffle the dataset randomly
   # Get all indices
@@ -341,31 +417,7 @@ class Sampler:
         self.examples = [(torch.rand((1,)+img_shape)*2-1) for _ in range(self.sample_size)]
 
 
-    # def sample_new_exmps(self, steps=60, step_size=10):
-    #   # Choose 80% of the batch from real images, 20% generate from scratch
-    #   n_real = int(self.sample_size * 0.8)
-    #   n_new = self.sample_size - n_real
-
-    #   # Get real images and labels from your dataset
-    #   real_imgs, real_labels = get_real_images_and_labels(n_real)
-
-    #   # Generate new images with noise
-    #   rand_imgs = torch.rand((n_new,) + self.img_shape) * 2 - 1
-    #   rand_imgs = rand_imgs.to(device)
-    #   # Combine real and fake images with associated labels
-    #   inp_imgs = torch.cat([real_imgs, rand_imgs], dim=0)
-    #   labels = torch.cat([real_labels, torch.zeros(n_new).to(device)], dim=0)
-
-    #   # Perform MCMC sampling
-    #   inp_imgs = Sampler.generate_samples(self.model, inp_imgs, steps=steps, step_size=step_size)
-
-    #   # Add new images to the buffer and remove old ones if needed
-    #   # ... (update buffer logic considering mixed data) ...
-
-    #   return inp_imgs, labels
-
-    #
-    def sample_new_exmps(self, steps=120, step_size=10):
+    def sample_new_exmps(self, steps=60, step_size=10):
       # Choose 80% of the batch from real images, 20% generate from scratch
       n_real = int(self.sample_size * 0.8)
       n_new = self.sample_size - n_real
@@ -387,12 +439,6 @@ class Sampler:
       # ... (update buffer logic considering mixed data) ...
 
       return inp_imgs, labels
-
-
-
-
-
-
 
     # def sample_new_exmps(self, steps=60, step_size=10):
     #     """
@@ -448,13 +494,13 @@ class Sampler:
         # Loop over K (steps)
         for _ in range(steps):
             # Part 1: Add noise to the input.
-            noise.normal_(0, 0.005)
+            noise.normal_(0, 0.010) # (0, 0.005)
             inp_imgs.data.add_(noise.data)
-            inp_imgs.data.clamp_(min=-1.0, max=1.0)
+            inp_imgs.data.clamp_(min=-1.0, max=1.0) # (min=-1.0, max=1.0)
 
             # Part 2: calculate gradients for the current input.
             out_imgs = model(inp_imgs)  # Tuple containing savedx and x
-            out_imgs = -out_imgs #-out_imgs[0]  # Use the first element (savedx)
+            out_imgs = -out_imgs[0]  # Use the first element (savedx)
             #out_imgs = -model(inp_imgs)
             out_imgs.sum().backward()
             inp_imgs.grad.data.clamp_(-0.03, 0.03) # For stabilizing and preventing too high gradients
@@ -480,8 +526,7 @@ class Sampler:
             return torch.stack(imgs_per_step, dim=0)
         else:
             return inp_imgs
-
-
+        
 
 
 
@@ -489,7 +534,6 @@ total_losses = []
 class_losses = []
 cdiv_losses = []
 reg_losses = []
-
 real_scores_s = []
 fake_scores_s = []
 
@@ -519,7 +563,7 @@ class DeepEnergyModel(pl.LightningModule):
         # We add minimal noise to the original images to prevent the model from focusing on purely "clean" inputs
         real_imgs, _ = batch
         #print("the _ is ",_)
-        small_noise = torch.randn_like(real_imgs) * 0.005
+        small_noise = torch.randn_like(real_imgs) * 0.010 # 0.005
         real_imgs.add_(small_noise).clamp_(min=-1.0, max=1.0)
 
         # Obtain samples
@@ -528,32 +572,31 @@ class DeepEnergyModel(pl.LightningModule):
         #print("The shapes are ", fake_imgs)
         # Pass all images through the model
         all_imgs = torch.cat([real_imgs, fake_imgs], dim=0)
-        all_scores = self.cnn(all_imgs)
+        all_scores, class_probs = self.cnn(all_imgs)
 
         # Separate real and fake scores and probabilities
         real_scores, fake_scores = all_scores.chunk(2, dim=0)
-        #real_probs, fake_probs = class_probs.chunk(2, dim=0)
+        real_probs, fake_probs = class_probs.chunk(2, dim=0)
 
         # Calculate CD loss
         cdiv_loss = fake_scores.mean() - real_scores.mean()
 
         # Calculate classification loss (assuming softmax output)
-        #class_loss = nn.CrossEntropyLoss()(real_probs, _)
+        class_loss = nn.CrossEntropyLoss()(real_probs, _)
 
         # regression loss
 
         reg_loss =(real_scores ** 2 + fake_scores ** 2).mean()
 
         # Combine losses and backpropagate
-        alphaW = 0.5  # Adjust weight for cdiv_loss
+        alphaW = 0.1  # Adjust weight for cdiv_loss
         alphaY = 0.1  # Adjust weight for reg_loss
-        #total_loss =  ((1 - 0.1) * cdiv_loss) + (alphaY * reg_loss)
-        total_loss = cdiv_loss + reg_loss
+        total_loss = (alphaW * class_loss) + ((1 - alphaW) * cdiv_loss) + (alphaY * reg_loss)
         #total_loss = cdiv_loss + class_loss
 
         # Logging
         self.log('total loss', total_loss)
-        #self.log('loss_regularization', class_loss)
+        self.log('loss_regularization', class_loss)
         self.log('loss_contrastive_divergence', cdiv_loss)
         self.log('metrics_avg_real', 0)
         self.log('metrics_avg_fake', 0)
@@ -562,7 +605,7 @@ class DeepEnergyModel(pl.LightningModule):
         #print(('cls loss', class_loss.item()))
         #print(('cdiv loss', cdiv_loss.item()))
         total_losses.append(total_loss.item())
-        #class_losses.append(class_loss.item())
+        class_losses.append(class_loss.item())
         cdiv_losses.append(cdiv_loss.item())
         reg_losses.append(reg_loss.item())
 
@@ -621,26 +664,23 @@ class DeepEnergyModel(pl.LightningModule):
       real_imgs, labels = batch
 
       # Pass through model to get scores and probabilities
-      all_scores = self.cnn(real_imgs)
+      all_scores, class_probs = self.cnn(real_imgs)
 
       # Calculate CD loss (optional, adjust if needed)
       cdiv = all_scores.mean()  # Modify based on scores or probabilities
 
       # Calculate classification metrics
-      #predicted_labels = torch.argmax(class_probs, dim=1)
-      #accuracy = (predicted_labels == labels).float().mean()
+      predicted_labels = torch.argmax(class_probs, dim=1)
+      accuracy = (predicted_labels == labels).float().mean()
       #precision, recall, f1, _ = precision_recall_fscore(predicted_labels, labels, average='weighted')
 
       # Log metrics
       #print('val_accuracy', accuracy)
       self.log('val_contrastive_divergence', cdiv)
-      #self.log('val_accuracy', accuracy)
+      self.log('val_accuracy', accuracy)
       #self.log('val_precision', precision)
       #self.log('val_recall', recall)
       #self.log('val_f1', f1)
-
-
-  
 
 
 class GenerateCallback(pl.Callback):
@@ -664,6 +704,7 @@ class GenerateCallback(pl.Callback):
                 imgs_to_plot = imgs_per_step[step_size-1::step_size,i]
                 grid = torchvision.utils.make_grid(imgs_to_plot, nrow=imgs_to_plot.shape[0], normalize=True, range=(-1,1))
                 trainer.logger.experiment.add_image(f"generation_{i}", grid, global_step=trainer.current_epoch)
+        print("epoch ended")
 
     def generate_imgs(self, pl_module):
         pl_module.eval()
@@ -674,7 +715,7 @@ class GenerateCallback(pl.Callback):
         torch.set_grad_enabled(False)
         pl_module.train()
         return imgs_per_step
-
+    
 
 
 class SamplerCallback(pl.Callback):
@@ -689,10 +730,6 @@ class SamplerCallback(pl.Callback):
             exmp_imgs = torch.cat(random.choices(pl_module.sampler.examples, k=self.num_imgs), dim=0)
             grid = torchvision.utils.make_grid(exmp_imgs, nrow=4, normalize=True, range=(-1,1))
             trainer.logger.experiment.add_image("sampler", grid, global_step=trainer.current_epoch)
-
-
-
-
 
 
 class OutlierCallback(pl.Callback):
@@ -712,15 +749,12 @@ class OutlierCallback(pl.Callback):
         trainer.logger.experiment.add_scalar("rand_out", rand_out, global_step=trainer.current_epoch)
 
 
-
-
-
 def train_model(**kwargs):
     # Create a PyTorch Lightning trainer with the generation callback
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=60,
+                         max_epochs=80,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -772,9 +806,8 @@ minio_path="environmental/output/my_test"
 
 epochs = range(1, len(total_losses) + 1)  
 
-
-# Create subplots grid (3 rows, 1 column)
-fig, axes = plt.subplots(4, 1, figsize=(10, 24))
+# Create subplots grid (5 rows, 1 column)
+fig, axes = plt.subplots(5, 1, figsize=(10, 24))
 
 # Plot each loss on its own subplot
 axes[0].plot(epochs, total_losses, label='Total Loss')
@@ -784,36 +817,37 @@ axes[0].set_title('Total Loss')
 axes[0].legend()
 axes[0].grid(True)
 
-# axes[1].plot(epochs, class_losses, label='Classification Loss')
-# axes[1].set_xlabel('Steps')
-# axes[1].set_ylabel('Loss')
-# axes[1].set_title('Classification Loss')
-# axes[1].legend()
-# axes[1].grid(True)
-
-axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
+axes[1].plot(epochs, class_losses, label='Classification Loss')
 axes[1].set_xlabel('Steps')
 axes[1].set_ylabel('Loss')
-axes[1].set_title('Contrastive Divergence Loss')
+axes[1].set_title('Classification Loss')
 axes[1].legend()
 axes[1].grid(True)
 
-
-axes[2].plot(epochs, reg_losses , label='Regression Loss')
+axes[2].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
 axes[2].set_xlabel('Steps')
 axes[2].set_ylabel('Loss')
-axes[2].set_title('Regression Loss')
+axes[2].set_title('Contrastive Divergence Loss')
 axes[2].legend()
 axes[2].grid(True)
 
-# Plot real and fake scores on the fourth subplot
-axes[3].plot(epochs, real_scores_s, label='Real Scores')
-axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
+
+axes[3].plot(epochs, reg_losses , label='Regression Loss')
 axes[3].set_xlabel('Steps')
-axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
-axes[3].set_title('Real vs. Fake Scores')
+axes[3].set_ylabel('Loss')
+axes[3].set_title('Regression Loss')
 axes[3].legend()
 axes[3].grid(True)
+
+# Plot real and fake scores on the fourth subplot
+axes[4].plot(epochs, real_scores_s, label='Real Scores')
+axes[4].plot(epochs, fake_scores_s, label='Fake Scores')
+axes[4].set_xlabel('Steps')
+axes[4].set_ylabel('Score')  # Adjust label if scores represent a different metric
+axes[4].set_title('Real vs. Fake Scores')
+axes[4].legend()
+axes[4].grid(True)
+
 
 # Adjust spacing between subplots for better visualization
 plt.tight_layout()
@@ -846,14 +880,12 @@ callback = GenerateCallback(batch_size=8, vis_steps=8, num_steps=512)
 imgs_per_step = callback.generate_imgs(model)
 imgs_per_step = imgs_per_step.cpu()
 
-
 for i in range(imgs_per_step.shape[1]):
     step_size = callback.num_steps // callback.vis_steps
     imgs_to_plot = imgs_per_step[step_size-1::step_size,i]
     imgs_to_plot = torch.cat([imgs_per_step[0:1,i],imgs_to_plot], dim=0)
     grid = torchvision.utils.make_grid(imgs_to_plot, nrow=imgs_to_plot.shape[0], normalize=True, pad_value=0.5, padding=2)
     grid = grid.permute(1, 2, 0)
-    
     plt.figure(figsize=(8,8))
     plt.imshow(grid)
     plt.xlabel("Generation iteration")
@@ -866,9 +898,6 @@ for i in range(imgs_per_step.shape[1]):
 
     minio_path_i = "environmental/output/my_test/images_generation_sample_" + str(i) +"_" +date_now+".png"
     cmd.upload_data(minio_client, 'datasets', minio_path_i, buf)
-
-
-
 
 
 
