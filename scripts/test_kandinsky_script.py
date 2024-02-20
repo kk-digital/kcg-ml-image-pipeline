@@ -99,3 +99,6 @@ def main():
     images_df = pd.DataFrame(images)
     store_csv_file(minio_client, images_df)
     print("Processing complete!")
+
+if __name__=="__main__":
+    main()
