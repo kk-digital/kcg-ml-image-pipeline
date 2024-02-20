@@ -401,7 +401,7 @@ class Sampler:
         self.examples = [(torch.rand((1,)+img_shape)*2-1) for _ in range(self.sample_size)]
 
 
-    def sample_new_exmps(self, steps=60, step_size=10):
+    def sample_new_exmps(self, steps=120, step_size=5):
       # Choose 80% of the batch from real images, 20% generate from scratch
       n_real = int(self.sample_size * 0.8)
       n_new = self.sample_size - n_real
@@ -446,7 +446,7 @@ class Sampler:
     #     return inp_imgs
 
     @staticmethod
-    def generate_samples(model, inp_imgs, steps=60, step_size=10, return_img_per_step=False):
+    def generate_samples(model, inp_imgs, steps=120, step_size=5, return_img_per_step=False):
         """
         Function for sampling images for a given model.
         Inputs:
@@ -551,7 +551,7 @@ class DeepEnergyModel(pl.LightningModule):
         real_imgs.add_(small_noise).clamp_(min=-1.0, max=1.0)
 
         # Obtain samples
-        fake_imgs, fake_labels = self.sampler.sample_new_exmps(steps=60, step_size=10)
+        fake_imgs, fake_labels = self.sampler.sample_new_exmps(steps=120, step_size=5)
         #print("The shapes are ", real_imgs.shape)
         #print("The shapes are ", fake_imgs)
         # Pass all images through the model
@@ -695,7 +695,7 @@ class GenerateCallback(pl.Callback):
         start_imgs = torch.rand((self.batch_size,) + pl_module.hparams["img_shape"]).to(pl_module.device)
         start_imgs = start_imgs * 2 - 1
         torch.set_grad_enabled(True)  # Tracking gradients for sampling necessary
-        imgs_per_step = Sampler.generate_samples(pl_module.cnn, start_imgs, steps=self.num_steps, step_size=10, return_img_per_step=True)
+        imgs_per_step = Sampler.generate_samples(pl_module.cnn, start_imgs, steps=self.num_steps, step_size=5, return_img_per_step=True)
         torch.set_grad_enabled(False)
         pl_module.train()
         return imgs_per_step
