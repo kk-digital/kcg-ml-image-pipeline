@@ -15,8 +15,26 @@ CLIP_SERVER_ADDRESS = 'http://192.168.3.31:8002'
 #CLIP_SERVER_ADDRESS = 'http://127.0.0.1:8002'
 router = APIRouter()
 
-
 # --------- Http requests -------------
+def http_clip_server_get_kandinsky_vector(image_path: str):
+    url = CLIP_SERVER_ADDRESS + "/kandinsky-clip-vector?image_path=" + image_path
+    response = None
+    try:
+        response = requests.put(url)
+        if response.status_code == 200:
+            return response.status_code, response.json()
+        else:
+            return response.status_code, None
+    
+    except Exception as e:
+        print('request exception ', e)
+        # Return a 503 status code when the server is not accessible
+        return 500, None
+    
+    finally:
+        if response:
+            response.close()
+
 def http_clip_server_add_phrase(phrase: str):
     url = CLIP_SERVER_ADDRESS + "/add-phrase?phrase=" + phrase
     response = None
