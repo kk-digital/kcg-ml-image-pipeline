@@ -47,25 +47,25 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
         "prompt_generation_policy": prompt_generation_policy
     }
 
-    image_embedding= image_embedding.detach().cpu().numpy()
-    negative_image_embedding= image_embedding.detach().cpu().numpy() if negative_image_embedding is not None else None
+    image_embedding= image_embedding.detach().cpu().numpy().tolist()
+    negative_image_embedding= image_embedding.detach().cpu().numpy().tolist() if negative_image_embedding is not None else None
 
-    # upload the image embeddings to minIO
-    image_embedding_data= ImageEmbedding(job_uuid= task_uuid,
-                                         dataset= dataset_name,
-                                         image_embedding= image_embedding,
-                                         negative_image_embedding= negative_image_embedding)
+    # # upload the image embeddings to minIO
+    # image_embedding_data= ImageEmbedding(job_uuid= task_uuid,
+    #                                      dataset= dataset_name,
+    #                                      image_embedding= image_embedding,
+    #                                      negative_image_embedding= negative_image_embedding)
     
-    output_file_path = os.path.join(dataset_name, task_input_dict['file_path'])
-    image_embeddings_path = output_file_path.replace(".jpg", "_embedding.msgpack")
+    # output_file_path = os.path.join(dataset_name, task_input_dict['file_path'])
+    # image_embeddings_path = output_file_path.replace(".jpg", "_embedding.msgpack")
 
-    msgpack_string = image_embedding_data.get_msgpack_string()
+    # msgpack_string = image_embedding_data.get_msgpack_string()
 
-    buffer = io.BytesIO()
-    buffer.write(msgpack_string)
-    buffer.seek(0)
+    # buffer = io.BytesIO()
+    # buffer.write(msgpack_string)
+    # buffer.seek(0)
 
-    upload_data(minio_client, "datasets", image_embeddings_path, buffer) 
+    # upload_data(minio_client, "datasets", image_embeddings_path, buffer) 
 
     # create the job
     generation_task = GenerationTask(uuid=task_uuid,
@@ -78,6 +78,8 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
     generation_task_json = generation_task.to_dict()
 
     # add job
-    response = generation_request.http_add_job(generation_task_json)
+    response = generation_request.http_add_kandinsky_job(job=generation_task_json,
+                                                         positive_embedding=image_embedding,
+                                                         negative_embedding=negative_image_embedding)
 
     return response
