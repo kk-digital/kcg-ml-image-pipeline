@@ -58,6 +58,31 @@ def http_add_job(job):
 
     return decoded_response
 
+def http_add_kandinsky_job(job, positive_embedding, negative_embedding):
+    url = SERVER_ADDRESS + "/queue/image-generation/add-kandinsky"
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+    response = None
+    # Prepare the data in JSON format
+    data = {
+        "job": job,
+        "positive_embedding": positive_embedding,
+        "negative_embedding": negative_embedding
+    }
+    try:
+        response = requests.post(url, json=data, headers=headers)
+        if response.status_code != 201 and response.status_code != 200:
+            print(f"POST request failed with status code: {response.status_code}")
+
+        decoded_response = json.loads(response.content.decode())
+    except Exception as e:
+        print('request exception ', e)
+
+    finally:
+        if response:
+            response.close()
+
+    return decoded_response
+
 
 def http_update_job_completed(job):
     url = SERVER_ADDRESS + "/queue/image-generation/update-completed"

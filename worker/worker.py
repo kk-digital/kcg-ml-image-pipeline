@@ -291,8 +291,16 @@ def upload_image_data_and_update_job_status(worker_state,
     # update status
     generation_request.http_update_job_completed(job)
 
-    # add clip calculation task
-    clip_calculation_job = {"uuid": "",
+    # add clip calculation tasks
+    kandinsky_clip_calculation_job = {"uuid": "",
+                            "task_type": "clip_calculation_task_kandinsky",
+                            "task_input_dict": {
+                                "input_file_path": output_file_path,
+                                "input_file_hash": output_file_hash
+                            },
+                            }
+    
+    sd_clip_calculation_job = {"uuid": "",
                             "task_type": "clip_calculation_task_sd_1_5",
                             "task_input_dict": {
                                 "input_file_path": output_file_path,
@@ -300,7 +308,8 @@ def upload_image_data_and_update_job_status(worker_state,
                             },
                             }
 
-    generation_request.http_add_job(clip_calculation_job)
+    generation_request.http_add_job(kandinsky_clip_calculation_job)
+    generation_request.http_add_job(sd_clip_calculation_job)
 
 
 def process_jobs(worker_state):
