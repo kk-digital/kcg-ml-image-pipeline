@@ -272,6 +272,27 @@ def http_add_score_attributes(model_type,
 
     return None
 
+# update delta scores for ranking data
+def http_update_ranking_delta_scores():
+
+    url = SERVER_ADDRESS + "/calculate-delta-scores"
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+    response = None
+
+    try:
+        response = requests.post(url, headers=headers)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}: {str(response.content)}")
+    except Exception as e:
+        print('request exception ', e)
+
+    finally:
+        if response:
+            response.close()
+
+    return None
+
 # Get completed job
 def http_get_completed_job_by_uuid(job_uuid):
     url = SERVER_ADDRESS + "/job/get-job/{}".format(job_uuid)

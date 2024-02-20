@@ -1,5 +1,4 @@
 import argparse
-import csv
 from datetime import datetime
 import io
 import os
@@ -28,8 +27,11 @@ from utility.boltzman.boltzman_phrase_scores_loader import BoltzmanPhraseScoresL
 from data_loader.phrase_embedding_loader import PhraseEmbeddingLoader
 from utility.boltzman.boltzman import find_first_element_binary_search, get_cumulative_probability_arr_without_upload
 from utility.minio import cmd
-from scripts.prompt_mutator.tagger import Tagger
+from utility.http import request
 from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix, load_base_prompts, generate_inpainting_job
+from kandinsky_worker.prompt_generation.prompt_generator import generate_image_generation_jobs_with_kandinsky, generate_inpainting_job_with_kandinsky
+from scripts.prompt_mutator.DataLoaders.FixedProbabilitiesDataLoader import FixedProbabilitiesDataLoader
+from scripts.prompt_mutator.DataLoaders.IndependantApproximationDataLoader import IndependantApproximationDataLoader
 
 GENERATION_POLICY="greedy-substitution-search-v1"
 DATA_MINIO_DIRECTORY="data/prompt-generator/substitution"
@@ -43,7 +45,6 @@ def parse_args():
     parser.add_argument('--csv-phrase', help='CSV containing phrases, must have "phrase str" column', default='input/civitai_phrases_database_v7_no_nsfw.csv')
     parser.add_argument('--n-data', type=int, help='Number of data samples to generate', default=20)
     parser.add_argument('--send-job', action='store_true', default=False)
-    parser.add_argument('--update-prompts', action='store_true', default=False)
     parser.add_argument('--dataset-name', default='test-generations')
     parser.add_argument('--model-dataset', default='environmental')
     parser.add_argument('--substitution-model', help="substitution model type: xgboost or linear", default='xgboost')
@@ -54,14 +55,12 @@ def parse_args():
     parser.add_argument('--boltzman-k', type=float, default=1.0)
     parser.add_argument('--max-iterations', type=int, help="number of mutation iterations", default=80)
     parser.add_argument('--self-training', action='store_true', default=False)
-    parser.add_argument('--store-embeddings', action='store_true', default=False)
-    parser.add_argument('--store-token-lengths', action='store_true', default=False)
     parser.add_argument('--save-csv', action='store_true', default=False)
     parser.add_argument('--initial-generation-policy', help="the generation policy used for generating the initial seed prompts", default="independant_approximation")
     parser.add_argument('--top-k', type=float, help="top percentage of prompts taken from generation to be mutated", default=0.1)
     parser.add_argument('--num_choices', type=int, help="Number of substituion choices tested every iteration", default=128)
-    parser.add_argument('--clip-batch-size', type=int, help="Batch size for clip embeddings", default=1000)
-    parser.add_argument('--substitution-batch-size', type=int, help="Batch size for the substitution model", default=100000)
+    parser.add_argument('--clip-batch-size', type=int, help="Batch size for clip embeddings", default=256)
+    parser.add_argument('--substitution-batch-size', type=int, help="Batch size for the substitution model", default=10000)
 
     return parser.parse_args()
 
@@ -92,7 +91,6 @@ class PromptSubstitutionGenerator:
         minio_secret_key,
         minio_ip_addr,
         csv_phrase,
-        csv_base_prompts,
         model_dataset,
         substitution_model,
         scoring_model,
@@ -102,8 +100,6 @@ class PromptSubstitutionGenerator:
         boltzman_temperature,
         boltzman_k,
         dataset_name,
-        store_embeddings,
-        store_token_lengths,
         self_training,
         send_job,
         save_csv,
@@ -153,8 +149,6 @@ class PromptSubstitutionGenerator:
         self.clip_batch_size= clip_batch_size
         # batch size for xgboost inference
         self.substitution_batch_size=substitution_batch_size
-        # get list of base prompts
-        self.csv_base_prompts=csv_base_prompts
 
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key,
@@ -184,11 +178,11 @@ class PromptSubstitutionGenerator:
         self.ensemble_models=self.get_ensemble_models()
 
         # load the substitution model 
-        if(self.model_type=="xgboost"):
+        if(self.model_dataset!="environmental"):
             self.substitution_model= XgboostSubstitutionModel(minio_client=self.minio_client, 
                                                           ranking_model=self.scoring_model, 
                                                           dataset=self.model_dataset)
-        elif(self.model_type=="linear"):
+        else:
             self.substitution_model= LinearSubstitutionModel(minio_client=self.minio_client, 
                                                           ranking_model=self.scoring_model, 
                                                           dataset=self.model_dataset)
@@ -196,63 +190,38 @@ class PromptSubstitutionGenerator:
         self.substitution_model.load_model()
         
         if(self.initial_generation_policy=="fixed_probabilities"):
-            # get list of phrases and their token lengths
-            phrase_df=pd.read_csv(self.csv_phrase).sort_values(by="index")
-            self.phrase_list=phrase_df['phrase str'].tolist()
-
-            # store phrase token lengths
-            if(store_token_lengths):
-                self.store_phrase_token_lengths()
-            
-            # store list of token lengths for each phrase
-            self.phrase_token_lengths=self.load_phrase_token_lengths()
-
-            # store phrase embeddings in a file in minio 
-            if(store_embeddings):
-                self.store_phrase_embeddings()
-                
-            # get phrase embeddings    
-            self.phrase_embeddings= self.load_phrase_embeddings()
-        
+            self.data_loader= FixedProbabilitiesDataLoader(model_dataset,
+                                                            self.csv_phrase,
+                                                            text_encoder=self.embedder,
+                                                            minio_ip_addr=minio_ip_addr,
+                                                            minio_access_key=minio_access_key,
+                                                            minio_secret_key=minio_secret_key)
         else:
             # get list of boltzman phrase score
             self.positive_phrase_scores_csv,self.negative_phrase_scores_csv=self.get_boltzman_scores_csv()
-            print(self.positive_phrase_scores_csv)
 
-            # loading positive phrase scores to use for rejection sampling
-            phrase_loader=BoltzmanPhraseScoresLoader(dataset_name=self.model_dataset,
-                                                    phrase_scores_csv=self.positive_phrase_scores_csv,
-                                                    minio_client=self.minio_client)
-            phrase_loader.load_dataset()
-            self.phrase_score_data= phrase_loader.index_phrase_score_data
-            # get the list of phrases
-            self.phrase_list=[self.phrase_score_data[i].phrase for i in range(len(self.phrase_score_data))]
-            # get list of token lengths for each phrase
-            self.phrase_token_lengths=[self.phrase_score_data[i].token_length for i in range(len(self.phrase_score_data))]
-            # get embeddings of the phrases
+            self.data_loader= IndependantApproximationDataLoader(model_dataset,
+                                                            self.positive_phrase_scores_csv,
+                                                            text_encoder=self.embedder,
+                                                            minio_ip_addr=minio_ip_addr,
+                                                            minio_access_key=minio_access_key,
+                                                            minio_secret_key=minio_secret_key)
+            
+        # load phrase data
+        self.data_loader.load_phrases()
+        self.phrase_list= self.data_loader.phrase_list
 
-            phrase_embedding_loader= PhraseEmbeddingLoader(dataset_name="environmental",
-                                                           minio_access_key=minio_access_key,
-                                                           minio_secret_key=minio_secret_key,
-                                                           minio_ip_addr=minio_ip_addr)
-            phrase_embedding_loader.load_dataset_phrases()
-            phrase_embedding_loader.text_embedder= self.embedder
-            self.phrase_embeddings= phrase_embedding_loader.get_embeddings(self.phrase_list)
-            self.phrase_embeddings = [embedding.reshape(-1) if embedding.shape == (1, 768) else embedding for embedding in self.phrase_embeddings]
-
-            # get cumulative probabilities
-            self.positive_phrase_origin_indexes, self.positive_cumulative_probability_arr = get_cumulative_probability_arr_without_upload(
-            index_phrase_score_data=self.phrase_score_data,
-            boltzman_temperature=20,
-            boltzman_k=boltzman_k)
-
-            # get min and max
-            self.positive_cumulative_probability_arr_min = self.positive_cumulative_probability_arr.min()
-            self.positive_cumulative_probability_arr_max = self.positive_cumulative_probability_arr.max()
-
-
-        # create a dictionarry to get phrase index from phrase str
-        self.phrase_index_dictionarry={phrase:i for i, phrase in enumerate(self.phrase_list)}
+        # set the base prompts csv path
+        if(self.model_dataset=="icons"):
+            self.csv_base_prompts='input/dataset-config/icon/base-prompts-dsp.csv'
+        elif(self.model_dataset=="propaganda-poster"):
+            self.csv_base_prompts='input/dataset-config/propaganda-poster/base-prompts-propaganda-poster.csv'
+        elif(self.model_dataset=="mech"):
+            self.csv_base_prompts='input/dataset-config/mech/base-prompts-dsp.csv'
+        elif(self.model_dataset=="character" or self.model_dataset=="waifu"):
+            self.csv_base_prompts='input/dataset-config/character/base-prompts-waifu.csv'
+        elif(self.model_dataset=="environmental"):  
+            self.csv_base_prompts='input/dataset-config/environmental/base-prompts-environmental.csv'
 
         # get base prompt list
         base_prompts = load_base_prompts(self.csv_base_prompts)
@@ -267,7 +236,7 @@ class PromptSubstitutionGenerator:
         self.mutation_time=0
         self.clip_speed=0
         self.inference_speed=0
-    
+
     # load ensemble elm model for entropy calculation
     def get_ensemble_models(self):
         input_path = f"{self.model_dataset}/models/ranking/"
@@ -476,15 +445,6 @@ class PromptSubstitutionGenerator:
         num_tokens = input_ids.numel()
 
         return num_tokens
-
-    # selection policy
-    def selection_policy(self, max_token_length):
-        if(self.initial_generation_policy=="fixed_probabilities"):
-            random_index, phrase= self.choose_random_phrase(max_token_length)
-        else:
-            random_index, phrase= self.choose_phrase_by_temperature(max_token_length)
-        
-        return random_index, phrase
     
     # function to get a random phrase from civitai with a max token size for substitutions
     def choose_random_phrase(self, max_token_length):
@@ -493,32 +453,9 @@ class PromptSubstitutionGenerator:
         while(phrase_token_length > max_token_length):
             random_index=random.randrange(0, len(self.phrase_list))
             phrase= self.phrase_list[random_index]
-            phrase_token_length=self.phrase_token_lengths[random_index]
+            phrase_token_length=self.data_loader.get_token_length(phrase)
 
         return random_index, phrase
-    
-    # function to choose a phrase based on binary search
-    def choose_phrase_by_temperature(self, max_token_length):
-        phrase_token_length=max_token_length + 1
-
-        random_float = random.uniform(self.positive_cumulative_probability_arr_min,
-                                      self.positive_cumulative_probability_arr_max)
-            
-        random_index = find_first_element_binary_search(self.positive_cumulative_probability_arr, 
-                                                        random_float)
-        prompt_index = self.positive_phrase_origin_indexes[random_index]
-        phrase= self.phrase_list[prompt_index]
-        phrase_token_length=self.phrase_token_lengths[prompt_index]
-
-        counter= 1 if random_index < (len(self.positive_cumulative_probability_arr)-random_index) else -1
-
-        while(phrase_token_length > max_token_length):
-            random_index+=counter
-            prompt_index = self.positive_phrase_origin_indexes[random_index]
-            phrase= self.phrase_list[prompt_index]
-            phrase_token_length=self.phrase_token_lengths[prompt_index]
-
-        return prompt_index, phrase
 
     # rejection sampling function
     def rejection_sampling(self, prompts):
@@ -548,7 +485,7 @@ class PromptSubstitutionGenerator:
                 # get phrase string
                 substitute_phrase = random_phrase
                 # get phrase embedding by its index
-                substitute_embedding = self.phrase_embeddings[phrase_index]
+                substitute_embedding = self.data_loader.get_phrase_embedding(random_phrase)
                 # concatenate input in one array to use for inference
                 substitution_input = np.concatenate([prompt.positive_embedding, substituted_embedding, 
                                                      substitute_embedding, [phrase_position], [prompt.positive_score]])
@@ -563,6 +500,9 @@ class PromptSubstitutionGenerator:
         predictions = self.substitution_model.predict(data=substitution_inputs, batch_size=self.substitution_batch_size)
         end=time.time()
         self.inference_speed+= (num_choices * len(prompts))/ (end-start)
+
+        # Clear the arrays as they are no longer needed
+        del substitution_inputs
 
         prompt_index=0
         choices_count=1
@@ -591,6 +531,10 @@ class PromptSubstitutionGenerator:
                 current_prompt_substitution_choices=[]
             
             choices_count+=1
+        
+        del sampled_phrases
+        del sampled_embeddings
+        del substitution_positions
         
         return prompts_substitution_choices
 
@@ -660,8 +604,14 @@ class PromptSubstitutionGenerator:
                         prompts[index].variance_score= variance_score
                         break
                 
+                # After handling each prompt, clear substitution_choices if it's not needed further
+                del substitution_choices
+
                 self.average_score_by_iteration[i]+=prompts[index].positive_score
                 index+=1
+            
+            # Clear prompt_substitutions after processing all prompts
+            del prompt_substitutions
             
             # save average score for current iteration
             self.average_score_by_iteration[i]=self.average_score_by_iteration[i] / num_prompts
@@ -1026,6 +976,11 @@ class PromptSubstitutionGenerator:
             valid_positive_prompts = [positive_prompts[i] for i in valid_positive_indices]
             valid_negative_prompts = [negative_prompts[i] for i in valid_negative_indices]
 
+            del positive_prompts
+            del negative_prompts
+            del positive_token_lengths
+            del negative_token_lengths
+
             # Get embeddings for the batch
             start=time.time()
             positive_embeddings = self.get_prompt_embedding(valid_positive_prompts)
@@ -1033,6 +988,9 @@ class PromptSubstitutionGenerator:
             end= time.time()
 
             clip_time+= end-start
+
+            del valid_positive_prompts
+            del valid_negative_prompts
 
             # Normalize scores and calculate mean pooled embeddings for the batch
             for i, index in enumerate(valid_positive_indices):
@@ -1058,9 +1016,18 @@ class PromptSubstitutionGenerator:
                     variance_score=variance_score
                 ))
            
+            del prompt_batch
+            del valid_positive_indices
+            del valid_negative_indices
+            del positive_embeddings
+            del negative_embeddings
+
+        del prompts
+            
         # Sort and select prompts
         sorted_scored_prompts = sorted(prompt_data, key=lambda data: data.positive_score, reverse=True)
         chosen_scored_prompts = sorted_scored_prompts[:num_prompts]
+        del sorted_scored_prompts
 
         # Calculate phrase embeddings and token lengths for chosen prompts
         print("Calculating phrase embeddings and token lengths for each phrase in each prompt")
@@ -1072,6 +1039,8 @@ class PromptSubstitutionGenerator:
         total_end=time.time() 
         self.generation_time= total_end - total_start  
         self.clip_speed= (num_prompts * 2) / clip_time
+
+        del prompt_data
 
         return chosen_scored_prompts
 
@@ -1110,6 +1079,11 @@ class PromptSubstitutionGenerator:
             valid_positive_prompts = [positive_prompts[i] for i in valid_positive_indices]
             valid_negative_prompts = [negative_prompts[i] for i in valid_negative_indices]
 
+            del positive_prompts
+            del negative_prompts
+            del positive_token_lengths
+            del negative_token_lengths
+
             # Get embeddings for the batch
             start=time.time()
             positive_embeddings = self.get_prompt_embedding(valid_positive_prompts)
@@ -1117,6 +1091,9 @@ class PromptSubstitutionGenerator:
             end= time.time()
 
             clip_time+= end-start
+
+            del valid_positive_prompts
+            del valid_negative_prompts
 
             # Normalize scores and calculate mean pooled embeddings for the batch
             for i, index in enumerate(valid_positive_indices):
@@ -1144,10 +1121,20 @@ class PromptSubstitutionGenerator:
                     positive_score=positive_score,
                     variance_score=variance_score
                 ))
-           
+            
+            del prompt_batch
+            del valid_positive_indices
+            del valid_negative_indices
+            del positive_embeddings
+            del negative_embeddings
+
+        del prompts
+
         # Sort and select prompts
         sorted_scored_prompts = sorted(prompt_data, key=lambda data: data.positive_score, reverse=True)
         chosen_scored_prompts = sorted_scored_prompts[:num_prompts]
+
+        del sorted_scored_prompts
 
         # Calculate phrase embeddings and token lengths for chosen prompts
         print("Calculating phrase embeddings and token lengths for each phrase in each prompt")
@@ -1159,26 +1146,27 @@ class PromptSubstitutionGenerator:
         total_end=time.time() 
         self.generation_time= total_end - total_start  
         self.clip_speed= (num_prompts * 2) / clip_time
+        del prompt_data
 
         return chosen_scored_prompts
 
     # load the embedding of a phrase
     def load_phrase_embedding(self, phrase):
         # get the phrase index
-        index=self.phrase_index_dictionarry.get(phrase)
+        phrase_embedding=self.data_loader.get_phrase_embedding(phrase)
 
-        if index is not None:
-            return self.phrase_embeddings[index]
+        if phrase_embedding is not None:
+            return phrase_embedding
         else:
             return self.base_prompt_embeddings[phrase]
     
     # load the token length of a phrase
     def load_phrase_token_length(self, phrase):
         # get the phrase index
-        index=self.phrase_index_dictionarry.get(phrase)
+        token_length=self.data_loader.get_token_length(phrase)
 
-        if index is not None:
-            return self.phrase_token_lengths[index]
+        if token_length is not None:
+            return token_length
         else:
             return self.base_prompt_token_lengths[phrase]
             
@@ -1230,43 +1218,6 @@ class PromptSubstitutionGenerator:
         cmd.upload_data(self.minio_client, 'datasets', minio_path, buf)
         # Remove the temporary file
         os.remove("output/average_score_by_iteration.png")
-        # Clear the current figure
-        plt.clf()
-
-    # outputs two histograms for scores before and after mutation for comparison 
-    def compare_distributions(self, minio_path, original_scores, mutated_scores):
-
-        fig, axs = plt.subplots(2, 1, figsize=(12, 10))
-        min_val= min(original_scores)
-        max_val= max(mutated_scores)
-
-        # plot histogram of original scores
-        axs[0].hist(original_scores, bins=10, range=[min_val,max_val], color='blue', alpha=0.7)
-        axs[0].set_xlabel('Scores')
-        axs[0].set_ylabel('Frequency')
-        axs[0].set_title('Scores Before Mutation')
-
-        # plot histogram of mutated scores
-        axs[1].hist(mutated_scores, bins=10, range=[min_val,max_val], color='blue', alpha=0.7)
-        axs[1].set_xlabel('Scores')
-        axs[1].set_ylabel('Frequency')
-        axs[1].set_title('Scores After mutation')
-
-        # Adjust spacing between subplots
-        plt.subplots_adjust(hspace=0.3)
-
-        plt.savefig("output/mutated_scores.png")
-
-        # Save the figure to a file
-        buf = io.BytesIO()
-        plt.savefig(buf, format='png')
-        buf.seek(0)
-
-        # upload the graph report
-        minio_path= minio_path + "/mutated_scores.png"
-        cmd.upload_data(self.minio_client, 'datasets', minio_path, buf)
-        # Remove the temporary file
-        os.remove("output/mutated_scores.png")
         # Clear the current figure
         plt.clf()
 
@@ -1388,109 +1339,6 @@ class PromptSubstitutionGenerator:
 
         os.remove(local_file_path)
 
-    # store embeddings of all phrases in civitai in a file in minIO
-    def store_phrase_embeddings(self):
-        phrase_list=self.phrase_list
-        phrase_embeddings_list=[]
-        
-        for phrase in tqdm(phrase_list):
-            embedding= self.get_prompt_embedding(phrase)
-            mean_pooled_embedding= self.get_mean_pooled_embedding(embedding)
-            phrase_embeddings_list.append(mean_pooled_embedding)
-        
-        # Convert the list of numpy arrays to a 2D numpy array
-        phrase_embeddings = np.array(phrase_embeddings_list)
-
-        # Save the numpy array to an .npz file
-        local_file_path='phrase_embeddings.npz'
-        np.savez_compressed(local_file_path, phrase_embeddings)
-
-        # Read the contents of the .npz file
-        with open(local_file_path, 'rb') as file:
-            content = file.read()
-
-        # Upload the local file to MinIO
-        buffer = io.BytesIO(content)
-        buffer.seek(0)
-
-        minio_path=DATA_MINIO_DIRECTORY + f"/input/{local_file_path}"
-        cmd.upload_data(self.minio_client, 'datasets',minio_path, buffer)
-
-        # Remove the temporary file
-        os.remove(local_file_path)
-    
-    # store toke nlength of all phrases in civitai in a file in minIO
-    def store_phrase_token_lengths(self):
-        phrase_list=self.phrase_list
-        token_lengths = [self.get_token_length(phrase) for phrase in tqdm(phrase_list)]
-
-        # Save the numpy array to an .npz file
-        local_file_path='token_lengths.csv'
-        
-        # Write to a CSV file
-        with open(local_file_path, 'w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(['Phrase index', 'Phrase str', 'Token Length'])
-            for phrase_index, length in enumerate(token_lengths):
-                writer.writerow([phrase_index, phrase_list[phrase_index], length])
-        
-        # Read the contents of the .npz file
-        with open(local_file_path, 'rb') as file:
-            content = file.read()
-
-        # Upload the local file to MinIO
-        buffer = io.BytesIO(content)
-        buffer.seek(0)
-
-        minio_path=DATA_MINIO_DIRECTORY + f"/input/{local_file_path}"
-        cmd.upload_data(self.minio_client, 'datasets',minio_path, buffer)
-
-        # Remove the temporary file
-        os.remove(local_file_path)
-
-    # get civitai phrase embeddings from minIO
-    def load_phrase_embeddings(self):
-        filename='phrase_embeddings.npz'
-
-        # Get the file data from MinIO
-        minio_path = f"environmental/data/prompt-generator/substitution/input/{filename}"
-        file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', minio_path)
-
-        # Create a BytesIO object and write the downloaded content into it
-        byte_buffer = io.BytesIO()
-        for data in file_data.stream(amt=8192):
-            byte_buffer.write(data)
-        # Reset the buffer's position to the beginning
-        byte_buffer.seek(0)
-
-        # Load the compressed numpy array from the BytesIO object
-        with np.load(byte_buffer) as data:
-            phrase_embeddings = data['arr_0']
-
-        return phrase_embeddings
-    
-    # get civitai phrase token lengths, calculated by the tokenizer
-    def load_phrase_token_lengths(self):
-        # get file name
-        filename='token_lengths.csv'
-
-        # Get the file data from MinIO
-        minio_path = f"environmental/data/prompt-generator/substitution/input/{filename}"
-        # Download the file from MinIO
-        try:
-            data = cmd.get_file_from_minio(self.minio_client, 'datasets', minio_path)
-            data_stream = io.BytesIO(data.read())  # Read data into an in-memory stream
-        except Exception as e:
-            print(f"Error downloading file from MinIO: {e}")
-            return None
-        
-        # Read the contents directly into a Pandas DataFrame
-        phrase_df = pd.read_csv(data_stream)
-
-        # get token lengths array
-        token_lengths=phrase_df['Token Length'].tolist()
-        
-        return token_lengths
 
 
 def main():
@@ -1498,47 +1346,73 @@ def main():
 
     # set the minio data path
     global DATA_MINIO_DIRECTORY
-    DATA_MINIO_DIRECTORY= f"{args.model_dataset}/" + DATA_MINIO_DIRECTORY
+    model_dataset = args.model_dataset
+    if args.dataset_name != "all":
+        # set the minio data path
+        DATA_MINIO_DIRECTORY= f"{model_dataset}/" + DATA_MINIO_DIRECTORY
 
-    # set the base prompts csv path
-    if(args.model_dataset=="icons"):
-        csv_base_prompts='input/dataset-config/icon/base-prompts-dsp.csv'
-    elif(args.model_dataset=="propaganda-poster"):
-        csv_base_prompts='input/dataset-config/propaganda-poster/base-prompts-propaganda-poster.csv'
-    elif(args.model_dataset=="mech"):
-        csv_base_prompts='input/dataset-config/mech/base-prompts-dsp.csv'
-    elif(args.model_dataset=="character" or args.model_dataset=="waifu"):
-        csv_base_prompts='input/dataset-config/character/base-prompts-waifu.csv'
-    elif(args.model_dataset=="environmental"):  
-        csv_base_prompts='input/dataset-config/environmental/base-prompts-environmental.csv'
+        prompt_mutator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
+                                    minio_secret_key=args.minio_secret_key,
+                                    minio_ip_addr=args.minio_addr,
+                                    csv_phrase=args.csv_phrase,
+                                    model_dataset=args.model_dataset,
+                                    substitution_model=args.substitution_model,
+                                    scoring_model=args.scoring_model,
+                                    max_iterations=args.max_iterations,
+                                    sigma_threshold=args.sigma_threshold,
+                                    variance_weight=args.variance_weight,
+                                    boltzman_temperature=args.boltzman_temperature,
+                                    boltzman_k=args.boltzman_k,
+                                    dataset_name=args.dataset_name,
+                                    self_training=args.self_training,
+                                    send_job=args.send_job,
+                                    save_csv=args.save_csv,
+                                    initial_generation_policy=args.initial_generation_policy,
+                                    top_k=args.top_k,
+                                    num_choices_per_iteration=args.num_choices,
+                                    clip_batch_size=args.clip_batch_size,
+                                    substitution_batch_size=args.substitution_batch_size)
+        
+        # generate n number of images
+        prompt_mutator.generate_images(num_images=args.n_data)
 
-    prompt_mutator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
-                                  minio_secret_key=args.minio_secret_key,
-                                  minio_ip_addr=args.minio_addr,
-                                  csv_phrase=args.csv_phrase,
-                                  csv_base_prompts=csv_base_prompts,
-                                  model_dataset=args.model_dataset,
-                                  substitution_model=args.substitution_model,
-                                  scoring_model=args.scoring_model,
-                                  max_iterations=args.max_iterations,
-                                  sigma_threshold=args.sigma_threshold,
-                                  variance_weight=args.variance_weight,
-                                  boltzman_temperature=args.boltzman_temperature,
-                                  boltzman_k=args.boltzman_k,
-                                  dataset_name=args.dataset_name,
-                                  store_embeddings=args.store_embeddings,
-                                  store_token_lengths=args.store_token_lengths,
-                                  self_training=args.self_training,
-                                  send_job=args.send_job,
-                                  save_csv=args.save_csv,
-                                  initial_generation_policy=args.initial_generation_policy,
-                                  top_k=args.top_k,
-                                  num_choices_per_iteration=args.num_choices,
-                                  clip_batch_size=args.clip_batch_size,
-                                  substitution_batch_size=args.substitution_batch_size)
-    
-    # generate n number of images
-    prompt_mutator.generate_images(num_images=args.n_data)
+    else:
+        # if all, train models for all existing datasets
+        # get dataset name list
+        dataset_names = request.http_get_dataset_names()
+        print("dataset names=", dataset_names)
+        for dataset in dataset_names:
+            try:
+                print("Training model for {}...".format(dataset))
+                model_dataset = dataset
+                DATA_MINIO_DIRECTORY = f"{model_dataset}/" + DATA_MINIO_DIRECTORY
+
+                prompt_mutator = PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
+                                                             minio_secret_key=args.minio_secret_key,
+                                                             minio_ip_addr=args.minio_addr,
+                                                             csv_phrase=args.csv_phrase,
+                                                             model_dataset=model_dataset,
+                                                             substitution_model=args.substitution_model,
+                                                             scoring_model=args.scoring_model,
+                                                             max_iterations=args.max_iterations,
+                                                             sigma_threshold=args.sigma_threshold,
+                                                             variance_weight=args.variance_weight,
+                                                             boltzman_temperature=args.boltzman_temperature,
+                                                             boltzman_k=args.boltzman_k,
+                                                             dataset_name=dataset,
+                                                             self_training=args.self_training,
+                                                             send_job=args.send_job,
+                                                             save_csv=args.save_csv,
+                                                             initial_generation_policy=args.initial_generation_policy,
+                                                             top_k=args.top_k,
+                                                             num_choices_per_iteration=args.num_choices,
+                                                             clip_batch_size=args.clip_batch_size,
+                                                             substitution_batch_size=args.substitution_batch_size)
+
+                # generate n number of images
+                prompt_mutator.generate_images(num_images=args.n_data)
+            except Exception as e:
+                print("Error training model for {}: {}".format(dataset, e))
     
 if __name__ == "__main__":
     main()

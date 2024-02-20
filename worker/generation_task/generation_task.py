@@ -9,7 +9,7 @@ class GenerationTask:
     model_name: str
     model_file_name: str
     model_file_path: str
-    sd_model_hash: str
+    model_hash: str
     task_creation_time: str
     task_start_time: str
     task_completion_time: str
@@ -17,6 +17,7 @@ class GenerationTask:
     task_input_dict: dict  # required
     task_input_file_dict: dict
     task_output_file_dict: dict
+    prompt_generation_data: dict
 
     def __init__(self,
                  uuid,
@@ -24,21 +25,22 @@ class GenerationTask:
                  model_name=None,
                  model_file_name=None,
                  model_file_path=None,
-                 sd_model_hash=None,
+                 model_hash=None,
                  task_creation_time=None,
                  task_start_time=None,
                  task_completion_time=None,
                  task_error_str=None,
                  task_input_dict=None,
                  task_input_file_dict=None,
-                 task_output_file_dict=None
+                 task_output_file_dict=None,
+                 prompt_generation_data= {}
                  ):
         self.uuid = uuid
         self.task_type = task_type
         self.model_name = model_name
         self.model_file_name = model_file_name
         self.model_file_path = model_file_path
-        self.sd_model_hash = sd_model_hash
+        self.model_hash = model_hash
         self.task_creation_time = task_creation_time
         self.task_start_time = task_start_time
         self.task_completion_time = task_completion_time
@@ -46,6 +48,7 @@ class GenerationTask:
         self.task_input_dict = task_input_dict
         self.task_input_file_dict = task_input_file_dict
         self.task_output_file_dict = task_output_file_dict
+        self.prompt_generation_data = prompt_generation_data
 
     def to_dict(self):
         return {
@@ -54,7 +57,7 @@ class GenerationTask:
             "model_name": self.model_name,
             "model_file_name": self.model_file_name,
             "model_file_path": self.model_file_path,
-            "sd_model_hash": self.sd_model_hash,
+            "model_hash": self.model_hash,
             "task_creation_time": self.task_creation_time,
             "task_start_time": self.task_start_time,
             "task_completion_time": self.task_completion_time,
@@ -62,6 +65,7 @@ class GenerationTask:
             "task_input_dict": self.task_input_dict,
             "task_input_file_dict": self.task_input_file_dict,
             "task_output_file_dict": self.task_output_file_dict,
+            "prompt_generation_data": self.prompt_generation_data
         }
 
     def from_dict(data):
@@ -71,7 +75,7 @@ class GenerationTask:
             model_name=data.get("model_name", ""),
             model_file_name=data.get("model_file_name", ""),
             model_file_path=data.get("model_file_path", ""),
-            sd_model_hash=data.get("sd_model_hash", ""),
+            model_hash=data.get("model_hash", ""),
             task_creation_time=data.get("task_creation_time", ""),
             task_start_time=data.get("task_start_time", ""),
             task_completion_time=data.get("task_completion_time", ""),
@@ -79,4 +83,5 @@ class GenerationTask:
             task_input_dict=data.get("task_input_dict", {}),
             task_input_file_dict=data.get("task_input_file_dict", {}),
             task_output_file_dict=data.get("task_output_file_dict", {}),
+            prompt_generation_data=data.get("prompt_generation_data", {}),
         )

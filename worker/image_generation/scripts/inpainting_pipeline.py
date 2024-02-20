@@ -2,7 +2,7 @@ import hashlib
 import io
 import os
 import sys
-from diffusers import StableDiffusionInpaintPipeline
+from diffusers import StableDiffusionInpaintPipeline, AutoPipelineForInpainting
 from transformers import CLIPTokenizer, CLIPTextModel
 from stable_diffusion.model_paths import CLIP_TOKENIZER_DIR_PATH, CLIP_TEXT_MODEL_DIR_PATH, NED_INPAINTING_PATH, DREAMSHAPER_INPAINTING_PATH, INPAINTING_CONFIG_FILE
 from PIL import Image
@@ -52,6 +52,7 @@ class StableDiffusionInpaintingPipeline:
         elif model_type=="dreamshaper":
             self.inpainting_model_path= DREAMSHAPER_INPAINTING_PATH
 
+
         # get device
         if torch.cuda.is_available():
             self.device = 'cuda'
@@ -78,7 +79,7 @@ class StableDiffusionInpaintingPipeline:
                 tokenizer=self.tokenizer,
                 local_files_only=True, use_safetensors=True, load_safety_checker=False
             ).to(self.device)
-            logger.debug(f"Inpainting model successfully loaded from : {text_encoder_path}")
+            logger.debug(f"Inpainting model successfully loaded from : {self.inpainting_model_path}")
     
     def unload_models(self):
         if self.tokenizer is not None:
@@ -140,9 +141,10 @@ class StableDiffusionInpaintingPipeline:
         # upload image data to minIO
         cmd.upload_data(minio_client, bucket_name, file_path, image_data)
 
-
 # Example Usage--------------------------------------------
-        
+
+# from worker.image_generation.scripts.inpainting_pipeline import StableDiffusionInpaintingPipeline
+
 # pipeline = StableDiffusionInpaintingPipeline(model_type="ned",
 #                                             denoising_strength=0.75,
 #                                             guidance_scale=7.5,
