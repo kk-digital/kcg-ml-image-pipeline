@@ -14,6 +14,7 @@ from utility.path import separate_bucket_and_file_path
 from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
 from utility.clip import clip
 from utility.minio import cmd
+from utility.http import request
 
 API_URL = "http://192.168.3.1:8111"
 
@@ -28,8 +29,8 @@ def parse_args():
 
     return parser.parse_args()
 
-def get_job_list():
-    response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset')
+def get_job_list(dataset):
+    response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset?dataset={dataset}')
         
     jobs = json.loads(response.content)
 
@@ -71,16 +72,35 @@ def main():
     sd_clip_model = clip.ClipModel(device="cuda")
     kandinsky_clip_model = KandinskyCLIPImageEncoder(device="cuda")
 
-    jobs_list= get_job_list()
+    dataset_names = request.http_get_dataset_names()
+    
+    for dataset in dataset_names:
+        print(f"calculating clip embeddings for the {dataset} dataset ------------------")
+        jobs_list= get_job_list(dataset=dataset)
 
-    for job in jobs_list:
-        image_path= job['image_path']
-        bucket_name, input_file_path = separate_bucket_and_file_path(image_path)
-        file_path = os.path.splitext(input_file_path)[0]
-        
-        if "kandinsky" in job['task_type']:
-            output_path = file_path + "_clip.msgpack"
-            clip_feature_vector= calculate_image_feature_vector(clip= sd_clip_model,
+        for job in jobs_list:
+            image_path= job['image_path']
+            bucket_name, input_file_path = separate_bucket_and_file_path(image_path)
+            file_path = os.path.splitext(input_file_path)[0]
+            
+            if "kandinsky" in job['task_type']:
+                output_path = file_path + "_clip.msgpack"
+                clip_feature_vector= calculate_image_feature_vector(clip= sd_clip_model,
+                                                                    minio_client=minio_client,
+                                                                    bucket_name=bucket_name,
+                                                                    file_path= input_file_path)
+
+                clip_feature_dict = {"clip-feature-vector": clip_feature_vector}
+                clip_feature_msgpack = msgpack.packb(clip_feature_dict)
+
+                data = BytesIO()
+                data.write(clip_feature_msgpack)
+                data.seek(0)
+
+                cmd.upload_data(minio_client, bucket_name, output_path, data)
+
+            output_path = file_path + "_clip_kandinsky.msgpack"
+            clip_feature_vector= calculate_image_feature_vector(clip= kandinsky_clip_model,
                                                                 minio_client=minio_client,
                                                                 bucket_name=bucket_name,
                                                                 file_path= input_file_path)
@@ -93,21 +113,6 @@ def main():
             data.seek(0)
 
             cmd.upload_data(minio_client, bucket_name, output_path, data)
-
-        output_path = file_path + "_clip_kandinsky.msgpack"
-        clip_feature_vector= calculate_image_feature_vector(clip= kandinsky_clip_model,
-                                                            minio_client=minio_client,
-                                                            bucket_name=bucket_name,
-                                                            file_path= input_file_path)
-
-        clip_feature_dict = {"clip-feature-vector": clip_feature_vector}
-        clip_feature_msgpack = msgpack.packb(clip_feature_dict)
-
-        data = BytesIO()
-        data.write(clip_feature_msgpack)
-        data.seek(0)
-
-        cmd.upload_data(minio_client, bucket_name, output_path, data)
 
 
 if __name__ == '__main__':
