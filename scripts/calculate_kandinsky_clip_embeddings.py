@@ -70,7 +70,10 @@ def main():
                                        minio_secret_key=args.minio_secret_key)
 
     sd_clip_model = clip.ClipModel(device="cuda")
+    sd_clip_model.load_clip()
     kandinsky_clip_model = KandinskyCLIPImageEncoder(device="cuda")
+    kandinsky_clip_model.load_submodels()
+    
 
     dataset_names = request.http_get_dataset_names()
     
