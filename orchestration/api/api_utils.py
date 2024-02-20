@@ -83,6 +83,7 @@ class PrettyJSONResponse(Response):
 
 
 class ErrorCode(Enum):
+    SUCCESS = 0
     OTHER_ERROR = 1
     ELEMENT_NOT_FOUND = 2
     INVALID_PARAMS = 3
@@ -193,7 +194,9 @@ class ApiResponseHandlerV1:
         return repsonse
 
     def create_success_response_v1(
-        self, 
+        self,
+        error_code: ErrorCode,
+        error_string: str, 
         response_data: dict,
         request_dictionary:dict,
         method:str,
@@ -205,6 +208,8 @@ class ApiResponseHandlerV1:
             raise ValueError("Invalid HTTP status code for a success response. Must be between 200 and 299.")
 
         response_content = {
+            "request_error_string": error_string,
+            "request_error_code": error_code.value, 
             "request_url": self.url,
             "request_dictionary": request_dictionary,  # Or adjust how you access parameters
             "request_method": method,
