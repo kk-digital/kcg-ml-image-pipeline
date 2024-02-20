@@ -66,7 +66,7 @@ def main():
     image_embedder= KandinskyCLIPImageEncoder(device="cuda")
     image_embedder.load_submodels()
 
-    image_paths= get_image_paths()
+    image_paths= get_image_paths("input/characters")
     images=[]
 
     for index, path in enumerate(image_paths):
