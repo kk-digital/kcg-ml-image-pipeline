@@ -62,6 +62,22 @@ DATASET_PATH = "../data"
 # Path to the folder where the pretrained models are saved
 CHECKPOINT_PATH = "../saved_models/tutorial8"
 
+
+
+
+# params
+training_steps_number = 256
+testing_steps_number = 512
+
+date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
+print(date_now)
+
+
+minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
+            "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+            None)
+minio_path="environmental/output/my_test"
+
 # Setting the seed
 pl.seed_everything(42)
 
@@ -352,7 +368,7 @@ class Sampler:
     #   return inp_imgs, labels
 
     #
-    def sample_new_exmps(self, steps=120, step_size=5):
+    def sample_new_exmps(self, steps=training_steps_number, step_size=5):
       # Choose 80% of the batch from real images, 20% generate from scratch
       n_real = int(self.sample_size * 0.8)
       n_new = self.sample_size - n_real
@@ -403,7 +419,7 @@ class Sampler:
     #     return inp_imgs
 
     @staticmethod
-    def generate_samples(model, inp_imgs, steps=120, step_size=5, return_img_per_step=False):
+    def generate_samples(model, inp_imgs, steps=training_steps_number, step_size=5, return_img_per_step=False):
         """
         Function for sampling images for a given model.
         Inputs:
@@ -511,7 +527,7 @@ class DeepEnergyModel(pl.LightningModule):
         real_imgs.add_(small_noise).clamp_(min=-1.0, max=1.0)
 
         # Obtain samples #Give more steps later
-        fake_imgs, fake_labels = self.sampler.sample_new_exmps(steps=256, step_size=5)
+        fake_imgs, fake_labels = self.sampler.sample_new_exmps(steps=training_steps_number, step_size=5)
         #print("The shapes are ", real_imgs.shape)
         #print("The shapes are ", fake_imgs)
         # Pass all images through the model
@@ -630,7 +646,7 @@ class DeepEnergyModel(pl.LightningModule):
 
 class GenerateCallback(pl.Callback):
 
-    def __init__(self, batch_size=8, vis_steps=8, num_steps=256, every_n_epochs=5):
+    def __init__(self, batch_size=8, vis_steps=8, num_steps=training_steps_number, every_n_epochs=5):
         super().__init__()
         self.batch_size = batch_size         # Number of images to generate
         self.vis_steps = vis_steps           # Number of steps within generation to visualize
@@ -698,7 +714,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=10,
+                         max_epochs=2,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -715,8 +731,14 @@ def train_model(**kwargs):
         pl.seed_everything(42)
         model = DeepEnergyModel(**kwargs)
         trainer.fit(model, train_loader, val_loader)
-
+        buf = io.BytesIO()
         model = DeepEnergyModel.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
+        buf.seek(0)
+        # Save file        
+        # upload the graph report
+        minio_path= minio_path + "/birdmodel_1_256_stp" +date_now+".pt"
+        cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+
 
     # No testing as we are more interested in other properties
 
@@ -739,14 +761,6 @@ print("################ Training ended ################")
 ############ Graph
 
 
-date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
-print(date_now)
-
-
-minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
-            "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
-            None)
-minio_path="environmental/output/my_test"
 
 epochs = range(1, len(total_losses) + 1)  
 
@@ -820,7 +834,7 @@ plt.clf()
 # Image generation
 model.to(device)
 pl.seed_everything(42)
-callback = GenerateCallback(batch_size=8, vis_steps=8, num_steps=512)
+callback = GenerateCallback(batch_size=8, vis_steps=8, num_steps=testing_steps_number)
 imgs_per_step = callback.generate_imgs(model)
 imgs_per_step = imgs_per_step.cpu()
 
