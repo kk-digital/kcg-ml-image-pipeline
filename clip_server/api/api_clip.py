@@ -71,3 +71,13 @@ def add_job(request: Request, phrase : str):
     clip_server.add_phrase(phrase)
 
     return True
+
+@router.get("/kandinsky-clip-vector")
+def get_kandinsky_clip_vector(request: Request,
+             image_path : str):
+    clip_server = request.app.clip_server
+
+    clip_vector = clip_server.compute_kandinsky_image_clip_vector(image_path)
+
+    return clip_vector
+

@@ -1,13 +1,18 @@
+from io import BytesIO
 import sys
 import msgpack
 import time
+import numpy as np
 import torch
+from PIL.Image import Image
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from utility.clip.clip import ClipModel
+from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
 from utility.minio.cmd import get_file_from_minio, is_object_exists
+from utility.path import separate_bucket_and_file_path
 from clip_cache import ClipCache
 from clip_constants import CLIP_CACHE_DIRECTORY
 from utility.http.request import http_get_list_completed_jobs
@@ -30,18 +35,47 @@ class ClipServer:
         self.clip_vector_dictionary = {}
         self.image_clip_vector_cache = {}
         self.clip_model = ClipModel(device=device)
+        self.kandinsky_clip_model= KandinskyCLIPImageEncoder(device=device)
         self.device = device
         self.clip_cache = ClipCache(device, minio_client, CLIP_CACHE_DIRECTORY)
 
     def load_clip_model(self):
         self.clip_model.load_clip()
         self.clip_model.load_tokenizer()
+        self.kandinsky_clip_model.load_submodels()
 
     def generate_id(self):
         new_id = self.id_counter
         self.id_counter = self.id_counter + 1
 
         return new_id
+
+    def compute_kandinsky_image_clip_vector(self, image_path):
+        bucket_name, file_path = separate_bucket_and_file_path(image_path)
+        try:
+            response = self.minio_client.get_object(bucket_name, file_path)
+            image_data = BytesIO(response.data)
+            img = Image.open(image_data)
+            img = img.convert("RGB")
+        except Exception as e:
+            raise e
+        finally:
+            response.close()
+            response.release_conn()
+        
+        # get feature
+        clip_feature_vector = self.kandinsky_clip_model.get_image_features(img)
+
+        # put to cpu
+        clip_feature_vector = clip_feature_vector.cpu().detach()
+
+        # convert to np array
+        clip_feature_vector_np_arr = np.array(clip_feature_vector, dtype=np.float32)
+
+        # convert to normal list
+        clip_feature_vector_arr = clip_feature_vector_np_arr.tolist()
+
+        return clip_feature_vector_arr
 
     def add_phrase(self, phrase):
         new_id = self.generate_id()
@@ -255,7 +289,6 @@ class ClipServer:
         print(f"Function execution time: {elapsed_time:.4f} seconds")
 
         return cosine_match_list
-
 
     def compute_clip_vector(self, text):
         clip_vector_gpu = self.clip_model.get_text_features(text)
