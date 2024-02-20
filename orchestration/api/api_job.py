@@ -842,33 +842,6 @@ async def update_task_definitions(request:Request):
         "inpainting_update_modified_count": inpainting_update_result.modified_count,
     }
 
-
-@router.get("/job/get-jobs-by-task-type", description="Get the jobs by a specific task type.")
-def get_jobs_by_task_type(request: Request, task_type= None):
-    query = {}
-    if task_type is not None:
-        query['task_type']= task_type
-
-    jobs = list(request.app.completed_jobs_collection.find(query))
-
-    for job in jobs:
-        job.pop('_id', None)
-
-    return {
-        "count": len(jobs),
-        "jobs": jobs
-        }
-
-@router.delete("/job/delete-jobs-by-task-type", description="delete the jobs by a specific task type.")
-def delete_jobs_by_task_type(request: Request, task_type= None):
-    query = {}
-    if task_type is not None:
-        query['task_type']= task_type
-
-    request.app.completed_jobs_collection.delete_many(query)
-
-    return True
-
 # from pymongo import MongoClient
 # from minio import Minio
 # import os
