@@ -21,6 +21,7 @@ def http_clip_server_get_kandinsky_vector(image_path: str):
     response = None
     try:
         response = requests.get(url)
+        print(response)
         if response.status_code == 200:
             return response.json()
     
@@ -455,10 +456,8 @@ def check_clip_server_status(request: Request):
 #  Apis with new names and reponse format
     
 @router.get("/clip/get-kandinsky-clip-vector", tags=["clip"], 
-            response_model=StandardSuccessResponseV1[GetClipPhraseResponse], 
             status_code=200, 
-            responses=ApiResponseHandlerV1.listErrors([400,404,422,500]), 
-            description="Get Clip Vector for a Phrase")
+            description="Get kandi Vector for a Phrase")
 def get_clip_vector_from_phrase(request: Request, image_path: str):
     
     response_handler = ApiResponseHandlerV1(request)
