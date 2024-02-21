@@ -27,7 +27,8 @@ class TaggedDatasetLoader:
                  input_type=constants.CLIP,
                  server_addr=None,
                  pooling_strategy=constants.AVERAGE_POOLING,
-                 train_percent=0.9):
+                 train_percent=0.9,
+                 epochs=100):
         if server_addr is None:
             self.server_addr = request.SERVER_ADDRESS
         if minio_access_key is not None:
@@ -42,6 +43,7 @@ class TaggedDatasetLoader:
         self.input_type = input_type
         self.pooling_strategy = pooling_strategy
         self.train_percent = train_percent
+        self.epochs = epochs
 
         self.positive_training_features = None
         self.positive_validation_features = None
@@ -187,6 +189,13 @@ class TaggedDatasetLoader:
         splits = positive_tagged_dataset[0].split("/")
         dataset_name = splits[1]
         self.dataset_name = dataset_name
+
+        if len(negative_tagged_dataset) < 40:
+            # then get random images
+            random_image_list = request.http_get_random_image_list("any", len(positive_tagged_dataset))
+            # get paths only
+            for image_data in random_image_list:
+                negative_tagged_dataset.append(image_data["task_output_file_dict"]["output_file_path"])
 
         # make sure positive and negative have the same length
         # for now we want them to be 50/50
