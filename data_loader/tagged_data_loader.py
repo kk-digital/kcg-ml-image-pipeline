@@ -84,8 +84,8 @@ class TaggedDatasetLoader:
         # get .msgpack data
         path = path.replace(".jpg", input_type_extension)
         path = path.replace("datasets/", "")
-
         features_data = get_object(self.minio_client, path)
+
         features_data = msgpack.unpackb(features_data)
         features_vector = []
 
@@ -191,7 +191,8 @@ class TaggedDatasetLoader:
         self.dataset_name = dataset_name
 
         # get random images for negatives
-        random_image_list = request.http_get_random_image_list("any", len(positive_tagged_dataset) * self.epochs)
+        # get from environmental for now
+        random_image_list = request.http_get_random_image_list("environmental", len(positive_tagged_dataset) * self.epochs)
         # get paths only
         for image_data in random_image_list:
             negative_tagged_dataset.append(image_data["task_output_file_dict"]["output_file_path"])
@@ -199,7 +200,6 @@ class TaggedDatasetLoader:
         # load proper input type: either clip image embedding or text embedding
         positive_tagged_features = self.load_data(positive_tagged_dataset)
         negative_tagged_features = self.load_data(negative_tagged_dataset)
-
         (self.positive_training_features,
          self.positive_validation_features) = self.separate_training_and_validation_features(positive_tagged_features)
         (self.negative_training_features_pool,
