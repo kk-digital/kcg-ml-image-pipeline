@@ -734,7 +734,9 @@ def train_model(**kwargs):
         trainer.fit(model, train_loader, val_loader)
         buf = io.BytesIO()
         model = DeepEnergyModel.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
+        model.save(buf,format.pt)
         buf.seek(0)
+
         # Save file        
         # upload the graph report
         minio_path= minio_path + "/birdmodel_1_256_stp" +date_now+".pt"
