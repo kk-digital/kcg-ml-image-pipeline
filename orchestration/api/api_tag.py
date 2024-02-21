@@ -1298,7 +1298,7 @@ def add_new_tag_definition_v1(request: Request, tag_data: NewTagRequest):
                     error_code=ErrorCode.INVALID_PARAMS,
                     error_string="Tag category not found",
                     http_status_code=400,
-                    request_dictionary=tag_data_dict,
+                    request_dictionary=dict(request.query_params),
                     
                 )
 
@@ -1493,35 +1493,43 @@ def remove_tag(request: Request, tag_id: int):
                                                        )
 
 
-@router.get("/tags/list-tag-definitions", 
-            response_model=StandardSuccessResponseV1[TagsListResponse],
-            description="list tags",
-            tags=["tags"],
-            status_code=200,
-            responses=ApiResponseHandlerV1.listErrors([500]))
+@router.get("/tags/list-tag-definitions")
 def list_tag_definitions(request: Request):
     response_handler = ApiResponseHandlerV1(request)
     try:
-        # Query all the tag definitions
         tags_cursor = request.app.tag_definitions_collection.find({})
 
-        # Convert each tag document to TagDefinition and then to a dictionary
-        result = [TagDefinition(**tag).to_dict() for tag in tags_cursor]
+        # Prepare the response list
+        response_tags = []
 
+        for tag in tags_cursor:
+            # Convert MongoDB ObjectID to string if necessary
+            tag['_id'] = str(tag['_id'])
+
+            # Find the tag category and determine if it's deprecated
+            category = request.app.tag_categories_collection.find_one({"tag_category_id": tag["tag_category_id"]})
+            deprecated_tag_category = category['deprecated'] if category else False
+            
+            # Append the 'deprecated_tag_category' field to the tag data
+            response_tag = {**tag, "deprecated_tag_category": deprecated_tag_category}
+            response_tags.append(response_tag)
+
+        # Return the modified list of tags including 'deprecated_tag_category'
         return response_handler.create_success_response_v1(
-            response_data={"tags": result}, 
+            response_data={"tags": response_tags},
             http_status_code=200,
-            request_dictionary=dict(request.query_params),
-            )
+            request_dictionary=dict(request.query_params)
+        )
 
     except Exception as e:
         traceback_str = traceback.format_exc()
         print(f"Exception Traceback:\n{traceback_str}")
-        return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, 
-                                                         error_string="Internal server error", 
+        return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR,
+                                                         error_string="Internal server error",
                                                          http_status_code=500,
-                                                         request_dictionary=dict(request.query_params),
+                                                         request_dictionary=dict(request.query_params)
                                                          )
+
 
 @router.put("/tags/set-vector-index", 
             tags=["tags"], 
