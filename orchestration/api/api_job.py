@@ -20,10 +20,6 @@ import csv
 from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, AddJob, WasPresentResponse
 from pymongo import UpdateMany
 
-base_directory = "./"
-sys.path.insert(0, base_directory)
-from kandinsky_worker.dataloaders.image_embedding import ImageEmbedding
-
 router = APIRouter()
 
 
