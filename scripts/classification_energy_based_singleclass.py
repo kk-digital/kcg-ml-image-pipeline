@@ -734,13 +734,13 @@ def train_model(**kwargs):
         trainer.fit(model, train_loader, val_loader)
         
         model = DeepEnergyModel.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
-        buf = io.BytesIO(model)
-        buf.seek(0)
+        # buf = io.BytesIO(model)
+        # buf.seek(0)
 
         # Save file        
         # upload the graph report
         minio_path= minio_path + "/birdmodel_1_256_stp" +date_now+".pt"
-        cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+        cmd.upload_data(minio_client, 'datasets', minio_path, model)
 
 
     # No testing as we are more interested in other properties
