@@ -454,6 +454,46 @@ def check_clip_server_status(request: Request):
 
 #  Apis with new names and reponse format
     
+@router.get("/clip/get-kandinsky-clip-vector", tags=["clip"], 
+            response_model=StandardSuccessResponseV1[GetClipPhraseResponse], 
+            status_code=200, 
+            responses=ApiResponseHandlerV1.listErrors([400,404,422,500]), 
+            description="Get Clip Vector for a Phrase")
+def get_clip_vector_from_phrase(request: Request, image_path: str):
+    
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+       
+        vector = http_clip_server_get_kandinsky_vector(image_path)
+        
+        if vector is None:
+
+            return response_handler.create_error_response_v1(
+                ErrorCode.ELEMENT_NOT_FOUND,
+                "Phrase not found",
+                http_status_code=404,
+                request_dictionary=dict(request.query_params),
+    
+            )
+
+        return response_handler.create_success_response_v1(
+            response_data= vector, 
+            http_status_code=200, 
+            request_dictionary=dict(request.query_params),
+ 
+        )
+
+    except Exception as e:
+        print(f"Exception occurred: {e}")  # Print statement 5
+        return response_handler.create_error_response_v1(
+            ErrorCode.OTHER_ERROR, 
+            "Internal server error", 
+            http_status_code = 500, 
+            request_dictionary=dict(request.query_params),
+
+        )
+
+
 @router.post("/clip/add-phrase",
              description="Adds a phrase to the clip server.",
              response_model=StandardSuccessResponseV1[None],
