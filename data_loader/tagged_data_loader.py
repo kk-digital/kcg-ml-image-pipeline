@@ -190,7 +190,7 @@ class TaggedDatasetLoader:
         dataset_name = splits[1]
         self.dataset_name = dataset_name
 
-        if len(negative_tagged_dataset) == 0:
+        if len(negative_tagged_dataset) < 40:
             # then get random images
             random_image_list = request.http_get_random_image_list("any", len(positive_tagged_dataset))
             # get paths only
