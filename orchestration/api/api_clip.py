@@ -16,23 +16,27 @@ CLIP_SERVER_ADDRESS = 'http://192.168.3.31:8002'
 router = APIRouter()
 
 # --------- Http requests -------------
-import requests
-from urllib.parse import quote_plus
-
 def http_clip_server_get_kandinsky_vector(image_path: str):
-    encoded_image_path = quote_plus(image_path)
-    url = f"{CLIP_SERVER_ADDRESS}/kandinsky-clip-vector?image_path={encoded_image_path}"
-    
+    url = CLIP_SERVER_ADDRESS + "/kandinsky-clip-vector?image_path=" + image_path
+    print("Request URL:", url)  # Additional print statement
+    response = None
     try:
         response = requests.get(url)
-        print(response)
-        response.raise_for_status()  # Raises a HTTPError for bad responses
-        return response.json()
-    except requests.HTTPError as http_err:
-        print(f'HTTP error occurred: {http_err}')  # Specific HTTP error
+        print("Response:", response)  # Additional print statement
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print("Non-200 status code received:", response.status_code)  # Additional print statement
+    
     except Exception as e:
-        print('Request exception:', e)  # Other errors
+        print('Request exception:', e)
+    
+    finally:
+        if response:
+            response.close()
+    
     return None
+
 
 def http_clip_server_add_phrase(phrase: str):
     url = CLIP_SERVER_ADDRESS + "/add-phrase?phrase=" + phrase
