@@ -1,9 +1,12 @@
+import io
+import os
+import sys
 from fastapi import Request, APIRouter, HTTPException, Query, Body
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 import uuid
 from datetime import datetime, timedelta
-from orchestration.api.mongo_schemas import Task
+from orchestration.api.mongo_schemas import KandinskyTask, Task
 from orchestration.api.api_dataset import get_sequential_id
 import pymongo
 from .api_utils import PrettyJSONResponse
@@ -14,6 +17,8 @@ from typing import Optional
 import csv
 from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, AddJob, WasPresentResponse
 from pymongo import UpdateMany
+
+# from ...kandinsky_worker.dataloaders.image_embedding import ImageEmbedding
 
 router = APIRouter()
 
@@ -120,6 +125,48 @@ def add_job(request: Request, task: Task):
     request.app.pending_jobs_collection.insert_one(task.to_dict())
 
     return {"uuid": task.uuid, "creation_time": task.task_creation_time}
+
+
+# @router.post("/queue/image-generation/add-kandinsky", description="Add a kandinsky job to db")
+# def add_job(request: Request, kandinsky_task: KandinskyTask):
+#     task= kandinsky_task.job
+#
+#     if task.uuid in ["", None]:
+#         # generate since its empty
+#         task.uuid = str(uuid.uuid4())
+#
+#     # add task creation time
+#     task.task_creation_time = datetime.now()
+#
+#     # check if file_path is blank
+#     if (task.task_input_dict is None or "file_path" not in task.task_input_dict or task.task_input_dict["file_path"] in [
+#         '', "[auto]", "[default]"]) and "dataset" in task.task_input_dict:
+#         dataset_name = task.task_input_dict["dataset"]
+#         # get file path
+#         sequential_id_arr = get_sequential_id(request, dataset=dataset_name)
+#         new_file_path = "{}.jpg".format(sequential_id_arr[0])
+#         task.task_input_dict["file_path"] = new_file_path
+#
+#     # upload input image embeddings to minIO
+#     image_embedding_data= ImageEmbedding(job_uuid= task.uuid,
+#                                          dataset= dataset_name,
+#                                          image_embedding= kandinsky_task.positive_embedding,
+#                                          negative_image_embedding= kandinsky_task.negative_embedding)
+#
+#     output_file_path = os.path.join(dataset_name, task.task_input_dict['file_path'])
+#     image_embeddings_path = output_file_path.replace(".jpg", "_embedding.msgpack")
+#
+#     msgpack_string = image_embedding_data.get_msgpack_string()
+#
+#     buffer = io.BytesIO()
+#     buffer.write(msgpack_string)
+#     buffer.seek(0)
+#
+#     cmd.upload_data(request.app.minio_client, "datasets", image_embeddings_path, buffer)
+#
+#     request.app.pending_jobs_collection.insert_one(task.to_dict())
+#
+#     return {"uuid": task.uuid, "creation_time": task.task_creation_time}
 
 
 @router.post("/queue/image-generation", 

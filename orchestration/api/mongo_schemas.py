@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, constr, validator
-from typing import Union, Optional
+from typing import List, Union, Optional
 import re
 
 class Task(BaseModel):
@@ -38,6 +38,10 @@ class Task(BaseModel):
             "prompt_generation_data": self.prompt_generation_data
         }
 
+class KandinskyTask(BaseModel):
+    job: Task # task data
+    positive_embedding: List[float]  # positive_embedding
+    negative_embedding: List[float]  # negative embedding
 
 class SequentialID:
     dataset_name: str
