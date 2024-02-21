@@ -40,6 +40,7 @@ from datetime import datetime
 from pytz import timezone
 from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10
+from torchvision.datasets import SVHN
 import torchvision.transforms as transforms
 from io import BytesIO
 import io
@@ -100,6 +101,11 @@ train_dataset = CIFAR10(root='./data', train=True, download=True, transform=tran
 # Loading the training dataset. We need to split it into a training and validation part
 train_set = CIFAR10(root='./data', train=True, transform=transform, download=True)
 
+
+ # Loading the training dataset. We need to split it into a training and validation part
+oodset = SVHN(root='./data', train=True, transform=transform, download=True)
+
+
 # Loading the test set
 test_set = CIFAR10(root='./data', train=False, transform=transform, download=True)
 
@@ -142,6 +148,7 @@ train_set, val_set = random_split(train_set, [train_size, val_size])
 train_loader = data.DataLoader(train_set, batch_size=64, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
 val_loader = data.DataLoader(val_set, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 dog_loader = data.DataLoader(notcat_ds, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+ood_loader = data.DataLoader(oodset, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
 for images, _ in train_loader:
     # Unpack the batch
@@ -594,7 +601,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=5,
+                         max_epochs=10,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -813,6 +820,7 @@ exmp_img = test_imgs[5].to(model.device)
 
 
 
+
 # Select image from other set
 from PIL import Image
 img_noisy = exmp_img + torch.randn_like(exmp_img) * 0.3
@@ -824,3 +832,14 @@ test_imgs, _ = next(iter(dog_loader))
 fake_image = test_imgs[8].to(model.device)
 
 compare_images(exmp_img, fake_image)
+
+
+
+
+# select image from ood set
+ood_imgs, _ = next(iter(ood_loader))
+ood_img = ood_imgs[5].to(model.device)
+
+compare_images(exmp_img, ood_img)
+
+
