@@ -2,6 +2,8 @@ import io
 import os
 import sys
 from fastapi import Request, APIRouter, HTTPException, Query, Body
+import numpy as np
+import msgpack
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 import uuid
@@ -18,7 +20,9 @@ import csv
 from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, AddJob, WasPresentResponse
 from pymongo import UpdateMany
 
-from ...kandinsky_worker.dataloaders.image_embedding import ImageEmbedding
+base_directory = "./"
+sys.path.insert(0, base_directory)
+from kandinsky_worker.dataloaders.image_embedding import ImageEmbedding
 
 router = APIRouter()
 
@@ -148,15 +152,17 @@ def add_job(request: Request, kandinsky_task: KandinskyTask):
         task.task_input_dict["file_path"] = new_file_path
     
     # upload input image embeddings to minIO
-    image_embedding_data= ImageEmbedding(job_uuid= task.uuid,
-                                         dataset= dataset_name,
-                                         image_embedding= kandinsky_task.positive_embedding,
-                                         negative_image_embedding= kandinsky_task.negative_embedding)
+    image_embedding_data={
+        "job_uuid": task.uuid,
+        "dataset": dataset_name,
+        "image_embedding": kandinsky_task.positive_embedding,
+        "negative_image_embedding": kandinsky_task.negative_embedding
+    }
     
     output_file_path = os.path.join(dataset_name, task.task_input_dict['file_path'])
     image_embeddings_path = output_file_path.replace(".jpg", "_embedding.msgpack")
 
-    msgpack_string = image_embedding_data.get_msgpack_string()
+    msgpack_string = msgpack.packb(image_embedding_data, default=encode_ndarray, use_bin_type=True, use_single_float=True)
 
     buffer = io.BytesIO()
     buffer.write(msgpack_string)
@@ -167,6 +173,11 @@ def add_job(request: Request, kandinsky_task: KandinskyTask):
     request.app.pending_jobs_collection.insert_one(task.to_dict())
 
     return {"uuid": task.uuid, "creation_time": task.task_creation_time}
+
+def encode_ndarray(obj):
+    if isinstance(obj, np.ndarray):
+        return {'__ndarray__': obj.tolist()}
+    return obj
 
 
 @router.post("/queue/image-generation", 
