@@ -44,7 +44,7 @@ if __name__ == '__main__':
                              normalize_feature_vectors=args.normalize_feature_vectors,
                          )
         except Exception as e:
-            print("Error training model for tag {}: {}".format(tag_name, e))
+            print("Error training model for tag {}: {}".format(args.tag_name, e))
     else:
         # train for all
         tags = http_get_tag_list()

@@ -59,10 +59,19 @@ def get_random_image_list(request: Request, dataset: str = Query(...), size: int
 
     while len(distinct_documents) < size:
         # Use $sample to get 'size' random documents
-        documents = request.app.completed_jobs_collection.aggregate([
+        filter = [
             {"$match": {"task_input_dict.dataset": dataset, "_id": {"$nin": list(tried_ids)}}},  # Exclude already tried ids
             {"$sample": {"size": size - len(distinct_documents)}}  # Only fetch the remaining needed size
-        ])
+        ]
+
+        if dataset == "any":
+            filter = [
+                {"$match": {"_id": {"$nin": list(tried_ids)}}},
+                # Exclude already tried ids
+                {"$sample": {"size": size - len(distinct_documents)}}  # Only fetch the remaining needed size
+            ]
+
+        documents = request.app.completed_jobs_collection.aggregate(filter)
 
         # Convert cursor type to list
         documents = list(documents)
