@@ -103,7 +103,7 @@ train_set = CIFAR10(root='./data', train=True, transform=transform, download=Tru
 
 
  # Loading the training dataset. We need to split it into a training and validation part
-oodset = SVHN(root='./data', train=True, transform=transform, download=True)
+oodset = SVHN(root='./data',  transform=transform, download=True)
 
 
 # Loading the test set
