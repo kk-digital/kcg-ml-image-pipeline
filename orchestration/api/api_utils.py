@@ -12,7 +12,11 @@ from .mongo_schemas import TagDefinition, TagCategory
 from datetime import datetime
 from dateutil import parser
 from datetime import datetime
+from .mongo_schemas import ImageTag
 
+
+class ListImageTag(BaseModel):
+     images: List[ImageTag]
 
 
 class RechableResponse(BaseModel):
@@ -33,6 +37,9 @@ class TagsListResponse(BaseModel):
 class TagCountResponse(BaseModel):
     tag_id: int
     count: int
+
+class TagIdResponse(BaseModel):
+    tag_id: int
 
 class GetClipPhraseResponse(BaseModel):
     phrase : str
@@ -180,6 +187,7 @@ class StandardErrorResponseV1(BaseModel):
      
 class ApiResponseHandlerV1:
     def __init__(self, request: Request):
+        self.request = request
         self.url = str(request.url)
         self.start_time = datetime.now() 
 
@@ -195,11 +203,8 @@ class ApiResponseHandlerV1:
 
     def create_success_response_v1(
         self,
-        error_code: ErrorCode,
-        error_string: str, 
         response_data: dict,
         request_dictionary:dict,
-        method:str,
         http_status_code: int, 
         headers: dict = {"Cache-Control": "no-store"},
     ):
@@ -208,16 +213,38 @@ class ApiResponseHandlerV1:
             raise ValueError("Invalid HTTP status code for a success response. Must be between 200 and 299.")
 
         response_content = {
-            "request_error_string": error_string,
-            "request_error_code": error_code.value, 
+            "request_error_string": '',
+            "request_error_code": 0, 
             "request_url": self.url,
             "request_dictionary": request_dictionary,  # Or adjust how you access parameters
-            "request_method": method,
+            "request_method": self.request.method,
             "request_time_total": str(self._elapsed_time()),
             "request_time_start": self.start_time.isoformat(),  
             "request_time_finished": datetime.now().isoformat(), 
             "request_response_code": http_status_code,
             "response": response_data
+        }
+        return PrettyJSONResponse(status_code=http_status_code, content=response_content, headers=headers)
+
+
+    def create_success_delete_response_v1(
+            self, 
+            reachable: bool, 
+            request_dictionary:dict,
+            http_status_code: int,
+            headers: dict = {"Cache-Control": "no-store"} ):
+        """Construct a success response for deletion operations."""
+        response_content = {
+            "request_error_string": '',
+            "request_error_code": 0, 
+            "request_url": self.url,
+            "request_dictionary": request_dictionary,
+            "request_method": self.request.method,
+            "request_time_total": self._elapsed_time(),
+            "request_time_start": self.start_time.isoformat(),
+            "request_time_finished": datetime.now().isoformat(),
+            "request_response_code": http_status_code,
+            "response": {"reachable": reachable}
         }
         return PrettyJSONResponse(status_code=http_status_code, content=response_content, headers=headers)
 
@@ -227,7 +254,6 @@ class ApiResponseHandlerV1:
             error_string: str,
             request_dictionary: dict,
             http_status_code: int,
-            method:str,
             headers: dict = {"Cache-Control": "no-store"},
         ):
             
@@ -236,7 +262,7 @@ class ApiResponseHandlerV1:
                 "request_error_code": error_code.value,  # Using .name for the enum member name
                 "request_url": self.url,
                 "request_dictionary": request_dictionary,  # Convert query params to a more usable dict format
-                "request_method": method,
+                "request_method": self.request.method,
                 "request_time_total": str(self._elapsed_time()),
                 "request_time_start": self.start_time.isoformat(),
                 "request_time_finished": datetime.now().isoformat(),

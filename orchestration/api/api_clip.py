@@ -453,19 +453,17 @@ def add_phrase_v1(request: Request, phrase: str):
                 error_string="Phrase is required", 
                 http_status_code=400,
                 request_dictionary=dict(request.query_params),
-                method=request.method
+    
             )
 
         status_code, _ = http_clip_server_add_phrase(phrase)  
 
         if 200 <= status_code < 300:
             return response_handler.create_success_response_v1(
-                error_code = ErrorCode.SUCCESS,
-                error_string= '',
                 response_data=None, 
                 http_status_code=201, 
                 request_dictionary=dict(request.query_params),  
-                method=request.method
+    
             )
         else:
             return response_handler.create_error_response_v1(
@@ -473,7 +471,7 @@ def add_phrase_v1(request: Request, phrase: str):
                 error_string="Clip server error", 
                 http_status_code=500,        
                 request_dictionary=dict(request.query_params),
-                method=request.method
+    
             )
 
     except Exception as e:
@@ -483,7 +481,7 @@ def add_phrase_v1(request: Request, phrase: str):
             error_string="Internal server error", 
             http_status_code=500,
             request_dictionary=dict(request.query_params),
-            method=request.method
+
         )
 
 @router.get("/clip/get-clip-vector", tags=["clip"], 
@@ -505,16 +503,14 @@ def get_clip_vector_from_phrase(request: Request, phrase: str):
                 "Phrase not found",
                 http_status_code=404,
                 request_dictionary=dict(request.query_params),
-                method=request.method
+    
             )
 
         return response_handler.create_success_response_v1(
-            error_code = ErrorCode.SUCCESS,
-            error_string= '',
             response_data= vector, 
             http_status_code=200, 
             request_dictionary=dict(request.query_params),
-            method=request.method 
+ 
         )
 
     except Exception as e:
@@ -524,7 +520,7 @@ def get_clip_vector_from_phrase(request: Request, phrase: str):
             "Internal server error", 
             http_status_code = 500, 
             request_dictionary=dict(request.query_params),
-            method=request.method
+
         )
 
 
@@ -542,12 +538,10 @@ def check_clip_server_status(request: Request):
         reachable = response.status_code == status.HTTP_200_OK  
         # Adjust the success response creation to match the new handler
         return response_handler.create_success_response_v1(
-            error_code = ErrorCode.SUCCESS,
-            error_string= '',
             response_data={"reachable": reachable},  
             http_status_code=200,    
             request_dictionary=dict(request.query_params),  
-            method=request.method 
+ 
         )
     except requests.exceptions.RequestException as e:
         # Print statement for debugging
@@ -558,5 +552,5 @@ def check_clip_server_status(request: Request):
             "CLIP server is not reachable", 
             503, 
             request_dictionary=dict(request.query_params),  
-            method=request.method
+
         )

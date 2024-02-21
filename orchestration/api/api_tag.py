@@ -3,7 +3,7 @@ from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
 from orchestration.api.mongo_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory
 from typing import Union
-from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagResponse, TagCountResponse, StandardSuccessResponseV1, ApiResponseHandlerV1
+from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagResponse, TagCountResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, TagIdResponse, ListImageTag
 import traceback
 from bson import ObjectId
 from fastapi.encoders import jsonable_encoder
@@ -177,6 +177,8 @@ def add_new_tag_definition(request: Request, tag_data: NewTagRequest):
 @router.get("/tags/get-tag-id-by-tag-name", 
              status_code=200,
              tags=["tags"],
+             response_model=StandardSuccessResponseV1[TagIdResponse],
+             responses = ApiResponseHandlerV1.listErrors([404,422,500]),
              description="Get tag ID by tag name")
 def get_tag_id_by_name(request: Request, tag_string: str = Query(..., description="Tag name to fetch ID for")):
     api_handler = ApiResponseHandlerV1(request)
@@ -191,17 +193,15 @@ def get_tag_id_by_name(request: Request, tag_string: str = Query(..., descriptio
                 error_string="Tag not found",
                 http_status_code=404,
                 request_dictionary=dict(request.query_params),
-                method=request.method
+                
             )
 
         tag_id = tag.get("tag_id")
         return api_handler.create_success_response_v1(
-            error_code = ErrorCode.SUCCESS,
-            error_string= '',
             response_data={"tag_id": tag_id},
             http_status_code=200,
             request_dictionary=dict(request.query_params),
-            method=request.method
+            
         )
 
     except Exception as e:
@@ -210,7 +210,7 @@ def get_tag_id_by_name(request: Request, tag_string: str = Query(..., descriptio
             error_string="Internal server error",
             http_status_code=500,
             request_dictionary=dict(request.query_params),
-            method=request.method
+            
         )
 
 @router.put("/tags/update_tag_definition")
@@ -245,6 +245,7 @@ def set_tag_deprecated(request: Request, tag_id: int):
 
     query = {"tag_id": tag_id}
     existing_tag = request.app.tag_definitions_collection.find_one(query)
+    existing_tag = {k: str(v) if isinstance(v, ObjectId) else v for k, v in existing_tag.items()}
 
     if existing_tag is None:
         return response_handler.create_error_response_v1(
@@ -252,19 +253,17 @@ def set_tag_deprecated(request: Request, tag_id: int):
             error_string="Tag not found.", 
             http_status_code=404,
             request_dictionary=dict(request.query_params),
-            method=request.method
+            
         )
 
     # Check if the tag is already deprecated
     if existing_tag.get("deprecated", False):
         # Return a specific message indicating the tag is already deprecated
         return response_handler.create_success_response_v1(
-            error_code = ErrorCode.SUCCESS,
-            error_string= ' This tag is already deprecated',
-            response_data = updated_tag, 
+            response_data = existing_tag, 
             http_status_code=200,
             request_dictionary=dict(request.query_params),
-            method=request.method
+            
         )
 
     # Since the tag is not already deprecated, set the 'deprecated' status to True
@@ -278,12 +277,10 @@ def set_tag_deprecated(request: Request, tag_id: int):
 
     # Return the updated tag object, indicating the deprecation was successful
     return response_handler.create_success_response_v1(
-        error_code = ErrorCode.SUCCESS,
-        error_string= '',
         response_data = updated_tag, 
         http_status_code=200,
         request_dictionary=dict(request.query_params),
-        method=request.method)
+        )
 
 
 @router.patch("v1/tags/{tag_id}", 
@@ -697,10 +694,10 @@ def remove_image_tag(
                status_code=200,
                tags=["tags"], 
                description="Remove all tagged images",
-               response_model=StandardSuccessResponse[Dict[str, int]],
-               responses=ApiResponseHandler.listErrors([400, 422]))
+               response_model=StandardSuccessResponse[WasPresentResponse],
+               responses=ApiResponseHandlerV1.listErrors([400, 422]))
 def remove_all_tagged_images(request: Request):
-    response_handler = ApiResponseHandler(request)
+    response_handler = ApiResponseHandlerV1(request)
 
     try:
         # Query to match documents that have a 'tag_id' field
@@ -709,20 +706,20 @@ def remove_all_tagged_images(request: Request):
 
         # If no documents were found and deleted, use response_handler to indicate that
         if result.deleted_count == 0:
-            return response_handler.create_error_response(
+            return response_handler.create_error_response_v1(
                 ErrorCode.ELEMENT_NOT_FOUND, 
                 "No tagged images found",
                 404
             )
 
         # Return standard success response with the count of deleted documents
-        return response_handler.create_success_response(
+        return response_handler.create_success_delete_response_v1(
             {"deleted_count": result.deleted_count}, 
             http_status_code=200
         )
 
     except Exception as e:
-        return response_handler.create_error_response(
+        return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
             error_string=str(e),
             http_status_code=500
@@ -1028,6 +1025,7 @@ def set_tag_category_deprecated(request: Request, tag_category_id: int):
 
     query = {"tag_category_id": tag_category_id}
     existing_tag_category = request.app.tag_categories_collection.find_one(query)
+    existing_tag_category = {k: str(v) if isinstance(v, ObjectId) else v for k, v in existing_tag_category.items()}
 
     if existing_tag_category is None:
         return response_handler.create_error_response_v1(
@@ -1035,19 +1033,17 @@ def set_tag_category_deprecated(request: Request, tag_category_id: int):
             error_string="Tag category not found.", 
             http_status_code=404,
             request_dictionary=dict(request.query_params),
-            method=request.method
+            
         )
 
     # Check if the tag category is already deprecated
     if existing_tag_category.get("deprecated", False):
         # Return a specific message indicating the tag category is already deprecated
         return response_handler.create_success_response_v1(
-            error_code = ErrorCode.SUCCESS,
-            error_string= 'This tag category is already deprecated.',
-            response_data=updated_tag_category, 
+            response_data=existing_tag_category, 
             http_status_code=200,
             request_dictionary=dict(request.query_params),
-            method=request.method
+            
         )
 
 
@@ -1062,12 +1058,10 @@ def set_tag_category_deprecated(request: Request, tag_category_id: int):
 
     # Return the updated tag category object indicating the deprecation was successful
     return response_handler.create_success_response_v1(
-        error_code = ErrorCode.SUCCESS,
-        error_string= '',
         response_data=updated_tag_category, 
         http_status_code=200,
         request_dictionary=dict(request.query_params),
-        method=request.method)
+        )
 
 
 
@@ -1305,7 +1299,7 @@ def add_new_tag_definition_v1(request: Request, tag_data: NewTagRequest):
                     error_string="Tag category not found",
                     http_status_code=400,
                     request_dictionary=tag_data_dict,
-                    method=request.method
+                    
                 )
 
         # Check for existing tag_vector_index
@@ -1319,7 +1313,7 @@ def add_new_tag_definition_v1(request: Request, tag_data: NewTagRequest):
                     error_string= "Tag vector index already in use.",
                     http_status_code=400,
                     request_dictionary=tag_data_dict,
-                    method=request.method
+                    
                 )
 
         # Generate new tag_id
@@ -1334,7 +1328,7 @@ def add_new_tag_definition_v1(request: Request, tag_data: NewTagRequest):
                 error_string="Tag definition already exists.",
                 http_status_code=400,
                 request_dictionary=tag_data_dict,
-                method=request.method
+                
             )
 
         # Create the new tag object with only the specified fields
@@ -1356,12 +1350,10 @@ def add_new_tag_definition_v1(request: Request, tag_data: NewTagRequest):
         new_tag = {k: str(v) if isinstance(v, ObjectId) else v for k, v in new_tag.items()}
 
         return response_handler.create_success_response_v1(
-            error_code = ErrorCode.SUCCESS,
-            error_string= '',
             response_data = new_tag,
             http_status_code=201,
             request_dictionary= tag_data_dict,  
-            method=request.method
+            
         )
 
     except Exception as e:
@@ -1371,7 +1363,7 @@ def add_new_tag_definition_v1(request: Request, tag_data: NewTagRequest):
             error_string=str(e),
             http_status_code=500,
             request_dictionary= tag_data_dict, 
-            method=request.method
+            
 )
 
 
@@ -1396,7 +1388,7 @@ def update_tag_definition_v1(request: Request, tag_id: int, update_data: NewTagR
             error_string="Tag not found.", 
             http_status_code=404,
             request_dictionary=tag_data_dict,
-            method=request.method
+            
         )
 
     # Check if the tag is deprecated
@@ -1406,7 +1398,7 @@ def update_tag_definition_v1(request: Request, tag_id: int, update_data: NewTagR
             error_string="Cannot modify a deprecated tag.", 
             http_status_code=400,
             request_dictionary=tag_data_dict,
-            method=request.method
+            
         )
 
     # Prepare update data
@@ -1418,7 +1410,7 @@ def update_tag_definition_v1(request: Request, tag_id: int, update_data: NewTagR
             error_string="No fields to update.", 
             http_status_code=400,
             request_dictionary=tag_data_dict,
-            method=request.method
+            
         )
 
     # Check if tag_vector_index is being updated and if it's already in use
@@ -1431,7 +1423,7 @@ def update_tag_definition_v1(request: Request, tag_id: int, update_data: NewTagR
                 error_string="Tag vector index already in use.", 
                 http_status_code=400,
                 request_dictionary=tag_data_dict,
-                method=request.method
+                
             )
 
     # Update the tag definition
@@ -1444,34 +1436,37 @@ def update_tag_definition_v1(request: Request, tag_id: int, update_data: NewTagR
     updated_tag = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_tag.items()}
 
     # Return the updated tag object
-    return response_handler.create_success_response_v1(error_code = ErrorCode.SUCCESS,
-                                                       error_string= '',
+    return response_handler.create_success_response_v1(
                                                        response_data=updated_tag, 
                                                        http_status_code=200,
                                                        request_dictionary=tag_data_dict,
-                                                       method=request.method)
+                                                       )
 
-@router.delete("/tags/remove-tag-definition", 
+
+@router.delete("/tags/remove-tag-definition/{tag_id}", 
                response_model=StandardSuccessResponseV1[WasPresentResponse], 
                description="remove tag with tag_id", 
                tags=["tags"], 
                status_code=200,
                responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def remove_tag(request: Request, tag_id: int):
+
     response_handler = ApiResponseHandlerV1(request)
 
     # Check if the tag exists
-    tag_query = {"tag_id": tag_id}
-    tag = request.app.tag_definitions_collection.find_one(tag_query)
 
+    tag_query = {"tag_id": tag_id}
+    
+    tag = request.app.tag_definitions_collection.find_one(tag_query)
+    
     if tag is None:
         # Return standard response with wasPresent: false
-        return response_handler.create_success_response_v1(error_code = ErrorCode.SUCCESS,
+        return response_handler.create_success_delete_response_v1(error_code = ErrorCode.SUCCESS,
                                                            error_string= '',
                                                            response_data = {"wasPresent": False},
-                                                           http_status_code=201,
+                                                           http_status_code=200,
                                                            request_dictionary= dict(request.query_params),
-                                                           method=request.method)
+                                                           )
 
     # Check if the tag is used in any images
     image_query = {"tag_id": tag_id}
@@ -1484,19 +1479,18 @@ def remove_tag(request: Request, tag_id: int):
             error_string="Cannot remove tag, it is already used in images.",
             http_status_code=400,
             request_dictionary=dict(request.query_params),
-            method=request.method
+            
         )
 
     # Remove the tag
     request.app.tag_definitions_collection.delete_one(tag_query)
 
     # Return standard response with wasPresent: true
-    return response_handler.create_success_response_v1(error_code = ErrorCode.SUCCESS,
-                                                       error_string= '',
+    return response_handler.create_success_response_v1(
                                                        response_data = {"wasPresent": True},
                                                        http_status_code=201,
                                                        request_dictionary= dict(request.query_params),
-                                                       method=request.method)
+                                                       )
 
 
 @router.get("/tags/list-tag-definitions", 
@@ -1515,12 +1509,10 @@ def list_tag_definitions(request: Request):
         result = [TagDefinition(**tag).to_dict() for tag in tags_cursor]
 
         return response_handler.create_success_response_v1(
-            error_code = ErrorCode.SUCCESS,
-            error_string= '',
             response_data={"tags": result}, 
             http_status_code=200,
             request_dictionary=dict(request.query_params),
-            method=request.method)
+            )
 
     except Exception as e:
         traceback_str = traceback.format_exc()
@@ -1529,7 +1521,7 @@ def list_tag_definitions(request: Request):
                                                          error_string="Internal server error", 
                                                          http_status_code=500,
                                                          request_dictionary=dict(request.query_params),
-                                                         method=request.method)
+                                                         )
 
 @router.put("/tags/set-vector-index", 
             tags=["tags"], 
@@ -1551,7 +1543,7 @@ def set_tag_vector_index(request: Request, tag_id: int, update_data: VectorIndex
             error_string="Tag definition not found.", 
             http_status_code=404,
             request_dictionary=update_data,
-            method=request.method
+            
         )
 
     # Check if any other tag has the same vector index
@@ -1562,7 +1554,7 @@ def set_tag_vector_index(request: Request, tag_id: int, update_data: VectorIndex
             error_string="Another tag already has the same vector index.", 
             http_status_code=400,
             request_dictionary=update_data,
-            method=request.method
+            
         )
 
     # Update the tag vector index
@@ -1572,12 +1564,10 @@ def set_tag_vector_index(request: Request, tag_id: int, update_data: VectorIndex
     # Optionally, retrieve updated tag data and include it in the response
     updated_tag = request.app.tag_definitions_collection.find_one(query)
     return response_handler.create_success_response_v1( 
-        error_code = ErrorCode.SUCCESS,
-        error_string= '',
         response_data = {"tag_vector_index": updated_tag.get("tag_vector_index", None)},
         http_status_code=200,
         request_dictionary=update_data,
-        method=request.method)
+        )
     
 
 
@@ -1599,17 +1589,15 @@ def get_tag_vector_index(request: Request, tag_id: int):
             error_string="Tag not found.", 
             http_status_code=404,
             request_dictionary=dict(request.query_params),
-            method=request.method
+            
         )
 
     vector_index = tag.get("tag_vector_index", None)
     return response_handler.create_success_response_v1(
-        error_code = ErrorCode.SUCCESS,
-        error_string= '',
-        response_data={"tag_vector_index": vector_index}, 
+        response_data={"vector_index": vector_index}, 
         http_status_code=200,
         request_dictionary = dict(request.query_params),
-        method=request.method
+        
     )  
 
 
@@ -1617,7 +1605,7 @@ def get_tag_vector_index(request: Request, tag_id: int):
             tags=["tags"], 
             status_code=200,
             description="Get images by tag_id",
-            response_model=StandardSuccessResponseV1[ImageTag], 
+            response_model=StandardSuccessResponseV1[ListImageTag], 
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def get_tagged_images(
     request: Request, 
@@ -1637,7 +1625,7 @@ def get_tagged_images(
                     error_string="Invalid start_date format. Expected format: YYYY-MM-DDTHH:MM:SS", 
                     http_status_code=400,
                     request_dictionary=dict(request.query_params),
-                    method=request.method
+                    
                 )
         if end_date:
             validated_end_date = validate_date_format(end_date)
@@ -1647,7 +1635,7 @@ def get_tagged_images(
                     error_string="Invalid end_date format. Expected format: YYYY-MM-DDTHH:MM:SS",
                     http_status_code=400,
                     request_dictionary=dict(request.query_params),
-                    method=request.method
+                    
                 )
 
         # Build the query
@@ -1680,12 +1668,11 @@ def get_tagged_images(
                 image_info_list.append(image_tag.model_dump())  # Convert to dictionary
 
         # Return the list of images in a standard success response
-        return response_handler.create_success_response_v1(error_code = ErrorCode.SUCCESS,
-                                                           error_string= '',
+        return response_handler.create_success_response_v1(
                                                            response_data={"images": image_info_list}, 
                                                            http_status_code=200,
                                                            request_dictionary=dict(request.query_params),
-                                                           method=request.method)
+                                                           )
 
     except Exception as e:
         # Log the exception details here, if necessary
@@ -1698,7 +1685,7 @@ def get_tagged_images(
             tags=["tags"], 
             status_code=200,
             description="Get all tagged images",
-            response_model=StandardSuccessResponseV1[ImageTag], 
+            response_model=StandardSuccessResponseV1[ListImageTag], 
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def get_all_tagged_images(request: Request):
     response_handler = ApiResponseHandlerV1(request)
@@ -1722,12 +1709,11 @@ def get_all_tagged_images(request: Request):
                 image_info_list.append(image_tag.model_dump())  # Convert to dictionary
 
         # Return the list of images in a standard success response
-        return response_handler.create_success_response_v1(error_code = ErrorCode.SUCCESS,
-                                                           error_string= '',
+        return response_handler.create_success_response_v1(
                                                            response_data={"images": image_info_list}, 
                                                            http_status_code=200,
                                                            request_dictionary=dict(request.query_params),
-                                                           method=request.method)
+                                                           )
 
     except Exception as e:
         # Log the exception details here, if necessary
@@ -1736,7 +1722,7 @@ def get_all_tagged_images(request: Request):
             error_string=str(e), 
             http_status_code=500,
             request_dictionary=dict(request.query_params),
-            method=request.method
+            
         )    
     
 @router.post("/tag-categories/add-tag-category",
@@ -1773,12 +1759,9 @@ def add_new_tag_category(request: Request, tag_category_data: NewTagCategory):
         }
         # Return success response
         return response_handler.create_success_response_v1(
-            error_code=ErrorCode.SUCCESS,
-            error_string='',
             response_data=ordered_response,
             http_status_code=201,
             request_dictionary=tag_category_dict,  
-            method=request.method
         )
     except Exception as e:
         # Handle exceptions and return an error response
@@ -1787,10 +1770,9 @@ def add_new_tag_category(request: Request, tag_category_data: NewTagCategory):
             error_string="Internal server error",
             http_status_code=500,
             request_dictionary=tag_category_dict,  
-            method=request.method
         )
 
-@router.get("/tags/list-tag-category", 
+@router.get("/tag-categories/list-tag-categories", 
             response_model=StandardSuccessResponseV1[TagsCategoryListResponse],
             description="list tag categories",
             tags=["tag-categories"],
@@ -1806,12 +1788,10 @@ def list_tag_definitions(request: Request):
         result = [TagCategory(**tag).to_dict() for tag in tags_cursor]
 
         return response_handler.create_success_response_v1(
-            error_code = ErrorCode.SUCCESS,
-            error_string= '',
             response_data={"tags": result}, 
             http_status_code=200,
             request_dictionary=dict(request.query_params),
-            method=request.method)
+            )
 
     except Exception as e:
         traceback_str = traceback.format_exc()
@@ -1820,9 +1800,9 @@ def list_tag_definitions(request: Request):
                                                          error_string="Internal server error", 
                                                          http_status_code=500,
                                                          request_dictionary=dict(request.query_params),
-                                                         method=request.method)
+                                                         )
 
-@router.get("/tags/get-count-by-tag-id", 
+@router.get("/tags/get-images-count-by-tag-id", 
             status_code=200,
             tags=["tags"], 
             description="Get count of images with a specific tag",
@@ -1841,20 +1821,18 @@ def get_image_count_by_tag(
     if count == 0:
         # If no images found with the tag, consider how you want to handle this. 
         # For example, you might still want to return a success response with a count of 0.
-        return response_handler.create_success_response_v1(error_code = ErrorCode.SUCCESS,
-                                                           error_string= '',
+        return response_handler.create_success_response_v1(
                                                            response_data={"tag_id": tag_id, "count": 0}, 
                                                            http_status_code=200,
                                                            request_dictionary=dict(request.query_params),
-                                                           method=request.method)
+                                                           )
 
     # Return standard success response with the count
-    return response_handler.create_success_response_v1(error_code = ErrorCode.SUCCESS,
-                                                       error_string= '',
+    return response_handler.create_success_response_v1(
                                                        response_data={"tag_id": tag_id, "count": count}, 
                                                        http_status_code=200,
                                                        request_dictionary=dict(request.query_params),
-                                                       method=request.method)
+                                                       )
 
 @router.put("/tag-categories/update-tag-category", 
               tags=["tag-categories"],
@@ -1879,7 +1857,7 @@ def update_tag_category_v1(
             error_string="Tag category not found.", 
             http_status_code=404,
             request_dictionary=update_data_dict,
-            method=request.method
+            
         )
 
     update_fields = {k: v for k, v in update_data.dict(exclude_unset=True).items() if v is not None}
@@ -1890,7 +1868,7 @@ def update_tag_category_v1(
             error_string="No fields to update.",
             http_status_code=400,
             request_dictionary=update_data_dict,
-            method=request.method
+            
         )
 
     request.app.tag_categories_collection.update_one(query, {"$set": update_fields})
@@ -1905,15 +1883,14 @@ def update_tag_category_v1(
         **updated_category
     }
 
-    return response_handler.create_success_response_v1(error_code = ErrorCode.SUCCESS,
-                                                       error_string= '',
+    return response_handler.create_success_response_v1(
                                                        response_data=ordered_response, 
                                                        http_status_code=200,
                                                        request_dictionary=update_data_dict,
-                                                       method=request.method)
+                                                       )
 
 
-@router.delete("/tag-categories/remove-tag-category", 
+@router.delete("/tag-categories/remove-tag-category/{tag_category_id}", 
                tags=["tag-categories"], 
                description="Remove tag category with tag_category_id", 
                status_code=200,
@@ -1928,12 +1905,12 @@ def delete_tag_category(request: Request, tag_category_id: int):
 
     if category is None:
         # Return standard response with wasPresent: false
-        return response_handler.create_success_response_v1(error_code = ErrorCode.SUCCESS,
+        return response_handler.create_success_delete_response_v1(error_code = ErrorCode.SUCCESS,
                                                            error_string= '',
                                                            response_data={"wasPresent": False},
                                                            http_status_code=200,
                                                            request_dictionary=dict(request.query_params),
-                                                           method=request.method)
+                                                           )
 
     # Check if the tag category is used in any tags
     tag_query = {"tag_category_id": tag_category_id}
@@ -1946,18 +1923,17 @@ def delete_tag_category(request: Request, tag_category_id: int):
             error_string="Cannot remove tag category, it is already used in tags.",
             http_status_code=400,
             request_dictionary=dict(request.query_params),
-            method=request.method
+            
         )
 
     # Remove the tag category
     request.app.tag_categories_collection.delete_one(category_query)
 
     # Return standard response with wasPresent: true
-    return response_handler.create_success_response_v1(error_code = ErrorCode.SUCCESS,
-                                                       error_string= '',
+    return response_handler.create_success_response_v1(
                                                        response_data={"wasPresent": False},
                                                        http_status_code=200,
                                                        request_dictionary=dict(request.query_params),
-                                                       method=request.method)
+                                                       )
 
 
