@@ -601,7 +601,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=10,
+                         max_epochs=5,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -797,14 +797,17 @@ def compare_images(img1, img2):
     plt.figure(figsize=(4,4))
     plt.imshow(grid)
     plt.xticks([(img1.shape[2]+2)*(0.5+j) for j in range(2)],
-               labels=["Original image", "Transformed image"])
+               labels=[f"ID: {score1.item():4.2f} {softmax_to_class(torch.nn.functional.softmax(class1, dim=1))}", f"OOD: {score2.item():4.2f} {softmax_to_class(torch.nn.functional.softmax(class2, dim=1))}"])
     plt.yticks([])
-    plt.show()
-    print(f"Score original image: {score1.item():4.2f}")
-    print(f"Score transformed image: {score2.item():4.2f}")
 
-    print(f"Class original image: {softmax_to_class(torch.nn.functional.softmax(class1, dim=1))}")
-    print(f"Class transformed image: {softmax_to_class(torch.nn.functional.softmax(class2, dim=1))}")
+    print(f"O : {score1.item():4.2f}")
+    print(f"T : {score2.item():4.2f}")
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+
+    minio_path_i = "environmental/output/my_test/compare" + str(i) +"_" +date_now+".png"
+    cmd.upload_data(minio_client, 'datasets', minio_path_i, buf)
 
 
 
