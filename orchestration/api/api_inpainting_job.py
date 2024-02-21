@@ -65,19 +65,19 @@ def add_job(request: Request, task: Task):
     
 # -------------- Get jobs count ----------------------
     
-@router.get("/queue/inpainting-generation/pending-count")
+@router.get("/queue/inpainting-generation/pending-count", tags=["inpainting jobs"])
 def get_pending_job_count(request: Request):
     count = request.app.pending_inpainting_jobs_collection.count_documents({})
     return count
 
 
-@router.get("/queue/inpainting-generation/in-progress-count")
+@router.get("/queue/inpainting-generation/in-progress-count", tags=["inpainting jobs"])
 def get_in_progress_job_count(request: Request):
     count = request.app.in_progress_inpainting_jobs_collection.count_documents({})
     return count
 
 
-@router.get("/queue/inpainting-generation/completed-count")
+@router.get("/queue/inpainting-generation/completed-count", tags=["inpainting jobs"])
 def get_completed_job_count(request: Request):
     count = request.app.completed_inpainting_jobs_collection.count_documents({})
     return count    
@@ -89,7 +89,7 @@ def get_completed_job_count(request: Request):
 @router.delete("/queue/inpainting-generation/delete-all-pending",
                description="remove all pending jobs",
                response_model=StandardSuccessResponseV1[WasPresentResponse],
-               tags=["inpaintin jobs"],
+               tags=["inpainting jobs"],
                responses=ApiResponseHandlerV1.listErrors([500]))
 def clear_all_pending_jobs(request: Request):
     api_response_handler = ApiResponseHandlerV1(request)
@@ -111,7 +111,7 @@ def clear_all_pending_jobs(request: Request):
 @router.delete("/queue/inpainting-generation/delete-all-in-progress",
                description="remove all in-progress jobs",
                response_model=StandardSuccessResponseV1[WasPresentResponse],
-               tags=["inpaintin jobs"],
+               tags=["inpainting jobs"],
                responses=ApiResponseHandlerV1.listErrors([500]))
 def clear_all_in_progress_jobs(request: Request):
     api_response_handler = ApiResponseHandlerV1(request)
@@ -134,7 +134,7 @@ def clear_all_in_progress_jobs(request: Request):
 @router.delete("/queue/inpainting-generation/delete-all-completed",
                description="remove all completed jobs",
                response_model=StandardSuccessResponseV1[WasPresentResponse],
-               tags=["inpaintin jobs"],
+               tags=["inpainting jobs"],
                responses=ApiResponseHandlerV1.listErrors([500]))
 def clear_all_in_progress_jobs(request: Request):
     api_response_handler = ApiResponseHandlerV1(request)
@@ -156,7 +156,7 @@ def clear_all_in_progress_jobs(request: Request):
 
  # --------------------- List ----------------------
 
-@router.get("/queue/inpainting-generation/list-pending", response_class=PrettyJSONResponse)
+@router.get("/queue/inpainting-generation/list-pending", response_class=PrettyJSONResponse, tags=["inpainting jobs"])
 def get_list_pending_jobs(request: Request):
     jobs = list(request.app.pending_inpainting_jobs_collection.find({}))
 
@@ -166,7 +166,7 @@ def get_list_pending_jobs(request: Request):
     return jobs
 
 
-@router.get("/queue/inpainting-generation/list-in-progress", response_class=PrettyJSONResponse)
+@router.get("/queue/inpainting-generation/list-in-progress", response_class=PrettyJSONResponse, tags=["inpainting jobs"])
 def get_list_in_progress_jobs(request: Request):
     jobs = list(request.app.in_progress_inpainting_jobs_collection.find({}))
 
@@ -176,7 +176,7 @@ def get_list_in_progress_jobs(request: Request):
     return jobs
 
 
-@router.get("/queue/inpainting-generation/list-completed", response_class=PrettyJSONResponse)
+@router.get("/queue/inpainting-generation/list-completed", response_class=PrettyJSONResponse, tags=["inpainting jobs"])
 def get_list_completed_jobs(request: Request, limit: Optional[int] = Query(10, alias="limit")):
     # Use the limit parameter in the find query to limit the results
     jobs = list(request.app.completed_inpainting_jobs_collection.find({}).limit(limit))
@@ -186,7 +186,7 @@ def get_list_completed_jobs(request: Request, limit: Optional[int] = Query(10, a
 
     return jobs
 
-@router.get("/queue/inpainting-generation/list-completed-by-dataset", response_class=PrettyJSONResponse)
+@router.get("/queue/inpainting-generation/list-completed-by-dataset", response_class=PrettyJSONResponse, tags=["inpainting jobs"])
 def get_list_completed_jobs_by_dataset(request: Request, dataset, limit: Optional[int] = Query(10, alias="limit")):
     # Use the limit parameter in the find query to limit the results
     jobs = list(request.app.completed_inpainting_jobs_collection.find({"task_input_dict.dataset": dataset}).limit(limit))
@@ -201,7 +201,7 @@ def get_list_completed_jobs_by_dataset(request: Request, dataset, limit: Optiona
 # ---------------- Update -------------------
 
 
-@router.put("/queue/inpainting-generation/update-completed", description="Update in progress inpainting job and mark as completed.")
+@router.put("/queue/inpainting-generation/update-completed", description="Update in progress inpainting job and mark as completed.", tags=['inpainting jobs'])
 def update_job_completed(request: Request, task: Task):
     # check if exist
     job = request.app.in_progress_inpainting_jobs_collection.find_one({"uuid": task.uuid})
@@ -217,36 +217,4 @@ def update_job_completed(request: Request, task: Task):
     return True
 
 
-@router.put("/queue/inpainting-generation/update-failed", description="Update in progress inpainting job and mark as failed.")
-def update_job_failed(request: Request, task: Task):
-    # check if exist
-    job = request.app.in_progress_inpainting_jobs_collection.find_one({"uuid": task.uuid})
-    if job is None:
-        return False
 
-    # add to failed
-    request.app.failed_inpainting_jobs_collection.insert_one(task.to_dict())
-
-    # remove from in progress
-    request.app.in_progress_inpainting_jobs_collection.delete_one({"uuid": task.uuid})
-
-    return True
-
-@router.delete("/queue/inpainting-generation/cleanup-completed-and-orphaned")
-def cleanup_completed_and_orphaned_jobs(request: Request):
-
-    jobs = request.app.completed_inpainting_jobs_collection.find({})
-    for job in jobs:
-        file_exists = True
-        try:
-            file_path = job['task_output_file_dict']['output_file_path']
-            bucket_name, file_path = separate_bucket_and_file_path(file_path)
-            file_exists = cmd.is_object_exists(request.app.minio_client, bucket_name, file_path)
-        except Exception as e:
-            file_exists = False
-
-        if not file_exists:
-            # remove from in progress
-            request.app.completed_inpainting_jobs_collection.delete_one({"uuid": job['uuid']})
-
-    return True
