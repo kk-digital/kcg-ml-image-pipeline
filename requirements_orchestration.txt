@@ -12,3 +12,5 @@ python-multipart
 python-dateutil
 paramiko
 fastapi-cache2
+numpy
+msgpack
