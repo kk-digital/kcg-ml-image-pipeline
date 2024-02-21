@@ -1386,7 +1386,7 @@ def main():
             try:
                 print("Training model for {}...".format(dataset))
                 model_dataset = dataset
-                DATA_MINIO_DIRECTORY = f"{model_dataset}/" + DATA_MINIO_DIRECTORY
+                DATA_MINIO_DIRECTORY= f"{model_dataset}/" + BASE_DIRECTORY
 
                 prompt_mutator = PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
                                                              minio_secret_key=args.minio_secret_key,
