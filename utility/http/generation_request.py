@@ -70,12 +70,18 @@ def http_add_kandinsky_job(job, positive_embedding, negative_embedding):
     }
     try:
         response = requests.post(url, json=data, headers=headers)
-        if response.status_code != 201 and response.status_code != 200:
-            print(f"POST request failed with status code: {response.status_code}")
+        # Attempt to decode JSON response
+        try:
+            decoded_response = response.json()
+        except json.JSONDecodeError:
+            decoded_response = {"error": "Failed to decode JSON response"}
 
-        decoded_response = json.loads(response.content.decode())
+        if response.status_code != 201 and response.status_code != 200:
+            # Print more detailed error message including status code and response body
+            print(f"POST request failed with status code: {response.status_code}, Response body: {decoded_response}")
+
     except Exception as e:
-        print('request exception ', e)
+        print('Request exception:', e)
 
     finally:
         if response:
