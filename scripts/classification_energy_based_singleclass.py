@@ -54,7 +54,7 @@ from utility.clip.clip_text_embedder import tensor_attention_pooling
 
 
 
-
+minio_path="environmental/output/my_test"
 matplotlib.rcParams['lines.linewidth'] = 2.0
 
 # Path to the folder where the datasets are/should be downloaded (e.g. CIFAR10)
@@ -76,7 +76,7 @@ print(date_now)
 minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
             "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
             None)
-minio_path="environmental/output/my_test"
+
 
 # Setting the seed
 pl.seed_everything(42)
@@ -728,6 +728,7 @@ def train_model(**kwargs):
         print("Found pretrained model, loading...")
         model = DeepEnergyModel.load_from_checkpoint(pretrained_filename)
     else:
+        minio_path="environmental/output/my_test"
         pl.seed_everything(42)
         model = DeepEnergyModel(**kwargs)
         trainer.fit(model, train_loader, val_loader)
