@@ -79,8 +79,7 @@ def main():
                             image_embedding= image_embedding,
                             negative_image_embedding=None,
                             dataset_name="test-generations",
-                            prompt_generation_policy="img2img_kandinsky",
-                            minio_client= minio_client)
+                            prompt_generation_policy="img2img_kandinsky")
                 task_uuid = response['uuid']
             except:
                 print('Error occured:')
