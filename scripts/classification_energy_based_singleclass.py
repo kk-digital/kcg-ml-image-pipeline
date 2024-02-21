@@ -732,9 +732,9 @@ def train_model(**kwargs):
         pl.seed_everything(42)
         model = DeepEnergyModel(**kwargs)
         trainer.fit(model, train_loader, val_loader)
-        buf = io.BytesIO()
+        
         model = DeepEnergyModel.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
-        model.save(buf,format.pt)
+        buf = io.BytesIO(model)
         buf.seek(0)
 
         # Save file        
