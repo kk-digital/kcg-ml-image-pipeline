@@ -10,6 +10,8 @@ from fastapi.responses import JSONResponse
 from fastapi_cache.decorator import cache
 from pydantic import BaseModel
 import traceback
+from utility.path import separate_bucket_and_file_path
+
 
 CLIP_SERVER_ADDRESS = 'http://192.168.3.31:8002'
 #CLIP_SERVER_ADDRESS = 'http://127.0.0.1:8002'
@@ -466,45 +468,37 @@ def get_clip_vector_from_phrase(request: Request, image_path: str):
     
     response_handler = ApiResponseHandlerV1(request)
 
-    # Initialize MinIO client
-    minio_client = Minio(
-        "192.168.3.5:9000",
-        access_key="v048BpXpWrsVIHUfdAix",
-        secret_key="4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu",
-    )
-
+    # Separate bucket name and file path
+    bucket_name, file_path = separate_bucket_and_file_path(image_path)
+    file_path = file_path.replace("\\", "/")
+    
     try:
-        # Fetch the image from MinIO bucket
-        bucket_name = "datasets"
-        try:
-            response = minio_client.get_object(bucket_name, image_path)
-            image_content = response.read()
-            # Assuming http_clip_server_get_kandinsky_vector can process image content directly
-            vector = http_clip_server_get_kandinsky_vector(image_content)
-        except S3Error as e:
-            print(f"MinIO error occurred: {e}")
-            # Handle MinIO specific errors, e.g., file not found
-            return response_handler.create_error_response_v1(
-                ErrorCode.ELEMENT_NOT_FOUND,
-                "Image not found in MinIO",
-                http_status_code=404,
-                request_dictionary=dict(request.query_params),
-            )
+        # Fetch the image data from MinIO
+        image_data = request.app.minio_client.get_object(bucket_name, file_path)
+        
+        if image_data is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Image with this path doesn't exist")
 
-        if vector is None:
-            return response_handler.create_error_response_v1(
-                ErrorCode.ELEMENT_NOT_FOUND,
-                "Phrase not found",
-                http_status_code=404,
-                request_dictionary=dict(request.query_params),
-            )
-
+        content = image_data.read()
+        # Process the image content to get the vector
+        vector = http_clip_server_get_kandinsky_vector(content)
+        
         return response_handler.create_success_response_v1(
             response_data=vector, 
             http_status_code=200, 
             request_dictionary=dict(request.query_params),
         )
 
+    except S3Error as e:
+        print(f"MinIO error occurred: {e}")
+        return response_handler.create_error_response_v1(
+            ErrorCode.ELEMENT_NOT_FOUND,
+            "Image not found in MinIO",
+            http_status_code=404,
+            request_dictionary=dict(request.query_params),
+        )
     except Exception as e:
         print(f"Exception occurred: {e}")  # Print statement for debugging
         return response_handler.create_error_response_v1(
