@@ -32,7 +32,7 @@ def get_image_paths(images_dir):
     # Walk through directory and subdirectories
     for root, dirs, files in os.walk(images_dir):
         for file in files:
-            if file.lower().endswith('jpeg'):
+            if file.lower().endswith('jpg'):
                 full_path = os.path.join(root, file)
                 image_paths.append(full_path)
 
@@ -70,7 +70,7 @@ def main():
     images=[]
 
     for index, path in enumerate(image_paths):
-        image= Image.open(path)
+        image= Image.open(path).convert("RGB")
         image_embedding=image_embedder.get_image_features(image)
  
         for i in range(args.num_variants):
