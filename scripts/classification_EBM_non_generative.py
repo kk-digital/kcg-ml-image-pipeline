@@ -753,16 +753,7 @@ with torch.no_grad():
 
 
 ######## Average score for training images
-   def softmax_to_class(softmax_tensor):
-  """
-  Converts a softmax tensor with 10 elements to the corresponding class name.
-
-  Args:
-    softmax_tensor: A 1D tensor with class probabilities (softmax output).
-
-  Returns:
-    The class name (string) with the highest probability.
-  """
+def softmax_to_class(softmax_tensor):
 
   # Convert tensor to numpy array for easier indexing
   class_probs = softmax_tensor.detach().cpu().numpy()
