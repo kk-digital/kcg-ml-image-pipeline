@@ -753,18 +753,7 @@ with torch.no_grad():
 
 
 ######## Average score for training images
-    
-with torch.no_grad():
-    train_imgs,_ = next(iter(train_loader))
-    train_imgs = train_imgs.to(model.device)
-    train_out = model.cnn(train_imgs)[0].mean()
-    print(f"Average score for training images: {train_out.item():4.2f}")
-
-
-
-
-######## Softmax
-def softmax_to_class(softmax_tensor):
+   def softmax_to_class(softmax_tensor):
   """
   Converts a softmax tensor with 10 elements to the corresponding class name.
 
@@ -783,8 +772,16 @@ def softmax_to_class(softmax_tensor):
 
   # Map the index to the corresponding class name using a dictionary
   class_names = {
-      0: "Not cat",
-      1: "Cat",
+      0: "airplane",
+      1: "automobile",
+      2: "bird",
+      3: "cat",
+      4: "deer",
+      5: "dog",
+      6: "frog",
+      7: "horse",
+      8: "ship",
+      9: "truck"
   }
 
   return class_names[class_index]
@@ -795,29 +792,26 @@ def softmax_to_class(softmax_tensor):
 @torch.no_grad()
 def compare_images(img1, img2):
     imgs = torch.stack([img1, img2], dim=0).to(model.device)
-    score1, score2 = model.cnn(imgs).cpu().chunk(2, dim=0) # model.cnn(imgs)[0].cpu().chunk(2, dim=0)
-    #class1, class2 = model.cnn(imgs)[1].cpu().chunk(2, dim=0)
+    score1, score2 = model.cnn(imgs)[0].cpu().chunk(2, dim=0)
+    class1, class2 = model.cnn(imgs)[1].cpu().chunk(2, dim=0)
     grid = torchvision.utils.make_grid([img1.cpu(), img2.cpu()], nrow=2, normalize=True, pad_value=0.5, padding=2)
     grid = grid.permute(1, 2, 0)
     plt.figure(figsize=(4,4))
     plt.imshow(grid)
     plt.xticks([(img1.shape[2]+2)*(0.5+j) for j in range(2)],
-               labels=[f"Original image: {score1.item():4.2f}", f"Transformed image: {score2.item():4.2f}"])
+               labels=["Original image", "Transformed image"])
     plt.yticks([])
+    plt.show()
+    print(f"Score original image: {score1.item():4.2f}")
+    print(f"Score transformed image: {score2.item():4.2f}")
 
-    print(f"O : {score1.item():4.2f}")
-    print(f"T : {score2.item():4.2f}")
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png')
-    buf.seek(0)
-
-    minio_path_i = "environmental/output/my_test/compare" + str(i) +"_" +date_now+".png"
-    cmd.upload_data(minio_client, 'datasets', minio_path_i, buf)
+    print(f"Class original image: {softmax_to_class(torch.nn.functional.softmax(class1, dim=1))}")
+    print(f"Class transformed image: {softmax_to_class(torch.nn.functional.softmax(class2, dim=1))}")
 
 
 
-    # print(f"Class original image: {softmax_to_class(torch.nn.functional.softmax(class1, dim=1))}")
-    # print(f"Class transformed image: {softmax_to_class(torch.nn.functional.softmax(class2, dim=1))}")
+
+
 
 
 
