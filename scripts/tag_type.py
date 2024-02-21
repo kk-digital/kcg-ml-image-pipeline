@@ -1,7 +1,7 @@
 from pymongo import MongoClient, UpdateOne
 
 # Connect to MongoDB
-client = MongoClient('mongodb://localhost:27017/')
+client = MongoClient('mongodb://192.168.3.1:32017/')
 db = client['orchestration-job-db']  # Update with your actual database name
 image_tags_collection = db['image_tags']  # Update with your actual collection name
 
