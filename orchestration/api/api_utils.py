@@ -310,5 +310,5 @@ def find_or_create_next_folder_and_index(client: Minio, bucket: str, base_folder
         else:
             # No folders exist yet, start with the first one
             return f"{base_folder}/0001", 0
-    except S3Error as e:
+    except Exception as e:
         raise HTTPException(status_code=500, detail=f"MinIO error: {e}")
