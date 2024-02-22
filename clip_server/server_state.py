@@ -4,7 +4,7 @@ import msgpack
 import time
 import numpy as np
 import torch
-from PIL.Image import Image
+from PIL import Image
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
