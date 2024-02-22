@@ -162,7 +162,7 @@ ood_loader = data.DataLoader(oodset, batch_size=64, shuffle=False, drop_last=Tru
 # OOD
 num_samples_ood = len(oodset)
 print("the number of samples is ", num_samples)
-train_size_ood = int(0.8 * num_samples_ood)
+train_size_ood = int(0.9 * num_samples_ood)
 val_size_ood = num_samples_ood - train_size_ood
 
 train_set_ood, val_set_ood = random_split(oodset, [train_size_ood, val_size_ood])
@@ -994,8 +994,10 @@ def evaluate_model(model, dataloader_original, dataloader_fake):
                 # class_original = softmax_to_class(torch.nn.functional.softmax(class_original, dim=1))
                 # class_fake = softmax_to_class(torch.nn.functional.softmax(class_fake, dim=1))
                 #print("label original: ", softmax_to_class(labels_original), "class original: ",softmax_to_class(class_original) )
+                print(class_original," VS ",labels_original)
                 if class_original == softmax_to_class(labels_original):
                     total_correct += 1
+                    
                 else:
                     total_correct = total_correct
                   #+ torch.sum(class_fake == labels_fake).item()
