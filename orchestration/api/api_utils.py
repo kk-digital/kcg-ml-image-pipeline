@@ -276,32 +276,39 @@ class ApiResponseHandlerV1:
             return PrettyJSONResponse(status_code=http_status_code, content=response_content, headers=headers)
 
             
-def find_or_create_next_folder(client: Minio, bucket: str, base_folder: str) -> str:
+
+def find_or_create_next_folder_and_index(client: Minio, bucket: str, base_folder: str) -> (str, int):
     """
-    Finds the next folder for storing an image, creating a new one if the last is full.
+    Finds the next folder for storing an image, creating a new one if the last is full,
+    and determines the next image index.
     """
     try:
-        # List objects in the base folder and count them
         objects = client.list_objects(bucket, prefix=base_folder+"/", recursive=True)
         folder_counts = {}
+        latest_index = -1  # Start before the first possible index
+        
         for obj in objects:
-            folder = os.path.dirname(obj.object_name)
+            folder, filename = os.path.split(obj.object_name)
             folder_counts[folder] = folder_counts.get(folder, 0) + 1
+            
+            # Attempt to parse the filename as an index
+            try:
+                index = int(os.path.splitext(filename)[0])
+                latest_index = max(latest_index, index)
+            except ValueError:
+                pass  # Filename isn't a simple integer index
 
-        # Find the last folder and check if it's full
         if folder_counts:
             sorted_folders = sorted(folder_counts.items(), key=lambda x: x[0])
             last_folder, count = sorted_folders[-1]
             if count < 1000:
-                return last_folder
+                return last_folder, latest_index + 1
             else:
-                # Create a new folder by incrementing the last folder's name
                 folder_number = int(last_folder.split('/')[-1]) + 1
                 new_folder = f"{base_folder}/{folder_number:04d}"
-                return new_folder
+                return new_folder, 0  # Start indexing at 0 for a new folder
         else:
             # No folders exist yet, start with the first one
-            return f"{base_folder}/0001"
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"MinIO error: {e}")        
-     
+            return f"{base_folder}/0001", 0
+    except S3Error as e:
+        raise HTTPException(status_code=500, detail=f"MinIO error: {e}")

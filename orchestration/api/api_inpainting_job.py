@@ -14,9 +14,38 @@ from typing import Optional
 import csv
 from .api_utils import ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, AddJob, WasPresentResponse
 from pymongo import UpdateMany
+from fastapi.encoders import jsonable_encoder
 
 router = APIRouter()
 
+
+# -------------------- Get -------------------------
+
+@router.get("/queue/inpainting-generation/get-job", tags=["inpainting jobs"])
+def get_job(request: Request, task_type= None, model_type=""):
+    query = {}
+
+    if task_type:
+        query["task_type"] = task_type
+
+    if model_type:    
+        query["task_type"] = {"$regex": model_type}
+
+    # Query to find the n newest elements based on the task_completion_time
+    job = request.app.pending_jobs_collection.find_one(query, sort=[("task_creation_time", pymongo.ASCENDING)])
+
+    if job is None:
+        raise HTTPException(status_code=204)
+
+    # delete from pending
+    request.app.pending_jobs_collection.delete_one({"uuid": job["uuid"]})
+    # add to in progress
+    request.app.in_progress_jobs_collection.insert_one(job)
+
+    # remove the auto generated field
+    job.pop('_id', None)
+
+    return job
 
  # --------------------- Add ---------------------------
 
@@ -27,7 +56,8 @@ router = APIRouter()
              response_model=StandardSuccessResponseV1[AddJob],
              responses=ApiResponseHandlerV1.listErrors([500]))
 def add_job(request: Request, task: Task):
-    api_response_handler = ApiResponseHandlerV1(request)
+    task_dict = jsonable_encoder(task)
+    api_response_handler = ApiResponseHandlerV1(request, body_data=task_dict)
     try:
         if task.uuid in ["", None]:
             # Generate UUID since it's empty
@@ -58,9 +88,9 @@ def add_job(request: Request, task: Task):
     except Exception as e:
         # Log the error and return a standardized error response
         return api_response_handler.create_error_response_v1(
-            ErrorCode.OTHER_ERROR,
-            str(e),
-            500
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
         )
     
 # -------------- Get jobs count ----------------------
