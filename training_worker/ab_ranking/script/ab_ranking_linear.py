@@ -53,6 +53,8 @@ def train_ranking(dataset_name: str,
     input_shape = 2 * 768
     if input_type in [constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE, constants.CLIP]:
         input_shape = 768
+    if input_type in ["kandinsky-clip"]:
+        input_shape = 1280
 
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name=dataset_name,
@@ -320,11 +322,11 @@ def run_ab_ranking_linear_task(training_task, minio_access_key, minio_secret_key
 
 
 def test_run():
-    train_ranking(dataset_name="propaganda-poster",
+    train_ranking(dataset_name="environmental",
                   minio_ip_addr=None,  # will use defualt if none is given
                   minio_access_key="nkjYl5jO4QnpxQU0k0M1",
                   minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
-                  input_type="embedding-negative",
+                  input_type=constants.KANDINSKY_CLIP,
                   epochs=10,
                   learning_rate=0.05,
                   train_percent=0.9,
