@@ -1020,7 +1020,8 @@ def evaluate_model(model, dataloader_original, dataloader_fake):
 
     print("Average Accuracy: ", average_accuracy)
     print("Average Original Image Confidence: ", average_class_original_conf)
-    print("Average OOD Image Confidence: ", average_class_fake_conf)
+    print("Average Original Image Energy: ", average_energy_original)
+    print("Average OOD Image Energy: ", average_energy_ood)
 
     return average_accuracy, average_class_original_conf, average_energy_original, average_energy_ood
 
