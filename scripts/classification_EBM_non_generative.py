@@ -972,8 +972,11 @@ exmp_img = test_imgs[5].to(model.device)
 def evaluate_model(model, dataloader_original, dataloader_fake):
     total_correct = 0
     total_samples = 0
+    total_samples_fake = 0
     total_class_original_conf = 0
     total_class_fake_conf = 0
+    total_original_energy = 0
+    total_fake_energy = 0
 
     for batch_original, batch_fake in zip(dataloader_original, dataloader_fake):
         for img1_original, labels_original in zip(batch_original[0], batch_original[1]):
@@ -1001,8 +1004,10 @@ def evaluate_model(model, dataloader_original, dataloader_fake):
                 else:
                     total_correct = total_correct
                   #+ torch.sum(class_fake == labels_fake).item()
-                
+                total_original_energy += score_original
+                total_fake_energy += score_fake
                 total_samples += labels_original.size(0) #+ labels_fake.size(0)
+                total_samples_fake += labels_fake.size(0)
                 total_class_original_conf += torch.sum(torch.max(torch.nn.functional.softmax(class_original, dim=1))).item()
                 total_class_fake_conf += torch.sum(torch.max(torch.nn.functional.softmax(class_fake, dim=1))).item()
 
@@ -1010,12 +1015,14 @@ def evaluate_model(model, dataloader_original, dataloader_fake):
     average_accuracy = total_correct / total_samples
     average_class_original_conf = total_class_original_conf / total_samples
     average_class_fake_conf = 0 #total_class_fake_conf / total_samples
+    average_energy_original = total_original_energy / total_samples
+    average_energy_ood = total_fake_energy / total_samples_fake
 
     print("Average Accuracy: ", average_accuracy)
     print("Average Original Image Confidence: ", average_class_original_conf)
     print("Average OOD Image Confidence: ", average_class_fake_conf)
 
-    return average_accuracy, average_class_original_conf, average_class_fake_conf
+    return average_accuracy, average_class_original_conf, average_energy_original, average_energy_ood
 
 
 # ood_loader train_loader
