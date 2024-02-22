@@ -656,7 +656,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=1,
+                         max_epochs=0,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -985,14 +985,14 @@ def evaluate_model(model, dataloader_original, dataloader_fake):
                 #print("label original: ", softmax_to_class(labels_original), "class original: ",softmax_to_class(class_original) )
                 if class_original == softmax_to_class(labels_original):
                     total_correct += class_original == softmax_to_class(labels_original)
+                else:
+                    total_correct = total_correct
                   #+ torch.sum(class_fake == labels_fake).item()
+                
                 total_samples += labels_original.size(0) #+ labels_fake.size(0)
-
-
-
-
                 total_class_original_conf += torch.sum(torch.max(torch.nn.functional.softmax(class_original, dim=1))).item()
                 total_class_fake_conf += torch.sum(torch.max(torch.nn.functional.softmax(class_fake, dim=1))).item()
+                print("Average Accuracy: ", average_accuracy)
 
     average_accuracy = total_correct / total_samples
     average_class_original_conf = total_class_original_conf / total_samples
