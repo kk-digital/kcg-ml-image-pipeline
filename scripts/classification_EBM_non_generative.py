@@ -1003,7 +1003,7 @@ def evaluate_model(model, dataloader_original, dataloader_fake):
                 total_samples += labels_original.size(0) #+ labels_fake.size(0)
                 total_class_original_conf += torch.sum(torch.max(torch.nn.functional.softmax(class_original, dim=1))).item()
                 total_class_fake_conf += torch.sum(torch.max(torch.nn.functional.softmax(class_fake, dim=1))).item()
-                print("Average Accuracy: ", average_accuracy)
+                print("Average conf: ", total_class_original_conf)
 
     average_accuracy = total_correct / total_samples
     average_class_original_conf = total_class_original_conf / total_samples
