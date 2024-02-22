@@ -656,7 +656,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=20,
+                         max_epochs=5,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -904,6 +904,14 @@ def compare_images_values(img1, img2):
 
 
 
+
+
+
+
+
+
+
+
 # Select image from training set
 test_imgs, _ = next(iter(val_loader))
 exmp_img = test_imgs[5].to(model.device)
@@ -943,6 +951,50 @@ exmp_img = test_imgs[5].to(model.device)
 
 
 
-for i in range(12):
-    x = random.randint(0,len(test_imgs))
-    compare_images_values(test_imgs[x].to(model.device),ood_imgs[x].to(model.device))
+# for i in range(12):
+#     x = random.randint(0,len(test_imgs))
+#     compare_images_values(test_imgs[x].to(model.device),ood_imgs[x].to(model.device))
+
+
+
+
+@torch.no_grad()
+def evaluate_model(model, dataloader_original, dataloader_fake):
+    total_correct = 0
+    total_samples = 0
+    total_class_original_conf = 0
+    total_class_fake_conf = 0
+
+    for batch_original, batch_fake in zip(dataloader_original, dataloader_fake):
+        img1_original, labels_original = batch_original
+        img2_fake, labels_fake = batch_fake
+
+        imgs_original = torch.stack([img1_original, img2_fake], dim=0).to(model.device)
+        score1_original, score2_fake = model.cnn(imgs_original)[0].cpu().chunk(2, dim=0)
+        class1_original, class2_fake = model.cnn(imgs_original)[1].cpu().chunk(2, dim=0)
+
+
+
+        class_original = softmax_to_class(torch.nn.functional.softmax(class1_original, dim=1))
+        class_fake = softmax_to_class(torch.nn.functional.softmax(class2_fake, dim=1))
+
+        total_correct += torch.sum(class_original == labels_original).item() + torch.sum(class_fake == labels_fake).item()
+        total_samples += labels_original.size(0) + labels_fake.size(0)
+
+        total_class_original_conf += torch.sum(torch.max(torch.nn.functional.softmax(class1_original, dim=1))).item()
+        total_class_fake_conf += torch.sum(torch.max(torch.nn.functional.softmax(class2_fake, dim=1))).item()
+
+    average_accuracy = total_correct / total_samples
+    average_class_original_conf = total_class_original_conf / total_samples
+    average_class_fake_conf = total_class_fake_conf / total_samples
+
+    print("Average Accuracy: ", average_accuracy)
+    print("Average Original Image Confidence: ", average_class_original_conf)
+    print("Average OOD Image Confidence: ", average_class_fake_conf)
+
+    return average_accuracy, average_class_original_conf, average_class_fake_conf
+
+
+
+# ood_loader train_loader
+evaluate_model(model, train_loader, ood_loader)
