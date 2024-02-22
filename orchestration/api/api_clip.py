@@ -13,7 +13,7 @@ import traceback
 from utility.minio import cmd 
 from minio import Minio
 from minio.error import S3Error
-from .api_utils import find_or_create_next_folder
+from .api_utils import find_or_create_next_folder_and_index
 import os
 import io
 
@@ -607,18 +607,18 @@ def check_clip_server_status(request: Request):
 
 
 bucket_name = "datasets"
-base_folder = "kandinsky-test-generations"
+base_folder = "external-images"
 
-@router.post("/upload-image/")
+@router.post("/upload-image")
 async def upload_image(file: UploadFile = File(...)):
     # Initialize MinIO client
-    minio_client = cmd.get_minio_client(minio_access_key="3lUCPCfLMgQoxrYaxgoz", minio_secret_key="MXszqU6KFV6X95Lo5jhMeuu5Xm85R79YImgI3Xmp")
+    minio_client = cmd.get_minio_client(minio_access_key="v048BpXpWrsVIHUfdAix", minio_secret_key="4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu")
     
-    # Find or create the next available folder
-    next_folder = find_or_create_next_folder(minio_client, bucket_name, base_folder)
+    # Find or create the next available folder and get the next image index
+    next_folder, next_index = find_or_create_next_folder_and_index(minio_client, bucket_name, base_folder)
 
-    # Construct the file path
-    file_name = file.filename
+    # Construct the file path with sequential naming
+    file_name = f"{next_index:06}.jpg"  # Format index as a zero-padded string
     file_path = f"{next_folder}/{file_name}"
 
     try:
