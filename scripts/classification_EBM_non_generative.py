@@ -837,8 +837,8 @@ def compare_images_values(img1, img2):
     score_fake = score2.item()
     class_original = softmax_to_class(torch.nn.functional.softmax(class1, dim=1))
     class_fake = softmax_to_class(torch.nn.functional.softmax(class2, dim=1))
-    class_original_conf = softmax_to_class(torch.nn.functional.softmax(class1, dim=1))
-    class_fake_conf = softmax_to_class(torch.nn.functional.softmax(class2, dim=1))
+    class_original_conf = torch.nn.functional.softmax(class1, dim=1)
+    class_fake_conf = storch.nn.functional.softmax(class2, dim=1)
 
     print("Original Image Score: ",score_original)
     print("OOD Image Score: ",score_fake)
@@ -891,4 +891,5 @@ exmp_img = test_imgs[5].to(model.device)
 
 
 for i in range(12):
-    compare_images_values(test_imgs[i].to(model.device),ood_imgs[i].to(model.device))
+    x = random.randint(1,10000)
+    compare_images_values(test_imgs[x].to(model.device),ood_imgs[x].to(model.device))
