@@ -484,8 +484,8 @@ def get_clip_vector_from_phrase(request: Request, image_path: str):
         # Construct the .msgpack filename using the image base name (without extension)
         vector_filename = f"{os.path.splitext(image_basename)[0]}_kandinsky_clip.msgpack"
         # Define the path where the .msgpack file will be saved (adjust as needed)
-        save_path = os.path.join("path_to_save_directory", vector_filename)
-        
+        save_path = os.path.join(os.getcwd(), vector_filename)
+         
         # Serialize and save the vector to a .msgpack file
         with open(save_path, "wb") as f:
             msgpack.dump(vector, f)
