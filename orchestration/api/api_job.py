@@ -150,7 +150,7 @@ def add_job(request: Request, kandinsky_task: KandinskyTask):
     # upload input image embeddings to minIO
     image_embedding_data={
         "job_uuid": task.uuid,
-        "dataset": dataset_name,
+        "dataset": task.task_input_dict["dataset"],
         "image_embedding": kandinsky_task.positive_embedding,
         "negative_image_embedding": kandinsky_task.negative_embedding
     }
