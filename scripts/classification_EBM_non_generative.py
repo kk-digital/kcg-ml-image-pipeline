@@ -656,7 +656,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=5,
+                         max_epochs=1,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -958,7 +958,6 @@ exmp_img = test_imgs[5].to(model.device)
 
 
 
-@torch.no_grad()
 def evaluate_model(model, dataloader_original, dataloader_fake):
     total_correct = 0
     total_samples = 0
@@ -966,23 +965,28 @@ def evaluate_model(model, dataloader_original, dataloader_fake):
     total_class_fake_conf = 0
 
     for batch_original, batch_fake in zip(dataloader_original, dataloader_fake):
-        img1_original, labels_original = batch_original
-        img2_fake, labels_fake = batch_fake
+        for img1_original, labels_original in zip(batch_original[0], batch_original[1]):
+            img1_original = img1_original.unsqueeze(0)  # Add batch dimension (1, C, H, W)
+            labels_original = labels_original.unsqueeze(0)
 
-        imgs_original = torch.stack([img1_original, img2_fake], dim=0).to(model.device)
-        #score1_original, score2_fake = model.cnn(imgs_original)[0].cpu().chunk(2, dim=0)
-        class1_original, class2_fake = model.cnn(imgs_original)[1].cpu().chunk(2, dim=0)
+            for img2_fake, labels_fake in zip(batch_fake[0], batch_fake[1]):
+                img2_fake = img2_fake.unsqueeze(0)  # Add batch dimension (1, C, H, W)
+                labels_fake = labels_fake.unsqueeze(0)
 
+                imgs = torch.cat([img1_original, img2_fake], dim=0).to(model.device)
+                scores, classes = model.cnn(imgs)
 
+                score_original, score_fake = scores.chunk(2, dim=0)
+                class_original, class_fake = classes.chunk(2, dim=0)
 
-        class_original = softmax_to_class(torch.nn.functional.softmax(class1_original, dim=1))
-        class_fake = softmax_to_class(torch.nn.functional.softmax(class2_fake, dim=1))
+                class_original = softmax_to_class(torch.nn.functional.softmax(class_original, dim=1))
+                class_fake = softmax_to_class(torch.nn.functional.softmax(class_fake, dim=1))
 
-        total_correct += torch.sum(class_original == labels_original).item() + torch.sum(class_fake == labels_fake).item()
-        total_samples += labels_original.size(0) + labels_fake.size(0)
+                total_correct += torch.sum(class_original == labels_original).item() + torch.sum(class_fake == labels_fake).item()
+                total_samples += labels_original.size(0) + labels_fake.size(0)
 
-        total_class_original_conf += torch.sum(torch.max(torch.nn.functional.softmax(class1_original, dim=1))).item()
-        total_class_fake_conf += torch.sum(torch.max(torch.nn.functional.softmax(class2_fake, dim=1))).item()
+                total_class_original_conf += torch.sum(torch.max(torch.nn.functional.softmax(class_original, dim=1))).item()
+                total_class_fake_conf += torch.sum(torch.max(torch.nn.functional.softmax(class_fake, dim=1))).item()
 
     average_accuracy = total_correct / total_samples
     average_class_original_conf = total_class_original_conf / total_samples
@@ -993,7 +997,6 @@ def evaluate_model(model, dataloader_original, dataloader_fake):
     print("Average OOD Image Confidence: ", average_class_fake_conf)
 
     return average_accuracy, average_class_original_conf, average_class_fake_conf
-
 
 
 # ood_loader train_loader
