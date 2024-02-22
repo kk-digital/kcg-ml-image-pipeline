@@ -607,7 +607,7 @@ def check_clip_server_status(request: Request):
 
 
 bucket_name = "datasets"
-base_folder = "external-images"
+base_folder = "variants"
 
 @router.post("/upload-image")
 async def upload_image(file: UploadFile = File(...)):
