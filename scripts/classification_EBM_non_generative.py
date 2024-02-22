@@ -158,6 +158,17 @@ val_loader = data.DataLoader(val_set, batch_size=64, shuffle=False, drop_last=Tr
 dog_loader = data.DataLoader(notcat_ds, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 ood_loader = data.DataLoader(oodset, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
+
+# OOD
+num_samples_ood = len(oodset)
+print("the number of samples is ", num_samples)
+train_size_ood = int(0.8 * num_samples_ood)
+val_size_ood = num_samples_ood - train_size_ood
+
+train_set_ood, val_set_ood = random_split(oodset, [train_size_ood, val_size_ood])
+ood_val_loader = data.DataLoader(val_set_ood, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+
+
 for images, _ in train_loader:
     # Unpack the batch
     images = images.squeeze(0)  # Assuming you want to print shape per image
@@ -1006,4 +1017,4 @@ def evaluate_model(model, dataloader_original, dataloader_fake):
 
 
 # ood_loader train_loader
-evaluate_model(model, train_loader, ood_loader)
+evaluate_model(model, val_loader, ood_val_loader)
