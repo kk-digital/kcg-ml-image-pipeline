@@ -41,7 +41,7 @@ class Task(BaseModel):
 class KandinskyTask(BaseModel):
     job: Task # task data
     positive_embedding: List[List[float]]
-    negative_embedding: Union[List[List[float]], None] = None
+    negative_embedding: Optional[List[list[float]]] = None
 
 class SequentialID:
     dataset_name: str
