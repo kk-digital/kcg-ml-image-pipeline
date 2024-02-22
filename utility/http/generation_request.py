@@ -68,6 +68,8 @@ def http_add_kandinsky_job(job, positive_embedding, negative_embedding):
         "positive_embedding": positive_embedding,
         "negative_embedding": negative_embedding
     }
+
+    print(data)
     try:
         response = requests.post(url, json=data, headers=headers)
         # Attempt to decode JSON response
