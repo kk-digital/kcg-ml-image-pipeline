@@ -86,7 +86,7 @@ def http_add_kandinsky_job(job, positive_embedding, negative_embedding):
                     for error in decoded_response['detail']:
                         print(f"Location: {error['loc']}, Message: {error['msg']}")
                 else:
-                    print("No detailed error message available.")
+                    print(f"Response body: {decoded_response}")
             else:
                 # For other errors, print the entire response body for debugging
                 print(f"Response body: {decoded_response}")
