@@ -970,7 +970,7 @@ def evaluate_model(model, dataloader_original, dataloader_fake):
         img2_fake, labels_fake = batch_fake
 
         imgs_original = torch.stack([img1_original, img2_fake], dim=0).to(model.device)
-        score1_original, score2_fake = model.cnn(imgs_original)[0].cpu().chunk(2, dim=0)
+        #score1_original, score2_fake = model.cnn(imgs_original)[0].cpu().chunk(2, dim=0)
         class1_original, class2_fake = model.cnn(imgs_original)[1].cpu().chunk(2, dim=0)
 
 
