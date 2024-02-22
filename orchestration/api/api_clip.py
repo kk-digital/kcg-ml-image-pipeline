@@ -1,4 +1,4 @@
-from fastapi import Request, APIRouter, HTTPException, Response
+from fastapi import Request, APIRouter, HTTPException, Response, File, UploadFile
 import requests
 from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardErrorResponse, StandardErrorResponseV1, StandardSuccessResponse, StandardSuccessResponseV1, RechableResponse, GetClipPhraseResponse, ApiResponseHandlerV1
 from orchestration.api.mongo_schemas import  PhraseModel
@@ -10,6 +10,12 @@ from fastapi.responses import JSONResponse
 from fastapi_cache.decorator import cache
 from pydantic import BaseModel
 import traceback
+from utility.minio import cmd 
+from minio import Minio
+from minio.error import S3Error
+from .api_utils import find_or_create_next_folder
+import os
+import io
 
 CLIP_SERVER_ADDRESS = 'http://192.168.3.31:8002'
 #CLIP_SERVER_ADDRESS = 'http://127.0.0.1:8002'
@@ -32,6 +38,7 @@ def http_clip_server_get_kandinsky_vector(image_path: str):
             response.close()
     
     return None
+
 
 def http_clip_server_add_phrase(phrase: str):
     url = CLIP_SERVER_ADDRESS + "/add-phrase?phrase=" + phrase
@@ -454,6 +461,41 @@ def check_clip_server_status(request: Request):
 
 #  Apis with new names and reponse format
     
+@router.get("/clip/get-kandinsky-clip-vector", tags=["clip"], 
+            status_code=200, 
+            description="Get kandi Vector for a Phrase")
+def get_clip_vector_from_phrase(request: Request, image_path: str):
+    
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+       
+        vector = http_clip_server_get_kandinsky_vector(image_path)
+        
+        if vector is None:
+
+            return response_handler.create_error_response_v1(
+                ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="image_path not found",
+                http_status_code=404,
+    
+            )
+
+        return response_handler.create_success_response_v1(
+            response_data= vector, 
+            http_status_code=200, 
+ 
+        )
+
+    except Exception as e:
+        print(f"Exception occurred: {e}")  # Print statement 5
+        return response_handler.create_error_response_v1(
+            ErrorCode.OTHER_ERROR, 
+            error_string="Clip server error",
+            http_status_code = 500, 
+
+        )
+
+
 @router.post("/clip/add-phrase",
              description="Adds a phrase to the clip server.",
              response_model=StandardSuccessResponseV1[None],
@@ -468,7 +510,6 @@ def add_phrase_v1(request: Request, phrase: str):
                 error_code=ErrorCode.INVALID_PARAMS, 
                 error_string="Phrase is required", 
                 http_status_code=400,
-                request_dictionary=dict(request.query_params),
     
             )
 
@@ -478,7 +519,6 @@ def add_phrase_v1(request: Request, phrase: str):
             return response_handler.create_success_response_v1(
                 response_data=None, 
                 http_status_code=201, 
-                request_dictionary=dict(request.query_params),  
     
             )
         else:
@@ -486,7 +526,6 @@ def add_phrase_v1(request: Request, phrase: str):
                 error_code=ErrorCode.OTHER_ERROR,
                 error_string="Clip server error", 
                 http_status_code=500,        
-                request_dictionary=dict(request.query_params),
     
             )
 
@@ -496,7 +535,6 @@ def add_phrase_v1(request: Request, phrase: str):
             error_code=ErrorCode.OTHER_ERROR,
             error_string="Internal server error", 
             http_status_code=500,
-            request_dictionary=dict(request.query_params),
 
         )
 
@@ -518,14 +556,12 @@ def get_clip_vector_from_phrase(request: Request, phrase: str):
                 ErrorCode.ELEMENT_NOT_FOUND,
                 "Phrase not found",
                 http_status_code=404,
-                request_dictionary=dict(request.query_params),
     
             )
 
         return response_handler.create_success_response_v1(
             response_data= vector, 
             http_status_code=200, 
-            request_dictionary=dict(request.query_params),
  
         )
 
@@ -535,7 +571,6 @@ def get_clip_vector_from_phrase(request: Request, phrase: str):
             ErrorCode.OTHER_ERROR, 
             "Internal server error", 
             http_status_code = 500, 
-            request_dictionary=dict(request.query_params),
 
         )
 
@@ -556,7 +591,6 @@ def check_clip_server_status(request: Request):
         return response_handler.create_success_response_v1(
             response_data={"reachable": reachable},  
             http_status_code=200,    
-            request_dictionary=dict(request.query_params),  
  
         )
     except requests.exceptions.RequestException as e:
@@ -567,6 +601,33 @@ def check_clip_server_status(request: Request):
             ErrorCode.OTHER_ERROR, 
             "CLIP server is not reachable", 
             503, 
-            request_dictionary=dict(request.query_params),  
 
         )
+
+
+
+bucket_name = "datasets"
+base_folder = "kandinsky-test-generations"
+
+@router.post("/upload-image/")
+async def upload_image(file: UploadFile = File(...)):
+    # Initialize MinIO client
+    minio_client = cmd.get_minio_client(minio_access_key="3lUCPCfLMgQoxrYaxgoz", minio_secret_key="MXszqU6KFV6X95Lo5jhMeuu5Xm85R79YImgI3Xmp")
+    
+    # Find or create the next available folder
+    next_folder = find_or_create_next_folder(minio_client, bucket_name, base_folder)
+
+    # Construct the file path
+    file_name = file.filename
+    file_path = f"{next_folder}/{file_name}"
+
+    try:
+        await file.seek(0)  # Go to the start of the file
+        content = await file.read()  # Read file content into bytes
+        content_stream = io.BytesIO(content)
+        # Upload the file content
+        cmd.upload_data(minio_client, bucket_name, file_path, content_stream)
+        
+        return JSONResponse(status_code=200, content={"message": f"File uploaded successfully to {file_path}."})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"MinIO error: {e}")

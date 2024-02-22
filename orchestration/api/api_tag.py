@@ -192,7 +192,6 @@ def get_tag_id_by_name(request: Request, tag_string: str = Query(..., descriptio
                 error_code=ErrorCode.INVALID_PARAMS,
                 error_string="Tag not found",
                 http_status_code=404,
-                request_dictionary=dict(request.query_params),
                 
             )
 
@@ -200,7 +199,6 @@ def get_tag_id_by_name(request: Request, tag_string: str = Query(..., descriptio
         return api_handler.create_success_response_v1(
             response_data={"tag_id": tag_id},
             http_status_code=200,
-            request_dictionary=dict(request.query_params),
             
         )
 
@@ -209,7 +207,6 @@ def get_tag_id_by_name(request: Request, tag_string: str = Query(..., descriptio
             error_code=ErrorCode.OTHER_ERROR,
             error_string="Internal server error",
             http_status_code=500,
-            request_dictionary=dict(request.query_params),
             
         )
 
@@ -252,7 +249,6 @@ def set_tag_deprecated(request: Request, tag_id: int):
             error_code=ErrorCode.ELEMENT_NOT_FOUND, 
             error_string="Tag not found.", 
             http_status_code=404,
-            request_dictionary=dict(request.query_params),
             
         )
 
@@ -262,7 +258,6 @@ def set_tag_deprecated(request: Request, tag_id: int):
         return response_handler.create_success_response_v1(
             response_data = existing_tag, 
             http_status_code=200,
-            request_dictionary=dict(request.query_params),
             
         )
 
@@ -279,7 +274,6 @@ def set_tag_deprecated(request: Request, tag_id: int):
     return response_handler.create_success_response_v1(
         response_data = updated_tag, 
         http_status_code=200,
-        request_dictionary=dict(request.query_params),
         )
 
 
@@ -1032,7 +1026,6 @@ def set_tag_category_deprecated(request: Request, tag_category_id: int):
             error_code=ErrorCode.ELEMENT_NOT_FOUND, 
             error_string="Tag category not found.", 
             http_status_code=404,
-            request_dictionary=dict(request.query_params),
             
         )
 
@@ -1042,7 +1035,6 @@ def set_tag_category_deprecated(request: Request, tag_category_id: int):
         return response_handler.create_success_response_v1(
             response_data=existing_tag_category, 
             http_status_code=200,
-            request_dictionary=dict(request.query_params),
             
         )
 
@@ -1060,7 +1052,6 @@ def set_tag_category_deprecated(request: Request, tag_category_id: int):
     return response_handler.create_success_response_v1(
         response_data=updated_tag_category, 
         http_status_code=200,
-        request_dictionary=dict(request.query_params),
         )
 
 
@@ -1285,8 +1276,8 @@ def list_tag_categories(request: Request):
              response_model=StandardSuccessResponseV1[TagDefinition],
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def add_new_tag_definition_v1(request: Request, tag_data: NewTagRequest):
-    response_handler = ApiResponseHandlerV1(request)
-    tag_data_dict = jsonable_encoder(tag_data)
+    tag_data = jsonable_encoder(tag_data)
+    response_handler = ApiResponseHandlerV1(request, body_data=tag_data)
     try:
         # Check for existing tag_category_id
         if tag_data.tag_category_id is not None:
@@ -1298,7 +1289,6 @@ def add_new_tag_definition_v1(request: Request, tag_data: NewTagRequest):
                     error_code=ErrorCode.INVALID_PARAMS,
                     error_string="Tag category not found",
                     http_status_code=400,
-                    request_dictionary=dict(request.query_params),
                     
                 )
 
@@ -1312,7 +1302,6 @@ def add_new_tag_definition_v1(request: Request, tag_data: NewTagRequest):
                     error_code=ErrorCode.INVALID_PARAMS,
                     error_string= "Tag vector index already in use.",
                     http_status_code=400,
-                    request_dictionary=tag_data_dict,
                     
                 )
 
@@ -1327,7 +1316,6 @@ def add_new_tag_definition_v1(request: Request, tag_data: NewTagRequest):
                 error_code=ErrorCode.INVALID_PARAMS,
                 error_string="Tag definition already exists.",
                 http_status_code=400,
-                request_dictionary=tag_data_dict,
                 
             )
 
@@ -1352,7 +1340,6 @@ def add_new_tag_definition_v1(request: Request, tag_data: NewTagRequest):
         return response_handler.create_success_response_v1(
             response_data = new_tag,
             http_status_code=201,
-            request_dictionary= tag_data_dict,  
             
         )
 
@@ -1362,7 +1349,6 @@ def add_new_tag_definition_v1(request: Request, tag_data: NewTagRequest):
             error_code=ErrorCode.OTHER_ERROR, 
             error_string=str(e),
             http_status_code=500,
-            request_dictionary= tag_data_dict, 
             
 )
 
@@ -1376,8 +1362,8 @@ def add_new_tag_definition_v1(request: Request, tag_data: NewTagRequest):
               response_model=StandardSuccessResponseV1[TagDefinition], 
               responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
 def update_tag_definition_v1(request: Request, tag_id: int, update_data: NewTagRequest):
-    response_handler = ApiResponseHandlerV1(request)
     tag_data_dict = jsonable_encoder(update_data)
+    response_handler = ApiResponseHandlerV1(request, body_data=tag_data_dict)
 
     query = {"tag_id": tag_id}
     existing_tag = request.app.tag_definitions_collection.find_one(query)
@@ -1386,9 +1372,7 @@ def update_tag_definition_v1(request: Request, tag_id: int, update_data: NewTagR
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.ELEMENT_NOT_FOUND, 
             error_string="Tag not found.", 
-            http_status_code=404,
-            request_dictionary=tag_data_dict,
-            
+            http_status_code=404,            
         )
 
     # Check if the tag is deprecated
@@ -1397,7 +1381,6 @@ def update_tag_definition_v1(request: Request, tag_id: int, update_data: NewTagR
             error_code=ErrorCode.INVALID_PARAMS, 
             error_string="Cannot modify a deprecated tag.", 
             http_status_code=400,
-            request_dictionary=tag_data_dict,
             
         )
 
@@ -1409,7 +1392,6 @@ def update_tag_definition_v1(request: Request, tag_id: int, update_data: NewTagR
             error_code=ErrorCode.INVALID_PARAMS, 
             error_string="No fields to update.", 
             http_status_code=400,
-            request_dictionary=tag_data_dict,
             
         )
 
@@ -1422,7 +1404,6 @@ def update_tag_definition_v1(request: Request, tag_id: int, update_data: NewTagR
                 error_code=ErrorCode.INVALID_PARAMS, 
                 error_string="Tag vector index already in use.", 
                 http_status_code=400,
-                request_dictionary=tag_data_dict,
                 
             )
 
@@ -1439,7 +1420,6 @@ def update_tag_definition_v1(request: Request, tag_id: int, update_data: NewTagR
     return response_handler.create_success_response_v1(
                                                        response_data=updated_tag, 
                                                        http_status_code=200,
-                                                       request_dictionary=tag_data_dict,
                                                        )
 
 
@@ -1465,7 +1445,6 @@ def remove_tag(request: Request, tag_id: int):
                                                            error_string= '',
                                                            response_data = {"wasPresent": False},
                                                            http_status_code=200,
-                                                           request_dictionary= dict(request.query_params),
                                                            )
 
     # Check if the tag is used in any images
@@ -1478,7 +1457,6 @@ def remove_tag(request: Request, tag_id: int):
             error_code=ErrorCode.INVALID_PARAMS,
             error_string="Cannot remove tag, it is already used in images.",
             http_status_code=400,
-            request_dictionary=dict(request.query_params),
             
         )
 
@@ -1489,11 +1467,15 @@ def remove_tag(request: Request, tag_id: int):
     return response_handler.create_success_response_v1(
                                                        response_data = {"wasPresent": True},
                                                        http_status_code=201,
-                                                       request_dictionary= dict(request.query_params),
                                                        )
 
 
-@router.get("/tags/list-tag-definitions")
+@router.get("/tags/list-tag-definitions",
+            response_model=StandardSuccessResponseV1[TagsListResponse],
+            description="list tag definitions",
+            tags = ["tags"],
+            status_code=200,
+            responses=ApiResponseHandlerV1.listErrors([500]))
 def list_tag_definitions(request: Request):
     response_handler = ApiResponseHandlerV1(request)
     try:
@@ -1518,7 +1500,6 @@ def list_tag_definitions(request: Request):
         return response_handler.create_success_response_v1(
             response_data={"tags": response_tags},
             http_status_code=200,
-            request_dictionary=dict(request.query_params)
         )
 
     except Exception as e:
@@ -1527,7 +1508,6 @@ def list_tag_definitions(request: Request):
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR,
                                                          error_string="Internal server error",
                                                          http_status_code=500,
-                                                         request_dictionary=dict(request.query_params)
                                                          )
 
 
@@ -1538,8 +1518,9 @@ def list_tag_definitions(request: Request):
             response_model=StandardSuccessResponseV1[VectorIndexUpdateRequest],
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def set_tag_vector_index(request: Request, tag_id: int, update_data: VectorIndexUpdateRequest):
-    response_handler = ApiResponseHandlerV1(request)
-    update_data = jsonable_encoder(update_data)
+    
+    update_data_dict = jsonable_encoder(update_data)
+    response_handler = ApiResponseHandlerV1(request, body_data=update_data_dict)
 
     # Find the tag definition using the provided tag_id
     query = {"tag_id": tag_id}
@@ -1550,7 +1531,7 @@ def set_tag_vector_index(request: Request, tag_id: int, update_data: VectorIndex
             error_code=ErrorCode.ELEMENT_NOT_FOUND, 
             error_string="Tag definition not found.", 
             http_status_code=404,
-            request_dictionary=update_data,
+            
             
         )
 
@@ -1561,7 +1542,7 @@ def set_tag_vector_index(request: Request, tag_id: int, update_data: VectorIndex
             error_code=ErrorCode.INVALID_PARAMS, 
             error_string="Another tag already has the same vector index.", 
             http_status_code=400,
-            request_dictionary=update_data,
+            
             
         )
 
@@ -1574,7 +1555,7 @@ def set_tag_vector_index(request: Request, tag_id: int, update_data: VectorIndex
     return response_handler.create_success_response_v1( 
         response_data = {"tag_vector_index": updated_tag.get("tag_vector_index", None)},
         http_status_code=200,
-        request_dictionary=update_data,
+        
         )
     
 
@@ -1596,7 +1577,7 @@ def get_tag_vector_index(request: Request, tag_id: int):
             error_code=ErrorCode.ELEMENT_NOT_FOUND, 
             error_string="Tag not found.", 
             http_status_code=404,
-            request_dictionary=dict(request.query_params),
+            
             
         )
 
@@ -1604,7 +1585,7 @@ def get_tag_vector_index(request: Request, tag_id: int):
     return response_handler.create_success_response_v1(
         response_data={"vector_index": vector_index}, 
         http_status_code=200,
-        request_dictionary = dict(request.query_params),
+      
         
     )  
 
@@ -1632,7 +1613,6 @@ def get_tagged_images(
                     error_code=ErrorCode.INVALID_PARAMS, 
                     error_string="Invalid start_date format. Expected format: YYYY-MM-DDTHH:MM:SS", 
                     http_status_code=400,
-                    request_dictionary=dict(request.query_params),
                     
                 )
         if end_date:
@@ -1642,7 +1622,6 @@ def get_tagged_images(
                     error_code=ErrorCode.INVALID_PARAMS, 
                     error_string="Invalid end_date format. Expected format: YYYY-MM-DDTHH:MM:SS",
                     http_status_code=400,
-                    request_dictionary=dict(request.query_params),
                     
                 )
 
@@ -1679,13 +1658,12 @@ def get_tagged_images(
         return response_handler.create_success_response_v1(
                                                            response_data={"images": image_info_list}, 
                                                            http_status_code=200,
-                                                           request_dictionary=dict(request.query_params),
                                                            )
 
     except Exception as e:
         # Log the exception details here, if necessary
-        return response_handler.create_error_response(
-            ErrorCode.OTHER_ERROR, "Internal Server Error", 500
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, error_string="Internal Server Error", http_status_code=500
         )
     
 
@@ -1720,7 +1698,6 @@ def get_all_tagged_images(request: Request):
         return response_handler.create_success_response_v1(
                                                            response_data={"images": image_info_list}, 
                                                            http_status_code=200,
-                                                           request_dictionary=dict(request.query_params),
                                                            )
 
     except Exception as e:
@@ -1728,9 +1705,7 @@ def get_all_tagged_images(request: Request):
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, 
             error_string=str(e), 
-            http_status_code=500,
-            request_dictionary=dict(request.query_params),
-            
+            http_status_code=500,            
         )    
     
 @router.post("/tag-categories/add-tag-category",
@@ -1740,8 +1715,8 @@ def get_all_tagged_images(request: Request):
              response_model=StandardSuccessResponseV1[TagCategory],
              responses=ApiResponseHandlerV1.listErrors([422, 500]))
 def add_new_tag_category(request: Request, tag_category_data: NewTagCategory):
-    response_handler = ApiResponseHandlerV1(request)
-    tag_category_dict = jsonable_encoder(tag_category_data)  # Serialize input data
+    tag_category_dict = jsonable_encoder(tag_category_data) 
+    response_handler = ApiResponseHandlerV1(request, body_data=tag_category_dict)
     try:
         # Assign new tag_category_id
         last_entry = request.app.tag_categories_collection.find_one({}, sort=[("tag_category_id", -1)])
@@ -1769,7 +1744,6 @@ def add_new_tag_category(request: Request, tag_category_data: NewTagCategory):
         return response_handler.create_success_response_v1(
             response_data=ordered_response,
             http_status_code=201,
-            request_dictionary=tag_category_dict,  
         )
     except Exception as e:
         # Handle exceptions and return an error response
@@ -1777,7 +1751,6 @@ def add_new_tag_category(request: Request, tag_category_data: NewTagCategory):
             error_code=ErrorCode.OTHER_ERROR,
             error_string="Internal server error",
             http_status_code=500,
-            request_dictionary=tag_category_dict,  
         )
 
 @router.get("/tag-categories/list-tag-categories", 
@@ -1798,7 +1771,6 @@ def list_tag_definitions(request: Request):
         return response_handler.create_success_response_v1(
             response_data={"tags": result}, 
             http_status_code=200,
-            request_dictionary=dict(request.query_params),
             )
 
     except Exception as e:
@@ -1807,7 +1779,7 @@ def list_tag_definitions(request: Request):
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, 
                                                          error_string="Internal server error", 
                                                          http_status_code=500,
-                                                         request_dictionary=dict(request.query_params),
+                            
                                                          )
 
 @router.get("/tags/get-images-count-by-tag-id", 
@@ -1832,14 +1804,12 @@ def get_image_count_by_tag(
         return response_handler.create_success_response_v1(
                                                            response_data={"tag_id": tag_id, "count": 0}, 
                                                            http_status_code=200,
-                                                           request_dictionary=dict(request.query_params),
                                                            )
 
     # Return standard success response with the count
     return response_handler.create_success_response_v1(
                                                        response_data={"tag_id": tag_id, "count": count}, 
                                                        http_status_code=200,
-                                                       request_dictionary=dict(request.query_params),
                                                        )
 
 @router.put("/tag-categories/update-tag-category", 
@@ -1853,8 +1823,9 @@ def update_tag_category_v1(
     tag_category_id: int,
     update_data: NewTagCategory
 ):
-    response_handler = ApiResponseHandlerV1(request)
+    
     update_data_dict = jsonable_encoder(update_data)
+    response_handler = ApiResponseHandlerV1(request, body_data=update_data_dict)
 
     query = {"tag_category_id": tag_category_id}
     existing_category = request.app.tag_categories_collection.find_one(query)
@@ -1864,7 +1835,6 @@ def update_tag_category_v1(
             error_code=ErrorCode.ELEMENT_NOT_FOUND, 
             error_string="Tag category not found.", 
             http_status_code=404,
-            request_dictionary=update_data_dict,
             
         )
 
@@ -1875,7 +1845,6 @@ def update_tag_category_v1(
             error_code=ErrorCode.INVALID_PARAMS, 
             error_string="No fields to update.",
             http_status_code=400,
-            request_dictionary=update_data_dict,
             
         )
 
@@ -1894,7 +1863,6 @@ def update_tag_category_v1(
     return response_handler.create_success_response_v1(
                                                        response_data=ordered_response, 
                                                        http_status_code=200,
-                                                       request_dictionary=update_data_dict,
                                                        )
 
 
@@ -1917,7 +1885,6 @@ def delete_tag_category(request: Request, tag_category_id: int):
                                                            error_string= '',
                                                            response_data={"wasPresent": False},
                                                            http_status_code=200,
-                                                           request_dictionary=dict(request.query_params),
                                                            )
 
     # Check if the tag category is used in any tags
@@ -1930,7 +1897,6 @@ def delete_tag_category(request: Request, tag_category_id: int):
             error_code=ErrorCode.INVALID_PARAMS,
             error_string="Cannot remove tag category, it is already used in tags.",
             http_status_code=400,
-            request_dictionary=dict(request.query_params),
             
         )
 
@@ -1941,7 +1907,6 @@ def delete_tag_category(request: Request, tag_category_id: int):
     return response_handler.create_success_response_v1(
                                                        response_data={"wasPresent": False},
                                                        http_status_code=200,
-                                                       request_dictionary=dict(request.query_params),
                                                        )
 
 
