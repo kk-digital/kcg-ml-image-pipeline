@@ -68,31 +68,14 @@ def http_add_kandinsky_job(job, positive_embedding, negative_embedding):
         "positive_embedding": positive_embedding,
         "negative_embedding": negative_embedding
     }
-    
-    print(positive_embedding)
     try:
         response = requests.post(url, json=data, headers=headers)
-        # Attempt to decode JSON response
-        try:
-            decoded_response = response.json()
-        except json.JSONDecodeError:
-            decoded_response = {"error": "Failed to decode JSON response"}
-
         if response.status_code != 201 and response.status_code != 200:
-            if response.status_code == 422:  # Validation error
-                # Print detailed validation error message
-                if 'detail' in decoded_response:
-                    print("Validation error details:")
-                    for error in decoded_response['detail']:
-                        print(f"Location: {error['loc']}, Message: {error['msg']}")
-                else:
-                    print(f"Response body: {decoded_response}")
-            else:
-                # For other errors, print the entire response body for debugging
-                print(f"Response body: {decoded_response}")
+            print(f"POST request failed with status code: {response.status_code}")
 
+        decoded_response = json.loads(response.content.decode())
     except Exception as e:
-        print('Request exception:', e)
+        print('request exception ', e)
 
     finally:
         if response:
