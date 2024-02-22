@@ -461,7 +461,6 @@ def check_clip_server_status(request: Request):
 
 #  Apis with new names and reponse format
     
-
 @router.get("/clip/get-kandinsky-clip-vector", tags=["clip"], 
             status_code=200, 
             description="Get kandi Vector for a Phrase")
@@ -495,7 +494,6 @@ def get_clip_vector_from_phrase(request: Request, image_path: str):
             http_status_code = 500, 
 
         )
-
 
 
 @router.post("/clip/add-phrase",
