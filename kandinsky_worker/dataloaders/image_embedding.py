@@ -30,11 +30,11 @@ class ImageEmbedding:
         # Convert dictionary back to object
         negative_image_embedding= None
         if data["negative_image_embedding"] is not None:
-            negative_image_embedding = torch.tensor(data["negative_image_embedding"])
+            negative_image_embedding = torch.tensor([data["negative_image_embedding"]])
 
         return cls(data["job_uuid"],
                    data["dataset"],
-                   torch.tensor(data["image_embedding"]),
+                   torch.tensor([data["image_embedding"]]),
                    negative_image_embedding)
 
     def get_msgpack_string(self):
