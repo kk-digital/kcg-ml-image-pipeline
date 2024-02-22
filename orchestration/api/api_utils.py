@@ -6,13 +6,14 @@ from fastapi.responses import JSONResponse
 from enum import Enum
 import time
 from fastapi import Request
-from typing import TypeVar, Generic, List
+from typing import TypeVar, Generic, List, Any, Dict, Optional
 from pydantic import BaseModel
 from .mongo_schemas import TagDefinition, TagCategory
 from datetime import datetime
 from minio import Minio
 from dateutil import parser
 from datetime import datetime
+import os
 from .mongo_schemas import ImageTag
 
 
@@ -187,11 +188,17 @@ class StandardErrorResponseV1(BaseModel):
 
      
 class ApiResponseHandlerV1:
-    def __init__(self, request: Request):
+    def __init__(self, request: Request, body_data: Optional[Dict[str, Any]] = None):
         self.request = request
         self.url = str(request.url)
         self.start_time = datetime.now() 
+        self.query_params = dict(request.query_params)
+        self.request_data = {
+            "body": body_data or {},  # Set from the provided body data
+            "query": dict(request.query_params)  # Extracted from request
+        }
 
+    
     def _elapsed_time(self) -> float:
         return datetime.now() - self.start_time
     
@@ -205,7 +212,6 @@ class ApiResponseHandlerV1:
     def create_success_response_v1(
         self,
         response_data: dict,
-        request_dictionary:dict,
         http_status_code: int, 
         headers: dict = {"Cache-Control": "no-store"},
     ):
@@ -217,7 +223,7 @@ class ApiResponseHandlerV1:
             "request_error_string": '',
             "request_error_code": 0, 
             "request_url": self.url,
-            "request_dictionary": request_dictionary,  # Or adjust how you access parameters
+            "request_dictionary": self.request_data,  # Or adjust how you access parameters
             "request_method": self.request.method,
             "request_time_total": str(self._elapsed_time()),
             "request_time_start": self.start_time.isoformat(),  
@@ -231,7 +237,6 @@ class ApiResponseHandlerV1:
     def create_success_delete_response_v1(
             self, 
             reachable: bool, 
-            request_dictionary:dict,
             http_status_code: int,
             headers: dict = {"Cache-Control": "no-store"} ):
         """Construct a success response for deletion operations."""
@@ -239,7 +244,7 @@ class ApiResponseHandlerV1:
             "request_error_string": '',
             "request_error_code": 0, 
             "request_url": self.url,
-            "request_dictionary": request_dictionary,
+            "request_dictionary": self.request_data,
             "request_method": self.request.method,
             "request_time_total": self._elapsed_time(),
             "request_time_start": self.start_time.isoformat(),
@@ -253,7 +258,6 @@ class ApiResponseHandlerV1:
             self,
             error_code: ErrorCode,
             error_string: str,
-            request_dictionary: dict,
             http_status_code: int,
             headers: dict = {"Cache-Control": "no-store"},
         ):
@@ -262,7 +266,7 @@ class ApiResponseHandlerV1:
                 "request_error_string": error_string,
                 "request_error_code": error_code.value,  # Using .name for the enum member name
                 "request_url": self.url,
-                "request_dictionary": request_dictionary,  # Convert query params to a more usable dict format
+                "request_dictionary": self.request_data,  # Convert query params to a more usable dict format
                 "request_method": self.request.method,
                 "request_time_total": str(self._elapsed_time()),
                 "request_time_start": self.start_time.isoformat(),

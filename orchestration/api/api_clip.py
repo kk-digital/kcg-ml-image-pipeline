@@ -477,14 +477,12 @@ def get_clip_vector_from_phrase(request: Request, image_path: str):
                 ErrorCode.ELEMENT_NOT_FOUND,
                 error_string="image_path not found",
                 http_status_code=404,
-                request_dictionary=dict(request.query_params),
     
             )
 
         return response_handler.create_success_response_v1(
             response_data= vector, 
             http_status_code=200, 
-            request_dictionary=dict(request.query_params),
  
         )
 
@@ -494,7 +492,6 @@ def get_clip_vector_from_phrase(request: Request, image_path: str):
             ErrorCode.OTHER_ERROR, 
             error_string="Clip server error",
             http_status_code = 500, 
-            request_dictionary=dict(request.query_params),
 
         )
 
@@ -513,7 +510,6 @@ def add_phrase_v1(request: Request, phrase: str):
                 error_code=ErrorCode.INVALID_PARAMS, 
                 error_string="Phrase is required", 
                 http_status_code=400,
-                request_dictionary=dict(request.query_params),
     
             )
 
@@ -523,7 +519,6 @@ def add_phrase_v1(request: Request, phrase: str):
             return response_handler.create_success_response_v1(
                 response_data=None, 
                 http_status_code=201, 
-                request_dictionary=dict(request.query_params),  
     
             )
         else:
@@ -531,7 +526,6 @@ def add_phrase_v1(request: Request, phrase: str):
                 error_code=ErrorCode.OTHER_ERROR,
                 error_string="Clip server error", 
                 http_status_code=500,        
-                request_dictionary=dict(request.query_params),
     
             )
 
@@ -541,7 +535,6 @@ def add_phrase_v1(request: Request, phrase: str):
             error_code=ErrorCode.OTHER_ERROR,
             error_string="Internal server error", 
             http_status_code=500,
-            request_dictionary=dict(request.query_params),
 
         )
 
@@ -563,14 +556,12 @@ def get_clip_vector_from_phrase(request: Request, phrase: str):
                 ErrorCode.ELEMENT_NOT_FOUND,
                 "Phrase not found",
                 http_status_code=404,
-                request_dictionary=dict(request.query_params),
     
             )
 
         return response_handler.create_success_response_v1(
             response_data= vector, 
             http_status_code=200, 
-            request_dictionary=dict(request.query_params),
  
         )
 
@@ -580,7 +571,6 @@ def get_clip_vector_from_phrase(request: Request, phrase: str):
             ErrorCode.OTHER_ERROR, 
             "Internal server error", 
             http_status_code = 500, 
-            request_dictionary=dict(request.query_params),
 
         )
 
@@ -601,7 +591,6 @@ def check_clip_server_status(request: Request):
         return response_handler.create_success_response_v1(
             response_data={"reachable": reachable},  
             http_status_code=200,    
-            request_dictionary=dict(request.query_params),  
  
         )
     except requests.exceptions.RequestException as e:
@@ -612,7 +601,6 @@ def check_clip_server_status(request: Request):
             ErrorCode.OTHER_ERROR, 
             "CLIP server is not reachable", 
             503, 
-            request_dictionary=dict(request.query_params),  
 
         )
 
