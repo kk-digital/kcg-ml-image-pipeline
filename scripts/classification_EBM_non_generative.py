@@ -212,39 +212,89 @@ for images, _ in train_loader:
 
 
 
-##################### NEW Classifier V2
+# ##################### NEW Classifier V2
+# class CNNModel(nn.Module):
+#     def __init__(self):
+#         super(CNNModel, self).__init__()
+
+#         # Convolutional layers and activation functions
+#         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
+#         self.relu1 = nn.ReLU()
+#         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+#         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
+#         self.relu2 = nn.ReLU()
+#         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+#         # Fully-connected layers and activation functions
+#         self.fc1 = nn.Linear(64 * 8 * 8, 1024)
+#         self.relu3 = nn.ReLU()
+
+#         # Energy prediction branch
+#         self.fc_energy = nn.Linear(1024, 1)  # Predict a single energy score
+
+#         # Classification branch
+#         self.fc2 = nn.Linear(1024, 10)
+#         self.softmax = nn.Softmax(dim=1)  # Apply softmax for class probabilities
+
+#     def forward(self, x):
+#         # Feature extraction using convolutional layers
+#         x = self.pool1(self.relu1(self.conv1(x)))
+#         x = self.pool2(self.relu2(self.conv2(x)))
+#         x = x.view(-1, 64 * 8 * 8)
+
+#         # Feature processing for both branches
+#         shared_features = self.relu3(self.fc1(x))
+
+#         # Energy branch
+#         energy = self.fc_energy(shared_features)  # Output energy score
+
+#         # Classification branch
+#         logits = self.fc2(shared_features)
+#         probs = self.softmax(logits)  # Output class probabilities
+
+#         return energy, probs
+
+
+
+# larger model
 class CNNModel(nn.Module):
     def __init__(self):
         super(CNNModel, self).__init__()
 
         # Convolutional layers and activation functions
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1)
         self.relu1 = nn.ReLU()
         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
         self.relu2 = nn.ReLU()
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        # Fully-connected layers and activation functions
-        self.fc1 = nn.Linear(64 * 8 * 8, 1024)
+        self.conv3 = nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1)
         self.relu3 = nn.ReLU()
+        self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+        # Fully-connected layers and activation functions
+        self.fc1 = nn.Linear(256 * 4 * 4, 2048)
+        self.relu4 = nn.ReLU()
 
         # Energy prediction branch
-        self.fc_energy = nn.Linear(1024, 1)  # Predict a single energy score
+        self.fc_energy = nn.Linear(2048, 1)  # Predict a single energy score
 
         # Classification branch
-        self.fc2 = nn.Linear(1024, 10)
+        self.fc2 = nn.Linear(2048, 10)
         self.softmax = nn.Softmax(dim=1)  # Apply softmax for class probabilities
 
     def forward(self, x):
         # Feature extraction using convolutional layers
         x = self.pool1(self.relu1(self.conv1(x)))
         x = self.pool2(self.relu2(self.conv2(x)))
-        x = x.view(-1, 64 * 8 * 8)
+        x = self.pool3(self.relu3(self.conv3(x)))
+        x = x.view(-1, 256 * 4 * 4)
 
         # Feature processing for both branches
-        shared_features = self.relu3(self.fc1(x))
+        shared_features = self.relu4(self.fc1(x))
 
         # Energy branch
         energy = self.fc_energy(shared_features)  # Output energy score
@@ -254,9 +304,6 @@ class CNNModel(nn.Module):
         probs = self.softmax(logits)  # Output class probabilities
 
         return energy, probs
-
-
-
 
 
 
@@ -715,7 +762,7 @@ plt.savefig(buf, format='png')
 buf.seek(0)
 
 # upload the graph report
-minio_path= minio_path + "/loss_tracking_per_step_fullclass" +date_now+".png"
+minio_path= minio_path + "/loss_tracking_per_step_fullclass_bigger" +date_now+".png"
 cmd.upload_data(minio_client, 'datasets', minio_path, buf)
 # Remove the temporary file
 os.remove("output/loss_tracking_per_step.png")
