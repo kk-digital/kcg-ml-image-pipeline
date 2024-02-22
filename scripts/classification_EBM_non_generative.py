@@ -609,7 +609,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=10,
+                         max_epochs=2,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -837,8 +837,10 @@ def compare_images_values(img1, img2):
     score_fake = score2.item()
     class_original = softmax_to_class(torch.nn.functional.softmax(class1, dim=1))
     class_fake = softmax_to_class(torch.nn.functional.softmax(class2, dim=1))
-    class_original_conf = torch.nn.functional.softmax(class1, dim=1)
-    class_fake_conf = torch.nn.functional.softmax(class2, dim=1)
+
+
+    class_original_conf = torch.max(torch.nn.functional.softmax(class1, dim=1))
+    class_fake_conf = torch.max(torch.nn.functional.softmax(class2, dim=1))
 
     print("Original Image Score: ",score_original)
     print("OOD Image Score: ",score_fake)
@@ -846,8 +848,8 @@ def compare_images_values(img1, img2):
     print("Original Image Class: ",class_original)
     print("OOD Image Class: ",class_fake)
 
-    print("Original Image Conf: ",class_original_conf)
-    print("OOD Image Conf: ",class_fake_conf)
+    print("Original Image Conf: ",class_original_conf.item())
+    print("OOD Image Conf: ",class_fake_conf.item())
 
     return score_original, score_fake, class_original,class_fake, class_original_conf, class_fake_conf
 
