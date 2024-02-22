@@ -46,8 +46,8 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
         "prompt_generation_policy": prompt_generation_policy
     }
 
-    image_embedding= image_embedding.detach().cpu().numpy().tolist()
-    negative_image_embedding= image_embedding.detach().cpu().numpy().tolist() if negative_image_embedding is not None else None
+    image_embedding= image_embedding.detach().cpu().numpy().tolist()[0]
+    negative_image_embedding= image_embedding.detach().cpu().numpy().tolist()[0] if negative_image_embedding is not None else None
 
     # create the job
     generation_task = GenerationTask(uuid=task_uuid,
@@ -61,8 +61,8 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
 
     # add job
     response = generation_request.http_add_kandinsky_job(job=generation_task_json,
-                                                         positive_embedding=image_embedding[0],
-                                                         negative_embedding=negative_image_embedding[0])
+                                                         positive_embedding=image_embedding,
+                                                         negative_embedding=negative_image_embedding)
 
     return response
 
