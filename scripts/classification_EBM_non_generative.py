@@ -609,7 +609,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=10,
+                         max_epochs=1,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -890,6 +890,12 @@ test_imgs, _ = next(iter(val_loader))
 exmp_img = test_imgs[5].to(model.device)
 
 
+
+
+
+indist_im, indist_tar = val_set
+ood_im, ood_tar = oodset
+
 for i in range(12):
     x = random.randint(1,10000)
-    compare_images_values(test_imgs[x].to(model.device),ood_imgs[x].to(model.device))
+    compare_images_values(indist_im[x].to(model.device),ood_im[x].to(model.device))
