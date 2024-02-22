@@ -813,6 +813,36 @@ def compare_images(img1, img2):
 
 
 
+@torch.no_grad()
+def compare_images_values(img1, img2):
+    imgs = torch.stack([img1, img2], dim=0).to(model.device)
+    score1, score2 = model.cnn(imgs)[0].cpu().chunk(2, dim=0)
+    class1, class2 = model.cnn(imgs)[1].cpu().chunk(2, dim=0)
+    grid = torchvision.utils.make_grid([img1.cpu(), img2.cpu()], nrow=2, normalize=True, pad_value=0.5, padding=2)
+    grid = grid.permute(1, 2, 0)
+    plt.figure(figsize=(4,4))
+    plt.imshow(grid)
+    plt.xticks([(img1.shape[2]+2)*(0.5+j) for j in range(2)],
+               labels=[f"ID: {score1.item():4.2f} {softmax_to_class(torch.nn.functional.softmax(class1, dim=1))}", f"OOD: {score2.item():4.2f} {softmax_to_class(torch.nn.functional.softmax(class2, dim=1))}"])
+    plt.yticks([])
+    score_original = score1.item()
+    score_fake = score2.item()
+    class_original = softmax_to_class(torch.nn.functional.softmax(class1, dim=1))
+    class_fake = softmax_to_class(torch.nn.functional.softmax(class2, dim=1))
+    class_original_conf = softmax_to_class(torch.nn.functional.softmax(class1, dim=1))
+    class_fake_conf = softmax_to_class(torch.nn.functional.softmax(class2, dim=1))
+
+    print("Original Image Score: ",score_original)
+    print("OOD Image Score: ",score_fake)
+
+    print("Original Image Class: ",class_original)
+    print("OOD Image Class: ",class_fake)
+
+    print("Original Image Conf: ",class_original_conf)
+    print("OOD Image Conf: ",class_fake_conf)
+
+    return score_original, score_fake, class_original,class_fake, class_original_conf, class_fake_conf
+
 
 
 
@@ -846,3 +876,11 @@ ood_img = ood_imgs[5].to(model.device)
 compare_images(exmp_img, ood_img)
 
 
+
+# Select image from training set
+test_imgs, _ = next(iter(val_loader))
+exmp_img = test_imgs[5].to(model.device)
+
+
+for i in range(12):
+    compare_images_values(test_imgs[i].to(model.device),ood_imgs[i].to(model.device))
