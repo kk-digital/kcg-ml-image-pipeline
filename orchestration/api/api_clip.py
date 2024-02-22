@@ -461,47 +461,39 @@ def check_clip_server_status(request: Request):
 
 #  Apis with new names and reponse format
     
-import msgpack
-import os
 
 @router.get("/clip/get-kandinsky-clip-vector", tags=["clip"], 
             status_code=200, 
             description="Get kandi Vector for a Phrase")
 def get_clip_vector_from_phrase(request: Request, image_path: str):
+    
     response_handler = ApiResponseHandlerV1(request)
     try:
+       
         vector = http_clip_server_get_kandinsky_vector(image_path)
         
         if vector is None:
+
             return response_handler.create_error_response_v1(
                 ErrorCode.ELEMENT_NOT_FOUND,
                 error_string="image_path not found",
                 http_status_code=404,
+    
             )
-        
-        # Extract the base name of the image (e.g., "000000.jpg") from the image path
-        image_basename = os.path.basename(image_path)
-        # Construct the .msgpack filename using the image base name (without extension)
-        vector_filename = f"{os.path.splitext(image_basename)[0]}_kandinsky_clip.msgpack"
-        # Define the path where the .msgpack file will be saved (adjust as needed)
-        save_path = os.path.join(os.getcwd(), vector_filename)
-         
-        # Serialize and save the vector to a .msgpack file
-        with open(save_path, "wb") as f:
-            msgpack.dump(vector, f)
-        
-        # Return the vector in the response
+
         return response_handler.create_success_response_v1(
-            response_data=vector, 
-            http_status_code=200,
+            response_data= vector, 
+            http_status_code=200, 
+ 
         )
 
     except Exception as e:
-        print(f"Exception occurred: {e}")
+        print(f"Exception occurred: {e}")  # Print statement 5
         return response_handler.create_error_response_v1(
             ErrorCode.OTHER_ERROR, 
             error_string="Clip server error",
-            http_status_code=500,
+            http_status_code = 500, 
+
         )
 
 
