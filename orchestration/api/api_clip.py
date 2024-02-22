@@ -1,4 +1,4 @@
-from fastapi import Request, APIRouter, HTTPException, Response
+from fastapi import Request, APIRouter, HTTPException, Response, File, UploadFile
 import requests
 from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardErrorResponse, StandardErrorResponseV1, StandardSuccessResponse, StandardSuccessResponseV1, RechableResponse, GetClipPhraseResponse, ApiResponseHandlerV1
 from orchestration.api.mongo_schemas import  PhraseModel
@@ -10,6 +10,12 @@ from fastapi.responses import JSONResponse
 from fastapi_cache.decorator import cache
 from pydantic import BaseModel
 import traceback
+from utility.minio import cmd 
+from minio import Minio
+from minio.error import S3Error
+from .api_utils import find_or_create_next_folder
+import os
+import io
 
 CLIP_SERVER_ADDRESS = 'http://192.168.3.31:8002'
 #CLIP_SERVER_ADDRESS = 'http://127.0.0.1:8002'
@@ -18,18 +24,14 @@ router = APIRouter()
 # --------- Http requests -------------
 def http_clip_server_get_kandinsky_vector(image_path: str):
     url = CLIP_SERVER_ADDRESS + "/kandinsky-clip-vector?image_path=" + image_path
-    print("Request URL:", url)  # Additional print statement
     response = None
     try:
         response = requests.get(url)
-        print("Response:", response)  # Additional print statement
         if response.status_code == 200:
             return response.json()
-        else:
-            print("Non-200 status code received:", response.status_code)  # Additional print statement
     
     except Exception as e:
-        print('Request exception:', e)
+        print('request exception ', e)
     
     finally:
         if response:
@@ -614,3 +616,31 @@ def check_clip_server_status(request: Request):
             request_dictionary=dict(request.query_params),  
 
         )
+
+
+
+bucket_name = "datasets"
+base_folder = "kandinsky-test-generations"
+
+@router.post("/upload-image/")
+async def upload_image(file: UploadFile = File(...)):
+    # Initialize MinIO client
+    minio_client = cmd.get_minio_client(minio_access_key="3lUCPCfLMgQoxrYaxgoz", minio_secret_key="MXszqU6KFV6X95Lo5jhMeuu5Xm85R79YImgI3Xmp")
+    
+    # Find or create the next available folder
+    next_folder = find_or_create_next_folder(minio_client, bucket_name, base_folder)
+
+    # Construct the file path
+    file_name = file.filename
+    file_path = f"{next_folder}/{file_name}"
+
+    try:
+        await file.seek(0)  # Go to the start of the file
+        content = await file.read()  # Read file content into bytes
+        content_stream = io.BytesIO(content)
+        # Upload the file content
+        cmd.upload_data(minio_client, bucket_name, file_path, content_stream)
+        
+        return JSONResponse(status_code=200, content={"message": f"File uploaded successfully to {file_path}."})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"MinIO error: {e}")

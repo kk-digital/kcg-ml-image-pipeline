@@ -10,6 +10,7 @@ from typing import TypeVar, Generic, List
 from pydantic import BaseModel
 from .mongo_schemas import TagDefinition, TagCategory
 from datetime import datetime
+from minio import Minio
 from dateutil import parser
 from datetime import datetime
 from .mongo_schemas import ImageTag
@@ -271,6 +272,32 @@ class ApiResponseHandlerV1:
             return PrettyJSONResponse(status_code=http_status_code, content=response_content, headers=headers)
 
             
-        
+def find_or_create_next_folder(client: Minio, bucket: str, base_folder: str) -> str:
+    """
+    Finds the next folder for storing an image, creating a new one if the last is full.
+    """
+    try:
+        # List objects in the base folder and count them
+        objects = client.list_objects(bucket, prefix=base_folder+"/", recursive=True)
+        folder_counts = {}
+        for obj in objects:
+            folder = os.path.dirname(obj.object_name)
+            folder_counts[folder] = folder_counts.get(folder, 0) + 1
 
+        # Find the last folder and check if it's full
+        if folder_counts:
+            sorted_folders = sorted(folder_counts.items(), key=lambda x: x[0])
+            last_folder, count = sorted_folders[-1]
+            if count < 1000:
+                return last_folder
+            else:
+                # Create a new folder by incrementing the last folder's name
+                folder_number = int(last_folder.split('/')[-1]) + 1
+                new_folder = f"{base_folder}/{folder_number:04d}"
+                return new_folder
+        else:
+            # No folders exist yet, start with the first one
+            return f"{base_folder}/0001"
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"MinIO error: {e}")        
      
