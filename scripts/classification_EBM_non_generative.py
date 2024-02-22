@@ -968,6 +968,7 @@ def evaluate_model(model, dataloader_original, dataloader_fake):
         for img1_original, labels_original in zip(batch_original[0], batch_original[1]):
             img1_original = img1_original.unsqueeze(0)  # Add batch dimension (1, C, H, W)
             labels_original = labels_original.unsqueeze(0)
+            print("original label: ",labels_original)
 
             for img2_fake, labels_fake in zip(batch_fake[0], batch_fake[1]):
                 img2_fake = img2_fake.unsqueeze(0)  # Add batch dimension (1, C, H, W)
