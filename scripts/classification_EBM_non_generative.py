@@ -609,7 +609,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=2,
+                         max_epochs=20,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -639,7 +639,7 @@ from collections import namedtuple
 print("################ Training started ################")
 model = train_model(img_shape=(3,32,32),
                     batch_size=train_loader.batch_size,
-                    lr=1e-4,
+                    lr=1e-5,
                     beta1=0.0)
 
 print("################ Training ended ################")
