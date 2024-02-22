@@ -982,15 +982,15 @@ def evaluate_model(model, dataloader_original, dataloader_fake):
                 class_original = softmax_to_class(torch.nn.functional.softmax(class_original, dim=1))
                 class_fake = softmax_to_class(torch.nn.functional.softmax(class_fake, dim=1))
 
-                total_correct += torch.sum(class_original == labels_original).item() + torch.sum(class_fake == labels_fake).item()
-                total_samples += labels_original.size(0) + labels_fake.size(0)
+                total_correct += torch.sum(class_original == labels_original).item()  #+ torch.sum(class_fake == labels_fake).item()
+                total_samples += labels_original.size(0) #+ labels_fake.size(0)
 
                 total_class_original_conf += torch.sum(torch.max(torch.nn.functional.softmax(class_original, dim=1))).item()
                 total_class_fake_conf += torch.sum(torch.max(torch.nn.functional.softmax(class_fake, dim=1))).item()
 
     average_accuracy = total_correct / total_samples
     average_class_original_conf = total_class_original_conf / total_samples
-    average_class_fake_conf = total_class_fake_conf / total_samples
+    average_class_fake_conf = 0 #total_class_fake_conf / total_samples
 
     print("Average Accuracy: ", average_accuracy)
     print("Average Original Image Confidence: ", average_class_original_conf)
