@@ -484,7 +484,7 @@ class DeepEnergyModel(pl.LightningModule):
         # Combine losses and backpropagate
         alphaW = 0.1  # Adjust weight for cdiv_loss
         alphaY = 0.1  # Adjust weight for reg_loss
-        total_loss = (alphaW * class_loss) + ((1 - alphaW) * cdiv_loss) + (alphaY * reg_loss)
+        total_loss = (class_loss) + ((1 - alphaW) * cdiv_loss) + (alphaY * reg_loss)
         #total_loss = cdiv_loss + class_loss
 
         # Logging
@@ -715,7 +715,7 @@ plt.savefig(buf, format='png')
 buf.seek(0)
 
 # upload the graph report
-minio_path= minio_path + "/loss_tracking_per_step_" +date_now+".png"
+minio_path= minio_path + "/loss_tracking_per_step_fullclass" +date_now+".png"
 cmd.upload_data(minio_client, 'datasets', minio_path, buf)
 # Remove the temporary file
 os.remove("output/loss_tracking_per_step.png")
