@@ -7,11 +7,8 @@ from pytz import timezone
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-
-from ab_ranking_treeconnect import ABRankingModel
 from utility.regression_utils import torchinfo_summary
-#from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
-
+from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from training_worker.ab_ranking.model.reports.ab_ranking_train_report import get_train_report
 from training_worker.ab_ranking.model.reports.graph_report_ab_ranking import *
 from data_loader.ab_ranking_dataset_loader import ABRankingDatasetLoader
@@ -19,7 +16,7 @@ from training_worker.ab_ranking.model.reports.get_model_card import get_model_ca
 from utility.minio import cmd
 from training_worker.ab_ranking.model import constants
 from training_worker.ab_ranking.model.reports import score_residual, sigma_score
-from ab_ranking_treeconnect import TreeConnectArchitectureTanhRankingBig
+
 
 def train_ranking(dataset_name: str,
                   minio_ip_addr=None,
@@ -45,7 +42,7 @@ def train_ranking(dataset_name: str,
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
     bucket_name = "datasets"
     training_dataset_path = os.path.join(bucket_name, dataset_name)
-    network_type = "Normal-FC"
+    network_type = "linear"
     output_type = "score"
     output_path = "{}/models/ranking".format(dataset_name)
 
@@ -231,82 +228,68 @@ def train_ranking(dataset_name: str,
     graph_name = "{}.png".format(filename)
     graph_output_path = os.path.join(output_path, graph_name)
 
-
-
-
-
-
-
-
-
-
-
-######### Graph
-    # graph_buffer = get_graph_report(training_loss=ab_model.training_loss,
-    #                                 validation_loss=ab_model.validation_loss,
-    #                                 train_prob_predictions=training_predicted_probabilities,
-    #                                 training_targets=training_target_probabilities,
-    #                                 validation_prob_predictions=validation_predicted_probabilities,
-    #                                 validation_targets=validation_target_probabilities,
-    #                                 training_pred_scores_img_x=training_predicted_score_images_x,
-    #                                 training_pred_scores_img_y=training_predicted_score_images_y,
-    #                                 validation_pred_scores_img_x= validation_predicted_score_images_x,
-    #                                 validation_pred_scores_img_y= validation_predicted_score_images_y,
-    #                                 training_total_size=training_total_size,
-    #                                 validation_total_size=validation_total_size,
-    #                                 training_losses=training_loss_per_epoch,
-    #                                 validation_losses=validation_loss_per_epoch,
-    #                                 mean=mean,
-    #                                 standard_deviation=standard_deviation,
-    #                                 x_chronological_sigma_scores=x_chronological_sigma_scores,
-    #                                 y_chronological_sigma_scores=y_chronological_sigma_scores,
-    #                                 epochs=epochs,
-    #                                 learning_rate=learning_rate,
-    #                                 training_batch_size=training_batch_size,
-    #                                 weight_decay=weight_decay,
-    #                                 date=date_now,
-    #                                 network_type=network_type,
-    #                                 input_type=input_type,
-    #                                 input_shape=input_shape,
-    #                                 output_type=output_type,
-    #                                 train_sum_correct=train_sum_correct,
-    #                                 validation_sum_correct=validation_sum_correct,
-    #                                 loss_func=ab_model.loss_func_name,
-    #                                 dataset_name=dataset_name,
-    #                                 pooling_strategy=pooling_strategy,
-    #                                 normalize_vectors=normalize_vectors,
-    #                                 num_random_layers=-1,
-    #                                 add_loss_penalty=add_loss_penalty,
-    #                                 target_option=target_option,
-    #                                 duplicate_flip_option=duplicate_flip_option,
-    #                                 randomize_data_per_epoch=randomize_data_per_epoch,
-    #                                 elm_sparsity=-1,
-    #                                 training_shuffled_indices_origin=training_shuffled_indices_origin,
-    #                                 validation_shuffled_indices_origin=validation_shuffled_indices_origin,
-    #                                 total_selection_datapoints=dataset_loader.total_selection_datapoints,
-    #                                 loss_penalty_range=penalty_range,
-    #                                 saved_model_epoch=ab_model.lowest_loss_model_epoch)
+    graph_buffer = get_graph_report(training_loss=ab_model.training_loss,
+                                    validation_loss=ab_model.validation_loss,
+                                    train_prob_predictions=training_predicted_probabilities,
+                                    training_targets=training_target_probabilities,
+                                    validation_prob_predictions=validation_predicted_probabilities,
+                                    validation_targets=validation_target_probabilities,
+                                    training_pred_scores_img_x=training_predicted_score_images_x,
+                                    training_pred_scores_img_y=training_predicted_score_images_y,
+                                    validation_pred_scores_img_x=validation_predicted_score_images_x,
+                                    validation_pred_scores_img_y=validation_predicted_score_images_y,
+                                    training_total_size=training_total_size,
+                                    validation_total_size=validation_total_size,
+                                    training_losses=training_loss_per_epoch,
+                                    validation_losses=validation_loss_per_epoch,
+                                    mean=mean,
+                                    standard_deviation=standard_deviation,
+                                    x_chronological_sigma_scores=x_chronological_sigma_scores,
+                                    y_chronological_sigma_scores=y_chronological_sigma_scores,
+                                    epochs=epochs,
+                                    learning_rate=learning_rate,
+                                    training_batch_size=training_batch_size,
+                                    weight_decay=weight_decay,
+                                    date=date_now,
+                                    network_type=network_type,
+                                    input_type=input_type,
+                                    input_shape=input_shape,
+                                    output_type=output_type,
+                                    train_sum_correct=train_sum_correct,
+                                    validation_sum_correct=validation_sum_correct,
+                                    loss_func=ab_model.loss_func_name,
+                                    dataset_name=dataset_name,
+                                    pooling_strategy=pooling_strategy,
+                                    normalize_vectors=normalize_vectors,
+                                    num_random_layers=-1,
+                                    add_loss_penalty=add_loss_penalty,
+                                    target_option=target_option,
+                                    duplicate_flip_option=duplicate_flip_option,
+                                    randomize_data_per_epoch=randomize_data_per_epoch,
+                                    elm_sparsity=-1,
+                                    training_shuffled_indices_origin=training_shuffled_indices_origin,
+                                    validation_shuffled_indices_origin=validation_shuffled_indices_origin,
+                                    total_selection_datapoints=dataset_loader.total_selection_datapoints,
+                                    loss_penalty_range=penalty_range,
+                                    saved_model_epoch=ab_model.lowest_loss_model_epoch)
 
     # upload the graph report
-    #cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
+    cmd.upload_data(dataset_loader.minio_client, bucket_name,graph_output_path, graph_buffer)
 
-    # # get model card and upload
-    # model_card_name = "{}.json".format(filename)
-    # model_card_name_output_path = os.path.join(output_path, model_card_name)
-    # model_card_buf, model_card = get_model_card_buf(ab_model,
-    #                                                 training_total_size,
-    #                                                 validation_total_size,
-    #                                                 graph_output_path,
-    #                                                 input_type,
-    #                                                 output_type)
-    # cmd.upload_data(dataset_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
+    # get model card and upload
+    model_card_name = "{}.json".format(filename)
+    model_card_name_output_path = os.path.join(output_path, model_card_name)
+    model_card_buf, model_card = get_model_card_buf(ab_model,
+                                                    training_total_size,
+                                                    validation_total_size,
+                                                    graph_output_path,
+                                                    input_type,
+                                                    output_type)
+    cmd.upload_data(dataset_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
 
     # add model card
-    #\model_id = score_residual.add_model_card(model_card)
-    model_type = "NormalFC"
-
-    print("validation loss: ",validation_loss_per_epoch)
-    print("training loss: ",training_loss_per_epoch)
+    model_id = score_residual.add_model_card(model_card)
+    model_type = "linear"
     # upload residuals
     score_residual.upload_score_residual(model_type=model_type,
                                          train_prob_predictions=training_predicted_probabilities,
@@ -337,16 +320,16 @@ def run_ab_ranking_linear_task(training_task, minio_access_key, minio_secret_key
 
 
 def test_run():
-    train_ranking(dataset_name="environmental", #environmental propaganda-poster environmental
+    train_ranking(dataset_name="propaganda-poster",
                   minio_ip_addr=None,  # will use defualt if none is given
-                  minio_access_key="D6ybtPLyUrca5IdZfCIM",
-                  minio_secret_key="2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
-                  input_type= constants.CLIP,  #"“clip”", # “clip” "embedding-negative"
-                  epochs=50,
-                  learning_rate=0.001,
+                  minio_access_key="nkjYl5jO4QnpxQU0k0M1",
+                  minio_secret_key="MYtmJ9jhdlyYx3T1McYy4Z0HB3FkxjmITXLEPKA1",
+                  input_type="embedding-negative",
+                  epochs=30,
+                  learning_rate=0.05,
                   train_percent=0.9,
-                  training_batch_size=64,
-                  weight_decay=0.001,
+                  training_batch_size=1,
+                  weight_decay=0.00,
                   load_data_to_ram=True,
                   debug_asserts=False,
                   normalize_vectors=True,
@@ -356,71 +339,7 @@ def test_run():
                   duplicate_flip_option=constants.DUPLICATE_AND_FLIP_RANDOM,
                   randomize_data_per_epoch=True,
                   )
-    
-# def test_run_v2():
-#     run_ab_ranking_linear_task(
-#         training_task,
-#         minio_access_key,
-#         minio_secret_key
-#         )
 
 
-# from utility.minio.cmd import connect_to_minio_client
-
-# client = connect_to_minio_client(
-#             None, 
-#             "D6ybtPLyUrca5IdZfCIM", 
-#             "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V"
-#         )
-
-# # load elm scoring model
-# def load_scoring_model(self):
-#     input_path=f"propaganda-poster/models/ranking/"
-    
-#     ranking_model = TreeConnectArchitectureTanhRankingBig()
-
-#     # Get all model files
-#     model_files = cmd.get_list_of_objects_with_prefix(client, 'datasets', input_path)
-
-#     for model_file in model_files:
-#         if model_file.endswith("2treeconnect-clip.txt.safetensors"):
-#             most_recent_model = model_file
-
-#     if most_recent_model:
-#         model_file_data =cmd.get_file_from_minio(client, 'datasets', most_recent_model)
-#     else:
-#         print("No .safetensors files found in the list.")
-#         return
-    
-#     print(most_recent_model)
-
-#     # Create a BytesIO object and write the downloaded content into it
-#     byte_buffer = BytesIO()
-#     for data in model_file_data.stream(amt=8192):
-#         byte_buffer.write(data)
-#     # Reset the buffer's position to the beginning
-#     byte_buffer.seek(0)
-
-#     ranking_model.load_safetensors(byte_buffer)
-#     ranking_model.model=self.ranking_model.model.to(self.device)
-
-#     mean=float(self.ranking_model.mean)
-#     std=float(self.ranking_model.standard_deviation)
-
-#     return ranking_model
-
-
-
-
-import time
-# Record the start
-start_time = time.time()
 if __name__ == '__main__':
     test_run()
-    
-# Record the end time
-end_time = time.time()
-
-# Calculate and print the elapsed time
-elapsed_time = end_time - start_time
-print(f"Elapsed Time: {elapsed_time} seconds")
