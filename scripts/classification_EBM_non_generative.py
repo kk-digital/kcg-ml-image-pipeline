@@ -540,9 +540,11 @@ class DeepEnergyModel(pl.LightningModule):
         reg_loss =(real_scores ** 2 + fake_scores ** 2).mean()
 
         # Combine losses and backpropagate
-        alphaW = 0.1  # Adjust weight for cdiv_loss
-        alphaY = 0.1  # Adjust weight for reg_loss
-        total_loss = (class_loss) + ((1 - alphaW) * cdiv_loss) + (alphaY * reg_loss)
+        # ballanced: class 1 , CD 0.9, reg 0.1
+        alphaC = 1  # Adjust weight for cdiv_loss
+        alphaCD = 0  # Adjust weight for reg_loss
+        alphaReg = 0
+        total_loss = (class_loss * alphaC ) + ((alphaCD) * cdiv_loss) + (alphaReg * reg_loss)
         #total_loss = cdiv_loss + class_loss
 
         # Logging
