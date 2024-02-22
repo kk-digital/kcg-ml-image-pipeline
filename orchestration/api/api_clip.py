@@ -470,13 +470,12 @@ def get_clip_vector_from_phrase(request: Request, image_path: str):
     try:
        
         vector = http_clip_server_get_kandinsky_vector(image_path)
-        print(vector)
         
         if vector is None:
 
             return response_handler.create_error_response_v1(
                 ErrorCode.ELEMENT_NOT_FOUND,
-                "img not found",
+                error_string="image_path not found",
                 http_status_code=404,
                 request_dictionary=dict(request.query_params),
     
@@ -493,7 +492,7 @@ def get_clip_vector_from_phrase(request: Request, image_path: str):
         print(f"Exception occurred: {e}")  # Print statement 5
         return response_handler.create_error_response_v1(
             ErrorCode.OTHER_ERROR, 
-            str(e), 
+            error_string="Clip server error",
             http_status_code = 500, 
             request_dictionary=dict(request.query_params),
 
