@@ -29,10 +29,12 @@ from utility.boltzman.boltzman import find_first_element_binary_search, get_cumu
 from utility.minio import cmd
 from utility.http import request
 from worker.prompt_generation.prompt_generator import generate_image_generation_jobs, generate_prompts_from_csv_with_base_prompt_prefix, load_base_prompts, generate_inpainting_job
+from kandinsky_worker.prompt_generation.prompt_generator import generate_image_generation_jobs_with_kandinsky, generate_inpainting_job_with_kandinsky
 from scripts.prompt_mutator.DataLoaders.FixedProbabilitiesDataLoader import FixedProbabilitiesDataLoader
 from scripts.prompt_mutator.DataLoaders.IndependantApproximationDataLoader import IndependantApproximationDataLoader
 
 GENERATION_POLICY="greedy-substitution-search-v1"
+BASE_DIRECTORY= "data/prompt-generator/substitution"
 DATA_MINIO_DIRECTORY="data/prompt-generator/substitution"
 MAX_LENGTH=77
 
@@ -1348,7 +1350,7 @@ def main():
     model_dataset = args.model_dataset
     if args.dataset_name != "all":
         # set the minio data path
-        DATA_MINIO_DIRECTORY= f"{model_dataset}/" + DATA_MINIO_DIRECTORY
+        DATA_MINIO_DIRECTORY= f"{model_dataset}/" + BASE_DIRECTORY
 
         prompt_mutator= PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
                                     minio_secret_key=args.minio_secret_key,
@@ -1384,7 +1386,7 @@ def main():
             try:
                 print("Training model for {}...".format(dataset))
                 model_dataset = dataset
-                DATA_MINIO_DIRECTORY = f"{model_dataset}/" + DATA_MINIO_DIRECTORY
+                DATA_MINIO_DIRECTORY= f"{model_dataset}/" + BASE_DIRECTORY
 
                 prompt_mutator = PromptSubstitutionGenerator(minio_access_key=args.minio_access_key,
                                                              minio_secret_key=args.minio_secret_key,

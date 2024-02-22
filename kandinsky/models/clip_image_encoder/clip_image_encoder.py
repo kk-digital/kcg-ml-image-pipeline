@@ -9,14 +9,12 @@ from torch import nn
 
 sys.path.insert(0, os.getcwd())
 from utility.utils_logger import logger
-from stable_diffusion.model_paths import CLIP_IMAGE_PROCESSOR_DIR_PATH, CLIP_VISION_MODEL_DIR_PATH, \
-    CLIP_IMAGE_ENCODER_PATH, \
-    CLIPconfigs
+from kandinsky.model_paths import PRIOR_MODEL_PATH
 from stable_diffusion.utils_backend import get_device
 from transformers import CLIPImageProcessor, CLIPVisionModelWithProjection
 
 
-class CLIPImageEncoder(nn.Module):
+class KandinskyCLIPImageEncoder(nn.Module):
 
     def __init__(self, device=None, image_processor=None, vision_model=None):  # , input_mode = PIL.Image.Image):
 
@@ -29,18 +27,18 @@ class CLIPImageEncoder(nn.Module):
 
         self.to(self.device)
 
-    def load_submodels(self, image_processor_path=CLIP_IMAGE_PROCESSOR_DIR_PATH,
-                       vision_model_path=CLIP_VISION_MODEL_DIR_PATH):
+    def load_submodels(self, encoder_path=PRIOR_MODEL_PATH):
         try:
-            self.vision_model = (CLIPVisionModelWithProjection.from_pretrained(vision_model_path,
-                                                                               local_files_only=True,
-                                                                               use_safetensors=True)
-                                 .eval()
-                                 .to(self.device))
-            logger.info(f"CLIP VisionModelWithProjection successfully loaded from : {vision_model_path}\n")
-            self.image_processor = CLIPImageProcessor.from_pretrained(image_processor_path, local_files_only=True)
+            self.vision_model = (CLIPVisionModelWithProjection.from_pretrained(encoder_path,
+                                                                               subfolder="image_encoder",
+                                                                               torch_dtype=torch.float16,
+                                                                               local_files_only=True).eval().to(self.device))
+            
+            logger.info(f"CLIP VisionModelWithProjection successfully loaded from : {encoder_path}/image_encoder \n")
 
-            logger.info(f"CLIP ImageProcessor successfully loaded from : {image_processor_path}\n")
+            self.image_processor = CLIPImageProcessor.from_pretrained(encoder_path, subfolder="image_processor", local_files_only=True)
+
+            logger.info(f"CLIP ImageProcessor successfully loaded from : {encoder_path}/image_processor \n")
             return self
         except Exception as e:
             logger.error('Error loading submodels: ', e)
@@ -67,21 +65,33 @@ class CLIPImageEncoder(nn.Module):
         # Preprocess image
         # Compute CLIP features
         if isinstance(image, PIL.Image.Image):
-            image = (
-                self.image_processor(image, return_tensors="pt")
-                .pixel_values[0]
-                .unsqueeze(0)
-                .to(dtype=self.image_encoder.dtype, device=self.device)
-            )
+            image = self.image_processor(image, return_tensors="pt")['pixel_values']
         
         if isinstance(image, torch.Tensor):
-            features = self.image_encoder(image)["image_embeds"]
+            with torch.no_grad():
+                features = self.vision_model(pixel_values= image.to(self.device).half()).image_embeds
         else:
             raise ValueError(
                 f"`image` can only contains elements to be of type `PIL.Image.Image` or `torch.Tensor`  but is {type(image)}"
             )
         
         return features
+    
+    def get_image_features(self, image):
+        # Preprocess image
+        if isinstance(image, PIL.Image.Image):
+            image = self.image_processor(image, return_tensors="pt")['pixel_values']
+        
+         # Compute CLIP features
+        if isinstance(image, torch.Tensor):
+            with torch.no_grad():
+                features = self.vision_model(pixel_values= image.to(self.device).half()).image_embeds
+        else:
+            raise ValueError(
+                f"`image` can only contains elements to be of type `PIL.Image.Image` or `torch.Tensor`  but is {type(image)}"
+            )
+        
+        return features.to(torch.float16)
 
     @staticmethod
     def compute_sha256(image_data):

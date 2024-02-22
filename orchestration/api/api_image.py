@@ -59,10 +59,19 @@ def get_random_image_list(request: Request, dataset: str = Query(...), size: int
 
     while len(distinct_documents) < size:
         # Use $sample to get 'size' random documents
-        documents = request.app.completed_jobs_collection.aggregate([
+        filter = [
             {"$match": {"task_input_dict.dataset": dataset, "_id": {"$nin": list(tried_ids)}}},  # Exclude already tried ids
             {"$sample": {"size": size - len(distinct_documents)}}  # Only fetch the remaining needed size
-        ])
+        ]
+
+        if dataset == "any":
+            filter = [
+                {"$match": {"_id": {"$nin": list(tried_ids)}}},
+                # Exclude already tried ids
+                {"$sample": {"size": size - len(distinct_documents)}}  # Only fetch the remaining needed size
+            ]
+
+        documents = request.app.completed_jobs_collection.aggregate(filter)
 
         # Convert cursor type to list
         documents = list(documents)
@@ -98,7 +107,7 @@ def get_random_previously_ranked_image_list(
 
     match_query = {"task_input_dict.dataset": dataset, "_id": {"$nin": list(tried_ids)}}
     if prompt_generation_policy:
-        match_query["task_input_dict.prompt_generation_policy"] = prompt_generation_policy
+        match_query["prompt_generation_data.prompt_generation_policy"] = prompt_generation_policy
 
     # Apply the date/time filters
     if start_date and end_date:
@@ -177,7 +186,7 @@ def get_random_image_date_range(
 
     # Include prompt_generation_policy in the query if provided
     if prompt_generation_policy:
-        query['task_input_dict.prompt_generation_policy'] = prompt_generation_policy
+        query['prompt_generation_data.prompt_generation_policy'] = prompt_generation_policy
 
     aggregation_pipeline = [{"$match": query}]
     if size:
@@ -259,15 +268,18 @@ def get_images_metadata(
     # Construct the initial query
     query = {
         '$or': [
-            {'task_type': 'image_generation_task'},
-            {'task_type': 'inpainting_generation_task'}
+            {'task_type': 'image_generation_sd_1_5'},
+            {'task_type': 'inpainting_sd_1_5'},
+            {'task_type': 'image_generation_kandinsky'},
+            {'task_type': 'inpainting_kandinsky'},
+            {'task_type': 'img2img_generation_kandinsky'}
         ],
         'task_input_dict.dataset': dataset
     }
 
     # Optionally add prompt_generation_policy to the query if provided
     if prompt_generation_policy:
-        query['task_input_dict.prompt_generation_policy'] = prompt_generation_policy
+        query['prompt_generation_data.prompt_generation_policy'] = prompt_generation_policy
 
     # Update the query based on provided start_date, end_date, and threshold_time_str
     if start_date and end_date:
@@ -293,7 +305,7 @@ def get_images_metadata(
             'task_type': job.get('task_type'),
             'image_path': job['task_output_file_dict'].get('output_file_path'),
             'image_hash': job['task_output_file_dict'].get('output_file_hash'),
-            'prompt_generation_policy': job['task_input_dict'].get('prompt_generation_policy', prompt_generation_policy)  # Include the policy if present
+            'prompt_generation_policy': job['prompt_generation_data'].get('prompt_generation_policy', prompt_generation_policy)  # Include the policy if present
         }
         # If prompt_generation_policy is not a filter or if it matches the job's policy, append the metadata
         if not prompt_generation_policy or image_meta_data['prompt_generation_policy'] == prompt_generation_policy:
@@ -326,7 +338,7 @@ def get_random_image_with_time(
         "task_creation_time": {"$gte": threshold_time.strftime("%Y-%m-%dT%H:%M:%S")}
     }
     if prompt_generation_policy:
-        match_query["task_input_dict.prompt_generation_policy"] = prompt_generation_policy
+        match_query["prompt_generation_data.prompt_generation_policy"] = prompt_generation_policy
 
     # Use $match to filter documents based on dataset, creation time, and prompt_generation_policy
     documents = request.app.completed_jobs_collection.aggregate([

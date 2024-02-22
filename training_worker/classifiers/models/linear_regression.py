@@ -15,7 +15,7 @@ base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
 from utility.minio import cmd
-
+from data_loader.tagged_data_loader import TaggedDatasetLoader
 
 class LinearRegression:
     def __init__(self, device=None):
@@ -148,18 +148,21 @@ class LinearRegression:
         # load loss func
         self.loss_func = get_loss_func(self.loss_func_name)
 
-    def train(self, training_inputs, training_targets, validation_inputs, validation_targets):
+    def train(self, tag_loader: TaggedDatasetLoader):
         training_loss_per_epoch = []
         validation_loss_per_epoch = []
         optimizer = optim.SGD(self.model.parameters(), lr=self.learning_rate)
 
-        if self.normalize_feature_vectors:
-            training_inputs = normalize_feature_vector(training_inputs)
-            training_targets = normalize_feature_vector(training_targets)
-            validation_inputs = normalize_feature_vector(validation_inputs)
-            validation_targets = normalize_feature_vector(validation_targets)
-
         for epoch in range(self.epochs):
+            # get new negative features per epoch
+            training_inputs, training_targets = tag_loader.get_shuffled_positive_and_negative_training()
+            validation_inputs, validation_targets = tag_loader.get_shuffled_positive_and_negative_validation()
+            if self.normalize_feature_vectors:
+                training_inputs = normalize_feature_vector(training_inputs)
+                training_targets = normalize_feature_vector(training_targets)
+                validation_inputs = normalize_feature_vector(validation_inputs)
+                validation_targets = normalize_feature_vector(validation_targets)
+
             optimizer.zero_grad()
             training_outputs = self.model(training_inputs)
             loss = self.loss_func(training_outputs, training_targets)

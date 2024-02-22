@@ -27,7 +27,8 @@ class TaggedDatasetLoader:
                  input_type=constants.CLIP,
                  server_addr=None,
                  pooling_strategy=constants.AVERAGE_POOLING,
-                 train_percent=0.9):
+                 train_percent=0.9,
+                 epochs=100):
         if server_addr is None:
             self.server_addr = request.SERVER_ADDRESS
         if minio_access_key is not None:
@@ -42,11 +43,12 @@ class TaggedDatasetLoader:
         self.input_type = input_type
         self.pooling_strategy = pooling_strategy
         self.train_percent = train_percent
+        self.epochs = epochs
 
         self.positive_training_features = None
         self.positive_validation_features = None
-        self.negative_training_features = None
-        self.negative_validation_features = None
+        self.negative_training_features_pool = None
+        self.negative_validation_features_pool = None
 
         # sizes
         self.positive_dataset_total_size = None
@@ -82,8 +84,8 @@ class TaggedDatasetLoader:
         # get .msgpack data
         path = path.replace(".jpg", input_type_extension)
         path = path.replace("datasets/", "")
-
         features_data = get_object(self.minio_client, path)
+
         features_data = msgpack.unpackb(features_data)
         features_vector = []
 
@@ -188,28 +190,28 @@ class TaggedDatasetLoader:
         dataset_name = splits[1]
         self.dataset_name = dataset_name
 
-        # make sure positive and negative have the same length
-        # for now we want them to be 50/50
-        min_length = min(len(positive_tagged_dataset), len(negative_tagged_dataset))
-        positive_tagged_dataset = positive_tagged_dataset[:min_length]
-        negative_tagged_dataset = negative_tagged_dataset[:min_length]
+        # get random images for negatives
+        # get from environmental for now
+        random_image_list = request.http_get_random_image_list("environmental", len(positive_tagged_dataset) * self.epochs)
+        # get paths only
+        for image_data in random_image_list:
+            negative_tagged_dataset.append(image_data["task_output_file_dict"]["output_file_path"])
 
         # load proper input type: either clip image embedding or text embedding
         positive_tagged_features = self.load_data(positive_tagged_dataset)
         negative_tagged_features = self.load_data(negative_tagged_dataset)
-
         (self.positive_training_features,
          self.positive_validation_features) = self.separate_training_and_validation_features(positive_tagged_features)
-        (self.negative_training_features,
-         self.negative_validation_features) = self.separate_training_and_validation_features(negative_tagged_features)
+        (self.negative_training_features_pool,
+         self.negative_validation_features_pool) = self.separate_training_and_validation_features(negative_tagged_features)
 
         # len
-        self.positive_dataset_total_size = min_length
-        self.negative_dataset_total_size = min_length
+        self.positive_dataset_total_size = len(self.positive_training_features)
+        self.negative_dataset_total_size = len(self.negative_training_features_pool)
         self.training_positive_size = len(self.positive_training_features)
         self.validation_positive_size = len(self.positive_validation_features)
-        self.training_negative_size = len(self.negative_training_features)
-        self.validation_negative_size = len(self.negative_validation_features)
+        self.training_negative_size = len(self.positive_training_features)  # should be same as positive dataset
+        self.validation_negative_size = len(self.positive_validation_features)  # should be same as positive dataset
 
 
     def get_training_positive_features(self, target=1.0):
@@ -224,17 +226,39 @@ class TaggedDatasetLoader:
 
     def get_training_negative_features(self, target=0.0):
         # return negative training data
-        target_features = [torch.tensor(target)] * len(self.negative_training_features)
-        return torch.stack(self.negative_training_features), torch.stack(target_features)
+        target_features = [torch.tensor(target)] * self.training_negative_size
+        training_features = sample(self.negative_training_features_pool, self.training_negative_size)
+
+        return torch.stack(training_features), torch.stack(target_features)
 
     def get_validation_negative_features(self, target=0.0):
         # return negative validation data
-        target_features = [torch.tensor(target)] * len(self.negative_validation_features)
-        return torch.stack(self.negative_validation_features), torch.stack(target_features)
+        target_features = [torch.tensor(target)] * self.validation_negative_size
+        training_features = sample(self.negative_validation_features_pool, self.validation_negative_size)
 
-    def get_shuffled_positive_and_negative(self, positive_features, positive_targets, negative_features, negative_targets):
-        stacked_features = torch.cat((positive_features, negative_features))
-        stacked_targets = torch.cat((positive_targets, negative_targets))
+        return torch.stack(training_features), torch.stack(target_features)
+
+    def get_shuffled_positive_and_negative_training(self):
+        training_positive_features, training_positive_targets = self.get_training_positive_features()
+        training_negative_features, training_negative_targets = self.get_training_negative_features()
+
+        stacked_features = torch.cat((training_positive_features, training_negative_features))
+        stacked_targets = torch.cat((training_positive_targets, training_negative_targets))
+
+        shuffled_idx = torch.randperm(len(stacked_features))
+        stacked_features = stacked_features[shuffled_idx]
+        stacked_targets = stacked_targets[shuffled_idx]
+
+        stacked_targets = stacked_targets.unsqueeze(1)
+
+        return stacked_features, stacked_targets
+
+    def get_shuffled_positive_and_negative_validation(self):
+        validation_positive_features, validation_positive_targets = self.get_validation_positive_features()
+        validation_negative_features, validation_negative_targets = self.get_validation_negative_features()
+
+        stacked_features = torch.cat((validation_positive_features, validation_negative_features))
+        stacked_targets = torch.cat((validation_positive_targets, validation_negative_targets))
 
         shuffled_idx = torch.randperm(len(stacked_features))
         stacked_features = stacked_features[shuffled_idx]

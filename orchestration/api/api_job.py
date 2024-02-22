@@ -1,32 +1,41 @@
+import io
+import os
+import sys
 from fastapi import Request, APIRouter, HTTPException, Query, Body
+import numpy as np
+import msgpack
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 import uuid
 from datetime import datetime, timedelta
-from orchestration.api.mongo_schemas import Task
+from orchestration.api.mongo_schemas import KandinskyTask, Task
 from orchestration.api.api_dataset import get_sequential_id
 import pymongo
 from .api_utils import PrettyJSONResponse
 from typing import List
 import json
 import paramiko
+from typing import Optional
 import csv
 from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, AddJob, WasPresentResponse
+from pymongo import UpdateMany
 
 router = APIRouter()
 
 
 # -------------------- Get -------------------------
 
-
 @router.get("/queue/image-generation/get-job")
-def get_job(request: Request, task_type: str = None):
+def get_job(request: Request, task_type= None, model_type="sd_1_5"):
     query = {}
-    if task_type != None:
-        query = {"task_type": task_type}
+
+    if task_type:
+        query["task_type"] = task_type
+
+    if model_type:    
+        query["task_type"] = {"$regex": model_type}
 
     # Query to find the n newest elements based on the task_completion_time
-
     job = request.app.pending_jobs_collection.find_one(query, sort=[("task_creation_time", pymongo.ASCENDING)])
 
     if job is None:
@@ -116,6 +125,55 @@ def add_job(request: Request, task: Task):
     request.app.pending_jobs_collection.insert_one(task.to_dict())
 
     return {"uuid": task.uuid, "creation_time": task.task_creation_time}
+
+
+@router.post("/queue/image-generation/add-kandinsky", description="Add a kandinsky job to db")
+def add_job(request: Request, kandinsky_task: KandinskyTask):
+    task= kandinsky_task.job
+
+    if task.uuid in ["", None]:
+        # generate since its empty
+        task.uuid = str(uuid.uuid4())
+
+    # add task creation time
+    task.task_creation_time = datetime.now()
+
+    # check if file_path is blank
+    if (task.task_input_dict is None or "file_path" not in task.task_input_dict or task.task_input_dict["file_path"] in [
+        '', "[auto]", "[default]"]) and "dataset" in task.task_input_dict:
+        dataset_name = task.task_input_dict["dataset"]
+        # get file path
+        sequential_id_arr = get_sequential_id(request, dataset=dataset_name)
+        new_file_path = "{}.jpg".format(sequential_id_arr[0])
+        task.task_input_dict["file_path"] = new_file_path
+    
+    # upload input image embeddings to minIO
+    image_embedding_data={
+        "job_uuid": task.uuid,
+        "dataset": task.task_input_dict["dataset"],
+        "image_embedding": kandinsky_task.positive_embedding,
+        "negative_image_embedding": kandinsky_task.negative_embedding
+    }
+    
+    output_file_path = os.path.join(task.task_input_dict["dataset"], task.task_input_dict['file_path'])
+    image_embeddings_path = output_file_path.replace(".jpg", "_embedding.msgpack")
+
+    msgpack_string = msgpack.packb(image_embedding_data, default=encode_ndarray, use_bin_type=True, use_single_float=True)
+
+    buffer = io.BytesIO()
+    buffer.write(msgpack_string)
+    buffer.seek(0)
+
+    cmd.upload_data(request.app.minio_client, "datasets", image_embeddings_path, buffer) 
+
+    request.app.pending_jobs_collection.insert_one(task.to_dict())
+
+    return {"uuid": task.uuid, "creation_time": task.task_creation_time}
+
+def encode_ndarray(obj):
+    if isinstance(obj, np.ndarray):
+        return {'__ndarray__': obj.tolist()}
+    return obj
 
 
 @router.post("/queue/image-generation", 
@@ -409,8 +467,9 @@ def get_list_in_progress_jobs(request: Request):
 
 
 @router.get("/queue/image-generation/list-completed", response_class=PrettyJSONResponse)
-def get_list_completed_jobs(request: Request):
-    jobs = list(request.app.completed_jobs_collection.find({}))
+def get_list_completed_jobs(request: Request, limit: Optional[int] = Query(10, alias="limit")):
+    # Use the limit parameter in the find query to limit the results
+    jobs = list(request.app.completed_jobs_collection.find({}).limit(limit))
 
     for job in jobs:
         job.pop('_id', None)
@@ -418,8 +477,9 @@ def get_list_completed_jobs(request: Request):
     return jobs
 
 @router.get("/queue/image-generation/list-completed-by-dataset", response_class=PrettyJSONResponse)
-def get_list_completed_jobs_by_dataset(request: Request, dataset):
-    jobs = list(request.app.completed_jobs_collection.find({"task_input_dict.dataset": dataset}))
+def get_list_completed_jobs_by_dataset(request: Request, dataset, limit: Optional[int] = Query(10, alias="limit")):
+    # Use the limit parameter in the find query to limit the results
+    jobs = list(request.app.completed_jobs_collection.find({"task_input_dict.dataset": dataset}).limit(limit))
 
     for job in jobs:
         job.pop('_id', None)
@@ -744,3 +804,94 @@ def add_attributes_job_completed(
 
     return {"message": "Job attributes updated successfully."}
 
+
+@router.post("/update-tasks", status_code=200)
+async def update_task_definitions(request: Request):
+    # Define the updates for 'image_generation_task' and 'inpainting_generation_task'
+    update_operations = [
+        UpdateMany(
+            {"task_type": "image_generation_task"},
+            {
+                "$set": {
+                    "task_type": "image_generation_sd_1_5"
+                },
+                "$rename": {
+                    "sd_model_hash": "model_hash"
+                }
+            }
+        ),
+        UpdateMany(
+            {"task_type": "inpainting_generation_task"},
+            {
+                "$set": {
+                    "task_type": "inpainting_sd_1_5"
+                },
+                "$rename": {
+                    "sd_model_hash": "model_hash"
+                }
+            }
+        )
+    ]
+
+    # Perform the update operations
+    result = request.app.completed_jobs_collection.bulk_write(update_operations)
+
+    # Return the result of the update operation
+    return {
+        "matched_count": result.matched_count,
+        "modified_count": result.modified_count,
+        "acknowledged": result.acknowledged
+    }
+
+
+@router.post("/update-task-definitions/")
+async def update_task_definitions(request:Request):
+    # Update operation for 'image_generation_task'
+    image_update_result = request.app.completed_jobs_collection.update_many(
+        {"task_type": "image_generation_task"},
+        {
+            "$set": {
+                "task_type": "image_generation_sd_1_5",
+                "prompt_generation_data": {
+                    "prompt_generation_policy": "$task_input_dict.prompt_generation_policy",
+                    "prompt_scoring_model": "$task_input_dict.prompt_scoring_model",
+                    "prompt_score": "$task_input_dict.prompt_score"
+                }
+            },
+            "$rename": {"sd_model_hash": "model_hash"},
+            "$unset": {
+                "task_input_dict.prompt_generation_policy": "",
+                "task_input_dict.prompt_scoring_model": "",
+                "task_input_dict.prompt_score": ""
+            }
+        }
+    )
+    
+    # Update operation for 'inpainting_generation_task'
+    inpainting_update_result = request.app.completed_jobs_collection.update_many(
+        {"task_type": "inpainting_generation_task"},
+        {
+            "$set": {
+                "task_type": "inpainting_sd_1_5",
+                "prompt_generation_data": {
+                    "prompt_generation_policy": "$task_input_dict.prompt_generation_policy",
+                    "prompt_scoring_model": "$task_input_dict.prompt_scoring_model",
+                    "prompt_score": "$task_input_dict.prompt_score"
+                }
+            },
+            "$rename": {"sd_model_hash": "model_hash"},
+            "$unset": {
+                "task_input_dict.prompt_generation_policy": "",
+                "task_input_dict.prompt_scoring_model": "",
+                "task_input_dict.prompt_score": ""
+            }
+        }
+    )
+
+    # Return the combined result of the update operations
+    return {
+        "image_update_matched_count": image_update_result.matched_count,
+        "image_update_modified_count": image_update_result.modified_count,
+        "inpainting_update_matched_count": inpainting_update_result.matched_count,
+        "inpainting_update_modified_count": inpainting_update_result.modified_count,
+    }

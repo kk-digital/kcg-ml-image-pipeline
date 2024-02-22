@@ -1,6 +1,6 @@
-from fastapi import Request, APIRouter, HTTPException, Response
+from fastapi import Request, APIRouter, HTTPException, Response, File, UploadFile
 import requests
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardErrorResponse, StandardSuccessResponse, RechableResponse, GetClipPhraseResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardErrorResponse, StandardErrorResponseV1, StandardSuccessResponse, StandardSuccessResponseV1, RechableResponse, GetClipPhraseResponse, ApiResponseHandlerV1
 from orchestration.api.mongo_schemas import  PhraseModel
 from typing import Optional
 from typing import List
@@ -10,13 +10,36 @@ from fastapi.responses import JSONResponse
 from fastapi_cache.decorator import cache
 from pydantic import BaseModel
 import traceback
+from utility.minio import cmd 
+from minio import Minio
+from minio.error import S3Error
+from .api_utils import find_or_create_next_folder_and_index
+import os
+import io
 
 CLIP_SERVER_ADDRESS = 'http://192.168.3.31:8002'
 #CLIP_SERVER_ADDRESS = 'http://127.0.0.1:8002'
 router = APIRouter()
 
-
 # --------- Http requests -------------
+def http_clip_server_get_kandinsky_vector(image_path: str):
+    url = CLIP_SERVER_ADDRESS + "/kandinsky-clip-vector?image_path=" + image_path
+    response = None
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            return response.json()
+    
+    except Exception as e:
+        print('request exception ', e)
+    
+    finally:
+        if response:
+            response.close()
+    
+    return None
+
+
 def http_clip_server_add_phrase(phrase: str):
     url = CLIP_SERVER_ADDRESS + "/add-phrase?phrase=" + phrase
     response = None
@@ -105,7 +128,7 @@ def http_clip_server_get_cosine_similarity_list(image_path_list: List[str],
 # ----------------------------------------------------------------------------
 
 
-@router.put("/clip/add-phrase",
+@router.put("/clip/add-phrase-depracated",
             response_class=PrettyJSONResponse,
             tags=["deprecated"],
             description="Adds a phrase to the clip server, DEPRECATED: the name was changed to v1/clip/phrases, changes may have been introduced")
@@ -117,7 +140,7 @@ def add_phrase(request: Request,
 
 @router.post("/v1/clip/phrases",
              description="Adds a phrase to the clip server.",
-             tags=["clip"],
+             tags=["deprecated"],
              response_model=StandardSuccessResponse[None],
              status_code=201,
              responses=ApiResponseHandler.listErrors([400, 422, 500, 503]))
@@ -159,7 +182,7 @@ def add_phrase(request: Request,
 
     return http_clip_server_clip_vector_from_phrase(phrase)
 
-@router.get("/v1/clip/vectors/{phrase}", tags=["clip"], 
+@router.get("/v1/clip/vectors/{phrase}", tags=["deprecated"], 
             response_model=StandardSuccessResponse[GetClipPhraseResponse], 
             status_code = 200, 
             responses=ApiResponseHandler.listErrors([400, 422, 500]), 
@@ -331,7 +354,7 @@ def get_random_image_similarity_date_range(
 
     # Include prompt_generation_policy in the query if provided
     if prompt_generation_policy:
-        query['task_input_dict.prompt_generation_policy'] = prompt_generation_policy
+        query['prompt_generation_data.prompt_generation_policy'] = prompt_generation_policy
 
     aggregation_pipeline = [{"$match": query}]
     if size:
@@ -412,7 +435,7 @@ def check_clip_server_status():
         return {"status": "offline", "message": "Clip server is offline or unreachable."}
 
 @router.get("/v1/clip/server-status", 
-            tags=["clip"], 
+            tags=["deprecated"], 
             response_model=StandardSuccessResponse[RechableResponse],
             status_code=202, responses=ApiResponseHandler.listErrors([503]), 
             description="Checks the status of the CLIP server.")
@@ -430,3 +453,181 @@ def check_clip_server_status(request: Request):
         return response_handler.create_success_response({"reachable": reachable}, http_status_code=200, headers={"Cache-Control": "no-store"})
     except requests.exceptions.RequestException as e:
         return response_handler.create_error_response(ErrorCode.OTHER_ERROR, "CLIP server is not reachable", 503)
+
+
+
+
+
+
+#  Apis with new names and reponse format
+    
+@router.get("/clip/get-kandinsky-clip-vector", tags=["clip"], 
+            status_code=200, 
+            description="Get kandi Vector for a Phrase")
+def get_clip_vector_from_phrase(request: Request, image_path: str):
+    
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+       
+        vector = http_clip_server_get_kandinsky_vector(image_path)
+        
+        if vector is None:
+
+            return response_handler.create_error_response_v1(
+                ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="image_path not found",
+                http_status_code=404,
+    
+            )
+
+        return response_handler.create_success_response_v1(
+            response_data= vector, 
+            http_status_code=200, 
+ 
+        )
+
+    except Exception as e:
+        print(f"Exception occurred: {e}")  # Print statement 5
+        return response_handler.create_error_response_v1(
+            ErrorCode.OTHER_ERROR, 
+            error_string="Clip server error",
+            http_status_code = 500, 
+
+        )
+
+
+@router.post("/clip/add-phrase",
+             description="Adds a phrase to the clip server.",
+             response_model=StandardSuccessResponseV1[None],
+             tags=["clip"],
+             responses=ApiResponseHandlerV1.listErrors([400, 422, 500, 503]))
+def add_phrase_v1(request: Request, phrase: str):
+    response_handler = ApiResponseHandlerV1(request)
+
+    try:
+        if not phrase:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS, 
+                error_string="Phrase is required", 
+                http_status_code=400,
+    
+            )
+
+        status_code, _ = http_clip_server_add_phrase(phrase)  
+
+        if 200 <= status_code < 300:
+            return response_handler.create_success_response_v1(
+                response_data=None, 
+                http_status_code=201, 
+    
+            )
+        else:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.OTHER_ERROR,
+                error_string="Clip server error", 
+                http_status_code=500,        
+    
+            )
+
+    except Exception as e:
+        traceback.print_exc()
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string="Internal server error", 
+            http_status_code=500,
+
+        )
+
+@router.get("/clip/get-clip-vector", tags=["clip"], 
+            response_model=StandardSuccessResponseV1[GetClipPhraseResponse], 
+            status_code=200, 
+            responses=ApiResponseHandlerV1.listErrors([400,404,422,500]), 
+            description="Get Clip Vector for a Phrase")
+def get_clip_vector_from_phrase(request: Request, phrase: str):
+    
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+       
+        vector = http_clip_server_clip_vector_from_phrase(phrase)
+        
+        if vector is None:
+
+            return response_handler.create_error_response_v1(
+                ErrorCode.ELEMENT_NOT_FOUND,
+                "Phrase not found",
+                http_status_code=404,
+    
+            )
+
+        return response_handler.create_success_response_v1(
+            response_data= vector, 
+            http_status_code=200, 
+ 
+        )
+
+    except Exception as e:
+        print(f"Exception occurred: {e}")  # Print statement 5
+        return response_handler.create_error_response_v1(
+            ErrorCode.OTHER_ERROR, 
+            "Internal server error", 
+            http_status_code = 500, 
+
+        )
+
+
+@router.get("/clip/get-server-status", 
+            tags=["clip"], 
+            response_model=StandardSuccessResponseV1[RechableResponse],  
+            status_code=200,  
+            responses=ApiResponseHandlerV1.listErrors([503]),  # Adapt to use ApiResponseHandlerV1
+            description="Checks the status of the CLIP server")
+def check_clip_server_status(request: Request):
+    response_handler = ApiResponseHandlerV1(request)  
+    try:
+        # Update the URL to include '/docs'
+        response = requests.get(CLIP_SERVER_ADDRESS + "/docs")
+        reachable = response.status_code == status.HTTP_200_OK  
+        # Adjust the success response creation to match the new handler
+        return response_handler.create_success_response_v1(
+            response_data={"reachable": reachable},  
+            http_status_code=200,    
+ 
+        )
+    except requests.exceptions.RequestException as e:
+        # Print statement for debugging
+        print(f"Exception occurred: {e}")  
+        # Adjust the error response creation to match the new handler
+        return response_handler.create_error_response_v1(
+            ErrorCode.OTHER_ERROR, 
+            "CLIP server is not reachable", 
+            503, 
+
+        )
+
+
+
+bucket_name = "datasets"
+base_folder = "external-images"
+
+@router.post("/upload-image")
+async def upload_image(file: UploadFile = File(...)):
+    # Initialize MinIO client
+    minio_client = cmd.get_minio_client(minio_access_key="v048BpXpWrsVIHUfdAix", minio_secret_key="4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu")
+    
+    # Find or create the next available folder and get the next image index
+    next_folder, next_index = find_or_create_next_folder_and_index(minio_client, bucket_name, base_folder)
+
+    # Construct the file path with sequential naming
+    file_name = f"{next_index:06}.jpg"  # Format index as a zero-padded string
+    file_path = f"{next_folder}/{file_name}"
+
+    try:
+        await file.seek(0)  # Go to the start of the file
+        content = await file.read()  # Read file content into bytes
+        content_stream = io.BytesIO(content)
+        # Upload the file content
+        cmd.upload_data(minio_client, bucket_name, file_path, content_stream)
+        
+        return JSONResponse(status_code=200, content={"message": f"File uploaded successfully to {file_path}."})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"MinIO error: {e}")

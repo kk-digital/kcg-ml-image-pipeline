@@ -3,10 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 import pymongo
 from bson.objectid import ObjectId
 from fastapi.responses import JSONResponse
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode,  StandardErrorResponse, StandardSuccessResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode,  StandardErrorResponseV1, StandardSuccessResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi import status, Request
 from dotenv import dotenv_values
+from datetime import datetime
 from orchestration.api.api_clip import router as clip_router
 from orchestration.api.api_dataset import router as dataset_router
 from orchestration.api.api_image import router as image_router
@@ -24,11 +25,12 @@ from orchestration.api.api_residual import router as residual_router
 from orchestration.api.api_percentile import router as percentile_router
 from orchestration.api.api_residual_percentile import router as residual_percentile_router
 from orchestration.api.api_image_by_rank import router as image_by_rank_router
-from orchestration.api.api_queue_ranking import router as queue_ranking
+from orchestration.api.api_queue_ranking import router as queue_ranking_router
 from orchestration.api.api_active_learning import router as active_learning 
-from orchestration.api.api_active_learning_policy import router as active_learning_policy
-from orchestration.api.api_pseudo_tag import router as pseudo_tags
-from orchestration.api.api_worker import router as worker
+from orchestration.api.api_active_learning_policy import router as active_learning_policy_router
+from orchestration.api.api_pseudo_tag import router as pseudo_tags_router
+from orchestration.api.api_worker import router as worker_router
+from orchestration.api.api_inpainting_job import router as inpainting_job_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -59,11 +61,13 @@ app.include_router(sigma_score_router)
 app.include_router(residual_router)
 app.include_router(percentile_router)
 app.include_router(residual_percentile_router)
-app.include_router(queue_ranking)
+app.include_router(queue_ranking_router)
 app.include_router(active_learning)
-app.include_router(active_learning_policy)
-app.include_router(pseudo_tags)
-app.include_router(worker)
+app.include_router(active_learning_policy_router)
+app.include_router(pseudo_tags_router)
+app.include_router(worker_router)
+app.include_router(inpainting_job_router)
+
 
 
 def get_minio_client(minio_access_key, minio_secret_key):
@@ -99,14 +103,24 @@ def create_index_if_not_exists(collection, index_key, index_name):
 # Define the exception handler
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    return JSONResponse(
+    print(exc.errors())
+    start_time = datetime.now()  # Capture start time at the beginning of request processing
+    end_time = datetime.now()  # Capture end time when handling the exception
+    duration = (end_time - start_time).total_seconds()
+    
+    return PrettyJSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content=StandardErrorResponse(
-            url=str(request.url),
-            duration=0,  
-            errorCode=ErrorCode.INVALID_PARAMS.value,
-            errorString="Validation error"
-        ).dict(),
+        content={
+            "request_error_string": "Validation error",
+            "request_error_code": ErrorCode.INVALID_PARAMS.value,  # Ensure this matches the expected format
+            "request_url": str(request.url),
+            "request_dictionary": dict(request.query_params), 
+            "request_method": request.method,
+            "request_time_total": duration,
+            "request_time_start": start_time.isoformat(),
+            "request_time_finished": end_time.isoformat(),
+            "request_response_code": status.HTTP_422_UNPROCESSABLE_ENTITY
+        },
     )
 
 
@@ -137,6 +151,11 @@ def startup_db_client():
     create_index_if_not_exists(app.completed_jobs_collection ,completed_jobs_compound_index, 'completed_jobs_compound_index')
 
     app.failed_jobs_collection = app.mongodb_db["failed-jobs"]
+
+    #inpainting jobs
+    app.pending_inpainting_jobs_collection = app.mongodb_db["pending-inpainting-jobs"]
+    app.in_progress_inpainting_jobs_collection = app.mongodb_db["in-progress-inpainting-jobs"]
+    app.completed_inpainting_jobs_collection = app.mongodb_db["completed-inpainting-jobs"]
 
     # used to store sequential ids of generated images
     app.dataset_sequential_id_collection = app.mongodb_db["dataset-sequential-id"]

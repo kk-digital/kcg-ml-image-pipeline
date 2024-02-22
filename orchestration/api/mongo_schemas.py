@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, constr, validator
-from typing import Union, Optional
+from typing import List, Union, Optional
 import re
 
 class Task(BaseModel):
@@ -8,7 +8,7 @@ class Task(BaseModel):
     model_name: Union[str, None] = None
     model_file_name: Union[str, None] = None
     model_file_path: Union[str, None] = None
-    sd_model_hash: Union[str, None] = None
+    model_hash: Union[str, None] = None
     task_creation_time: Union[str, None] = None
     task_start_time: Union[str, None] = None
     task_completion_time: Union[str, None] = None
@@ -17,6 +17,7 @@ class Task(BaseModel):
     task_input_file_dict: Union[dict, None] = None
     task_output_file_dict: Union[dict, None] = None
     task_attributes_dict: Union[dict, None] = {}
+    prompt_generation_data: Union[dict, None] = {}
 
     def to_dict(self):
         return {
@@ -25,7 +26,7 @@ class Task(BaseModel):
             "model_name": self.model_name,
             "model_file_name": self.model_file_name,
             "model_file_path": self.model_file_path,
-            "sd_model_hash": self.sd_model_hash,
+            "model_hash": self.model_hash,
             "task_creation_time": self.task_creation_time,
             "task_start_time": self.task_start_time,
             "task_completion_time": self.task_completion_time,
@@ -34,8 +35,13 @@ class Task(BaseModel):
             "task_input_file_dict": self.task_input_file_dict,
             "task_output_file_dict": self.task_output_file_dict,
             "task_attributes_dict": self.task_attributes_dict,
+            "prompt_generation_data": self.prompt_generation_data
         }
 
+class KandinskyTask(BaseModel):
+    job: Task # task data
+    positive_embedding: list
+    negative_embedding: Union[list, None] = None
 
 class SequentialID:
     dataset_name: str

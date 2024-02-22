@@ -6,12 +6,19 @@ from fastapi.responses import JSONResponse
 from enum import Enum
 import time
 from fastapi import Request
-from typing import TypeVar, Generic, List
+from typing import TypeVar, Generic, List, Any, Dict, Optional
 from pydantic import BaseModel
 from .mongo_schemas import TagDefinition, TagCategory
 from datetime import datetime
+from minio import Minio
 from dateutil import parser
+from datetime import datetime
+import os
+from .mongo_schemas import ImageTag
 
+
+class ListImageTag(BaseModel):
+     images: List[ImageTag]
 
 
 class RechableResponse(BaseModel):
@@ -32,6 +39,9 @@ class TagsListResponse(BaseModel):
 class TagCountResponse(BaseModel):
     tag_id: int
     count: int
+
+class TagIdResponse(BaseModel):
+    tag_id: int
 
 class GetClipPhraseResponse(BaseModel):
     phrase : str
@@ -82,6 +92,7 @@ class PrettyJSONResponse(Response):
 
 
 class ErrorCode(Enum):
+    SUCCESS = 0
     OTHER_ERROR = 1
     ELEMENT_NOT_FOUND = 2
     INVALID_PARAMS = 3
@@ -151,3 +162,153 @@ class ApiResponseHandler:
         )
 
      
+
+
+class StandardSuccessResponseV1(BaseModel, Generic[T]):
+    request_url: str
+    request_dictionary: dict 
+    request_method: str
+    request_time_total: float
+    request_time_start: datetime 
+    request_time_finished: datetime
+    request_response_code: int 
+    response: T 
+
+
+class StandardErrorResponseV1(BaseModel):
+    request_error_string: str = ""
+    request_error_code: int = -1
+    request_url: str
+    request_dictionary: dict 
+    request_method: str
+    request_time_total: float
+    request_time_start: datetime 
+    request_time_finished: datetime
+    request_response_code: int 
+
+     
+class ApiResponseHandlerV1:
+    def __init__(self, request: Request, body_data: Optional[Dict[str, Any]] = None):
+        self.request = request
+        self.url = str(request.url)
+        self.start_time = datetime.now() 
+        self.query_params = dict(request.query_params)
+        self.request_data = {
+            "body": body_data or {},  # Set from the provided body data
+            "query": dict(request.query_params)  # Extracted from request
+        }
+
+    
+    def _elapsed_time(self) -> float:
+        return datetime.now() - self.start_time
+    
+    @staticmethod
+    def listErrors(errors: List[int]) -> dict:
+        repsonse = {}
+        for err in errors:
+            repsonse[err] = {"model": StandardErrorResponseV1}
+        return repsonse
+
+    def create_success_response_v1(
+        self,
+        response_data: dict,
+        http_status_code: int, 
+        headers: dict = {"Cache-Control": "no-store"},
+    ):
+        # Validate the provided HTTP status code
+        if not 200 <= http_status_code < 300:
+            raise ValueError("Invalid HTTP status code for a success response. Must be between 200 and 299.")
+
+        response_content = {
+            "request_error_string": '',
+            "request_error_code": 0, 
+            "request_url": self.url,
+            "request_dictionary": self.request_data,  # Or adjust how you access parameters
+            "request_method": self.request.method,
+            "request_time_total": str(self._elapsed_time()),
+            "request_time_start": self.start_time.isoformat(),  
+            "request_time_finished": datetime.now().isoformat(), 
+            "request_response_code": http_status_code,
+            "response": response_data
+        }
+        return PrettyJSONResponse(status_code=http_status_code, content=response_content, headers=headers)
+
+
+    def create_success_delete_response_v1(
+            self, 
+            reachable: bool, 
+            http_status_code: int,
+            headers: dict = {"Cache-Control": "no-store"} ):
+        """Construct a success response for deletion operations."""
+        response_content = {
+            "request_error_string": '',
+            "request_error_code": 0, 
+            "request_url": self.url,
+            "request_dictionary": self.request_data,
+            "request_method": self.request.method,
+            "request_time_total": self._elapsed_time(),
+            "request_time_start": self.start_time.isoformat(),
+            "request_time_finished": datetime.now().isoformat(),
+            "request_response_code": http_status_code,
+            "response": {"reachable": reachable}
+        }
+        return PrettyJSONResponse(status_code=http_status_code, content=response_content, headers=headers)
+
+    def create_error_response_v1(
+            self,
+            error_code: ErrorCode,
+            error_string: str,
+            http_status_code: int,
+            headers: dict = {"Cache-Control": "no-store"},
+        ):
+            
+            response_content = {
+                "request_error_string": error_string,
+                "request_error_code": error_code.value,  # Using .name for the enum member name
+                "request_url": self.url,
+                "request_dictionary": self.request_data,  # Convert query params to a more usable dict format
+                "request_method": self.request.method,
+                "request_time_total": str(self._elapsed_time()),
+                "request_time_start": self.start_time.isoformat(),
+                "request_time_finished": datetime.now().isoformat(),
+                "request_response_code": http_status_code
+            }
+            return PrettyJSONResponse(status_code=http_status_code, content=response_content, headers=headers)
+
+            
+
+def find_or_create_next_folder_and_index(client: Minio, bucket: str, base_folder: str) -> (str, int):
+    """
+    Finds the next folder for storing an image, creating a new one if the last is full,
+    and determines the next image index.
+    """
+    try:
+        objects = client.list_objects(bucket, prefix=base_folder+"/", recursive=True)
+        folder_counts = {}
+        latest_index = -1  # Start before the first possible index
+        
+        for obj in objects:
+            folder, filename = os.path.split(obj.object_name)
+            folder_counts[folder] = folder_counts.get(folder, 0) + 1
+            
+            # Attempt to parse the filename as an index
+            try:
+                index = int(os.path.splitext(filename)[0])
+                latest_index = max(latest_index, index)
+            except ValueError:
+                pass  # Filename isn't a simple integer index
+
+        if folder_counts:
+            sorted_folders = sorted(folder_counts.items(), key=lambda x: x[0])
+            last_folder, count = sorted_folders[-1]
+            if count < 1000:
+                return last_folder, latest_index + 1
+            else:
+                folder_number = int(last_folder.split('/')[-1]) + 1
+                new_folder = f"{base_folder}/{folder_number:04d}"
+                return new_folder, 0  # Start indexing at 0 for a new folder
+        else:
+            # No folders exist yet, start with the first one
+            return f"{base_folder}/0001", 0
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"MinIO error: {e}")

@@ -68,28 +68,16 @@ def train_classifier(minio_ip_addr=None,
                                      pooling_strategy=pooling_strategy,
                                      train_percent=train_percent)
     tag_loader.load_dataset()
-    training_positive_features, training_positive_targets = tag_loader.get_training_positive_features()
-    validation_positive_features, validation_positive_targets = tag_loader.get_validation_positive_features()
-    training_negative_features, training_negative_targets = tag_loader.get_training_negative_features()
-    validation_negative_features, validation_negative_targets = tag_loader.get_validation_negative_features()
 
     # get dataset name
     dataset_name = tag_loader.dataset_name
     output_path = "{}/models/classifiers/{}".format(dataset_name, tag_name)
 
     # mix training positive and negative
-    training_features, training_targets = tag_loader.get_shuffled_positive_and_negative(
-        positive_features=training_positive_features,
-        positive_targets=training_positive_targets,
-        negative_features=training_negative_features,
-        negative_targets=training_negative_targets)
+    training_features, training_targets = tag_loader.get_shuffled_positive_and_negative_training()
 
     # mix validation positive and negative
-    validation_features, validation_targets = tag_loader.get_shuffled_positive_and_negative(
-        positive_features=validation_positive_features,
-        positive_targets=validation_positive_targets,
-        negative_features=validation_negative_features,
-        negative_targets=validation_negative_targets)
+    validation_features, validation_targets = tag_loader.get_shuffled_positive_and_negative_validation()
 
     # get final filename
     sequence = 0
@@ -118,10 +106,7 @@ def train_classifier(minio_ip_addr=None,
     (train_pred,
      validation_pred,
      training_loss_per_epoch,
-     validation_loss_per_epoch) = classifier_model.train(training_inputs=training_features,
-                                                         training_targets=training_targets,
-                                                         validation_inputs=validation_features,
-                                                         validation_targets=validation_targets)
+     validation_loss_per_epoch) = classifier_model.train(tag_loader=tag_loader)
 
     # save model
     # Upload model to minio

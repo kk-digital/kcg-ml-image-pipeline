@@ -25,6 +25,7 @@ from kandinsky.model_paths import PRIOR_MODEL_PATH, DECODER_MODEL_PATH, INPAINT_
 
 class KandinskyPipeline:
     def __init__(self,
+                 device,
                  width=512,
                  height=512,
                  batch_size=1,
@@ -51,12 +52,8 @@ class KandinskyPipeline:
         self.height=height
 
         self.inpainting_model=None
+        self.device = device
 
-        # get device
-        if torch.cuda.is_available():
-            self.device = 'cuda'
-        else:
-            self.device = 'cpu'
 
     def load_models(self, prior_path=PRIOR_MODEL_PATH, decoder_path= DECODER_MODEL_PATH, 
                     inpaint_decoder_path= INPAINT_DECODER_MODEL_PATH, task_type="inpainting"):
@@ -87,6 +84,13 @@ class KandinskyPipeline:
             
             logger.debug(f"Kandinsky Inpainting model successfully loaded")
    
+    def set_models(self, image_encoder, unet, prior_model, decoder_model):
+        # setting the kandinsky submodels directly
+        self.image_encoder=image_encoder
+        self.unet = unet
+        self.prior = prior_model
+        self.decoder = decoder_model
+        
     def unload_models(self):
         if self.image_encoder is not None:
             self.image_encoder.to("cpu")
@@ -123,67 +127,138 @@ class KandinskyPipeline:
         initial_img,
         img_mask,
         negative_prior_prompt="",
-        negative_decoder_prompt=""
+        negative_decoder_prompt="",
+        seed=None
     ):
         
-        img_emb = self.prior(prompt=prompt, num_inference_steps=self.prior_steps,
-                        num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale,
-                        negative_prompt=negative_prior_prompt)
-        negative_emb = self.prior(prompt=negative_prior_prompt, num_inference_steps=self.prior_steps,
-                             num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale)
+        if seed is not None:
+            generator=torch.Generator(device=self.device).manual_seed(seed)
+
+        with torch.no_grad():
+            if seed is not None:
+                img_emb = self.prior(prompt=prompt, num_inference_steps=self.prior_steps,
+                                num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale,
+                                negative_prompt=negative_prior_prompt, generator= generator)
+                negative_emb = self.prior(prompt=negative_prior_prompt, num_inference_steps=self.prior_steps,
+                                    num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale,
+                                    generator= generator)
+            else:
+                img_emb = self.prior(prompt=prompt, num_inference_steps=self.prior_steps,
+                                num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale,
+                                negative_prompt=negative_prior_prompt)
+                negative_emb = self.prior(prompt=negative_prior_prompt, num_inference_steps=self.prior_steps,
+                                    num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale)
+                
         if negative_decoder_prompt == "":
             negative_emb = negative_emb.negative_image_embeds
         else:
             negative_emb = negative_emb.image_embeds
-        images = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
-                         num_inference_steps=self.decoder_steps, height=self.height,
-                         width=self.width, guidance_scale=self.decoder_guidance_scale,
-                         image=initial_img, mask_image=img_mask).images
-        return images[0]
+        
+        with torch.no_grad():
+            if seed is not None:
+                images, latents = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
+                                num_inference_steps=self.decoder_steps, height=self.height,
+                                width=self.width, guidance_scale=self.decoder_guidance_scale,
+                                image=initial_img, mask_image=img_mask, generator= generator)
+            
+            else:
+                images, latents = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
+                                num_inference_steps=self.decoder_steps, height=self.height,
+                                width=self.width, guidance_scale=self.decoder_guidance_scale,
+                                image=initial_img, mask_image=img_mask)
+                
+        return images[0], latents
     
     def generate_text2img(
         self,
         prompt,
         negative_prior_prompt="",
-        negative_decoder_prompt=""
+        negative_decoder_prompt="",
+        seed=None
     ):
         height, width = self.get_new_h_w(self.height, self.width)
-        img_emb = self.prior(prompt=prompt, num_inference_steps=self.prior_steps,
-                        num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale,
-                        negative_prompt=negative_prior_prompt)
-        negative_emb = self.prior(prompt=negative_decoder_prompt, num_inference_steps=self.prior_steps,
-                             num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale)
+
+        if seed is not None:
+            generator=torch.Generator(device=self.device).manual_seed(seed)
+
+        with torch.no_grad():
+            if seed is not None:
+                img_emb = self.prior(prompt=prompt, num_inference_steps=self.prior_steps,
+                                num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale,
+                                negative_prompt=negative_prior_prompt, generator= generator)
+                negative_emb = self.prior(prompt=negative_decoder_prompt, num_inference_steps=self.prior_steps,
+                                    num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale, 
+                                    generator= generator)
+            else:
+                img_emb = self.prior(prompt=prompt, num_inference_steps=self.prior_steps,
+                                num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale,
+                                negative_prompt=negative_prior_prompt)
+                negative_emb = self.prior(prompt=negative_decoder_prompt, num_inference_steps=self.prior_steps,
+                                    num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale)
+            
         if negative_decoder_prompt == "":
             negative_emb = negative_emb.negative_image_embeds
         else:
             negative_emb = negative_emb.image_embeds
-        images = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
-                         num_inference_steps=self.decoder_steps, height=height,
-                         width=width, guidance_scale=self.decoder_guidance_scale).images
-        return images[0]
+        
+        with torch.no_grad():
+            if seed is not None:
+                images, latents = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
+                                num_inference_steps=self.decoder_steps, height=height,
+                                width=width, guidance_scale=self.decoder_guidance_scale, generator=generator)
+            else:
+                images, latents = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
+                                num_inference_steps=self.decoder_steps, height=height,
+                                width=width, guidance_scale=self.decoder_guidance_scale)
+                
+        return images[0], latents
+
+    def get_zero_embed(self, batch_size=1):
+        zero_img = torch.zeros(1, 3, self.image_encoder.config.image_size, self.image_encoder.config.image_size).to(
+            device=self.device, dtype=self.image_encoder.dtype
+        )
+        zero_image_emb = self.image_encoder(zero_img)["image_embeds"]
+        zero_image_emb = zero_image_emb.repeat(batch_size, 1)
+        return zero_image_emb
 
     def generate_img2img(
         self,
-        image,
-        prompt="",
-        negative_prior_prompt="",
-        negative_decoder_prompt=""
+        init_img,
+        image_embeds,
+        negative_image_embeds=None,
+        seed=None
     ):
         height, width = self.get_new_h_w(self.height, self.width)
-        img_emb = self.prior(prompt=prompt, num_inference_steps=self.prior_steps,
-                        num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale,
-                        negative_prompt=negative_prior_prompt)
-        negative_emb = self.prior(prompt=negative_prior_prompt, num_inference_steps=self.prior_steps,
-                             num_images_per_prompt=self.batch_size, guidance_scale=self.prior_guidance_scale)
-        if negative_decoder_prompt == "":
-            negative_emb = negative_emb.negative_image_embeds
-        else:
-            negative_emb = negative_emb.image_embeds
-        images = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
-                         num_inference_steps=self.decoder_steps, height=height,
-                         width=width, guidance_scale=self.decoder_guidance_scale,
-                             strength=self.strength, image=image).images
-        return images[0]
+        if negative_image_embeds==None:
+            negative_image_embeds= self.get_zero_embed()
+        
+        with torch.no_grad():
+            if seed:
+                generator=torch.Generator(device=self.device).manual_seed(seed)
+                images, latents = self.decoder(
+                    image=init_img,
+                    image_embeds=image_embeds,
+                    negative_image_embeds= negative_image_embeds, 
+                    guidance_scale=self.decoder_guidance_scale,
+                    num_inference_steps=self.decoder_steps,
+                    height=height,
+                    width=width,
+                    strength= self.strength,
+                    generator= generator
+                )
+            else:
+                images, latents = self.decoder(
+                    image=init_img,
+                    image_embeds=image_embeds,
+                    negative_image_embeds= negative_image_embeds, 
+                    guidance_scale=self.decoder_guidance_scale,
+                    num_inference_steps=self.decoder_steps,
+                    height=height,
+                    width=width,
+                    strength= self.strength
+                )
+        
+        return images[0], latents
     
     def convert_image_to_png(self, image):
         # convert image to bytes arr

@@ -396,4 +396,4 @@ class KandinskyV22Img2ImgPipeline(DiffusionPipeline):
         if not return_dict:
             return (image,)
 
-        return ImagePipelineOutput(images=image)
+        return ImagePipelineOutput(images=image).images, latents

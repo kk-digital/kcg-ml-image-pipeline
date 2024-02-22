@@ -13,7 +13,7 @@ base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
 from utility.minio import cmd
-
+from data_loader.tagged_data_loader import TaggedDatasetLoader
 class ELMRegression():
     def __init__(self, device=None):
         self.model_type = 'elm-regression'
@@ -62,16 +62,18 @@ class ELMRegression():
 
 
     def train(self,
-              training_feature_vector,
-              training_targets,
-              validation_feature_vector,
-              validation_targets
+              tag_loader: TaggedDatasetLoader
               ):
         print("Training...")
-        training_feature_vector = training_feature_vector.to(self._device)
+
+        training_features, training_targets = tag_loader.get_shuffled_positive_and_negative_training()
+        validation_features, validation_targets = tag_loader.get_shuffled_positive_and_negative_validation()
+
+        training_feature_vector = training_features.to(self._device)
         training_targets = training_targets.to(self._device)
-        validation_feature_vector=validation_feature_vector.to(self._device)
-        validation_targets=validation_targets.to(self._device)
+        validation_feature_vector = validation_features.to(self._device)
+        validation_targets = validation_targets.to(self._device)
+
         print("training feature vector shape=", training_feature_vector.shape)
         print("_weight shape=",self._weight.shape)
         time_started = time.time()

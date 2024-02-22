@@ -38,7 +38,7 @@ if __name__ == '__main__':
                              pooling_strategy=args.pooling_strategy,
                              train_percent=args.train_percent)
         except Exception as e:
-            print("Error training model for tag {}: {}".format(tag_name, e))
+            print("Error training model for tag {}: {}".format(args.tag_name, e))
     else:
         # train for all
         tags = http_get_tag_list()
