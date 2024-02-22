@@ -982,8 +982,11 @@ def evaluate_model(model, dataloader_original, dataloader_fake):
                 class_original = softmax_to_class(torch.nn.functional.softmax(class_original, dim=1))
                 class_fake = softmax_to_class(torch.nn.functional.softmax(class_fake, dim=1))
 
-                total_correct += torch.sum(class_original == labels_original).item()  #+ torch.sum(class_fake == labels_fake).item()
+                total_correct += torch.sum((class_original == labels_original).float()).item() #+ torch.sum(class_fake == labels_fake).item()
                 total_samples += labels_original.size(0) #+ labels_fake.size(0)
+
+
+
 
                 total_class_original_conf += torch.sum(torch.max(torch.nn.functional.softmax(class_original, dim=1))).item()
                 total_class_fake_conf += torch.sum(torch.max(torch.nn.functional.softmax(class_fake, dim=1))).item()
