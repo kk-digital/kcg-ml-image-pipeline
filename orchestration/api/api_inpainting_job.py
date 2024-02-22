@@ -32,15 +32,15 @@ def get_job(request: Request, task_type= None, model_type=""):
         query["task_type"] = {"$regex": model_type}
 
     # Query to find the n newest elements based on the task_completion_time
-    job = request.app.pending_jobs_collection.find_one(query, sort=[("task_creation_time", pymongo.ASCENDING)])
+    job = request.app.pending_inpainting_jobs_collection.find_one(query, sort=[("task_creation_time", pymongo.ASCENDING)])
 
     if job is None:
         raise HTTPException(status_code=204)
 
     # delete from pending
-    request.app.pending_jobs_collection.delete_one({"uuid": job["uuid"]})
+    request.app.pending_inpainting_jobs_collection.delete_one({"uuid": job["uuid"]})
     # add to in progress
-    request.app.in_progress_jobs_collection.insert_one(job)
+    request.app.in_progress_inpainting_jobs_collection.insert_one(job)
 
     # remove the auto generated field
     job.pop('_id', None)
