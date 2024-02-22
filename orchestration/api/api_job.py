@@ -155,7 +155,7 @@ def add_job(request: Request, kandinsky_task: KandinskyTask):
         "negative_image_embedding": kandinsky_task.negative_embedding
     }
     
-    output_file_path = os.path.join(dataset_name, task.task_input_dict['file_path'])
+    output_file_path = os.path.join(task.task_input_dict["dataset"], task.task_input_dict['file_path'])
     image_embeddings_path = output_file_path.replace(".jpg", "_embedding.msgpack")
 
     msgpack_string = msgpack.packb(image_embedding_data, default=encode_ndarray, use_bin_type=True, use_single_float=True)
