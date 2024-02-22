@@ -135,10 +135,16 @@ for i in range(len(train_set.targets)):
 
 notcat_ds = torch.utils.data.Subset(train_set, notcat_idx)
 
+
+train_set = train_dataset
+
 num_samples = len(train_set)
 print("the number of samples is ", num_samples)
 train_size = int(0.8 * num_samples)
 val_size = num_samples - train_size
+
+
+
 
 
 train_set, val_set = random_split(train_set, [train_size, val_size])
@@ -147,6 +153,8 @@ train_set, val_set = random_split(train_set, [train_size, val_size])
 
 train_loader = data.DataLoader(train_set, batch_size=64, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
 val_loader = data.DataLoader(val_set, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+
+
 dog_loader = data.DataLoader(notcat_ds, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 ood_loader = data.DataLoader(oodset, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
@@ -601,7 +609,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=5,
+                         max_epochs=10,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
