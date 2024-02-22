@@ -968,7 +968,7 @@ def evaluate_model(model, dataloader_original, dataloader_fake):
         for img1_original, labels_original in zip(batch_original[0], batch_original[1]):
             img1_original = img1_original.unsqueeze(0)  # Add batch dimension (1, C, H, W)
             labels_original = labels_original.unsqueeze(0)
-            print("original label: ",labels_original)
+            
 
             for img2_fake, labels_fake in zip(batch_fake[0], batch_fake[1]):
                 img2_fake = img2_fake.unsqueeze(0)  # Add batch dimension (1, C, H, W)
@@ -982,8 +982,8 @@ def evaluate_model(model, dataloader_original, dataloader_fake):
 
                 class_original = softmax_to_class(torch.nn.functional.softmax(class_original, dim=1))
                 class_fake = softmax_to_class(torch.nn.functional.softmax(class_fake, dim=1))
-
-                total_correct += torch.sum((class_original == labels_original).float()).item() #+ torch.sum(class_fake == labels_fake).item()
+                print("label original: ", labels_original, "class original: ",class_original )
+                total_correct += torch.sum(class_original == softmax_to_class(labels_original)).item()  #+ torch.sum(class_fake == labels_fake).item()
                 total_samples += labels_original.size(0) #+ labels_fake.size(0)
 
 
