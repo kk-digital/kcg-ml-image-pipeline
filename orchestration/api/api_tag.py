@@ -1276,8 +1276,8 @@ def list_tag_categories(request: Request):
              response_model=StandardSuccessResponseV1[TagDefinition],
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def add_new_tag_definition_v1(request: Request, tag_data: NewTagRequest):
-    tag_data = jsonable_encoder(tag_data)
-    response_handler = ApiResponseHandlerV1(request, body_data=tag_data)
+    tag_data_dict = jsonable_encoder(tag_data)
+    response_handler = ApiResponseHandlerV1(request, body_data=tag_data_dict)
     try:
         # Check for existing tag_category_id
         if tag_data.tag_category_id is not None:
