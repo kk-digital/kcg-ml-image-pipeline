@@ -1,4 +1,4 @@
-
+from typing import Union
 import requests
 import json
 from urllib.parse import urlencode
