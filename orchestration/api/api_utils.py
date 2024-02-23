@@ -40,11 +40,17 @@ class TagCountResponse(BaseModel):
     tag_id: int
     count: int
 
+class UrlResponse(BaseModel):
+    url: str
+
 class TagIdResponse(BaseModel):
     tag_id: int
 
 class GetClipPhraseResponse(BaseModel):
     phrase : str
+    clip_vector: List[List[float]]
+
+class GetKandinskyClipResponse(BaseModel):
     clip_vector: List[List[float]]
 
 class ImageData(BaseModel):
