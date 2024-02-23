@@ -156,7 +156,26 @@ val_loader = data.DataLoader(val_set, batch_size=64, shuffle=False, drop_last=Tr
 
 
 dog_loader = data.DataLoader(notcat_ds, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
-ood_loader = data.DataLoader(oodset, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+#ood_loader = data.DataLoader(oodset, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+
+
+
+############ OOD
+oodset = SVHN(root='./data',  transform=transform, download=True)
+
+num_samples_ood = len(oodset)
+print("the number of ood samples is ", num_samples_ood)
+train_size_ood = int(0.8 * num_samples_ood)
+val_size_ood = num_samples_ood - train_size_ood
+
+
+train_set_ood, val_set_ood = random_split(oodset, [train_size_ood, val_size_ood])
+
+train_ood_loader = data.DataLoader(train_set_ood, batch_size=64, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+val_ood_loader = data.DataLoader(val_set_ood, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+
+
+
 
 for images, _ in train_loader:
     # Unpack the batch
@@ -508,7 +527,8 @@ class DeepEnergyModel(pl.LightningModule):
         real_imgs.add_(small_noise).clamp_(min=-1.0, max=1.0)
 
         # Obtain samples
-        fake_imgs, fake_labels =  next(iter(ood_loader))
+        fake_imgs, fake_labels =  next(iter(train_ood_loader))
+        fake_imgs = fake_imgs.to(device)
         #print("The shapes are ", real_imgs.shape)
         #print("The shapes are ", fake_imgs)
         # Pass all images through the model
