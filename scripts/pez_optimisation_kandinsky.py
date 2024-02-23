@@ -44,6 +44,13 @@ class KandinskyImageGenerator:
         self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
                                                 minio_secret_key=minio_secret_key)
         
+        # get device
+        if torch.cuda.is_available():
+            device = 'cuda'
+        else:
+            device = 'cpu'
+        self.device = torch.device(device)
+        
         # load kandinsky clip
         clip= KandinskyCLIPImageEncoder(device= self.device)
         clip.load_submodels()
