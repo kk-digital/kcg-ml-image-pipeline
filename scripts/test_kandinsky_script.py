@@ -76,7 +76,7 @@ def main():
         for i in range(args.num_variants):
             try:
                 response = generate_img2img_generation_jobs_with_kandinsky(
-                            image_embedding= image_embedding[0],
+                            image_embedding= image_embedding,
                             negative_image_embedding=None,
                             dataset_name="test-generations",
                             prompt_generation_policy="img2img_kandinsky")
