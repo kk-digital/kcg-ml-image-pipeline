@@ -1,3 +1,7 @@
+import sys
+
+base_directory = "./"
+sys.path.insert(0, base_directory)
 
 from utility.http.constants import SERVER_ADDRESS
 from utility.http.http_request_utils import get_url_with_query_params, http_request
