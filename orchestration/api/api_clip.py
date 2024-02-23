@@ -612,8 +612,13 @@ def check_clip_server_status(request: Request):
 bucket_name = "datasets"
 base_folder = "external-images"
 
-@router.post("/upload-image")
-async def upload_image(file: UploadFile = File(...)):
+@router.post("/upload-image",
+             status_code=201, 
+             response_model=StandardSuccessResponseV1[UrlResponse],
+             responses=ApiResponseHandlerV1.listErrors([422,500]),
+             description="Upload Image on minio")
+async def upload_image(request:Request, file: UploadFile = File(...)):
+    response_handler = ApiResponseHandlerV1(request)
     # Initialize MinIO client
     minio_client = cmd.get_minio_client(minio_access_key="v048BpXpWrsVIHUfdAix", minio_secret_key="4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu")
     
@@ -631,16 +636,23 @@ async def upload_image(file: UploadFile = File(...)):
         # Upload the file content
         cmd.upload_data(minio_client, bucket_name, file_path, content_stream)
         
-        return JSONResponse(status_code=200, content={"message": f"File uploaded successfully to {file_path}."})
+        return response_handler.create_success_response_v1(
+            response_data = file_path, 
+            http_status_code=201,)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"MinIO error: {e}")
+        print(f"Exception occurred: {e}") 
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string="Internal server error",
+            http_status_code = 500, 
+        )
     
 @router.post("/upload-image-v1",
              status_code=201, 
              response_model=StandardSuccessResponseV1[UrlResponse],
              responses=ApiResponseHandlerV1.listErrors([422,500]),
              description="Upload Image on minio")
-async def upload_image(request:Request, file: UploadFile = File(...)):
+async def upload_image_v1(request:Request, file: UploadFile = File(...)):
     response_handler = ApiResponseHandlerV1(request)
     # Initialize MinIO client
     minio_client = cmd.get_minio_client(minio_access_key="v048BpXpWrsVIHUfdAix", minio_secret_key="4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu")
