@@ -43,7 +43,7 @@ def calculate_image_feature_vector(worker_state: WorkerState, input_file_path: s
     return input_file_hash, clip_feature_vector_arr
 
 
-def run_clip_calculation_task(worker_state: WorkerState, generation_task: GenerationTask):
+def run_clip_calculation_task(worker_state: WorkerState, generation_task: GenerationTask, model_type:str):
     input_file_path = generation_task.task_input_dict["input_file_path"]
     input_file_hash, clip_feature_vector = calculate_image_feature_vector(worker_state=worker_state,
                                                                           input_file_path=input_file_path,
@@ -51,7 +51,11 @@ def run_clip_calculation_task(worker_state: WorkerState, generation_task: Genera
                                                                           generation_task.task_input_dict[
                                                                               "input_file_hash"])
     output_path = os.path.splitext(input_file_path)[0]
-    output_path = output_path + "_clip.msgpack"
+
+    if model_type=="kandinsky":
+        output_path = output_path + "_clip_kandinsky.msgpack"
+    else:
+        output_path = output_path + "_clip.msgpack"
 
     clip_feature_dict = {"clip-feature-vector": clip_feature_vector}
     clip_feature_msgpack = msgpack.packb(clip_feature_dict)

@@ -476,6 +476,16 @@ def get_list_completed_jobs(request: Request, limit: Optional[int] = Query(10, a
 
     return jobs
 
+@router.get("/queue/image-generation/list-completed-by-task-type", response_class=PrettyJSONResponse)
+def get_list_completed_jobs_by_dataset(request: Request, task_type, limit: Optional[int] = Query(10, alias="limit")):
+    # Use the limit parameter in the find query to limit the results
+    jobs = list(request.app.completed_jobs_collection.find({"task_type": task_type}).limit(limit))
+
+    for job in jobs:
+        job.pop('_id', None)
+
+    return jobs
+
 @router.get("/queue/image-generation/list-completed-by-dataset", response_class=PrettyJSONResponse)
 def get_list_completed_jobs_by_dataset(request: Request, dataset, limit: Optional[int] = Query(10, alias="limit")):
     # Use the limit parameter in the find query to limit the results
