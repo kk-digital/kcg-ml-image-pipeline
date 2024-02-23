@@ -476,6 +476,29 @@ def get_list_completed_jobs(request: Request, limit: Optional[int] = Query(10, a
 
     return jobs
 
+
+@router.get("/queue/image-generation/list-completed-with-better-name", response_class=PrettyJSONResponse)
+def get_list_completed_jobs(request: Request, limit: Optional[int] = Query(10, alias="limit")):
+    # Use the limit parameter in the find query to limit the results
+    jobs = list(request.app.completed_jobs_collection.find({}).limit(limit))
+    
+    # Mapping for renaming task types
+    task_type_mapping = {
+        "inpainting_kandinsky": "kandinsky-2-inpainting",
+        "image_generation_kandinsky": "kandinsky-2-txt-to-img",
+        "img2img_generation_kandinsky": "kandinsky-2-latent-to-img"
+    }
+
+    for job in jobs:
+        job.pop('_id', None)
+
+        # Update task_type based on the mapping
+        if job.get('task_type') in task_type_mapping:
+            job['task_type'] = task_type_mapping[job['task_type']]
+
+    return jobs
+
+
 @router.get("/queue/image-generation/list-completed-by-task-type", response_class=PrettyJSONResponse)
 def get_list_completed_jobs_by_dataset(request: Request, task_type, limit: Optional[int] = Query(10, alias="limit")):
     # Use the limit parameter in the find query to limit the results
