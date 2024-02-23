@@ -699,7 +699,7 @@ from collections import namedtuple
 print("################ Training started ################")
 model = train_model(img_shape=(3,32,32),
                     batch_size=train_loader.batch_size,
-                    lr=0.01,
+                    lr=0.001,
                     beta1=0.0)
 
 print("################ Training ended ################")
