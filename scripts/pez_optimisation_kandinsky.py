@@ -38,7 +38,6 @@ class KandinskyImageGenerator:
         self.dataset= dataset
         self.model_type= model_type
         self.steps= steps
-        self.target_score= torch.tensor(target_score, dtype=torch.float, device=self.device, requires_grad=False)
 
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
@@ -50,6 +49,8 @@ class KandinskyImageGenerator:
         else:
             device = 'cpu'
         self.device = torch.device(device)
+
+        self.target_score= torch.tensor(target_score, dtype=torch.float, device=self.device, requires_grad=False)
         
         # load kandinsky clip
         clip= KandinskyCLIPImageEncoder(device= self.device)
