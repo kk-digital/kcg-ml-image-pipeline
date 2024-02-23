@@ -471,22 +471,24 @@ def get_clip_vector_from_phrase(request: Request, image_path: str):
     
     response_handler = ApiResponseHandlerV1(request)
     try:
-       
         vector = http_clip_server_get_kandinsky_vector(image_path)
         
         if vector is None:
-
             return response_handler.create_error_response_v1(
                 error_code=ErrorCode.ELEMENT_NOT_FOUND,
                 error_string="image_path not found",
                 http_status_code=404,
-    
             )
 
+        # Directly access the first element if vector is not empty and is a list of lists
+        if vector and isinstance(vector, list) and all(isinstance(elem, list) for elem in vector):
+            features_vector = vector[0]
+        else:
+            features_vector = vector  # Fallback if the structure is different
+
         return response_handler.create_success_response_v1(
-            response_data= vector, 
-            http_status_code=200, 
- 
+            response_data= features_vector, 
+            http_status_code=200,
         )
 
     except Exception as e:
