@@ -388,7 +388,8 @@ def process_jobs(worker_state):
 
                 elif task_type == 'clip_calculation_task_sd_1_5':
                     output_file_path, output_file_hash, clip_data = run_clip_calculation_task(worker_state,
-                                                                                              generation_task)
+                                                                                              generation_task,
+                                                                                              model_type="sd_1_5")
 
                     # spawn upload data and update job thread
                     thread = threading.Thread(target=upload_data_and_update_job_status, args=(
