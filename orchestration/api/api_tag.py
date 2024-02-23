@@ -277,6 +277,52 @@ def set_tag_deprecated(request: Request, tag_id: int):
         )
 
 
+@router.put("/tags/remove-deprecated", 
+              tags=["tags"],
+              status_code=200,
+              description="Set the 'deprecated' status of a tag definition to False",
+              response_model=StandardSuccessResponseV1[TagDefinition],  
+              responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
+def set_tag_deprecated(request: Request, tag_id: int):
+    response_handler = ApiResponseHandlerV1(request)
+
+    query = {"tag_id": tag_id}
+    existing_tag = request.app.tag_definitions_collection.find_one(query)
+    existing_tag = {k: str(v) if isinstance(v, ObjectId) else v for k, v in existing_tag.items()}
+
+    if existing_tag is None:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+            error_string="Tag not found.", 
+            http_status_code=404,
+            
+        )
+
+    # Check if the tag is not already deprecated
+    if not existing_tag.get("deprecated", False):
+        # Return a specific message indicating the tag is already deprecated
+        return response_handler.create_success_response_v1(
+            response_data = existing_tag, 
+            http_status_code=200,
+            
+        )
+
+    # Since the tag is not already deprecated, set the 'deprecated' status to False
+    request.app.tag_definitions_collection.update_one(query, {"$set": {"deprecated": False}})
+
+    # Retrieve the updated tag to confirm the change
+    updated_tag = request.app.tag_definitions_collection.find_one(query)
+
+    # Serialize ObjectId to string if necessary
+    updated_tag = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_tag.items()}
+
+    # Return the updated tag object, indicating the deprecation was successful
+    return response_handler.create_success_response_v1(
+        response_data = updated_tag, 
+        http_status_code=200,
+        )
+
+
 @router.patch("v1/tags/{tag_id}", 
               tags=["deprecated"],
               status_code=200,
@@ -1054,6 +1100,50 @@ def set_tag_category_deprecated(request: Request, tag_category_id: int):
         http_status_code=200,
         )
 
+@router.put("/tag-categories/remove-deprecated", 
+              tags=["tag-categories"],
+              status_code=200,
+              description="Set the 'deprecated' status of a tag category to False",
+              response_model=StandardSuccessResponseV1[TagCategory], 
+              responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
+def remove_tag_category_deprecated(request: Request, tag_category_id: int):
+    response_handler = ApiResponseHandlerV1(request)
+
+    query = {"tag_category_id": tag_category_id}
+    existing_tag_category = request.app.tag_categories_collection.find_one(query)
+    existing_tag_category = {k: str(v) if isinstance(v, ObjectId) else v for k, v in existing_tag_category.items()}
+
+    if existing_tag_category is None:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+            error_string="Tag category not found.", 
+            http_status_code=404,
+            
+        )
+
+    # Check if the tag category is not already deprecated
+    if not existing_tag_category.get("deprecated", False):
+        # Return a specific message indicating the tag category is already deprecated
+        return response_handler.create_success_response_v1(
+            response_data=existing_tag_category, 
+            http_status_code=200,
+            
+        )
+    
+    # Set the 'deprecated' status to False since it's not already deprecated
+    request.app.tag_categories_collection.update_one(query, {"$set": {"deprecated": False}})
+
+    # Retrieve the updated tag category to confirm the change
+    updated_tag_category = request.app.tag_categories_collection.find_one(query)
+
+    # Serialize ObjectId to string if necessary
+    updated_tag_category = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_tag_category.items()}
+
+    # Return the updated tag category object indicating the deprecation was successful
+    return response_handler.create_success_response_v1(
+        response_data=updated_tag_category, 
+        http_status_code=200,
+        )
 
 
 @router.get("/tags/count/{tag_id}", 
@@ -1908,5 +1998,6 @@ def delete_tag_category(request: Request, tag_category_id: int):
                                                        response_data={"wasPresent": False},
                                                        http_status_code=200,
                                                        )
+
 
 
