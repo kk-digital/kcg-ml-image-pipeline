@@ -950,7 +950,7 @@ compare_images(exmp_img, fake_image)
 
 
 # select image from ood set
-ood_imgs, _ = next(iter(ood_loader))
+ood_imgs, _ = next(iter(val_ood_loader))
 ood_img = ood_imgs[5].to(model.device)
 
 compare_images(exmp_img, ood_img)
