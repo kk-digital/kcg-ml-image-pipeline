@@ -2,6 +2,7 @@
 import requests
 import json
 from urllib.parse import urlencode
+from typing import Union
 
 # Get the URL from base url with the query params
 def get_url_with_query_params(base_url: str = 'http://localhost:8000', 
@@ -30,7 +31,7 @@ def get_url_with_query_params(base_url: str = 'http://localhost:8000',
 def http_request(url: str, method: str = "GET", 
                  json_data: dict = None, 
                  headers: dict = None, 
-                 params: dict = None) -> dict | None:
+                 params: dict = None) -> Union[dict, None]:
     """
     Make an HTTP request based on the specified method and handle the response.
 

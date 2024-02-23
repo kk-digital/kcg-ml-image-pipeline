@@ -1,10 +1,12 @@
 
+from typing import Union
+
 from utility.http.constants import SERVER_ADDRESS
 from utility.http.http_request_utils import get_url_with_query_params, http_request
 
 
 # Get request to get an available job
-def http_get_job(model_type: str = None, worker_type: str = None) -> dict | None:
+def http_get_job(model_type: str = None, worker_type: str = None) -> Union[dict, None]:
     """
     Construct a URL with query parameters by appending the specified parameters 'task_type' and 'model_type' to specific URL.
 
@@ -29,7 +31,7 @@ def http_get_job(model_type: str = None, worker_type: str = None) -> dict | None
 
 
 # Post request to add job
-def http_add_job(job: dict) -> dict | None:
+def http_add_job(job: dict) -> Union[dict, None]:
     """
     Make an HTTP POST request to add a job to the server at the specified endpoint.
  
@@ -48,7 +50,7 @@ def http_add_job(job: dict) -> dict | None:
 
 
 # Post request to add job
-def http_update_job_completed(job: dict) -> dict | None:
+def http_update_job_completed(job: dict) -> Union[dict, None]:
     """
     Make an HTTP PUT request to update the completion status of a job on the server at the specified endpoint.
 
@@ -65,7 +67,7 @@ def http_update_job_completed(job: dict) -> dict | None:
 
 
 # Update request to update job status to failed
-def http_update_job_failed(job: dict) -> dict | None:
+def http_update_job_failed(job: dict) -> Union[dict, None]:
     """
     Make an HTTP PUT request to update the failed status of a job on the server at the specified endpoint "/queue/inpainting-generation/update-failed".
 
