@@ -104,7 +104,9 @@ class KandinskyImageGenerator:
         )
         zero_image_emb = self.image_encoder(zero_img)["image_embeds"]
         zero_image_emb = zero_image_emb.repeat(batch_size, 1)
-        return zero_image_emb
+        return zero_image_emb.to(
+            device=self.device, dtype=torch.float16
+        )
 
     def generate_latent(self):
         # Ensure image embeddings require gradients
