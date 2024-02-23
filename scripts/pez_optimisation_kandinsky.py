@@ -65,10 +65,10 @@ class KandinskyImageGenerator:
         input_path=f"{self.dataset}/models/ranking/"
 
         if(self.model_type=="elm"):
-            scoring_model = ABRankingELMModel(768)
+            scoring_model = ABRankingELMModel(1280)
             file_name=f"score-elm-v1-kandinsky-clip.safetensors"
         else:
-            scoring_model= ABRankingModel(768)
+            scoring_model= ABRankingModel(1280)
             file_name=f"score-linear-kandinsky-clip.safetensors"
 
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
