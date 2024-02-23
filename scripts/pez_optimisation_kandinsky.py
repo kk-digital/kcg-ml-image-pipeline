@@ -32,13 +32,13 @@ class KandinskyImageGenerator:
                  dataset,
                  model_type,
                  steps=100,
-                 target_score=5
+                 target_score=5.0
                  ):
         
         self.dataset= dataset
         self.model_type= model_type
         self.steps= steps
-        self.target_score= target_score
+        self.target_score= torch.tensor(target_score, dtype=torch.float, device=self.device, requires_grad=False)
 
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
@@ -121,7 +121,7 @@ class KandinskyImageGenerator:
 
             # Calculate the custom score
             with torch.no_grad():
-                score = self.scoring_model.predict_clip(optimized_embedding).item()
+                score = self.scoring_model.predict_clip(optimized_embedding)
 
             # Assume we want to maximize the score, hence multiply by -1 to minimize loss
             loss = self.target_score - score
