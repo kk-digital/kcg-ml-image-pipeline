@@ -635,9 +635,9 @@ async def upload_image(request:Request, file: UploadFile = File(...)):
         content_stream = io.BytesIO(content)
         # Upload the file content
         cmd.upload_data(minio_client, bucket_name, file_path, content_stream)
-        
+        full_file_path = f"{bucket_name}/{file_path}"
         return response_handler.create_success_response_v1(
-            response_data = file_path, 
+            response_data = full_file_path, 
             http_status_code=201,)
     except Exception as e:
         print(f"Exception occurred: {e}") 
@@ -670,9 +670,9 @@ async def upload_image_v1(request:Request, file: UploadFile = File(...)):
         content_stream = io.BytesIO(content)
         # Upload the file content
         cmd.upload_data(minio_client, bucket_name, file_path, content_stream)
-        
+        full_file_path = f"{bucket_name}/{file_path}"
         return response_handler.create_success_response_v1(
-            response_data = file_path, 
+            response_data = full_file_path, 
             http_status_code=201,)
     except Exception as e:
         print(f"Exception occurred: {e}") 
