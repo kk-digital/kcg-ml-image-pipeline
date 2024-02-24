@@ -128,9 +128,6 @@ class KandinskyImageGenerator:
             # Custom loss function
             loss = self.target_score - score
 
-            if loss<0:
-                break
-
             # Backpropagate
             loss.backward()
             optimizer.step()
@@ -150,15 +147,17 @@ def main():
     
     result_latent=generator.generate_latent()
 
-    try:
-        response= generate_img2img_generation_jobs_with_kandinsky(
-            image_embedding=result_latent,
-            negative_image_embedding=None,
-            dataset_name="test-generations",
-            prompt_generation_policy="pez_optimization",
-        )
-    except:
-        print("An error occured.")
+    print(result_latent)
+
+    # try:
+    #     response= generate_img2img_generation_jobs_with_kandinsky(
+    #         image_embedding=result_latent,
+    #         negative_image_embedding=None,
+    #         dataset_name="test-generations",
+    #         prompt_generation_policy="pez_optimization",
+    #     )
+    # except:
+    #     print("An error occured.")
 
 if __name__=="__main__":
     main()
