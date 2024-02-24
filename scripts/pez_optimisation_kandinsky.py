@@ -128,6 +128,9 @@ class KandinskyImageGenerator:
             # Custom loss function
             loss = self.target_score - score
 
+            if loss<0:
+                break
+
             # Backpropagate
             loss.backward()
             optimizer.step()
