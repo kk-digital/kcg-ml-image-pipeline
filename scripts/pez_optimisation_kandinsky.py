@@ -4,6 +4,7 @@ import os
 import sys
 import torch
 import torch.optim as optim
+import msgpack
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -14,6 +15,7 @@ from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
 from utility.minio import cmd
+from data_loader.utils import get_object
 
 def parse_args():
         parser = argparse.ArgumentParser()
@@ -135,6 +137,17 @@ class KandinskyImageGenerator:
             print(f"Step: {step}, Score: {score.item()}, Loss: {loss.item()}")
 
         return optimized_embedding
+    
+    def test_image_score(self):
+        #test-generations/0018/017694.jpg
+
+        features_data = get_object(self.minio_client, "datasets/test-generations/0018/017694_clip.msgpack")
+        features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
+
+        inputs = features_vector.reshape(len(features_vector), -1)
+        score = self.scoring_model.model.forward(inputs).squeeze()
+
+        print(f"score is {score}")
 
 def main():
     args= parse_args()
@@ -145,9 +158,8 @@ def main():
                                        model_type=args.model_type,
                                        steps=args.steps)
     
-    result_latent=generator.generate_latent()
-
-    print(result_latent)
+    generator.test_image_score()
+    #result_latent=generator.generate_latent()
 
     # try:
     #     response= generate_img2img_generation_jobs_with_kandinsky(
