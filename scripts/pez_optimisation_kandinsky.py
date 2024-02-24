@@ -141,7 +141,7 @@ class KandinskyImageGenerator:
     def test_image_score(self):
         #test-generations/0018/017694.jpg
 
-        features_data = get_object(self.minio_client, "datasets/test-generations/0018/017694_clip.msgpack")
+        features_data = get_object(self.minio_client, "test-generations/0018/017694_clip.msgpack")
         features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
 
         inputs = features_vector.reshape(len(features_vector), -1)
