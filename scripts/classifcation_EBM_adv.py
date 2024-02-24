@@ -239,49 +239,104 @@ adverserial_set_val = val_loader_noncats #None
 #         return probs
 
 
-#Pure classifier model with dropout
+# #Pure classifier model with dropout
+# class CNN_Classifier_Model(nn.Module):
+#     def __init__(self, dropout_rate=0.5):
+#         super(CNN_Classifier_Model, self).__init__()
+
+#         # Convolutional layers and activation functions
+#         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
+#         self.relu1 = nn.ReLU()
+#         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+#         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
+#         self.relu2 = nn.ReLU()
+#         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+#         # Fully-connected layers and activation functions with dropout
+#         self.fc1 = nn.Linear(64 * 8 * 8, 1024)
+#         self.dropout = nn.Dropout(dropout_rate)
+#         self.relu3 = nn.ReLU()
+
+#         # Energy prediction branch
+#         #self.fc_energy = nn.Linear(1024, 1)  # Predict a single energy score
+
+#         # Classification branch
+#         self.fc2 = nn.Linear(1024, 10)
+#         self.softmax = nn.Softmax(dim=1)  # Apply softmax for class probabilities
+
+#     def forward(self, x):
+#         # Feature extraction using convolutional layers
+#         x = self.pool1(self.relu1(self.conv1(x)))
+#         x = self.pool2(self.relu2(self.conv2(x)))
+#         x = x.view(-1, 64 * 8 * 8)
+
+#         # Feature processing for both branches with dropout
+#         x = self.dropout(self.relu3(self.fc1(x)))
+
+#         # Energy branch
+#         #energy = self.fc_energy(shared_features)  # Output energy score
+
+#         # Classification branch
+#         logits = self.fc2(x)
+#         probs = self.softmax(logits)  # Output class probabilities
+
+#         return probs
+    
+
 class CNN_Classifier_Model(nn.Module):
-    def __init__(self, dropout_rate=0.5):
+    def __init__(self, dropout_prob=0.5):
         super(CNN_Classifier_Model, self).__init__()
 
         # Convolutional layers and activation functions
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1)
         self.relu1 = nn.ReLU()
-        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
-
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1)
         self.relu2 = nn.ReLU()
-        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.dropout1 = nn.Dropout(dropout_prob)
 
-        # Fully-connected layers and activation functions with dropout
-        self.fc1 = nn.Linear(64 * 8 * 8, 1024)
-        self.dropout = nn.Dropout(dropout_rate)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
         self.relu3 = nn.ReLU()
+        self.conv4 = nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1)
+        self.relu4 = nn.ReLU()
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.dropout2 = nn.Dropout(dropout_prob)
 
-        # Energy prediction branch
-        #self.fc_energy = nn.Linear(1024, 1)  # Predict a single energy score
+        self.conv5 = nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1)
+        self.relu5 = nn.ReLU()
+        self.conv6 = nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1)
+        self.relu6 = nn.ReLU()
+        self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.dropout3 = nn.Dropout(dropout_prob)
+
+        # Fully-connected layers and activation functions
+        self.fc1 = nn.Linear(256 * 4 * 4, 1024)
+        self.relu7 = nn.ReLU()
+        self.dropout4 = nn.Dropout(dropout_prob)
+        self.fc2 = nn.Linear(1024, 512)
+        self.relu8 = nn.ReLU()
+        self.dropout5 = nn.Dropout(dropout_prob)
 
         # Classification branch
-        self.fc2 = nn.Linear(1024, 10)
-        self.softmax = nn.Softmax(dim=1)  # Apply softmax for class probabilities
+        self.fc3 = nn.Linear(512, 10)
+        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
-        # Feature extraction using convolutional layers
-        x = self.pool1(self.relu1(self.conv1(x)))
-        x = self.pool2(self.relu2(self.conv2(x)))
-        x = x.view(-1, 64 * 8 * 8)
+        x = self.pool1(self.dropout1(self.relu1(self.conv1(x))))
+        x = self.pool2(self.dropout2(self.relu4(self.conv4(self.relu3(self.conv3(x))))))
+        x = self.pool3(self.dropout3(self.relu6(self.conv6(self.relu5(self.conv5(x))))))
 
-        # Feature processing for both branches with dropout
-        x = self.dropout(self.relu3(self.fc1(x)))
+        x = x.view(-1, 256 * 4 * 4)
+        x = self.dropout4(self.relu7(self.fc1(x)))
+        x = self.dropout5(self.relu8(self.fc2(x)))
 
-        # Energy branch
-        #energy = self.fc_energy(shared_features)  # Output energy score
-
-        # Classification branch
-        logits = self.fc2(x)
-        probs = self.softmax(logits)  # Output class probabilities
+        logits = self.fc3(x)
+        probs = self.softmax(logits)
 
         return probs
+
+ 
 
 # larger model energy only
 class CNNModel(nn.Module):
