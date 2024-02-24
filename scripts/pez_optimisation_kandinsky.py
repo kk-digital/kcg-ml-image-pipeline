@@ -130,6 +130,9 @@ class KandinskyImageGenerator:
             # Custom loss function
             loss = self.target_score - score
 
+            if loss<0:
+                break
+
             # Backpropagate
             loss.backward()
             optimizer.step()
@@ -138,17 +141,17 @@ class KandinskyImageGenerator:
 
         return optimized_embedding
     
-    def test_image_score(self):
-        #test-generations/0018/017694.jpg
+    # def test_image_score(self):
+    #     #test-generations/0018/017694.jpg
 
-        features_data = get_object(self.minio_client, "test-generations/0018/017694_clip_kandinsky.msgpack")
-        features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
-        features_vector= torch.tensor([features_vector]).to(device=self.device, dtype=torch.float32)
+    #     features_data = get_object(self.minio_client, "test-generations/0018/017694_clip_kandinsky.msgpack")
+    #     features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
+    #     features_vector= torch.tensor([features_vector]).to(device=self.device, dtype=torch.float32)
 
-        inputs = features_vector.reshape(len(features_vector), -1)
-        score = self.scoring_model.model.forward(inputs).squeeze()
+    #     inputs = features_vector.reshape(len(features_vector), -1)
+    #     score = self.scoring_model.model.forward(inputs).squeeze()
 
-        print(f"score is {score}")
+    #     print(f"score is {score}")
 
 def main():
     args= parse_args()
@@ -159,8 +162,7 @@ def main():
                                        model_type=args.model_type,
                                        steps=args.steps)
     
-    generator.test_image_score()
-    #result_latent=generator.generate_latent()
+    result_latent=generator.generate_latent()
 
     # try:
     #     response= generate_img2img_generation_jobs_with_kandinsky(
