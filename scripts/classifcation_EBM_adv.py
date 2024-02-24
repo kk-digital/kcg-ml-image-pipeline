@@ -906,11 +906,11 @@ def energy_evaluation(training_loader,adv_loader):
     some_b = 0
     # load training set images
     test_imgs, _ = next(iter(training_loader))
-    exmp_img = test_imgs[i].to(model.device)
+    
 
     # load adv set images
     fake_imgs, _ = next(iter(adv_loader)) # val_loader_dog  val_ood_loader val val_loader_noncats val_loader
-    fake_image = fake_imgs[i].to(model.device)
+    
 
 
     for i in range(64):
