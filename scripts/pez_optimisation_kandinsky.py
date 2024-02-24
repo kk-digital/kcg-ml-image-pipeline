@@ -143,6 +143,7 @@ class KandinskyImageGenerator:
 
         features_data = get_object(self.minio_client, "test-generations/0018/017694_clip.msgpack")
         features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
+        features_vector= torch.tensor([features_vector]).to(device=self.device, dtype=torch.float32)
 
         inputs = features_vector.reshape(len(features_vector), -1)
         score = self.scoring_model.model.forward(inputs).squeeze()
