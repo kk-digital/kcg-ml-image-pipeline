@@ -50,7 +50,7 @@ class KandinskyImageGenerator:
             device = 'cpu'
         self.device = torch.device(device)
 
-        self.target_score= torch.tensor(target_score, dtype=torch.float, device=self.device, requires_grad=False)
+        self.target_score= torch.tensor(target_score, dtype=torch.float, device=self.device, requires_grad=True)
         
         # load kandinsky clip
         clip= KandinskyCLIPImageEncoder(device= self.device)
@@ -121,8 +121,7 @@ class KandinskyImageGenerator:
             optimizer.zero_grad()
 
             # Calculate the custom score
-            with torch.no_grad():
-                score = self.scoring_model.predict_clip(optimized_embedding)
+            score = self.scoring_model.predict_clip(optimized_embedding)
 
             # Assume we want to maximize the score, hence multiply by -1 to minimize loss
             loss = self.target_score - score
