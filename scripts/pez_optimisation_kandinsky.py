@@ -121,7 +121,8 @@ class KandinskyImageGenerator:
             optimizer.zero_grad()
 
             # Calculate the custom score
-            score = self.scoring_model.predict_clip(optimized_embedding)
+            inputs = optimized_embedding.reshape(len(inputs), -1)
+            score = self.scoring_model.model.forward(inputs).squeeze()
 
             # Assume we want to maximize the score, hence multiply by -1 to minimize loss
             loss = self.target_score - score
