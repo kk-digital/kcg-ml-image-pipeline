@@ -11,7 +11,7 @@ sys.path.insert(0, os.getcwd())
 
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
-from kandinsky.models.clip_text_encoder.clip_text_encoder import KandinskyCLIPTextEmbedder
+from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
 from utility.minio import cmd
 
@@ -144,6 +144,16 @@ def main():
                                        model_type=args.model_type)
     
     result_latent=generator.generate_latent()
+
+    try:
+        response= generate_img2img_generation_jobs_with_kandinsky(
+            image_embedding=result_latent,
+            negative_image_embedding=None,
+            dataset_name="test-generations",
+            prompt_generation_policy="pez_optimization",
+        )
+    except:
+        print("An error occured.")
 
 if __name__=="__main__":
     main()
