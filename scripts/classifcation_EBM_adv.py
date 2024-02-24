@@ -1000,7 +1000,7 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # Train the model
-train_model(model, train_loader, criterion, optimizer, num_epochs=10)
+train_model_for_classification(model, train_loader, criterion, optimizer, num_epochs=10)
 
 # Evaluate the model on accuracy vs. confidence
 accuracy, confidences, confusion_mat = evaluate_model_for_classification(model, test_loader)
