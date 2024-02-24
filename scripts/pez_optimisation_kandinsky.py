@@ -25,6 +25,7 @@ def parse_args():
         parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
         parser.add_argument('--model-type', type=str, help='model type, linear or elm', default="linear")
         parser.add_argument('--steps', type=int, help='number of optimisation steps', default=100)
+        parser.add_argument('--target-score', type=int, help='number of optimisation steps', default=5)
 
         return parser.parse_args()
 
@@ -62,6 +63,8 @@ class KandinskyImageGenerator:
 
         # load scoring model
         self.scoring_model= self.load_scoring_model()
+        self.mean= self.scoring_model.mean
+        self.std= self.scoring_model.standard_deviation
         
 
     # load elm or linear scoring models
@@ -126,7 +129,7 @@ class KandinskyImageGenerator:
             # Calculate the custom score
             inputs = optimized_embedding.reshape(len(optimized_embedding), -1)
             score = self.scoring_model.model.forward(inputs).squeeze()
-
+            score= (score - self.mean) / self.std
             # Custom loss function
             loss = self.target_score - score
 
@@ -160,7 +163,8 @@ def main():
                                        minio_secret_key=args.minio_secret_key,
                                        dataset=args.dataset,
                                        model_type=args.model_type,
-                                       steps=args.steps)
+                                       steps=args.steps,
+                                       target_score=args.target_score)
     
     result_latent=generator.generate_latent()
 
