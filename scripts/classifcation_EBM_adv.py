@@ -934,7 +934,7 @@ def energy_evaluation(training_loader,adv_loader):
 
 # Pure classification
 # Function to train the model
-def train_model_for_classification(model, train_loader, criterion, optimizer, num_epochs=5, device='cuda'):
+def train_model_for_classification(model, train_loader, criterion, optimizer, num_epochs=5):
     model.to(device)
     model.train()
     
