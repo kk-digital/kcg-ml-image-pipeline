@@ -179,6 +179,66 @@ train_loader_noncats = data.DataLoader(train_set_noncats, batch_size=64, shuffle
 val_loader_noncats = data.DataLoader(val_set_noncats, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
 
+# Archives
+# Trained on Cats VS 
+# VS non cats
+# Score in distribution : 1.22
+# Score OOD : 0.05
+
+
+# Select thesets
+main_set_train = train_loader #None
+main_set_val = val_loader #None
+adverserial_set_train = train_loader_noncats #None
+adverserial_set_val = val_loader_noncats #None
+
+
+
+
+# Pure classifier model
+class CNN_Classifier_Model(nn.Module):
+    def __init__(self):
+        super(CNN_Classifier_Model, self).__init__()
+
+        # Convolutional layers and activation functions
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
+        self.relu1 = nn.ReLU()
+        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
+        self.relu2 = nn.ReLU()
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+        # Fully-connected layers and activation functions
+        self.fc1 = nn.Linear(64 * 8 * 8, 1024)
+        self.relu3 = nn.ReLU()
+
+        # Energy prediction branch
+        #self.fc_energy = nn.Linear(1024, 1)  # Predict a single energy score
+
+        # # Classification branch
+        self.fc2 = nn.Linear(1024, 10)
+        self.softmax = nn.Softmax(dim=1)  # Apply softmax for class probabilities
+
+    def forward(self, x):
+        # Feature extraction using convolutional layers
+        x = self.pool1(self.relu1(self.conv1(x)))
+        x = self.pool2(self.relu2(self.conv2(x)))
+        x = x.view(-1, 64 * 8 * 8)
+
+        # Feature processing for both branches
+        shared_features = self.relu3(self.fc1(x))
+
+        # Energy branch
+        #energy = self.fc_energy(shared_features)  # Output energy score
+
+        # Classification branch
+        logits = self.fc2(shared_features)
+        probs = self.softmax(logits)  # Output class probabilities
+
+        return probs
+
+
 
 
 # larger model energy only
@@ -424,7 +484,7 @@ class DeepEnergyModel(pl.LightningModule):
         real_imgs.add_(small_noise).clamp_(min=-1.0, max=1.0)
 
         # Obtain samples #Give more steps later
-        fake_imgs, fake_labels = next(iter(train_loader_noncats))  #train_loader_noncats #train_loader_noncats  #train_loader_dog        # self.sampler.sample_new_exmps(steps=256, step_size=5)
+        fake_imgs, fake_labels = next(iter(adverserial_set_train))  #train_loader_noncats #train_loader_noncats  #train_loader_dog        # self.sampler.sample_new_exmps(steps=256, step_size=5)
         fake_imgs = fake_imgs.to(device)
         fake_labels = fake_labels.to(device)
 
@@ -827,10 +887,6 @@ j = i
 
 test_imgs, _ = next(iter(train_loader))
 exmp_img = test_imgs[i].to(model.device)
-
-
-
-from PIL import Image
 img_noisy = exmp_img + torch.randn_like(exmp_img) * 0.3
 img_noisy.clamp_(min=-1.0, max=1.0)
 
@@ -841,17 +897,105 @@ fake_image = fake_imgs[i].to(model.device)
 
 compare_images(exmp_img, fake_image)
 
-some_a = 0
-some_b = 0
 
-for i in range(64):
 
-  a,b =  compare_images_value_purevalue(test_imgs[i].to(model.device),fake_imgs[i].to(model.device))
-  some_a += a
-  some_b += b
 
-some_a = some_a / 24
-some_b = some_b / 24
+def energy_evaluation(training_loader,adv_loader):
+    
+    some_a = 0
+    some_b = 0
+    # load training set images
+    test_imgs, _ = next(iter(training_loader))
+    exmp_img = test_imgs[i].to(model.device)
 
-print(f"Score in distribution : {some_a:4.2f}")
-print(f"Score OOD : {some_b:4.2f}")
+    # load adv set images
+    fake_imgs, _ = next(iter(adv_loader)) # val_loader_dog  val_ood_loader val val_loader_noncats val_loader
+    fake_image = fake_imgs[i].to(model.device)
+
+
+    for i in range(64):
+        a,b =  compare_images_value_purevalue(test_imgs[i].to(model.device),fake_imgs[i].to(model.device))
+        some_a += a
+        some_b += b
+
+        some_a = some_a / 24
+        some_b = some_b / 24
+
+    print(f"Score in distribution : {some_a:4.2f}")
+    print(f"Score OOD : {some_b:4.2f}")
+
+
+energy_evaluation(main_set_val,adverserial_set_val)
+
+
+
+
+# # Pure classification
+# # Function to train the model
+# def train_model(model, train_loader, criterion, optimizer, num_epochs=5, device='cuda'):
+#     model.to(device)
+#     model.train()
+    
+#     for epoch in range(num_epochs):
+#         running_loss = 0.0
+#         for inputs, labels in train_loader:
+#             inputs, labels = inputs.to(device), labels.to(device)
+            
+#             optimizer.zero_grad()
+#             outputs = model(inputs)
+#             loss = criterion(outputs, labels)
+#             loss.backward()
+#             optimizer.step()
+            
+#             running_loss += loss.item()
+        
+#         print(f'Epoch {epoch+1}/{num_epochs}, Loss: {running_loss/len(train_loader)}')
+
+# # Function to evaluate the model on accuracy vs. confidence
+# def evaluate_model(model, test_loader, device='cuda'):
+#     model.to(device)
+#     model.eval()
+
+#     all_confidences = []
+#     all_predictions = []
+#     all_labels = []
+
+#     with torch.no_grad():
+#         for inputs, labels in test_loader:
+#             inputs, labels = inputs.to(device), labels.to(device)
+
+#             outputs = model(inputs)
+#             confidences, predictions = torch.max(outputs, dim=1)
+
+#             all_confidences.extend(confidences.cpu().numpy())
+#             all_predictions.extend(predictions.cpu().numpy())
+#             all_labels.extend(labels.cpu().numpy())
+
+#     accuracy = accuracy_score(all_labels, all_predictions)
+#     confusion_mat = confusion_matrix(all_labels, all_predictions)
+
+#     return accuracy, all_confidences, confusion_mat
+
+# # Load CIFAR-10 dataset and create data loaders
+# transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+
+# train_dataset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+# test_dataset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+
+# train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+# test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+
+# # Initialize the model, criterion, and optimizer
+# model = CNN_Classifier_Model()
+# criterion = nn.CrossEntropyLoss()
+# optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+# # Train the model
+# train_model(model, train_loader, criterion, optimizer, num_epochs=5)
+
+# # Evaluate the model on accuracy vs. confidence
+# accuracy, confidences, confusion_mat = evaluate_model(model, test_loader)
+
+# print(f'Accuracy: {accuracy}')
+# print('Confusion Matrix:')
+# print(confusion_mat)
