@@ -997,7 +997,7 @@ test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
 # Initialize the model, criterion, and optimizer
 model = CNN_Classifier_Model()
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
 # Train the model
 train_model_for_classification(model, train_loader, criterion, optimizer, num_epochs=30)
