@@ -22,6 +22,7 @@ def parse_args():
         parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
         parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
         parser.add_argument('--model-type', type=str, help='model type, linear or elm', default="linear")
+        parser.add_argument('--steps', type=int, help='number of optimisation steps', default=100)
 
         return parser.parse_args()
 
@@ -141,7 +142,8 @@ def main():
     generator= KandinskyImageGenerator(minio_access_key=args.minio_access_key,
                                        minio_secret_key=args.minio_secret_key,
                                        dataset=args.dataset,
-                                       model_type=args.model_type)
+                                       model_type=args.model_type,
+                                       steps=args.steps)
     
     result_latent=generator.generate_latent()
 
