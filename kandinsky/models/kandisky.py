@@ -220,7 +220,7 @@ class KandinskyPipeline:
         zero_image_emb = self.image_encoder(zero_img)["image_embeds"]
         zero_image_emb = zero_image_emb.repeat(batch_size, 1)
         return zero_image_emb
-
+ 
     def generate_img2img(
         self,
         init_img,
@@ -256,6 +256,45 @@ class KandinskyPipeline:
                     height=height,
                     width=width,
                     strength= self.strength
+                )
+        
+        return images[0], latents
+  
+    def generate_img2img_inpainting(
+        self,
+        init_img,
+        img_mask,
+        image_embeds,
+        negative_image_embeds=None,
+        seed=None
+    ):
+        if negative_image_embeds==None:
+            negative_image_embeds= self.get_zero_embed()
+        
+        with torch.no_grad():
+            if seed:
+                generator=torch.Generator(device=self.device).manual_seed(seed)
+                images, latents = self.decoder(
+                    image_embeds=image_embeds, 
+                    negative_image_embeds=negative_image_embeds,
+                    num_inference_steps=self.decoder_steps, 
+                    height=self.height,
+                    width=self.width, 
+                    guidance_scale=self.decoder_guidance_scale,
+                    image=init_img, 
+                    mask_image=img_mask,
+                    generator= generator
+                )
+            else:
+                images, latents = self.decoder(
+                    image_embeds=image_embeds, 
+                    negative_image_embeds=negative_image_embeds,
+                    num_inference_steps=self.decoder_steps, 
+                    height=self.height,
+                    width=self.width, 
+                    guidance_scale=self.decoder_guidance_scale,
+                    image=init_img, 
+                    mask_image=img_mask
                 )
         
         return images[0], latents

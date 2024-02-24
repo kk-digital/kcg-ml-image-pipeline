@@ -156,6 +156,8 @@ class ABRankingDatasetLoader:
         input_type_extension = "-text-embedding.msgpack"
         if self.input_type == constants.CLIP:
             input_type_extension = "_clip.msgpack"
+        elif self.input_type == constants.KANDINSKY_CLIP:
+            input_type_extension = "_clip_kandinsky.msgpack"
         elif self.input_type in [constants.EMBEDDING, constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE]:
             # replace with new /embeddings
             file_path_img_1 = file_path_img_1.replace(self.dataset_name,
@@ -186,7 +188,7 @@ class ABRankingDatasetLoader:
             features_vector_img_1.extend(features_img_1_data["positive_embedding"]["__ndarray__"])
         if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_NEGATIVE]:
             features_vector_img_1.extend(features_img_1_data["negative_embedding"]["__ndarray__"])
-        if self.input_type == constants.CLIP:
+        if self.input_type in [constants.CLIP, constants.KANDINSKY_CLIP]:
             features_vector_img_1.extend(features_img_1_data["clip-feature-vector"])
 
         features_vector_img_1 = np.array(features_vector_img_1)
@@ -198,7 +200,7 @@ class ABRankingDatasetLoader:
             features_vector_img_2.extend(features_img_2_data["positive_embedding"]["__ndarray__"])
         if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_NEGATIVE]:
             features_vector_img_2.extend(features_img_2_data["negative_embedding"]["__ndarray__"])
-        if self.input_type == constants.CLIP:
+        if self.input_type in [constants.CLIP, constants.KANDINSKY_CLIP]:
             features_vector_img_2.extend(features_img_2_data["clip-feature-vector"])
 
         features_vector_img_2 = np.array(features_vector_img_2)
@@ -617,6 +619,8 @@ class ABRankingDatasetLoader:
         input_type_extension = "-text-embedding.msgpack"
         if self.input_type == constants.CLIP:
             input_type_extension = "_clip.msgpack"
+        elif self.input_type == constants.KANDINSKY_CLIP:
+            input_type_extension = "_clip_kandinsky.msgpack"
         elif self.input_type == constants.EMBEDDING:
             # replace with new /embeddings
             file_path_img_1 = file_path_img_1.replace(self.dataset_name,
@@ -647,7 +651,7 @@ class ABRankingDatasetLoader:
             features_vector_img_1.extend(features_img_1_data["positive_embedding"]["__ndarray__"])
         if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_NEGATIVE]:
             features_vector_img_1.extend(features_img_1_data["negative_embedding"]["__ndarray__"])
-        if self.input_type == constants.CLIP:
+        if self.input_type in [constants.CLIP, constants.KANDINSKY_CLIP]:
             features_vector_img_1.extend(features_img_1_data["clip-feature-vector"])
 
         features_vector_img_1 = np.array(features_vector_img_1)
@@ -660,7 +664,7 @@ class ABRankingDatasetLoader:
             features_vector_img_2.extend(features_img_2_data["positive_embedding"]["__ndarray__"])
         if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_NEGATIVE]:
             features_vector_img_2.extend(features_img_2_data["negative_embedding"]["__ndarray__"])
-        if self.input_type == constants.CLIP:
+        if self.input_type in [constants.CLIP, constants.KANDINSKY_CLIP]:
             features_vector_img_2.extend(features_img_2_data["clip-feature-vector"])
 
         features_vector_img_2 = np.array(features_vector_img_2)

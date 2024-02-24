@@ -1,3 +1,8 @@
+import sys
+from typing import Union
+
+base_directory = "./"
+sys.path.insert(0, base_directory)
 
 from typing import Union
 
