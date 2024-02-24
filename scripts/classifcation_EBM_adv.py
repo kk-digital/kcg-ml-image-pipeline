@@ -654,13 +654,13 @@ def train_model(**kwargs):
 
 from collections import namedtuple
 
-print("################ Training started ################")
-model = train_model(img_shape=(3,32,32),
-                    batch_size=train_loader.batch_size,
-                    lr=0.001,
-                    beta1=0.0)
+# print("################ Training started ################")
+# model = train_model(img_shape=(3,32,32),
+#                     batch_size=train_loader.batch_size,
+#                     lr=0.001,
+#                     beta1=0.0)
 
-print("################ Training ended ################")
+# print("################ Training ended ################")
 
 
 
@@ -672,77 +672,77 @@ print("################ Training ended ################")
 ############ Graph
 
 
-date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
-print(date_now)
+# date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
+# print(date_now)
 
 
-minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
-            "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
-            None)
-minio_path="environmental/output/my_test"
+# minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
+#             "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+#             None)
+# minio_path="environmental/output/my_test"
 
-epochs = range(1, len(total_losses) + 1)  
+# epochs = range(1, len(total_losses) + 1)  
 
 
-# Create subplots grid (3 rows, 1 column)
-fig, axes = plt.subplots(4, 1, figsize=(10, 24))
+# # Create subplots grid (3 rows, 1 column)
+# fig, axes = plt.subplots(4, 1, figsize=(10, 24))
 
-# Plot each loss on its own subplot
-axes[0].plot(epochs, total_losses, label='Total Loss')
-axes[0].set_xlabel('Steps')
-axes[0].set_ylabel('Loss')
-axes[0].set_title('Total Loss')
-axes[0].legend()
-axes[0].grid(True)
+# # Plot each loss on its own subplot
+# axes[0].plot(epochs, total_losses, label='Total Loss')
+# axes[0].set_xlabel('Steps')
+# axes[0].set_ylabel('Loss')
+# axes[0].set_title('Total Loss')
+# axes[0].legend()
+# axes[0].grid(True)
 
-# axes[1].plot(epochs, class_losses, label='Classification Loss')
+# # axes[1].plot(epochs, class_losses, label='Classification Loss')
+# # axes[1].set_xlabel('Steps')
+# # axes[1].set_ylabel('Loss')
+# # axes[1].set_title('Classification Loss')
+# # axes[1].legend()
+# # axes[1].grid(True)
+
+# axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
 # axes[1].set_xlabel('Steps')
 # axes[1].set_ylabel('Loss')
-# axes[1].set_title('Classification Loss')
+# axes[1].set_title('Contrastive Divergence Loss')
 # axes[1].legend()
 # axes[1].grid(True)
 
-axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
-axes[1].set_xlabel('Steps')
-axes[1].set_ylabel('Loss')
-axes[1].set_title('Contrastive Divergence Loss')
-axes[1].legend()
-axes[1].grid(True)
 
+# axes[2].plot(epochs, reg_losses , label='Regression Loss')
+# axes[2].set_xlabel('Steps')
+# axes[2].set_ylabel('Loss')
+# axes[2].set_title('Regression Loss')
+# axes[2].legend()
+# axes[2].grid(True)
 
-axes[2].plot(epochs, reg_losses , label='Regression Loss')
-axes[2].set_xlabel('Steps')
-axes[2].set_ylabel('Loss')
-axes[2].set_title('Regression Loss')
-axes[2].legend()
-axes[2].grid(True)
+# # Plot real and fake scores on the fourth subplot
+# axes[3].plot(epochs, real_scores_s, label='Real Scores')
+# axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
+# axes[3].set_xlabel('Steps')
+# axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
+# axes[3].set_title('Real vs. Fake Scores')
+# axes[3].legend()
+# axes[3].grid(True)
 
-# Plot real and fake scores on the fourth subplot
-axes[3].plot(epochs, real_scores_s, label='Real Scores')
-axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
-axes[3].set_xlabel('Steps')
-axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
-axes[3].set_title('Real vs. Fake Scores')
-axes[3].legend()
-axes[3].grid(True)
+# # Adjust spacing between subplots for better visualization
+# plt.tight_layout()
 
-# Adjust spacing between subplots for better visualization
-plt.tight_layout()
+# plt.savefig("output/loss_tracking_per_step.png")
 
-plt.savefig("output/loss_tracking_per_step.png")
+# # Save the figure to a file
+# buf = io.BytesIO()
+# plt.savefig(buf, format='png')
+# buf.seek(0)
 
-# Save the figure to a file
-buf = io.BytesIO()
-plt.savefig(buf, format='png')
-buf.seek(0)
-
-# upload the graph report
-minio_path= minio_path + "/loss_tracking_per_step_fullclass_bigger_ballanced" +date_now+".png"
-cmd.upload_data(minio_client, 'datasets', minio_path, buf)
-# Remove the temporary file
-os.remove("output/loss_tracking_per_step.png")
-# Clear the current figure
-plt.clf()
+# # upload the graph report
+# minio_path= minio_path + "/loss_tracking_per_step_fullclass_bigger_ballanced" +date_now+".png"
+# cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+# # Remove the temporary file
+# os.remove("output/loss_tracking_per_step.png")
+# # Clear the current figure
+# plt.clf()
 
 
 
@@ -750,31 +750,33 @@ plt.clf()
 
 
 
-# Image generation
-model.to(device)
-pl.seed_everything(42)
-callback = GenerateCallback(batch_size=8, vis_steps=8, num_steps=512)
-imgs_per_step = callback.generate_imgs(model)
-imgs_per_step = imgs_per_step.cpu()
+# Image generation 
 
-for i in range(imgs_per_step.shape[1]):
-    step_size = callback.num_steps // callback.vis_steps
-    imgs_to_plot = imgs_per_step[step_size-1::step_size,i]
-    imgs_to_plot = torch.cat([imgs_per_step[0:1,i],imgs_to_plot], dim=0)
-    grid = torchvision.utils.make_grid(imgs_to_plot, nrow=imgs_to_plot.shape[0], normalize=True, pad_value=0.5, padding=2)
-    grid = grid.permute(1, 2, 0)
-    plt.figure(figsize=(8,8))
-    plt.imshow(grid)
-    plt.xlabel("Generation iteration")
-    plt.xticks([(imgs_per_step.shape[-1]+2)*(0.5+j) for j in range(callback.vis_steps+1)],
-               labels=[1] + list(range(step_size,imgs_per_step.shape[0]+1,step_size)))
-    plt.yticks([])
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png')
-    buf.seek(0)
 
-    minio_path_i = "environmental/output/my_test/images_generation_sample_" + str(i) +"_" +date_now+".png"
-    cmd.upload_data(minio_client, 'datasets', minio_path_i, buf)
+# model.to(device)
+# pl.seed_everything(42)
+# callback = GenerateCallback(batch_size=8, vis_steps=8, num_steps=512)
+# imgs_per_step = callback.generate_imgs(model)
+# imgs_per_step = imgs_per_step.cpu()
+
+# for i in range(imgs_per_step.shape[1]):
+#     step_size = callback.num_steps // callback.vis_steps
+#     imgs_to_plot = imgs_per_step[step_size-1::step_size,i]
+#     imgs_to_plot = torch.cat([imgs_per_step[0:1,i],imgs_to_plot], dim=0)
+#     grid = torchvision.utils.make_grid(imgs_to_plot, nrow=imgs_to_plot.shape[0], normalize=True, pad_value=0.5, padding=2)
+#     grid = grid.permute(1, 2, 0)
+#     plt.figure(figsize=(8,8))
+#     plt.imshow(grid)
+#     plt.xlabel("Generation iteration")
+#     plt.xticks([(imgs_per_step.shape[-1]+2)*(0.5+j) for j in range(callback.vis_steps+1)],
+#                labels=[1] + list(range(step_size,imgs_per_step.shape[0]+1,step_size)))
+#     plt.yticks([])
+#     buf = io.BytesIO()
+#     plt.savefig(buf, format='png')
+#     buf.seek(0)
+
+#     minio_path_i = "environmental/output/my_test/images_generation_sample_" + str(i) +"_" +date_now+".png"
+#     cmd.upload_data(minio_client, 'datasets', minio_path_i, buf)
 
 
 
@@ -881,21 +883,21 @@ def compare_images_value_purevalue(img1, img2):
 
 
 
-i = 4
-j = i
+# i = 4
+# j = i
 
 
-test_imgs, _ = next(iter(train_loader))
-exmp_img = test_imgs[i].to(model.device)
-img_noisy = exmp_img + torch.randn_like(exmp_img) * 0.3
-img_noisy.clamp_(min=-1.0, max=1.0)
+# test_imgs, _ = next(iter(train_loader))
+# exmp_img = test_imgs[i].to(model.device)
+# img_noisy = exmp_img + torch.randn_like(exmp_img) * 0.3
+# img_noisy.clamp_(min=-1.0, max=1.0)
 
 
 
-fake_imgs, _ = next(iter(val_loader)) # val_loader_dog  val_ood_loader val val_loader_noncats val_loader
-fake_image = fake_imgs[i].to(model.device)
+# fake_imgs, _ = next(iter(val_loader)) # val_loader_dog  val_ood_loader val val_loader_noncats val_loader
+# fake_image = fake_imgs[i].to(model.device)
 
-compare_images(exmp_img, fake_image)
+# compare_images(exmp_img, fake_image)
 
 
 
@@ -925,77 +927,84 @@ def energy_evaluation(training_loader,adv_loader):
     print(f"Score OOD : {some_b:4.2f}")
 
 
-energy_evaluation(main_set_val,adverserial_set_val)
+#energy_evaluation(main_set_val,adverserial_set_val)
 
 
 
 
-# # Pure classification
-# # Function to train the model
-# def train_model(model, train_loader, criterion, optimizer, num_epochs=5, device='cuda'):
-#     model.to(device)
-#     model.train()
+# Pure classification
+# Function to train the model
+def train_model_for_classification(model, train_loader, criterion, optimizer, num_epochs=5, device='cuda'):
+    model.to(device)
+    model.train()
     
-#     for epoch in range(num_epochs):
-#         running_loss = 0.0
-#         for inputs, labels in train_loader:
-#             inputs, labels = inputs.to(device), labels.to(device)
+    for epoch in range(num_epochs):
+        running_loss = 0.0
+        for inputs, labels in train_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
             
-#             optimizer.zero_grad()
-#             outputs = model(inputs)
-#             loss = criterion(outputs, labels)
-#             loss.backward()
-#             optimizer.step()
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
             
-#             running_loss += loss.item()
+            running_loss += loss.item()
         
-#         print(f'Epoch {epoch+1}/{num_epochs}, Loss: {running_loss/len(train_loader)}')
+        print(f'Epoch {epoch+1}/{num_epochs}, Loss: {running_loss/len(train_loader)}')
 
-# # Function to evaluate the model on accuracy vs. confidence
-# def evaluate_model(model, test_loader, device='cuda'):
-#     model.to(device)
-#     model.eval()
 
-#     all_confidences = []
-#     all_predictions = []
-#     all_labels = []
 
-#     with torch.no_grad():
-#         for inputs, labels in test_loader:
-#             inputs, labels = inputs.to(device), labels.to(device)
+from sklearn.metrics import accuracy_score, confusion_matrix
 
-#             outputs = model(inputs)
-#             confidences, predictions = torch.max(outputs, dim=1)
 
-#             all_confidences.extend(confidences.cpu().numpy())
-#             all_predictions.extend(predictions.cpu().numpy())
-#             all_labels.extend(labels.cpu().numpy())
+# Function to evaluate the model on accuracy vs. confidence
+def evaluate_model_for_classification(model, test_loader, device='cuda'):
+    model.to(device)
+    model.eval()
 
-#     accuracy = accuracy_score(all_labels, all_predictions)
-#     confusion_mat = confusion_matrix(all_labels, all_predictions)
+    all_confidences = []
+    all_predictions = []
+    all_labels = []
 
-#     return accuracy, all_confidences, confusion_mat
+    with torch.no_grad():
+        for inputs, labels in test_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
 
-# # Load CIFAR-10 dataset and create data loaders
-# transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+            outputs = model(inputs)
+            confidences, predictions = torch.max(outputs, dim=1)
 
-# train_dataset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
-# test_dataset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+            all_confidences.extend(confidences.cpu().numpy())
+            all_predictions.extend(predictions.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
 
-# train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-# test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+    accuracy = accuracy_score(all_labels, all_predictions)
+    confusion_mat = confusion_matrix(all_labels, all_predictions)
 
-# # Initialize the model, criterion, and optimizer
-# model = CNN_Classifier_Model()
-# criterion = nn.CrossEntropyLoss()
-# optimizer = optim.Adam(model.parameters(), lr=0.001)
+    return accuracy, all_confidences, confusion_mat
 
-# # Train the model
-# train_model(model, train_loader, criterion, optimizer, num_epochs=5)
 
-# # Evaluate the model on accuracy vs. confidence
-# accuracy, confidences, confusion_mat = evaluate_model(model, test_loader)
 
-# print(f'Accuracy: {accuracy}')
-# print('Confusion Matrix:')
-# print(confusion_mat)
+# Load CIFAR-10 dataset and create data loaders
+transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+
+train_dataset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+test_dataset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+
+# Initialize the model, criterion, and optimizer
+model = CNN_Classifier_Model()
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+# Train the model
+train_model(model, train_loader, criterion, optimizer, num_epochs=10)
+
+# Evaluate the model on accuracy vs. confidence
+accuracy, confidences, confusion_mat = evaluate_model_for_classification(model, test_loader)
+
+print(f'Accuracy: {accuracy}')
+print('Confusion Matrix:')
+print(confusion_mat)
