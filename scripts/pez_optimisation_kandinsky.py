@@ -63,8 +63,8 @@ class KandinskyImageGenerator:
 
         # load scoring model
         self.scoring_model= self.load_scoring_model()
-        self.mean= self.scoring_model.mean
-        self.std= self.scoring_model.standard_deviation
+        self.mean= float(self.scoring_model.mean)
+        self.std= float(self.scoring_model.standard_deviation)
         
 
     # load elm or linear scoring models
