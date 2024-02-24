@@ -784,11 +784,11 @@ from collections import namedtuple
 
 ######## Average score for random images
     
-with torch.no_grad():
-    rand_imgs = torch.rand((128,) + model.hparams.img_shape).to(model.device)
-    rand_imgs = rand_imgs * 2 - 1.0
-    rand_out = model.cnn(rand_imgs)[0].mean()
-    print(f"Average score for random images: {rand_out.item():4.2f}")
+# with torch.no_grad():
+#     rand_imgs = torch.rand((128,) + model.hparams.img_shape).to(model.device)
+#     rand_imgs = rand_imgs * 2 - 1.0
+#     rand_out = model.cnn(rand_imgs)[0].mean()
+#     print(f"Average score for random images: {rand_out.item():4.2f}")
 
 
 ######## Average score for training images
