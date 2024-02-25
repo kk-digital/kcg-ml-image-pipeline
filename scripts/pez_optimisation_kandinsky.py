@@ -5,8 +5,6 @@ import sys
 import torch
 import torch.optim as optim
 import msgpack
-from kandinsky.model_paths import PRIOR_MODEL_PATH
-from kandinsky.pipelines.kandinsky_prior import KandinskyV22PriorPipeline
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -18,6 +16,8 @@ from kandinsky_worker.image_generation.img2img_generator import generate_img2img
 from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
 from utility.minio import cmd
 from data_loader.utils import get_object
+from kandinsky.model_paths import PRIOR_MODEL_PATH
+from kandinsky.pipelines.kandinsky_prior import KandinskyV22PriorPipeline
 
 def parse_args():
         parser = argparse.ArgumentParser()
