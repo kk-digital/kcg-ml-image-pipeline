@@ -70,12 +70,10 @@ class KandinskyImageGenerator:
         self.std= float(self.scoring_model.standard_deviation)
 
         # get clip mean and std values
-        prior_model = PriorTransformer.from_pretrained(PRIOR_MODEL_PATH, subfolder="prior")
+        prior_model = PriorTransformer.from_pretrained(PRIOR_MODEL_PATH, subfolder="prior").to(self.device)
         
-        self.clip_mean= prior_model.clip_mean.clone()
-        self.clip_std= prior_model.clip_std.clone()
-
-
+        self.clip_mean= prior_model.clip_mean.clone().to(self.device)
+        self.clip_std= prior_model.clip_std.clone().to(self.device)
         
 
     # load elm or linear scoring models
