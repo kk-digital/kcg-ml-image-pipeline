@@ -139,6 +139,8 @@ class KandinskyImageGenerator:
         """
         # Standardize embeddings
         z_scores = (embedding - self.clip_mean) / self.clip_std
+
+        print(z_scores)
         # Calculate the squared distances beyond the threshold
         squared_distances = torch.where(torch.abs(z_scores) > threshold,
                                         (torch.abs(z_scores) - threshold)**2, 
