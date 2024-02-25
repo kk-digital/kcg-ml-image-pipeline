@@ -744,7 +744,7 @@ def remove_image_tag(request: Request, image_hash: str, tag_id: int):
 
 
 
-@router.get("/tags/get_tag_list_for_image", response_model=List[TagResponse])
+@router.get("/tags/get_tag_list_for_image")
 def get_tag_list_for_image(request: Request, file_hash: str):
     # Fetch image tags based on image_hash
     image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash})
@@ -752,10 +752,14 @@ def get_tag_list_for_image(request: Request, file_hash: str):
     # Process the results
     tags_list = []
     for tag_data in image_tags_cursor:
+        # Find the tag definition
         tag_definition = request.app.tag_definitions_collection.find_one({"tag_id": tag_data["tag_id"]})
-        
         if tag_definition:
-            # Create a dictionary representing TagDefinition with tag_type
+            # Find the tag category and determine if it's deprecated
+            category = request.app.tag_categories_collection.find_one({"tag_category_id": tag_definition.get("tag_category_id")})
+            print(category)
+            deprecated_tag_category = category['deprecated']
+            # Create a dictionary representing TagDefinition with tag_type and deprecated_tag_category
             tag_definition_dict = {
                 "tag_id": tag_definition["tag_id"],
                 "tag_string": tag_definition["tag_string"],
@@ -764,6 +768,7 @@ def get_tag_list_for_image(request: Request, file_hash: str):
                 "tag_description": tag_definition["tag_description"],
                 "tag_vector_index": tag_definition.get("tag_vector_index", -1),
                 "deprecated": tag_definition.get("deprecated", False),
+                "deprecated_tag_category": deprecated_tag_category,  # Add deprecated_tag_category here
                 "user_who_created": tag_definition["user_who_created"],
                 "creation_time": tag_definition.get("creation_time", None)
             }
