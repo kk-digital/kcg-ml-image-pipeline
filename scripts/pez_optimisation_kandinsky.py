@@ -126,7 +126,7 @@ class KandinskyImageGenerator:
             device=self.device, dtype=torch.float32
         )
     
-    def penalty_function(self, embedding, threshold=5):
+    def penalty_function(self, embedding, threshold=2):
         """
         Calculates a penalty for embeddings that deviate from the mean beyond the allowed threshold (in standard deviations).
         
