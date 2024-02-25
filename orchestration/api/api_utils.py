@@ -65,6 +65,7 @@ class TagResponse(BaseModel):
     tag_description: str  
     tag_vector_index: int
     deprecated: bool = False
+    deprecated_tag_category: bool = False
     user_who_created: str
     creation_time: str
 
