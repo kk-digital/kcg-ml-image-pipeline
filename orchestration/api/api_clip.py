@@ -651,59 +651,47 @@ async def upload_image(request:Request, file: UploadFile = File(...)):
         )
     
 
-
 @router.post("/upload-image-v1",
              status_code=201, 
              response_model=StandardSuccessResponseV1[UrlResponse],
-             responses=ApiResponseHandlerV1.listErrors([422,500]),
+             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]),
              description="Upload Image on minio")
-async def upload_image_v1(request: Request, file: UploadFile = File(...)):
+async def upload_image_v1(request:Request, file: UploadFile = File(...)):
     response_handler = ApiResponseHandlerV1(request)
-
     # Initialize MinIO client
     minio_client = cmd.get_minio_client(minio_access_key="v048BpXpWrsVIHUfdAix", minio_secret_key="4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu")
+    
+    # Find or create the next available folder and get the next image index
+    next_folder, next_index = find_or_create_next_folder_and_index(minio_client, bucket_name, base_folder)
 
-    # Check the file extension
-    file_extension = file.filename.split('.')[-1].lower()
-    if file_extension not in ['jpg', 'jpeg']:
-        # Convert to JPG if not already
-        try:
-            await file.seek(0)  # Go to the start of the file
-            image = Image.open(file.file)
-            buf = io.BytesIO()
-            image.convert("RGB").save(buf, format="JPEG")
-            buf.seek(0)
-            content_stream = buf
-            file_extension = 'jpg'  # Update extension to 'jpg'
-        except Exception as e:
-            print(f"Failed to convert image to JPG: {e}")
-            return response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR, 
-            error_string="Failed to convert image to JPG: {e}",
-            http_status_code=422, 
-        )
-    else:
-        await file.seek(0)
-        content_stream = io.BytesIO(await file.read())
-
-    # Proceed with uploading as before
-    next_folder, next_index = find_or_create_next_folder_and_index(minio_client, "your_bucket_name", "base_folder_path")
-    file_name = f"{next_index:06}.{file_extension}"  # Use updated file_extension
+    # Construct the file path with sequential naming
+    file_name = f"{next_index:06}.jpg"  # Format index as a zero-padded string
     file_path = f"{next_folder}/{file_name}"
 
     try:
+        await file.seek(0)  # Go to the start of the file
+        content = await file.read()  # Read file content into bytes
+        
+        # Check if the image is 512x512
+        image = Image.open(io.BytesIO(content))
+        if image.size != (512, 512):
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS, 
+                error_string="Image must be 512x512 pixels",
+                http_status_code=422,
+            )
+
+        content_stream = io.BytesIO(content)
         # Upload the file content
-        cmd.upload_data(minio_client, "your_bucket_name", file_path, content_stream)
-        full_file_path = f"your_bucket_name/{file_path}"
+        cmd.upload_data(minio_client, bucket_name, file_path, content_stream)
+        full_file_path = f"{bucket_name}/{file_path}"
         return response_handler.create_success_response_v1(
             response_data=full_file_path, 
-            http_status_code=201,
-        )
+            http_status_code=201)
     except Exception as e:
-        print(f"Exception occurred during upload: {e}")
+        print(f"Exception occurred: {e}") 
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, 
             error_string="Internal server error",
             http_status_code=500, 
         )
- 
