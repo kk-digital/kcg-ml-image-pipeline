@@ -28,7 +28,11 @@ def parse_args():
         parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
         parser.add_argument('--model-type', type=str, help='model type, linear or elm', default="linear")
         parser.add_argument('--steps', type=int, help='number of optimisation steps', default=100)
-        parser.add_argument('--target-score', type=int, help='number of optimisation steps', default=5)
+        parser.add_argument('--learning-rate', type=float, help='learning rate for optimization', default=0.01)
+        parser.add_argument('--target-score', type=float, help='number of optimisation steps', default=5)
+        parser.add_argument('--penalty-weight', type=float, help='weight of deviation panalty', default=1)
+        parser.add_argument('--deviation-threshold', type=float, help='deviation penalty threshold', default=2)
+        parser.add_argument('--send-job', action='store_true', default=False)
 
         return parser.parse_args()
 
@@ -39,12 +43,16 @@ class KandinskyImageGenerator:
                  dataset,
                  model_type,
                  steps=100,
-                 target_score=5.0
+                 target_score=5.0,
+                 penalty_weight=1,
+                 deviation_threshold= 2
                  ):
         
         self.dataset= dataset
         self.model_type= model_type
         self.steps= steps
+        self.penalty_weight= penalty_weight
+        self.deviation_threshold= deviation_threshold
 
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
@@ -126,7 +134,7 @@ class KandinskyImageGenerator:
             device=self.device, dtype=torch.float32
         )
     
-    def penalty_function(self, embedding, threshold=2):
+    def penalty_function(self, embedding):
         """
         Calculates a penalty for embeddings that deviate from the mean beyond the allowed threshold (in standard deviations).
         
@@ -143,21 +151,20 @@ class KandinskyImageGenerator:
         z_scores = (embedding - self.clip_mean) / self.clip_std
 
         # Calculate the squared distances beyond the threshold
-        squared_distances = torch.where(torch.abs(z_scores) > threshold,
-                                        (torch.abs(z_scores) - threshold)**2, 
+        squared_distances = torch.where(torch.abs(z_scores) > self.deviation_threshold,
+                                        (torch.abs(z_scores) - self.deviation_threshold)**2, 
                                         torch.tensor(0.0, device=embedding.device))
         # Sum the penalties
         penalty = squared_distances.sum()
         return penalty
 
     def generate_latent(self):
-        penalty_weight=1
         # Ensure image embeddings require gradients
         image_embedding= self.get_zero_embed()
         optimized_embedding = image_embedding.clone().detach().requires_grad_(True)
 
         # Setup the optimizer
-        optimizer = optim.Adam([optimized_embedding], lr=0.005)
+        optimizer = optim.Adam([optimized_embedding], lr=0.01)
 
         for step in range(self.steps):
             optimizer.zero_grad()
@@ -175,12 +182,12 @@ class KandinskyImageGenerator:
             score_loss = self.target_score - score
             
             # Calculate the penalty for the embeddings
-            penalty = self.penalty_function(optimized_embedding)
+            penalty = self.penalty_weight * self.penalty_function(optimized_embedding)
             
             # Total loss
-            total_loss = score_loss + (penalty_weight * penalty)
+            total_loss = score_loss + penalty
 
-            if score_loss<0:
+            if score_loss<0 and penalty<0:
                 break
 
             # Backpropagate
@@ -200,19 +207,22 @@ def main():
                                        dataset=args.dataset,
                                        model_type=args.model_type,
                                        steps=args.steps,
-                                       target_score=args.target_score)
+                                       target_score=args.target_score,
+                                       deviation_threshold=args.deviation_threshold,
+                                       penalty_weight=args.penalty_weight)
     
     result_latent=generator.generate_latent()
 
-    # try:
-    #     response= generate_img2img_generation_jobs_with_kandinsky(
-    #         image_embedding=result_latent,
-    #         negative_image_embedding=None,
-    #         dataset_name="test-generations",
-    #         prompt_generation_policy="pez_optimization",
-    #     )
-    # except:
-    #     print("An error occured.")
+    if(args.send_job):
+        try:
+            response= generate_img2img_generation_jobs_with_kandinsky(
+                image_embedding=result_latent,
+                negative_image_embedding=None,
+                dataset_name="test-generations",
+                prompt_generation_policy="pez_optimization",
+            )
+        except:
+            print("An error occured.")
 
 if __name__=="__main__":
     main()
