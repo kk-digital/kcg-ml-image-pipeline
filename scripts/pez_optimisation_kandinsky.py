@@ -72,8 +72,8 @@ class KandinskyImageGenerator:
         # get clip mean and std values
         prior_model = PriorTransformer.from_pretrained(PRIOR_MODEL_PATH, subfolder="prior").to(self.device)
         
-        self.clip_mean= prior_model.clip_mean.clone().to(self.device)
-        self.clip_std= prior_model.clip_std.clone().to(self.device)
+        self.clip_mean= prior_model.clip_max.clone().to(self.device)
+        self.clip_std= prior_model.clip_min.clone().to(self.device)
         
 
     # load elm or linear scoring models
@@ -156,18 +156,7 @@ class KandinskyImageGenerator:
             print(f"Step: {step}, Score: {score.item()}, Loss: {loss.item()}")
 
         return optimized_embedding
-    
-    # def test_image_score(self):
-    #     #test-generations/0018/017694.jpg
 
-    #     features_data = get_object(self.minio_client, "test-generations/0018/017694_clip_kandinsky.msgpack")
-    #     features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
-    #     features_vector= torch.tensor([features_vector]).to(device=self.device, dtype=torch.float32)
-
-    #     inputs = features_vector.reshape(len(features_vector), -1)
-    #     score = self.scoring_model.model.forward(inputs).squeeze()
-
-    #     print(f"score is {score}")
 
 def main():
     args= parse_args()
