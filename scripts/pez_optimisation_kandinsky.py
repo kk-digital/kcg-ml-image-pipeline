@@ -184,7 +184,7 @@ class KandinskyImageGenerator:
             total_loss.backward()
             optimizer.step()
 
-            print(f"Step: {step}, Score: {score.item()}, Loss: {total_loss.item()}")
+            print(f"Step: {step}, Score: {score.item()}, Penalty: {penalty}, Loss: {total_loss.item()}")
 
         return optimized_embedding
 
