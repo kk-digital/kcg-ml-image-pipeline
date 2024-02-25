@@ -18,6 +18,7 @@ from utility.minio import cmd
 from data_loader.utils import get_object
 from kandinsky.model_paths import PRIOR_MODEL_PATH
 from kandinsky.pipelines.kandinsky_prior import KandinskyV22PriorPipeline
+from diffusers import PriorTransformer
 
 def parse_args():
         parser = argparse.ArgumentParser()
@@ -69,8 +70,7 @@ class KandinskyImageGenerator:
         self.std= float(self.scoring_model.standard_deviation)
 
         # get clip mean and std values
-        prior_model= KandinskyV22PriorPipeline.from_pretrained(PRIOR_MODEL_PATH, local_files_only=True, 
-                                                                       image_encoder=self.image_encoder, torch_dtype=torch.float16).to(self.device)
+        prior_model = PriorTransformer.from_pretrained(PRIOR_MODEL_PATH, subfolder="prior")
         
         self.clip_mean= prior_model.clip_mean.clone()
         self.clip_std= prior_model.clip_std.clone()
