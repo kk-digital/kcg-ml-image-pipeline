@@ -151,7 +151,7 @@ class KandinskyImageGenerator:
         return penalty
 
     def generate_latent(self):
-        penalty_weight=0.01
+        penalty_weight=1
         # Ensure image embeddings require gradients
         image_embedding= self.get_zero_embed()
         optimized_embedding = image_embedding.clone().detach().requires_grad_(True)
