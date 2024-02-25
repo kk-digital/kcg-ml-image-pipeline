@@ -72,8 +72,6 @@ class KandinskyImageGenerator:
         # get clip mean and std values
         prior_model = PriorTransformer.from_pretrained(PRIOR_MODEL_PATH, subfolder="prior").to(self.device)
 
-        print(prior_model.parameters())
-
         self.clip_mean= prior_model.clip_mean.clone().to(self.device)
         self.clip_std= prior_model.clip_std.clone().to(self.device)
         
@@ -125,8 +123,32 @@ class KandinskyImageGenerator:
         return zero_image_emb.to(
             device=self.device, dtype=torch.float32
         )
+    
+    def penalty_function(self, embedding, threshold=5):
+        """
+        Calculates a penalty for embeddings that deviate from the mean beyond the allowed threshold (in standard deviations).
+        
+        Args:
+        - embeddings (torch.Tensor): The current embeddings.
+        - mean (torch.Tensor): The mean values for each dimension.
+        - std (torch.Tensor): The standard deviation values for each dimension.
+        - threshold (float): The number of standard deviations considered acceptable.
+        
+        Returns:
+        - torch.Tensor: A scalar tensor representing the penalty.
+        """
+        # Standardize embeddings
+        z_scores = (embedding - self.clip_mean) / self.clip_std
+        # Calculate the squared distances beyond the threshold
+        squared_distances = torch.where(torch.abs(z_scores) > threshold,
+                                        (torch.abs(z_scores) - threshold)**2, 
+                                        torch.tensor(0.0, device=embedding.device))
+        # Sum the penalties
+        penalty = squared_distances.sum()
+        return penalty
 
     def generate_latent(self):
+        penalty_weight=0.01
         # Ensure image embeddings require gradients
         image_embedding= self.get_zero_embed()
         optimized_embedding = image_embedding.clone().detach().requires_grad_(True)
@@ -137,25 +159,32 @@ class KandinskyImageGenerator:
         for step in range(self.steps):
             optimizer.zero_grad()
 
-            normalized_embeddings = (optimized_embedding - self.clip_mean) / self.clip_std
-            clamped_embeddings = torch.clamp(normalized_embeddings, -10, 10)
-            optimized_embedding = (clamped_embeddings * self.clip_std) + self.clip_mean
+            # normalized_embeddings = (optimized_embedding - self.clip_mean) / self.clip_std
+            # clamped_embeddings = torch.clamp(normalized_embeddings, -10, 10)
+            # optimized_embedding = (clamped_embeddings * self.clip_std) + self.clip_mean
 
             # Calculate the custom score
             inputs = optimized_embedding.reshape(len(optimized_embedding), -1)
             score = self.scoring_model.model.forward(inputs).squeeze()
             score= (score - self.mean) / self.std
             # Custom loss function
-            loss = self.target_score - score
+            # Original loss based on the scoring function
+            score_loss = self.target_score - score
+            
+            # Calculate the penalty for the embeddings
+            penalty = self.penalty_function(optimized_embedding)
+            
+            # Total loss
+            total_loss = score_loss + (penalty_weight * penalty)
 
-            if loss<0:
+            if score_loss<0:
                 break
 
             # Backpropagate
-            loss.backward()
+            total_loss.backward()
             optimizer.step()
 
-            print(f"Step: {step}, Score: {score.item()}, Loss: {loss.item()}")
+            print(f"Step: {step}, Score: {score.item()}, Loss: {total_loss.item()}")
 
         return optimized_embedding
 
