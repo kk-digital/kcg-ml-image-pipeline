@@ -74,6 +74,8 @@ class KandinskyImageGenerator:
 
         self.clip_mean= prior_model.clip_mean.clone().to(self.device)
         self.clip_std= prior_model.clip_std.clone().to(self.device)
+
+        print(self.clip_mean, self.clip_std)
         
 
     # load elm or linear scoring models
