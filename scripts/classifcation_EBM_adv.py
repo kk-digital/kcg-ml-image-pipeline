@@ -769,14 +769,14 @@ from collections import namedtuple
 ############ Graph
 
 
-# date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
-# print(date_now)
+date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
+print(date_now)
 
 
-# minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
-#             "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
-#             None)
-# minio_path="environmental/output/my_test"
+minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
+            "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+            None)
+minio_path="environmental/output/my_test"
 
 # epochs = range(1, len(total_losses) + 1)  
 
@@ -1029,27 +1029,259 @@ def energy_evaluation(training_loader,adv_loader):
 
 
 
-# Pure classification
+
+##################### 24 - 22 - 24 Stuff
+
+# # Pure classification
+# # Function to train the model
+# def train_model_for_classification(model, train_loader, criterion, optimizer, num_epochs=5):
+#     model.to(device)
+#     model.train()
+    
+#     for epoch in range(num_epochs):
+#         running_loss = 0.0
+#         for inputs, labels in train_loader:
+#             inputs, labels = inputs.to(device), labels.to(device)
+            
+#             optimizer.zero_grad()
+#             outputs = model(inputs)
+#             loss = criterion(outputs, labels)
+#             loss.backward()
+#             optimizer.step()
+            
+#             running_loss += loss.item()
+        
+#         print(f'Epoch {epoch+1}/{num_epochs}, Loss: {running_loss/len(train_loader)}')
+
+
+
+# from sklearn.metrics import accuracy_score, confusion_matrix
+
+
+# # Function to evaluate the model on accuracy vs. confidence
+# def evaluate_model_for_classification(model, test_loader, device='cuda'):
+#     model.to(device)
+#     model.eval()
+
+#     all_confidences = []
+#     all_predictions = []
+#     all_labels = []
+
+#     with torch.no_grad():
+#         for inputs, labels in test_loader:
+#             inputs, labels = inputs.to(device), labels.to(device)
+
+#             outputs = model(inputs)
+#             confidences, predictions = torch.max(outputs, dim=1)
+
+#             all_confidences.extend(confidences.cpu().numpy())
+#             all_predictions.extend(predictions.cpu().numpy())
+#             all_labels.extend(labels.cpu().numpy())
+
+#     accuracy = accuracy_score(all_labels, all_predictions)
+#     confusion_mat = confusion_matrix(all_labels, all_predictions)
+
+#     return accuracy, all_confidences, confusion_mat
+
+
+
+# # Load CIFAR-10 dataset and create data loaders
+# transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+
+# train_dataset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+# test_dataset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+
+# train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+# test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+
+# # Initialize the model, criterion, and optimizer
+# model = CNN_Classifier_Model()
+# criterion = nn.CrossEntropyLoss()
+# optimizer = optim.Adam(model.parameters(), lr=0.0001)
+
+# # Train the model
+# train_model_for_classification(model, train_loader, criterion, optimizer, num_epochs=120)
+
+# # Evaluate the model on accuracy vs. confidence
+# accuracy, confidences, confusion_mat = evaluate_model_for_classification(model, test_loader)
+
+# print(f'Accuracy: {accuracy}')
+# print('Confusion Matrix:')
+# print(confusion_mat)
+    
+
+
+
+#### 25 - 02 - 24 Stuff
+
+# for stl
+# Model
+class CNN_Classifier_Model(nn.Module):
+    def __init__(self, dropout_prob=0.5):
+        super(CNN_Classifier_Model, self).__init__()
+        # Convolutional layers and activation functions
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1)
+        self.relu1 = nn.ReLU()
+        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.dropout1 = nn.Dropout(dropout_prob)
+
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
+        self.relu2 = nn.ReLU()
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.dropout2 = nn.Dropout(dropout_prob)
+
+        self.conv3 = nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1)
+        self.relu3 = nn.ReLU()
+        self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.dropout3 = nn.Dropout(dropout_prob)
+
+        # Fully-connected layers and activation functions
+        self.fc1 = nn.Linear(256 * 12 * 12, 1024)
+        self.relu4 = nn.ReLU()
+        self.dropout4 = nn.Dropout(dropout_prob)
+
+        self.fc2 = nn.Linear(1024, 512)
+        self.relu5 = nn.ReLU()
+        self.dropout5 = nn.Dropout(dropout_prob)
+
+        # Classification branch
+        self.fc3 = nn.Linear(512, 10)  # Update to 10 classes for STL-10
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, x):
+        # Convolutional layers
+        x = self.conv1(x)
+        #print("After conv1:", x.shape)
+        x = self.relu1(x)
+        x = self.pool1(x)
+        x = self.dropout1(x)
+
+        x = self.conv2(x)
+        # print("After conv2:", x.shape)
+        x = self.relu2(x)
+        x = self.pool2(x)
+        x = self.dropout2(x)
+
+        x = self.conv3(x)
+        # print("After conv3:", x.shape)
+        x = self.relu3(x)
+        x = self.pool3(x)
+        x = self.dropout3(x)
+
+        # Flatten the tensor
+        x = x.view(x.size(0), -1)
+        # print("After flattening:", x.shape)
+
+        # Fully-connected layers
+        x = self.fc1(x)
+        # print("After fc1:", x.shape)
+        x = self.relu4(x)
+        x = self.dropout4(x)
+
+        x = self.fc2(x)
+        # print("After fc2:", x.shape)
+        x = self.relu5(x)
+        x = self.dropout5(x)
+
+        # Classification branch
+        logits = self.fc3(x)
+        # print("After fc3 (logits):", logits.shape)
+
+        probs = self.softmax(logits)
+
+        return probs
+
+
 # Function to train the model
 def train_model_for_classification(model, train_loader, criterion, optimizer, num_epochs=5):
     model.to(device)
     model.train()
-    
+
+    losses = []  # To store the loss for each epoch
+    accuracies = []  # To store the accuracy for each epoch
+    confidences = []  # To store the confidence for each epoch
+
     for epoch in range(num_epochs):
         running_loss = 0.0
+        correct_predictions = 0
+        total_samples = 0
+        confidence_values = []
+
         for inputs, labels in train_loader:
+
             inputs, labels = inputs.to(device), labels.to(device)
-            
+
             optimizer.zero_grad()
             outputs = model(inputs)
+
+            # Calculate loss
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
-            
-            running_loss += loss.item()
-        
-        print(f'Epoch {epoch+1}/{num_epochs}, Loss: {running_loss/len(train_loader)}')
 
+            running_loss += loss.item()
+
+            # Calculate accuracy
+            _, predicted = torch.max(outputs, 1)
+            correct_predictions += torch.sum(predicted == labels).item()
+            total_samples += labels.size(0)
+
+            # Calculate confidence
+            confidence = torch.nn.functional.softmax(outputs, dim=1)
+            confidence_values.extend(confidence.max(dim=1).values.cpu().detach().numpy())
+
+        # Calculate accuracy and confidence for the epoch
+        accuracy = correct_predictions / total_samples
+        average_confidence = sum(confidence_values) / len(confidence_values)
+
+        # Append values for plotting
+        losses.append(running_loss / len(train_loader))
+        accuracies.append(accuracy)
+        confidences.append(average_confidence)
+
+        print(f'Epoch {epoch+1}/{num_epochs}, Loss: {losses[-1]}, Accuracy: {accuracy}, Confidence: {average_confidence}')
+
+    # Plotting
+    plot_graphs(losses, accuracies, confidences)
+
+def plot_graphs(losses, accuracies, confidences):
+    epochs = range(1, len(losses) + 1)
+
+    # Plotting Loss
+    plt.figure(figsize=(15, 5))
+    plt.subplot(1, 2, 1)
+    plt.plot(epochs, losses, label='Training Loss')
+    plt.title('Training Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+
+    # Plotting Accuracy and Confidence on the same plot
+    plt.subplot(1, 2, 2)
+    plt.plot(epochs, accuracies, label='Training Accuracy', color='blue')
+    plt.plot(epochs, confidences, label='Average Confidence', color='orange')
+    plt.title('Training Accuracy and Confidence')
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy / Confidence')
+    plt.legend()
+
+    # Display the plots
+    plt.tight_layout()
+
+    plt.savefig("output/pure_classification.png")
+
+    # Save the figure to a file
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+
+    # upload the graph report
+    minio_path= minio_path + "/pure_classification" +date_now+".png"
+    cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+    # Remove the temporary file
+    os.remove("output/pure_classification.png")
+    # Clear the current figure
+    plt.clf()
 
 
 from sklearn.metrics import accuracy_score, confusion_matrix
@@ -1082,26 +1314,188 @@ def evaluate_model_for_classification(model, test_loader, device='cuda'):
 
 
 
+# Train and validate
+def train_and_validate_model(model, train_loader, val_loader, criterion, optimizer, num_epochs=5):
+    model.train()
+
+    train_losses = []
+    train_accuracies = []
+    val_losses = []
+    val_accuracies = []
+    confidences = []
+
+    for epoch in range(num_epochs):
+        # Training
+        model.train()
+        running_loss = 0.0
+        correct_predictions = 0
+        total_samples = 0
+        confidence_values = []
+
+        for inputs, labels in train_loader:
+            optimizer.zero_grad()
+            outputs = model(inputs)
+
+            # Calculate loss
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+
+            running_loss += loss.item()
+
+            # Calculate accuracy
+            _, predicted = torch.max(outputs, 1)
+            correct_predictions += torch.sum(predicted == labels).item()
+            total_samples += labels.size(0)
+
+            # Calculate confidence
+            confidence = torch.nn.functional.softmax(outputs, dim=1)
+            confidence_values.extend(confidence.max(dim=1).values.cpu().detach().numpy())
+
+        # Calculate training accuracy and confidence for the epoch
+        train_accuracy = correct_predictions / total_samples
+        average_confidence = sum(confidence_values) / len(confidence_values)
+
+        # Append values for plotting
+        train_losses.append(running_loss / len(train_loader))
+        train_accuracies.append(train_accuracy)
+        confidences.append(average_confidence)
+
+        print(f'Epoch {epoch+1}/{num_epochs}, Training Loss: {train_losses[-1]}, Training Accuracy: {train_accuracy}, Confidence: {average_confidence}')
+
+        # Validation
+        model.eval()
+        val_loss = 0.0
+        correct_predictions_val = 0
+        total_samples_val = 0
+
+        for inputs_val, labels_val in val_loader:
+            outputs_val = model(inputs_val)
+            loss_val = criterion(outputs_val, labels_val)
+            val_loss += loss_val.item()
+
+            _, predicted_val = torch.max(outputs_val, 1)
+            correct_predictions_val += torch.sum(predicted_val == labels_val).item()
+            total_samples_val += labels_val.size(0)
+
+        # Calculate validation accuracy
+        val_accuracy = correct_predictions_val / total_samples_val
+
+        # Append values for plotting
+        val_losses.append(val_loss / len(val_loader))
+        val_accuracies.append(val_accuracy)
+
+        print(f'Epoch {epoch+1}/{num_epochs}, Validation Loss: {val_losses[-1]}, Validation Accuracy: {val_accuracy}')
+
+    # Plotting
+    plot_graphs_v2(train_losses, train_accuracies, val_losses, val_accuracies, confidences)
+
+
+
+
+
+def plot_graphs_v2(train_losses, train_accuracies, val_losses, val_accuracies, confidences):
+    epochs = range(1, len(train_losses) + 1)
+
+    # Plotting Loss
+    plt.figure(figsize=(15, 5))
+    plt.subplot(1, 2, 1)
+    plt.plot(epochs, train_losses, label='Training Loss', color='blue')
+    plt.plot(epochs, val_losses, label='Validation Loss', color='orange')
+    plt.title('Training and Validation Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+
+    # Plotting Accuracy and Confidence on the same plot
+    plt.subplot(1, 2, 2)
+    plt.plot(epochs, train_accuracies, label='Training Accuracy', color='blue')
+    plt.plot(epochs, val_accuracies, label='Validation Accuracy', color='orange')
+    plt.plot(epochs, confidences, label='Average Confidence', color='green')
+    plt.title('Training and Validation Accuracy and Confidence')
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy / Confidence')
+    plt.legend()
+
+    # Display the plots
+    plt.tight_layout()
+    # Display the plots
+    plt.tight_layout()
+
+    plt.savefig("output/pure_classification.png")
+
+    # Save the figure to a file
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+
+    # upload the graph report
+    minio_path= minio_path + "/pure_classification_v1" +date_now+".png"
+    cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+    # Remove the temporary file
+    os.remove("output/pure_classification.png")
+    # Clear the current figure
+    plt.clf()
+
 # Load CIFAR-10 dataset and create data loaders
-transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+# transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-train_dataset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
-test_dataset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+# train_dataset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+# test_dataset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
 
-train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+# train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+# test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+
+
+
+
+# Load STL-10 dataset and create data loaders
+
+
+# Define the transform to apply to the data
+transform = transforms.Compose([
+    #transforms.Resize((96, 96)),  # Resize to match STL-10 image size
+    transforms.ToTensor(),
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+])
+
+# Download STL-10 train set
+train_dataset = torchvision.datasets.STL10(root='./data', split='train', download=True, transform=transform)
+
+# Download STL-10 test set
+test_dataset = torchvision.datasets.STL10(root='./data', split='test', download=True, transform=transform)
+
+# Assuming train_dataset is already created
+dataset_size = len(train_dataset)
+split_1 = int(0.8 * dataset_size)
+split_2 = dataset_size - split_1
+
+# Creating the training and validation subsets
+train_subset, val_subset = torch.utils.data.random_split(train_dataset, [split_1, split_2])
+
+# Create data loaders for training and validation
+train_loader = torch.utils.data.DataLoader(train_subset, batch_size=64, shuffle=True)
+val_loader = torch.utils.data.DataLoader(val_subset, batch_size=64, shuffle=False)
+# Create special datasets
+# Cats id = 3
+# Dogs id = 5
+
+
+
 
 # Initialize the model, criterion, and optimizer
 model = CNN_Classifier_Model()
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.0001)
+optimizer = optim.Adam(model.parameters(), lr=0.0005)
 
 # Train the model
-train_model_for_classification(model, train_loader, criterion, optimizer, num_epochs=120)
+#train_model_for_classification(model, train_loader, criterion, optimizer, num_epochs=10)
+
+train_and_validate_model(model, train_loader, val_loader, criterion, optimizer, num_epochs=2)
 
 # Evaluate the model on accuracy vs. confidence
-accuracy, confidences, confusion_mat = evaluate_model_for_classification(model, test_loader)
+accuracy, confidences, confusion_mat = evaluate_model_for_classification(model, val_loader)
 
 print(f'Accuracy: {accuracy}')
 print('Confusion Matrix:')
-print(confusion_mat)
+print(confusion_mat) 
