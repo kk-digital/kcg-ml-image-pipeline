@@ -5,6 +5,8 @@ import sys
 import torch
 import torch.optim as optim
 import msgpack
+from kandinsky.model_paths import PRIOR_MODEL_PATH
+from kandinsky.pipelines.kandinsky_prior import KandinskyV22PriorPipeline
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -65,6 +67,15 @@ class KandinskyImageGenerator:
         self.scoring_model= self.load_scoring_model()
         self.mean= float(self.scoring_model.mean)
         self.std= float(self.scoring_model.standard_deviation)
+
+        # get clip mean and std values
+        prior_model= KandinskyV22PriorPipeline.from_pretrained(PRIOR_MODEL_PATH, local_files_only=True, 
+                                                                       image_encoder=self.image_encoder, torch_dtype=torch.float16).to(self.device)
+        
+        self.clip_mean= prior_model.clip_mean.clone()
+        self.clip_std= prior_model.clip_std.clone()
+
+
         
 
     # load elm or linear scoring models
@@ -121,10 +132,14 @@ class KandinskyImageGenerator:
         optimized_embedding = image_embedding.clone().detach().requires_grad_(True)
 
         # Setup the optimizer
-        optimizer = optim.Adam([optimized_embedding], lr=0.01)
+        optimizer = optim.Adam([optimized_embedding], lr=0.005)
 
         for step in range(self.steps):
             optimizer.zero_grad()
+
+            normalized_embeddings = (optimized_embedding - self.clip_mean) / self.clip_std
+            clamped_embeddings = torch.clamp(normalized_embeddings, -10, 10)
+            optimized_embedding = (clamped_embeddings * self.clip_std) + self.clip_mean
 
             # Calculate the custom score
             inputs = optimized_embedding.reshape(len(optimized_embedding), -1)
@@ -168,15 +183,15 @@ def main():
     
     result_latent=generator.generate_latent()
 
-    try:
-        response= generate_img2img_generation_jobs_with_kandinsky(
-            image_embedding=result_latent,
-            negative_image_embedding=None,
-            dataset_name="test-generations",
-            prompt_generation_policy="pez_optimization",
-        )
-    except:
-        print("An error occured.")
+    # try:
+    #     response= generate_img2img_generation_jobs_with_kandinsky(
+    #         image_embedding=result_latent,
+    #         negative_image_embedding=None,
+    #         dataset_name="test-generations",
+    #         prompt_generation_policy="pez_optimization",
+    #     )
+    # except:
+    #     print("An error occured.")
 
 if __name__=="__main__":
     main()
