@@ -8,13 +8,12 @@ import time
 from fastapi import Request
 from typing import TypeVar, Generic, List, Any, Dict, Optional
 from pydantic import BaseModel
-from .mongo_schemas import TagDefinition, TagCategory
+from orchestration.api.mongo_schema.tag_schemas import TagDefinition, TagCategory, ImageTag
 from datetime import datetime
 from minio import Minio
 from dateutil import parser
 from datetime import datetime
 import os
-from .mongo_schemas import ImageTag
 
 
 class ListImageTag(BaseModel):
