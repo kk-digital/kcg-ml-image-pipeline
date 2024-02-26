@@ -189,55 +189,12 @@ def get_image(file_path: str):
 
 
 # ##################### NEW Classifier V2
-# class CNNModel(nn.Module):
-#     def __init__(self):
-#         super(CNNModel, self).__init__()
-
-#         # Convolutional layers and activation functions
-#         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
-#         self.relu1 = nn.ReLU()
-#         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
-
-#         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
-#         self.relu2 = nn.ReLU()
-#         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
-
-#         # Fully-connected layers and activation functions
-#         self.fc1 = nn.Linear(64 * 8 * 8, 1024)
-#         self.relu3 = nn.ReLU()
-
-#         # Energy prediction branch
-#         self.fc_energy = nn.Linear(1024, 1)  # Predict a single energy score
-
-#         # # Classification branch
-#         # self.fc2 = nn.Linear(1024, 10)
-#         # self.softmax = nn.Softmax(dim=1)  # Apply softmax for class probabilities
-
-#     def forward(self, x):
-#         # Feature extraction using convolutional layers
-#         x = self.pool1(self.relu1(self.conv1(x)))
-#         x = self.pool2(self.relu2(self.conv2(x)))
-#         x = x.view(-1, 64 * 8 * 8)
-
-#         # Feature processing for both branches
-#         shared_features = self.relu3(self.fc1(x))
-
-#         # Energy branch
-#         energy = self.fc_energy(shared_features)  # Output energy score
-
-#         # # Classification branch
-#         # logits = self.fc2(shared_features)
-#         # probs = self.softmax(logits)  # Output class probabilities
-#         print("Energy : ", energy.shape)
-#         return energy
-
-
 class CNNModel(nn.Module):
-    def __init__(self, input_channels=3, num_classes=1):
+    def __init__(self):
         super(CNNModel, self).__init__()
 
         # Convolutional layers and activation functions
-        self.conv1 = nn.Conv2d(input_channels, 32, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
         self.relu1 = nn.ReLU()
         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
 
@@ -245,31 +202,74 @@ class CNNModel(nn.Module):
         self.relu2 = nn.ReLU()
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        # Calculate the size of the fully connected layer dynamically
-        # based on the input size and the downsampling in convolutional and pooling layers
-        self.fc_input_size = 64 * (512 // (2 ** 2)) * (512 // (2 ** 2))
-
         # Fully-connected layers and activation functions
-        self.fc1 = nn.Linear(self.fc_input_size, 1024)
+        self.fc1 = nn.Linear(64 * 8 * 8, 1024)
         self.relu3 = nn.ReLU()
 
         # Energy prediction branch
-        self.fc_energy = nn.Linear(1024, num_classes)  # Predict a single energy score
+        self.fc_energy = nn.Linear(1024, 1)  # Predict a single energy score
+
+        # # Classification branch
+        # self.fc2 = nn.Linear(1024, 10)
+        # self.softmax = nn.Softmax(dim=1)  # Apply softmax for class probabilities
 
     def forward(self, x):
         # Feature extraction using convolutional layers
         x = self.pool1(self.relu1(self.conv1(x)))
         x = self.pool2(self.relu2(self.conv2(x)))
-        x = x.view(-1, self.fc_input_size)
+        x = x.view(-1, 64 * 8 * 8)
 
-        # Feature processing for the energy branch
+        # Feature processing for both branches
         shared_features = self.relu3(self.fc1(x))
 
         # Energy branch
         energy = self.fc_energy(shared_features)  # Output energy score
 
+        # # Classification branch
+        # logits = self.fc2(shared_features)
+        # probs = self.softmax(logits)  # Output class probabilities
         print("Energy : ", energy.shape)
         return energy
+
+
+# class CNNModel(nn.Module):
+#     def __init__(self, input_channels=3, num_classes=1):
+#         super(CNNModel, self).__init__()
+
+#         # Convolutional layers and activation functions
+#         self.conv1 = nn.Conv2d(input_channels, 32, kernel_size=3, stride=1, padding=1)
+#         self.relu1 = nn.ReLU()
+#         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+#         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
+#         self.relu2 = nn.ReLU()
+#         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+#         # Calculate the size of the fully connected layer dynamically
+#         # based on the input size and the downsampling in convolutional and pooling layers
+#         self.fc_input_size = 64 * (512 // (2 ** 2)) * (512 // (2 ** 2))
+
+#         # Fully-connected layers and activation functions
+#         self.fc1 = nn.Linear(self.fc_input_size, 1024)
+#         self.relu3 = nn.ReLU()
+
+#         # Energy prediction branch
+#         self.fc_energy = nn.Linear(1024, num_classes)  # Predict a single energy score
+
+#     def forward(self, x):
+#         # Feature extraction using convolutional layers
+#         x = self.pool1(self.relu1(self.conv1(x)))
+#         x = self.pool2(self.relu2(self.conv2(x)))
+#         x = x.view(-1, self.fc_input_size)
+
+#         # Feature processing for the energy branch
+#         shared_features = self.relu3(self.fc1(x))
+
+#         # Energy branch
+#         energy = self.fc_energy(shared_features)  # Output energy score
+
+#         print("Energy : ", energy.shape)
+#         return energy
 
 
 
@@ -761,7 +761,7 @@ def train_model(**kwargs):
 
 
 # Train
-model = train_model(img_shape=(3,512,512),
+model = train_model(img_shape=(3,32,32),
                     batch_size=train_loader.batch_size,
                     lr=0.001,
                     beta1=0.0)
