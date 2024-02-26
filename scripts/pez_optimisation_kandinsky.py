@@ -126,9 +126,9 @@ class KandinskyImageGenerator:
         return scoring_model
     
     def get_initial_latent(self, batch_size=1):
-        random_img= torch.rand(1, 3, self.image_encoder.config.image_size, self.image_encoder.config.image_size).to(
+        random_img= torch.zeros(1, 3, self.image_encoder.config.image_size, self.image_encoder.config.image_size).to(
             device=self.device, dtype=self.image_encoder.dtype
-        ) * 2 - 1
+        )
         zero_image_emb = self.image_encoder(random_img)["image_embeds"]
         zero_image_emb = zero_image_emb.repeat(batch_size, 1)
         return zero_image_emb.to(
