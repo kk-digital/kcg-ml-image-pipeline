@@ -314,6 +314,7 @@ ocult_images = []
 for path in images_paths:
     ocult_images.append(get_image(path))
 
+ocult_images = [transform(img) for img in ocult_images]
 
 print("Occult lenght : ",len(ocult_images))
 
@@ -341,6 +342,7 @@ cyber_images = []
 for path in images_paths:
     cyber_images.append(get_image(path))
 
+cyber_images = [transform(img) for img in cyber_images]
 
 print("Occult lenght : ",len(cyber_images))
 
