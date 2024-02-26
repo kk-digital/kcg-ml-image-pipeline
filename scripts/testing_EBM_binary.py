@@ -129,13 +129,11 @@ def get_tag_jobs(tag_id):
     if response.status_code == 200:
         try:
             jobs = json.loads(response.content)
-            print("Response Content:", jobs)
-            # Check if 'images' key is present in the JSON response
-            if 'images' in jobs:
-                file_paths = [job['file_path'] for job in jobs['images']]
-                return file_paths
-            else:
-                print("Error: 'images' key not found in the JSON response.")
+            
+            # Extract the 'file_path' directly from the jobs dictionary
+            file_paths = [job['file_path'] for job in jobs]
+            
+            return file_paths
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
     else:
@@ -143,7 +141,6 @@ def get_tag_jobs(tag_id):
 
     # Return None or appropriate value to indicate an error
     return None
-
 ########################################### Get clip vectors
 
 def get_clip_vectors(file_paths):
