@@ -198,11 +198,11 @@ class KandinskyImageGenerator:
             # Calculate the penalty for the embeddings
             penalty = self.penalty_weight * self.penalty_function(optimized_embedding)
             
+            if score_loss==0 and penalty==0:
+                break
+
             # Total loss
             total_loss = self.harmonic_loss(score_loss, penalty)
-
-            if total_loss==0:
-                break
 
             # Backpropagate
             total_loss.backward()
