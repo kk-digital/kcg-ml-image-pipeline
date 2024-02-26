@@ -132,15 +132,16 @@ def get_tag_jobs(tag_id):
     # Check if the response is successful (status code 200)
     if response.status_code == 200:
         try:
-            jobs = json.loads(response.content)
-            
-            # Print the content of the response
-            print("Response Content:", jobs)
+            # Parse the JSON response
+            response_data = json.loads(response.content)
 
-            # Check if 'file_path' is present in each job dictionary
-            file_paths = [job['file_path'] for job in jobs if 'file_path' in job]
-            
-            return file_paths
+            # Check if 'images' key is present in the JSON response
+            if 'images' in response_data.get('response', {}):
+                # Extract file paths from the 'images' key
+                file_paths = [job['file_path'] for job in response_data['response']['images']]
+                return file_paths
+            else:
+                print("Error: 'images' key not found in the JSON response.")
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
     else:
