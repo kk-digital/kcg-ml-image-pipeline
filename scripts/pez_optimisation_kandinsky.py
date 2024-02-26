@@ -203,6 +203,13 @@ class KandinskyImageGenerator:
 
             # Backpropagate
             total_loss.backward()
+
+            # Debugging gradients: check the .grad attribute
+            if optimized_embedding.grad is not None:
+                print(f"Step {step}: Gradient norm is {optimized_embedding.grad.norm().item()}")
+            else:
+                print(f"Step {step}: No gradient computed.")
+
             optimizer.step()
 
             print(f"Step: {step}, Score: {score.item()}, Penalty: {penalty}, Loss: {total_loss.item()}")
