@@ -390,7 +390,7 @@ val_loader_set_cyber= data.DataLoader(val_set_cyber,batch_size=64, shuffle=False
 
 ############ OOD
 oodset = SVHN(root='./data',  transform=transform, download=True)
-
+print("ood images 1 : ", oodset[0])
 num_samples_ood = len(oodset)
 print("the number of ood samples is ", num_samples_ood)
 train_size_ood = int(0.8 * num_samples_ood)
