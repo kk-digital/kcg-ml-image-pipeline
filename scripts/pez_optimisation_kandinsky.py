@@ -246,7 +246,7 @@ def main():
                                        penalty_weight=args.penalty_weight,
                                        send_job= args.send_job,
                                        generate_step=args.generate_step,
-                                       generate_step=args.print_step)
+                                       print_step=args.print_step)
     
     result_latent=generator.generate_latent()
 
