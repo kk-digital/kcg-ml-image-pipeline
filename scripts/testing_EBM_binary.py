@@ -367,6 +367,8 @@ for img, label in zip(cyber_images, labels_cyber):
 
 cyber_images = data_cyber
 
+print("cyber images 1 : ", cyber_images[0])
+
 num_samples_cyber = len(cyber_images)
 print("the number of samples in cyber ", num_samples_cyber)
 train_size_cyber = int(0.8 * num_samples_cyber)
@@ -412,11 +414,11 @@ adv_loader = val_loader_set_cyber
 
 
 first_element = next(iter(train_loader))
-print("Train sample : ", first_element[0])
-first_element = next(iter(val_loader))
-print("Val sample : ", first_element[0])
-first_element = next(iter(adv_loader))
-print("ADV sample : ", first_element[0])
+# print("Train sample : ", first_element[0])
+# first_element = next(iter(val_loader))
+# print("Val sample : ", first_element[0])
+# first_element = next(iter(adv_loader))
+# print("ADV sample : ", first_element[0])
 
 
 ############################################# UTILS
