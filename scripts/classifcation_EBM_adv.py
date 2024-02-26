@@ -78,6 +78,18 @@ device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("
 print("Device:", device)
 
 
+############ Graph
+
+
+date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
+print(date_now)
+
+
+minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
+            "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+            None)
+minio_path="environmental/output/my_test"
+
 
 
 class ToGrayscale(transforms.ToTensor):
@@ -765,18 +777,6 @@ from collections import namedtuple
 
 
 
-
-############ Graph
-
-
-date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
-print(date_now)
-
-
-minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
-            "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
-            None)
-minio_path="environmental/output/my_test"
 
 # epochs = range(1, len(total_losses) + 1)  
 
