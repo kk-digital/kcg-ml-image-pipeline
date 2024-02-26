@@ -1276,6 +1276,7 @@ def plot_graphs(losses, accuracies, confidences):
     buf.seek(0)
 
     # upload the graph report
+    minio_path="environmental/output/my_test"
     minio_path= minio_path + "/pure_classification" +date_now+".png"
     cmd.upload_data(minio_client, 'datasets', minio_path, buf)
     # Remove the temporary file
@@ -1430,6 +1431,7 @@ def plot_graphs_v2(train_losses, train_accuracies, val_losses, val_accuracies, c
     buf.seek(0)
 
     # upload the graph report
+    minio_path="environmental/output/my_test"
     minio_path= minio_path + "/pure_classification_v1" +date_now+".png"
     cmd.upload_data(minio_client, 'datasets', minio_path, buf)
     # Remove the temporary file
