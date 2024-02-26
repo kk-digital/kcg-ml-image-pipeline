@@ -8,13 +8,13 @@ import time
 from fastapi import Request
 from typing import TypeVar, Generic, List, Any, Dict, Optional
 from pydantic import BaseModel
-from .mongo_schemas import TagDefinition, TagCategory
+from orchestration.api.mongo_schema.tag_schemas import TagDefinition, TagCategory, ImageTag
+from orchestration.api.mongo_schema.pseudo_tag_schemas import PseudoTagDefinition, PseudoTagCategory, ImagePseudoTag
 from datetime import datetime
 from minio import Minio
 from dateutil import parser
 from datetime import datetime
 import os
-from .mongo_schemas import ImageTag
 
 
 class ListImageTag(BaseModel):
@@ -46,6 +46,9 @@ class UrlResponse(BaseModel):
 class TagIdResponse(BaseModel):
     tag_id: int
 
+class PseudoTagIdResponse(BaseModel):
+    pseudo_tag_id: int
+
 class GetClipPhraseResponse(BaseModel):
     phrase : str
     clip_vector: List[List[float]]
@@ -66,6 +69,7 @@ class TagResponse(BaseModel):
     tag_description: str  
     tag_vector_index: int
     deprecated: bool = False
+    deprecated_tag_category: bool = False
     user_who_created: str
     creation_time: str
 

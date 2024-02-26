@@ -4,7 +4,7 @@ from utility.minio import cmd
 import os
 import json
 from io import BytesIO
-from orchestration.api.mongo_schemas import Selection, RelevanceSelection
+from orchestration.api.mongo_schema.selection_schemas import Selection, RelevanceSelection
 from .api_utils import PrettyJSONResponse
 import random
 

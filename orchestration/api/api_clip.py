@@ -16,6 +16,7 @@ from minio.error import S3Error
 from .api_utils import find_or_create_next_folder_and_index
 import os
 import io
+from PIL import Image
 
 CLIP_SERVER_ADDRESS = 'http://192.168.3.31:8002'
 #CLIP_SERVER_ADDRESS = 'http://127.0.0.1:8002'
@@ -649,10 +650,11 @@ async def upload_image(request:Request, file: UploadFile = File(...)):
             http_status_code = 500, 
         )
     
+
 @router.post("/upload-image-v1",
              status_code=201, 
              response_model=StandardSuccessResponseV1[UrlResponse],
-             responses=ApiResponseHandlerV1.listErrors([422,500]),
+             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]),
              description="Upload Image on minio")
 async def upload_image_v1(request:Request, file: UploadFile = File(...)):
     response_handler = ApiResponseHandlerV1(request)
@@ -669,18 +671,27 @@ async def upload_image_v1(request:Request, file: UploadFile = File(...)):
     try:
         await file.seek(0)  # Go to the start of the file
         content = await file.read()  # Read file content into bytes
+        
+        # Check if the image is 512x512
+        image = Image.open(io.BytesIO(content))
+        if image.size != (512, 512):
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS, 
+                error_string="Image must be 512x512 pixels",
+                http_status_code=422,
+            )
+
         content_stream = io.BytesIO(content)
         # Upload the file content
         cmd.upload_data(minio_client, bucket_name, file_path, content_stream)
         full_file_path = f"{bucket_name}/{file_path}"
         return response_handler.create_success_response_v1(
-            response_data = full_file_path, 
-            http_status_code=201,)
+            response_data=full_file_path, 
+            http_status_code=201)
     except Exception as e:
         print(f"Exception occurred: {e}") 
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, 
             error_string="Internal server error",
-            http_status_code = 500, 
+            http_status_code=500, 
         )
- 
