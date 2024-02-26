@@ -53,6 +53,7 @@ class KandinskyImageGenerator:
         self.steps= steps
         self.penalty_weight= penalty_weight
         self.deviation_threshold= deviation_threshold
+        self.target_score= target_score
 
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
@@ -64,8 +65,6 @@ class KandinskyImageGenerator:
         else:
             device = 'cpu'
         self.device = torch.device(device)
-
-        self.target_score= torch.tensor(target_score, dtype=torch.float, device=self.device, requires_grad=True)
         
         # load kandinsky clip
         clip= KandinskyCLIPImageEncoder(device= self.device)
@@ -124,8 +123,8 @@ class KandinskyImageGenerator:
 
         return scoring_model
     
-    def get_zero_embed(self, batch_size=1):
-        zero_img = torch.zeros(1, 3, self.image_encoder.config.image_size, self.image_encoder.config.image_size).to(
+    def get_initial_latent(self, batch_size=1):
+        zero_img = torch.rand(1, 3, self.image_encoder.config.image_size, self.image_encoder.config.image_size).to(
             device=self.device, dtype=self.image_encoder.dtype
         )
         zero_image_emb = self.image_encoder(zero_img)["image_embeds"]
@@ -157,24 +156,10 @@ class KandinskyImageGenerator:
         # Sum the penalties
         penalty = squared_distances.sum()
         return penalty
-    
-    def harmonic_loss(self, score_loss, penalty):
-        # Ensure non-zero to avoid division by zero
-        epsilon = 1e-6
-        score_loss_abs = torch.abs(score_loss) + epsilon
-        penalty_abs = torch.abs(penalty) + epsilon
-        
-        # Harmonic mean
-        harmonic_mean = 2 / ((1 / score_loss_abs) + (1 / penalty_abs))
-        
-        # Inverting the harmonic mean so that lower is better
-        loss = 1 / harmonic_mean
-        
-        return loss
 
     def generate_latent(self):
         # Ensure image embeddings require gradients
-        image_embedding= self.get_zero_embed()
+        image_embedding= self.get_initial_latent()
         optimized_embedding = image_embedding.clone().detach().requires_grad_(True)
 
         # Setup the optimizer
@@ -182,10 +167,6 @@ class KandinskyImageGenerator:
 
         for step in range(self.steps):
             optimizer.zero_grad()
-
-            # normalized_embeddings = (optimized_embedding - self.clip_mean) / self.clip_std
-            # clamped_embeddings = torch.clamp(normalized_embeddings, -10, 10)
-            # optimized_embedding = (clamped_embeddings * self.clip_std) + self.clip_mean
 
             # Calculate the custom score
             inputs = optimized_embedding.reshape(len(optimized_embedding), -1)
@@ -198,11 +179,11 @@ class KandinskyImageGenerator:
             # Calculate the penalty for the embeddings
             penalty = self.penalty_weight * self.penalty_function(optimized_embedding)
             
-            if score_loss==0 and penalty==0:
-                break
-
             # Total loss
-            total_loss = self.harmonic_loss(score_loss, penalty)
+            total_loss = score_loss + penalty
+
+            if score_loss<0 and penalty<0:
+                break
 
             # Backpropagate
             total_loss.backward()
@@ -211,17 +192,6 @@ class KandinskyImageGenerator:
             print(f"Step: {step}, Score: {score.item()}, Penalty: {penalty}, Loss: {total_loss.item()}")
 
         return optimized_embedding
-    
-    def test_image_score(self):
-
-        features_data = get_object(self.minio_client, "propaganda-poster/0242/241057_clip_kandinsky.msgpack")
-        features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
-        features_vector= torch.tensor([features_vector]).to(device=self.device, dtype=torch.float32)
-
-        inputs = features_vector.reshape(len(features_vector), -1)
-        score = self.scoring_model.model.forward(inputs).squeeze()
-
-        print(f"score is {score}")
 
 
 def main():
@@ -236,7 +206,6 @@ def main():
                                        deviation_threshold=args.deviation_threshold,
                                        penalty_weight=args.penalty_weight)
     
-    #generator.test_image_score()
     result_latent=generator.generate_latent()
 
     # if(args.send_job):
