@@ -1,7 +1,7 @@
 from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
-from orchestration.api.mongo_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory
+from orchestration.api.mongo_schema.tag_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory
 from typing import Union
 from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagResponse, TagCountResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, TagIdResponse, ListImageTag
 import traceback
@@ -744,7 +744,7 @@ def remove_image_tag(request: Request, image_hash: str, tag_id: int):
 
 
 
-@router.get("/tags/get_tag_list_for_image", response_model=List[TagResponse])
+@router.get("/tags/get_tag_list_for_image")
 def get_tag_list_for_image(request: Request, file_hash: str):
     # Fetch image tags based on image_hash
     image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash})
@@ -752,10 +752,14 @@ def get_tag_list_for_image(request: Request, file_hash: str):
     # Process the results
     tags_list = []
     for tag_data in image_tags_cursor:
+        # Find the tag definition
         tag_definition = request.app.tag_definitions_collection.find_one({"tag_id": tag_data["tag_id"]})
-        
         if tag_definition:
-            # Create a dictionary representing TagDefinition with tag_type
+            # Find the tag category and determine if it's deprecated
+            category = request.app.tag_categories_collection.find_one({"tag_category_id": tag_definition.get("tag_category_id")})
+            print(category)
+            deprecated_tag_category = category['deprecated']
+            # Create a dictionary representing TagDefinition with tag_type and deprecated_tag_category
             tag_definition_dict = {
                 "tag_id": tag_definition["tag_id"],
                 "tag_string": tag_definition["tag_string"],
@@ -764,6 +768,7 @@ def get_tag_list_for_image(request: Request, file_hash: str):
                 "tag_description": tag_definition["tag_description"],
                 "tag_vector_index": tag_definition.get("tag_vector_index", -1),
                 "deprecated": tag_definition.get("deprecated", False),
+                "deprecated_tag_category": deprecated_tag_category,  # Add deprecated_tag_category here
                 "user_who_created": tag_definition["user_who_created"],
                 "creation_time": tag_definition.get("creation_time", None)
             }
@@ -1909,4 +1914,59 @@ def delete_tag_category(request: Request, tag_category_id: int):
                                                        http_status_code=200,
                                                        )
 
+@router.get("/tags/get_tag_list_for_image_v1",
+            tags=["tags"],
+            status_code=200,
+            description="Get tag list for image",
+            response_model=StandardSuccessResponseV1[List[TagResponse]],
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+def get_tag_list_for_image_v1(request: Request, file_hash: str):
+    response_handler = ApiResponseHandlerV1(request)
+    try:    
+        # Fetch image tags based on image_hash
+        image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash})
+        # Convert cursor to a list to check if it's empty
+        image_tags = list(image_tags_cursor)
+        if not image_tags:
+            # No tags found for the image_hash
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="No tags found for the provided image hash",
+                http_status_code=404,
+            )
+        # Process the results
+        tags_list = []
+        for tag_data in image_tags_cursor:
+            # Find the tag definition
+            tag_definition = request.app.tag_definitions_collection.find_one({"tag_id": tag_data["tag_id"]})
+            if tag_definition:
+                # Find the tag category and determine if it's deprecated
+                category = request.app.tag_categories_collection.find_one({"tag_category_id": tag_definition.get("tag_category_id")})
+                print(category)
+                deprecated_tag_category = category['deprecated']
+                # Create a dictionary representing TagDefinition with tag_type and deprecated_tag_category
+                tag_definition_dict = {
+                    "tag_id": tag_definition["tag_id"],
+                    "tag_string": tag_definition["tag_string"],
+                    "tag_type": tag_data.get("tag_type"),
+                    "tag_category_id": tag_definition.get("tag_category_id"),
+                    "tag_description": tag_definition["tag_description"],
+                    "tag_vector_index": tag_definition.get("tag_vector_index", -1),
+                    "deprecated": tag_definition.get("deprecated", False),
+                    "deprecated_tag_category": deprecated_tag_category,  # Add deprecated_tag_category here
+                    "user_who_created": tag_definition["user_who_created"],
+                    "creation_time": tag_definition.get("creation_time", None)
+                }
 
+                tags_list.append(tag_definition_dict)
+        
+        return response_handler.create_success_response_v1(response_data=tags_list,
+                                                           http_status_code=200)
+    
+    except Exception as e:
+        # Log the exception details here, if necessary
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e), 
+            http_status_code=500,            
+        )  

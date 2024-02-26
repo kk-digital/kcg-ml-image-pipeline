@@ -4,7 +4,7 @@ import math
 import random
 import pymongo
 from utility.minio import cmd
-from orchestration.api.mongo_schemas import  ActiveLearningPolicy, ActiveLearningQueuePair
+from orchestration.api.mongo_schema.active_learning_schemas import  ActiveLearningPolicy, ActiveLearningQueuePair
 from .api_utils import PrettyJSONResponse, ApiResponseHandler
 import os
 from fastapi.responses import JSONResponse
