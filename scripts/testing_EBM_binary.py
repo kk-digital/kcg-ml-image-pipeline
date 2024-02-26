@@ -699,7 +699,7 @@ def train_model(**kwargs):
     model = DeepEnergyModel(**kwargs)
     trainer.fit(model, train_loader, val_loader)
 
-    model = DeepEnergyModel.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
+    #model = DeepEnergyModel.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
 
     # No testing as we are more interested in other properties
 
