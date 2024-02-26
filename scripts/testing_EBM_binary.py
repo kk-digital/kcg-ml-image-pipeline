@@ -131,7 +131,7 @@ def get_tag_jobs(tag_id):
             jobs = json.loads(response.content)
             #print("Response Content:", jobs)
             # Check if 'images' key is present in the JSON response
-            if 'images' in jobs:
+            if  True:
                 file_paths = [job['file_path'] for job in jobs]
                 return file_paths
             else:
