@@ -324,8 +324,8 @@ label_value = 1
 labels_occult = [label_value] * len(ocult_images)
 
 data_occcult = []
-for img, label in zip(ocult_images, labels_occult):
-    data_occcult.append({"image": img, "label": label})
+for image in ocult_images:
+    data_occcult.append((image, 1))
 
 ocult_images = data_occcult
 num_samples_ocult = len(ocult_images)
@@ -362,8 +362,9 @@ label_value = 0
 labels_cyber = [label_value] * len(cyber_images)
 
 data_cyber = []
-for img, label in zip(cyber_images, labels_cyber):
-    data_cyber.append({"image": img, "label": label})
+for image in cyber_images:
+    data_cyber.append((image, 0))
+
 
 cyber_images = data_cyber
 
@@ -390,7 +391,6 @@ val_loader_set_cyber= data.DataLoader(val_set_cyber,batch_size=64, shuffle=False
 
 ############ OOD
 oodset = SVHN(root='./data',  transform=transform, download=True)
-print("ood images 1 : ", oodset[0])
 num_samples_ood = len(oodset)
 print("the number of ood samples is ", num_samples_ood)
 train_size_ood = int(0.8 * num_samples_ood)
