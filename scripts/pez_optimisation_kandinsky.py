@@ -236,8 +236,8 @@ def main():
                                        deviation_threshold=args.deviation_threshold,
                                        penalty_weight=args.penalty_weight)
     
-    generator.test_image_score()
-    #result_latent=generator.generate_latent()
+    #generator.test_image_score()
+    result_latent=generator.generate_latent()
 
     # if(args.send_job):
     #     try:
