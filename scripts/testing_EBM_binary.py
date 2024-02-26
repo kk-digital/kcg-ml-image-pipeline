@@ -113,16 +113,35 @@ API_URL = "http://192.168.3.1:8111"
 
 ########################################### Get tags
 
-def get_tag_jobs(tag_id):
+# def get_tag_jobs(tag_id):
 
-        response = requests.get(f'{API_URL}/tags/get-images-by-tag-id/?tag_id={tag_id}')
+#         response = requests.get(f'{API_URL}/tags/get-images-by-tag-id/?tag_id={tag_id}')
         
-        jobs = json.loads(response.content)
+#         jobs = json.loads(response.content)
 
-        file_paths=[job['file_path'] for job in jobs['images']]
+#         file_paths=[job['file_path'] for job in jobs['images']]
 
-        return file_paths
+#         return file_paths
+def get_tag_jobs(tag_id):
+    response = requests.get(f'{API_URL}/tags/get-images-by-tag-id/?tag_id={tag_id}')
+    
+    # Check if the response is successful (status code 200)
+    if response.status_code == 200:
+        try:
+            jobs = json.loads(response.content)
+            # Check if 'images' key is present in the JSON response
+            if 'images' in jobs:
+                file_paths = [job['file_path'] for job in jobs['images']]
+                return file_paths
+            else:
+                print("Error: 'images' key not found in the JSON response.")
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON: {e}")
+    else:
+        print(f"Error: HTTP request failed with status code {response.status_code}")
 
+    # Return None or appropriate value to indicate an error
+    return None
 
 ########################################### Get clip vectors
 
