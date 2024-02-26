@@ -410,9 +410,13 @@ val_loader = val_loader_set_ocult
 adv_loader = val_loader_set_cyber
 
 
-print("Train sample : ", train_loader[0])
-print("Val sample : ", val_loader[0])
-print("ADV sample : ", adv_loader[0])
+
+first_element = next(iter(train_loader))
+print("Train sample : ", first_element[0])
+first_element = next(iter(val_loader))
+print("Val sample : ", first_element[0])
+first_element = next(iter(adv_loader))
+print("ADV sample : ", first_element[0])
 
 
 ############################################# UTILS
