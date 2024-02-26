@@ -129,6 +129,7 @@ def get_tag_jobs(tag_id):
     if response.status_code == 200:
         try:
             jobs = json.loads(response.content)
+            print("Response Content:", jobs)
             # Check if 'images' key is present in the JSON response
             if 'images' in jobs:
                 file_paths = [job['file_path'] for job in jobs['images']]
