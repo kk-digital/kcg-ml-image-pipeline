@@ -206,6 +206,17 @@ class KandinskyImageGenerator:
             optimizer.step()
 
             print(f"Step: {step}, Score: {score.item()}, Penalty: {penalty}, Loss: {total_loss.item()}")
+        
+        if self.send_job:
+            try:
+                response= generate_img2img_generation_jobs_with_kandinsky(
+                    image_embedding=optimized_embedding,
+                    negative_image_embedding=None,
+                    dataset_name="test-generations",
+                    prompt_generation_policy="pez_optimization",
+                )
+            except:
+                print("An error occured.")
 
         return optimized_embedding
 
