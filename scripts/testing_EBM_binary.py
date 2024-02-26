@@ -66,7 +66,7 @@ matplotlib.rcParams['lines.linewidth'] = 2.0
 # Path to the folder where the datasets are/should be downloaded (e.g. CIFAR10)
 DATASET_PATH = "../data"
 # Path to the folder where the pretrained models are saved
-CHECKPOINT_PATH = "../saved_models/tutorial8"
+CHECKPOINT_PATH = "../savedmodels"
 
 # Setting the seed
 pl.seed_everything(42)
