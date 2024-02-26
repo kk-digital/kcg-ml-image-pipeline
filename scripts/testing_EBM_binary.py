@@ -268,7 +268,7 @@ class CNNModel(nn.Module):
         # Energy branch
         energy = self.fc_energy(shared_features)  # Output energy score
 
-        #print("Energy : ", energy.shape)
+        print("Energy : ", energy.shape)
         return energy
 
 
@@ -734,19 +734,17 @@ def train_model(**kwargs):
                                    ])
     # Check whether pretrained model exists. If yes, load it and skip training
     pretrained_filename = os.path.join(CHECKPOINT_PATH, "MNIST.ckpt")
-    if 5 > 99: #os.path.isfile(pretrained_filename)
-        print("Found pretrained model, loading...")
-        model = DeepEnergyModel.load_from_checkpoint(pretrained_filename)
-    else:
-        pl.seed_everything(42)
-        model = DeepEnergyModel(**kwargs)
-        trainer.fit(model, train_loader, val_loader)
 
-        model = DeepEnergyModel.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
+    pl.seed_everything(42)
+    model = DeepEnergyModel(**kwargs)
+    trainer.fit(model, train_loader, val_loader)
+
+    #model = DeepEnergyModel.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
 
     # No testing as we are more interested in other properties
 
     return model
+
 
 # Train
 model = train_model(img_shape=(3,512,512),
