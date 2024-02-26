@@ -795,8 +795,8 @@ def compare_images_value_purevalue(img1, img2):
     grid = grid.permute(1, 2, 0)
     # print(f"Score original image: {score1.item():4.2f}")
     # print(f"Score transformed image: {score2.item():4.2f}")
-    print(f"Score original image: {score1.item()}")
-    print(f"Score transformed image: {score2.item()}")
+    print(f"Score original image: {score1}")
+    print(f"Score transformed image: {score2}")
 
     return score1.item(), score2.item()
 
