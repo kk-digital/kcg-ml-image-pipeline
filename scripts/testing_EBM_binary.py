@@ -318,6 +318,16 @@ ocult_images = [transform(img) for img in ocult_images]
 
 print("Occult lenght : ",len(ocult_images))
 
+
+# Create labels
+label_value = 1
+labels_occult = [label_value] * len(ocult_images)
+
+data_occcult = []
+for img, label in zip(ocult_images, labels_occult):
+    data_occcult.append({"image": img, "label": label})
+
+ocult_images = data_occcult
 num_samples_ocult = len(ocult_images)
 print("the number of samples in ocult ", num_samples_ocult)
 train_size_ocult = int(0.8 * num_samples_ocult)
@@ -344,7 +354,18 @@ for path in images_paths:
 
 cyber_images = [transform(img) for img in cyber_images]
 
-print("Occult lenght : ",len(cyber_images))
+print("Cyber lenght : ",len(cyber_images))
+
+
+# Create labels
+label_value = 0
+labels_cyber = [label_value] * len(cyber_images)
+
+data_cyber = []
+for img, label in zip(cyber_images, labels_cyber):
+    data_cyber.append({"image": img, "label": label})
+
+cyber_images = data_cyber
 
 num_samples_cyber = len(cyber_images)
 print("the number of samples in cyber ", num_samples_cyber)
