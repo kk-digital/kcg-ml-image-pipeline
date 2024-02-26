@@ -1493,7 +1493,7 @@ optimizer = optim.Adam(model.parameters(), lr=0.0005)
 # Train the model
 #train_model_for_classification(model, train_loader, criterion, optimizer, num_epochs=10)
 
-train_and_validate_model(model, train_loader, val_loader, criterion, optimizer, num_epochs=2)
+train_and_validate_model(model, train_loader, val_loader, criterion, optimizer, num_epochs=100)
 
 # Evaluate the model on accuracy vs. confidence
 accuracy, confidences, confusion_mat = evaluate_model_for_classification(model, val_loader)
