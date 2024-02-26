@@ -587,7 +587,7 @@ def count_completed(request: Request, dataset: str = None):
 # ---------------- Update -------------------
 
 
-@router.put("/queue/image-generation/update-completed-with-better-name", response_class=PrettyJSONResponse)
+@router.put("/queue/image-generation/update-completed-jobs-with-better-name", response_class=PrettyJSONResponse)
 def update_completed_jobs_with_better_name(request: Request, task_type_mapping: Dict[str, str]):
     # Use the limit parameter in the find query to limit the results
     total_count_updated = 0
