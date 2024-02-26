@@ -300,7 +300,7 @@ transform = transforms.Compose([
 
 ##################### Load images
 
-
+batchsize_x = 16
 
 #cybernetic: 35, occult: 39
 
@@ -335,8 +335,8 @@ val_size_ocult = num_samples_ocult - train_size_ocult
 
 
 train_set_ocult, val_set_ocult = random_split(ocult_images, [train_size_ocult, val_size_ocult])
-train_loader_set_ocult = data.DataLoader(train_set_ocult, batch_size=64, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
-val_loader_set_ocult= data.DataLoader(val_set_ocult, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+train_loader_set_ocult = data.DataLoader(train_set_ocult, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+val_loader_set_ocult= data.DataLoader(val_set_ocult, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
 
 
@@ -377,8 +377,8 @@ val_size_cyber= num_samples_cyber - train_size_cyber
 
 
 train_set_cyber, val_set_cyber = random_split(cyber_images, [train_size_cyber, val_size_cyber])
-train_loader_set_cyber = data.DataLoader(train_set_cyber, batch_size=64, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
-val_loader_set_cyber= data.DataLoader(val_set_cyber,batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+train_loader_set_cyber = data.DataLoader(train_set_cyber, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+val_loader_set_cyber= data.DataLoader(val_set_cyber,batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
 
 
@@ -399,8 +399,8 @@ val_size_ood = num_samples_ood - train_size_ood
 
 train_set_ood, val_set_ood = random_split(oodset, [train_size_ood, val_size_ood])
 
-train_ood_loader = data.DataLoader(train_set_ood, batch_size=64, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
-val_ood_loader = data.DataLoader(val_set_ood, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+train_ood_loader = data.DataLoader(train_set_ood, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+val_ood_loader = data.DataLoader(val_set_ood, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
 
 
@@ -820,13 +820,13 @@ def energy_evaluation(training_loader,adv_loader):
     
 
 
-    for i in range(64):
+    for i in range(16):
         a,b =  compare_images_value_purevalue(test_imgs[i].to(model.device),fake_imgs[i].to(model.device))
         some_a += a
         some_b += b
 
-        some_a = some_a / 24
-        some_b = some_b / 24
+        some_a = some_a / 16
+        some_b = some_b / 16
 
     print(f"Score in distribution : {some_a:4.2f}")
     print(f"Score OOD : {some_b:4.2f}")
