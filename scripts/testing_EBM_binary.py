@@ -268,7 +268,7 @@ class CNNModel(nn.Module):
         # Energy branch
         energy = self.fc_energy(shared_features)  # Output energy score
 
-        print("Energy : ", energy.shape)
+        #print("Energy : ", energy.shape)
         return energy
 
 
