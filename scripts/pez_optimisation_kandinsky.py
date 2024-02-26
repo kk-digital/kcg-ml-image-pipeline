@@ -180,9 +180,9 @@ class KandinskyImageGenerator:
             penalty = self.penalty_weight * self.penalty_function(optimized_embedding)
             
             # Total loss
-            total_loss = score_loss + penalty
+            total_loss = torch.abs(score_loss + penalty)
 
-            if score_loss<0 and penalty<0:
+            if total_loss==0:
                 break
 
             # Backpropagate
