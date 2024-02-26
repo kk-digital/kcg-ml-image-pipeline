@@ -47,7 +47,8 @@ class KandinskyImageGenerator:
                  target_score=5.0,
                  penalty_weight=1,
                  deviation_threshold= 2,
-                 send_job=False
+                 send_job=False,
+                 generate_step=100
                  ):
         
         self.dataset= dataset
@@ -57,6 +58,7 @@ class KandinskyImageGenerator:
         self.deviation_threshold= deviation_threshold
         self.target_score= target_score
         self.send_job= send_job
+        self.generate_step= generate_step
 
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
@@ -185,7 +187,7 @@ class KandinskyImageGenerator:
             # Total loss
             total_loss = score_loss + penalty
 
-            if self.send_job and (step % 500 == 0):
+            if self.send_job and (step % self.generate_step == 0):
                 try:
                     response= generate_img2img_generation_jobs_with_kandinsky(
                         image_embedding=optimized_embedding,
@@ -219,7 +221,8 @@ def main():
                                        target_score=args.target_score,
                                        deviation_threshold=args.deviation_threshold,
                                        penalty_weight=args.penalty_weight,
-                                       send_job= args.send_job)
+                                       send_job= args.send_job,
+                                       generate_step=args.generate_step)
     
     result_latent=generator.generate_latent()
 
