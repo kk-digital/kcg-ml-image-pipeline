@@ -231,42 +231,46 @@ def get_image(file_path: str):
 #         print("Energy : ", energy.shape)
 #         return energy
 
+
 class CNNModel(nn.Module):
-    def __init__(self):
+    def __init__(self, input_channels=3, num_classes=1):
         super(CNNModel, self).__init__()
 
-        # Input layer (assuming RGB images)
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
-        self.relu1 = nn.ReLU(inplace=True)
-
-        # Pooling layer 1
+        # Convolutional layers and activation functions
+        self.conv1 = nn.Conv2d(input_channels, 32, kernel_size=3, stride=1, padding=1)
+        self.relu1 = nn.ReLU()
         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        # Second convolutional layer
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
-        self.relu2 = nn.ReLU(inplace=True)
-
-        # Pooling layer 2
+        self.relu2 = nn.ReLU()
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        # Fully-connected layer
-        self.fc = nn.Linear(64 * 64 * 64, 1)  # Single output neuron for energy
+        # Calculate the size of the fully connected layer dynamically
+        # based on the input size and the downsampling in convolutional and pooling layers
+        self.fc_input_size = 64 * (512 // (2 ** 2)) * (512 // (2 ** 2))
+
+        # Fully-connected layers and activation functions
+        self.fc1 = nn.Linear(self.fc_input_size, 1024)
+        self.relu3 = nn.ReLU()
+
+        # Energy prediction branch
+        self.fc_energy = nn.Linear(1024, num_classes)  # Predict a single energy score
 
     def forward(self, x):
-        # Feature extraction
-        x = self.relu1(self.conv1(x))
-        x = self.pool1(x)
-        x = self.relu2(self.conv2(x))
-        x = self.pool2(x)
+        # Feature extraction using convolutional layers
+        x = self.pool1(self.relu1(self.conv1(x)))
+        x = self.pool2(self.relu2(self.conv2(x)))
+        x = x.view(-1, self.fc_input_size)
 
-        # Flatten for the fully-connected layer
-        x = x.view(-1, 64 * 64 * 64)
+        # Feature processing for the energy branch
+        shared_features = self.relu3(self.fc1(x))
 
-        # Compute energy score
-        energy = self.fc(x)
+        # Energy branch
+        energy = self.fc_energy(shared_features)  # Output energy score
+
         print("Energy : ", energy.shape)
         return energy
-    
+
 
 
 ##################### Larger CNN 
@@ -336,7 +340,7 @@ transform = transforms.Compose([
 
 ##################### Load images
 
-batchsize_x = 64
+batchsize_x = 16
 
 #cybernetic: 35, occult: 39
 
