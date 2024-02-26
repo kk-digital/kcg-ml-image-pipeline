@@ -228,7 +228,7 @@ class CNNModel(nn.Module):
         # # Classification branch
         # logits = self.fc2(shared_features)
         # probs = self.softmax(logits)  # Output class probabilities
-        print("Energy : " energy.shape)
+        print("Energy : ", energy.shape)
         return energy
 
 
