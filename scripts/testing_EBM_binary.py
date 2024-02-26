@@ -805,7 +805,8 @@ def compare_images_value_purevalue(img1, img2):
 
 
 # Evaluation OOD capabalities
-        
+
+
 def energy_evaluation(training_loader,adv_loader):
     
     some_a = 0
@@ -831,7 +832,7 @@ def energy_evaluation(training_loader,adv_loader):
     print(f"Score OOD : {some_b:4.2f}")
 
 
-energy_evaluation(val_loader,adv_loader)
+energy_evaluation(val_loader,val_loader)
 
 
 
