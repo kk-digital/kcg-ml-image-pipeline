@@ -299,7 +299,13 @@ transform = transforms.Compose([
 
 
 ##################### Load images
+
+
+
 #cybernetic: 35, occult: 39
+
+
+# Load occults images
 images_paths = get_tag_jobs(39)
 
 ocult_images = []
@@ -318,14 +324,35 @@ val_size_ocult = num_samples_ocult - train_size_ocult
 
 
 train_set_ocult, val_set_ocult = random_split(ocult_images, [train_size_ocult, val_size_ocult])
-train_loader_val_set_ocult = data.DataLoader(train_set_ocult, batch_size=64, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
-val_loader_val_set_ocult= data.DataLoader(val_set_ocult, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+train_loader_set_ocult = data.DataLoader(train_set_ocult, batch_size=64, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+val_loader_set_ocult= data.DataLoader(val_set_ocult, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
 
 
 
 
 
+# Load cybernetics images
+images_paths = get_tag_jobs(35)
+
+cyber_images = []
+
+
+for path in images_paths:
+    cyber_images.append(get_image(path))
+
+
+print("Occult lenght : ",len(cyber_images))
+
+num_samples_cyber = len(cyber_images)
+print("the number of samples in cyber ", num_samples_cyber)
+train_size_cyber = int(0.8 * num_samples_cyber)
+val_size_cyber= num_samples_cyber - train_size_cyber
+
+
+train_set_cyber, val_set_cyber = random_split(cyber_images, [train_size_ocult, val_size_ocult])
+train_loader_set_cyber = data.DataLoader(train_set_cyber, batch_size=64, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+val_loader_set_cyber= data.DataLoader(val_set_cyber,batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
 
 
@@ -354,10 +381,10 @@ val_ood_loader = data.DataLoader(val_set_ood, batch_size=64, shuffle=False, drop
 
 
 
-train_loader = train_loader_val_set_ocult
-val_loader = val_loader_val_set_ocult
+train_loader = train_loader_set_ocult
+val_loader = val_loader_set_ocult
 
-adv_loader = val_ood_loader
+adv_loader = val_loader_set_cyber
 
 ############################################# UTILS
 
@@ -403,7 +430,7 @@ class DeepEnergyModel(pl.LightningModule):
         self.save_hyperparameters()
 
         self.cnn = CNNModel(**CNN_args)
-        self.sampler = Sampler(self.cnn, img_shape=img_shape, sample_size=batch_size)
+        #self.sampler = Sampler(self.cnn, img_shape=img_shape, sample_size=batch_size)
         self.example_input_array = torch.zeros(1, *img_shape)
 
     def forward(self, x):
