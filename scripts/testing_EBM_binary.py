@@ -240,7 +240,7 @@ class LargerCNNModel(nn.Module):
         super(LargerCNNModel, self).__init__()
 
         # Convolutional layers and activation functions
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(3, 512, kernel_size=3, stride=1, padding=1)
         self.relu1 = nn.ReLU()
         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
 
@@ -464,7 +464,7 @@ class DeepEnergyModel(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
 
-        self.cnn = CNNModel(**CNN_args)
+        self.cnn = LargerCNNModel(**CNN_args)
         #self.sampler = Sampler(self.cnn, img_shape=img_shape, sample_size=batch_size)
         self.example_input_array = torch.zeros(1, *img_shape)
 
