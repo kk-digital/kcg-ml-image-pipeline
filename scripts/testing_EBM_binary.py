@@ -295,10 +295,16 @@ transform = transforms.Compose([
 ##################### Load images
 #cybernetic: 35, occult: 39
 images_paths = get_tag_jobs(39)
+print("Occult lenght : ",len(images_paths))
 ocult_images = []
 
-for path in images_paths:
-    ocult_images.append(get_image(path))
+
+
+
+
+
+# for path in images_paths:
+#     ocult_images.append(get_image(path))
 
 num_samples_ocult = len(ocult_images)
 print("the number of samples in ocult ", num_samples_ocult)
@@ -309,6 +315,19 @@ val_size_ocult = num_samples_ocult - train_size_ocult
 train_set_ocult, val_set_ocult = random_split(ocult_images, [train_size_ocult, val_size_ocult])
 train_loader_val_set_ocult = data.DataLoader(train_set_ocult, batch_size=64, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
 val_loader_val_set_ocult= data.DataLoader(val_set_ocult, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
