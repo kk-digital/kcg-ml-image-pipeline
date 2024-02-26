@@ -197,6 +197,17 @@ class KandinskyImageGenerator:
             print(f"Step: {step}, Score: {score.item()}, Penalty: {penalty}, Loss: {total_loss.item()}")
 
         return optimized_embedding
+    
+    def test_image_score(self):
+
+        features_data = get_object(self.minio_client, "propaganda-poster/0242/241057_clip_kandinsky.msgpack")
+        features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
+        features_vector= torch.tensor([features_vector]).to(device=self.device, dtype=torch.float32)
+
+        inputs = features_vector.reshape(len(features_vector), -1)
+        score = self.scoring_model.model.forward(inputs).squeeze()
+
+        print(f"score is {score}")
 
 
 def main():
@@ -211,18 +222,19 @@ def main():
                                        deviation_threshold=args.deviation_threshold,
                                        penalty_weight=args.penalty_weight)
     
-    result_latent=generator.generate_latent()
+    generator.test_image_score()
+    #result_latent=generator.generate_latent()
 
-    if(args.send_job):
-        try:
-            response= generate_img2img_generation_jobs_with_kandinsky(
-                image_embedding=result_latent,
-                negative_image_embedding=None,
-                dataset_name="test-generations",
-                prompt_generation_policy="pez_optimization",
-            )
-        except:
-            print("An error occured.")
+    # if(args.send_job):
+    #     try:
+    #         response= generate_img2img_generation_jobs_with_kandinsky(
+    #             image_embedding=result_latent,
+    #             negative_image_embedding=None,
+    #             dataset_name="test-generations",
+    #             prompt_generation_policy="pez_optimization",
+    #         )
+    #     except:
+    #         print("An error occured.")
 
 if __name__=="__main__":
     main()
