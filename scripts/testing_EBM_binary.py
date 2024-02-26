@@ -301,16 +301,15 @@ transform = transforms.Compose([
 ##################### Load images
 #cybernetic: 35, occult: 39
 images_paths = get_tag_jobs(39)
-print("Occult lenght : ",images_paths)
+
 ocult_images = []
 
 
+for path in images_paths:
+    ocult_images.append(get_image(path))
 
 
-
-
-# for path in images_paths:
-#     ocult_images.append(get_image(path))
+print("Occult lenght : ",len(ocult_images))
 
 num_samples_ocult = len(ocult_images)
 print("the number of samples in ocult ", num_samples_ocult)
