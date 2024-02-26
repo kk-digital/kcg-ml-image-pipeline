@@ -113,15 +113,19 @@ API_URL = "http://192.168.3.1:8111"
 
 ########################################### Get tags
 
-# def get_tag_jobs(tag_id):
+def get_tag_jobs(tag_id):
 
-#         response = requests.get(f'{API_URL}/tags/get-images-by-tag-id/?tag_id={tag_id}')
+        response = requests.get(f'{API_URL}/tags/get-images-by-tag-id/?tag_id={tag_id}')
         
-#         jobs = json.loads(response.content)
+        jobs = json.loads(response.content)
 
-#         file_paths=[job['file_path'] for job in jobs['images']]
+        file_paths=[job['file_path'] for job in jobs]
 
-#         return file_paths
+        return file_paths
+
+
+
+
 def get_tag_jobs(tag_id):
     response = requests.get(f'{API_URL}/tags/get-images-by-tag-id/?tag_id={tag_id}')
     
@@ -131,7 +135,7 @@ def get_tag_jobs(tag_id):
             jobs = json.loads(response.content)
             #print("Response Content:", jobs)
             # Check if 'images' key is present in the JSON response
-            if  True:
+            if 'images' in jobs:
                 file_paths = [job['file_path'] for job in jobs]
                 return file_paths
             else:
