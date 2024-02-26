@@ -180,7 +180,7 @@ class KandinskyImageGenerator:
             penalty = self.penalty_weight * self.penalty_function(optimized_embedding)
             
             # Total loss
-            total_loss = torch.abs(score_loss + penalty)
+            total_loss = torch.abs(score_loss) + torch.abs(penalty)
 
             if total_loss==0:
                 break
