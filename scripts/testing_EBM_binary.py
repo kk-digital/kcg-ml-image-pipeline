@@ -350,7 +350,7 @@ train_size_cyber = int(0.8 * num_samples_cyber)
 val_size_cyber= num_samples_cyber - train_size_cyber
 
 
-train_set_cyber, val_set_cyber = random_split(cyber_images, [train_size_ocult, val_size_ocult])
+train_set_cyber, val_set_cyber = random_split(cyber_images, [train_size_cyber, val_size_cyber])
 train_loader_set_cyber = data.DataLoader(train_set_cyber, batch_size=64, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
 val_loader_set_cyber= data.DataLoader(val_set_cyber,batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
