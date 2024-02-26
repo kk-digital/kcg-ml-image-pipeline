@@ -16,6 +16,7 @@ from minio.error import S3Error
 from .api_utils import find_or_create_next_folder_and_index
 import os
 import io
+from fastapi import Query
 from PIL import Image
 
 CLIP_SERVER_ADDRESS = 'http://192.168.3.31:8002'
@@ -656,7 +657,9 @@ async def upload_image(request:Request, file: UploadFile = File(...)):
              response_model=StandardSuccessResponseV1[UrlResponse],
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]),
              description="Upload Image on minio")
-async def upload_image_v1(request:Request, file: UploadFile = File(...)):
+async def upload_image_v1(request:Request, 
+                          file: UploadFile = File(...), 
+                          check_size: bool = Query(True, description="Check if image is 512x512")):
     response_handler = ApiResponseHandlerV1(request)
     # Initialize MinIO client
     minio_client = cmd.get_minio_client(minio_access_key="v048BpXpWrsVIHUfdAix", minio_secret_key="4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu")
@@ -671,15 +674,16 @@ async def upload_image_v1(request:Request, file: UploadFile = File(...)):
     try:
         await file.seek(0)  # Go to the start of the file
         content = await file.read()  # Read file content into bytes
-        
-        # Check if the image is 512x512
-        image = Image.open(io.BytesIO(content))
-        if image.size != (512, 512):
-            return response_handler.create_error_response_v1(
-                error_code=ErrorCode.INVALID_PARAMS, 
-                error_string="Image must be 512x512 pixels",
-                http_status_code=422,
-            )
+
+        if check_size:  # Perform size check if check_size is True
+            # Check if the image is 512x512
+            image = Image.open(io.BytesIO(content))
+            if image.size != (512, 512):
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS, 
+                    error_string="Image must be 512x512 pixels",
+                    http_status_code=422,
+                )
 
         content_stream = io.BytesIO(content)
         # Upload the file content
