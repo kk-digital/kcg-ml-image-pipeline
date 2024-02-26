@@ -696,7 +696,7 @@ def train_model(**kwargs):
     pretrained_filename = os.path.join(CHECKPOINT_PATH, "MNIST.ckpt")
     if 5 > 99: #os.path.isfile(pretrained_filename)
         print("Found pretrained model, loading...")
-        model = DeepEnergyModel.load_from_checkpoint(pretrained_filename)
+        #model = DeepEnergyModel.load_from_checkpoint(pretrained_filename)
     else:
         pl.seed_everything(42)
         model = DeepEnergyModel(**kwargs)
@@ -834,4 +834,7 @@ def energy_evaluation(training_loader,adv_loader):
     print(f"Score OOD : {some_b:4.2f}")
 
 
-energy_evaluation(main_set_val,adverserial_set_val)
+energy_evaluation(val_loader,adv_loader)
+
+
+
