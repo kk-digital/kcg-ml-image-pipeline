@@ -34,6 +34,7 @@ def parse_args():
         parser.add_argument('--deviation-threshold', type=float, help='deviation penalty threshold', default=2)
         parser.add_argument('--send-job', action='store_true', default=False)
         parser.add_argument('--generate-step', type=int, default=100)
+        parser.add_argument('--generate-step', type=int, default=10)
 
         return parser.parse_args()
 
@@ -48,7 +49,8 @@ class KandinskyImageGenerator:
                  penalty_weight=1,
                  deviation_threshold= 2,
                  send_job=False,
-                 generate_step=100
+                 generate_step=100,
+                 print_step=10
                  ):
         
         self.dataset= dataset
@@ -59,6 +61,7 @@ class KandinskyImageGenerator:
         self.target_score= target_score
         self.send_job= send_job
         self.generate_step= generate_step
+        self.print_step= print_step
 
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
@@ -204,15 +207,17 @@ class KandinskyImageGenerator:
             # Backpropagate
             total_loss.backward()
 
-            # Debugging gradients: check the .grad attribute
-            if optimized_embedding.grad is not None:
-                print(f"Step {step}: Gradient norm is {optimized_embedding.grad.norm().item()}")
-            else:
-                print(f"Step {step}: No gradient computed.")
+            if step % self.print_step == 0:
+                # Debugging gradients: check the .grad attribute
+                if optimized_embedding.grad is not None:
+                    print(f"Step {step}: Gradient norm is {optimized_embedding.grad.norm().item()}")
+                else:
+                    print(f"Step {step}: No gradient computed.")
 
             optimizer.step()
 
-            print(f"Step: {step}, Score: {score.item()}, Penalty: {penalty}, Loss: {total_loss.item()}")
+            if step % self.print_step == 0:
+                print(f"Step: {step}, Score: {score.item()}, Penalty: {penalty}, Loss: {total_loss.item()}")
         
         if self.send_job:
             try:
@@ -240,7 +245,8 @@ def main():
                                        deviation_threshold=args.deviation_threshold,
                                        penalty_weight=args.penalty_weight,
                                        send_job= args.send_job,
-                                       generate_step=args.generate_step)
+                                       generate_step=args.generate_step,
+                                       generate_step=args.print_step)
     
     result_latent=generator.generate_latent()
 
