@@ -135,7 +135,7 @@ def get_tag_jobs(tag_id):
             jobs = json.loads(response.content)
             
             # Print the content of the response
-            #print("Response Content:", jobs)
+            print("Response Content:", jobs)
 
             # Check if 'file_path' is present in each job dictionary
             file_paths = [job['file_path'] for job in jobs if 'file_path' in job]
