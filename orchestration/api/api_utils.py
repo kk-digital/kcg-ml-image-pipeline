@@ -9,6 +9,7 @@ from fastapi import Request
 from typing import TypeVar, Generic, List, Any, Dict, Optional
 from pydantic import BaseModel
 from orchestration.api.mongo_schema.tag_schemas import TagDefinition, TagCategory, ImageTag
+from orchestration.api.mongo_schema.pseudo_tag_schemas import PseudoTagDefinition, PseudoTagCategory, ImagePseudoTag
 from datetime import datetime
 from minio import Minio
 from dateutil import parser
@@ -44,6 +45,9 @@ class UrlResponse(BaseModel):
 
 class TagIdResponse(BaseModel):
     tag_id: int
+
+class PseudoTagIdResponse(BaseModel):
+    pseudo_tag_id: int
 
 class GetClipPhraseResponse(BaseModel):
     phrase : str
