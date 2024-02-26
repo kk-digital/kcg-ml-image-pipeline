@@ -208,16 +208,16 @@ def main():
     
     result_latent=generator.generate_latent()
 
-    # if(args.send_job):
-    #     try:
-    #         response= generate_img2img_generation_jobs_with_kandinsky(
-    #             image_embedding=result_latent,
-    #             negative_image_embedding=None,
-    #             dataset_name="test-generations",
-    #             prompt_generation_policy="pez_optimization",
-    #         )
-    #     except:
-    #         print("An error occured.")
+    if(args.send_job):
+        try:
+            response= generate_img2img_generation_jobs_with_kandinsky(
+                image_embedding=result_latent,
+                negative_image_embedding=None,
+                dataset_name="test-generations",
+                prompt_generation_policy="pez_optimization",
+            )
+        except:
+            print("An error occured.")
 
 if __name__=="__main__":
     main()
