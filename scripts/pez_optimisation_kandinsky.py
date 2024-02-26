@@ -157,6 +157,20 @@ class KandinskyImageGenerator:
         # Sum the penalties
         penalty = squared_distances.sum()
         return penalty
+    
+    def harmonic_loss(self, score_loss, penalty):
+        # Ensure non-zero to avoid division by zero
+        epsilon = 1e-6
+        score_loss_abs = torch.abs(score_loss) + epsilon
+        penalty_abs = torch.abs(penalty) + epsilon
+        
+        # Harmonic mean
+        harmonic_mean = 2 / ((1 / score_loss_abs) + (1 / penalty_abs))
+        
+        # Inverting the harmonic mean so that lower is better
+        loss = 1 / harmonic_mean
+        
+        return loss
 
     def generate_latent(self):
         # Ensure image embeddings require gradients
@@ -185,9 +199,9 @@ class KandinskyImageGenerator:
             penalty = self.penalty_weight * self.penalty_function(optimized_embedding)
             
             # Total loss
-            total_loss = score_loss + penalty
+            total_loss = self.harmonic_loss(score_loss, penalty)
 
-            if score_loss<0 and penalty<0:
+            if total_loss==0:
                 break
 
             # Backpropagate
