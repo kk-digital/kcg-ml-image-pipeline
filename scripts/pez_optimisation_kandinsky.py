@@ -34,7 +34,7 @@ def parse_args():
         parser.add_argument('--deviation-threshold', type=float, help='deviation penalty threshold', default=2)
         parser.add_argument('--send-job', action='store_true', default=False)
         parser.add_argument('--generate-step', type=int, default=100)
-        parser.add_argument('--generate-step', type=int, default=10)
+        parser.add_argument('--print-step', type=int, default=10)
 
         return parser.parse_args()
 
