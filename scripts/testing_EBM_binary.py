@@ -710,7 +710,7 @@ def train_model(**kwargs):
 
 
 # Train
-model = train_model(img_shape=(3,32,32),
+model = train_model(img_shape=(3,512,512),
                     batch_size=train_loader.batch_size,
                     lr=0.001,
                     beta1=0.0)
