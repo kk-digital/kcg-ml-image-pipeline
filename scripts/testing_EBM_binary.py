@@ -295,7 +295,7 @@ transform = transforms.Compose([
 ##################### Load images
 #cybernetic: 35, occult: 39
 images_paths = get_tag_jobs(39)
-print("Occult lenght : ",len(images_paths))
+print("Occult lenght : ",images_paths)
 ocult_images = []
 
 
