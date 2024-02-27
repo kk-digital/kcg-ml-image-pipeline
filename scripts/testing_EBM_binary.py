@@ -183,6 +183,52 @@ def get_image(file_path: str):
     return img
 
 
+########################################### DATA Augmentation
+
+
+def data_augmentation(images_tensor,num_of_passes):
+
+    
+    # Define probabilities for each transformation
+    prob_mirror = 0.9
+    prob_zoom = 0.5
+    prob_rotation = 0.2
+
+    # Apply data augmentation to each image in the array
+    augmented_images = []
+
+    for img in images_tensor:
+        for _ in range(num_of_passes):
+            transformed_img = img.clone()
+
+            # Apply mirror transformation
+            random_mirror = random.random()
+            if random_mirror < prob_mirror:
+                transformed_img = transforms.RandomHorizontalFlip()(transformed_img)
+
+            # Apply zoom transformation
+            random_zoom = random.random()
+            if random_zoom < prob_zoom:
+                transformed_img = transforms.RandomResizedCrop(size=(512, 512), scale=(0.9, 1.1), ratio=(0.9, 1.1))(transformed_img)
+
+            # Apply rotation transformation
+            random_rotation = random.random()
+            if random_rotation < prob_rotation:
+                transformed_img = transforms.RandomRotation(degrees=(-20, 20))(transformed_img)
+
+            augmented_images.append(transformed_img)
+
+
+    # Convert the augmented images back to a NumPy array
+    augmented_images_np = torch.stack(augmented_images).numpy()
+    return augmented_images_np
+
+
+
+
+
+
+
 
 
 ########################################### Model Architectures
@@ -354,6 +400,15 @@ ocult_images = []
 for path in images_paths:
     ocult_images.append(get_image(path))
 
+
+
+# Call your data_augmentation function
+augmented_images_np = data_augmentation(ocult_images, 5)
+
+# Concatenate original and augmented images
+ocult_images = np.concatenate((ocult_images, augmented_images_np), axis=0)
+
+
 ocult_images = [transform(img) for img in ocult_images]
 
 print("Occult lenght : ",len(ocult_images))
@@ -391,6 +446,14 @@ cyber_images = []
 
 for path in images_paths:
     cyber_images.append(get_image(path))
+
+
+# Call your data_augmentation function
+augmented_images_np = data_augmentation(cyber_images, 5)
+
+# Concatenate original and augmented images
+cyber_images = np.concatenate((cyber_images, augmented_images_np), axis=0)
+
 
 cyber_images = [transform(img) for img in cyber_images]
 
