@@ -156,7 +156,7 @@ class KandinskyImageGenerator:
     
     def sample_embedding(self, num_samples=1):
         # Sample from a normal distribution using the mean and standard deviation vectors
-        sampled_embeddings = torch.normal(self.clip_mean, self.clip_std, (num_samples, self.clip_mean.size(0)))
+        sampled_embeddings = torch.normal(self.clip_mean, self.clip_std)
         
         # Clip the sampled embeddings based on the min and max vectors to ensure they stay within observed bounds
         clipped_embeddings = torch.max(torch.min(sampled_embeddings, self.clip_max), self.clip_min)
