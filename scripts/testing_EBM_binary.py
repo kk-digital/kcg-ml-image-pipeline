@@ -406,19 +406,18 @@ print("B : ",type(augmented_images_np))  # Augmented images
 
 
 # Choose one image from the original set
-original_image = ocult_images[0].numpy()
+original_image = ocult_images[0]
+original_shape = original_image.shape
+original_image = original_image.numpy()
 
 # Choose one image from the augmented set
-augmented_image = augmented_images_np[0].numpy()
+augmented_image = augmented_images_np[0]
+augmented_shape = augmented_image.shape
+augmented_image = augmented_image.numpy()
 
-# Display the images side by side
-fig, axes = plt.subplots(1, 2, figsize=(10, 5))
-
-axes[0].imshow(original_image.transpose(1, 2, 0))  # Transpose for correct channel order
-axes[0].set_title('Original Image')
-
-axes[1].imshow(augmented_image.transpose(1, 2, 0))  # Transpose for correct channel order
-axes[1].set_title('Augmented Image')
+# Display the shapes
+print("Original Image Shape:", original_shape)
+print("Augmented Image Shape:", augmented_shape)
 
 
 # Concatenate original and augmented images
