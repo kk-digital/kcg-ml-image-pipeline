@@ -169,7 +169,7 @@ class KandinskyImageGenerator:
         # Ensure image embeddings require gradients
         #image_embedding= self.get_initial_latent()
 
-        features_data = get_object(self.minio_client, "environmental/0313/312975_clip_kandinsky.msgpack")
+        features_data = get_object(self.minio_client, "environmental/0435/434997_clip_kandinsky.msgpack")
         features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
         image_embedding= torch.tensor(features_vector).to(device=self.device, dtype=torch.float32)
 
@@ -270,7 +270,7 @@ def main():
                                        generate_step=args.generate_step,
                                        print_step=args.print_step)
     
-    generator.test_image_score()
+    result= generator.generate_latent()
 
 if __name__=="__main__":
     main()
