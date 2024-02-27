@@ -18,9 +18,6 @@ from kandinsky_worker.image_generation.img2img_generator import generate_img2img
 from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
 from utility.minio import cmd
 from data_loader.utils import get_object
-from kandinsky.model_paths import PRIOR_MODEL_PATH
-from kandinsky.pipelines.kandinsky_prior import KandinskyV22PriorPipeline
-from diffusers import PriorTransformer
 
 def parse_args():
         parser = argparse.ArgumentParser()
@@ -30,7 +27,7 @@ def parse_args():
         parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
         parser.add_argument('--model-type', type=str, help='model type, linear or elm', default="linear")
         parser.add_argument('--steps', type=int, help='number of optimisation steps', default=100)
-        parser.add_argument('--learning-rate', type=float, help='learning rate for optimization', default=0.005)
+        parser.add_argument('--learning-rate', type=float, help='learning rate for optimization', default=0.001)
         parser.add_argument('--target-score', type=float, help='number of optimisation steps', default=5)
         parser.add_argument('--penalty-weight', type=float, help='weight of deviation panalty', default=1)
         parser.add_argument('--deviation-threshold', type=float, help='deviation penalty threshold', default=2)
@@ -206,8 +203,8 @@ class KandinskyImageGenerator:
 
         df_data=[]
         
-        sampled_embedding= self.sample_embedding()
-        optimized_embedding = sampled_embedding.clone().detach().requires_grad_(True)
+        # sampled_embedding= self.sample_embedding()
+        optimized_embedding = self.clip_mean.clone().detach().requires_grad_(True)
 
         # Setup the optimizer
         optimizer = optim.Adam([optimized_embedding], lr=self.learning_rate)
