@@ -161,7 +161,9 @@ class KandinskyImageGenerator:
         # Clip the sampled embeddings based on the min and max vectors to ensure they stay within observed bounds
         clipped_embeddings = torch.max(torch.min(sampled_embeddings, self.clip_max), self.clip_min)
         
-        return clipped_embeddings
+        return clipped_embeddings.to(
+            device=self.device, dtype=torch.float32
+        )
     
     def penalty_function(self, embedding):
         """
