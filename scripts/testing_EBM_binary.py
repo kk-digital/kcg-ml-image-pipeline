@@ -404,6 +404,23 @@ augmented_images_np = data_augmentation(ocult_images, 5)
 print("A : ",type(ocult_images))  # Original images
 print("B : ",type(augmented_images_np))  # Augmented images
 
+
+# Choose one image from the original set
+original_image = ocult_images[0].numpy()
+
+# Choose one image from the augmented set
+augmented_image = augmented_images_np[0].numpy()
+
+# Display the images side by side
+fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+
+axes[0].imshow(original_image.transpose(1, 2, 0))  # Transpose for correct channel order
+axes[0].set_title('Original Image')
+
+axes[1].imshow(augmented_image.transpose(1, 2, 0))  # Transpose for correct channel order
+axes[1].set_title('Augmented Image')
+
+
 # Concatenate original and augmented images
 ocult_images = np.concatenate((ocult_images, augmented_images_np), axis=0)
 
