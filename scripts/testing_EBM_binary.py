@@ -386,7 +386,7 @@ transform = transforms.Compose([
 
 ##################### Load images
 
-batchsize_x = 16
+batchsize_x = 64
 
 #cybernetic: 35, occult: 39
 
