@@ -167,7 +167,12 @@ class KandinskyImageGenerator:
 
     def generate_latent(self):
         # Ensure image embeddings require gradients
-        image_embedding= self.get_initial_latent()
+        #image_embedding= self.get_initial_latent()
+
+        features_data = get_object(self.minio_client, "environmental/0313/312975_clip_kandinsky.msgpack")
+        features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
+        image_embedding= torch.tensor([features_vector]).to(device=self.device, dtype=torch.float32)
+
         optimized_embedding = image_embedding.clone().detach().requires_grad_(True)
 
         # Setup the optimizer
