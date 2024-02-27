@@ -443,8 +443,8 @@ for path in images_paths:
 # Transform into tansors
 cyber_images = [transform(img) for img in cyber_images]
 
-cyber_images = [transform(img) for img in cyber_images]
-
+# Call your data_augmentation function
+cyber_images = data_augmentation(cyber_images, 5)
 
 print("Cyber lenght : ",len(cyber_images))
 
