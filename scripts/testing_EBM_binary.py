@@ -216,11 +216,13 @@ def data_augmentation(images_tensor, num_of_passes):
 
             augmented_images.append(transformed_img)
 
-    return augmented_images
+    # Convert the list of augmented images to a PyTorch tensor
+    augmented_images_tensor = torch.stack(augmented_images)
 
+    # Concatenate original and augmented images
+    combined_images = images_tensor + list(augmented_images_tensor)
 
-
-
+    return combined_images
 
 
 
@@ -399,29 +401,7 @@ ocult_images = [transform(img) for img in ocult_images]
 
 
 # Call your data_augmentation function
-augmented_images_np = data_augmentation(ocult_images, 5)
-
-print("A : ",type(ocult_images))  # Original images
-print("B : ",type(augmented_images_np))  # Augmented images
-
-
-# Choose one image from the original set
-original_image = ocult_images[0]
-original_shape = original_image.shape
-original_image = original_image.numpy()
-
-# Choose one image from the augmented set
-augmented_image = augmented_images_np[0]
-augmented_shape = augmented_image.shape
-augmented_image = augmented_image.numpy()
-
-# Display the shapes
-print("Original Image Shape:", original_shape)
-print("Augmented Image Shape:", augmented_shape)
-
-
-# Concatenate original and augmented images
-ocult_images = np.concatenate((ocult_images, augmented_images_np), axis=0)
+ocult_images = data_augmentation(ocult_images, 5)
 
 
 print("Occult lenght : ",len(ocult_images))
@@ -463,11 +443,7 @@ for path in images_paths:
 # Transform into tansors
 cyber_images = [transform(img) for img in cyber_images]
 
-# Call your data_augmentation function
-augmented_images_np = data_augmentation(cyber_images, 5)
-
-# Concatenate original and augmented images
-cyber_images = np.concatenate((cyber_images, augmented_images_np), axis=0)
+cyber_images = [transform(img) for img in cyber_images]
 
 
 print("Cyber lenght : ",len(cyber_images))
