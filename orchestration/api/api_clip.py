@@ -651,24 +651,28 @@ async def upload_image(request:Request, file: UploadFile = File(...)):
             http_status_code = 500, 
         )
     
-
 @router.post("/upload-image-v1",
              status_code=201, 
              response_model=StandardSuccessResponseV1[UrlResponse],
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]),
              description="Upload Image on minio")
-async def upload_image_v1(request:Request, 
+async def upload_image_v1(request: Request, 
                           file: UploadFile = File(...), 
                           check_size: bool = Query(True, description="Check if image is 512x512")):
     response_handler = ApiResponseHandlerV1(request)
     # Initialize MinIO client
     minio_client = cmd.get_minio_client(minio_access_key="v048BpXpWrsVIHUfdAix", minio_secret_key="4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu")
     
+    # Extract the file extension
+    _, file_extension = os.path.splitext(file.filename)
+    # Ensure the extension is in a consistent format (e.g., lowercase) and validate it if necessary
+    file_extension = file_extension.lower()
+    # Validate or adjust the extension (optional, based on your requirements)
     # Find or create the next available folder and get the next image index
     next_folder, next_index = find_or_create_next_folder_and_index(minio_client, bucket_name, base_folder)
 
-    # Construct the file path with sequential naming
-    file_name = f"{next_index:06}.jpg"  # Format index as a zero-padded string
+    # Construct the file path, preserving the original file extension
+    file_name = f"{next_index:06}{file_extension}"  # Use the extracted file extension
     file_path = f"{next_folder}/{file_name}"
 
     try:
