@@ -197,7 +197,7 @@ def data_augmentation(images_tensor, num_of_passes):
 
     for img in images_tensor:
         for _ in range(num_of_passes):
-            transformed_img = img.copy()
+            transformed_img = img.clone()
 
             # Apply mirror transformation
             random_mirror = random.random()
