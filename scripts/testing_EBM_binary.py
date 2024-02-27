@@ -186,9 +186,7 @@ def get_image(file_path: str):
 ########################################### DATA Augmentation
 
 
-def data_augmentation(images_tensor,num_of_passes):
-
-    
+def data_augmentation(images_tensor, num_of_passes):
     # Define probabilities for each transformation
     prob_mirror = 0.9
     prob_zoom = 0.5
@@ -218,11 +216,10 @@ def data_augmentation(images_tensor,num_of_passes):
 
             augmented_images.append(transformed_img)
 
+    # Concatenate the original and augmented images
+    augmented_images = torch.stack(augmented_images)
 
-    # Convert the augmented images back to a NumPy array
-    augmented_images_np = augmented_images
-    return augmented_images_np
-
+    return augmented_images
 
 
 
@@ -401,6 +398,9 @@ for path in images_paths:
     ocult_images.append(get_image(path))
 
 
+# Transforme into tansors
+ocult_images = [transform(img) for img in ocult_images]
+
 
 # Call your data_augmentation function
 augmented_images_np = data_augmentation(ocult_images, 5)
@@ -408,8 +408,6 @@ augmented_images_np = data_augmentation(ocult_images, 5)
 # Concatenate original and augmented images
 ocult_images = np.concatenate((ocult_images, augmented_images_np), axis=0)
 
-
-ocult_images = [transform(img) for img in ocult_images]
 
 print("Occult lenght : ",len(ocult_images))
 
@@ -447,6 +445,8 @@ cyber_images = []
 for path in images_paths:
     cyber_images.append(get_image(path))
 
+# Transform into tansors
+cyber_images = [transform(img) for img in cyber_images]
 
 # Call your data_augmentation function
 augmented_images_np = data_augmentation(cyber_images, 5)
@@ -454,8 +454,6 @@ augmented_images_np = data_augmentation(cyber_images, 5)
 # Concatenate original and augmented images
 cyber_images = np.concatenate((cyber_images, augmented_images_np), axis=0)
 
-
-cyber_images = [transform(img) for img in cyber_images]
 
 print("Cyber lenght : ",len(cyber_images))
 
