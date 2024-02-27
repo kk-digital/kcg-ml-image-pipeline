@@ -6,6 +6,7 @@ import sys
 import numpy as np
 import requests
 import msgpack
+from tqdm import tqdm
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -41,10 +42,12 @@ def main():
     minio_client= cmd.get_minio_client(minio_access_key=args.minio_access_key,
                                        minio_secret_key=args.minio_secret_key)
     
+    print("fetching job data...........")
     jobs_list= get_job_list(dataset=args.dataset)
     clip_vectors=[]
 
-    for job in jobs_list:
+    print("fetching image clip files...........")
+    for job in tqdm(jobs_list):
         image_path= job['image_path']
         bucket_name, input_file_path = separate_bucket_and_file_path(image_path)
         file_path = os.path.splitext(input_file_path)[0]
