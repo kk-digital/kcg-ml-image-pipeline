@@ -171,7 +171,6 @@ class KandinskyImageGenerator:
 
         features_data = get_object(self.minio_client, "environmental/0313/312975_clip_kandinsky.msgpack")
         features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
-        print(features_vector[0])
         image_embedding= torch.tensor(features_vector).to(device=self.device, dtype=torch.float32)
 
         optimized_embedding = image_embedding.clone().detach().requires_grad_(True)
@@ -238,6 +237,16 @@ class KandinskyImageGenerator:
 
         return optimized_embedding
 
+    def test_image_score(self):
+
+        features_data = get_object(self.minio_client, "test-generations/0024/023618_clip_kandinsky.msgpack")
+        features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
+        features_vector= torch.tensor([features_vector]).to(device=self.device, dtype=torch.float32)
+
+        inputs = features_vector.reshape(len(features_vector), -1)
+        score = self.scoring_model.model.forward(inputs).squeeze()
+
+        print(f"score is {score}")
 
 def main():
     args= parse_args()
@@ -254,7 +263,7 @@ def main():
                                        generate_step=args.generate_step,
                                        print_step=args.print_step)
     
-    result_latent=generator.generate_latent()
+    generator.test_image_score()
 
 if __name__=="__main__":
     main()
