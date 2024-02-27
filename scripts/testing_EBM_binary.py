@@ -220,7 +220,7 @@ def data_augmentation(images_tensor,num_of_passes):
 
 
     # Convert the augmented images back to a NumPy array
-    augmented_images_np = torch.stack(augmented_images).numpy()
+    augmented_images_np = augmented_images
     return augmented_images_np
 
 
