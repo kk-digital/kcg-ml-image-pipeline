@@ -237,8 +237,12 @@ class KandinskyImageGenerator:
                         dataset_name="test-generations",
                         prompt_generation_policy="pez_optimization",
                     )
+                    task_uuid = response['uuid']
+                    task_time = response['creation_time']
                 except:
                     print("An error occured.")
+                    task_uuid = -1
+                    task_time = -1
                   
                 # storing job data to put in csv file later
                 df_data.append({
