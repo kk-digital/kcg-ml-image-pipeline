@@ -1,7 +1,9 @@
 import argparse
+from datetime import datetime
 import io
 import os
 import sys
+import pandas as pd
 import torch
 import torch.optim as optim
 import msgpack
@@ -33,6 +35,7 @@ def parse_args():
         parser.add_argument('--penalty-weight', type=float, help='weight of deviation panalty', default=1)
         parser.add_argument('--deviation-threshold', type=float, help='deviation penalty threshold', default=2)
         parser.add_argument('--send-job', action='store_true', default=False)
+        parser.add_argument('--save-csv', action='store_true', default=False)
         parser.add_argument('--generate-step', type=int, default=100)
         parser.add_argument('--print-step', type=int, default=10)
 
@@ -50,6 +53,7 @@ class KandinskyImageGenerator:
                  penalty_weight=1,
                  deviation_threshold= 2,
                  send_job=False,
+                 save_csv=False,
                  generate_step=100,
                  print_step=10
                  ):
@@ -62,6 +66,7 @@ class KandinskyImageGenerator:
         self.deviation_threshold= deviation_threshold
         self.target_score= target_score
         self.send_job= send_job
+        self.save_csv= save_csv
         self.generate_step= generate_step
         self.print_step= print_step
 
@@ -288,7 +293,29 @@ class KandinskyImageGenerator:
                 'time': task_time
             })
 
+        if self.save_csv:
+            self.store_uuids_in_csv_file(df_data)
+
         return optimized_embedding
+    
+    # store list of initial prompts in a csv to use for prompt mutation
+    def store_uuids_in_csv_file(self, data):
+        minio_path=f"environmental/output/generated-images-csv"
+        local_path="output/generated_images.csv"
+        pd.DataFrame(data).to_csv(local_path, index=False)
+        # Read the contents of the CSV file
+        with open(local_path, 'rb') as file:
+            csv_content = file.read()
+
+        #Upload the CSV file to Minio
+        buffer = io.BytesIO(csv_content)
+        buffer.seek(0)
+
+        current_date=datetime.now().strftime("%Y-%m-%d-%H:%M")
+        minio_path= minio_path + f"/{current_date}-pez_optimization-environmental.csv"
+        cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
+        # Remove the temporary file
+        os.remove(local_path)
 
     def test_image_score(self):
 
@@ -321,6 +348,7 @@ def main():
                                        deviation_threshold=args.deviation_threshold,
                                        penalty_weight=args.penalty_weight,
                                        send_job= args.send_job,
+                                       save_csv= args.save_csv,
                                        generate_step=args.generate_step,
                                        print_step=args.print_step)
     
