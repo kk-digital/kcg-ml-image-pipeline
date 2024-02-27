@@ -154,6 +154,15 @@ class KandinskyImageGenerator:
             device=self.device, dtype=torch.float32
         )
     
+    def sample_embedding(self, num_samples=1):
+        # Sample from a normal distribution using the mean and standard deviation vectors
+        sampled_embeddings = torch.normal(self.clip_mean, self.clip_std, (num_samples, self.clip_mean.size(0)))
+        
+        # Clip the sampled embeddings based on the min and max vectors to ensure they stay within observed bounds
+        clipped_embeddings = torch.max(torch.min(sampled_embeddings, self.clip_max), self.clip_min)
+        
+        return clipped_embeddings
+    
     def penalty_function(self, embedding):
         """
         Calculates a penalty for embeddings that deviate from the mean beyond the allowed threshold (in standard deviations).
