@@ -405,8 +405,8 @@ ocult_images = [transform(img) for img in ocult_images]
 # Call your data_augmentation function
 augmented_images_np = data_augmentation(ocult_images, 5)
 
-print(type(ocult_images))  # Original images
-print(type(augmented_images_np))  # Augmented images
+print("A : ",type(ocult_images))  # Original images
+print("B : ",type(augmented_images_np))  # Augmented images
 
 # Concatenate original and augmented images
 ocult_images = np.concatenate((ocult_images, augmented_images_np), axis=0)
