@@ -196,7 +196,7 @@ class KandinskyImageGenerator:
         # image_embedding= torch.tensor(features_vector).to(device=self.device, dtype=torch.float32)
         
         sampled_embedding= self.sample_embedding()
-        optimized_embedding = self.clip_mean.clone().detach().requires_grad_(True)
+        optimized_embedding = sampled_embedding.clone().detach().requires_grad_(True)
 
         # Setup the optimizer
         optimizer = optim.Adam([optimized_embedding], lr=0.001)
