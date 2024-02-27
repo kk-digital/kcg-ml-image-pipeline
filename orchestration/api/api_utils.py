@@ -256,7 +256,7 @@ class ApiResponseHandlerV1:
             "request_url": self.url,
             "request_dictionary": self.request_data,
             "request_method": self.request.method,
-            "request_time_total": self._elapsed_time(),
+            "request_time_total": str(self._elapsed_time()),
             "request_time_start": self.start_time.isoformat(),
             "request_time_finished": datetime.now().isoformat(),
             "request_response_code": http_status_code,

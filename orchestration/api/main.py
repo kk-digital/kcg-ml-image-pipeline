@@ -108,13 +108,21 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     end_time = datetime.now()  # Capture end time when handling the exception
     duration = (end_time - start_time).total_seconds()
     
+    # Constructing a detailed error message from the validation errors
+    error_messages = []
+    for error in exc.errors():
+        field_path = "->".join(str(loc) for loc in error['loc'])
+        message = error['msg']
+        error_messages.append(f"{field_path}: {message}")
+    detailed_error_message = "; ".join(error_messages)
+
     return PrettyJSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={
-            "request_error_string": "Validation error",
+            "request_error_string": detailed_error_message,
             "request_error_code": ErrorCode.INVALID_PARAMS.value,  # Ensure this matches the expected format
             "request_url": str(request.url),
-            "request_dictionary": dict(request.query_params), 
+            "request_dictionary": dict(request.query_params),
             "request_method": request.method,
             "request_time_total": duration,
             "request_time_start": start_time.isoformat(),
