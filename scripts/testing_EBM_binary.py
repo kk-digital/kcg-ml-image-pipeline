@@ -216,11 +216,7 @@ def data_augmentation(images_tensor, num_of_passes):
 
             augmented_images.append(transformed_img)
 
-    # Concatenate the original and augmented images
-    augmented_images = torch.stack(augmented_images)
-
     return augmented_images
-
 
 
 
