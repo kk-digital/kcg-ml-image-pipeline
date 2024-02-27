@@ -28,7 +28,7 @@ def parse_args():
         parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
         parser.add_argument('--model-type', type=str, help='model type, linear or elm', default="linear")
         parser.add_argument('--steps', type=int, help='number of optimisation steps', default=100)
-        parser.add_argument('--learning-rate', type=float, help='learning rate for optimization', default=0.01)
+        parser.add_argument('--learning-rate', type=float, help='learning rate for optimization', default=0.005)
         parser.add_argument('--target-score', type=float, help='number of optimisation steps', default=5)
         parser.add_argument('--penalty-weight', type=float, help='weight of deviation panalty', default=1)
         parser.add_argument('--deviation-threshold', type=float, help='deviation penalty threshold', default=2)
@@ -45,6 +45,7 @@ class KandinskyImageGenerator:
                  dataset,
                  model_type,
                  steps=100,
+                 learning_rate=0.005,
                  target_score=5.0,
                  penalty_weight=1,
                  deviation_threshold= 2,
@@ -56,6 +57,7 @@ class KandinskyImageGenerator:
         self.dataset= dataset
         self.model_type= model_type
         self.steps= steps
+        self.learning_rate= learning_rate
         self.penalty_weight= penalty_weight
         self.deviation_threshold= deviation_threshold
         self.target_score= target_score
@@ -196,12 +198,14 @@ class KandinskyImageGenerator:
         # features_data = get_object(self.minio_client, "environmental/0435/434997_clip_kandinsky.msgpack")
         # features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
         # image_embedding= torch.tensor(features_vector).to(device=self.device, dtype=torch.float32)
+
+        df_data=[]
         
         sampled_embedding= self.sample_embedding()
         optimized_embedding = sampled_embedding.clone().detach().requires_grad_(True)
 
         # Setup the optimizer
-        optimizer = optim.Adam([optimized_embedding], lr=0.001)
+        optimizer = optim.Adam([optimized_embedding], lr=self.learning_rate)
 
         for step in range(self.steps):
             optimizer.zero_grad()
@@ -209,10 +213,10 @@ class KandinskyImageGenerator:
             # Calculate the custom score
             inputs = optimized_embedding.reshape(len(optimized_embedding), -1)
             score = self.scoring_model.model.forward(inputs).squeeze()
-            score= (score - self.mean) / self.std
+            sigma_score= (score - self.mean) / self.std
             # Custom loss function
             # Original loss based on the scoring function
-            score_loss = torch.abs(self.target_score - score)
+            score_loss = torch.abs(self.target_score - sigma_score)
             
             # Calculate the penalty for the embeddings
             penalty = self.penalty_weight * self.penalty_function(optimized_embedding)
@@ -230,6 +234,16 @@ class KandinskyImageGenerator:
                     )
                 except:
                     print("An error occured.")
+                  
+                # storing job data to put in csv file later
+                df_data.append({
+                    'task_uuid': task_uuid,
+                    'score': score,
+                    'sigma_score': sigma_score,
+                    'step': step,
+                    'generation_policy_string': "pez_optimization",
+                    'time': task_time
+                })
 
             if total_loss<0.01:
                 break
@@ -257,8 +271,22 @@ class KandinskyImageGenerator:
                     dataset_name="test-generations",
                     prompt_generation_policy="pez_optimization",
                 )
+
+                task_uuid = response['uuid']
+                task_time = response['creation_time']
             except:
                 print("An error occured.")
+                task_uuid = -1
+                task_time = -1
+        
+            df_data.append({
+                'task_uuid': task_uuid,
+                'score': score,
+                'sigma_score': sigma_score,
+                'step': step,
+                'generation_policy_string': "pez_optimization",
+                'time': task_time
+            })
 
         return optimized_embedding
 
@@ -288,6 +316,7 @@ def main():
                                        dataset=args.dataset,
                                        model_type=args.model_type,
                                        steps=args.steps,
+                                       learning_rate= args.learning_rate,
                                        target_score=args.target_score,
                                        deviation_threshold=args.deviation_threshold,
                                        penalty_weight=args.penalty_weight,
