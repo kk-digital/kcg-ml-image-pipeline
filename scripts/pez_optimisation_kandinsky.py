@@ -182,11 +182,11 @@ class KandinskyImageGenerator:
         # Ensure image embeddings require gradients
         #image_embedding= self.get_initial_latent()
 
-        features_data = get_object(self.minio_client, "environmental/0435/434997_clip_kandinsky.msgpack")
-        features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
-        image_embedding= torch.tensor(features_vector).to(device=self.device, dtype=torch.float32)
+        # features_data = get_object(self.minio_client, "environmental/0435/434997_clip_kandinsky.msgpack")
+        # features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
+        # image_embedding= torch.tensor(features_vector).to(device=self.device, dtype=torch.float32)
 
-        optimized_embedding = image_embedding.clone().detach().requires_grad_(True)
+        optimized_embedding = self.clip_mean.clone().detach().requires_grad_(True)
 
         # Setup the optimizer
         optimizer = optim.Adam([optimized_embedding], lr=0.001)
@@ -283,7 +283,7 @@ def main():
                                        generate_step=args.generate_step,
                                        print_step=args.print_step)
     
-    generator.test_image_score()
+    generator.generate_latent()
 
 if __name__=="__main__":
     main()
