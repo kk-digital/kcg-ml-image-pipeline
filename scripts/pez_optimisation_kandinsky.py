@@ -239,14 +239,21 @@ class KandinskyImageGenerator:
 
     def test_image_score(self):
 
-        features_data = get_object(self.minio_client, "test-generations/0024/023618_clip_kandinsky.msgpack")
-        features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
-        features_vector= torch.tensor(features_vector).to(device=self.device, dtype=torch.float32)
+        features_data1 = get_object(self.minio_client, "environmental/0313/312975_clip_kandinsky.msgpack")
+        features_vector1 = msgpack.unpackb(features_data1)["clip-feature-vector"]
+        features_vector1= torch.tensor(features_vector1).to(device=self.device, dtype=torch.float32)
 
-        inputs = features_vector.reshape(len(features_vector), -1)
-        score = self.scoring_model.model.forward(inputs).squeeze()
+        inputs1 = features_vector1.reshape(len(features_vector1), -1)
+        score1 = self.scoring_model.model.forward(inputs1).squeeze()
 
-        print(f"score is {score}")
+        features_data2 = get_object(self.minio_client, "test-generations/0024/023618_clip_kandinsky.msgpack")
+        features_vector2 = msgpack.unpackb(features_data2)["clip-feature-vector"]
+        features_vector2= torch.tensor(features_vector2).to(device=self.device, dtype=torch.float32)
+
+        inputs2 = features_vector2.reshape(len(features_vector2), -1)
+        score2 = self.scoring_model.model.forward(inputs2).squeeze()
+
+        print(f"score before {score1} and after {score2}")
 
 def main():
     args= parse_args()
