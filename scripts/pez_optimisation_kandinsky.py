@@ -85,13 +85,26 @@ class KandinskyImageGenerator:
         self.std= float(self.scoring_model.standard_deviation)
 
         # get clip mean and std values
-        prior_model = PriorTransformer.from_pretrained(PRIOR_MODEL_PATH, subfolder="prior").to(self.device)
+        # prior_model = PriorTransformer.from_pretrained(PRIOR_MODEL_PATH, subfolder="prior").to(self.device)
 
-        self.clip_mean= prior_model.clip_mean.clone().to(self.device)
-        self.clip_std= prior_model.clip_std.clone().to(self.device)
+        # self.clip_mean= prior_model.clip_mean.clone().to(self.device)
+        # self.clip_std= prior_model.clip_std.clone().to(self.device)
 
+        self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
         print(self.clip_mean, self.clip_std)
         
+
+    def get_clip_distribution(self):
+        data = get_object(self.minio_client, "environmental/output/stats/clip_stats.msgpack")
+        data_dict = msgpack.unpackb(data)
+
+        mean_vector = torch.tensor(data_dict["mean"])
+        std_vector = torch.tensor(data_dict["std"])
+        max_vector = torch.tensor(data_dict["max"])
+        min_vector = torch.tensor(data_dict["min"])
+
+        return mean_vector, std_vector, max_vector, min_vector
+
 
     # load elm or linear scoring models
     def load_scoring_model(self):
