@@ -72,13 +72,16 @@ def main():
         "min": min_vector.tolist(),
     }
 
-    # Convert stats dictionary to JSON string
-    stats_json = json.dumps(stats)
+    stats_msgpack = msgpack.packb(stats)
 
-    # Storing stats_json in MinIO or writing to a file
+    data = BytesIO()
+    data.write(stats_msgpack)
+    data.seek(0)
+
+    # Storing stats in MinIO
     bucket_name = "datasets"
-    stats_path = f"{args.dataset}/output/stats/stats_file.json"
-    cmd.upload_data(minio_client, bucket_name, stats_path, stats_json)
+    output_path = f"{args.dataset}/output/stats/clip_stats.msgpack"
+    cmd.upload_data(minio_client, bucket_name, output_path, data)
 
 if __name__ == '__main__':
     main()
