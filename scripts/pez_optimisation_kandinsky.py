@@ -194,7 +194,8 @@ class KandinskyImageGenerator:
         # features_data = get_object(self.minio_client, "environmental/0435/434997_clip_kandinsky.msgpack")
         # features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
         # image_embedding= torch.tensor(features_vector).to(device=self.device, dtype=torch.float32)
-
+        
+        sampled_embedding= self.sample_embedding()
         optimized_embedding = self.clip_mean.clone().detach().requires_grad_(True)
 
         # Setup the optimizer
