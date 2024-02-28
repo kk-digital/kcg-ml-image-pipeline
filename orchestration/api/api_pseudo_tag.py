@@ -198,9 +198,8 @@ def remove_pseudo_tag(request: Request, pseudo_tag_id: int):
 
     if tag is None:
         # Return standard response with wasPresent: false
-       return response_handler.create_success_delete_response_v1(error_code = ErrorCode.SUCCESS,
-                                                           error_string= '',
-                                                           response_data = {"wasPresent": False},
+       return response_handler.create_success_delete_response_v1(
+                                                            {"wasPresent": False},
                                                            http_status_code=200,
                                                            )
 
@@ -614,9 +613,8 @@ def delete_pseudo_tag_category(request: Request, pseudo_tag_category_id: int):
 
     if category is None:
         # Return standard response with wasPresent: false
-        return response_handler.create_success_delete_response_v1(error_code = ErrorCode.SUCCESS,
-                                                           error_string= '',
-                                                           response_data={"wasPresent": False},
+        return response_handler.create_success_delete_response_v1(
+                                                           {"wasPresent": False},
                                                            http_status_code=200,
                                                            )
 
@@ -636,9 +634,8 @@ def delete_pseudo_tag_category(request: Request, pseudo_tag_category_id: int):
     request.app.pseudo_tag_categories_collection.delete_one(category_query)
 
     # Return standard response with wasPresent: true
-    return response_handler.create_success_delete_response_v1(error_code = ErrorCode.SUCCESS,
-                                                           error_string= '',
-                                                           response_data={"wasPresent": False},
+    return response_handler.create_success_delete_response_v1(
+                                                           {"wasPresent": False},
                                                            http_status_code=200,
                                                            )
 @router.get("/pseudotag-categories/list-pseudo-tag-categories", 

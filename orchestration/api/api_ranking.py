@@ -5,7 +5,7 @@ import os
 import json
 from io import BytesIO
 from orchestration.api.mongo_schema.selection_schemas import Selection, RelevanceSelection
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, ApiResponseHandler, TagCountResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, ApiResponseHandler, TagCountResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, RankCountResponse
 import random
 from collections import OrderedDict
 from bson import ObjectId
@@ -519,145 +519,6 @@ def add_selected_residual_pair(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/migrate/minio-to-mongodb", status_code=202, description="Migrate datapoints from Minio to MongoDB.")
-def migrate_datapoints_from_minio_to_mongodb(request: Request, minio_bucket: str = 'datasets'):
-    api_handler = ApiResponseHandler(request)
-    
-    try:
-        migrate_json_to_mongodb(request.app.minio_client, request.app.image_pair_ranking_collection, minio_bucket)
-        return api_handler.create_success_response(
-            response_data={"message": "Migration completed successfully."},
-            http_status_code=202
-        )
-    except Exception as e:
-        return api_handler.create_error_response(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )
-
-def migrate_json_to_mongodb(minio_client, mongo_collection, minio_bucket):
-    for dataset in list_datasets(minio_client, minio_bucket):
-        folder_name = f'{dataset}/data/ranking/aggregate'
-        print(f"Processing dataset '{dataset}' located at '{folder_name}' in bucket '{minio_bucket}'...")
-        
-        # Fetch all objects and sort them in reverse (e.g., by filename)
-        objects = minio_client.list_objects(minio_bucket, prefix=folder_name, recursive=True)
-        sorted_objects = sorted(objects, key=lambda obj: obj.object_name, reverse=True)
-
-        for obj in sorted_objects:
-            if obj.is_dir:
-                continue
-
-            json_filename = obj.object_name.split('/')[-1]
-            if mongo_collection.count_documents({"file_name": json_filename}) > 0:
-                print(f"Skipping '{json_filename}', already exists in MongoDB.")
-                continue
-
-            print(f"Found object '{obj.object_name}' in dataset '{dataset}'...")
-            response = minio_client.get_object(minio_bucket, obj.object_name)
-            data = response.read()
-            original_data = json.loads(data.decode('utf-8'))
-            ordered_data = OrderedDict([
-                ("file_name", json_filename),
-                ("dataset", dataset),
-                *original_data.items()
-            ])
-
-            mongo_collection.insert_one(ordered_data)
-            print(f"Migrated '{json_filename}' to MongoDB.")
-
-
-
-def compare_and_migrate(minio_client, mongo_collection, minio_bucket: str):
-    migrated_files = []
-    missing_files = []  # Keep track of files in MinIO but not in MongoDB
-    mongo_filenames = set(mongo_collection.find().distinct("file_name"))
-
-    for dataset in list_datasets(minio_client, minio_bucket):
-        folder_name = f'{dataset}/data/ranking/aggregate'
-        objects = minio_client.list_objects(minio_bucket, prefix=folder_name, recursive=True)
-
-        for obj in objects:
-            if obj.is_dir or obj.object_name.endswith("/"):
-                continue
-
-            json_filename = obj.object_name.split('/')[-1]
-
-            if json_filename not in mongo_filenames:
-                missing_files.append(json_filename)  # Add to missing_files if not in MongoDB
-
-    mongo_file_count = mongo_collection.count_documents({})
-
-    print("Missing Files:", missing_files)  # Print the filenames that are present in MinIO but not in MongoDB
-
-    return migrated_files, missing_files, len(missing_files), mongo_file_count
-
-
-
-@router.post("/identify-missing-files/minio-mongodb", status_code=200, description="Identify missing files in MongoDB that are present in MinIO.")
-def identify_missing_files(request: Request, minio_bucket: str = 'datasets'):
-    api_handler = ApiResponseHandler(request)
-    
-    try:
-        _, missing_files, missing_file_count, mongo_count = compare_and_migrate(request.app.minio_client, request.app.image_pair_ranking_collection, minio_bucket)
-        return api_handler.create_success_response(
-            response_data={
-                "message": "Identification of missing files completed successfully.",
-                "missing_files": missing_files,
-                "missing_file_count": missing_file_count,
-                "mongodb_object_count": mongo_count
-            },
-            http_status_code=200
-        )
-    except Exception as e:
-        return api_handler.create_error_response(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )
-
-
-
-def list_datasets(minio_client, bucket_name):
-    datasets = set()
-    objects = minio_client.list_objects(bucket_name, recursive=False)
-    for obj in objects:
-        if obj.is_dir:
-            dataset_name = obj.object_name.strip('/').split('/')[0]
-            datasets.add(dataset_name)
-    return list(datasets)
-
-
-@router.get("/find-duplicates", response_description="Find duplicate filenames")
-async def find_duplicates(request: Request):
-    try:
-        duplicates = find_duplicate_filenames_in_mongo(request.app.image_pair_ranking_collection)
-        return {
-            "status": "success",
-            "message": "Duplicate filenames found",
-            "duplicates": duplicates
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-def find_duplicate_filenames_in_mongo(collection):
-    pipeline = [
-        {"$group": {
-            "_id": "$file_name",
-            "count": {"$sum": 1}
-        }},
-        {"$match": {
-            "count": {"$gt": 1}
-        }},
-        {"$project": {
-            "file_name": "$_id",
-            "_id": 0
-        }}
-    ]
-    return [doc['file_name'] for doc in collection.aggregate(pipeline)]
-
-
 @router.get("/ranking/list-score-fields")
 def list_score_fields(request: Request):
     # hard code score fields for now
@@ -830,3 +691,249 @@ async def calculate_delta_scores(request: Request):
     total_time = end_time - start_time
 
     return {"message": f"Delta scores calculation and update complete. Processed: {processed_count}, Skipped: {skipped_count}.", "total_time": f"{total_time:.2f} seconds"}
+
+
+
+
+# New Standardized APIs
+
+@router.post("/rank/add-ranking-data-point-v1", 
+             status_code=201,
+             response_model=StandardSuccessResponseV1[Selection],  
+             responses=ApiResponseHandlerV1.listErrors([422, 500]))
+def add_selection_datapoint_v1(
+    request: Request, 
+    selection: Selection,
+    dataset: str = Query(..., description="Dataset as a query parameter")  
+):
+    response_handler = ApiResponseHandlerV1(request, body_data=selection)
+    try:
+        time = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+        selection.datetime = time
+
+        # Prepare path
+        file_name = "{}-{}.json".format(time, selection.username)
+        path = "data/ranking/aggregate"
+        full_path = os.path.join(dataset, path, file_name)
+
+        # Convert to bytes
+        dict_data = selection.to_dict()
+        json_data = json.dumps(dict_data, indent=4).encode('utf-8')
+        data = BytesIO(json_data)
+
+        # Upload
+        cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
+
+        image_1_hash = selection.image_1_metadata.file_hash
+        image_2_hash = selection.image_2_metadata.file_hash
+
+        # Update rank count for both images
+        for img_hash in [image_1_hash, image_2_hash]:
+            update_image_rank_use_count(request, img_hash)
+
+        # Since the actual processing doesn't return a specific object, adjust the response accordingly
+        return response_handler.create_success_response_v1(
+            response_data = data,  # Adjust according to your needs
+            http_status_code=201,
+        )
+    except Exception as e:
+        # Handle exceptions and return an error response
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string="Internal Server Error",
+            http_status_code=500,
+        )
+    
+
+@router.post("/rank/update-image-rank-use-count-v1", 
+             description="Update image rank use count", 
+             response_model=StandardSuccessResponseV1[RankCountResponse],  
+             responses=ApiResponseHandlerV1.listErrors([ 422, 500]))
+def update_image_rank_use_count_v1(request: Request, image_hash: str):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        counter = request.app.image_rank_use_count_collection.find_one({"image_hash": image_hash})
+
+        if counter is None:
+            # If the image hash does not exist, initialize the count to 1
+            count = 1
+            rank_use_count_data = {
+                "image_hash": image_hash,
+                "count": count,
+            }
+            request.app.image_rank_use_count_collection.insert_one(rank_use_count_data)
+
+        else:
+            # If the image hash exists, increment the count
+            count = counter["count"] + 1
+            request.app.image_rank_use_count_collection.update_one(
+                {"image_hash": image_hash},
+                {"$set": {"count": count}}
+            )
+
+        # Return a success response indicating the action performed
+        return response_handler.create_success_response_v1(
+            response_data={"image_hash": image_hash, "count": count},
+            http_status_code=200,
+        )
+    except Exception as e:
+        # Log the exception and return an error response
+        print(f"Exception occurred: {e}")  # For debugging
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )    
+    
+@router.post("/rank/set-image-rank-use-count-v1", 
+             description="Set image rank use count", 
+             response_model=StandardSuccessResponseV1[RankCountResponse],  # Adjust the response model as necessary
+             responses=ApiResponseHandlerV1.listErrors([ 422, 500]))
+def set_image_rank_use_count(request: Request, image_hash: str, count: int):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        counter = request.app.image_rank_use_count_collection.find_one({"image_hash": image_hash})
+
+        if counter is None:
+            # If the image hash does not exist, create a new counter
+            rank_use_count_data = {
+                "image_hash": image_hash,
+                "count": count,
+            }
+            request.app.image_rank_use_count_collection.insert_one(rank_use_count_data)
+          
+        else:
+            # If the image hash exists, update the count
+            request.app.image_rank_use_count_collection.update_one(
+                {"image_hash": image_hash},
+                {"$set": {"count": count}}
+            )
+
+        # Return a success response indicating the action performed
+        return response_handler.create_success_response_v1(
+            response_data={"image_hash": image_hash, "new_count": count},
+            http_status_code=200,
+        )
+    except Exception as e:
+        # Log the exception and return an error response
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string="Internal Server Error",
+            http_status_code=500,
+        )    
+    
+@router.get("/rank/get-image-rank-use-count-v1", 
+            description="Get image rank use count",
+            response_model=StandardSuccessResponseV1[RankCountResponse],  # Adjust the response model as necessary
+            responses=ApiResponseHandlerV1.listErrors([ 422, 500]))
+def get_image_rank_use_count_v1(request: Request, image_hash: str):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        query = {"image_hash": image_hash}
+        item = request.app.image_rank_use_count_collection.find_one(query)
+
+        if item is None:
+            # If the item doesn't exist, return a count of 0 with a success response
+            return response_handler.create_success_response_v1(
+                response_data={"image_hash": image_hash, "count": 0}, 
+                http_status_code=200
+            )
+
+        # If the item exists, return the count with a success response
+        return response_handler.create_success_response_v1(
+            response_data={"image_hash": image_hash, "count": item["count"]}, 
+            http_status_code=200
+        )
+    except Exception as e:
+        # Handle exceptions and return an error response
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string="Internal Server Error",
+            http_status_code=500,
+        )
+
+@router.post("/ranking/submit-relevance-data-v1",
+             status_code=201,
+             response_model=StandardSuccessResponseV1[RelevanceSelection],  # Adjust the response model as necessary
+             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+def add_relevancy_selection_datapoint_v1(request: Request, relevance_selection: RelevanceSelection, dataset: str = Query(..., description="Dataset as a query parameter")):
+    response_handler = ApiResponseHandlerV1(request, body_data=relevance_selection)
+    try:
+        # Current datetime for filename and metadata
+        time = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+        relevance_selection.datetime = time
+
+        # Prepare the file path
+        file_name = "{}-{}.json".format(time, relevance_selection.username)
+        path = "data/relevancy/aggregate"
+        full_path = os.path.join(dataset, path, file_name)
+
+        # Convert selection to JSON bytes
+        dict_data = relevance_selection.dict()  # Assuming RelevanceSelection is a Pydantic model; use .dict() method
+        json_data = json.dumps(dict_data, indent=4).encode('utf-8')
+        data = BytesIO(json_data)
+
+        # Upload data to MinIO
+        cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
+
+        return response_handler.create_success_response_v1(
+            response_data=data, 
+            http_status_code=201,
+        )
+    except Exception as e:
+        # Log the exception and return an error response
+        print(f"Exception occurred: {e}")  # For debugging
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )
+    
+
+@router.get("/rank/list-ranking-data-v1", 
+            status_code=200,
+            response_model=StandardSuccessResponseV1[Selection],  
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+def list_ranking_data_v1(
+    request: Request,
+    start_date: str = Query(None),
+    end_date: str = Query(None),
+    skip: int = Query(0, alias="offset"),
+    limit: int = Query(10, alias="limit"),
+    order: str = Query("desc", regex="^(desc|asc)$")
+):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        # Convert start_date and end_date strings to datetime objects, if provided
+        start_date_obj = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+        end_date_obj = datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
+
+        # Build the query filter based on dates
+        query_filter = {}
+        if start_date_obj or end_date_obj:
+            date_filter = {}
+            if start_date_obj:
+                date_filter["$gte"] = start_date_obj
+            if end_date_obj:
+                date_filter["$lte"] = end_date_obj
+            query_filter["datetime"] = date_filter  # Assuming the field in the database is "datetime"
+
+        # Fetch data from MongoDB with pagination and ordering
+        cursor = request.app.image_pair_ranking_collection.find(query_filter).sort("datetime", -1 if order == "desc" else 1).skip(skip).limit(limit)
+
+        ranking_data = list(cursor)
+        for doc in ranking_data:
+            doc['_id'] = str(doc['_id'])  # Convert ObjectId to string
+
+        # Return the fetched data with a success response
+        return response_handler.create_success_response_v1(
+            response_data=ranking_data, 
+            http_status_code=200,
+        )
+    except Exception as e:
+        # Log the exception and return an error response
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string="Internal Server Error",
+            http_status_code=500,
+        )
