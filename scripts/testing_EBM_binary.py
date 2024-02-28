@@ -907,7 +907,38 @@ def compare_images_value_purevalue(img1, img2):
 
 
 
+@torch.no_grad()
+def compare_images_show(img1, img2):
+    imgs = torch.stack([img1, img2], dim=0).to(model.device)
+    score1, score2 = model.cnn(imgs).cpu().chunk(2, dim=0) # model.cnn(imgs)[0].cpu().chunk(2, dim=0)
+    #class1, class2 = model.cnn(imgs)[1].cpu().chunk(2, dim=0)
+    grid = torchvision.utils.make_grid([img1.cpu(), img2.cpu()], nrow=2, normalize=True, pad_value=0.5, padding=2)
+    grid = grid.permute(1, 2, 0)
+    plt.figure(figsize=(4,4))
+    plt.imshow(grid)
+    plt.xticks([(img1.shape[2]+2)*(0.5+j) for j in range(2)],
+               labels=[f"ID: {score1.item():4.2f}", f"OOD: {score2.item():4.2f}"])
+    plt.yticks([])
+    plt.savefig("output/comparaison_1.png")
 
+    # Save the figure to a file
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+
+    # upload the photo
+    
+    minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
+                "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+                None)
+    minio_path="environmental/output/my_test"
+    date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
+    minio_path= minio_path + "/compare_id_vs_ood" +date_now+".png"
+    cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+    # Remove the temporary file
+    os.remove("output/comparaison_1.png")
+    # Clear the current figure
+    plt.clf()
 
 
 
@@ -939,7 +970,30 @@ def energy_evaluation(training_loader,adv_loader):
     print(f"Score OOD : {some_b:4.2f}")
 
 
+
+
+def energy_evaluation_with_pictures(training_loader,adv_loader):
+    
+    some_a = 0
+    some_b = 0
+    # load training set images
+    test_imgs, _ = next(iter(training_loader))
+    
+
+    # load adv set images
+    fake_imgs, _ = next(iter(adv_loader)) # val_loader_dog  val_ood_loader val val_loader_noncats val_loader
+    
+
+    rangeX = 6
+    for i in range(rangeX):
+        a,b =  compare_images_show(test_imgs[i].to(model.device),fake_imgs[i].to(model.device))
+        some_a += a
+        some_b += b
+
+    some_a = some_a / rangeX
+    some_b = some_b / rangeX
+
 energy_evaluation(val_loader,adv_loader)
 
 
-
+energy_evaluation_with_pictures(val_loader,adv_loader)
