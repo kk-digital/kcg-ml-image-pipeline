@@ -89,7 +89,8 @@ class KandinskyImageGenerator:
         self.clip.load_submodels()
 
         # load kandinsky's autoencoder
-        self.image_generator= KandinskyPipeline(device= self.device)
+        self.image_generator= KandinskyPipeline(device= self.device, strength=0.75, decoder_guidance_scale=12,
+                                                decoder_steps=10)
         self.image_generator.load_models(task_type="img2img")
 
         # load scoring model
