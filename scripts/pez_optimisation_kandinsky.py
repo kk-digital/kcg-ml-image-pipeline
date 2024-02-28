@@ -235,7 +235,7 @@ class KandinskyImageGenerator:
             # Custom loss function
             # Original loss based on the scoring function
             reg_loss = torch.mean((clip_vector - optimized_embedding) ** 2)
-            score_loss =  -score
+            score_loss =  self.target_score - score
             
             # Total loss
             total_loss = score_loss + self.penalty_weight * reg_loss
@@ -264,9 +264,6 @@ class KandinskyImageGenerator:
                     'generation_policy_string': "pez_optimization",
                     'time': task_time
                 })
-
-            if total_loss<-self.target_score:
-                break
 
             # Backpropagate
             total_loss.backward()
