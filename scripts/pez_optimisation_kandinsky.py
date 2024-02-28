@@ -186,6 +186,21 @@ class KandinskyImageGenerator:
         # Sum the penalties
         penalty = squared_distances.sum()
         return penalty
+    
+    def get_image_features(self, image):
+        # Preprocess image
+        if isinstance(image, Image.Image):
+            image = self.clip.image_processor(image, return_tensors="pt")['pixel_values']
+        
+         # Compute CLIP features
+        if isinstance(image, torch.Tensor):
+            features = self.clip.vision_model(pixel_values= image.to(self.device).half()).image_embeds
+        else:
+            raise ValueError(
+                f"`image` can only contains elements to be of type `PIL.Image.Image` or `torch.Tensor`  but is {type(image)}"
+            )
+        
+        return features.to(torch.float16)
 
     def generate_latent(self):
         # features_data = get_object(self.minio_client, "environmental/0435/434997_clip_kandinsky.msgpack")
@@ -211,7 +226,7 @@ class KandinskyImageGenerator:
                                                   seed=seed
                                                   )
             
-            clip_vector= self.clip.get_image_features(init_image).to(dtype=optimized_embedding.dtype)
+            clip_vector= self.get_image_features(init_image).to(dtype=optimized_embedding.dtype)
 
             # Calculate the custom score
             inputs = clip_vector.reshape(len(clip_vector), -1)
