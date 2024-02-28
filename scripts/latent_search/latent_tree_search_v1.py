@@ -4,7 +4,6 @@ import sys
 import torch
 import argparse
 import msgpack
-from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -14,6 +13,7 @@ from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from utility.minio import cmd
 from data_loader.utils import get_object
+from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 
 def parse_args():
     parser = argparse.ArgumentParser()
