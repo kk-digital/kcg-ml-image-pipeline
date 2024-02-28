@@ -927,13 +927,13 @@ def energy_evaluation(training_loader,adv_loader):
     
 
 
-    for i in range(16):
+    for i in range(64):
         a,b =  compare_images_value_purevalue(test_imgs[i].to(model.device),fake_imgs[i].to(model.device))
         some_a += a
         some_b += b
 
-        some_a = some_a / 16
-        some_b = some_b / 16
+        some_a = some_a / 64
+        some_b = some_b / 64
 
     print(f"Score in distribution : {some_a:4.2f}")
     print(f"Score OOD : {some_b:4.2f}")
