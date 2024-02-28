@@ -207,7 +207,7 @@ class KandinskyImageGenerator:
             optimizer.zero_grad()
 
             init_image, latent= self.image_generator.generate_img2img(init_img=init_image,
-                                                  image_embeds= optimized_embedding.to(dtype=torch.float16),
+                                                  image_embeds= optimized_embedding,
                                                   seed=seed
                                                   )
             
