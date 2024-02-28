@@ -90,6 +90,7 @@ class KandinskyImageGenerator:
 
         # load kandinsky's autoencoder
         self.image_generator= KandinskyPipeline(device= self.device)
+        self.image_generator.load_models(task_type="img2img")
 
         # load scoring model
         self.scoring_model= self.load_scoring_model()
