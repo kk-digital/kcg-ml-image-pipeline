@@ -996,4 +996,4 @@ def energy_evaluation_with_pictures(training_loader,adv_loader):
 energy_evaluation(val_loader,adv_loader)
 
 
-#energy_evaluation_with_pictures(val_loader,adv_loader)
+energy_evaluation_with_pictures(val_loader,adv_loader)
