@@ -993,7 +993,7 @@ def energy_evaluation_with_pictures(training_loader,adv_loader):
     some_a = some_a / rangeX
     some_b = some_b / rangeX
 
-energy_evaluation(val_loader,adv_loader)
+#energy_evaluation(val_loader,adv_loader)
 
 
 energy_evaluation_with_pictures(val_loader,adv_loader)
