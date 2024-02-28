@@ -22,7 +22,6 @@ from kandinsky_worker.image_generation.img2img_generator import generate_img2img
 from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
 from kandinsky.models.kandisky import KandinskyPipeline
 from utility.minio import cmd
-from kandinsky.model_paths import DECODER_MODEL_PATH
 from data_loader.utils import get_object
 
 def parse_args():
