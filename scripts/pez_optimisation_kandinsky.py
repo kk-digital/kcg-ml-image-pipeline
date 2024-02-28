@@ -210,7 +210,7 @@ class KandinskyImageGenerator:
                                                   seed=seed
                                                   )
             
-            clip_vector= self.clip.get_image_features(image)
+            clip_vector= self.clip.get_image_features(image).to(dtype=optimized_embedding.dtype)
 
             # Calculate the custom score
             inputs = clip_vector.reshape(len(clip_vector), -1)
