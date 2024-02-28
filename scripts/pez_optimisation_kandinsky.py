@@ -7,6 +7,10 @@ import pandas as pd
 import torch
 import torch.optim as optim
 import msgpack
+from PIL import Image
+import time
+import random
+
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -16,7 +20,7 @@ from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
-from kandinsky.pipelines.kandinsky_img2img import KandinskyV22Img2ImgPipeline
+from kandinsky.models.kandisky import KandinskyPipeline
 from utility.minio import cmd
 from kandinsky.model_paths import DECODER_MODEL_PATH
 from data_loader.utils import get_object
@@ -81,13 +85,11 @@ class KandinskyImageGenerator:
         self.device = torch.device(device)
         
         # load kandinsky clip
-        clip= KandinskyCLIPImageEncoder(device= self.device)
-        clip.load_submodels()
-        self.image_encoder= clip.vision_model
+        self.clip= KandinskyCLIPImageEncoder(device= self.device)
+        self.clip.load_submodels()
 
         # load kandinsky's autoencoder
-        # self.auto_encoder= KandinskyV22Img2ImgPipeline.from_pretrained(DECODER_MODEL_PATH, local_files_only=True,
-        #                                                             unet=self.unet, torch_dtype=torch.float16).to(self.device)
+        self.image_generator= KandinskyPipeline(device= self.device)
 
         # load scoring model
         self.scoring_model= self.load_scoring_model()
@@ -183,13 +185,16 @@ class KandinskyImageGenerator:
         penalty = squared_distances.sum()
         return penalty
 
-    def generate_latent(self, noise_scale=0.05):
+    def generate_latent(self):
         # features_data = get_object(self.minio_client, "environmental/0435/434997_clip_kandinsky.msgpack")
         # features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
         # image_embedding= torch.tensor(features_vector).to(device=self.device, dtype=torch.float32)
-
-        df_data=[]
         
+        random.seed(time.time())
+        seed = random.randint(0, 2 ** 24 - 1)
+
+        init_image = Image.open("./test/test_inpainting/white_512x512.jpg")
+        df_data=[]
         sampled_embedding= self.sample_embedding()
         optimized_embedding = sampled_embedding.clone().detach().requires_grad_(True)
 
@@ -199,24 +204,24 @@ class KandinskyImageGenerator:
         for step in range(self.steps):
             optimizer.zero_grad()
 
-            # Optionally, directly add noise to z for exploration
-            if noise_scale > 0:
-                noise = torch.randn_like(optimized_embedding) * noise_scale
-                optimized_embedding.data += noise  # Directly modify z with noise
+            image, latent= self.image_generator.generate_img2img(init_img=init_image,
+                                                  image_embs= optimized_embedding,
+                                                  seed=seed
+                                                  )
+            
+            clip_vector= self.clip.get_image_features(image)
 
             # Calculate the custom score
-            inputs = optimized_embedding.reshape(len(optimized_embedding), -1)
+            inputs = clip_vector.reshape(len(clip_vector), -1)
             score = self.scoring_model.model.forward(inputs).squeeze()
             sigma_score= (score - self.mean) / self.std
             # Custom loss function
             # Original loss based on the scoring function
-            score_loss = -score
-            
-            # Calculate the penalty for the embeddings
-            penalty = self.penalty_weight * self.penalty_function(optimized_embedding)
+            reg_loss = torch.mean((clip_vector - optimized_embedding) ** 2)
+            score_loss =  -score
             
             # Total loss
-            total_loss = score_loss
+            total_loss = score_loss + self.penalty_weight * reg_loss
 
             if self.send_job and (step % self.generate_step == 0):
                 try:
