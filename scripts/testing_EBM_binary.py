@@ -932,8 +932,8 @@ def energy_evaluation(training_loader,adv_loader):
         some_a += a
         some_b += b
 
-        some_a = some_a / rangeX
-        some_b = some_b / rangeX
+    some_a = some_a / rangeX
+    some_b = some_b / rangeX
 
     print(f"Score in distribution : {some_a:4.2f}")
     print(f"Score OOD : {some_b:4.2f}")
