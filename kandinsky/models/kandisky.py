@@ -59,7 +59,7 @@ class KandinskyPipeline:
                     inpaint_decoder_path= INPAINT_DECODER_MODEL_PATH, task_type="inpainting"):
         
         with section("Loading Inpainting model"):
-            self.image_encoder = CLIPVisionModelWithProjection.from_pretrained(prior_path, local_files_only=True, subfolder='image_encoder').to(torch.float16).to(self.device)
+            self.image_encoder = CLIPVisionModelWithProjection.from_pretrained(prior_path, local_files_only=True, subfolder='image_encoder').to(torch.float32).to(self.device)
             if task_type == "text2img":
                 self.unet = UNet2DConditionModel.from_pretrained(decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
                 
@@ -76,9 +76,9 @@ class KandinskyPipeline:
             elif task_type == "img2img":
                 self.unet = UNet2DConditionModel.from_pretrained(decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
                 self.prior = KandinskyV22PriorPipeline.from_pretrained(prior_path, local_files_only=True,
-                                                                       image_encoder=self.image_encoder, torch_dtype=torch.float16).to(self.device)
+                                                                       image_encoder=self.image_encoder, torch_dtype=torch.float32).to(self.device)
                 self.decoder = KandinskyV22Img2ImgPipeline.from_pretrained(decoder_path, local_files_only=True,
-                                                                    unet=self.unet, torch_dtype=torch.float16).to(self.device)
+                                                                    unet=self.unet, torch_dtype=torch.float32).to(self.device)
             else:
                 raise ValueError("Only text2img, img2img, inpainting is available")
             
