@@ -16,7 +16,9 @@ from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
+from kandinsky.pipelines.kandinsky_img2img import KandinskyV22Img2ImgPipeline
 from utility.minio import cmd
+from kandinsky.model_paths import DECODER_MODEL_PATH
 from data_loader.utils import get_object
 
 def parse_args():
@@ -83,16 +85,14 @@ class KandinskyImageGenerator:
         clip.load_submodels()
         self.image_encoder= clip.vision_model
 
+        # load kandinsky's autoencoder
+        # self.auto_encoder= KandinskyV22Img2ImgPipeline.from_pretrained(DECODER_MODEL_PATH, local_files_only=True,
+        #                                                             unet=self.unet, torch_dtype=torch.float16).to(self.device)
+
         # load scoring model
         self.scoring_model= self.load_scoring_model()
         self.mean= float(self.scoring_model.mean)
         self.std= float(self.scoring_model.standard_deviation)
-
-        # get clip mean and std values
-        # prior_model = PriorTransformer.from_pretrained(PRIOR_MODEL_PATH, subfolder="prior").to(self.device)
-
-        # self.clip_mean= prior_model.clip_mean.clone().to(self.device)
-        # self.clip_std= prior_model.clip_std.clone().to(self.device)
 
         self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
         print(self.clip_mean, self.clip_std)
@@ -148,16 +148,6 @@ class KandinskyImageGenerator:
 
         return scoring_model
     
-    def get_initial_latent(self, batch_size=1):
-        random_img= torch.zeros(1, 3, self.image_encoder.config.image_size, self.image_encoder.config.image_size).to(
-            device=self.device, dtype=self.image_encoder.dtype
-        )
-        zero_image_emb = self.image_encoder(random_img)["image_embeds"]
-        zero_image_emb = zero_image_emb.repeat(batch_size, 1)
-        return zero_image_emb.to(
-            device=self.device, dtype=torch.float32
-        )
-    
     def sample_embedding(self, num_samples=1):
         # Sample from a normal distribution using the mean and standard deviation vectors
         sampled_embeddings = torch.normal(self.clip_mean, self.clip_std)
@@ -193,10 +183,7 @@ class KandinskyImageGenerator:
         penalty = squared_distances.sum()
         return penalty
 
-    def generate_latent(self):
-        # Ensure image embeddings require gradients
-        #image_embedding= self.get_initial_latent()
-
+    def generate_latent(self, noise_scale=0.01):
         # features_data = get_object(self.minio_client, "environmental/0435/434997_clip_kandinsky.msgpack")
         # features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
         # image_embedding= torch.tensor(features_vector).to(device=self.device, dtype=torch.float32)
@@ -211,6 +198,11 @@ class KandinskyImageGenerator:
 
         for step in range(self.steps):
             optimizer.zero_grad()
+
+            # Optionally, directly add noise to z for exploration
+            if noise_scale > 0:
+                noise = torch.randn_like(optimized_embedding) * noise_scale
+                optimized_embedding.data += noise  # Directly modify z with noise
 
             # Calculate the custom score
             inputs = optimized_embedding.reshape(len(optimized_embedding), -1)
