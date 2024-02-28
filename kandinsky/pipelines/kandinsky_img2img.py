@@ -187,7 +187,7 @@ class KandinskyV22Img2ImgPipeline(DiffusionPipeline):
     def num_timesteps(self):
         return self._num_timesteps
 
-    #@torch.no_grad()
+    @torch.no_grad()
     def __call__(
         self,
         image_embeds: Union[torch.FloatTensor, List[torch.FloatTensor]],

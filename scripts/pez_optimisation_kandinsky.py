@@ -200,7 +200,7 @@ class KandinskyImageGenerator:
                 f"`image` can only contains elements to be of type `PIL.Image.Image` or `torch.Tensor`  but is {type(image)}"
             )
         
-        return features.to(torch.float16)
+        return features
 
     def generate_latent(self):
         # features_data = get_object(self.minio_client, "environmental/0435/434997_clip_kandinsky.msgpack")
@@ -226,7 +226,7 @@ class KandinskyImageGenerator:
                                                   seed=seed
                                                   )
             
-            clip_vector= self.get_image_features(init_image).to(dtype=optimized_embedding.dtype)
+            clip_vector= self.get_image_features(init_image)
 
             # Calculate the custom score
             inputs = clip_vector.reshape(len(clip_vector), -1)
