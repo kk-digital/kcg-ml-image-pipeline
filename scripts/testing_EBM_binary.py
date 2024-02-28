@@ -790,7 +790,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=15,
+                         max_epochs=5,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -926,14 +926,14 @@ def energy_evaluation(training_loader,adv_loader):
     fake_imgs, _ = next(iter(adv_loader)) # val_loader_dog  val_ood_loader val val_loader_noncats val_loader
     
 
-
-    for i in range(64):
+    rangeX = len(test_imgs)
+    for i in range(rangeX):
         a,b =  compare_images_value_purevalue(test_imgs[i].to(model.device),fake_imgs[i].to(model.device))
         some_a += a
         some_b += b
 
-        some_a = some_a / 64
-        some_b = some_b / 64
+        some_a = some_a / rangeX
+        some_b = some_b / rangeX
 
     print(f"Score in distribution : {some_a:4.2f}")
     print(f"Score OOD : {some_b:4.2f}")
