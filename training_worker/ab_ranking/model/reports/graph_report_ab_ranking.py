@@ -365,39 +365,57 @@ def get_graph_report(training_loss,
             chronological_pred_scores_img_y_target_1[validation_shuffled_indices_origin[count]] = score.item()
         count += 1
 
-    chronological_pred_scores_target_1_plot.scatter([i for i in range(len(chronological_pred_scores_img_x_target_1))],
-                                                    chronological_pred_scores_img_x_target_1,
-                                                    label="Chronological predicted image x scores ({0})".format(
-                                                        len(chronological_pred_scores_img_x_target_1)),
-                                                    c="#281ad9", s=5)
-    chronological_pred_scores_target_1_plot.scatter([i for i in range(len(chronological_pred_scores_img_y_target_1))],
-                                                    chronological_pred_scores_img_y_target_1,
-                                                    label="Chronological predicted image y scores ({0})".format(
-                                                        len(chronological_pred_scores_img_y_target_1)),
-                                                    c="#14e33a", s=5)
+    # chronological_pred_scores_target_1_plot.scatter([i for i in range(len(chronological_pred_scores_img_x_target_1))],
+    #                                                 chronological_pred_scores_img_x_target_1,
+    #                                                 label="Chronological predicted image x scores ({0})".format(
+    #                                                     len(chronological_pred_scores_img_x_target_1)),
+    #                                                 c="#281ad9", s=5)
+    # chronological_pred_scores_target_1_plot.scatter([i for i in range(len(chronological_pred_scores_img_y_target_1))],
+    #                                                 chronological_pred_scores_img_y_target_1,
+    #                                                 label="Chronological predicted image y scores ({0})".format(
+    #                                                     len(chronological_pred_scores_img_y_target_1)),
+    #                                                 c="#14e33a", s=5)
+    #
+    # chronological_pred_scores_target_1_plot.set_xlabel("Sample")
+    # chronological_pred_scores_target_1_plot.set_ylabel("Predicted Score")
+    # chronological_pred_scores_target_1_plot.set_title("Chronological Dataset Predicted Score")
+    # chronological_pred_scores_target_1_plot.legend()
+    x = np.array([i for i in range(len(chronological_pred_scores_img_x_target_1))])
+    y = np.array(chronological_pred_scores_img_x_target_1)
 
+    extent = [x[0] - (x[1] - x[0]) / 2., x[-1] + (x[1] - x[0]) / 2., 0, 1]
+    c = chronological_pred_scores_target_1_plot.imshow(y[np.newaxis, :], cmap="plasma", aspect="auto",
+                                                             extent=extent)
+    cBar = plt.colorbar(c, ax=chronological_pred_scores_target_1_plot, orientation='vertical')
+    cBar.set_label("Predicted Score", loc="bottom")
+    chronological_pred_scores_target_1_plot.set_xlim(extent[0], extent[1])
     chronological_pred_scores_target_1_plot.set_xlabel("Sample")
-    chronological_pred_scores_target_1_plot.set_ylabel("Predicted Score")
     chronological_pred_scores_target_1_plot.set_title("Chronological Dataset Predicted Score")
-    chronological_pred_scores_target_1_plot.legend()
 
     # -------------------------------------------------- Sigma Scores Graph ------------------------------------------#
     if x_chronological_sigma_scores is not None and y_chronological_sigma_scores is not None:
-        chronological_pred_sigma_scores_target_1_plot.scatter([i for i in range(len(x_chronological_sigma_scores))],
-                                                        x_chronological_sigma_scores,
-                                                        label="Chronological image x sigma scores ({0})".format(
-                                                            len(x_chronological_sigma_scores)),
-                                                        c="#281ad9", s=5)
-        chronological_pred_sigma_scores_target_1_plot.scatter([i for i in range(len(y_chronological_sigma_scores))],
-                                                        y_chronological_sigma_scores,
-                                                        label="Chronological image y sigma scores ({0})".format(
-                                                            len(y_chronological_sigma_scores)),
-                                                        c="#14e33a", s=5)
+        # chronological_pred_sigma_scores_target_1_plot.scatter([i for i in range(len(x_chronological_sigma_scores))],
+        #                                                 x_chronological_sigma_scores,
+        #                                                 label="Chronological image x sigma scores ({0})".format(
+        #                                                     len(x_chronological_sigma_scores)),
+        #                                                 c="#281ad9", s=5)
+        # chronological_pred_sigma_scores_target_1_plot.scatter([i for i in range(len(y_chronological_sigma_scores))],
+        #                                                 y_chronological_sigma_scores,
+        #                                                 label="Chronological image y sigma scores ({0})".format(
+        #                                                     len(y_chronological_sigma_scores)),
+        #                                                 c="#14e33a", s=5)
+        #
+        x = np.array([i for i in range(len(x_chronological_sigma_scores))])
+        y = np.array(x_chronological_sigma_scores)
 
+        extent = [x[0] - (x[1] - x[0]) / 2., x[-1] + (x[1] - x[0]) / 2., 0, 1]
+        c = chronological_pred_sigma_scores_target_1_plot.imshow(y[np.newaxis, :], cmap="plasma", aspect="auto", extent=extent)
+        cBar = plt.colorbar(c, ax=chronological_pred_sigma_scores_target_1_plot, orientation='vertical')
+        cBar.set_label("Sigma Score", loc="bottom")
+        chronological_pred_sigma_scores_target_1_plot.set_xlim(extent[0], extent[1])
         chronological_pred_sigma_scores_target_1_plot.set_xlabel("Sample")
-        chronological_pred_sigma_scores_target_1_plot.set_ylabel("Sigma Score")
         chronological_pred_sigma_scores_target_1_plot.set_title("Chronological Dataset Sigma Score")
-        chronological_pred_sigma_scores_target_1_plot.legend()
+
 
     # ----------------------------------------------------------------------------------------------------------------#
     if learning_rate == -1:
