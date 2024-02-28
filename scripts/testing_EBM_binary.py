@@ -922,9 +922,9 @@ def compare_images_show(img1, img2):
     plt.savefig("output/comparaison_1.png")
 
     # Save the figure to a file
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png')
-    buf.seek(0)
+    bufx = io.BytesIO()
+    plt.savefig(bufx, format='png')
+    bufx.seek(0)
 
     # upload the photo
     
@@ -996,4 +996,4 @@ def energy_evaluation_with_pictures(training_loader,adv_loader):
 energy_evaluation(val_loader,adv_loader)
 
 
-energy_evaluation_with_pictures(val_loader,adv_loader)
+#energy_evaluation_with_pictures(val_loader,adv_loader)
