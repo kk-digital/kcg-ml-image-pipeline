@@ -27,6 +27,8 @@ def parse_args():
     parser.add_argument('--generate-step', type=int, default=100)
     parser.add_argument('--print-step', type=int, default=10)
 
+    return parser.parse_args()
+
 class KandinskyTreeSearchGenerator:
     def __init__(self,
                  minio_access_key,
