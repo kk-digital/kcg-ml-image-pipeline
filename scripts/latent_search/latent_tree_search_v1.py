@@ -3,6 +3,7 @@ import os
 import sys
 import torch
 import argparse
+import msgpack
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -11,6 +12,7 @@ sys.path.insert(0, os.getcwd())
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from utility.minio import cmd
+from data_loader.utils import get_object
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -73,6 +75,17 @@ class KandinskyTreeSearchGenerator:
         self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
         print(self.clip_mean, self.clip_std)
 
+
+    def get_clip_distribution(self):
+        data = get_object(self.minio_client, "environmental/output/stats/clip_stats.msgpack")
+        data_dict = msgpack.unpackb(data)
+
+        mean_vector = torch.tensor(data_dict["mean"]).to(device=self.device, dtype=torch.float32)
+        std_vector = torch.tensor(data_dict["std"]).to(device=self.device, dtype=torch.float32)
+        max_vector = torch.tensor(data_dict["max"]).to(device=self.device, dtype=torch.float32)
+        min_vector = torch.tensor(data_dict["min"]).to(device=self.device, dtype=torch.float32)
+
+        return mean_vector, std_vector, max_vector, min_vector
 
     # load elm or linear scoring models
     def load_scoring_model(self):
