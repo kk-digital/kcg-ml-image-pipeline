@@ -218,13 +218,13 @@ class KandinskyImageGenerator:
             sigma_score= (score - self.mean) / self.std
             # Custom loss function
             # Original loss based on the scoring function
-            score_loss = torch.abs(self.target_score - sigma_score)
+            score_loss = -score
             
             # Calculate the penalty for the embeddings
             penalty = self.penalty_weight * self.penalty_function(optimized_embedding)
             
             # Total loss
-            total_loss = score_loss + penalty
+            total_loss = score_loss
 
             if self.send_job and (step % self.generate_step == 0):
                 try:
@@ -244,8 +244,8 @@ class KandinskyImageGenerator:
                 # storing job data to put in csv file later
                 df_data.append({
                     'task_uuid': task_uuid,
-                    'score': score,
-                    'sigma_score': sigma_score,
+                    'score': score.item(),
+                    'sigma_score': sigma_score.item(),
                     'step': step,
                     'generation_policy_string': "pez_optimization",
                     'time': task_time
