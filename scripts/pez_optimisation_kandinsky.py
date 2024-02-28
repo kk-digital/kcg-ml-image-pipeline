@@ -205,12 +205,12 @@ class KandinskyImageGenerator:
         for step in range(self.steps):
             optimizer.zero_grad()
 
-            image, latent= self.image_generator.generate_img2img(init_img=init_image,
+            init_image, latent= self.image_generator.generate_img2img(init_img=init_image,
                                                   image_embeds= optimized_embedding.to(dtype=torch.float16),
                                                   seed=seed
                                                   )
             
-            clip_vector= self.clip.get_image_features(image).to(dtype=optimized_embedding.dtype)
+            clip_vector= self.clip.get_image_features(init_image).to(dtype=optimized_embedding.dtype)
 
             # Calculate the custom score
             inputs = clip_vector.reshape(len(clip_vector), -1)
