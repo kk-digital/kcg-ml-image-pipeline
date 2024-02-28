@@ -183,7 +183,7 @@ class KandinskyImageGenerator:
         penalty = squared_distances.sum()
         return penalty
 
-    def generate_latent(self, noise_scale=0.01):
+    def generate_latent(self, noise_scale=0.05):
         # features_data = get_object(self.minio_client, "environmental/0435/434997_clip_kandinsky.msgpack")
         # features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
         # image_embedding= torch.tensor(features_vector).to(device=self.device, dtype=torch.float32)
