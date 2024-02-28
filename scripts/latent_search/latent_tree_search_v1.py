@@ -4,6 +4,7 @@ import sys
 import torch
 import argparse
 import msgpack
+from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -180,7 +181,18 @@ def main():
                                        generate_step=args.generate_step,
                                        print_step=args.print_step)
     
-    generator.generate_latent()
+    optimized_embedding=generator.generate_latent()
+
+    if args.send_job:
+        try:
+            response= generate_img2img_generation_jobs_with_kandinsky(
+                image_embedding=optimized_embedding,
+                negative_image_embedding=None,
+                dataset_name="test-generations",
+                prompt_generation_policy="latent_tree_search_v1",
+            )
+        except:
+            print("An error occured.")
 
 if __name__=="__main__":
     main()
