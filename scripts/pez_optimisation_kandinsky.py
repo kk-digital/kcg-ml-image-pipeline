@@ -203,8 +203,8 @@ class KandinskyImageGenerator:
 
         df_data=[]
         
-        # sampled_embedding= self.sample_embedding()
-        optimized_embedding = self.clip_mean.clone().detach().requires_grad_(True)
+        sampled_embedding= self.sample_embedding()
+        optimized_embedding = sampled_embedding.clone().detach().requires_grad_(True)
 
         # Setup the optimizer
         optimizer = optim.Adam([optimized_embedding], lr=self.learning_rate)
@@ -251,7 +251,7 @@ class KandinskyImageGenerator:
                     'time': task_time
                 })
 
-            if total_loss<0.01:
+            if total_loss<-self.target_score:
                 break
 
             # Backpropagate
