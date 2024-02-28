@@ -879,7 +879,7 @@ plt.savefig(buf, format='png')
 buf.seek(0)
 
 # upload the graph report
-minio_path= minio_path + "/loss_tracking_per_step_fullclass_bigger_ballanced" +date_now+".png"
+minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss" +date_now+".png"
 cmd.upload_data(minio_client, 'datasets', minio_path, buf)
 # Remove the temporary file
 os.remove("output/loss_tracking_per_step.png")
