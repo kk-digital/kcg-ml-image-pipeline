@@ -20,6 +20,9 @@ import os
 class ListImageTag(BaseModel):
      images: List[ImageTag]
 
+class RankCountResponse(BaseModel):
+    image_hash: str
+    count: int
 
 class RechableResponse(BaseModel):
     reachable: bool
