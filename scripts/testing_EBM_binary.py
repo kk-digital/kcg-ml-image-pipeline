@@ -228,12 +228,11 @@ def data_augmentation(images_tensor, num_of_passes):
 
 ########################################### Model Architectures
 
-
 class CNNModel(nn.Module):
-    def __init__(self):
+    def __init__(self, input_channels=3, input_size=512):  # Adjust input_channels and input_size based on your images
         super(CNNModel, self).__init__()
 
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(input_channels, 32, kernel_size=3, stride=1, padding=1)
         self.relu1 = nn.ReLU()
         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
 
@@ -241,15 +240,41 @@ class CNNModel(nn.Module):
         self.relu2 = nn.ReLU()
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        self.fc = nn.Linear(64 * 8 * 8, 1)  # Adjust the input size based on your needs
+        # Calculate the size of the fully-connected layer input based on the architecture and input size
+        fc_input_size = 64 * (input_size // 4) * (input_size // 4)
+
+        self.fc = nn.Linear(fc_input_size, 1)  # Adjust the input size based on your needs
 
     def forward(self, x):
         x = self.pool1(self.relu1(self.conv1(x)))
         x = self.pool2(self.relu2(self.conv2(x)))
-        x = x.view(-1, 64 * 8 * 8)
+        x = x.view(x.size(0), -1)  # Flatten the tensor before passing it to the fully-connected layer
         output = self.fc(x)
-        print("Energy Shape : ", output.shape)
         return output
+    
+
+
+# class CNNModel(nn.Module):
+#     def __init__(self):
+#         super(CNNModel, self).__init__()
+
+#         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
+#         self.relu1 = nn.ReLU()
+#         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+#         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
+#         self.relu2 = nn.ReLU()
+#         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+#         self.fc = nn.Linear(64 * 8 * 8, 1)  # Adjust the input size based on your needs
+
+#     def forward(self, x):
+#         x = self.pool1(self.relu1(self.conv1(x)))
+#         x = self.pool2(self.relu2(self.conv2(x)))
+#         x = x.view(-1, 64 * 8 * 8)
+#         output = self.fc(x)
+#         print("Energy Shape : ", output.shape)
+#         return output
 
 # # ##################### NEW Classifier V2
 # class CNNModel(nn.Module):
