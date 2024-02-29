@@ -946,7 +946,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=15,
+                         max_epochs=2,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -1157,7 +1157,7 @@ plt.savefig(buf, format='png')
 buf.seek(0)
 
 # upload the graph report
-minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_combined_adv" +date_now+".png"
+minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss" +date_now+".png"
 cmd.upload_data(minio_client, 'datasets', minio_path, buf)
 # Remove the temporary file
 os.remove("output/loss_tracking_per_step.png")
@@ -1179,6 +1179,126 @@ print("Occult VS Cifar")
 energy_evaluation(val_loader,val_cifarset_loader)
 print("Occult VS SVHN")
 energy_evaluation(val_loader,val_ood_loader)
+
+
+
+
+
+
+
+
+
+
+
+
+#################################################################################################### Entrainement inverse
+
+
+
+
+train_loader = train_loader_set_cyber
+val_loader = val_loader_set_cyber
+adv_loader = val_loader_set_ocult
+
+
+# Train
+model2 = train_model(img_shape=(3,512,512),
+                    batch_size=train_loader_set_cyber.batch_size,
+                    lr=0.001,
+                    beta1=0.0)
+
+
+modelsave = model
+model = model2
+# Plot
+
+
+epochs = range(1, len(total_losses) + 1)  
+
+
+# Create subplots grid (3 rows, 1 column)
+fig, axes = plt.subplots(4, 1, figsize=(10, 24))
+
+# Plot each loss on its own subplot
+axes[0].plot(epochs, total_losses, label='Total Loss')
+axes[0].set_xlabel('Steps')
+axes[0].set_ylabel('Loss')
+axes[0].set_title('Total Loss')
+axes[0].legend()
+axes[0].grid(True)
+
+# axes[1].plot(epochs, class_losses, label='Classification Loss')
+# axes[1].set_xlabel('Steps')
+# axes[1].set_ylabel('Loss')
+# axes[1].set_title('Classification Loss')
+# axes[1].legend()
+# axes[1].grid(True)
+
+axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
+axes[1].set_xlabel('Steps')
+axes[1].set_ylabel('Loss')
+axes[1].set_title('Contrastive Divergence Loss')
+axes[1].legend()
+axes[1].grid(True)
+
+
+axes[2].plot(epochs, reg_losses , label='Regression Loss')
+axes[2].set_xlabel('Steps')
+axes[2].set_ylabel('Loss')
+axes[2].set_title('Regression Loss')
+axes[2].legend()
+axes[2].grid(True)
+
+# Plot real and fake scores on the fourth subplot
+axes[3].plot(epochs, real_scores_s, label='Real Scores')
+axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
+axes[3].set_xlabel('Steps')
+axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
+axes[3].set_title('Real vs. Fake Scores')
+axes[3].legend()
+axes[3].grid(True)
+
+# Adjust spacing between subplots for better visualization
+plt.tight_layout()
+
+plt.savefig("output/loss_tracking_per_step.png")
+
+# Save the figure to a file
+buf = io.BytesIO()
+plt.savefig(buf, format='png')
+buf.seek(0)
+
+# upload the graph report
+minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_reversed" +date_now+".png"
+cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+# Remove the temporary file
+os.remove("output/loss_tracking_per_step.png")
+# Clear the current figure
+plt.clf()
+
+
+
+energy_evaluation_with_pictures(val_loader,adv_loader)
+energy_evaluation_with_pictures(val_loader,val_cifarset_loader)
+energy_evaluation_with_pictures(val_loader,val_ood_loader)
+
+val_ood_loader
+##### Value eval
+print("Occult VS Cyber")
+energy_evaluation(val_loader,adv_loader)
+print("Occult VS Cifar")
+energy_evaluation(val_loader,val_cifarset_loader)
+print("Occult VS SVHN")
+energy_evaluation(val_loader,val_ood_loader)
+
+
+
+
+
+
+
+
+
 
 # import torchvision.transforms.functional as TF
 # from torchvision.utils import make_grid
