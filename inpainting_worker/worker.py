@@ -404,7 +404,7 @@ def main():
     worker_type_list = get_worker_type_list(args.worker_type)
 
     # Initialize worker state
-    worker_state = WorkerState(args.device, "v048BpXpWrsVIHUfdAix", "4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu")
+    worker_state = WorkerState(args.device, "v048BpXpWrsVIHUfdAix", "4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu", queue_size)
     # Loading models
     worker_state.load_models()
 
