@@ -176,6 +176,8 @@ class KandinskyImageGenerator:
         
         # Select the highest scoring embedding
         highest_scoring_embedding = embeddings[highest_score_index]
+
+        print(highest_scoring_embedding.shape)
         
         return highest_scoring_embedding.to(device=self.device)
     
