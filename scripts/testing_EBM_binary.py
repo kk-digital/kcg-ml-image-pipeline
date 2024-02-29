@@ -578,7 +578,7 @@ fake_scores_s = []
 
 class DeepEnergyModel(pl.LightningModule):
 
-    def __init__(self, img_shape, batch_size, alpha=0.1, lr=1e-4, beta1=0.0, **CNN_args):
+    def __init__(self, img_shape, batch_size = batchsize_x, alpha=0.1, lr=1e-4, beta1=0.0, **CNN_args):
         super().__init__()
         self.save_hyperparameters()
 
@@ -828,8 +828,15 @@ def train_model(**kwargs):
 
 @torch.no_grad()
 def compare_images_value_purevalue(img1, img2):
-    imgs = torch.stack([img1, img2], dim=0).to(model.device)
-    score1, score2 = model.cnn(imgs).cpu().chunk(2, dim=0) # model.cnn(imgs)[0].cpu().chunk(2, dim=0)
+    # imgs = torch.stack([img1, img2], dim=0).to(model.device)
+    # score1, score2 = model.cnn(imgs).cpu().chunk(2, dim=0) # model.cnn(imgs)[0].cpu().chunk(2, dim=0)
+    
+    # Pass the first image through the CNN model and get its score
+    score1 = model.cnn(img1.unsqueeze(0).to(model.device)).cpu().item()
+
+    # Pass the second image through the CNN model and get its score
+    score2 = model.cnn(img2.unsqueeze(0).to(model.device)).cpu().item()
+
     #class1, class2 = model.cnn(imgs)[1].cpu().chunk(2, dim=0)
     grid = torchvision.utils.make_grid([img1.cpu(), img2.cpu()], nrow=2, normalize=True, pad_value=0.5, padding=2)
     grid = grid.permute(1, 2, 0)
