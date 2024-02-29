@@ -583,7 +583,7 @@ for path in images_paths:
 cyber_images = [transform(img) for img in cyber_images]
 
 # Call your data_augmentation function
-cyber_images = data_augmentation(cyber_images, 5)
+cyber_images = data_augmentation(cyber_images, 9)
 
 print("Cyber lenght : ",len(cyber_images))
 
@@ -616,18 +616,6 @@ val_loader_set_cyber= data.DataLoader(val_set_cyber,batch_size=batchsize_x, shuf
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 ############ OOD
 oodset = SVHN(root='./data',  transform=transform, download=True)
 num_samples_ood = len(oodset)
@@ -653,9 +641,17 @@ train_cifarset_loader = data.DataLoader(train_set_cifarset, batch_size=batchsize
 val_cifarset_loader = data.DataLoader(val_set_cifarset, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
 
+
+
+
+
+from itertools import chain
+
+################ Select True sets
+
 train_loader = train_loader_set_ocult
 val_loader = val_loader_set_ocult
-adv_loader = val_loader_set_cyber
+adv_loader = DataLoader(list(chain(val_cifarset_loader, val_ood_loader,val_loader_set_cyber)), batch_size=batchsize_x, shuffle=True) #val_loader_set_cyber
 
 
 
@@ -937,7 +933,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=30,
+                         max_epochs=15,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -1148,7 +1144,7 @@ plt.savefig(buf, format='png')
 buf.seek(0)
 
 # upload the graph report
-minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss" +date_now+".png"
+minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_combined_adv" +date_now+".png"
 cmd.upload_data(minio_client, 'datasets', minio_path, buf)
 # Remove the temporary file
 os.remove("output/loss_tracking_per_step.png")
