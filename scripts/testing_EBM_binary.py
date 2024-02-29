@@ -1051,8 +1051,8 @@ def energy_evaluation_with_pictures(training_loader,adv_loader):
     # load adv set images
     fake_imgs, _ = next(iter(adv_loader)) # val_loader_dog  val_ood_loader val val_loader_noncats val_loader
     
-    print("tes_imgs shape : ", test_imgs.shape)
-    print("fake_imgs shape : ", fake_imgs.shape)
+    # print("tes_imgs shape : ", test_imgs.shape)
+    # print("fake_imgs shape : ", fake_imgs.shape)
 
 
     rangeX = 16
