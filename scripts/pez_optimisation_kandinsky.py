@@ -105,10 +105,10 @@ class KandinskyImageGenerator:
         data = get_object(self.minio_client, "environmental/output/stats/clip_stats.msgpack")
         data_dict = msgpack.unpackb(data)
 
-        mean_vector = torch.tensor(data_dict["mean"]).to(device=self.device, dtype=torch.float32)
-        std_vector = torch.tensor(data_dict["std"]).to(device=self.device, dtype=torch.float32)
-        max_vector = torch.tensor(data_dict["max"]).to(device=self.device, dtype=torch.float32)
-        min_vector = torch.tensor(data_dict["min"]).to(device=self.device, dtype=torch.float32)
+        mean_vector = torch.tensor(data_dict["mean"]).to(device=self.device)
+        std_vector = torch.tensor(data_dict["std"]).to(device=self.device)
+        max_vector = torch.tensor(data_dict["max"]).to(device=self.device,)
+        min_vector = torch.tensor(data_dict["min"]).to(device=self.device)
 
         return mean_vector, std_vector, max_vector, min_vector
 
@@ -159,7 +159,7 @@ class KandinskyImageGenerator:
         clipped_embeddings = torch.max(torch.min(sampled_embeddings, self.clip_max), self.clip_min)
         
         return clipped_embeddings.to(
-            device=self.device, dtype=torch.float32
+            device=self.device, dtype=torch.float16
         )
     
     def penalty_function(self, embedding):
@@ -224,6 +224,8 @@ class KandinskyImageGenerator:
                                                   image_embeds= optimized_embedding,
                                                   seed=seed
                                                   )
+            
+            print(latent.shape)
             
             clip_vector= self.get_image_features(init_image)
 
