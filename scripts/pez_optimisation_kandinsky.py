@@ -108,10 +108,10 @@ class KandinskyImageGenerator:
         data = get_object(self.minio_client, "environmental/output/stats/clip_stats.msgpack")
         data_dict = msgpack.unpackb(data)
 
-        mean_vector = torch.tensor(data_dict["mean"]).to(device=self.device)
-        std_vector = torch.tensor(data_dict["std"]).to(device=self.device)
-        max_vector = torch.tensor(data_dict["max"]).to(device=self.device,)
-        min_vector = torch.tensor(data_dict["min"]).to(device=self.device)
+        mean_vector = torch.tensor(data_dict["mean"]).to(device=self.device, dtype=torch.float32)
+        std_vector = torch.tensor(data_dict["std"]).to(device=self.device, dtype=torch.float32)
+        max_vector = torch.tensor(data_dict["max"]).to(device=self.device, dtype=torch.float32)
+        min_vector = torch.tensor(data_dict["min"]).to(device=self.device, dtype=torch.float32)
 
         return mean_vector, std_vector, max_vector, min_vector
 
