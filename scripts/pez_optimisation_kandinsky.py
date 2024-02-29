@@ -193,7 +193,7 @@ class KandinskyImageGenerator:
         
          # Compute CLIP features
         if isinstance(image, torch.Tensor):
-            features = self.clip.vision_model(pixel_values= image.to(self.device)).image_embeds
+            features = self.clip.vision_model(pixel_values= image.half().to(self.device)).image_embeds
         else:
             raise ValueError(
                 f"`image` can only contains elements to be of type `PIL.Image.Image` or `torch.Tensor`  but is {type(image)}"
