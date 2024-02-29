@@ -31,6 +31,8 @@ def add_jobs():
             "image_height": 512,
             "prior_steps": 50,
             "decoder_steps": 50,
+            "prior_guidance_scale": 4,
+            "decoder_guidance_scale": 4,
             "positive_prompt":"a tiger sitting on a park bench",
             "negative_prior_prompt":"a tiger standing on a stone",
             "negative_decoder_prompt":"a tiger sitting on a park bench but not standing"
