@@ -24,6 +24,9 @@ class RankCountResponse(BaseModel):
     image_hash: str
     count: int
 
+class CountResponse(BaseModel):
+    count: int
+    
 class RechableResponse(BaseModel):
     reachable: bool
 
