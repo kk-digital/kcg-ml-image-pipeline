@@ -155,8 +155,8 @@ class KandinskyImageGenerator:
         return scoring_model
     
     def sample_embedding(self, num_samples=1000):
-        sampled_embeddings = torch.normal(mean=self.clip_mean.unsqueeze(0).repeat(num_samples, 1),
-                                      std=self.clip_std.unsqueeze(0).repeat(num_samples, 1))
+        sampled_embeddings = torch.normal(mean=self.clip_mean.repeat(num_samples, 1),
+                                      std=self.clip_std.repeat(num_samples, 1))
     
         # Clip the sampled embeddings based on the min and max vectors to ensure they stay within observed bounds
         clipped_embeddings = torch.max(torch.min(sampled_embeddings, self.clip_max.unsqueeze(0).repeat(num_samples, 1)),
