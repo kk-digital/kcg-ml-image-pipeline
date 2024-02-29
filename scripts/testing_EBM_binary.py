@@ -430,34 +430,6 @@ val_loader_set_ocult= data.DataLoader(val_set_ocult, batch_size=batchsize_x, shu
 
 
 
-import torchvision.transforms.functional as TF
-from torchvision.utils import make_grid
-minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
-            "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
-            None)
-minio_path="environmental/output/my_test"
-date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
-data_iter = iter(train_loader_set_ocult)
-images, labels = next(data_iter)
-# Create a grid of images
-image_grid = make_grid(images[:16], nrow=4, padding=2, normalize=True)
-
-# Convert tensor to numpy array and transpose channels
-image_grid_np = TF.to_pil_image(image_grid)
-plt.imshow(image_grid_np)
-plt.axis('off')
-plt.savefig("output/sample_from_occult.png")
-buf = io.BytesIO()
-plt.savefig(buf, format='png')
-buf.seek(0)
-
-# upload the graph report
-minio_path= minio_path + "/sample_from_occult" +date_now+".png"
-cmd.upload_data(minio_client, 'datasets', minio_path, buf)
-# Remove the temporary file
-os.remove("output/sample_from_occult.png")
-# Clear the current figure
-plt.clf()
 
 
 
@@ -1051,6 +1023,34 @@ def energy_evaluation_with_pictures(training_loader,adv_loader):
 
 
 
+import torchvision.transforms.functional as TF
+from torchvision.utils import make_grid
+minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
+            "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+            None)
+minio_path="environmental/output/my_test"
+date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
+data_iter = iter(val_loader)
+images, labels = next(data_iter)
+# Create a grid of images
+image_grid = make_grid(images[:16], nrow=4, padding=2, normalize=True)
+
+# Convert tensor to numpy array and transpose channels
+image_grid_np = TF.to_pil_image(image_grid)
+plt.imshow(image_grid_np)
+plt.axis('off')
+plt.savefig("output/sample_from_occult.png")
+buf = io.BytesIO()
+plt.savefig(buf, format='png')
+buf.seek(0)
+
+# upload the graph report
+minio_path= minio_path + "/sample_from_occult" +date_now+".png"
+cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+# Remove the temporary file
+os.remove("output/sample_from_occult.png")
+# Clear the current figure
+plt.clf()
 
 
 #energy_evaluation(val_loader,adv_loader)
