@@ -378,10 +378,10 @@ def remove_image_pseudo_tag(request: Request, image_hash: str, pseudo_tag_id: in
             tags=["pseudo_tags"], 
             status_code=200,
             description="list pseudo tags for image",
-            response_model=StandardSuccessResponseV1[List[PseudoTagDefinition]],  # Ensure this matches your actual response structure
+            response_model=StandardSuccessResponseV1[List[PseudoTagDefinition]],  
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def get_pseudo_tag_list_for_image(request: Request, file_hash: str):
-    response_handler = ApiResponseHandlerV1(request)  # Assuming ApiResponseHandlerV1 is instantiated correctly
+    response_handler = ApiResponseHandlerV1(request) 
     try:
         image_tags_cursor = request.app.pseudo_image_tags_collection.find({"image_hash": file_hash})
         
