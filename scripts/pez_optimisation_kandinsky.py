@@ -16,6 +16,8 @@ base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 
+from kandinsky.model_paths import PRIOR_MODEL_PATH
+from transformers import CLIPImageProcessor
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
@@ -84,13 +86,14 @@ class KandinskyImageGenerator:
         self.device = torch.device(device)
         
         # load kandinsky clip
-        self.clip= KandinskyCLIPImageEncoder(device= self.device)
-        self.clip.load_submodels()
+        self.image_processor= CLIPImageProcessor.from_pretrained(PRIOR_MODEL_PATH, subfolder="image_processor", local_files_only=True)
 
         # load kandinsky's autoencoder
         self.image_generator= KandinskyPipeline(device= self.device, strength=0.75, decoder_guidance_scale=12,
                                                 decoder_steps=10)
         self.image_generator.load_models(task_type="img2img")
+
+        self.image_encoder= self.image_generator.image_encoder
 
         # load scoring model
         self.scoring_model= self.load_scoring_model()
@@ -189,11 +192,11 @@ class KandinskyImageGenerator:
     def get_image_features(self, image):
         # Preprocess image
         if isinstance(image, Image.Image):
-            image = self.clip.image_processor(image, return_tensors="pt")['pixel_values']
+            image = self.image_processor(image, return_tensors="pt")['pixel_values']
         
          # Compute CLIP features
         if isinstance(image, torch.Tensor):
-            features = self.clip.vision_model(pixel_values= image.half().to(self.device)).image_embeds
+            features = self.image_encoder(pixel_values= image.half().to(self.device)).image_embeds
         else:
             raise ValueError(
                 f"`image` can only contains elements to be of type `PIL.Image.Image` or `torch.Tensor`  but is {type(image)}"
