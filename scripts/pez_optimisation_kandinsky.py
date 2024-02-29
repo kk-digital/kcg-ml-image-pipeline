@@ -154,38 +154,25 @@ class KandinskyImageGenerator:
 
         return scoring_model
     
-    def sample_embedding(self, num_samples=1):
-        # Sample from a normal distribution using the mean and standard deviation vectors
-        sampled_embeddings = torch.normal(self.clip_mean, self.clip_std)
-        
-        # Clip the sampled embeddings based on the min and max vectors to ensure they stay within observed bounds
-        clipped_embeddings = torch.max(torch.min(sampled_embeddings, self.clip_max), self.clip_min)
-        
-        return clipped_embeddings.to(device=self.device)
+    def sample_embedding(self, num_samples=1000):
+        sampled_embeddings = torch.normal(mean=self.clip_mean.unsqueeze(0).repeat(num_samples, 1),
+                                      std=self.clip_std.unsqueeze(0).repeat(num_samples, 1))
     
-    def penalty_function(self, embedding):
-        """
-        Calculates a penalty for embeddings that deviate from the mean beyond the allowed threshold (in standard deviations).
+        # Clip the sampled embeddings based on the min and max vectors to ensure they stay within observed bounds
+        clipped_embeddings = torch.max(torch.min(sampled_embeddings, self.clip_max.unsqueeze(0).repeat(num_samples, 1)),
+                                    self.clip_min.unsqueeze(0).repeat(num_samples, 1))
         
-        Args:
-        - embeddings (torch.Tensor): The current embeddings.
-        - mean (torch.Tensor): The mean values for each dimension.
-        - std (torch.Tensor): The standard deviation values for each dimension.
-        - threshold (float): The number of standard deviations considered acceptable.
+        # Score each sampled embedding
+        scores = self.scoring_model.predict_clip(clipped_embeddings)
         
-        Returns:
-        - torch.Tensor: A scalar tensor representing the penalty.
-        """
-        # Standardize embeddings
-        z_scores = (embedding - self.clip_mean) / self.clip_std
-
-        # Calculate the squared distances beyond the threshold
-        squared_distances = torch.where(torch.abs(z_scores) > self.deviation_threshold,
-                                        (torch.abs(z_scores) - self.deviation_threshold)**2, 
-                                        torch.tensor(0.0, device=embedding.device))
-        # Sum the penalties
-        penalty = squared_distances.sum()
-        return penalty
+        # Find the index of the highest scoring embedding
+        highest_score_index = torch.argmax(scores)
+        
+        # Select the highest scoring embedding
+        highest_scoring_embedding = clipped_embeddings[highest_score_index]
+        
+        return highest_scoring_embedding.to(device=self.device)
+    
     
     def get_image_features(self, image):
         # Preprocess image
