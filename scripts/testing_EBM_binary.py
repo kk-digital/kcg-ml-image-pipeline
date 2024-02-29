@@ -260,6 +260,8 @@ class CNNModel(nn.Module):
         # Adjust the view operation to reflect the new spatial dimensions
         x = x.view(-1, x_size)
 
+        print("Size before fully-connected layer:", x.size())
+
         # Fully-connected layer
         energy = self.fc(x)
 
@@ -267,7 +269,6 @@ class CNNModel(nn.Module):
         energy = self.relu3(energy)
         print("Energy : ", energy.shape)
         return energy
-
 
 # # ##################### NEW Classifier V2
 # class CNNModel(nn.Module):
