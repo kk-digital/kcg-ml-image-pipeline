@@ -3,6 +3,7 @@ from datetime import datetime
 import io
 import os
 import sys
+import numpy as np
 import pandas as pd
 import torch
 import torch.optim as optim
@@ -163,10 +164,13 @@ class KandinskyImageGenerator:
                                     self.clip_min.repeat(num_samples, 1))
         
         # Score each sampled embedding
-        scores = self.scoring_model.predict_clip(clipped_embeddings)
+        scores=[]
+        for embed in clipped_embeddings:
+            score = self.scoring_model.predict_clip(embed).item()
+            scores.append(score)
         
         # Find the index of the highest scoring embedding
-        highest_score_index = torch.argmax(scores)
+        highest_score_index = np.argmax(scores)
         
         # Select the highest scoring embedding
         highest_scoring_embedding = clipped_embeddings[highest_score_index]
