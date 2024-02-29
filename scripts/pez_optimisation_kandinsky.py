@@ -7,6 +7,10 @@ import pandas as pd
 import torch
 import torch.optim as optim
 import msgpack
+from PIL import Image
+import time
+import random
+
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -16,6 +20,7 @@ from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
+from kandinsky.models.kandisky import KandinskyPipeline
 from utility.minio import cmd
 from data_loader.utils import get_object
 
@@ -79,20 +84,18 @@ class KandinskyImageGenerator:
         self.device = torch.device(device)
         
         # load kandinsky clip
-        clip= KandinskyCLIPImageEncoder(device= self.device)
-        clip.load_submodels()
-        self.image_encoder= clip.vision_model
+        self.clip= KandinskyCLIPImageEncoder(device= self.device)
+        self.clip.load_submodels()
+
+        # load kandinsky's autoencoder
+        self.image_generator= KandinskyPipeline(device= self.device, strength=0.75, decoder_guidance_scale=12,
+                                                decoder_steps=10)
+        self.image_generator.load_models(task_type="img2img")
 
         # load scoring model
         self.scoring_model= self.load_scoring_model()
         self.mean= float(self.scoring_model.mean)
         self.std= float(self.scoring_model.standard_deviation)
-
-        # get clip mean and std values
-        # prior_model = PriorTransformer.from_pretrained(PRIOR_MODEL_PATH, subfolder="prior").to(self.device)
-
-        # self.clip_mean= prior_model.clip_mean.clone().to(self.device)
-        # self.clip_std= prior_model.clip_std.clone().to(self.device)
 
         self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
         print(self.clip_mean, self.clip_std)
@@ -148,16 +151,6 @@ class KandinskyImageGenerator:
 
         return scoring_model
     
-    def get_initial_latent(self, batch_size=1):
-        random_img= torch.zeros(1, 3, self.image_encoder.config.image_size, self.image_encoder.config.image_size).to(
-            device=self.device, dtype=self.image_encoder.dtype
-        )
-        zero_image_emb = self.image_encoder(random_img)["image_embeds"]
-        zero_image_emb = zero_image_emb.repeat(batch_size, 1)
-        return zero_image_emb.to(
-            device=self.device, dtype=torch.float32
-        )
-    
     def sample_embedding(self, num_samples=1):
         # Sample from a normal distribution using the mean and standard deviation vectors
         sampled_embeddings = torch.normal(self.clip_mean, self.clip_std)
@@ -192,17 +185,32 @@ class KandinskyImageGenerator:
         # Sum the penalties
         penalty = squared_distances.sum()
         return penalty
+    
+    def get_image_features(self, image):
+        # Preprocess image
+        if isinstance(image, Image.Image):
+            image = self.clip.image_processor(image, return_tensors="pt")['pixel_values']
+        
+         # Compute CLIP features
+        if isinstance(image, torch.Tensor):
+            features = self.clip.vision_model(pixel_values= image.half().to(self.device)).image_embeds
+        else:
+            raise ValueError(
+                f"`image` can only contains elements to be of type `PIL.Image.Image` or `torch.Tensor`  but is {type(image)}"
+            )
+        
+        return features
 
     def generate_latent(self):
-        # Ensure image embeddings require gradients
-        #image_embedding= self.get_initial_latent()
-
         # features_data = get_object(self.minio_client, "environmental/0435/434997_clip_kandinsky.msgpack")
         # features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
         # image_embedding= torch.tensor(features_vector).to(device=self.device, dtype=torch.float32)
-
-        df_data=[]
         
+        random.seed(time.time())
+        seed = random.randint(0, 2 ** 24 - 1)
+
+        init_image = Image.open("./test/test_inpainting/white_512x512.jpg")
+        df_data=[]
         sampled_embedding= self.sample_embedding()
         optimized_embedding = sampled_embedding.clone().detach().requires_grad_(True)
 
@@ -212,19 +220,24 @@ class KandinskyImageGenerator:
         for step in range(self.steps):
             optimizer.zero_grad()
 
+            init_image, latent= self.image_generator.generate_img2img(init_img=init_image,
+                                                  image_embeds= optimized_embedding,
+                                                  seed=seed
+                                                  )
+            
+            clip_vector= self.get_image_features(init_image)
+
             # Calculate the custom score
-            inputs = optimized_embedding.reshape(len(optimized_embedding), -1)
+            inputs = clip_vector.reshape(len(clip_vector), -1)
             score = self.scoring_model.model.forward(inputs).squeeze()
             sigma_score= (score - self.mean) / self.std
             # Custom loss function
             # Original loss based on the scoring function
-            score_loss = -score
-            
-            # Calculate the penalty for the embeddings
-            penalty = self.penalty_weight * self.penalty_function(optimized_embedding)
+            reg_loss = torch.mean((clip_vector - optimized_embedding) ** 2)
+            score_loss =  self.target_score - score
             
             # Total loss
-            total_loss = score_loss
+            total_loss = score_loss + self.penalty_weight * reg_loss
 
             if self.send_job and (step % self.generate_step == 0):
                 try:
@@ -251,9 +264,6 @@ class KandinskyImageGenerator:
                     'time': task_time
                 })
 
-            if total_loss<-self.target_score:
-                break
-
             # Backpropagate
             total_loss.backward()
 
@@ -267,7 +277,7 @@ class KandinskyImageGenerator:
             optimizer.step()
 
             if step % self.print_step == 0:
-                print(f"Step: {step}, Score: {score.item()}, Penalty: {penalty}, Loss: {total_loss.item()}")
+                print(f"Step: {step}, Score: {score.item()}, Penalty: {reg_loss.item()}, Loss: {total_loss.item()}")
         
         if self.send_job:
             try:

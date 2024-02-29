@@ -37,6 +37,8 @@ def train_classifier(minio_ip_addr=None,
     input_shape = 2 * 768
     if input_type in [constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE, constants.CLIP]:
         input_shape = 768
+    if input_type in [constants.KANDINSKY_CLIP]:
+        input_shape = 1280
 
     # load data
     tag_loader = TaggedDatasetLoader(minio_ip_addr=minio_ip_addr,
