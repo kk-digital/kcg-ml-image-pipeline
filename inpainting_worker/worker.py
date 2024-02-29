@@ -229,6 +229,7 @@ def upload_image_data_and_update_job_status(worker_state,
     top_k = generation_task.prompt_generation_data["top_k"]
 
     cmd.upload_data(minio_client, bucket_name, file_path, data)
+    print("Uploaded image data", bucket_name, file_path)
 
     # save image meta data
     save_image_data_to_minio(minio_client,
