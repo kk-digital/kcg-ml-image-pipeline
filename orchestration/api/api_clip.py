@@ -651,6 +651,7 @@ async def upload_image(request:Request, file: UploadFile = File(...)):
             http_status_code = 500, 
         )
     
+
 @router.post("/upload-image-v1",
              status_code=201, 
              response_model=StandardSuccessResponseV1[UrlResponse],
@@ -678,17 +679,6 @@ async def upload_image_v1(request: Request,
     try:
         await file.seek(0)  # Go to the start of the file
         content = await file.read()  # Read file content into bytes
-
-        if check_size:  # Perform size check if check_size is True
-            # Check if the image is 512x512
-            image = Image.open(io.BytesIO(content))
-            if image.size != (512, 512):
-                return response_handler.create_error_response_v1(
-                    error_code=ErrorCode.INVALID_PARAMS, 
-                    error_string="Image must be 512x512 pixels",
-                    http_status_code=422,
-                )
-
         content_stream = io.BytesIO(content)
         # Upload the file content
         cmd.upload_data(minio_client, bucket_name, file_path, content_stream)

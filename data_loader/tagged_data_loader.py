@@ -66,6 +66,8 @@ class TaggedDatasetLoader:
         input_type_extension = "-text-embedding.msgpack"
         if self.input_type == constants.CLIP:
             input_type_extension = "_clip.msgpack"
+        elif self.input_type == constants.KANDINSKY_CLIP:
+            input_type_extension = "_clip_kandinsky.msgpack"
         elif self.input_type in [constants.EMBEDDING, constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE]:
             # replace with new /embeddings
             splits = path.split("/")
@@ -93,7 +95,7 @@ class TaggedDatasetLoader:
             features_vector.extend(features_data["positive_embedding"]["__ndarray__"])
         if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_NEGATIVE]:
             features_vector.extend(features_data["negative_embedding"]["__ndarray__"])
-        if self.input_type == constants.CLIP:
+        if self.input_type in [constants.CLIP, constants.KANDINSKY_CLIP]:
             features_vector.extend(features_data["clip-feature-vector"])
 
         features_vector = np.array(features_vector, dtype=np.float32)
