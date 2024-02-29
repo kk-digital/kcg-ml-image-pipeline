@@ -165,8 +165,9 @@ class KandinskyImageGenerator:
         
         # Score each sampled embedding
         scores=[]
+        embeddings=[]
         for embed in clipped_embeddings:
-            print(embed.shape)
+            embeddings.append(embed)
             score = self.scoring_model.predict_clip(embed.unsqueeze(0)).item() 
             scores.append(score)
         
@@ -174,7 +175,7 @@ class KandinskyImageGenerator:
         highest_score_index = np.argmax(scores)
         
         # Select the highest scoring embedding
-        highest_scoring_embedding = clipped_embeddings[highest_score_index]
+        highest_scoring_embedding = embeddings[highest_score_index]
         
         return highest_scoring_embedding.to(device=self.device)
     
