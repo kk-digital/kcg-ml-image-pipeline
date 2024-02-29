@@ -155,7 +155,7 @@ class KandinskyImageGenerator:
 
         return scoring_model
     
-    def sample_embedding(self, num_samples=1000):
+    def sample_embedding(self, num_samples=10000):
         sampled_embeddings = torch.normal(mean=self.clip_mean.repeat(num_samples, 1),
                                       std=self.clip_std.repeat(num_samples, 1))
     
