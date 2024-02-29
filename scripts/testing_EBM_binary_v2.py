@@ -543,6 +543,51 @@ def get_dataset_from_id(id_class,data_augment_passes,label_value):
 
 
 
+def get_combined_adv_dataset_from_id_array(id_classes,data_augment_passes,label_value):
+    i = 0
+    for class_id in id_classes:
+        images_paths[i] = get_tag_jobs(class_id)
+        i += 1
+
+
+
+    ocult_images = []
+
+    for j in range(i):
+        for path in images_paths[j]:
+            ocult_images.append(get_image(path))
+
+
+    # Transforme into tansors
+    ocult_images = [transform(img) for img in ocult_images]
+
+
+    # Call your data_augmentation function
+    ocult_images = data_augmentation(ocult_images, data_augment_passes)
+
+
+    print("Occult lenght : ",len(ocult_images))
+
+
+    # Create labels
+    label_value = label_value
+    labels_occult = [label_value] * len(ocult_images)
+
+    data_occcult = []
+    for image in ocult_images:
+        data_occcult.append((image, label_value))
+
+    ocult_images = data_occcult
+    num_samples_ocult = len(ocult_images)
+    print("the number of samples in ocult ", num_samples_ocult)
+    train_size_ocult = int(0.8 * num_samples_ocult)
+    val_size_ocult = num_samples_ocult - train_size_ocult
+    train_set_ocult, val_set_ocult = random_split(ocult_images, [train_size_ocult, val_size_ocult])
+    return train_set_ocult,val_set_ocult
+
+
+
+
 
 ##################### Load images
 
@@ -598,14 +643,16 @@ val_size_ocult = num_samples_ocult - train_size_ocult
 
 
 #train_set_ocult, val_set_ocult = random_split(ocult_images, [train_size_ocult, val_size_ocult])
-train_set_ocult, val_set_ocult = get_dataset_from_id(8,5,1)
+train_set_ocult, val_set_ocult = get_dataset_from_id(39,5,1)
 train_loader_set_ocult = data.DataLoader(train_set_ocult, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
 val_loader_set_ocult= data.DataLoader(val_set_ocult, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
 
 
 
-
+train_advtrain, val_advtrain =  get_combined_adv_dataset_from_id_array([7,8,9,15,20,21,22],5,0)
+train_loader_advtrain = data.DataLoader(train_advtrain, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+val_loader_advtrain= data.DataLoader(val_advtrain, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
 
 
@@ -708,10 +755,17 @@ val_cifarset_loader = data.DataLoader(val_set_cifarset, batch_size=batchsize_x, 
 
 
 
+#train_set_ocult, val_set_ocult = random_split(ocult_images, [train_size_ocult, val_size_ocult])
+
+
+
+
+
+
 
 train_loader = train_loader_set_ocult
 val_loader = val_loader_set_ocult
-adv_loader = val_loader_set_cyber
+adv_loader = val_loader_advtrain
 
 
 
@@ -986,7 +1040,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=15,
+                         max_epochs=2,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -1238,7 +1292,7 @@ energy_evaluation(val_loader,val_ood_loader)
 
 train_loader = train_loader_set_cyber
 val_loader = val_loader_set_cyber
-adv_loader = val_loader_set_ocult
+adv_loader =  val_loader_advtrain
 
 
 # Train
