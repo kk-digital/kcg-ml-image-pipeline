@@ -258,11 +258,11 @@ class CNNModel(nn.Module):
         # Feature extraction using convolutional layers
         x = self.pool1(self.relu1(self.conv1(x)))
         x = self.pool2(self.relu2(self.conv2(x)))
-        x = x.view(-1, 64 * 8 * 8 // 4)
+        x = x.view(-1, 64 * 8 * 8)
 
         # Feature processing for both branches
         shared_features = self.relu3(self.fc1(x))
-
+        print("shared_features : ", shared_features.shape)
         # Energy branch
         energy = self.fc_energy(shared_features)  # Output energy score
 
