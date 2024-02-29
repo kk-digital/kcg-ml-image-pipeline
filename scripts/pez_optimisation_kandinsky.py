@@ -95,8 +95,6 @@ class KandinskyImageGenerator:
 
         self.image_encoder= self.image_generator.image_encoder
 
-        del self.image_generator.unet
-
         # load scoring model
         self.scoring_model= self.load_scoring_model()
         self.mean= float(self.scoring_model.mean)
@@ -224,7 +222,7 @@ class KandinskyImageGenerator:
             optimizer.zero_grad()
 
             init_image, latent= self.image_generator.generate_img2img(init_img=init_image,
-                                                  image_embeds= optimized_embedding,
+                                                  image_embeds= optimized_embedding.to(dtype=torch.float16),
                                                   seed=seed
                                                   )
             
