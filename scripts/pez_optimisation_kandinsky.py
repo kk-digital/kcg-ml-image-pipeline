@@ -214,12 +214,12 @@ class KandinskyImageGenerator:
         for step in range(self.steps):
             optimizer.zero_grad()
 
-            init_image, latent= self.image_generator.generate_img2img(init_img=init_image,
-                                                  image_embeds= optimized_embedding.to(dtype=torch.float16),
-                                                  seed=seed
-                                                  )
+            # init_image, latent= self.image_generator.generate_img2img(init_img=init_image,
+            #                                       image_embeds= optimized_embedding.to(dtype=torch.float16),
+            #                                       seed=seed
+            #                                       )
             
-            clip_vector= self.get_image_features(init_image)
+            # clip_vector= self.get_image_features(init_image)
 
             # Calculate the custom score
             inputs = optimized_embedding.reshape(len(optimized_embedding), -1)
@@ -228,15 +228,15 @@ class KandinskyImageGenerator:
 
             # Custom loss function
             # Original loss based on the scoring function
-            clip_vector = clip_vector.float() 
-            # Compute cosine similarity
-            cosine_sim = torch.nn.functional.cosine_similarity(clip_vector, optimized_embedding, dim=1)
-            # Cosine similarity loss (we subtract from 1 to make it a quantity to minimize)
-            cosine_loss = 1 - cosine_sim.mean()
+            # clip_vector = clip_vector.float() 
+            # # Compute cosine similarity
+            # cosine_sim = torch.nn.functional.cosine_similarity(clip_vector, optimized_embedding, dim=1)
+            # # Cosine similarity loss (we subtract from 1 to make it a quantity to minimize)
+            # cosine_loss = 1 - cosine_sim.mean()
             score_loss =  self.target_score - score
             
             # Total loss
-            total_loss = score_loss + (self.penalty_weight * cosine_loss)
+            total_loss = score_loss
 
             if self.send_job and (step % self.generate_step == 0):
                 try:
@@ -276,7 +276,7 @@ class KandinskyImageGenerator:
             optimizer.step()
 
             if step % self.print_step == 0:
-                print(f"Step: {step}, Score: {score.item()}, Penalty: {cosine_loss.item()}, Loss: {total_loss.item()}")
+                print(f"Step: {step}, Score: {score.item()}, Penalty:, Loss: {total_loss.item()}")
         
         if self.send_job:
             try:
