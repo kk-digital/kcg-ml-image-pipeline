@@ -229,7 +229,7 @@ class KandinskyImageGenerator:
             clip_vector= self.get_image_features(init_image)
 
             # Calculate the custom score
-            inputs = clip_vector.reshape(len(clip_vector), -1)
+            inputs = optimized_embedding.reshape(len(optimized_embedding), -1)
             score = self.scoring_model.model.forward(inputs).squeeze()
             sigma_score= (score - self.mean) / self.std
 
