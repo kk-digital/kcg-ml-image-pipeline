@@ -244,7 +244,7 @@ class CNNModel(nn.Module):
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
 
         # Fully-connected layer and activation function
-        self.fc = nn.Linear(64 * 8 * 8, 1)
+        self.fc = nn.Linear(1048576, 1)
         print("Size of the weight matrix:", self.fc.weight.size())
 
         # Activation function for the energy prediction
