@@ -4,8 +4,8 @@ from utility.minio import cmd
 import os
 import json
 from io import BytesIO
-from orchestration.api.mongo_schema.selection_schemas import Selection, RelevanceSelection
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, ApiResponseHandler, TagCountResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, RankCountResponse
+from orchestration.api.mongo_schemas import Selection, RelevanceSelection, DatapointDeltaScore
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, ApiResponseHandler, TagCountResponse
 import random
 from collections import OrderedDict
 from bson import ObjectId
