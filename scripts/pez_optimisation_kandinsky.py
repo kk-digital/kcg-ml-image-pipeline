@@ -95,6 +95,8 @@ class KandinskyImageGenerator:
 
         self.image_encoder= self.image_generator.image_encoder
 
+        del self.image_generator.unet
+
         # load scoring model
         self.scoring_model= self.load_scoring_model()
         self.mean= float(self.scoring_model.mean)
