@@ -236,11 +236,14 @@ class KandinskyImageGenerator:
             # Custom loss function
             # Original loss based on the scoring function
             clip_vector = clip_vector.float() 
-            reg_loss = torch.mean((clip_vector - optimized_embedding) ** 2)
+            # Compute cosine similarity
+            cosine_sim = torch.nn.functional.cosine_similarity(clip_vector, optimized_embedding, dim=1)
+            # Cosine similarity loss (we subtract from 1 to make it a quantity to minimize)
+            cosine_loss = 1 - cosine_sim.mean()
             score_loss =  self.target_score - score
             
             # Total loss
-            total_loss = score_loss + (self.penalty_weight * reg_loss)
+            total_loss = score_loss + (self.penalty_weight * cosine_loss)
 
             if self.send_job and (step % self.generate_step == 0):
                 try:
