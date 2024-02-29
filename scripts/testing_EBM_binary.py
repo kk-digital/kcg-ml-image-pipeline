@@ -937,7 +937,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=2,
+                         max_epochs=10,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -972,7 +972,7 @@ def compare_images_value_purevalue(img1, img2):
     grid = grid.permute(1, 2, 0)
     print(f"Score original image: {score1.item():4.2f}")
     print(f"Score transformed image: {score2.item():4.2f}")
-    return score1, score2
+    return score1.item(), score2.item()
 
 @torch.no_grad()
 def compare_images_show(img1, img2):
