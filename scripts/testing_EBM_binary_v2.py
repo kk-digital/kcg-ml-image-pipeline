@@ -191,7 +191,9 @@ def data_augmentation(images_tensor, num_of_passes):
     prob_mirror = 0.9
     prob_zoom = 0.5
     prob_rotation = 0.2
-
+    prob_contrast = 0.5
+    prob_brightness = 0.5
+    
     # Apply data augmentation to each image in the array
     augmented_images = []
 
@@ -213,6 +215,21 @@ def data_augmentation(images_tensor, num_of_passes):
             random_rotation = random.random()
             if random_rotation < prob_rotation:
                 transformed_img = transforms.RandomRotation(degrees=(-20, 20))(transformed_img)
+
+
+            # New Augments
+                
+            # Apply contrast transformation
+            random_contrast = random.random()
+            if random_contrast < prob_contrast:
+                transformed_img = transforms.ColorJitter(contrast=(0.5, 1.5))(transformed_img)
+
+            # Apply brightness transformation
+            random_brightness = random.random()
+            if random_brightness < prob_brightness:
+                transformed_img = transforms.ColorJitter(brightness=(0.2, 2))(transformed_img)
+
+
 
             augmented_images.append(transformed_img)
 
