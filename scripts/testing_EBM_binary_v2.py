@@ -1536,6 +1536,7 @@ def compare_images_show_comb(img1, img2):
     bufx = io.BytesIO()
     plt.savefig(bufx, format='png')
     bufx.seek(0)
+    return score1, score2
 
 
 
