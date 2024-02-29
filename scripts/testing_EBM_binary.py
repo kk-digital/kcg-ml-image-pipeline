@@ -661,17 +661,17 @@ val_cifarset_loader = data.DataLoader(val_set_cifarset, batch_size=batchsize_x, 
 # combined_dataset_adv = ConcatDataset([train_set_cifarset, train_ood_loader,train_loader_set_cyber])
 # combined_loader_adv = DataLoader(combined_dataset_adv, batch_size=batchsize_x, shuffle=True)
 
-################ Select True sets
-train_loader = train_loader_set_ocult
-val_loader = val_loader_set_ocult
-adv_loader = combined_loader_adv #val_loader_set_cyber
-
-
-
-
+# ################ Select True sets
 # train_loader = train_loader_set_ocult
 # val_loader = val_loader_set_ocult
-# adv_loader = val_loader_set_cyber
+# adv_loader = combined_loader_adv #val_loader_set_cyber
+
+
+
+
+train_loader = train_loader_set_ocult
+val_loader = val_loader_set_ocult
+adv_loader = val_loader_set_cyber
 
 
 
