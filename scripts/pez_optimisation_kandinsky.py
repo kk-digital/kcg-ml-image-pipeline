@@ -225,8 +225,6 @@ class KandinskyImageGenerator:
                                                   seed=seed
                                                   )
             
-            print(latent.shape)
-            
             clip_vector= self.get_image_features(init_image)
 
             # Calculate the custom score
