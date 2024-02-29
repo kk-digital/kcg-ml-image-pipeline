@@ -404,7 +404,7 @@ def main():
     worker_type_list = get_worker_type_list(args.worker_type)
 
     # Initialize worker state
-    worker_state = WorkerState(args.device, args.minio_access_key, args.minio_secret_key, queue_size)
+    worker_state = WorkerState(args.device, "v048BpXpWrsVIHUfdAix", "4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu")
     # Loading models
     worker_state.load_models()
 
