@@ -126,7 +126,7 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
     image, latents = inpainting_processor.generate_inpainting(prompt=positive_prompt, 
                                                negative_prior_prompt=negative_prior_prompt, 
                                                negative_decoder_prompt=negative_decoder_prompt, 
-                                               initial_image=init_image,
+                                               initial_img=init_image,
                                                img_mask=init_mask,
                                                seed=seed)
 
