@@ -283,7 +283,7 @@ class KandinskyImageGenerator:
             optimizer.step()
 
             if step % self.print_step == 0:
-                print(f"Step: {step}, Score: {score.item()}, Penalty: {reg_loss.item()}, Loss: {total_loss.item()}")
+                print(f"Step: {step}, Score: {score.item()}, Penalty: {cosine_loss.item()}, Loss: {total_loss.item()}")
         
         if self.send_job:
             try:
