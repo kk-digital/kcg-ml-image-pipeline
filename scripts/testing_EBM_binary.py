@@ -1167,9 +1167,9 @@ val_ood_loader
 print("Occult VS Cyber")
 energy_evaluation(val_loader,adv_loader)
 print("Occult VS Cifar")
-energy_evaluation(val_loader,adv_loader)
+energy_evaluation(val_loader,val_cifarset_loader)
 print("Occult VS SVHN")
-energy_evaluation(val_loader,adv_loader)
+energy_evaluation(val_loader,val_ood_loader)
 
 # import torchvision.transforms.functional as TF
 # from torchvision.utils import make_grid
