@@ -518,9 +518,9 @@ train_cifarset_loader = data.DataLoader(train_set_cifarset, batch_size=batchsize
 val_cifarset_loader = data.DataLoader(val_set_cifarset, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
 
-train_loader = train_cifarset_loader
-val_loader = val_cifarset_loader
-adv_loader = val_ood_loader
+train_loader = train_loader_set_ocult
+val_loader = val_loader_set_ocult
+adv_loader = val_loader_set_cyber
 
 
 
