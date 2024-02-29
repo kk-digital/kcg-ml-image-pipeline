@@ -1006,6 +1006,7 @@ def compare_images_show(img1, img2):
     os.remove("output/comparaison_1.png")
     # Clear the current figure
     plt.clf()
+    return score1.item(), score2.item()
 
 
 
