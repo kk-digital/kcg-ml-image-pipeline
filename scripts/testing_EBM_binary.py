@@ -970,11 +970,8 @@ def compare_images_value_purevalue(img1, img2):
 
     grid = torchvision.utils.make_grid([img1.cpu(), img2.cpu()], nrow=2, normalize=True, pad_value=0.5, padding=2)
     grid = grid.permute(1, 2, 0)
-    print(f"Score original image: {score1}")
-    print(f"Score transformed image: {score2}")
-    print(f"Score original image shape: {score1.shape}")
-    print(f"Score transformed image shape: {score2.shape}")
-
+    print(f"Score original image: {score1.item():4.2f}")
+    print(f"Score transformed image: {score2.item():4.2f}")
     return score1, score2
 
 @torch.no_grad()
