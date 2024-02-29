@@ -239,7 +239,7 @@ class KandinskyImageGenerator:
             score_loss =  self.target_score - score
             
             # Total loss
-            total_loss = score_loss + reg_loss
+            total_loss = score_loss + (self.penalty_weight * reg_loss)
 
             if self.send_job and (step % self.generate_step == 0):
                 try:
