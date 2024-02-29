@@ -1,17 +1,30 @@
+import hashlib
+import io
 import sys
 import time
+import random
 from datetime import datetime
 import argparse
+from PIL import Image
+import numpy as np
 from termcolor import colored
+import os
+from io import BytesIO
 import threading
 import traceback
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from inpainting_worker.worker_state import WorkerState
+from kandinsky_worker.worker_state import WorkerState
 from utility.http import inpainting_request
-
+from utility.path import separate_bucket_and_file_path
+from utility.minio import cmd
+from kandinsky.utils_image import  save_image_data_to_minio, save_latent_to_minio, save_image_embedding_to_minio, \
+    get_embeddings
+from worker.clip_calculation.clip_calculator import run_clip_calculation_task
+from worker.generation_task.generation_task import GenerationTask
+from kandinsky.models.kandisky import KandinskyPipeline
 
 class ThreadState:
     def __init__(self, thread_id, thread_name):
@@ -37,45 +50,336 @@ def warning(thread_state, message):
     print(
         colored(f"Thread [{thread_state.thread_id}] {thread_state.thread_name}", 'green') + " " + colored("[WARNING] ",
                                                                                                           'yellow') + message)
+
+
+
+def run_inpainting_generation_task(worker_state, generation_task: GenerationTask):
+    # TODO(): Make a cache for these images
+    # Check if they changed on disk maybe and reload
+
+    random.seed(time.time())
+    seed = random.randint(0, 2 ** 24 - 1)
+
+    generation_task.task_input_dict["seed"] = seed
+    # init_image = Image.open(generation_task.task_input_dict["init_img"])
+    # init_mask = Image.open(generation_task.task_input_dict["init_mask"])
+
+    try:
+        #get the image data that is stored in minio
+        bucket_name, file_path = separate_bucket_and_file_path(generation_task.task_input_dict["init_img"])
+        response = worker_state.minio_client.get_object(bucket_name, file_path)
+        image_data = BytesIO(response.data)
+        init_image = Image.open(image_data)
+        init_image = init_image.convert("RGB")
+
+        # get the mask data that is stored in minio
+        bucket_name, file_path = separate_bucket_and_file_path(generation_task.task_input_dict["init_img"])
+        response = worker_state.minio_client.get_object(bucket_name, file_path)
+        image_data = BytesIO(response.data)
+        init_mask = Image.open(image_data)
+        init_mask = init_mask.convert("RGB")
+    except Exception as e:
+        raise e
+    finally:
+        response.close()
+        response.release_conn()
+
+
+    positive_prompt = generation_task.task_input_dict["positive_prompt"]
+    negative_decoder_prompt = generation_task.task_input_dict["negative_decoder_prompt"]
+    negative_prior_prompt = generation_task.task_input_dict["negative_prior_prompt"]
+
+    image_width = generation_task.task_input_dict["image_width"]
+    image_height = generation_task.task_input_dict["image_height"]
+    strength = generation_task.task_input_dict["strength"]
+    decoder_steps = generation_task.task_input_dict["decoder_steps"]
+    prior_steps = generation_task.task_input_dict["prior_steps"]
+    prior_guidance_scale = generation_task.task_input_dict["prior_guidance_scale"]
+    decoder_guidance_scale = generation_task.task_input_dict["decoder_guidance_scale"]
+    dataset = generation_task.task_input_dict["dataset"]
+
+    image_encoder=worker_state.clip.vision_model
+    unet = worker_state.unet
+    prior_model = worker_state.prior_model
+    decoder_model = worker_state.inpainting_decoder_model
+
+    inpainting_processor = KandinskyPipeline(
+        device=worker_state.device,
+        width= image_width,
+        height= image_height,
+        batch_size=1,
+        decoder_steps= decoder_steps,
+        prior_steps= prior_steps,
+        strength= strength,
+        prior_guidance_scale= prior_guidance_scale,
+        decoder_guidance_scale= decoder_guidance_scale
+    )
+
+    inpainting_processor.set_models(
+        image_encoder= image_encoder,
+        unet=unet,
+        prior_model= prior_model,
+        decoder_model= decoder_model
+    )
     
+    # generate image
+    image, latents = inpainting_processor.generate_inpainting(prompt=positive_prompt, 
+                                               negative_prior_prompt=negative_prior_prompt, 
+                                               negative_decoder_prompt=negative_decoder_prompt, 
+                                               initial_image=init_image,
+                                               img_mask=init_mask,
+                                               seed=seed)
+
+    # convert image to png from RGB
+    output_file_hash, img_byte_arr = inpainting_processor.convert_image_to_png(image)
+    
+    output_file_path = os.path.join("datasets", dataset, generation_task.task_input_dict['file_path'])
+
+    # Return the latent vector along with other values
+    return output_file_path, output_file_hash, img_byte_arr, latents, seed
+
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Worker for inpainting")
+    parser = argparse.ArgumentParser(description="Worker for image generation")
 
     # Required parameters
+    parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--queue_size", type=int, default=8)
+    parser.add_argument("--minio-access-key", type=str,
+                        help="The minio access key to use so worker can upload files to minio server")
+    parser.add_argument("--minio-secret-key", type=str,
+                        help="The minio secret key to use so worker can upload files to minio server")
+    parser.add_argument("--worker-type", type=str, default="",
+                        help="The task types the worker will accept and do. If blank then worker will accept all task types.")
 
     return parser.parse_args()
 
 
-def get_job_if_exist():
-    job = inpainting_request.http_get_job()
+def get_job_if_exist(worker_type_list):
+    job = None
+    for worker_type in worker_type_list:
+        if worker_type == "":
+            job = inpainting_request.http_get_job(model_type="kandinsky")
+        else:
+            job = inpainting_request.http_get_job(worker_type, model_type="kandinsky")
+
+        if job is not None:
+            break
 
     return job
 
 
+def upload_data_and_update_job_status(job, output_file_path, output_file_hash, data, minio_client):
+    start_time = time.time()
+    bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
+
+    cmd.upload_data(minio_client, bucket_name, file_path, data)
+
+    info_v2("Upload for job {} completed".format(job["uuid"]))
+    info_v2("Upload time elapsed: {:.4f}s".format(time.time() - start_time))
+
+    # update job info
+    job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    job['task_output_file_dict'] = {
+        'output_file_path': output_file_path,
+        'output_file_hash': output_file_hash
+    }
+    info_v2("output file path: " + output_file_path)
+    info_v2("output file hash: " + output_file_hash)
+    info_v2("job completed: " + job["uuid"])
+
+    # update status
+    inpainting_request.http_update_job_completed(job)
+
+
+def upload_image_data_and_update_job_status(worker_state,
+                                            job,
+                                            generation_task,
+                                            seed,
+                                            latent,
+                                            output_file_path,
+                                            output_file_hash,
+                                            job_completion_time,
+                                            data,
+                                            prompt_embedding,
+                                            prompt_embedding_average_pooled,
+                                            prompt_embedding_max_pooled,
+                                            prompt_embedding_signed_max_pooled):
+    start_time = time.time()
+    bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
+
+    minio_client = worker_state.minio_client
+
+    positive_prompts = generation_task.task_input_dict["positive_prompt"]
+    negative_prior_prompt = generation_task.task_input_dict["negative_prior_prompt"]
+    negative_decoder_prompt = generation_task.task_input_dict["negative_decoder_prompt"]
+
+    image_width = generation_task.task_input_dict["image_width"]
+    image_height = generation_task.task_input_dict["image_height"]
+    strength = generation_task.task_input_dict["strength"]
+    decoder_steps = generation_task.task_input_dict["decoder_steps"]
+    prior_steps = generation_task.task_input_dict["prior_steps"]
+    prior_guidance_scale = generation_task.task_input_dict["prior_guidance_scale"]
+    decoder_guidance_scale = generation_task.task_input_dict["decoder_guidance_scale"]
+    dataset = generation_task.task_input_dict["dataset"]
+
+    prompt_scoring_model = generation_task.prompt_generation_data["prompt_scoring_model"]
+    prompt_score = generation_task.prompt_generation_data["prompt_score"]
+    prompt_generation_policy = generation_task.prompt_generation_data["prompt_generation_policy"]
+    top_k = generation_task.prompt_generation_data["top_k"]
+
+    cmd.upload_data(minio_client, bucket_name, file_path, data)
+
+    # save image meta data
+    save_image_data_to_minio(minio_client,
+                             generation_task.uuid,
+                             job_completion_time,
+                             dataset,
+                             output_file_path,
+                             output_file_hash,
+                             positive_prompts,
+                             negative_prior_prompt,
+                             negative_decoder_prompt,
+                             seed,
+                             image_width,
+                             image_height,
+                             strength,
+                             decoder_steps,
+                             prior_steps,
+                             prior_guidance_scale,
+                             decoder_guidance_scale,
+                             prompt_scoring_model,
+                             prompt_score,
+                             prompt_generation_policy,
+                             top_k)
+
+    save_latent_to_minio(minio_client, 
+                         bucket_name, 
+                         generation_task.uuid, 
+                         output_file_hash, 
+                         latent, 
+                         output_file_path)
+    
+    # save image embedding data
+    save_image_embedding_to_minio(minio_client,
+                                  dataset,
+                                  output_file_path,
+                                  prompt_embedding,
+                                  prompt_embedding_average_pooled,
+                                  prompt_embedding_max_pooled,
+                                  prompt_embedding_signed_max_pooled)
+
+    info_v2("Upload for job {} completed".format(generation_task.uuid))
+    info_v2("Upload time elapsed: {:.4f}s".format(time.time() - start_time))
+
+    # update job info
+    job['task_completion_time'] = job_completion_time
+    job['task_output_file_dict'] = {
+        'output_file_path': output_file_path,
+        'output_file_hash': output_file_hash
+    }
+    info_v2("output file path: " + output_file_path)
+    info_v2("output file hash: " + output_file_hash)
+    info_v2("job completed: " + generation_task.uuid)
+
+    # update status
+    inpainting_request.http_update_job_completed(job)
+
+    # add clip calculation tasks
+    kandinsky_clip_calculation_job = {"uuid": "",
+                            "task_type": "clip_calculation_task_kandinsky",
+                            "task_input_dict": {
+                                "input_file_path": output_file_path,
+                                "input_file_hash": output_file_hash
+                            },
+                            }
+    
+    sd_clip_calculation_job = {"uuid": "",
+                            "task_type": "clip_calculation_task_sd_1_5",
+                            "task_input_dict": {
+                                "input_file_path": output_file_path,
+                                "input_file_hash": output_file_hash
+                            },
+                            }
+
+    inpainting_request.http_add_job(kandinsky_clip_calculation_job)
+    inpainting_request.http_add_job(sd_clip_calculation_job)
+
+
 def process_jobs(worker_state):
-    thread_state = ThreadState(1, "Inpainting Job Processor")
+    thread_state = ThreadState(1, "Job Processor")
     last_job_time = time.time()
 
     while True:
         job = worker_state.job_queue.get()
 
         if job is not None:
+            task_type = job['task_type']
+
+            print('\n\n')
+            info(thread_state, "Processing job: " + task_type)
+            info(thread_state, 'Queue size ' + str(worker_state.job_queue.qsize()))
+            job_start_time = time.time()
+            worker_idle_time = job_start_time - last_job_time
+            info(thread_state, f"worker idle time was {worker_idle_time:.4f} seconds.")
+
+            job['task_start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            generation_task = GenerationTask.from_dict(job)
+
             try:
-                print('\n\n')
-                info(thread_state, 'Job:') # print the job for test
-                print(job)
-                job['task_start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                if task_type == 'kandinsky-2-txt-to-img-inpainting':
+                    output_file_path, output_file_hash, img_data, inpainting_latent, seed = run_inpainting_generation_task(worker_state,
+                                                                                                  generation_task)
 
-                job['task_completion_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                info(thread_state, "job completed: " + job["uuid"])
+                    job_completion_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-                inpainting_request.http_update_job_completed(job)
+                    (prompt_embedding,
+                     prompt_embedding_average_pooled,
+                     prompt_embedding_max_pooled,
+                     prompt_embedding_signed_max_pooled) = get_embeddings(generation_task.uuid,
+                                                                          job_completion_time,
+                                                                          generation_task.task_input_dict["dataset"],
+                                                                          output_file_path,
+                                                                          output_file_hash,
+                                                                          generation_task.task_input_dict[
+                                                                              "positive_prompt"],
+                                                                          generation_task.task_input_dict[
+                                                                              "negative_prior_prompt"],
+                                                                          generation_task.task_input_dict[
+                                                                              "negative_decoder_prompt"],
+                                                                          worker_state.clip_text_embedder)
+                    # spawn upload data and update job thread
+                    thread = threading.Thread(target=upload_image_data_and_update_job_status, args=(
+                        worker_state, job, generation_task, seed, inpainting_latent, output_file_path, output_file_hash, job_completion_time,
+                        img_data, prompt_embedding, prompt_embedding_average_pooled, prompt_embedding_max_pooled,
+                        prompt_embedding_signed_max_pooled,))
+                    thread.start()
+
+                elif task_type == 'clip_calculation_task_kandinsky':
+                    output_file_path, output_file_hash, clip_data = run_clip_calculation_task(worker_state,
+                                                                                              generation_task,
+                                                                                              model_type="kandinsky")
+
+                    # spawn upload data and update job thread
+                    thread = threading.Thread(target=upload_data_and_update_job_status, args=(
+                        job, output_file_path, output_file_hash, clip_data, worker_state.minio_client,))
+                    thread.start()
+
+                else:
+                    e = "job with task type '" + task_type + "' is not supported"
+                    error(thread_state, e)
+                    job['task_error_str'] = e
+                    inpainting_request.http_update_job_failed(job)
             except Exception as e:
                 error(thread_state, f"generation task failed: {traceback.format_exc()}")
                 job['task_error_str'] = str(e)
                 inpainting_request.http_update_job_failed(job)
+
+            job_end_time = time.time()
+            last_job_time = job_end_time
+            job_elapsed_time = job_end_time - job_start_time
+            info(thread_state, f"job took {job_elapsed_time:.4f} seconds to execute.")
+
         else:
             # If there was no job, go to sleep for a while
             sleep_time_in_seconds = 0.001
@@ -90,16 +394,21 @@ def get_worker_type_list(worker_type: str):
 
 
 def main():
-
     args = parse_args()
 
-    thread_state = ThreadState(0, "Inpainting Job Fetcher")
+    thread_state = ThreadState(0, "Job Fetcher")
     queue_size = args.queue_size
 
-    # Initialize worker state
-    worker_state = WorkerState(queue_size)
+    # get worker type
+    worker_type_list = get_worker_type_list(args.worker_type)
 
-    info(thread_state, "Starting worker!")
+    # Initialize worker state
+    worker_state = WorkerState(args.device, args.minio_access_key, args.minio_secret_key, queue_size)
+    # Loading models
+    worker_state.load_models()
+
+    info(thread_state, "starting worker ! ")
+    info(thread_state, "Worker type: {} ".format(worker_type_list))
 
     # spawning worker thread
     thread = threading.Thread(target=process_jobs, args=(worker_state,))
@@ -116,7 +425,7 @@ def main():
         # try to find a job
         # if job exists add it to job queue
         # if not sleep for a while
-        job = get_job_if_exist()
+        job = get_job_if_exist(worker_type_list)
         if job != None:
             info(thread_state, 'Found job ! ')
             worker_state.job_queue.put(job)
