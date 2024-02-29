@@ -2,6 +2,7 @@ from typing import Union
 import requests
 import json
 from urllib.parse import urlencode
+from typing import Union
 
 # Get the URL from base url with the query params
 def get_url_with_query_params(base_url: str = 'http://localhost:8000', 

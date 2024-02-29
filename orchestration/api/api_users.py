@@ -1,5 +1,5 @@
 from orchestration.api.deps import is_authenticated,is_admin
-from orchestration.api.mongo_schemas import User, LoginRequest
+from orchestration.api.mongo_schema.user_schemas import User, LoginRequest
 from fastapi import status, HTTPException, Depends, APIRouter, Request, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from orchestration.api.jwt import (
