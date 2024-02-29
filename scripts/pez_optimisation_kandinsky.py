@@ -234,6 +234,8 @@ class KandinskyImageGenerator:
             inputs = clip_vector.reshape(len(clip_vector), -1)
             score = self.scoring_model.model.forward(inputs).squeeze()
             sigma_score= (score - self.mean) / self.std
+
+            print(clip_vector)
             # Custom loss function
             # Original loss based on the scoring function
             reg_loss = torch.mean((clip_vector - optimized_embedding) ** 2)
