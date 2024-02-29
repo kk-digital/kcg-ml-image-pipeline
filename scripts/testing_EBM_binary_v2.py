@@ -1040,7 +1040,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=15,
+                         max_epochs=2,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -1376,7 +1376,7 @@ energy_evaluation_with_pictures(val_loader,adv_loader)
 energy_evaluation_with_pictures(val_loader,val_cifarset_loader)
 energy_evaluation_with_pictures(val_loader,val_ood_loader)
 
-val_ood_loader
+#val_ood_loader
 ##### Value eval
 print("Occult VS Cyber")
 energy_evaluation(val_loader,adv_loader)
@@ -1424,3 +1424,133 @@ energy_evaluation(val_loader,val_ood_loader)
 # plt.clf()
 
 
+
+
+
+#################################################################################################### Combine occult and Cyber vs all
+####################################################################################################
+####################################################################################################
+####################################################################################################
+####################################################################################################
+####################################################################################################
+####################################################################################################
+####################################################################################################
+
+train_comb, val_comb =  get_combined_adv_dataset_from_id_array([35,39],5,0)
+train_comb_loader = data.DataLoader(train_comb, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+val_comb_loader = data.DataLoader(val_comb, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+
+# ADV compare = val_loader_advtrain
+
+
+
+def energy_evaluation_comb(training_loader,adv_loader):
+    
+    some_a = 0
+    some_b = 0
+    # load training set images
+    test_imgs, _ = next(iter(training_loader))
+    
+
+    # load adv set images
+    fake_imgs, _ = next(iter(adv_loader)) # val_loader_dog  val_ood_loader val val_loader_noncats val_loader
+    
+
+    rangeX = len(test_imgs)
+    for i in range(rangeX):
+        a,b =  compare_images_value_purevalue_comb(test_imgs[i].to(model.device),fake_imgs[i].to(model.device))
+        some_a += a
+        some_b += b
+
+    some_a = some_a / rangeX
+    some_b = some_b / rangeX
+
+    print(f"Score in distribution : {some_a:4.2f}")
+    print(f"Score OOD : {some_b:4.2f}")
+
+
+
+################# Compare image A with image B energy wise
+@torch.no_grad()
+def compare_images_value_purevalue_comb(img1, img2):
+    # Pass the first image through the CNN model and get its score
+    score1 = model.cnn(img1.unsqueeze(0).to(model.device)).cpu()
+    score1 += modelsave(img1.unsqueeze(0).to(model.device)).cpu()
+    # Pass the second image through the CNN model and get its score
+    score2 = model.cnn(img2.unsqueeze(0).to(model.device)).cpu()
+    score2 += modelsave.cnn(img2.unsqueeze(0).to(model.device)).cpu()
+    grid = torchvision.utils.make_grid([img1.cpu(), img2.cpu()], nrow=2, normalize=True, pad_value=0.5, padding=2)
+    grid = grid.permute(1, 2, 0)
+    # print(f"Score original image: {score1.item():4.2f}")
+    # print(f"Score transformed image: {score2.item():4.2f}")
+    return score1.item(), score2.item()
+
+
+
+
+
+def energy_evaluation_with_pictures_comb(training_loader,adv_loader):
+    
+    some_a = 0
+    some_b = 0
+    # load training set images
+    test_imgs, _ = next(iter(training_loader))
+    
+
+    # load adv set images
+    fake_imgs, _ = next(iter(adv_loader)) # val_loader_dog  val_ood_loader val val_loader_noncats val_loader
+    
+    # print("tes_imgs shape : ", test_imgs.shape)
+    # print("fake_imgs shape : ", fake_imgs.shape)
+
+
+    rangeX = 16
+    for i in range(rangeX):
+        a,b =  compare_images_show_comb(test_imgs[i].to(model.device),fake_imgs[i].to(model.device))
+        some_a += a
+        some_b += b
+
+    some_a = some_a / rangeX
+    some_b = some_b / rangeX
+
+
+
+@torch.no_grad()
+def compare_images_show_comb(img1, img2):
+    imgs = torch.stack([img1, img2], dim=0).to(model.device)
+    score1, score2 = model.cnn(imgs).cpu().chunk(2, dim=0) # model.cnn(imgs)[0].cpu().chunk(2, dim=0)
+    score1b, score2b = modelsave.cnn(imgs).cpu().chunk(2, dim=0) # model.cnn(imgs)[0].cpu().chunk(2, dim=0)
+    score1 += score1b
+    score2 += score2b
+    #class1, class2 = model.cnn(imgs)[1].cpu().chunk(2, dim=0)
+    grid = torchvision.utils.make_grid([img1.cpu(), img2.cpu()], nrow=2, normalize=True, pad_value=0.5, padding=2)
+    grid = grid.permute(1, 2, 0)
+    plt.figure(figsize=(4,4))
+    plt.imshow(grid)
+    plt.xticks([(img1.shape[2]+2)*(0.5+j) for j in range(2)],
+               labels=[f"ID: {score1.item():4.2f}", f"OOD: {score2.item():4.2f}"])
+    plt.yticks([])
+    plt.savefig("output/comparaison_1.png")
+
+    # Save the figure to a file
+    bufx = io.BytesIO()
+    plt.savefig(bufx, format='png')
+    bufx.seek(0)
+
+
+
+
+print('combined stuff')
+
+energy_evaluation_with_pictures_comb(val_comb_loader,val_loader_advtrain)
+energy_evaluation_with_pictures_comb(val_comb_loader,val_cifarset_loader)
+energy_evaluation_with_pictures_comb(val_comb_loader,val_ood_loader)
+
+#val_ood_loader
+##### Value eval
+print("Occult and Cyber VS Full ADV")
+energy_evaluation_comb(val_comb_loader,val_loader_advtrain)
+print("Occult and Cyber VS Cifar")
+energy_evaluation_comb(val_comb_loader,val_cifarset_loader)
+print("Occult and Cyber VS SVHN")
+energy_evaluation_comb(val_comb_loader,val_ood_loader)
