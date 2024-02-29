@@ -230,48 +230,6 @@ def data_augmentation(images_tensor, num_of_passes):
 
 
 ############### Smaller CNN
-class CNNModel(nn.Module):
-    def __init__(self):
-        super(CNNModel, self).__init__()
-
-        # Convolutional layers and activation functions
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
-        self.relu1 = nn.ReLU()
-        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
-
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
-        self.relu2 = nn.ReLU()
-        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
-
-        # Fully-connected layer and activation function
-        self.fc = nn.Linear(1048576, 1)
-        print("Size of the weight matrix:", self.fc.weight.size())
-
-        # Activation function for the energy prediction
-        self.relu3 = nn.ReLU()
-
-    def forward(self, x):
-        # Feature extraction using convolutional layers
-        x = self.pool1(self.relu1(self.conv1(x)))
-        x = self.pool2(self.relu2(self.conv2(x)))
-
-        # Calculate the size based on the spatial dimensions after the second max-pooling layer
-        x_size = x.size(1) * x.size(2) * x.size(3)
-
-        # Adjust the view operation to reflect the new spatial dimensions
-        x = x.view(-1, x_size)
-
-        print("Size before fully-connected layer:", x.size())
-
-        # Fully-connected layer
-        energy = self.fc(x)
-
-        # Activation for the energy prediction
-        energy = self.relu3(energy)
-        print("Energy : ", energy)
-        return energy
-
-# # ##################### NEW Classifier V2
 # class CNNModel(nn.Module):
 #     def __init__(self):
 #         super(CNNModel, self).__init__()
@@ -285,34 +243,77 @@ class CNNModel(nn.Module):
 #         self.relu2 = nn.ReLU()
 #         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
 
-#         # Fully-connected layers and activation functions
-#         self.fc1 = nn.Linear(64 * 8 * 8, 1024)
+#         # Fully-connected layer and activation function
+#         self.fc = nn.Linear(1048576, 1)
+#         print("Size of the weight matrix:", self.fc.weight.size())
+
+#         # Activation function for the energy prediction
 #         self.relu3 = nn.ReLU()
-
-#         # Energy prediction branch
-#         self.fc_energy = nn.Linear(1024, 1)  # Predict a single energy score
-
-#         # # Classification branch
-#         # self.fc2 = nn.Linear(1024, 10)
-#         # self.softmax = nn.Softmax(dim=1)  # Apply softmax for class probabilities
 
 #     def forward(self, x):
 #         # Feature extraction using convolutional layers
 #         x = self.pool1(self.relu1(self.conv1(x)))
 #         x = self.pool2(self.relu2(self.conv2(x)))
-#         x = x.view(-1, 64 * 8 * 8)
 
-#         # Feature processing for both branches
-#         shared_features = self.relu3(self.fc1(x))
-#         print("shared_features : ", shared_features.shape)
-#         # Energy branch
-#         energy = self.fc_energy(shared_features)  # Output energy score
+#         # Calculate the size based on the spatial dimensions after the second max-pooling layer
+#         x_size = x.size(1) * x.size(2) * x.size(3)
 
-#         # # Classification branch
-#         # logits = self.fc2(shared_features)
-#         # probs = self.softmax(logits)  # Output class probabilities
-#         print("Energy : ", energy.shape)
+#         # Adjust the view operation to reflect the new spatial dimensions
+#         x = x.view(-1, x_size)
+
+#         print("Size before fully-connected layer:", x.size())
+
+#         # Fully-connected layer
+#         energy = self.fc(x)
+
+#         # Activation for the energy prediction
+#         energy = self.relu3(energy)
+#         print("Energy : ", energy)
 #         return energy
+
+# ##################### NEW Classifier V2
+class CNNModel(nn.Module):
+    def __init__(self):
+        super(CNNModel, self).__init__()
+
+        # Convolutional layers and activation functions
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
+        self.relu1 = nn.ReLU()
+        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
+        self.relu2 = nn.ReLU()
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+        # Fully-connected layers and activation functions
+        self.fc1 = nn.Linear(64 * 8 * 8, 1024)
+        self.relu3 = nn.ReLU()
+
+        # Energy prediction branch
+        self.fc_energy = nn.Linear(1024, 1)  # Predict a single energy score
+
+        # # Classification branch
+        # self.fc2 = nn.Linear(1024, 10)
+        # self.softmax = nn.Softmax(dim=1)  # Apply softmax for class probabilities
+
+    def forward(self, x):
+        # Feature extraction using convolutional layers
+        x = self.pool1(self.relu1(self.conv1(x)))
+        x = self.pool2(self.relu2(self.conv2(x)))
+        x = x.view(-1, 64 * 8 * 8)
+
+        # Feature processing for both branches
+        shared_features = self.relu3(self.fc1(x))
+        print("shared_features : ", shared_features.shape)
+        # Energy branch
+        energy = self.fc_energy(shared_features)  # Output energy score
+
+        # # Classification branch
+        # logits = self.fc2(shared_features)
+        # probs = self.softmax(logits)  # Output class probabilities
+        print("Energy Shape : ", energy.shape)
+        print("Energy : ", energy)
+        return energy
 
 
 # class CNNModel(nn.Module):
