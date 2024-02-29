@@ -159,13 +159,13 @@ class KandinskyPipeline:
                 images, latents = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
                                 num_inference_steps=self.decoder_steps, height=self.height,
                                 width=self.width, guidance_scale=self.decoder_guidance_scale,
-                                image=initial_img[:, :4, :, :], mask_image=img_mask, generator= generator)
+                                image=initial_img, mask_image=img_mask, generator= generator)
             
             else:
                 images, latents = self.decoder(image_embeds=img_emb.image_embeds, negative_image_embeds=negative_emb,
                                 num_inference_steps=self.decoder_steps, height=self.height,
                                 width=self.width, guidance_scale=self.decoder_guidance_scale,
-                                image=initial_img[:, :4, :, :], mask_image=img_mask)
+                                image=initial_img, mask_image=img_mask)
                 
         return images[0], latents
     
