@@ -245,6 +245,7 @@ class CNNModel(nn.Module):
 
         # Fully-connected layer and activation function
         self.fc = nn.Linear(64 * 8 * 8, 1)
+        print("Size of the weight matrix:", self.fc.weight.size())
 
         # Activation function for the energy prediction
         self.relu3 = nn.ReLU()
