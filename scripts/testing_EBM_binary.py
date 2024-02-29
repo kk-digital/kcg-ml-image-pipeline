@@ -937,7 +937,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=30,
+                         max_epochs=15,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -1155,14 +1155,21 @@ os.remove("output/loss_tracking_per_step.png")
 # Clear the current figure
 plt.clf()
 
-energy_evaluation(val_loader,adv_loader)
+
 
 
 energy_evaluation_with_pictures(val_loader,adv_loader)
+energy_evaluation_with_pictures(val_loader,val_cifarset_loader)
+energy_evaluation_with_pictures(val_loader,val_ood_loader)
 
-
-
-
+val_ood_loader
+##### Value eval
+print("Occult VS Cyber")
+energy_evaluation(val_loader,adv_loader)
+print("Occult VS Cifar")
+energy_evaluation(val_loader,adv_loader)
+print("Occult VS SVHN")
+energy_evaluation(val_loader,adv_loader)
 
 # import torchvision.transforms.functional as TF
 # from torchvision.utils import make_grid
