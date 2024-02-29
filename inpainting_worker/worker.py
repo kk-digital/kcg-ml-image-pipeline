@@ -73,7 +73,7 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
         init_image = init_image.convert("RGB")
 
         # get the mask data that is stored in minio
-        bucket_name, file_path = separate_bucket_and_file_path(generation_task.task_input_dict["init_img"])
+        bucket_name, file_path = separate_bucket_and_file_path(generation_task.task_input_dict["init_mask"])
         response = worker_state.minio_client.get_object(bucket_name, file_path)
         image_data = BytesIO(response.data)
         init_mask = Image.open(image_data)
