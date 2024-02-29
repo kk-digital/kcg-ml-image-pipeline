@@ -312,7 +312,7 @@ class CNNModel(nn.Module):
         # logits = self.fc2(shared_features)
         # probs = self.softmax(logits)  # Output class probabilities
         print("Energy Shape : ", energy.shape)
-        print("Energy : ", energy)
+        #print("Energy : ", energy)
         return energy
 
 
