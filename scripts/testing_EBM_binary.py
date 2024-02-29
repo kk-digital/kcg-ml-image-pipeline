@@ -322,6 +322,7 @@ class LargerCNNModel(nn.Module):
 
         # Convolutional layers and activation functions
         self.conv1 = nn.Conv2d(3, 512, kernel_size=3, stride=1, padding=1)
+        # [(W−K+2P)/S]+1 / out = ((512-3 + 2) / 1 ) + 1 = 512
         self.relu1 = nn.ReLU()
         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
 
