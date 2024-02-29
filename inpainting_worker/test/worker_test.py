@@ -21,7 +21,7 @@ def add_jobs():
         "task_error_str": None,
         "task_input_dict": {
             "strength": 0.75,
-            "seed": 7472781,
+            "seed": 80,
             "dataset": "test-generations",
             "file_path": "datasets/environmental/output/test_inpainting/022912.jpg",
             "init_img":"datasets/environmental/output/test_inpainting/test_inpainting_init_img_001.jpg",
@@ -31,8 +31,8 @@ def add_jobs():
             "image_height": 512,
             "prior_steps": 50,
             "decoder_steps": 50,
-            "prior_guidance_scale": 9,
-            "decoder_guidance_scale": 9,
+            "prior_guidance_scale": 4,
+            "decoder_guidance_scale": 4,
             "positive_prompt":"a tiger sitting on a park bench",
             "negative_prior_prompt":"a tiger standing on a stone",
             "negative_decoder_prompt":"a tiger sitting on a park bench but not standing"
