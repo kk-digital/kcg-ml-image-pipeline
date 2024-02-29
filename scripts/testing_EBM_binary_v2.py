@@ -702,7 +702,6 @@ val_loader_set_cyber= data.DataLoader(val_set_cyber,batch_size=batchsize_x, shuf
 
 
 
-
 ############ OOD
 oodset = SVHN(root='./data',  transform=transform, download=True)
 num_samples_ood = len(oodset)
@@ -1504,7 +1503,7 @@ def energy_evaluation_with_pictures_comb(training_loader,adv_loader):
     # print("fake_imgs shape : ", fake_imgs.shape)
 
 
-    rangeX = 16
+    rangeX = 64
     for i in range(rangeX):
         a,b =  compare_images_show_comb(test_imgs[i].to(model.device),fake_imgs[i].to(model.device))
         some_a += a
@@ -1546,6 +1545,10 @@ print('combined stuff')
 energy_evaluation_with_pictures_comb(val_comb_loader,val_loader_advtrain)
 energy_evaluation_with_pictures_comb(val_comb_loader,val_cifarset_loader)
 energy_evaluation_with_pictures_comb(val_comb_loader,val_ood_loader)
+energy_evaluation_with_pictures_comb(val_comb_loader,val_loader_set_ocult)
+energy_evaluation_with_pictures_comb(val_comb_loader,val_loader_set_cyber)
+
+
 
 #val_ood_loader
 ##### Value eval
@@ -1555,3 +1558,7 @@ print("Occult and Cyber VS Cifar")
 energy_evaluation_comb(val_comb_loader,val_cifarset_loader)
 print("Occult and Cyber VS SVHN")
 energy_evaluation_comb(val_comb_loader,val_ood_loader)
+print("Full Occult VS SVHN")
+energy_evaluation_comb(val_loader_set_ocult,val_ood_loader)
+print("Full Cyber VS SVHN")
+energy_evaluation_comb(val_loader_set_cyber,val_ood_loader)
