@@ -1050,8 +1050,11 @@ def energy_evaluation_with_pictures(training_loader,adv_loader):
     # load adv set images
     fake_imgs, _ = next(iter(adv_loader)) # val_loader_dog  val_ood_loader val val_loader_noncats val_loader
     
+    print("tes_imgs shape : ", test_imgs.shape)
+    print("fake_imgs shape : ", fake_imgs.shape)
 
-    rangeX = 6
+
+    rangeX = 16
     for i in range(rangeX):
         a,b =  compare_images_show(test_imgs[i].to(model.device),fake_imgs[i].to(model.device))
         some_a += a
