@@ -437,7 +437,7 @@ minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
             None)
 minio_path="environmental/output/my_test"
 date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
-data_iter = iter(train_set_ocult)
+data_iter = iter(train_loader_set_ocult)
 images, labels = next(data_iter)
 # Create a grid of images
 image_grid = make_grid(images[:16], nrow=4, padding=2, normalize=True)
