@@ -31,7 +31,7 @@ class KandinskyCLIPImageEncoder(nn.Module):
         try:
             self.vision_model = (CLIPVisionModelWithProjection.from_pretrained(encoder_path,
                                                                                subfolder="image_encoder",
-                                                                               torch_dtype=torch.float32,
+                                                                               torch_dtype=torch.float16,
                                                                                local_files_only=True).eval().to(self.device))
             
             logger.info(f"CLIP VisionModelWithProjection successfully loaded from : {encoder_path}/image_encoder \n")
