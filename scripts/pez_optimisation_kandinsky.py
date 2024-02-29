@@ -235,6 +235,7 @@ class KandinskyImageGenerator:
 
             # Custom loss function
             # Original loss based on the scoring function
+            clip_vector = clip_vector.float() 
             reg_loss = torch.mean((clip_vector - optimized_embedding) ** 2)
             score_loss =  self.target_score - score
             
