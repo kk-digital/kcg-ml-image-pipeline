@@ -4,12 +4,12 @@ from utility.minio import cmd
 import os
 import json
 from io import BytesIO
-from orchestration.api.mongo_schemas import Selection, RelevanceSelection, DatapointDeltaScore
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, ApiResponseHandler, TagCountResponse
+from orchestration.api.mongo_schema.selection_schemas import Selection, RelevanceSelection
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, ApiResponseHandler, TagCountResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, RankCountResponse, CountResponse
 import random
 from collections import OrderedDict
 from bson import ObjectId
-from typing import Optional
+from typing import Optional, List
 import time
 
 
@@ -699,6 +699,7 @@ async def calculate_delta_scores(request: Request):
 
 @router.post("/rank/add-ranking-data-point-v1", 
              status_code=201,
+             tags=["ranking"],
              response_model=StandardSuccessResponseV1[Selection],  
              responses=ApiResponseHandlerV1.listErrors([422, 500]))
 def add_selection_datapoint_v1(
@@ -747,6 +748,7 @@ def add_selection_datapoint_v1(
 
 @router.post("/rank/update-image-rank-use-count-v1", 
              description="Update image rank use count", 
+             tags=["ranking"],
              response_model=StandardSuccessResponseV1[RankCountResponse],  
              responses=ApiResponseHandlerV1.listErrors([ 422, 500]))
 def update_image_rank_use_count_v1(request: Request, image_hash: str):
@@ -787,7 +789,8 @@ def update_image_rank_use_count_v1(request: Request, image_hash: str):
     
 @router.post("/rank/set-image-rank-use-count-v1", 
              description="Set image rank use count", 
-             response_model=StandardSuccessResponseV1[RankCountResponse],  # Adjust the response model as necessary
+             tags=["ranking"],
+             response_model=StandardSuccessResponseV1[RankCountResponse], 
              responses=ApiResponseHandlerV1.listErrors([ 422, 500]))
 def set_image_rank_use_count(request: Request, image_hash: str, count: int):
     response_handler = ApiResponseHandlerV1(request)
@@ -824,7 +827,8 @@ def set_image_rank_use_count(request: Request, image_hash: str, count: int):
     
 @router.get("/rank/get-image-rank-use-count-v1", 
             description="Get image rank use count",
-            response_model=StandardSuccessResponseV1[RankCountResponse],  # Adjust the response model as necessary
+            tags=["ranking"],
+            response_model=StandardSuccessResponseV1[RankCountResponse],  
             responses=ApiResponseHandlerV1.listErrors([ 422, 500]))
 def get_image_rank_use_count_v1(request: Request, image_hash: str):
     response_handler = ApiResponseHandlerV1(request)
@@ -854,6 +858,7 @@ def get_image_rank_use_count_v1(request: Request, image_hash: str):
 
 @router.post("/ranking/submit-relevance-data-v1",
              status_code=201,
+             tags=["ranking"],
              response_model=StandardSuccessResponseV1[RelevanceSelection],  # Adjust the response model as necessary
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def add_relevancy_selection_datapoint_v1(request: Request, relevance_selection: RelevanceSelection, dataset: str = Query(..., description="Dataset as a query parameter")):
@@ -892,6 +897,7 @@ def add_relevancy_selection_datapoint_v1(request: Request, relevance_selection: 
 
 @router.get("/rank/list-ranking-data-v1", 
             status_code=200,
+            tags=["ranking"],
             response_model=StandardSuccessResponseV1[Selection],  
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def list_ranking_data_v1(
@@ -935,5 +941,275 @@ def list_ranking_data_v1(
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
             error_string="Internal Server Error",
+            http_status_code=500,
+        )
+    
+@router.get("/rank/sort-ranking-data-by-residual-v1", 
+            description="rank data by residual",
+            tags=["ranking"],
+            response_model=StandardSuccessResponseV1[Selection],  
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+def list_ranking_data_by_residual(
+    request: Request,
+    model_type: str = Query(..., description="Model type to filter by, e.g., 'linear' or 'elm-v1'"),
+    dataset: Optional[str] = Query(None, description="Dataset to filter by"),
+    start_date: str = Query(None),
+    end_date: str = Query(None),
+    skip: int = Query(0, alias="offset"),
+    limit: int = Query(10, alias="limit"),
+    order: str = Query("desc", regex="^(desc|asc)$")
+):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        # Convert start_date and end_date strings to datetime objects, if provided
+        start_date_obj = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+        end_date_obj = datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
+
+        # Build the query filter based on dates, model_type, and dataset
+        query_filter = {"selected_residual.{}".format(model_type): {"$exists": True}}
+        if dataset:
+            query_filter["dataset"] = dataset
+        if start_date_obj or end_date_obj:
+            date_filter = {}
+            if start_date_obj:
+                date_filter["$gte"] = start_date_obj.strftime("%Y-%m-%d")
+            if end_date_obj:
+                date_filter["$lte"] = end_date_obj.strftime("%Y-%m-%d")
+            query_filter["file_name"] = date_filter
+
+        # Determine the sort order
+        sort_order = -1 if order == "desc" else 1
+
+        # Fetch and sort data from MongoDB with pagination
+        cursor = request.app.image_pair_ranking_collection.find(query_filter).sort(
+            f"selected_residual.{model_type}", sort_order).skip(skip).limit(limit)
+
+        # Convert cursor to list of dictionaries
+        ranking_data = list(cursor)
+        for doc in ranking_data:
+            doc['_id'] = str(doc['_id'])  # Convert ObjectId to string
+        
+        # Return the fetched data with a success response
+        return response_handler.create_success_response_v1(
+            response_data=ranking_data, 
+            http_status_code=200,
+        )
+    except Exception as e:
+        # Handle exceptions and return an error response
+        print(f"Exception occurred: {e}")  # For debugging
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )    
+    
+
+@router.get("/rank/sort-ranking-data-by-date-v1", 
+            description="list ranking data by date",
+            tags=["ranking"],
+            response_model=StandardSuccessResponseV1[Selection],  
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+def list_ranking_data_by_date(
+    request: Request,
+    model_type: str = Query(..., description="Model type to filter by, e.g., 'linear' or 'elm-v1'"),
+    dataset: Optional[str] = Query(None, description="Dataset to filter by"),
+    start_date: str = Query(None),
+    end_date: str = Query(None),
+    skip: int = Query(0, alias="offset"),
+    limit: int = Query(10, alias="limit"),
+    order: str = Query("desc", regex="^(desc|asc)$")
+):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        # Convert start_date and end_date strings to datetime objects, if provided
+        start_date_obj = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+        end_date_obj = datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
+
+        # Build the query filter based on dates, model_type, and dataset
+        query_filter = {"selected_residual.{}".format(model_type): {"$exists": True}}
+        if dataset:
+            query_filter["dataset"] = dataset
+        if start_date_obj or end_date_obj:
+            date_filter = {}
+            if start_date_obj:
+                date_filter["$gte"] = start_date_obj.strftime("%Y-%m-%d")
+            if end_date_obj:
+                date_filter["$lte"] = end_date_obj.strftime("%Y-%m-%d")
+            query_filter["file_name"] = date_filter
+
+        # Determine the sort order
+        sort_order = -1 if order == "desc" else 1
+
+        # Fetch and sort data from MongoDB with pagination
+        cursor = request.app.image_pair_ranking_collection.find(query_filter).sort(
+            "file_name", sort_order).skip(skip).limit(limit)  # Assuming the field is "datetime"
+
+        # Convert cursor to list of dictionaries
+        ranking_data = list(cursor)
+        for doc in ranking_data:
+            doc['_id'] = str(doc['_id'])  # Convert ObjectId to string
+
+        # Return the fetched data with a success response
+        return response_handler.create_success_response_v1(
+            response_data=ranking_data, 
+            http_status_code=200,
+        )
+    except Exception as e:
+        # Handle exceptions and return an error response
+        print(f"Exception occurred: {e}")  # For debugging
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )    
+    
+
+@router.get("/rank/count-ranking-data-v1", 
+            description="count ranking data",
+            tags=["ranking"],
+            response_model=StandardSuccessResponseV1[CountResponse],  
+            responses=ApiResponseHandlerV1.listErrors([500]))
+def count_ranking_data(request: Request):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        # Get the count of documents in the image_pair_ranking_collection
+        count = request.app.image_pair_ranking_collection.count_documents({})
+
+        # Return the count with a success response
+        return response_handler.create_success_response_v1(
+            response_data={"count": count}, 
+            http_status_code=200,
+        )
+    except Exception as e:
+        # Handle exceptions and return an error response
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )
+
+@router.get("/rank/count-selected-residual-data-v1", 
+            description="count ranking data for selected residual field",
+            tags=["ranking"],
+            response_model=StandardSuccessResponseV1[CountResponse],  
+            responses=ApiResponseHandlerV1.listErrors([500]))
+def count_selected_residual_data(request: Request):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        # Count documents that contain the 'selected_residual' field
+        count = request.app.image_pair_ranking_collection.count_documents({"selected_residual": {"$exists": True}})
+
+        # Return the count with a success response
+        return response_handler.create_success_response_v1(
+            response_data={"count": count}, 
+            http_status_code=200,
+        )
+    except Exception as e:
+        # Handle exceptions and return an error response
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )
+
+@router.post("/update/add-residual-data-v1", 
+             response_model=StandardSuccessResponseV1[List[Selection]],
+             tags=["ranking"],
+             status_code=200,
+             description="Add Residual Data to Images",
+             responses=ApiResponseHandlerV1.listErrors([400, 500]))
+def add_residual_data(request: Request, selected_img_hash: str, residual: float):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        # Fetching the MongoDB collection
+        image_collection = request.app.image_pair_ranking_collection  
+
+        # Finding and updating documents
+        query = {"selected_image_hash": selected_img_hash}
+        update = {"$set": {"model_data.residual": residual}}
+        
+        # Update all documents matching the query
+        result = image_collection.update_many(query, update)
+
+        # If no documents were updated, return an appropriate response
+        if result.matched_count == 0:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="No matching documents found or no new data to update.",
+                http_status_code=404,
+            )
+        
+        # Re-fetch the updated documents to return them
+        updated_documents = list(image_collection.find(query))
+        
+        # Serialize the MongoDB documents, excluding fields like '_id'
+        updated_documents_data = [{k: v for k, v in document.items() if k != '_id'} for document in updated_documents]
+
+        # Return the updated documents with a success response
+        return response_handler.create_success_response_v1(
+            response_data=updated_documents_data, 
+            http_status_code=200,
+        )
+    except Exception as e:
+        # Handle exceptions and return an error response
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )
+
+@router.put("/job/add-selected-residual-pair-v2",
+            tags=["ranking"],
+            response_model=StandardSuccessResponseV1[Selection], 
+            description="Adds the selected_residual for a pair of images based on their selection status in a job.",
+            responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
+def add_selected_residual_pair(
+    request: Request,
+    selected_image_hash: str = Body(...),
+    unselected_image_hash: str = Body(...),
+    model_type: str = Body(...),
+    selected_residual: float = Body(...)
+):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        # Build the query based on selected_image_index and the unselected_image_hash
+        query = {
+            "$or": [
+                {"selected_image_hash": selected_image_hash, "image_2_metadata.file_hash": unselected_image_hash, "selected_image_index": 0},
+                {"selected_image_hash": selected_image_hash, "image_1_metadata.file_hash": unselected_image_hash, "selected_image_index": 1}
+            ]
+        }
+
+        # Update query for the selected image residual
+        update_query = {"$set": {f"selected_residual.{model_type}": selected_residual}}
+
+        # Perform the update for the matching object
+        result = request.app.image_pair_ranking_collection.update_one(query, update_query)
+
+        # Check if documents were updated
+        if result.matched_count == 0:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Matching job not found for the image pair",
+                http_status_code=404,
+            )
+
+        # Retrieve the updated document
+        updated_document = request.app.image_pair_ranking_collection.find_one(query)
+
+        # Serialize the MongoDB document, excluding fields like '_id'
+        updated_document_data = {k: v for k, v in updated_document.items() if k != '_id'}
+
+        # Return the updated document with a success response
+        return response_handler.create_success_response_v1(
+            response_data=updated_document_data, 
+            http_status_code=200,
+        )
+
+    except Exception as e:
+        # Log the exception and return an error response
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
             http_status_code=500,
         )
