@@ -1001,7 +1001,7 @@ def compare_images_show(img1, img2):
     minio_path="environmental/output/my_test"
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
     minio_path= minio_path + "/compare_id_vs_ood" +date_now+".png"
-    cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+    cmd.upload_data(minio_client, 'datasets', minio_path, bufx)
     # Remove the temporary file
     os.remove("output/comparaison_1.png")
     # Clear the current figure
