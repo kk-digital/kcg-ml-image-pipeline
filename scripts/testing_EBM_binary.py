@@ -882,11 +882,11 @@ def compare_images_value_purevalue(img1, img2):
     #class1, class2 = model.cnn(imgs)[1].cpu().chunk(2, dim=0)
     grid = torchvision.utils.make_grid([img1.cpu(), img2.cpu()], nrow=2, normalize=True, pad_value=0.5, padding=2)
     grid = grid.permute(1, 2, 0)
-    print(f"Score original image: {score1.item():4.2f}")
-    print(f"Score transformed image: {score2.item():4.2f}")
+    print(f"Score original image: {score1:4.2f}")
+    print(f"Score transformed image: {score2:4.2f}")
     
 
-    return score1.item(), score2.item()
+    return score1, score2
 
 
 
