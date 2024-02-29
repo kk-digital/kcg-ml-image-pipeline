@@ -645,21 +645,21 @@ val_cifarset_loader = data.DataLoader(val_set_cifarset, batch_size=batchsize_x, 
 
 
 
-from itertools import chain
-from torch.utils.data import ConcatDataset, DataLoader
+# from itertools import chain
+# from torch.utils.data import ConcatDataset, DataLoader
 
 
 
-# Load CIFAR-10 and modify the labels to 0
-#cifar10_dataset = CIFAR10(root='./data', train=True, download=True, transform=cifar10_transform)
-train_set_cifarset.targets = [0] * len(train_set_cifarset)
-train_ood_loader.targets = [0] * len(train_ood_loader)
-train_loader_set_cyber.targets = [0] * len(train_loader_set_cyber)
+# # Load CIFAR-10 and modify the labels to 0
+# #cifar10_dataset = CIFAR10(root='./data', train=True, download=True, transform=cifar10_transform)
+# train_set_cifarset.targets = [0] * len(train_set_cifarset)
+# train_ood_loader.targets = [0] * len(train_ood_loader)
+# train_loader_set_cyber.targets = [0] * len(train_loader_set_cyber)
 
 
-# Combine datasets using ConcatDataset
-combined_dataset_adv = ConcatDataset([train_set_cifarset, train_ood_loader,train_loader_set_cyber])
-combined_loader_adv = DataLoader(combined_dataset_adv, batch_size=batchsize_x, shuffle=True)
+# # Combine datasets using ConcatDataset
+# combined_dataset_adv = ConcatDataset([train_set_cifarset, train_ood_loader,train_loader_set_cyber])
+# combined_loader_adv = DataLoader(combined_dataset_adv, batch_size=batchsize_x, shuffle=True)
 
 ################ Select True sets
 train_loader = train_loader_set_ocult
