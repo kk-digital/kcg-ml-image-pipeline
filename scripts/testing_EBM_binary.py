@@ -268,7 +268,7 @@ class CNNModel(nn.Module):
 
         # Activation for the energy prediction
         energy = self.relu3(energy)
-        print("Energy : ", energy.shape)
+        print("Energy : ", energy)
         return energy
 
 # # ##################### NEW Classifier V2
