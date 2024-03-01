@@ -452,9 +452,9 @@ adv_loader = val_loader_advtrain
 
 ########### Model Architecture
 
-class BinaryCNNModel(nn.Module):
-    def __init__(self, input_channels=3, input_size=512):
-        super(BinaryCNNModel, self).__init__()
+class MultiClassCNNModel(nn.Module):
+    def __init__(self, input_channels=3, input_size=512, num_classes=2):
+        super(MultiClassCNNModel, self).__init__()
 
         self.conv1 = nn.Conv2d(input_channels, 32, kernel_size=3, stride=1, padding=1)
         self.relu1 = nn.ReLU()
@@ -467,16 +467,16 @@ class BinaryCNNModel(nn.Module):
         # Calculate the size of the fully-connected layer input based on the architecture and input size
         fc_input_size = 64 * (input_size // 4) * (input_size // 4)
 
-        self.fc = nn.Linear(fc_input_size, 1)  # Output 1 unit for binary classification
-        self.sigmoid = nn.Sigmoid()  # Sigmoid activation for binary classification
+        # Change the output size to num_classes
+        self.fc = nn.Linear(fc_input_size, num_classes)
 
     def forward(self, x):
         x = self.pool1(self.relu1(self.conv1(x)))
         x = self.pool2(self.relu2(self.conv2(x)))
         x = x.view(x.size(0), -1)  # Flatten the tensor before passing it to the fully-connected layer
-        output = self.sigmoid(self.fc(x))  # Apply sigmoid activation
+        output = self.fc(x)  # Linear layer with num_classes outputs
+        output = F.softmax(output, dim=1)  # Apply softmax activation along the second dimension
         return output
-
 
 
 import torch.optim as optim
@@ -510,7 +510,7 @@ test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
 
 
 # Initialize the binary classification model and move it to the GPU
-model = BinaryCNNModel().to(device)
+model = MultiClassCNNModel().to(device)
 # Iterate through model parameters
 for name, param in model.named_parameters():
     print(f"Parameter: {name}, Size: {param.size()}, Type: {param.dtype}")
