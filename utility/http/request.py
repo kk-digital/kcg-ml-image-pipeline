@@ -344,7 +344,7 @@ def http_get_completed_jobs_by_uuids(job_uuids):
     return None
 
 def http_get_tag_list():
-    url = SERVER_ADDRESS + "/tags"
+    url = SERVER_ADDRESS + "/tags/list-tag-definitions"
     try:
         response = requests.get(url)
 
