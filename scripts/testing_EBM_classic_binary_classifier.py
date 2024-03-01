@@ -545,7 +545,7 @@ for epoch in range(num_epochs):
         print("Class indices:", class_indices)
         # Print inputs and labels for debugging
         # print(f"Inputs: {images}")
-        print(f"Labels: {labels}")
+        #print(f"Labels: {labels}")
 
         optimizer.zero_grad()
         outputs = model(images)
