@@ -175,7 +175,7 @@ class ABRankingFcTrainingPipeline:
             init_image, latent= self.image_generator.generate_img2img(init_img=init_image,
                                                   image_embeds= latent.to(dtype=torch.float16))
             
-            clip_vector= self.get_image_features(init_image)
+            clip_vector= self.get_image_features(init_image).float()
             image_score = self.scoring_model.predict_clip(clip_vector).item() 
 
 
