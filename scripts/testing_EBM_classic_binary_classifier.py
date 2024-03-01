@@ -416,29 +416,29 @@ val_loader_set_cyber= data.DataLoader(val_set_cyber,batch_size=batchsize_x, shuf
 
 
 
-############ OOD
-oodset = SVHN(root='./data',  transform=transform, download=True)
-num_samples_ood = len(oodset)
-print("the number of ood samples is ", num_samples_ood)
-train_size_ood = int(0.8 * num_samples_ood)
-val_size_ood = num_samples_ood - train_size_ood
+# ############ OOD
+# oodset = SVHN(root='./data',  transform=transform, download=True)
+# num_samples_ood = len(oodset)
+# print("the number of ood samples is ", num_samples_ood)
+# train_size_ood = int(0.8 * num_samples_ood)
+# val_size_ood = num_samples_ood - train_size_ood
 
-train_set_ood, val_set_ood = random_split(oodset, [train_size_ood, val_size_ood])
-train_ood_loader = data.DataLoader(train_set_ood, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
-val_ood_loader = data.DataLoader(val_set_ood, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+# train_set_ood, val_set_ood = random_split(oodset, [train_size_ood, val_size_ood])
+# train_ood_loader = data.DataLoader(train_set_ood, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+# val_ood_loader = data.DataLoader(val_set_ood, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
 
 
-############### CIFAR
-cifarset = CIFAR10(root='./data',  transform=transform, download=True)
-num_samples_cifarset = len(cifarset)
-print("the number of ood samples is ", num_samples_cifarset)
-train_size_cifarset = int(0.8 * num_samples_cifarset)
-val_size_cifarset= num_samples_cifarset- train_size_cifarset
+# ############### CIFAR
+# cifarset = CIFAR10(root='./data',  transform=transform, download=True)
+# num_samples_cifarset = len(cifarset)
+# print("the number of ood samples is ", num_samples_cifarset)
+# train_size_cifarset = int(0.8 * num_samples_cifarset)
+# val_size_cifarset= num_samples_cifarset- train_size_cifarset
 
-train_set_cifarset, val_set_cifarset = random_split(cifarset, [train_size_cifarset, val_size_cifarset])
-train_cifarset_loader = data.DataLoader(train_set_cifarset, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
-val_cifarset_loader = data.DataLoader(val_set_cifarset, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+# train_set_cifarset, val_set_cifarset = random_split(cifarset, [train_size_cifarset, val_size_cifarset])
+# train_cifarset_loader = data.DataLoader(train_set_cifarset, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+# val_cifarset_loader = data.DataLoader(val_set_cifarset, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
 
 
