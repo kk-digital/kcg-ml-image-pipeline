@@ -529,7 +529,7 @@ for name, param in model.named_parameters():
     print(f"Parameter: {name}, Size: {param.size()}, Type: {param.dtype}")
 
 # Define loss function and optimizer
-criterion = nn.CrossEntropyLoss()
+criterion = nn.BCEWithLogitsLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.01)
 
 # Training loop
