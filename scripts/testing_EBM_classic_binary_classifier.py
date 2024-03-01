@@ -526,6 +526,8 @@ for epoch in range(num_epochs):
     model.train()
     for images, labels in train_loader:
         images, labels = images.to(device), labels.to(device)
+        print(f"Inputs: {images}")
+        print(f"Labels: {labels}")
         optimizer.zero_grad()
         outputs = model(images)
         loss = criterion(outputs, labels.float().view(-1, 1))
