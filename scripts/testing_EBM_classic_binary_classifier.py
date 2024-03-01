@@ -501,8 +501,8 @@ test_size = len(combined_dataset) - train_size
 train_dataset, test_dataset = random_split(combined_dataset, [train_size, test_size])
 
 # Create DataLoader for training and testing sets
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
 
 # Initialize the binary classification model
 model = BinaryCNNModel()
@@ -521,6 +521,7 @@ for epoch in range(num_epochs):
         loss = criterion(outputs, labels.float().view(-1, 1))
         loss.backward()
         optimizer.step()
+    print("Yep")
 
 # Evaluation loop
 model.eval()
