@@ -53,10 +53,10 @@ def get_tag_id_by_name(request: Request, tag_string: str = Query(..., descriptio
 @router.put("/tags/update-deprecated-status", 
             tags=["tags"],
             status_code=200,
-            description="update the 'deprecated' status of a tag definition.",
-            response_model=StandardSuccessResponseV1[TagDefinition],  
+            description="Update the 'deprecated' status of a tag definition.",
+            response_model=StandardSuccessResponseV1[TagDefinition],
             responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
-def update_tag_deprecated(request: Request, tag_id: int):
+def update_tag_deprecated_status(request: Request, tag_id: int, deprecated: bool):
     response_handler = ApiResponseHandlerV1(request)
 
     query = {"tag_id": tag_id}
@@ -68,22 +68,27 @@ def update_tag_deprecated(request: Request, tag_id: int):
             error_string="Tag not found.", 
             http_status_code=404,
         )
-
-    # Determine the new 'deprecated' status by inverting the current one
-    new_deprecated_status = not existing_tag.get("deprecated", False)
+    
+    if existing_tag.get("deprecated", False) == deprecated:
+        # If the existing 'deprecated' status matches the input, return a message indicating no change
+        message = "The 'deprecated' status for tag_id {} is already set to {}.".format(tag_id, deprecated)
+        return response_handler.create_success_response_v1(
+            response_data={"message": message}, 
+            http_status_code=200,
+        )
 
     # Update the 'deprecated' status of the tag
-    request.app.tag_definitions_collection.update_one(query, {"$set": {"deprecated": new_deprecated_status}})
+    request.app.tag_definitions_collection.update_one(query, {"$set": {"deprecated": deprecated}})
 
     # Retrieve the updated tag to confirm the change
     updated_tag = request.app.tag_definitions_collection.find_one(query)
 
-    # Serialize ObjectId to string if necessary
+    # Serialize ObjectId to string if necessary and prepare the response
     updated_tag = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_tag.items()}
 
-    # Return the updated tag object, indicating the deprecation status has been toggled
+    # Return the updated tag object with a success message
     return response_handler.create_success_response_v1(
-        response_data=updated_tag, 
+        response_data= updated_tag,
         http_status_code=200,
     )
 
@@ -621,10 +626,10 @@ def get_tagged_images(
 @router.put("/tag-categories/update-deprecated-status",  
             tags=["tag-categories"],
             status_code=200,
-            description="set the 'deprecated' status of a tag category.",
-            response_model=StandardSuccessResponseV1[TagCategory],  
+            description="Set the 'deprecated' status of a tag category.",
+            response_model=StandardSuccessResponseV1[TagCategory],
             responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
-def update_tag_category_deprecated(request: Request, tag_category_id: int):
+def update_tag_category_deprecated_status(request: Request, tag_category_id: int, deprecated: bool = Body(...)):
     response_handler = ApiResponseHandlerV1(request)
 
     query = {"tag_category_id": tag_category_id}
@@ -636,22 +641,27 @@ def update_tag_category_deprecated(request: Request, tag_category_id: int):
             error_string="Tag category not found.", 
             http_status_code=404,
         )
-
-    # Determine the new 'deprecated' status by inverting the current one
-    new_deprecated_status = not existing_tag_category.get("deprecated", False)
+    
+    if existing_tag_category.get("deprecated", False) == deprecated:
+        # If the existing 'deprecated' status matches the input, return a message indicating no change
+        message = "The 'deprecated' status for tag_category_id {} is already set to {}.".format(tag_category_id, deprecated)
+        return response_handler.create_success_response_v1(
+            response_data={"message": message}, 
+            http_status_code=200,
+        )
 
     # Update the 'deprecated' status of the tag category
-    request.app.tag_categories_collection.update_one(query, {"$set": {"deprecated": new_deprecated_status}})
+    request.app.tag_categories_collection.update_one(query, {"$set": {"deprecated": deprecated}})
 
     # Retrieve the updated tag category to confirm the change
     updated_tag_category = request.app.tag_categories_collection.find_one(query)
 
-    # Serialize ObjectId to string if necessary
+    # Serialize ObjectId to string if necessary and prepare the response
     updated_tag_category = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_tag_category.items()}
 
-    # Return the updated tag category object indicating the deprecation status has been toggled
+    # Return the updated tag category object with a success message
     return response_handler.create_success_response_v1(
-        response_data=updated_tag_category, 
+        response_data= updated_tag_category, 
         http_status_code=200,
     )
 
@@ -1069,6 +1079,58 @@ def list_tag_definitions(request: Request):
                                                          error_string="Internal server error",
                                                          http_status_code=500,
                                                          )
+
+
+@router.get("/tags/get-tag-list-for-image-v1", 
+            response_model=StandardSuccessResponseV1[List[TagDefinition]], 
+            description="Get tag list for image",
+            tags=["tags"],
+            status_code=200,
+            responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
+def get_tag_list_for_image_v1(request: Request, file_hash: str):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        # Fetch image tags based on image_hash
+        image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash})
+        
+        # Process the results
+        tags_list = []
+        for tag_data in image_tags_cursor:
+            # Find the tag definition
+            tag_definition = request.app.tag_definitions_collection.find_one({"tag_id": tag_data["tag_id"]})
+            if tag_definition:
+                # Find the tag category and determine if it's deprecated
+                category = request.app.tag_categories_collection.find_one({"tag_category_id": tag_definition.get("tag_category_id")})
+                deprecated_tag_category = category['deprecated'] if category else False
+                
+                # Create a dictionary representing TagDefinition with tag_type and deprecated_tag_category
+                tag_definition_dict = {
+                    "tag_id": tag_definition["tag_id"],
+                    "tag_string": tag_definition["tag_string"],
+                    "tag_type": tag_data.get("tag_type"),
+                    "tag_category_id": tag_definition.get("tag_category_id"),
+                    "tag_description": tag_definition["tag_description"],
+                    "tag_vector_index": tag_definition.get("tag_vector_index", -1),
+                    "deprecated": tag_definition.get("deprecated", False),
+                    "deprecated_tag_category": deprecated_tag_category,
+                    "user_who_created": tag_definition["user_who_created"],
+                    "creation_time": tag_definition.get("creation_time", None)
+                }
+
+                tags_list.append(tag_definition_dict)
+        
+        # Return the list of tags including 'deprecated_tag_category'
+        return response_handler.create_success_response_v1(
+            response_data=tags_list,
+            http_status_code=200,
+        )
+    except Exception as e:
+        # Optional: Log the exception details here
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )
 
 
 @router.put("/tags/set-vector-index", 
