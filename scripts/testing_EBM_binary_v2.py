@@ -219,15 +219,15 @@ def data_augmentation(images_tensor, num_of_passes):
 
             # New Augments
                 
-            # # Apply contrast transformation
-            # random_contrast = random.random()
-            # if random_contrast < prob_contrast:
-            #     transformed_img = transforms.ColorJitter(contrast=(0.5, 1.5))(transformed_img)
+            # Apply contrast transformation
+            random_contrast = random.random()
+            if random_contrast < prob_contrast:
+                transformed_img = transforms.ColorJitter(contrast=(0.5, 1.5))(transformed_img)
 
-            # # Apply brightness transformation
-            # random_brightness = random.random()
-            # if random_brightness < prob_brightness:
-            #     transformed_img = transforms.ColorJitter(brightness=(0.2, 2))(transformed_img)
+            # Apply brightness transformation
+            random_brightness = random.random()
+            if random_brightness < prob_brightness:
+                transformed_img = transforms.ColorJitter(brightness=(0.2, 2))(transformed_img)
 
 
 
