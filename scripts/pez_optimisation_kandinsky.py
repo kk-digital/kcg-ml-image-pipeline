@@ -22,8 +22,8 @@ from transformers import CLIPImageProcessor
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
-from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
 from kandinsky.models.kandisky import KandinskyPipeline
+from training_worker.ab_ranking.model.ab_ranking_fc import ABRankingFCNetwork
 from utility.minio import cmd
 from data_loader.utils import get_object
 
@@ -97,9 +97,12 @@ class KandinskyImageGenerator:
         self.image_encoder= self.image_generator.image_encoder
 
         # load scoring model
-        self.scoring_model= self.load_scoring_model()
-        self.mean= float(self.scoring_model.mean)
-        self.std= float(self.scoring_model.standard_deviation)
+        # self.scoring_model= self.load_scoring_model()
+        # self.mean= float(self.scoring_model.mean)
+        # self.std= float(self.scoring_model.standard_deviation)
+
+        self.scoring_model= ABRankingFCNetwork(minio_client=self.minio_client)
+        self.scoring_model.load_model()
 
         self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
         print(self.clip_mean, self.clip_std)
@@ -168,7 +171,7 @@ class KandinskyImageGenerator:
         embeddings=[]
         for embed in clipped_embeddings:
             embeddings.append(embed.unsqueeze(0))
-            score = self.scoring_model.predict_clip(embed.unsqueeze(0)).item() 
+            score = self.scoring_model(embed.unsqueeze(0)).item() 
             scores.append(score)
         
         # Find the index of the highest scoring embedding
@@ -196,9 +199,9 @@ class KandinskyImageGenerator:
         return features
 
     def generate_latent(self):
-        features_data = get_object(self.minio_client, "environmental/0435/434997_clip_kandinsky.msgpack")
-        features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
-        image_embedding= torch.tensor(features_vector).to(device=self.device, dtype=torch.float32)
+        # features_data = get_object(self.minio_client, "environmental/0435/434997_clip_kandinsky.msgpack")
+        # features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
+        # image_embedding= torch.tensor(features_vector).to(device=self.device, dtype=torch.float32)
         
         random.seed(time.time())
         seed = random.randint(0, 2 ** 24 - 1)
@@ -206,7 +209,7 @@ class KandinskyImageGenerator:
         init_image = Image.open("./test/test_inpainting/white_512x512.jpg")
         df_data=[]
         sampled_embedding= self.sample_embedding()
-        optimized_embedding = image_embedding.clone().detach().requires_grad_(True)
+        optimized_embedding = sampled_embedding.clone().detach().requires_grad_(True)
 
         # Setup the optimizer
         optimizer = optim.Adam([optimized_embedding], lr=self.learning_rate)
@@ -214,29 +217,30 @@ class KandinskyImageGenerator:
         for step in range(self.steps):
             optimizer.zero_grad()
 
-            init_image, latent= self.image_generator.generate_img2img(init_img=init_image,
-                                                  image_embeds= optimized_embedding.to(dtype=torch.float16),
-                                                  seed=seed
-                                                  )
+            # init_image, latent= self.image_generator.generate_img2img(init_img=init_image,
+            #                                       image_embeds= optimized_embedding.to(dtype=torch.float16),
+            #                                       seed=seed
+            #                                       )
             
-            clip_vector= self.get_image_features(init_image)
+            # clip_vector= self.get_image_features(init_image)
 
             # Calculate the custom score
-            inputs = optimized_embedding.reshape(len(optimized_embedding), -1)
-            score = self.scoring_model.model.forward(inputs).squeeze()
-            sigma_score= (score - self.mean) / self.std
+            score = self.scoring_model(optimized_embedding)
+            # inputs = optimized_embedding.reshape(len(optimized_embedding), -1)
+            # score = self.scoring_model.model.forward(inputs).squeeze()
+            # sigma_score= (score - self.mean) / self.std
 
             # Custom loss function
             # Original loss based on the scoring function
-            clip_vector = clip_vector.float() 
-            # Compute cosine similarity
-            cosine_sim = torch.nn.functional.cosine_similarity(clip_vector, optimized_embedding, dim=1)
-            # Cosine similarity loss (we subtract from 1 to make it a quantity to minimize)
-            cosine_loss = 1 - cosine_sim.mean()
+            # clip_vector = clip_vector.float() 
+            # # Compute cosine similarity
+            # cosine_sim = torch.nn.functional.cosine_similarity(clip_vector, optimized_embedding, dim=1)
+            # # Cosine similarity loss (we subtract from 1 to make it a quantity to minimize)
+            # cosine_loss = 1 - cosine_sim.mean()
             score_loss =  self.target_score - score
             
             # Total loss
-            total_loss = score_loss + (self.penalty_weight * cosine_loss)
+            total_loss = score_loss
 
             if self.send_job and (step % self.generate_step == 0):
                 try:
@@ -257,7 +261,6 @@ class KandinskyImageGenerator:
                 df_data.append({
                     'task_uuid': task_uuid,
                     'score': score.item(),
-                    'sigma_score': sigma_score.item(),
                     'step': step,
                     'generation_policy_string': "pez_optimization",
                     'time': task_time
@@ -296,8 +299,7 @@ class KandinskyImageGenerator:
         
             df_data.append({
                 'task_uuid': task_uuid,
-                'score': score,
-                'sigma_score': sigma_score,
+                'score': score.item(),
                 'step': step,
                 'generation_policy_string': "pez_optimization",
                 'time': task_time
