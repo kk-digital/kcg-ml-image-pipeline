@@ -505,7 +505,7 @@ train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
 
 # Initialize the binary classification model
-model = BinaryCNNModel()
+model = BinaryCNNModel().to(device)
 
 # Define loss function and optimizer
 criterion = nn.BCELoss()
@@ -516,6 +516,8 @@ num_epochs = 10
 for epoch in range(num_epochs):
     model.train()
     for images, labels in train_loader:
+        images.to(device)
+        labels.to(device)
         optimizer.zero_grad()
         outputs = model(images)
         loss = criterion(outputs, labels.float().view(-1, 1))
@@ -531,6 +533,8 @@ all_confidences = []
 
 with torch.no_grad():
     for images, labels in test_loader:
+        images.to(device)
+        labels.to(device)
         outputs = model(images)
         predictions = (outputs > 0.5).float()  # Convert probabilities to binary predictions
         confidence = outputs.squeeze().numpy()  # Confidence scores
