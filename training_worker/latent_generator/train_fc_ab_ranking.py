@@ -172,7 +172,7 @@ class ABRankingFcTrainingPipeline:
         for i in range(0, len(latents), self.batch_size):
             # Prepare the batch
             latent_batch = latents[i:i + self.batch_size]
-            latent_batch_tensor = torch.stack(latent_batch).to(self.scoring_model.device).half()  # Ensure correct device and dtype
+            latent_batch_tensor = torch.stack(latent_batch).to(self.device).half()  # Ensure correct device and dtype
             
             # Process batch through image generator and feature extraction
             # Adjust generate_img2img and get_image_features to accept and return batches
