@@ -176,10 +176,10 @@ class ABRankingFcTrainingPipeline:
             
             # Process batch through image generator and feature extraction
             # Adjust generate_img2img and get_image_features to accept and return batches
-            init_images, _ = self.image_generator.generate_img2img_in_batches(init_img=init_image_batch,
+            output_images, _ = self.image_generator.generate_img2img_in_batches(init_imgs=init_image_batch,
                                                                 image_embeds=latent_batch_tensor,
                                                                 batch_size= self.batch_size)
-            clip_vectors = self.get_image_features(init_images).float()  # Assuming this returns a batch of vectors
+            clip_vectors = self.get_image_features(output_images).float()  # Assuming this returns a batch of vectors
             
             # Iterate through the batch for scoring (since scoring model processes one item at a time)
             for j, (latent, clip_vector) in enumerate(zip(latent_batch_tensor, clip_vectors)):
