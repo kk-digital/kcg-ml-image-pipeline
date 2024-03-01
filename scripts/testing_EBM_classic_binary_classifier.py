@@ -518,7 +518,7 @@ criterion = nn.BCEWithLogitsLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # Training loop
-num_epochs = 15
+num_epochs = 1
 for epoch in range(num_epochs):
     model.train()
     for images, labels in train_loader:
