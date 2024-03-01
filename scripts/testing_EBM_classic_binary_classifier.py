@@ -522,28 +522,32 @@ optimizer = optim.Adam(model.parameters(), lr=0.01)
 
 # Training loop
 num_epochs = 15
+
 for epoch in range(num_epochs):
     model.train()
     for images, labels in train_loader:
-        images, labels = images.to(device), labels.to(device)
+        images = images.to(device)
+        labels = labels.to(device)
+
+        # Print inputs and labels for debugging
         # print(f"Inputs: {images}")
         # print(f"Labels: {labels}")
+
         optimizer.zero_grad()
         outputs = model(images)
-        loss = criterion(outputs, labels.float().view(-1, 1))
-        loss.backward()
-        # Print gradients for debugging
-        for name, param in model.named_parameters():
-            if param.grad is not None:
-                print(f"Gradient - {name}: {param.grad.mean()}")
 
+        # Print outputs for debugging
+        print(f"Outputs: {outputs}")
+
+        loss = criterion(outputs, labels.float().view(-1, 1))
+
+        # Print loss for debugging
+        print(f"Loss: {loss.item()}")
+
+        loss.backward()
         optimizer.step()
 
-
-        # print(f"Outputs: {outputs}")
-        # print(f"Labels: {labels}")
-        # print(f"Loss: {loss.item()}")
-    print("Epoch [{}/{}], Loss: {:.4f}".format(epoch+1, num_epochs, loss.item()))
+    print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {loss.item()}")
 
 # Evaluation loop
 model.eval()
