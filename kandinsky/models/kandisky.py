@@ -259,6 +259,46 @@ class KandinskyPipeline:
                 )
         
         return images[0], latents
+    
+    def generate_img2img_in_batches(
+        self,
+        init_imgs,
+        image_embeds,
+        batch_size,
+        negative_image_embeds=None,
+        seed=None
+    ):
+        height, width = self.get_new_h_w(self.height, self.width)
+        if negative_image_embeds==None:
+            negative_image_embeds= self.get_zero_embed(batch_size=batch_size)
+        
+        with torch.no_grad():
+            if seed:
+                generator=torch.Generator(device=self.device).manual_seed(seed)
+                images, latents = self.decoder(
+                    image=init_imgs,
+                    image_embeds=image_embeds,
+                    negative_image_embeds= negative_image_embeds, 
+                    guidance_scale=self.decoder_guidance_scale,
+                    num_inference_steps=self.decoder_steps,
+                    height=height,
+                    width=width,
+                    strength= self.strength,
+                    generator= generator
+                )
+            else:
+                images, latents = self.decoder(
+                    image=init_imgs,
+                    image_embeds=image_embeds,
+                    negative_image_embeds= negative_image_embeds, 
+                    guidance_scale=self.decoder_guidance_scale,
+                    num_inference_steps=self.decoder_steps,
+                    height=height,
+                    width=width,
+                    strength= self.strength
+                )
+        
+        return images, latents
   
     def generate_img2img_inpainting(
         self,

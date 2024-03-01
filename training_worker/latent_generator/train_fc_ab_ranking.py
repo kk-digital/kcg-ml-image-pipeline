@@ -35,7 +35,7 @@ def parse_args():
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
     parser.add_argument('--model-type', type=str, help='model type, linear or elm', default="linear")
-    parser.add_argument('--batch-size', type=int, default=256)
+    parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--construct-dataset', action='store_true', default=False)
 
     return parser.parse_args()
@@ -46,7 +46,7 @@ class ABRankingFcTrainingPipeline:
                     minio_secret_key,
                     dataset,
                     model_type,
-                    batch_size=256):
+                    batch_size=32):
         
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
@@ -70,7 +70,7 @@ class ABRankingFcTrainingPipeline:
 
         # load kandinsky's autoencoder
         self.image_generator= KandinskyPipeline(device= self.device, strength=0.75, decoder_guidance_scale=12,
-                                                decoder_steps=100)
+                                                decoder_steps=50)
         self.image_generator.load_models(task_type="img2img")
 
         self.image_encoder= self.image_generator.image_encoder
@@ -149,11 +149,11 @@ class ABRankingFcTrainingPipeline:
     
     def get_image_features(self, image):
         # Preprocess image
-        if isinstance(image, Image.Image):
+        if isinstance(image, Image.Image, list[Image.Image]):
             image = self.image_processor(image, return_tensors="pt")['pixel_values']
         
          # Compute CLIP features
-        if isinstance(image, torch.Tensor):
+        if isinstance(image, torch.Tensor, list[torch.Tensor]):
             with torch.no_grad():
                 features = self.image_encoder(pixel_values= image.half().to(self.device)).image_embeds
         else:
@@ -163,30 +163,37 @@ class ABRankingFcTrainingPipeline:
         
         return features
 
-    def construct_dataset(self, num_samples=100000):
+    def construct_dataset(self, num_samples=10000):
         # generate latents
         latents= self.sample_random_latents(num_samples=num_samples)
         training_data=[]
-        init_image = Image.open("./test/test_inpainting/white_512x512.jpg")
+        init_image_batch = [Image.open("./test/test_inpainting/white_512x512.jpg") for i in range(self.batch_size)]
 
-        for latent in latents:
-            input_clip_score = self.scoring_model.predict_clip(latent).item() 
-
-            init_image, latent= self.image_generator.generate_img2img(init_img=init_image,
-                                                  image_embeds= latent.to(dtype=torch.float16))
+        for i in range(0, len(latents), self.batch_size):
+            # Prepare the batch
+            latent_batch = latents[i:i + self.batch_size]
+            latent_batch_tensor = torch.stack(latent_batch).to(self.scoring_model.device).half()  # Ensure correct device and dtype
             
-            clip_vector= self.get_image_features(init_image).float()
-            image_score = self.scoring_model.predict_clip(clip_vector).item() 
+            # Process batch through image generator and feature extraction
+            # Adjust generate_img2img and get_image_features to accept and return batches
+            init_images, _ = self.image_generator.generate_img2img_in_batches(init_img=init_image_batch,
+                                                                image_embeds=latent_batch_tensor,
+                                                                batch_size= self.batch_size)
+            clip_vectors = self.get_image_features(init_images).float()  # Assuming this returns a batch of vectors
+            
+            # Iterate through the batch for scoring (since scoring model processes one item at a time)
+            for j, (latent, clip_vector) in enumerate(zip(latent_batch_tensor, clip_vectors)):
+                input_clip_score = self.scoring_model.predict_clip(latent.float()).item()  # Convert back if necessary
+                image_score = self.scoring_model.predict_clip(clip_vector).item()
 
+                data = {
+                    'input_clip': latent.detach().cpu().numpy().tolist(),
+                    'input_clip_score': input_clip_score,
+                    'output_clip_score': image_score,
+                }
 
-            data={
-                'input_clip': latent.detach().cpu().numpy().tolist(),
-                'input_clip_score': input_clip_score,
-                'output_clip_score': image_score,
-            }
+                training_data.append(data)
 
-            training_data.append(data)
-        
         self.store_training_data(training_data)
 
     def train(self):
@@ -215,7 +222,7 @@ class ABRankingFcTrainingPipeline:
             outputs.extend(self_training_outputs)
         
         # training and saving the model
-        loss=self.model.train(inputs, outputs, batch_size=self.batch_size)
+        loss=self.model.train(inputs, outputs)
         self.model.save_model()
     
     def load_self_training_data(self, data):
