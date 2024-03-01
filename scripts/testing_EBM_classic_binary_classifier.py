@@ -540,9 +540,9 @@ for epoch in range(num_epochs):
         optimizer.step()
 
 
-        print(f"Outputs: {outputs}")
-        print(f"Labels: {labels}")
-        print(f"Loss: {loss.item()}")
+        # print(f"Outputs: {outputs}")
+        # print(f"Labels: {labels}")
+        # print(f"Loss: {loss.item()}")
     print("Epoch [{}/{}], Loss: {:.4f}".format(epoch+1, num_epochs, loss.item()))
 
 # Evaluation loop
