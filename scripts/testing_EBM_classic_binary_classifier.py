@@ -518,7 +518,7 @@ for name, param in model.named_parameters():
 
 # Define loss function and optimizer
 criterion = nn.BCEWithLogitsLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+optimizer = optim.Adam(model.parameters(), lr=0.01)
 
 # Training loop
 num_epochs = 15
