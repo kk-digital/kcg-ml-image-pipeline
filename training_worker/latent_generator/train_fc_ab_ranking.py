@@ -149,11 +149,11 @@ class ABRankingFcTrainingPipeline:
     
     def get_image_features(self, image):
         # Preprocess image
-        if isinstance(image, Image.Image) or isinstance(image, list[Image.Image]):
+        if isinstance(image, Image.Image) or isinstance(image, list):
             image = self.image_processor(image, return_tensors="pt")['pixel_values']
         
          # Compute CLIP features
-        if isinstance(image, torch.Tensor) or isinstance(image, list[torch.Tensor]):
+        if isinstance(image, torch.Tensor) or isinstance(image, list):
             with torch.no_grad():
                 features = self.image_encoder(pixel_values= image.half().to(self.device)).image_embeds
         else:
