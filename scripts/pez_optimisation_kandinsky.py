@@ -209,7 +209,7 @@ class KandinskyImageGenerator:
         init_image = Image.open("./test/test_inpainting/white_512x512.jpg")
         df_data=[]
         sampled_embedding= self.sample_embedding()
-        optimized_embedding = sampled_embedding.clone().detach().requires_grad_(True)
+        optimized_embedding = self.clip_mean.clone().detach().requires_grad_(True)
 
         # Setup the optimizer
         optimizer = optim.Adam([optimized_embedding], lr=self.learning_rate)
