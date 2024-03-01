@@ -145,9 +145,6 @@ class ABRankingFcTrainingPipeline:
         for embed in sampled_embeddings:
             latents.append(embed)
         
-        print(embed)
-        print(embed.shape)
-        
         return latents
     
     def get_image_features(self, image):
@@ -176,7 +173,7 @@ class ABRankingFcTrainingPipeline:
             input_clip_score = self.scoring_model.predict_clip(latent).item() 
 
             init_image, latent= self.image_generator.generate_img2img(init_img=init_image,
-                                                  image_embeds= input_clip_score,
+                                                  image_embeds= latent,
                                                   )
             
             clip_vector= self.get_image_features(init_image)
