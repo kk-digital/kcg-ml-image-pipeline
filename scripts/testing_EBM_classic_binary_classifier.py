@@ -244,16 +244,16 @@ def get_dataset_from_id(id_class,data_augment_passes,label_value):
     # label_value = label_value
     # labels_occult = [label_value] * len(ocult_images)
     if label_value == 1:
-        label_value = [1,0]
+        label_value = torch.tensor([1, 0], dtype=torch.float32)
     else:
-        label_value = [0,1]
+        label_value = torch.tensor([0, 1], dtype=torch.float32)
 
-    labels_tensor = torch.tensor(label_value)
+
 
 
     data_occcult = []
     for image in ocult_images:
-        data_occcult.append((image, labels_tensor))
+        data_occcult.append((image, label_value))
 
     ocult_images = data_occcult
     num_samples_ocult = len(ocult_images)
@@ -297,14 +297,14 @@ def get_combined_adv_dataset_from_id_array(id_classes,data_augment_passes,label_
     labels_occult = [label_value] * len(ocult_images)
 
     if label_value == 1:
-        label_value = [1,0]
+        label_value = torch.tensor([1, 0], dtype=torch.float32)
     else:
-        label_value = [0,1]
+        label_value = torch.tensor([0, 1], dtype=torch.float32)
 
-    labels_tensor = torch.tensor(label_value)
+
     data_occcult = []
     for image in ocult_images:
-        data_occcult.append((image, labels_tensor))
+        data_occcult.append((image, label_value))
 
     ocult_images = data_occcult
     num_samples_ocult = len(ocult_images)
