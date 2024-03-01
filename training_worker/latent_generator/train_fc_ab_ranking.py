@@ -29,14 +29,16 @@ from data_loader.utils import get_object
 DATA_MINIO_DIRECTORY="data/latent-generator"
 
 def parse_args():
-        parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser()
 
-        parser.add_argument('--minio-access-key', type=str, help='Minio access key')
-        parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
-        parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
-        parser.add_argument('--model-type', type=str, help='model type, linear or elm', default="linear")
-        parser.add_argument('--batch-size', type=int, default=256)
-        parser.add_argument('--construct-dataset', action='store_true', default=False)
+    parser.add_argument('--minio-access-key', type=str, help='Minio access key')
+    parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
+    parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
+    parser.add_argument('--model-type', type=str, help='model type, linear or elm', default="linear")
+    parser.add_argument('--batch-size', type=int, default=256)
+    parser.add_argument('--construct-dataset', action='store_true', default=False)
+
+    return parser.parse_args()
 
 class ABRankingFcTrainingPipeline:
     def __init__(self,
