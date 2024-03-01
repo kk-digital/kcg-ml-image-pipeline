@@ -175,7 +175,7 @@ def upload_data_and_update_job_status(job, output_file_path, output_file_hash, d
 
     cmd.upload_data(minio_client, bucket_name, file_path, data)
     print("Generated image path", bucket_name, file_path)
-    
+
     info_v2("Upload for job {} completed".format(job["uuid"]))
     info_v2("Upload time elapsed: {:.4f}s".format(time.time() - start_time))
 
@@ -405,7 +405,7 @@ def main():
     worker_type_list = get_worker_type_list(args.worker_type)
 
     # Initialize worker state
-    worker_state = WorkerState(args.device, "v048BpXpWrsVIHUfdAix", "4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu", queue_size)
+    worker_state = WorkerState(args.device, args.minio_access_key, args.minio_secret_key, queue_size)
     # Loading models
     worker_state.load_models()
 
