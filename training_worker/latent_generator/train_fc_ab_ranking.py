@@ -68,7 +68,7 @@ class ABRankingFcTrainingPipeline:
 
         # load kandinsky's autoencoder
         self.image_generator= KandinskyPipeline(device= self.device, strength=0.75, decoder_guidance_scale=12,
-                                                decoder_steps=100, batch_size=self.batch_size)
+                                                decoder_steps=100)
         self.image_generator.load_models(task_type="img2img")
 
         self.image_encoder= self.image_generator.image_encoder
