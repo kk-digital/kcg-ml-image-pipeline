@@ -293,7 +293,6 @@ def main():
 
     training_pipeline=ABRankingFcTrainingPipeline(minio_access_key=args.minio_access_key,
                                 minio_secret_key=args.minio_secret_key,
-                                minio_ip_addr=args.minio_addr,
                                 dataset= args.dataset,
                                 model_type=args.model_type,
                                 batch_size=args.batch_size)
