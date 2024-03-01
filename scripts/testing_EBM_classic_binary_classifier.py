@@ -541,6 +541,8 @@ for epoch in range(num_epochs):
         images = images.to(device)
         labels = labels.to(device)
 
+        class_indices = torch.argmax(labels, dim=1)
+        print("Class indices:", class_indices)
         # Print inputs and labels for debugging
         # print(f"Inputs: {images}")
         print(f"Labels: {labels}")
