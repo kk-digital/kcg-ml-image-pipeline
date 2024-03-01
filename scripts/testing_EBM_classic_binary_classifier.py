@@ -551,7 +551,7 @@ for epoch in range(num_epochs):
         outputs = model(images)
 
         # Print outputs for debugging
-        print(f"Outputs: {outputs}")
+        #print(f"Outputs: {outputs}")
 
         # BCEWithLogitsLoss doesn't require one-hot encoding
         loss = criterion(outputs, labels)
