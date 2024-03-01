@@ -504,8 +504,14 @@ train_dataset, test_dataset = random_split(combined_dataset, [train_size, test_s
 train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
 
+
+
+
+
 # Initialize the binary classification model and move it to the GPU
 model = BinaryCNNModel().to(device)
+from torchsummary import summary
+summary(model, input_size=(3, 512, 512))  # Adjust input size based on your images
 
 # Define loss function and optimizer
 criterion = nn.BCEWithLogitsLoss()
