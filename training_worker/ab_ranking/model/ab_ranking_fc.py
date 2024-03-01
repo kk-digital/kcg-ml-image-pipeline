@@ -272,6 +272,8 @@ class ABRankingFCNetwork(nn.Module):
         axs[0][0].set_xlabel('Rounds')
         axs[0][0].legend(['Training loss', 'Validation loss'])
         
+        print(predicted_values)
+
         # Scatter Plot of actual values vs predicted values
         axs[0][1].scatter(predicted_values, actual_values, color='green', alpha=0.5)
         axs[0][1].set_title('Predicted values vs actual values')
