@@ -194,8 +194,6 @@ class ABRankingFcTrainingPipeline:
                 }
 
                 training_data.append(data)
-            
-            break
 
         self.store_training_data(training_data)
 
