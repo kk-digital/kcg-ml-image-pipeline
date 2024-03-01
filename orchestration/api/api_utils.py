@@ -198,8 +198,8 @@ class StandardErrorResponseV1(BaseModel):
     request_dictionary: dict 
     request_method: str
     request_time_total: float
-    request_time_start: datetime 
-    request_time_finished: datetime
+    request_time_start: str 
+    request_time_finished: str
     request_response_code: int 
 
      
