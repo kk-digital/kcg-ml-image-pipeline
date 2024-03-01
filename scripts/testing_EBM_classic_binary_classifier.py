@@ -543,7 +543,7 @@ for epoch in range(num_epochs):
 
         # Print inputs and labels for debugging
         # print(f"Inputs: {images}")
-        # print(f"Labels: {labels}")
+        print(f"Labels: {labels}")
 
         optimizer.zero_grad()
         outputs = model(images)
@@ -551,8 +551,8 @@ for epoch in range(num_epochs):
         # Print outputs for debugging
         print(f"Outputs: {outputs}")
 
+        # BCEWithLogitsLoss doesn't require one-hot encoding
         loss = criterion(outputs, labels.float().view(-1, 1))
-
         # Print loss for debugging
         print(f"Loss: {loss.item()}")
 
