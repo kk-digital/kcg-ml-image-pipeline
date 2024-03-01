@@ -55,6 +55,8 @@ def train_ranking(dataset_name: str,
     input_shape = 2 * 768
     if input_type in [constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE, constants.CLIP]:
         input_shape = 768
+    if input_type in [constants.KANDINSKY_CLIP]:
+        input_shape = 1280
 
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name=dataset_name,

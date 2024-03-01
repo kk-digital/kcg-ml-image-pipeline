@@ -198,10 +198,7 @@ def remove_pseudo_tag(request: Request, pseudo_tag_id: int):
 
     if tag is None:
         # Return standard response with wasPresent: false
-       return response_handler.create_success_delete_response_v1(
-                                                            {"wasPresent": False},
-                                                           http_status_code=200,
-                                                           )
+        return response_handler.create_success_delete_response({"wasPresent": False})
 
     # Check if the tag is used in any images
     image_query = {"pseudo_tag_id": pseudo_tag_id}
@@ -611,10 +608,7 @@ def delete_pseudo_tag_category(request: Request, pseudo_tag_category_id: int):
 
     if category is None:
         # Return standard response with wasPresent: false
-        return response_handler.create_success_delete_response_v1(
-                                                           {"wasPresent": False},
-                                                           http_status_code=200,
-                                                           )
+        return response_handler.create_success_delete_response({"wasPresent": False})
 
     # Check if the tag category is used in any tags
     tag_query = {"pseudo_tag_category_id": pseudo_tag_category_id}
@@ -632,11 +626,10 @@ def delete_pseudo_tag_category(request: Request, pseudo_tag_category_id: int):
     request.app.pseudo_tag_categories_collection.delete_one(category_query)
 
     # Return standard response with wasPresent: true
-    return response_handler.create_success_delete_response_v1(
-                                                           {"wasPresent": False},
-                                                           http_status_code=200,
-                                                           )
-@router.get("/pseudotag-categories/list-pseudo-tag-categories", 
+    return response_handler.create_success_delete_response({"wasPresent": True})
+
+
+@router.get("/pseudotag-categories", 
             tags=["pseudotag-categories"], 
             description="List pseudo tag categories",
             status_code=200,

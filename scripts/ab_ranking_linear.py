@@ -18,7 +18,7 @@ def parse_arguments():
     parser.add_argument('--dataset-name', type=str,
                         help="The dataset name to use for training, use 'all' to train models for all datasets",
                         default='environmental')
-    parser.add_argument('--input-type', type=str, default="kandinsky-clip")
+    parser.add_argument('--input-type', type=str, default="embedding")
     parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--learning-rate', type=float, default=0.01)
     parser.add_argument('--train-percent', type=float, default=0.9)
