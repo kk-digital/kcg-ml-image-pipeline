@@ -510,9 +510,10 @@ test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
 
 # Initialize the binary classification model and move it to the GPU
 model = BinaryCNNModel().to(device)
-from torchsummary import summary
-summary(model, input_size=(3, 512, 512))  # Adjust input size based on your images
-
+# Iterate through model parameters
+for name, param in model.named_parameters():
+    print(f"Parameter: {name}, Size: {param.size()}, Type: {param.dtype}")
+    
 # Define loss function and optimizer
 criterion = nn.BCEWithLogitsLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
