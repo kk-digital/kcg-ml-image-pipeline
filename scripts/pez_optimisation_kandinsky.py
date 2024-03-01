@@ -96,10 +96,10 @@ class KandinskyImageGenerator:
 
         self.image_encoder= self.image_generator.image_encoder
 
-        # load scoring model
-        # self.scoring_model= self.load_scoring_model()
-        # self.mean= float(self.scoring_model.mean)
-        # self.std= float(self.scoring_model.standard_deviation)
+        # load ranking model
+        self.ranking_model= self.load_scoring_model()
+        self.mean= float(self.ranking_model.mean)
+        self.std= float(self.ranking_model.standard_deviation)
 
         self.scoring_model= ABRankingFCNetwork(minio_client=self.minio_client)
         self.scoring_model.load_model()
@@ -158,7 +158,7 @@ class KandinskyImageGenerator:
 
         return scoring_model
     
-    def sample_embedding(self, num_samples=10000):
+    def sample_embedding(self, num_samples=1000):
         sampled_embeddings = torch.normal(mean=self.clip_mean.repeat(num_samples, 1),
                                       std=self.clip_std.repeat(num_samples, 1))
     
@@ -171,7 +171,7 @@ class KandinskyImageGenerator:
         embeddings=[]
         for embed in clipped_embeddings:
             embeddings.append(embed.unsqueeze(0))
-            score = self.scoring_model.model(embed.unsqueeze(0)).item() 
+            score = self.ranking_model.model(embed.unsqueeze(0)).item() 
             scores.append(score)
         
         # Find the index of the highest scoring embedding
@@ -225,10 +225,11 @@ class KandinskyImageGenerator:
             # clip_vector= self.get_image_features(init_image)
 
             # Calculate the custom score
-            score = self.scoring_model.model(optimized_embedding)
-            # inputs = optimized_embedding.reshape(len(optimized_embedding), -1)
-            # score = self.scoring_model.model.forward(inputs).squeeze()
-            # sigma_score= (score - self.mean) / self.std
+            # score = self.scoring_model.model(optimized_embedding)
+
+            inputs = optimized_embedding.reshape(len(optimized_embedding), -1)
+            score = self.ranking_model.model.forward(inputs).squeeze()
+            sigma_score= (score - self.mean) / self.std
 
             # Custom loss function
             # Original loss based on the scoring function
