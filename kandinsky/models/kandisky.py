@@ -58,7 +58,7 @@ class KandinskyPipeline:
     def load_models(self, prior_path=PRIOR_MODEL_PATH, decoder_path= DECODER_MODEL_PATH, 
                     inpaint_decoder_path= INPAINT_DECODER_MODEL_PATH, task_type="inpainting"):
         
-        with section("Loading Inpainting model"):
+        with section("Loading kandinsky models"):
             self.image_encoder = CLIPVisionModelWithProjection.from_pretrained(prior_path, local_files_only=True, subfolder='image_encoder').to(torch.float16).to(self.device)
             if task_type == "text2img":
                 self.unet = UNet2DConditionModel.from_pretrained(decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
