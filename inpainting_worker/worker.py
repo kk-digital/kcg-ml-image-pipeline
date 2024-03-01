@@ -174,7 +174,8 @@ def upload_data_and_update_job_status(job, output_file_path, output_file_hash, d
     bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
 
     cmd.upload_data(minio_client, bucket_name, file_path, data)
-
+    print("Generated image path", bucket_name, file_path)
+    
     info_v2("Upload for job {} completed".format(job["uuid"]))
     info_v2("Upload time elapsed: {:.4f}s".format(time.time() - start_time))
 

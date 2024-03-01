@@ -23,7 +23,6 @@ class WorkerState:
         self.config = ModelPathConfig()
         self.unet= None
         self.prior_model= None
-        self.decoder_model= None
         self.inpainting_decoder_model= None
         self.clip_text_embedder= None
         self.minio_client = get_minio_client(minio_access_key, minio_secret_key)
