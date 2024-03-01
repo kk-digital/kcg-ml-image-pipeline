@@ -173,8 +173,7 @@ class ABRankingFcTrainingPipeline:
             input_clip_score = self.scoring_model.predict_clip(latent).item() 
 
             init_image, latent= self.image_generator.generate_img2img(init_img=init_image,
-                                                  image_embeds= latent,
-                                                  )
+                                                  image_embeds= latent.to(dtype=torch.float16))
             
             clip_vector= self.get_image_features(init_image)
             image_score = self.scoring_model.predict_clip(clip_vector).item() 
