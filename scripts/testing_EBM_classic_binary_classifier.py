@@ -529,7 +529,7 @@ for name, param in model.named_parameters():
     print(f"Parameter: {name}, Size: {param.size()}, Type: {param.dtype}")
 
 # Define loss function and optimizer
-criterion = nn.BCEWithLogitsLoss()
+criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.01)
 
 # Training loop
@@ -552,7 +552,7 @@ for epoch in range(num_epochs):
         print(f"Outputs: {outputs}")
 
         # BCEWithLogitsLoss doesn't require one-hot encoding
-        loss = criterion(outputs, labels.float().view(-1, 1))
+        loss = criterion(outputs, labels)
         # Print loss for debugging
         print(f"Loss: {loss.item()}")
 
