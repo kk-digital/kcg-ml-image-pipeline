@@ -171,7 +171,7 @@ class KandinskyImageGenerator:
         embeddings=[]
         for embed in clipped_embeddings:
             embeddings.append(embed.unsqueeze(0))
-            score = self.scoring_model(embed.unsqueeze(0)).item() 
+            score = self.scoring_model.model(embed.unsqueeze(0)).item() 
             scores.append(score)
         
         # Find the index of the highest scoring embedding
@@ -225,7 +225,7 @@ class KandinskyImageGenerator:
             # clip_vector= self.get_image_features(init_image)
 
             # Calculate the custom score
-            score = self.scoring_model(optimized_embedding)
+            score = self.scoring_model.model(optimized_embedding)
             # inputs = optimized_embedding.reshape(len(optimized_embedding), -1)
             # score = self.scoring_model.model.forward(inputs).squeeze()
             # sigma_score= (score - self.mean) / self.std
