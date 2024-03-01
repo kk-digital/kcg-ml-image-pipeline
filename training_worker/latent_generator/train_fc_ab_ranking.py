@@ -180,7 +180,7 @@ class ABRankingFcTrainingPipeline:
 
 
             data={
-                'input_clip': np.array(latent),
+                'input_clip': latent.detach().cpu().numpy(),
                 'input_clip_score': input_clip_score,
                 'output_clip_score': image_score,
             }
