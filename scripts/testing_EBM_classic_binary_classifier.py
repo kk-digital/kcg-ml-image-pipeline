@@ -241,8 +241,13 @@ def get_dataset_from_id(id_class,data_augment_passes,label_value):
 
 
     # Create labels
-    label_value = label_value
-    labels_occult = [label_value] * len(ocult_images)
+    # label_value = label_value
+    # labels_occult = [label_value] * len(ocult_images)
+    if label_value == 1:
+        label_value = [1,0]
+    else:
+        label_value = [0,1]
+
 
     data_occcult = []
     for image in ocult_images:
@@ -288,6 +293,12 @@ def get_combined_adv_dataset_from_id_array(id_classes,data_augment_passes,label_
     # Create labels
     label_value = label_value
     labels_occult = [label_value] * len(ocult_images)
+
+    if label_value == 1:
+        label_value = [1,0]
+    else:
+        label_value = [0,1]
+
 
     data_occcult = []
     for image in ocult_images:
@@ -516,7 +527,7 @@ for name, param in model.named_parameters():
     print(f"Parameter: {name}, Size: {param.size()}, Type: {param.dtype}")
 
 # Define loss function and optimizer
-criterion = nn.BCEWithLogitsLoss()
+criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.01)
 
 # Training loop
