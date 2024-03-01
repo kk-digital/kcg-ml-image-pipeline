@@ -495,6 +495,8 @@ combined_dataset_pos = torch.utils.data.ConcatDataset([train_set_ocult, val_set_
 combined_dataset_neg = torch.utils.data.ConcatDataset([train_advtrain, val_advtrain])
 combined_dataset = torch.utils.data.ConcatDataset([combined_dataset_pos, combined_dataset_neg])
 
+print("dataset lenght ", len(combined_dataset))
+
 # Split the combined dataset into training and testing sets
 train_size = int(0.8 * len(combined_dataset))
 test_size = len(combined_dataset) - train_size
@@ -513,13 +515,13 @@ model = BinaryCNNModel().to(device)
 # Iterate through model parameters
 for name, param in model.named_parameters():
     print(f"Parameter: {name}, Size: {param.size()}, Type: {param.dtype}")
-    
+
 # Define loss function and optimizer
 criterion = nn.BCEWithLogitsLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # Training loop
-num_epochs = 1
+num_epochs = 15
 for epoch in range(num_epochs):
     model.train()
     for images, labels in train_loader:
