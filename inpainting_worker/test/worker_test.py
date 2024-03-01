@@ -33,6 +33,7 @@ def add_jobs():
             "decoder_steps": 50,
             "prior_guidance_scale": 4,
             "decoder_guidance_scale": 4,
+            
             "positive_prompt":"a tiger sitting on a park bench",
             "negative_prior_prompt":"a tiger standing on a stone",
             "negative_decoder_prompt":"a tiger sitting on a park bench but not standing"
@@ -41,6 +42,9 @@ def add_jobs():
         "task_output_file_dict": None,
         "task_attributes_dict": None,
         "prompt_generation_data": {
+            "prompt_scoring_model": None,
+            "prompt_score":None,
+            "top_k": None,
             "prompt_generation_policy": "pez_optimization"
         },
     })
