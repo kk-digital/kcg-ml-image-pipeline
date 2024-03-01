@@ -531,6 +531,11 @@ for epoch in range(num_epochs):
         loss = criterion(outputs, labels.float().view(-1, 1))
         loss.backward()
         optimizer.step()
+
+
+        print(f"Outputs: {outputs}")
+        print(f"Labels: {labels}")
+        print(f"Loss: {loss.item()}")
     print("Epoch [{}/{}], Loss: {:.4f}".format(epoch+1, num_epochs, loss.item()))
 
 # Evaluation loop
