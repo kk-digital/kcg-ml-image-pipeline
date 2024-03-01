@@ -306,6 +306,9 @@ def main():
                                 model_type=args.model_type,
                                 batch_size=args.batch_size)
     
+    global DATA_MINIO_DIRECTORY
+    DATA_MINIO_DIRECTORY= f"{args.dataset}/" + DATA_MINIO_DIRECTORY
+
     if args.construct_dataset:
         training_pipeline.construct_dataset()
     
