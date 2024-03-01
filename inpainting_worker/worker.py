@@ -16,7 +16,7 @@ import traceback
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from kandinsky_worker.worker_state import WorkerState
+from inpainting_worker.worker_state import WorkerState
 from utility.http import inpainting_request
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
