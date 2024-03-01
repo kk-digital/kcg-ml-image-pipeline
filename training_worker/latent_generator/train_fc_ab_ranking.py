@@ -145,7 +145,7 @@ class ABRankingFcTrainingPipeline:
         for embed in sampled_embeddings:
             latents.append(embed)
         
-        return sampled_embeddings
+        return latents
     
     def get_image_features(self, image):
         # Preprocess image
