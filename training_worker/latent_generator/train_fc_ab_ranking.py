@@ -180,7 +180,7 @@ class ABRankingFcTrainingPipeline:
 
 
             data={
-                'input_clip': latent.detach().cpu().numpy(),
+                'input_clip': latent.detach().cpu().numpy().tolist(),
                 'input_clip_score': input_clip_score,
                 'output_clip_score': image_score,
             }
@@ -222,8 +222,7 @@ class ABRankingFcTrainingPipeline:
         inputs=[]
         outputs=[]
         for d in data:
-            input=d['input_clip'].tolist()
-            inputs.append(input)
+            inputs.append(d['input_clip'])
             outputs.append(d['output_clip_score'])
         
         return inputs, outputs

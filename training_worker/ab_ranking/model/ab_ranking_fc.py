@@ -25,8 +25,8 @@ class DatasetLoader(Dataset):
         :param labels: A NumPy array of the corresponding labels.
         """
         # Convert the data to torch.FloatTensor as it is the standard data type for floats in PyTorch
-        self.features = features
-        self.labels = labels
+        self.features = torch.FloatTensor(np.array(features))
+        self.labels = torch.FloatTensor(np.array(labels))
 
     def __len__(self):
         """
