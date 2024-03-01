@@ -167,6 +167,7 @@ class ABRankingFcTrainingPipeline:
         # generate latents
         latents= self.sample_random_latents(num_samples=num_samples)
         training_data=[]
+        init_image = Image.open("./test/test_inpainting/white_512x512.jpg")
 
         for latent in latents:
             input_clip_score = self.scoring_model.predict_clip(latent).item() 
