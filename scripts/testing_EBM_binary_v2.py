@@ -1464,6 +1464,8 @@ def energy_evaluation_comb(training_loader,adv_loader):
     
     some_a = 0
     some_b = 0
+    preci = 0
+    cpt = 0
     # load training set images
     test_imgs, _ = next(iter(training_loader))
     
@@ -1475,6 +1477,9 @@ def energy_evaluation_comb(training_loader,adv_loader):
     rangeX = len(test_imgs)
     for i in range(rangeX):
         a,b =  compare_images_value_purevalue_comb(test_imgs[i].to(model.device),fake_imgs[i].to(model.device))
+        if a > b:
+            preci += 1
+        cpt += 1
         some_a += a
         some_b += b
 
@@ -1483,6 +1488,7 @@ def energy_evaluation_comb(training_loader,adv_loader):
 
     print(f"Score in distribution : {some_a:4.2f}")
     print(f"Score OOD : {some_b:4.2f}")
+    print(f"Accuracy : ", preci , " / ",cpt)
 
 
 
