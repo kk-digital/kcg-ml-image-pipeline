@@ -183,8 +183,9 @@ class ABRankingFcTrainingPipeline:
             
             # Iterate through the batch for scoring (since scoring model processes one item at a time)
             for j, (latent, clip_vector) in enumerate(zip(latent_batch_tensor, clip_vectors)):
+
                 input_clip_score = self.scoring_model.predict_clip(latent.float()).item()  # Convert back if necessary
-                image_score = self.scoring_model.predict_clip(clip_vector).item()
+                image_score = self.scoring_model.predict_clip(clip_vector.unsqueeze(0)).item()
 
                 data = {
                     'input_clip': latent.detach().cpu().numpy().tolist(),
