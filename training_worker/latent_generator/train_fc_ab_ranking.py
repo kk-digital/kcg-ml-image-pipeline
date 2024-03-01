@@ -276,9 +276,9 @@ class ABRankingFcTrainingPipeline:
     # function for storing self training data in a msgpack file
     def store_batch_in_msgpack_file(self, batch, index, incomplete=False):
         if incomplete:
-            file_path=f"/{str(index).zfill(4)}_incomplete.msgpack"
+            file_path=f"{str(index).zfill(4)}_incomplete.msgpack"
         else:
-            file_path=f"/{str(index).zfill(4)}.msgpack"
+            file_path=f"{str(index).zfill(4)}.msgpack"
         packed_data = msgpack.packb(batch, use_single_float=True)
 
         local_file_path = f"output/temporary_file.msgpack"
