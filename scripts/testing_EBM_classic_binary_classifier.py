@@ -468,12 +468,13 @@ class BinaryCNNModel(nn.Module):
         fc_input_size = 64 * (input_size // 4) * (input_size // 4)
 
         self.fc = nn.Linear(fc_input_size, 1)  # Output 1 unit for binary classification
+        self.sigmoid = nn.Sigmoid()  # Sigmoid activation for binary classification
 
     def forward(self, x):
         x = self.pool1(self.relu1(self.conv1(x)))
         x = self.pool2(self.relu2(self.conv2(x)))
         x = x.view(x.size(0), -1)  # Flatten the tensor before passing it to the fully-connected layer
-        output = self.fc(x)  # No Sigmoid activation here
+        output = self.sigmoid(self.fc(x))  # Apply sigmoid activation
         return output
 
 
