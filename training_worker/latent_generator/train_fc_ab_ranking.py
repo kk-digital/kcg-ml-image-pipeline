@@ -37,6 +37,7 @@ def parse_args():
     parser.add_argument('--model-type', type=str, help='model type, linear or elm', default="linear")
     parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--construct-dataset', action='store_true', default=False)
+    parser.add_argument('--num-samples', type=int, default=10000)
 
     return parser.parse_args()
 
@@ -46,7 +47,8 @@ class ABRankingFcTrainingPipeline:
                     minio_secret_key,
                     dataset,
                     model_type,
-                    batch_size=32):
+                    batch_size=32,
+                    num_samples=10000):
         
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
@@ -62,6 +64,7 @@ class ABRankingFcTrainingPipeline:
         self.dataset= dataset
         self.model_type= model_type
         self.batch_size= batch_size
+        self.num_samples= num_samples
 
         self.model= ABRankingFCNetwork(minio_client=self.minio_client)
 
@@ -134,12 +137,12 @@ class ABRankingFcTrainingPipeline:
         return scoring_model
     
 
-    def sample_random_latents(self, num_samples=100000):
+    def sample_random_latents(self):
         # Calculate the range (max - min) for each dimension
         range = self.clip_max - self.clip_min
     
         # Generate random values in the range [0, 1], then scale and shift them to the [min, max] range
-        sampled_embeddings = torch.randn(num_samples, *self.clip_mean.shape, device=self.clip_mean.device) * range + self.clip_min
+        sampled_embeddings = torch.randn(self.num_samples, *self.clip_mean.shape, device=self.clip_mean.device) * range + self.clip_min
             
         latents=[]
         for embed in sampled_embeddings:
@@ -163,9 +166,9 @@ class ABRankingFcTrainingPipeline:
         
         return features
 
-    def construct_dataset(self, num_samples=10000):
+    def construct_dataset(self):
         # generate latents
-        latents= self.sample_random_latents(num_samples=num_samples)
+        latents= self.sample_random_latents()
         training_data=[]
         init_image_batch = [Image.open("./test/test_inpainting/white_512x512.jpg") for i in range(self.batch_size)]
 
@@ -186,6 +189,8 @@ class ABRankingFcTrainingPipeline:
 
                 input_clip_score = self.scoring_model.predict_clip(latent.float()).item()  # Convert back if necessary
                 image_score = self.scoring_model.predict_clip(clip_vector.unsqueeze(0)).item()
+                input_clip_score= (input_clip_score - self.mean) / self.std
+                image_score= (image_score - self.mean) / self.std
 
                 data = {
                     'input_clip': latent.detach().cpu().numpy().tolist(),
@@ -302,7 +307,8 @@ def main():
                                 minio_secret_key=args.minio_secret_key,
                                 dataset= args.dataset,
                                 model_type=args.model_type,
-                                batch_size=args.batch_size)
+                                batch_size=args.batch_size,
+                                num_samples= args.num_samples)
     
     global DATA_MINIO_DIRECTORY
     DATA_MINIO_DIRECTORY= f"{args.dataset}/" + DATA_MINIO_DIRECTORY
