@@ -16,6 +16,21 @@ from dateutil import parser
 from datetime import datetime
 import os
 
+class ModelResponse(BaseModel):
+    model_name: str
+    model_architecture: str
+    model_creation_date: str
+    model_type: str
+    model_path: str
+    model_file_hash: str
+    input_type: str
+    output_type: str
+    number_of_training_points: str
+    number_of_validation_points: str
+    training_loss: str
+    validation_loss: str
+    graph_report: str
+
 
 class ListImageTag(BaseModel):
      images: List[ImageTag]
@@ -26,7 +41,7 @@ class RankCountResponse(BaseModel):
 
 class CountResponse(BaseModel):
     count: int
-    
+
 class RechableResponse(BaseModel):
     reachable: bool
 
