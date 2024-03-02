@@ -182,6 +182,8 @@ class KandinskyImageGenerator:
         
         # Find the index of the highest scoring embedding
         highest_score_index = np.argmax(scores)
+
+        print(scores[highest_score_index], np.mean(scores))
         
         # Select the highest scoring embedding
         highest_scoring_embedding = embeddings[highest_score_index]
