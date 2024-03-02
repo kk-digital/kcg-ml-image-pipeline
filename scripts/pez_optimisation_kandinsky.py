@@ -3,6 +3,7 @@ from datetime import datetime
 import io
 import os
 import sys
+import numpy as np
 import pandas as pd
 import torch
 import torch.optim as optim
@@ -16,11 +17,13 @@ base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 
+from kandinsky.model_paths import PRIOR_MODEL_PATH
+from transformers import CLIPImageProcessor
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
-from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
 from kandinsky.models.kandisky import KandinskyPipeline
+from training_worker.ab_ranking.model.ab_ranking_fc import ABRankingFCNetwork
 from utility.minio import cmd
 from data_loader.utils import get_object
 
@@ -84,18 +87,22 @@ class KandinskyImageGenerator:
         self.device = torch.device(device)
         
         # load kandinsky clip
-        self.clip= KandinskyCLIPImageEncoder(device= self.device)
-        self.clip.load_submodels()
+        self.image_processor= CLIPImageProcessor.from_pretrained(PRIOR_MODEL_PATH, subfolder="image_processor", local_files_only=True)
 
         # load kandinsky's autoencoder
         self.image_generator= KandinskyPipeline(device= self.device, strength=0.75, decoder_guidance_scale=12,
                                                 decoder_steps=10)
         self.image_generator.load_models(task_type="img2img")
 
-        # load scoring model
-        self.scoring_model= self.load_scoring_model()
-        self.mean= float(self.scoring_model.mean)
-        self.std= float(self.scoring_model.standard_deviation)
+        self.image_encoder= self.image_generator.image_encoder
+
+        # load ranking model
+        self.ranking_model= self.load_scoring_model()
+        self.mean= float(self.ranking_model.mean)
+        self.std= float(self.ranking_model.standard_deviation)
+
+        self.scoring_model= ABRankingFCNetwork(minio_client=self.minio_client)
+        self.scoring_model.load_model()
 
         self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
         print(self.clip_mean, self.clip_std)
@@ -105,10 +112,10 @@ class KandinskyImageGenerator:
         data = get_object(self.minio_client, "environmental/output/stats/clip_stats.msgpack")
         data_dict = msgpack.unpackb(data)
 
-        mean_vector = torch.tensor(data_dict["mean"]).to(device=self.device)
-        std_vector = torch.tensor(data_dict["std"]).to(device=self.device)
-        max_vector = torch.tensor(data_dict["max"]).to(device=self.device,)
-        min_vector = torch.tensor(data_dict["min"]).to(device=self.device)
+        mean_vector = torch.tensor(data_dict["mean"]).to(device=self.device, dtype=torch.float32)
+        std_vector = torch.tensor(data_dict["std"]).to(device=self.device, dtype=torch.float32)
+        max_vector = torch.tensor(data_dict["max"]).to(device=self.device, dtype=torch.float32)
+        min_vector = torch.tensor(data_dict["min"]).to(device=self.device, dtype=torch.float32)
 
         return mean_vector, std_vector, max_vector, min_vector
 
@@ -151,49 +158,39 @@ class KandinskyImageGenerator:
 
         return scoring_model
     
-    def sample_embedding(self, num_samples=1):
-        # Sample from a normal distribution using the mean and standard deviation vectors
-        sampled_embeddings = torch.normal(self.clip_mean, self.clip_std)
-        
-        # Clip the sampled embeddings based on the min and max vectors to ensure they stay within observed bounds
-        clipped_embeddings = torch.max(torch.min(sampled_embeddings, self.clip_max), self.clip_min)
-        
-        return clipped_embeddings.to(
-            device=self.device, dtype=torch.float16
-        )
+    def sample_embedding(self, num_samples=1000):
+        sampled_embeddings = torch.normal(mean=self.clip_mean.repeat(num_samples, 1),
+                                      std=self.clip_std.repeat(num_samples, 1))
     
-    def penalty_function(self, embedding):
-        """
-        Calculates a penalty for embeddings that deviate from the mean beyond the allowed threshold (in standard deviations).
+        # Clip the sampled embeddings based on the min and max vectors to ensure they stay within observed bounds
+        clipped_embeddings = torch.max(torch.min(sampled_embeddings, self.clip_max.repeat(num_samples, 1)),
+                                    self.clip_min.repeat(num_samples, 1))
         
-        Args:
-        - embeddings (torch.Tensor): The current embeddings.
-        - mean (torch.Tensor): The mean values for each dimension.
-        - std (torch.Tensor): The standard deviation values for each dimension.
-        - threshold (float): The number of standard deviations considered acceptable.
+        # Score each sampled embedding
+        scores=[]
+        embeddings=[]
+        for embed in clipped_embeddings:
+            embeddings.append(embed.unsqueeze(0))
+            score = self.ranking_model.model(embed.unsqueeze(0)).item() 
+            scores.append(score)
         
-        Returns:
-        - torch.Tensor: A scalar tensor representing the penalty.
-        """
-        # Standardize embeddings
-        z_scores = (embedding - self.clip_mean) / self.clip_std
-
-        # Calculate the squared distances beyond the threshold
-        squared_distances = torch.where(torch.abs(z_scores) > self.deviation_threshold,
-                                        (torch.abs(z_scores) - self.deviation_threshold)**2, 
-                                        torch.tensor(0.0, device=embedding.device))
-        # Sum the penalties
-        penalty = squared_distances.sum()
-        return penalty
+        # Find the index of the highest scoring embedding
+        highest_score_index = np.argmax(scores)
+        
+        # Select the highest scoring embedding
+        highest_scoring_embedding = embeddings[highest_score_index]
+        
+        return highest_scoring_embedding.to(device=self.device)
+    
     
     def get_image_features(self, image):
         # Preprocess image
         if isinstance(image, Image.Image):
-            image = self.clip.image_processor(image, return_tensors="pt")['pixel_values']
+            image = self.image_processor(image, return_tensors="pt")['pixel_values']
         
          # Compute CLIP features
         if isinstance(image, torch.Tensor):
-            features = self.clip.vision_model(pixel_values= image.half().to(self.device)).image_embeds
+            features = self.image_encoder(pixel_values= image.half().to(self.device)).image_embeds
         else:
             raise ValueError(
                 f"`image` can only contains elements to be of type `PIL.Image.Image` or `torch.Tensor`  but is {type(image)}"
@@ -220,26 +217,31 @@ class KandinskyImageGenerator:
         for step in range(self.steps):
             optimizer.zero_grad()
 
-            init_image, latent= self.image_generator.generate_img2img(init_img=init_image,
-                                                  image_embeds= optimized_embedding,
-                                                  seed=seed
-                                                  )
+            # init_image, latent= self.image_generator.generate_img2img(init_img=init_image,
+            #                                       image_embeds= optimized_embedding.to(dtype=torch.float16),
+            #                                       seed=seed
+            #                                       )
             
-            print(latent.shape)
-            
-            clip_vector= self.get_image_features(init_image)
+            # clip_vector= self.get_image_features(init_image)
 
             # Calculate the custom score
-            inputs = clip_vector.reshape(len(clip_vector), -1)
-            score = self.scoring_model.model.forward(inputs).squeeze()
+            # score = self.scoring_model.model(optimized_embedding)
+
+            inputs = optimized_embedding.reshape(len(optimized_embedding), -1)
+            score = self.ranking_model.model.forward(inputs).squeeze()
             sigma_score= (score - self.mean) / self.std
+
             # Custom loss function
             # Original loss based on the scoring function
-            reg_loss = torch.mean((clip_vector - optimized_embedding) ** 2)
+            # clip_vector = clip_vector.float() 
+            # # Compute cosine similarity
+            # cosine_sim = torch.nn.functional.cosine_similarity(clip_vector, optimized_embedding, dim=1)
+            # # Cosine similarity loss (we subtract from 1 to make it a quantity to minimize)
+            # cosine_loss = 1 - cosine_sim.mean()
             score_loss =  self.target_score - score
             
             # Total loss
-            total_loss = score_loss + self.penalty_weight * reg_loss
+            total_loss = score_loss
 
             if self.send_job and (step % self.generate_step == 0):
                 try:
@@ -260,7 +262,6 @@ class KandinskyImageGenerator:
                 df_data.append({
                     'task_uuid': task_uuid,
                     'score': score.item(),
-                    'sigma_score': sigma_score.item(),
                     'step': step,
                     'generation_policy_string': "pez_optimization",
                     'time': task_time
@@ -279,7 +280,7 @@ class KandinskyImageGenerator:
             optimizer.step()
 
             if step % self.print_step == 0:
-                print(f"Step: {step}, Score: {score.item()}, Penalty: {reg_loss.item()}, Loss: {total_loss.item()}")
+                print(f"Step: {step}, Score: {score.item()}, Penalty:, Loss: {total_loss.item()}")
         
         if self.send_job:
             try:
@@ -299,8 +300,7 @@ class KandinskyImageGenerator:
         
             df_data.append({
                 'task_uuid': task_uuid,
-                'score': score,
-                'sigma_score': sigma_score,
+                'score': score.item(),
                 'step': step,
                 'generation_policy_string': "pez_optimization",
                 'time': task_time
