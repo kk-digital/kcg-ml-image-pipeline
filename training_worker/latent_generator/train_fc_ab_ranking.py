@@ -190,8 +190,7 @@ class ABRankingFcTrainingPipeline:
                 image_score = self.scoring_model.predict_clip(clip_vector.unsqueeze(0)).item()
                 input_clip_score= (input_clip_score - self.mean) / self.std
                 image_score= (image_score - self.mean) / self.std
-                print(clip_vector.shape, latent.shape)
-                cosine_sim =cosine_similarity(clip_vector, latent.squeeze(0)).item()
+                cosine_sim =cosine_similarity(clip_vector.unsqueeze(0), latent).item()
 
                 data = {
                     'input_clip': latent.detach().cpu().numpy().tolist(),
