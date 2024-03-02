@@ -3,6 +3,7 @@ from datetime import datetime
 import io
 import os
 import sys
+from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
@@ -138,17 +139,17 @@ class ABRankingFcTrainingPipeline:
     
 
     def sample_random_latents(self):
-        # Calculate the range (max - min) for each dimension
-        range = self.clip_max - self.clip_min
+        sampled_embeddings = torch.normal(mean=self.clip_mean.repeat(self.num_samples, 1),
+                                      std=self.clip_std.repeat(self.num_samples, 1))
     
-        # Generate random values in the range [0, 1], then scale and shift them to the [min, max] range
-        sampled_embeddings = torch.randn(self.num_samples, *self.clip_mean.shape, device=self.clip_mean.device) * range + self.clip_min
-            
         latents=[]
+        scores=[]
         for embed in sampled_embeddings:
-            latents.append(embed)
+            latents.append(embed.unsqueeze(0))
+            score = self.predict_clip(embed.float()).item() 
+            scores.append(score)
         
-        return latents
+        return scores, latents
     
     def get_image_features(self, image):
         # Preprocess image
@@ -299,6 +300,31 @@ class ABRankingFcTrainingPipeline:
 
         os.remove(local_file_path)
 
+    def histogram_scores(self):
+        scores, _= self.sample_random_latents()
+
+        plt.hist(scores, bins=30, alpha=0.75)
+        plt.title("random latent score distribution")
+        plt.xlabel("Score")
+        plt.ylabel("Frequency")
+
+        plt.savefig("output/average_score_by_iteration.png")
+
+        # Save the figure to a file
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+
+        # upload the graph report
+        minio_path= minio_path + "/average_score_by_iteration.png"
+        cmd.upload_data(self.minio_client, 'datasets', minio_path, buf)
+        # Remove the temporary file
+        os.remove("output/average_score_by_iteration.png")
+        # Clear the current figure
+        plt.clf()
+
+
+
 
 def main():
     args = parse_args()
@@ -317,7 +343,7 @@ def main():
         training_pipeline.construct_dataset()
     
     # do self training
-    training_pipeline.train()
+    training_pipeline.histogram_scores()
 
 if __name__ == "__main__":
     main()
