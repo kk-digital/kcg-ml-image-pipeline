@@ -162,8 +162,8 @@ class KandinskyImageGenerator:
         sampled_embeddings = torch.randn(num_samples, *self.clip_mean.shape, device=self.clip_mean.device) * range + self.clip_min
     
         # Clip the sampled embeddings based on the min and max vectors to ensure they stay within observed bounds
-        clipped_embeddings = torch.max(torch.min(sampled_embeddings, self.clip_max.repeat(num_samples, 1)),
-                                    self.clip_min.repeat(num_samples, 1))
+        # clipped_embeddings = torch.max(torch.min(sampled_embeddings, self.clip_max.repeat(num_samples, 1)),
+        #                             self.clip_min.repeat(num_samples, 1))
         
         # Score each sampled embedding
         scores=[]
