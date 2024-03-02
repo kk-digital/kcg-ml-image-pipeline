@@ -151,7 +151,7 @@ class ABRankingFcTrainingPipeline:
             scores.append(score)
 
         sorted_indexes=np.flip(np.argsort(scores))[:self.num_samples]
-        sorted_latents= latents[sorted_indexes]
+        sorted_latents= [latents[index] for index in sorted_indexes]
         
         return sorted_latents
     
