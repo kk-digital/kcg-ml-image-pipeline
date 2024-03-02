@@ -89,13 +89,6 @@ class KandinskyImageGenerator:
         # load kandinsky clip
         self.image_processor= CLIPImageProcessor.from_pretrained(PRIOR_MODEL_PATH, subfolder="image_processor", local_files_only=True)
 
-        # load kandinsky's autoencoder
-        self.image_generator= KandinskyPipeline(device= self.device, strength=0.75, decoder_guidance_scale=12,
-                                                decoder_steps=10)
-        self.image_generator.load_models(task_type="img2img")
-
-        self.image_encoder= self.image_generator.image_encoder
-
         # load ranking model
         self.ranking_model= self.load_scoring_model()
         self.mean= float(self.ranking_model.mean)
@@ -176,6 +169,7 @@ class KandinskyImageGenerator:
         scores=[]
         embeddings=[]
         for embed in clipped_embeddings:
+            print(embed.shape)
             embeddings.append(embed)
             score = self.ranking_model.model(embed).item() 
             scores.append(score)
