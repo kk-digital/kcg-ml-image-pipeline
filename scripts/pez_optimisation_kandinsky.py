@@ -170,6 +170,7 @@ class KandinskyImageGenerator:
         embeddings=[]
         for embed in sampled_embeddings:
             print(embed.shape)
+            print(embed)
             embeddings.append(embed)
             score = self.ranking_model.model(embed).item() 
             scores.append(score)
