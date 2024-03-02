@@ -316,7 +316,7 @@ class ABRankingFcTrainingPipeline:
         buf.seek(0)
 
         # upload the graph report
-        minio_path= DATA_MINIO_DIRECTORY + "/average_score_by_iteration.png"
+        minio_path= DATA_MINIO_DIRECTORY + "/score_distribution.png"
         cmd.upload_data(self.minio_client, 'datasets', minio_path, buf)
         # Remove the temporary file
         os.remove("output/average_score_by_iteration.png")
