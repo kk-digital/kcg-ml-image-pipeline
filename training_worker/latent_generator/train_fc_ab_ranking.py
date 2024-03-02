@@ -146,7 +146,7 @@ class ABRankingFcTrainingPipeline:
         scores=[]
         for embed in sampled_embeddings:
             latents.append(embed.unsqueeze(0))
-            score = self.predict_clip(embed.float()).item() 
+            score = self.scoring_model.predict_clip(embed.float()).item() 
             scores.append(score)
         
         return scores, latents
