@@ -159,8 +159,14 @@ class KandinskyImageGenerator:
         return scoring_model
     
     def sample_embedding(self, num_samples=1000):
-        sampled_embeddings = torch.normal(mean=self.clip_mean.repeat(num_samples, 1),
-                                      std=self.clip_std.repeat(num_samples, 1))
+        # sampled_embeddings = torch.normal(mean=self.clip_mean.repeat(num_samples, 1),
+        #                               std=self.clip_std.repeat(num_samples, 1))
+
+         # Calculate the range (max - min) for each dimension
+        range = self.clip_max - self.clip_min
+    
+        # Generate random values in the range [0, 1], then scale and shift them to the [min, max] range
+        sampled_embeddings = torch.randn(self.num_samples, *self.clip_mean.shape, device=self.clip_mean.device) * range + self.clip_min
     
         # Clip the sampled embeddings based on the min and max vectors to ensure they stay within observed bounds
         clipped_embeddings = torch.max(torch.min(sampled_embeddings, self.clip_max.repeat(num_samples, 1)),
@@ -199,14 +205,6 @@ class KandinskyImageGenerator:
         return features
 
     def generate_latent(self):
-        # features_data = get_object(self.minio_client, "environmental/0435/434997_clip_kandinsky.msgpack")
-        # features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
-        # image_embedding= torch.tensor(features_vector).to(device=self.device, dtype=torch.float32)
-        
-        random.seed(time.time())
-        seed = random.randint(0, 2 ** 24 - 1)
-
-        init_image = Image.open("./test/test_inpainting/white_512x512.jpg")
         df_data=[]
         sampled_embedding= self.sample_embedding()
         optimized_embedding = sampled_embedding.clone().detach().requires_grad_(True)
@@ -217,27 +215,10 @@ class KandinskyImageGenerator:
         for step in range(self.steps):
             optimizer.zero_grad()
 
-            # init_image, latent= self.image_generator.generate_img2img(init_img=init_image,
-            #                                       image_embeds= optimized_embedding.to(dtype=torch.float16),
-            #                                       seed=seed
-            #                                       )
-            
-            # clip_vector= self.get_image_features(init_image)
-
-            # Calculate the custom score
-            # score = self.scoring_model.model(optimized_embedding)
-
             inputs = optimized_embedding.reshape(len(optimized_embedding), -1)
             score = self.ranking_model.model.forward(inputs).squeeze()
             sigma_score= (score - self.mean) / self.std
 
-            # Custom loss function
-            # Original loss based on the scoring function
-            # clip_vector = clip_vector.float() 
-            # # Compute cosine similarity
-            # cosine_sim = torch.nn.functional.cosine_similarity(clip_vector, optimized_embedding, dim=1)
-            # # Cosine similarity loss (we subtract from 1 to make it a quantity to minimize)
-            # cosine_loss = 1 - cosine_sim.mean()
             score_loss =  self.target_score - score
             
             # Total loss
@@ -280,7 +261,7 @@ class KandinskyImageGenerator:
             optimizer.step()
 
             if step % self.print_step == 0:
-                print(f"Step: {step}, Score: {score.item()}, Penalty:, Loss: {total_loss.item()}")
+                print(f"Step: {step}, Score: {score.item()}, Loss: {total_loss.item()}")
         
         if self.send_job:
             try:
