@@ -36,7 +36,7 @@ def parse_args():
     parser.add_argument('--minio-access-key', type=str, help='Minio access key')
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
-    parser.add_argument('--model-type', type=str, help='model type, linear or elm', default="linear")
+    parser.add_argument('--model-type', type=str, help='model type, linear or elm', default="elm")
     parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--construct-dataset', action='store_true', default=False)
     parser.add_argument('--num-samples', type=int, default=10000)
@@ -106,10 +106,10 @@ class ABRankingFcTrainingPipeline:
 
         if(self.model_type=="elm"):
             scoring_model = ABRankingELMModel(1280)
-            file_name=f"score-elm-v1-kandinsky-clip.safetensors"
+            file_name=f"score-elm-v1-clip-h.safetensors"
         else:
             scoring_model= ABRankingModel(1280)
-            file_name=f"score-linear-kandinsky-clip.safetensors"
+            file_name=f"score-linear-clip-h.safetensors"
 
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
         most_recent_model = None
