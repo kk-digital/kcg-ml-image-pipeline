@@ -629,7 +629,7 @@ def get_tagged_images(
             description="Set the 'deprecated' status of a tag category.",
             response_model=StandardSuccessResponseV1[TagCategory],
             responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
-def update_tag_category_deprecated_status(request: Request, tag_category_id: int, deprecated: bool = Body(...)):
+def update_tag_category_deprecated_status(request: Request, tag_category_id: int, deprecated: bool):
     response_handler = ApiResponseHandlerV1(request)
 
     query = {"tag_category_id": tag_category_id}
