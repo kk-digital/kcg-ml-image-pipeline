@@ -1,12 +1,16 @@
-from fastapi import Request, HTTPException, APIRouter, Response, Query, status
+from fastapi import Request, HTTPException, APIRouter, Response, Query, status, File, UploadFile
 from datetime import datetime, timedelta
 from typing import Optional
 import pymongo
 from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
-from .api_utils import PrettyJSONResponse
+from .api_utils import PrettyJSONResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, UrlResponse, ErrorCode
 from .api_ranking import get_image_rank_use_count
 import os
+from .api_utils import find_or_create_next_folder_and_index
+import io
+from PIL import Image
+
 
 router = APIRouter()
 
@@ -427,3 +431,60 @@ def list_prompt_generation_policies():
             "independent_approx_v1", 
             "independent-approx-v1-top-k",
             "independent-approx-substitution-search-v1"]
+
+
+
+
+bucket_name = "datasets"
+base_folder = "patches"
+
+@router.post("/upload-image-patches",
+             status_code=201, 
+             response_model=StandardSuccessResponseV1[UrlResponse],
+             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]),
+             description="Upload Image on minio")
+async def upload_image_v1(request: Request, 
+                          file: UploadFile = File(...), 
+                          check_size: bool = Query(True, description="Check if image is 512x512")):
+    response_handler = ApiResponseHandlerV1(request)
+    # Initialize MinIO client
+    minio_client = cmd.get_minio_client(minio_access_key="v048BpXpWrsVIHUfdAix", minio_secret_key="4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu")
+    
+    # Extract the file extension
+    _, file_extension = os.path.splitext(file.filename)
+    # Ensure the extension is in a consistent format (e.g., lowercase) and validate it if necessary
+    file_extension = file_extension.lower()
+    # Validate or adjust the extension (optional, based on your requirements)
+    # Find or create the next available folder and get the next image index
+    next_folder, next_index = find_or_create_next_folder_and_index(minio_client, bucket_name, base_folder)
+
+    # Construct the file path, preserving the original file extension
+    file_name = f"{next_index:06}{file_extension}"  # Use the extracted file extension
+    file_path = f"{next_folder}/{file_name}"
+
+    try:
+        await file.seek(0)  # Go to the start of the file
+        content = await file.read()  # Read file content into bytes
+        if check_size:  # Perform size check if check_size is True
+            # Check if the image is 512x512
+            image = Image.open(io.BytesIO(content))
+            if image.size != (512, 512):
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS, 
+                    error_string="Image must be 512x512 pixels",
+                    http_status_code=422,
+                )
+        content_stream = io.BytesIO(content)
+        # Upload the file content
+        cmd.upload_data(minio_client, bucket_name, file_path, content_stream)
+        full_file_path = f"{bucket_name}/{file_path}"
+        return response_handler.create_success_response_v1(
+            response_data=full_file_path, 
+            http_status_code=201)
+    except Exception as e:
+        print(f"Exception occurred: {e}") 
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string="Internal server error",
+            http_status_code=500, 
+        )
