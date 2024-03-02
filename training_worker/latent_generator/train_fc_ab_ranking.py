@@ -25,6 +25,7 @@ from training_worker.ab_ranking.model.ab_ranking_fc import ABRankingFCNetwork
 from kandinsky.models.kandisky import KandinskyPipeline
 from utility.minio import cmd
 from data_loader.utils import get_object
+from torch.nn.functional import cosine_similarity 
 
 
 DATA_MINIO_DIRECTORY="data/latent-generator"
@@ -192,11 +193,14 @@ class ABRankingFcTrainingPipeline:
                 image_score = self.scoring_model.predict_clip(clip_vector.unsqueeze(0)).item()
                 input_clip_score= (input_clip_score - self.mean) / self.std
                 image_score= (image_score - self.mean) / self.std
+                cosine_sim =cosine_similarity(clip_vector, latent.squeeze(0))
 
                 data = {
                     'input_clip': latent.detach().cpu().numpy().tolist(),
+                    'output_clip': clip_vector.unsqueeze(0).detach().cpu().numpy().tolist(),
                     'input_clip_score': input_clip_score,
                     'output_clip_score': image_score,
+                    'cosine_sim': cosine_sim
                 }
 
                 training_data.append(data)
@@ -300,31 +304,6 @@ class ABRankingFcTrainingPipeline:
 
         os.remove(local_file_path)
 
-    def histogram_scores(self):
-        scores, _= self.sample_random_latents()
-
-        plt.hist(scores, bins=30, alpha=0.75)
-        plt.title("random latent score distribution")
-        plt.xlabel("Score")
-        plt.ylabel("Frequency")
-
-        plt.savefig("output/average_score_by_iteration.png")
-
-        # Save the figure to a file
-        buf = io.BytesIO()
-        plt.savefig(buf, format='png')
-        buf.seek(0)
-
-        # upload the graph report
-        minio_path= DATA_MINIO_DIRECTORY + "/score_distribution.png"
-        cmd.upload_data(self.minio_client, 'datasets', minio_path, buf)
-        # Remove the temporary file
-        os.remove("output/average_score_by_iteration.png")
-        # Clear the current figure
-        plt.clf()
-
-
-
 
 def main():
     args = parse_args()
@@ -343,7 +322,7 @@ def main():
         training_pipeline.construct_dataset()
     
     # do self training
-    training_pipeline.histogram_scores()
+    training_pipeline.train()
 
 if __name__ == "__main__":
     main()
