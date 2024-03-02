@@ -144,13 +144,10 @@ class ABRankingFcTrainingPipeline:
                                       std=self.clip_std.repeat(self.num_samples, 1))
     
         latents=[]
-        scores=[]
         for embed in sampled_embeddings:
             latents.append(embed.unsqueeze(0))
-            score = self.scoring_model.predict_clip(embed.unsqueeze(0).float()).item() 
-            scores.append(score)
         
-        return scores, latents
+        return latents
     
     def get_image_features(self, image):
         # Preprocess image
@@ -193,7 +190,7 @@ class ABRankingFcTrainingPipeline:
                 image_score = self.scoring_model.predict_clip(clip_vector.unsqueeze(0)).item()
                 input_clip_score= (input_clip_score - self.mean) / self.std
                 image_score= (image_score - self.mean) / self.std
-                cosine_sim =cosine_similarity(clip_vector, latent.squeeze(0))
+                cosine_sim =cosine_similarity(clip_vector, latent.squeeze(0)).item()
 
                 data = {
                     'input_clip': latent.detach().cpu().numpy().tolist(),
