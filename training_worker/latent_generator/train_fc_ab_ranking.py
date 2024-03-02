@@ -140,14 +140,20 @@ class ABRankingFcTrainingPipeline:
     
 
     def sample_random_latents(self):
-        sampled_embeddings = torch.normal(mean=self.clip_mean.repeat(self.num_samples, 1),
-                                      std=self.clip_std.repeat(self.num_samples, 1))
+        sampled_embeddings = torch.normal(mean=self.clip_mean.repeat(self.num_samples*10, 1),
+                                      std=self.clip_std.repeat(self.num_samples*10, 1))
     
         latents=[]
+        scores=[]
         for embed in sampled_embeddings:
             latents.append(embed.unsqueeze(0))
+            score = self.scoring_model.predict_clip(embed.unsqueeze(0)).item() 
+            scores.append(score)
+
+        sorted_indexes=np.flip(np.argsort(scores))[:self.num_samples]
+        sorted_latents= latents[sorted_indexes]
         
-        return latents
+        return sorted_latents
     
     def get_image_features(self, image):
         # Preprocess image
