@@ -169,7 +169,7 @@ class KandinskyImageGenerator:
         
         # Find the index of the highest scoring embedding
         highest_score_index = np.argmax(scores)
-        loawest_score_index = np.argmax(scores)
+        loawest_score_index = np.argmin(scores)
 
         print(scores[highest_score_index], scores[loawest_score_index], np.mean(scores))
         
