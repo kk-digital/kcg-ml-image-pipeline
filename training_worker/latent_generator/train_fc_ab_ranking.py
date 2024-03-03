@@ -3,6 +3,7 @@ from datetime import datetime
 import io
 import os
 import sys
+from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
@@ -24,6 +25,7 @@ from training_worker.ab_ranking.model.ab_ranking_fc import ABRankingFCNetwork
 from kandinsky.models.kandisky import KandinskyPipeline
 from utility.minio import cmd
 from data_loader.utils import get_object
+from torch.nn.functional import cosine_similarity 
 
 
 DATA_MINIO_DIRECTORY="data/latent-generator"
@@ -34,7 +36,7 @@ def parse_args():
     parser.add_argument('--minio-access-key', type=str, help='Minio access key')
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
-    parser.add_argument('--model-type', type=str, help='model type, linear or elm', default="linear")
+    parser.add_argument('--model-type', type=str, help='model type, linear or elm', default="elm")
     parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--construct-dataset', action='store_true', default=False)
     parser.add_argument('--num-samples', type=int, default=10000)
@@ -104,10 +106,10 @@ class ABRankingFcTrainingPipeline:
 
         if(self.model_type=="elm"):
             scoring_model = ABRankingELMModel(1280)
-            file_name=f"score-elm-v1-kandinsky-clip.safetensors"
+            file_name=f"score-elm-v1-clip-h.safetensors"
         else:
             scoring_model= ABRankingModel(1280)
-            file_name=f"score-linear-kandinsky-clip.safetensors"
+            file_name=f"score-linear-clip-h.safetensors"
 
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
         most_recent_model = None
@@ -138,16 +140,13 @@ class ABRankingFcTrainingPipeline:
     
 
     def sample_random_latents(self):
-        # Calculate the range (max - min) for each dimension
-        range = self.clip_max - self.clip_min
+        sampled_embeddings = torch.normal(mean=self.clip_mean.repeat(self.num_samples, 1),
+                                      std=self.clip_std.repeat(self.num_samples, 1))
     
-        # Generate random values in the range [0, 1], then scale and shift them to the [min, max] range
-        sampled_embeddings = torch.randn(self.num_samples, *self.clip_mean.shape, device=self.clip_mean.device) * range + self.clip_min
-            
         latents=[]
         for embed in sampled_embeddings:
-            latents.append(embed)
-        
+            latents.append(embed.unsqueeze(0))
+
         return latents
     
     def get_image_features(self, image):
@@ -191,11 +190,14 @@ class ABRankingFcTrainingPipeline:
                 image_score = self.scoring_model.predict_clip(clip_vector.unsqueeze(0)).item()
                 input_clip_score= (input_clip_score - self.mean) / self.std
                 image_score= (image_score - self.mean) / self.std
+                cosine_sim =cosine_similarity(clip_vector.unsqueeze(0), latent).item()
 
                 data = {
                     'input_clip': latent.detach().cpu().numpy().tolist(),
+                    'output_clip': clip_vector.unsqueeze(0).detach().cpu().numpy().tolist(),
                     'input_clip_score': input_clip_score,
                     'output_clip_score': image_score,
+                    'cosine_sim': cosine_sim
                 }
 
                 training_data.append(data)
