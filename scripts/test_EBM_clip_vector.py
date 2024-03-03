@@ -714,7 +714,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=15,
+                         max_epochs=30,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -1104,11 +1104,11 @@ energy_evaluation(val_loader,adv_loader)
 # adv_loader =  val_loader_advtrain
 
 
-# Train
-model2 = train_model(img_shape=(3,512,512),
-                    batch_size=train_loader_set_cyber.batch_size,
-                    lr=0.001,
-                    beta1=0.0)
+# # Train
+# model2 = train_model(img_shape=(3,512,512),
+#                     batch_size=train_loader_set_cyber.batch_size,
+#                     lr=0.001,
+#                     beta1=0.0)
 
 
 
