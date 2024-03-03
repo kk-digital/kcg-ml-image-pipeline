@@ -979,7 +979,12 @@ adv_loader = train_loader_clip_cyber
 print("trainloader length:", len(train_loader))
 
 
+# Fetch the first batch
+first_batch_data, first_batch_labels = next(iter(train_loader_clip_occult))
 
+# Print the shape of the first batch data and labels
+print(f"Shape of the first batch data: {first_batch_data.shape}")
+print(f"Shape of the first batch labels: {first_batch_labels.shape}")
 
 # # Train
 # model = train_model(img_shape=(1,1280),
