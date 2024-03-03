@@ -557,7 +557,7 @@ def get_list_completed_jobs_by_dataset(
 
     # Add condition to filter by min_clip_sigma_score if provided
     if min_clip_sigma_score is not None:
-        query["task_attributes_dict.image_clip_sigma_score"] = {"$gte": min_clip_sigma_score}
+        query[f"task_attributes_dict.{model_type}.image_clip_sigma_score"] = {"$gte": min_clip_sigma_score}
 
     # jobs = list(request.app.completed_jobs_collection.find(query))
         
