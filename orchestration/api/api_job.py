@@ -546,6 +546,7 @@ def get_list_completed_jobs_by_date(
 def get_list_completed_jobs_by_dataset(
     request: Request,
     dataset: str= Query(..., description="Dataset name"),  
+    model_type: str= Query("elm-v1", description="Model type, elm-v1 or linear"),  
     min_clip_sigma_score: float = Query(None, description="Minimum CLIP sigma score to filter jobs"),
     size: int = Query(1, description="Number of images to return")
 ):
@@ -573,7 +574,7 @@ def get_list_completed_jobs_by_dataset(
     for job in jobs:
         job_uuid = job.get("uuid")
         file_path = job.get("task_output_file_dict", {}).get("output_file_path")
-        clip_sigma_score = job.get("task_attributes_dict",{}).get("image_clip_sigma_score")
+        clip_sigma_score = job.get("task_attributes_dict",{}).get(model_type).get("image_clip_sigma_score")
 
         if not job_uuid or not file_path:
             continue
