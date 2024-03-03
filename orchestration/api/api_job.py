@@ -499,7 +499,6 @@ def get_list_completed_jobs_by_dataset(request: Request, dataset, limit: Optiona
 @router.get("/queue/image-generation/list-by-date", response_class=PrettyJSONResponse)
 def get_list_completed_jobs_by_date(
     request: Request,
-    dataset: str= Query(..., description="Dataset name"),  
     start_date: str = Query(..., description="Start date for filtering jobs"), 
     end_date: str = Query(..., description="End date for filtering jobs"),
     min_clip_sigma_score: float = Query(None, description="Minimum CLIP sigma score to filter jobs")
@@ -510,8 +509,7 @@ def get_list_completed_jobs_by_date(
         "task_creation_time": {
             "$gte": start_date,
             "$lt": end_date
-        },
-        "task_input_dict.dataset": dataset
+        }
     }
 
     # Add condition to filter by min_clip_sigma_score if provided
