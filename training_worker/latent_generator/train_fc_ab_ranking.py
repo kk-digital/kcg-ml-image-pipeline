@@ -1,11 +1,13 @@
 import argparse
 from datetime import datetime
 import io
+import json
 import os
 import sys
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
+import requests
 import torch
 import torch.optim as optim
 import msgpack
@@ -23,12 +25,14 @@ from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from training_worker.ab_ranking.model.ab_ranking_fc import ABRankingFCNetwork
 from kandinsky.models.kandisky import KandinskyPipeline
+from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 from data_loader.utils import get_object
 from torch.nn.functional import cosine_similarity 
 
 
 DATA_MINIO_DIRECTORY="data/latent-generator"
+API_URL = "http://192.168.3.1:8111"
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -99,7 +103,6 @@ class ABRankingFcTrainingPipeline:
 
         return mean_vector, std_vector, max_vector, min_vector
 
-
     # load elm or linear scoring models
     def load_scoring_model(self):
         input_path=f"{self.dataset}/models/ranking/"
@@ -138,7 +141,6 @@ class ABRankingFcTrainingPipeline:
 
         return scoring_model
     
-
     def sample_random_latents(self):
         sampled_embeddings = torch.normal(mean=self.clip_mean.repeat(self.num_samples, 1),
                                       std=self.clip_std.repeat(self.num_samples, 1))
@@ -167,7 +169,7 @@ class ABRankingFcTrainingPipeline:
 
     def construct_dataset(self):
         # generate latents
-        latents= self.sample_random_latents()
+        latents= self.load_samples_from_minio()
         training_data=[]
         init_image_batch = [Image.open("./test/test_inpainting/white_512x512.jpg") for i in range(self.batch_size)]
 
@@ -203,6 +205,33 @@ class ABRankingFcTrainingPipeline:
                 training_data.append(data)
 
         self.store_training_data(training_data)
+
+    def get_file_paths(self):
+        print('Loading image file paths')
+        response = requests.get(f'{API_URL}/queue/image-generation/list-by-dataset?dataset={self.dataset}&model_type=elm-v1&min_clip_sigma_score=0.8&size={self.num_samples}')
+        
+        jobs = json.loads(response.content)
+
+        file_paths=[job['file_path'] for job in jobs]
+
+        return file_paths
+    
+    def load_samples_from_minio(self):
+        file_paths= self.get_file_paths()
+
+        latents=[]
+        for path in file_paths:
+            clip_path= path.replace('.png', '_clip_kandinsky.msgpack')
+            bucket, features_vector_path= separate_bucket_and_file_path(clip_path) 
+            features_data = get_object(self.minio_client, features_vector_path)
+            features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
+            features_vector= torch.tensor(features_vector).to(device=self.device, dtype=torch.float32)
+
+            print(features_vector.shape)
+            
+            latents.append(features_vector)
+
+        return latents
 
     def train(self):
         inputs=[]
@@ -242,7 +271,6 @@ class ABRankingFcTrainingPipeline:
         
         return inputs, outputs
 
-    
     # store self training data
     def store_training_data(self, training_data):
         batch_size = 10000
