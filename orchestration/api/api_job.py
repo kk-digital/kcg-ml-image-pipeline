@@ -548,7 +548,8 @@ def get_list_completed_jobs_by_dataset(
     dataset: str= Query(..., description="Dataset name"),  
     start_date: str = Query(..., description="Start date for filtering jobs"), 
     end_date: str = Query(..., description="End date for filtering jobs"),
-    min_clip_sigma_score: float = Query(None, description="Minimum CLIP sigma score to filter jobs")
+    min_clip_sigma_score: float = Query(None, description="Minimum CLIP sigma score to filter jobs"),
+    size: int = Query(1, description="Number of images to return")
 ):
     print(f"Start Date: {start_date}, End Date: {end_date}")
 
@@ -564,7 +565,16 @@ def get_list_completed_jobs_by_dataset(
     if min_clip_sigma_score is not None:
         query["task_attributes_dict.image_clip_sigma_score"] = {"$gte": min_clip_sigma_score}
 
-    jobs = list(request.app.completed_jobs_collection.find(query))
+    # jobs = list(request.app.completed_jobs_collection.find(query))
+        
+    # Use $match to filter documents based on dataset, creation time, and prompt_generation_policy
+    documents = request.app.completed_jobs_collection.aggregate([
+        {"$match": query},
+        {"$sample": {"size": size}}
+    ])
+
+    # Convert cursor type to list
+    jobs = list(documents)    
 
     datasets = []
     for job in jobs:
@@ -584,7 +594,6 @@ def get_list_completed_jobs_by_dataset(
         datasets.append(job_info)
 
     return datasets
-
 
 
 @router.get("/queue/image-generation/list-failed", response_class=PrettyJSONResponse)
