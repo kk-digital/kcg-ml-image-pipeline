@@ -932,13 +932,7 @@ train_loader_clip_cyber = data.DataLoader(train_set_cyber, batch_size=batchsize_
 val_loader_clip_cyber= data.DataLoader(val_set_cyber, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
 
-
-
-
-
-
-
-
+# Set loaders
 train_loader = train_loader_clip_occult
 val_loader = val_loader_clip_ocult
 adv_loader = train_loader_clip_cyber
@@ -950,11 +944,11 @@ adv_loader = train_loader_clip_cyber
 
 
 
-# # Train
-# model = train_model(img_shape=(1,1280),
-#                     batch_size=train_loader.batch_size,
-#                     lr=0.001,
-#                     beta1=0.0)
+# Train
+model = train_model(img_shape=(1,1280),
+                    batch_size=train_loader.batch_size,
+                    lr=0.001,
+                    beta1=0.0)
 
 
 
