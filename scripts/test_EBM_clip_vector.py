@@ -942,7 +942,7 @@ transform = transforms.Compose([
 # Load occult images
 images_paths_ClassA = get_tag_jobs(39)
 ocult_clips = get_clip_vectors(images_paths_ClassA)
-data_occcult_clips = [(clip, 1) for clip in ocult_clips]
+#data_occcult_clips = [(clip, 1) for clip in ocult_clips]
 print("Occult length:", len(data_occcult_clips))
 
 # Split and create data loaders for occult
@@ -957,7 +957,7 @@ val_loader_clip_ocult = data.DataLoader(val_set_ocult, batch_size=batchsize_x, s
 # Load cybernetics images
 images_paths_ClassB = get_tag_jobs(35)
 cyber_clips = get_clip_vectors(images_paths_ClassB)
-data_cyber_clips = [(clip, 0) for clip in cyber_clips]
+#data_cyber_clips = [(clip, 0) for clip in cyber_clips]
 print("Cybernetics length:", len(data_cyber_clips))
 
 # Split and create data loaders for cybernetics
