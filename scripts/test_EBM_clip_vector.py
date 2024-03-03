@@ -934,7 +934,7 @@ def energy_evaluation_with_pictures(training_loader,adv_loader):
 
 
 # Train
-model = train_model(img_shape=(3,512,512),
+model = train_model(img_shape=(1,1280),
                     batch_size=train_loader.batch_size,
                     lr=0.001,
                     beta1=0.0)
