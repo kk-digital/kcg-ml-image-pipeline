@@ -574,7 +574,7 @@ def get_list_completed_jobs_by_dataset(
     for job in jobs:
         job_uuid = job.get("uuid")
         file_path = job.get("task_output_file_dict", {}).get("output_file_path")
-        clip_sigma_score = job.get("task_attributes_dict",{}).get(model_type).get("image_clip_sigma_score")
+        clip_sigma_score = job.get("task_attributes_dict",{}).get(model_type, {}).get("image_clip_sigma_score")
 
         if not job_uuid or not file_path:
             continue
