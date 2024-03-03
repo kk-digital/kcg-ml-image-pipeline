@@ -713,9 +713,9 @@ def train_model(**kwargs):
                          max_epochs=15,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
-                                    GenerateCallback(every_n_epochs=5),
-                                    SamplerCallback(every_n_epochs=5),
-                                    OutlierCallback(),
+                                    # GenerateCallback(every_n_epochs=5),
+                                    # SamplerCallback(every_n_epochs=5),
+                                    # OutlierCallback(),
                                     LearningRateMonitor("epoch")
                                    ])
     # Check whether pretrained model exists. If yes, load it and skip training
