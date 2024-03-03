@@ -979,11 +979,11 @@ adv_loader = train_loader_clip_cyber
 print("trainloader length:", len(train_loader))
 
 
-# # Train
-# model = train_model(img_shape=(1,1280),
-#                     batch_size=train_loader.batch_size,
-#                     lr=0.001,
-#                     beta1=0.0)
+# Train
+model = train_model(img_shape=(1,1280),
+                    batch_size=train_loader.batch_size,
+                    lr=0.001,
+                    beta1=0.0)
 
 
 
