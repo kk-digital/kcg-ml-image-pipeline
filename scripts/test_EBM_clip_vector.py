@@ -176,7 +176,9 @@ def get_clip_vectors(file_paths):
             bucket, features_vector_path= separate_bucket_and_file_path(clip_path) 
             features_data = get_object(minio_client, features_vector_path)
             features = msgpack.unpackb(features_data)["clip-feature-vector"]
+            print("feature : ", features )
             clip_vectors.append(features)
+            
         return clip_vectors    
 
 
@@ -981,12 +983,12 @@ adv_loader = train_loader_clip_cyber
 print("trainloader length:", len(train_loader))
 
 
-# Fetch the first batch
-first_batch_data, first_batch_labels = next(iter(train_loader_clip_occult))
+# # Fetch the first batch
+# first_batch_data, first_batch_labels = next(iter(train_loader_clip_occult))
 
-# Print the shape of the first batch data and labels
-print(f"Shape of the first batch data: {first_batch_data.shape}")
-print(f"Shape of the first batch labels: {first_batch_labels.shape}")
+# # Print the shape of the first batch data and labels
+# print(f"Shape of the first batch data: {first_batch_data.shape}")
+# print(f"Shape of the first batch labels: {first_batch_labels.shape}")
 
 # # Train
 # model = train_model(img_shape=(1,1280),
