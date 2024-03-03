@@ -15,7 +15,7 @@ from .api_utils import PrettyJSONResponse
 from typing import List
 import json
 import paramiko
-from typing import Optional
+from typing import Optional, Dict
 import csv
 from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, AddJob, WasPresentResponse
 from pymongo import UpdateMany
@@ -476,6 +476,7 @@ def get_list_completed_jobs(request: Request, limit: Optional[int] = Query(10, a
 
     return jobs
 
+
 @router.get("/queue/image-generation/list-completed-by-task-type", response_class=PrettyJSONResponse)
 def get_list_completed_jobs_by_dataset(request: Request, task_type, limit: Optional[int] = Query(10, alias="limit")):
     # Use the limit parameter in the find query to limit the results
@@ -626,6 +627,25 @@ def count_completed(request: Request, dataset: str = None):
     return len(jobs)
 
 # ---------------- Update -------------------
+
+
+@router.put("/queue/image-generation/update-completed-jobs-with-better-name", response_class=PrettyJSONResponse)
+def update_completed_jobs_with_better_name(request: Request, task_type_mapping: Dict[str, str]):
+    # Use the limit parameter in the find query to limit the results
+    total_count_updated = 0
+    
+    for key, value in task_type_mapping.items():
+        result = request.app.completed_jobs_collection.update_many(
+            {"task_type": key},
+            {
+                "$set": {
+                    "task_type": value
+                },
+            }
+        )
+        total_count_updated += result.matched_count
+    
+    return total_count_updated
 
 
 @router.put("/queue/image-generation/update-completed", description="Update in progress job and mark as completed.")

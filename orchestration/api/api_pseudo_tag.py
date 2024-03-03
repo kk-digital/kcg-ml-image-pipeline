@@ -198,10 +198,7 @@ def remove_pseudo_tag(request: Request, pseudo_tag_id: int):
 
     if tag is None:
         # Return standard response with wasPresent: false
-       return response_handler.create_success_delete_response_v1(
-                                                            {"wasPresent": False},
-                                                           http_status_code=200,
-                                                           )
+        return response_handler.create_success_delete_response({"wasPresent": False})
 
     # Check if the tag is used in any images
     image_query = {"pseudo_tag_id": pseudo_tag_id}
@@ -378,34 +375,32 @@ def remove_image_pseudo_tag(request: Request, image_hash: str, pseudo_tag_id: in
             tags=["pseudo_tags"], 
             status_code=200,
             description="list pseudo tags for image",
-            response_model=StandardSuccessResponseV1[list[PseudoTagDefinition]],
+            response_model=StandardSuccessResponseV1[List[PseudoTagDefinition]],  
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def get_pseudo_tag_list_for_image(request: Request, file_hash: str):
-    # Fetch image tags based on image_hash
-    image_tags_cursor = request.app.pseudo_image_tags_collection.find({"image_hash": file_hash})
-    
-    # Process the results
-    pseudo_tags_list = []
-    for tag_data in image_tags_cursor:
-        pseudo_tag_definition = request.app.pseudo_tag_definitions_collection.find_one({"pseudo_tag_id": tag_data["pseudo_tag_id"]})
+    response_handler = ApiResponseHandlerV1(request) 
+    try:
+        image_tags_cursor = request.app.pseudo_image_tags_collection.find({"image_hash": file_hash})
         
-        if pseudo_tag_definition:
-            # Create a dictionary representing pseudoTagDefinition with tag_type
-            pseudo_tag_definition_dict = {
-                "pseudo_tag_id": pseudo_tag_definition["pseudo_tag_id"],
-                "pseudo_tag_string": pseudo_tag_definition["pseudo_tag_string"],
-                "pseudo_tag_type": tag_data.get("pseudo_tag_type"),
-                "pseudo_tag_category_id": pseudo_tag_definition.get("pseudo_tag_category_id"),
-                "pseudo_tag_description": pseudo_tag_definition["pseudo_tag_description"],
-                "pseudo_tag_vector_index": pseudo_tag_definition.get("pseudo_tag_vector_index", -1),
-                "deprecated": pseudo_tag_definition.get("deprecated", False),
-                "user_who_created": pseudo_tag_definition["user_who_created"],
-                "creation_time": pseudo_tag_definition.get("creation_time", None)
-            }
+        pseudo_tags_list = []
+        for tag_data in image_tags_cursor:
+            pseudo_tag_definition = request.app.pseudo_tag_definitions_collection.find_one({"pseudo_tag_id": tag_data["pseudo_tag_id"]})
+            
+            if pseudo_tag_definition:
+                pseudo_tags_list.append(PseudoTagDefinition(**pseudo_tag_definition))  # Construct PseudoTagDefinition objects directly
 
-            pseudo_tags_list.append(pseudo_tag_definition_dict)
-    
-    return pseudo_tags_list
+        # Assuming create_success_response_v1 correctly wraps the response
+        return response_handler.create_success_response_v1(
+            response_data=pseudo_tags_list,  # This should align with how StandardSuccessResponseV1 wraps the data
+            http_status_code=200,
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )
+
 
 
 
@@ -613,10 +608,7 @@ def delete_pseudo_tag_category(request: Request, pseudo_tag_category_id: int):
 
     if category is None:
         # Return standard response with wasPresent: false
-        return response_handler.create_success_delete_response_v1(
-                                                           {"wasPresent": False},
-                                                           http_status_code=200,
-                                                           )
+        return response_handler.create_success_delete_response({"wasPresent": False})
 
     # Check if the tag category is used in any tags
     tag_query = {"pseudo_tag_category_id": pseudo_tag_category_id}
@@ -634,11 +626,10 @@ def delete_pseudo_tag_category(request: Request, pseudo_tag_category_id: int):
     request.app.pseudo_tag_categories_collection.delete_one(category_query)
 
     # Return standard response with wasPresent: true
-    return response_handler.create_success_delete_response_v1(
-                                                           {"wasPresent": False},
-                                                           http_status_code=200,
-                                                           )
-@router.get("/pseudotag-categories/list-pseudo-tag-categories", 
+    return response_handler.create_success_delete_response({"wasPresent": True})
+
+
+@router.get("/pseudotag-categories", 
             tags=["pseudotag-categories"], 
             description="List pseudo tag categories",
             status_code=200,
