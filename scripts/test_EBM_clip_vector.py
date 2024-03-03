@@ -1104,25 +1104,25 @@ energy_evaluation(val_loader,adv_loader)
 # adv_loader =  val_loader_advtrain
 
 
-# # Train
-# model2 = train_model(img_shape=(3,512,512),
-#                     batch_size=train_loader_set_cyber.batch_size,
-#                     lr=0.001,
-#                     beta1=0.0)
+# Train
+model2 = train_model(img_shape=(3,512,512),
+                    batch_size=train_loader_set_cyber.batch_size,
+                    lr=0.001,
+                    beta1=0.0)
 
 
 
-# Initialize the model
-model = Clip_NN(input_size=1280, hidden_size=512, output_size=1)
+# # Initialize the model
+# model = Clip_NN(input_size=1280, hidden_size=512, output_size=1)
 
-# Create a dummy input tensor of the correct shape [1, 1280]
-input_tensor = torch.randn(1, 1280)
+# # Create a dummy input tensor of the correct shape [1, 1280]
+# input_tensor = torch.randn(1, 1280)
 
-# Forward pass
-output = model(input_tensor)
+# # Forward pass
+# output = model(input_tensor)
 
 
-print(output.shape)  # This should print torch.Size([1, 1])
+# print(output.shape)  # This should print torch.Size([1, 1])
 
 
 
