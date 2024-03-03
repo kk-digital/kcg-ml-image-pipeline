@@ -533,8 +533,8 @@ class DeepEnergyModel(pl.LightningModule):
         #real_probs, fake_probs = class_probs.chunk(2, dim=0)
 
         # Calculate CD loss
-        #cdiv_loss = fake_scores.mean() - real_scores.mean()
-        cdiv_loss = np.linalg.norm(fake_scores.mean() - real_scores.mean())
+        cdiv_loss = fake_scores.mean() - real_scores.mean()
+        #cdiv_loss = np.linalg.norm(fake_scores.mean() - real_scores.mean())
         # Calculate classification loss (assuming softmax output)
         #class_loss = nn.CrossEntropyLoss()(real_probs, _)
 
@@ -544,7 +544,7 @@ class DeepEnergyModel(pl.LightningModule):
 
         # Combine losses and backpropagate
         alphaW = 1  # Adjust weight for cdiv_loss
-        alphaY = 0.2  # Adjust weight for reg_loss
+        alphaY = 0.5  # Adjust weight for reg_loss
         total_loss =  ((alphaW) * cdiv_loss) + (alphaY * reg_loss)
         #total_loss = cdiv_loss + class_loss
 
