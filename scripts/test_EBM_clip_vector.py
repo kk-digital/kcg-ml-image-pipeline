@@ -110,7 +110,7 @@ from data_loader.utils import get_object
 
 API_URL = "http://192.168.3.1:8111"
 
-batchsize_x = 32
+batchsize_x = 16
 ########################################### Get tags
 
 # def get_tag_jobs(tag_id):
