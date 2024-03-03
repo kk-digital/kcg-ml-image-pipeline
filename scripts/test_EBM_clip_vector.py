@@ -176,7 +176,7 @@ def get_clip_vectors(file_paths):
             bucket, features_vector_path= separate_bucket_and_file_path(clip_path) 
             features_data = get_object(minio_client, features_vector_path)
             features = msgpack.unpackb(features_data)["clip-feature-vector"]
-            print("feature : ", features.shape )
+            print("feature : ", len(features) )
             clip_vectors.append(features)
             
         return clip_vectors    
