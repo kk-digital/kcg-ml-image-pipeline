@@ -711,14 +711,13 @@ def train_model(**kwargs):
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
                          max_epochs=15,
-                         gradient_clip_val=0.1
-                        #  callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
-                        #             # GenerateCallback(every_n_epochs=5),
-                        #             # SamplerCallback(every_n_epochs=5),
-                        #             # OutlierCallback(),
-                        #             LearningRateMonitor("epoch")
-                        #           ]
-                        )
+                         gradient_clip_val=0.1,
+                         callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
+                                    GenerateCallback(every_n_epochs=5),
+                                    SamplerCallback(every_n_epochs=5),
+                                    OutlierCallback(),
+                                    LearningRateMonitor("epoch")
+                                   ])
     # Check whether pretrained model exists. If yes, load it and skip training
     pretrained_filename = os.path.join(CHECKPOINT_PATH, "MNIST.ckpt")
 
@@ -980,15 +979,13 @@ adv_loader = train_loader_clip_cyber
 print("trainloader length:", len(train_loader))
 
 
-# Train
-model = train_model(img_shape=(1,1280),
-                    batch_size=train_loader.batch_size,
-                    lr=0.001,
-                    beta1=0.0)
 
 
-model = DeepEnergyModel(**kwargs)
-trainer.fit(model, train_loader, val_loader)
+# # Train
+# model = train_model(img_shape=(1,1280),
+#                     batch_size=train_loader.batch_size,
+#                     lr=0.001,
+#                     beta1=0.0)
 
 
 
@@ -1100,6 +1097,25 @@ trainer.fit(model, train_loader, val_loader)
 #                     batch_size=train_loader_set_cyber.batch_size,
 #                     lr=0.001,
 #                     beta1=0.0)
+
+
+
+# Initialize the model
+model = Clip_NN(input_size=1280, hidden_size=512, output_size=1)
+
+# Create a dummy input tensor of the correct shape [1, 1280]
+input_tensor = torch.randn(1, 1280)
+
+# Forward pass
+output = model(input_tensor)
+
+
+
+
+
+
+
+
 
 
 # modelsave = model
