@@ -221,7 +221,7 @@ class ABRankingFcTrainingPipeline:
 
         latents=[]
         for path in file_paths:
-            clip_path= path.replace('.png', '_clip_kandinsky.msgpack')
+            clip_path= path.replace('.jpg', '_clip_kandinsky.msgpack')
             bucket, features_vector_path= separate_bucket_and_file_path(clip_path) 
             features_data = get_object(self.minio_client, features_vector_path)
             features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
