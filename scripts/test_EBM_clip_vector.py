@@ -110,7 +110,7 @@ from data_loader.utils import get_object
 
 API_URL = "http://192.168.3.1:8111"
 
-
+batchsize_x = 32
 ########################################### Get tags
 
 # def get_tag_jobs(tag_id):
@@ -865,7 +865,7 @@ transform = transforms.Compose([
 
 ##################### Load images
 
-batchsize_x = 32
+
 
 #cybernetic: 35, occult: 39
 
