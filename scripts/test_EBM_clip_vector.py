@@ -444,102 +444,6 @@ def get_combined_adv_dataset_from_id_array(id_classes,data_augment_passes,label_
 
 
 
-##################### Load images
-
-# Transformations: # don't use greyscale
-transform = transforms.Compose([
-    transforms.Resize((512, 512)),
-    transforms.ToTensor(),
-    transforms.Normalize((0.5,), (0.5,))  # Normalize after grayscale conversion
-])
-
-
-##################### Load images
-
-batchsize_x = 32
-
-#cybernetic: 35, occult: 39
-
-
-################################################################### Load occults images
-images_paths = get_tag_jobs(39)
-
-
-#Get clips vectors
-ocult_clips = []
-ocult_clips = get_clip_vectors(images_paths)
-
-
-
-# ADD Labels
-data_occcult_clips = []
-for clip in ocult_clips:
-    data_occcult_clips.append((clip, 1))
-
-# Dataset Size
-print("Occult lenght : ",len(data_occcult_clips))
-
-
-ocult_clips = data_occcult_clips
-num_samples_ocult = len(ocult_clips)
-print("the number of samples in ocult ", num_samples_ocult)
-
-train_size_ocult = int(0.8 * num_samples_ocult)
-val_size_ocult = num_samples_ocult - train_size_ocult
-
-train_set_ocult, val_set_ocult = random_split(ocult_clips, [train_size_ocult, val_size_ocult])
-
-train_loader_clip_occult = data.DataLoader(train_set_ocult, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
-val_loader_clip_ocult= data.DataLoader(val_set_ocult, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
-
-
-
-
-# ################################################################################ Load cybernetics images
-images_paths = get_tag_jobs(35)
-
-cyber_clips = []
-cyber_clips = get_clip_vectors(images_paths)
-data_cyber_clips = []
-for clip in cyber_clips:
-    data_cyber_clips.append((clip, 0))
-
-
-
-
-print("Occult lenght : ",len(data_cyber_clips))
-
-
-cyber_clips = data_cyber_clips
-num_samples_cyber = len(cyber_clips)
-print("the number of samples in ocult ", num_samples_cyber)
-train_size_cyber = int(0.8 * num_samples_cyber)
-val_size_cyber = num_samples_cyber - train_size_cyber
-
-
-
-train_set_cyber, val_set_cyber = random_split(cyber_clips, [train_size_cyber, val_size_cyber])
-train_loader_clip_cyber = data.DataLoader(train_set_cyber, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
-val_loader_clip_cyber= data.DataLoader(val_set_cyber, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
-
-
-
-
-
-
-
-
-
-# train_loader = train_loader_clip_occult
-# val_loader = val_loader_clip_ocult
-# adv_loader = train_loader_clip_cyber
-
-
-
-
-
-
-
 
 
 
@@ -945,6 +849,102 @@ def energy_evaluation_with_pictures(training_loader,adv_loader):
 #######################################################################################################################################################
 ################################################################    Run code here      ################################################################
 #######################################################################################################################################################
+
+
+
+
+##################### Load images
+
+# Transformations: # don't use greyscale
+transform = transforms.Compose([
+    transforms.Resize((512, 512)),
+    transforms.ToTensor(),
+    transforms.Normalize((0.5,), (0.5,))  # Normalize after grayscale conversion
+])
+
+
+##################### Load images
+
+batchsize_x = 32
+
+#cybernetic: 35, occult: 39
+
+
+################################################################### Load occults images
+images_paths = get_tag_jobs(39)
+
+
+#Get clips vectors
+ocult_clips = []
+ocult_clips = get_clip_vectors(images_paths)
+
+
+
+# ADD Labels
+data_occcult_clips = []
+for clip in ocult_clips:
+    data_occcult_clips.append((clip, 1))
+
+# Dataset Size
+print("Occult lenght : ",len(data_occcult_clips))
+
+
+ocult_clips = data_occcult_clips
+num_samples_ocult = len(ocult_clips)
+print("the number of samples in ocult ", num_samples_ocult)
+
+train_size_ocult = int(0.8 * num_samples_ocult)
+val_size_ocult = num_samples_ocult - train_size_ocult
+
+train_set_ocult, val_set_ocult = random_split(ocult_clips, [train_size_ocult, val_size_ocult])
+
+train_loader_clip_occult = data.DataLoader(train_set_ocult, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+val_loader_clip_ocult= data.DataLoader(val_set_ocult, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+
+
+
+
+# ################################################################################ Load cybernetics images
+images_paths = get_tag_jobs(35)
+
+cyber_clips = []
+cyber_clips = get_clip_vectors(images_paths)
+data_cyber_clips = []
+for clip in cyber_clips:
+    data_cyber_clips.append((clip, 0))
+
+
+
+
+print("Occult lenght : ",len(data_cyber_clips))
+
+
+cyber_clips = data_cyber_clips
+num_samples_cyber = len(cyber_clips)
+print("the number of samples in ocult ", num_samples_cyber)
+train_size_cyber = int(0.8 * num_samples_cyber)
+val_size_cyber = num_samples_cyber - train_size_cyber
+
+
+
+train_set_cyber, val_set_cyber = random_split(cyber_clips, [train_size_cyber, val_size_cyber])
+train_loader_clip_cyber = data.DataLoader(train_set_cyber, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+val_loader_clip_cyber= data.DataLoader(val_set_cyber, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+
+
+
+
+
+
+
+
+
+train_loader = train_loader_clip_occult
+val_loader = val_loader_clip_ocult
+adv_loader = train_loader_clip_cyber
+
+
+
 
 
 
