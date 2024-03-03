@@ -1110,6 +1110,9 @@ input_tensor = torch.randn(1, 1280)
 output = model(input_tensor)
 
 
+print(output.shape)  # This should print torch.Size([1, 1])
+
+
 
 
 
