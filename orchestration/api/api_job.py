@@ -546,18 +546,11 @@ def get_list_completed_jobs_by_date(
 def get_list_completed_jobs_by_dataset(
     request: Request,
     dataset: str= Query(..., description="Dataset name"),  
-    start_date: str = Query(..., description="Start date for filtering jobs"), 
-    end_date: str = Query(..., description="End date for filtering jobs"),
     min_clip_sigma_score: float = Query(None, description="Minimum CLIP sigma score to filter jobs"),
     size: int = Query(1, description="Number of images to return")
 ):
-    print(f"Start Date: {start_date}, End Date: {end_date}")
 
     query = {
-        "task_creation_time": {
-            "$gte": start_date,
-            "$lt": end_date
-        },
         "task_input_dict.dataset": dataset
     }
 
