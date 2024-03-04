@@ -952,14 +952,14 @@ def get_clip_embeddings_by_tag(id_classes,label_value):
     #     i += 1
 
 
-    for i in range(id_classes):
+    for i in range(len(id_classes)):
         images_paths_ClassA = get_tag_jobs(id_classes)
         ocult_clips = get_clip_vectors(images_paths_ClassA)
         data_occcult_clips = data_occcult_clips.append(ocult_clips)
 
 
     # Create labels
-    data_occcult_clips = [(clip, label_value) for clip in clip_embeddings]
+    data_occcult_clips = [(clip, label_value) for clip in data_occcult_clips]
     print("Clip embeddings array lenght : ",len(data_occcult_clips))
 
     # Split
