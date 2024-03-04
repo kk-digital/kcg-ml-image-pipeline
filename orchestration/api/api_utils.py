@@ -31,7 +31,9 @@ class ModelResponse(BaseModel):
     validation_loss: str
     graph_report: str
 
-
+class ModelsAndScoresResponse(BaseModel):
+    models: List[str]
+    scores: List[str]
 class ListImageTag(BaseModel):
      images: List[ImageTag]
 
