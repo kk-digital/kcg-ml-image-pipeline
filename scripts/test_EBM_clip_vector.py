@@ -993,7 +993,7 @@ def get_clip_embeddings_by_tag(id_classes,label_value):
 # val_loader_clip_ocult = data.DataLoader(val_set_ocult, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
 
-train_loader_clip_occult, val_loader_clip_ocult = get_clip_embeddings_by_tag([39],1,64)
+train_loader_clip_occult, val_loader_clip_ocult = get_clip_embeddings_by_tag([39],1)
 
 # Load cybernetics images
 images_paths_ClassB = get_tag_jobs(35)
