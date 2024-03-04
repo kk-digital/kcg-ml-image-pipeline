@@ -875,8 +875,9 @@ def compare_clip_show(img_in, img_ood, clip_in,clip_ood):
     # Pass the second image through the CNN model and get its score
     score2 = model.cnn(clip_ood.unsqueeze(0).to(model.device)).cpu()
 
-
-
+        
+    img_in = transform(img_in)
+    img_ood = transform(img_ood)
     #class1, class2 = model.cnn(imgs)[1].cpu().chunk(2, dim=0)
     grid = torchvision.utils.make_grid([img_in, img_ood], nrow=2, normalize=True, pad_value=0.5, padding=2)
     grid = grid.permute(1, 2, 0)
