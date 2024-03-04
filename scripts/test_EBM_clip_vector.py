@@ -971,23 +971,18 @@ transform = transforms.Compose([
 
 
 def get_clip_embeddings_by_tag(id_classes,label_value):
-    images_paths = []
-    i = 0
-    for class_id in id_classes:
-        images_paths[i] = get_tag_jobs(class_id)
-        i += 1
-
-
-
-    ocult_images = []
-
-    for j in range(i):
-        for path in images_paths[j]:
-            ocult_images.append(get_clip_vectors(path))
+    images_paths = get_tag_jobs(id_classes[0])
+    i = 1
+    for i in range(1,len(id_classes)):
+        images_paths = images_paths + get_tag_jobs(id_classes[i])
+       
+ 
+    
+    ocult_clips = get_clip_vectors(images_paths)
 
 
     # Create labels
-    data_occcult_clips = [(clip, label_value) for clip in ocult_images]
+    data_occcult_clips = [(clip, label_value) for clip in ocult_clips]
     print("Clip embeddings array lenght : ",len(data_occcult_clips))
 
     # Split
@@ -1003,37 +998,31 @@ def get_clip_embeddings_by_tag(id_classes,label_value):
     return train_loader_clip, val_loader_clip
 
     
-# Load occult images
-images_paths_ClassA = get_tag_jobs(39)
+# # Load occult images
+# images_paths_ClassA = get_tag_jobs(39)
 
-ocult_clips = get_clip_vectors(images_paths_ClassA)
-#data_occcult_clips = ocult_clips
-data_occcult_clips = [(clip, 1) for clip in ocult_clips]
-print("Occult length:", len(data_occcult_clips))
+# ocult_clips = get_clip_vectors(images_paths_ClassA)
+# #data_occcult_clips = ocult_clips
+# data_occcult_clips = [(clip, 1) for clip in ocult_clips]
+# print("Occult length:", len(data_occcult_clips))
 
-# Split and create data loaders for occult
-num_samples_ocult = len(data_occcult_clips)
-train_size_ocult = int(0.8 * num_samples_ocult)
-val_size_ocult = num_samples_ocult - train_size_ocult
-train_set_ocult, val_set_ocult = random_split(data_occcult_clips, [train_size_ocult, val_size_ocult])
+# # Split and create data loaders for occult
+# num_samples_ocult = len(data_occcult_clips)
+# train_size_ocult = int(0.8 * num_samples_ocult)
+# val_size_ocult = num_samples_ocult - train_size_ocult
+# train_set_ocult, val_set_ocult = random_split(data_occcult_clips, [train_size_ocult, val_size_ocult])
 
-train_loader_clip_occult = data.DataLoader(train_set_ocult, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
-val_loader_clip_ocult = data.DataLoader(val_set_ocult, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+# train_loader_clip_occult = data.DataLoader(train_set_ocult, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+# val_loader_clip_ocult = data.DataLoader(val_set_ocult, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
 
-# train_loader_clip_occult, val_loader_clip_ocult = get_clip_embeddings_by_tag([39],1)
+train_loader_clip_occult, val_loader_clip_ocult = get_clip_embeddings_by_tag([39],1)
 
 # Load cybernetics images
 images_paths_ClassB = get_tag_jobs(35)
 print("Class B: ",images_paths_ClassB)
 
-images_paths_ClassC = get_tag_jobs(7)
-print("Class C: ",images_paths_ClassC)
 
-
-images_paths_ClassBnC = images_paths_ClassB + images_paths_ClassC
-
-print("Class B + C: ",images_paths_ClassBnC)
 
 cyber_clips = get_clip_vectors(images_paths_ClassB)
 #data_cyber_clips = cyber_clips
