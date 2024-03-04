@@ -861,6 +861,8 @@ def energy_evaluation_with_pictures(training_loader,adv_loader):
     
 @torch.no_grad()
 def compare_clip_show(img_in, img_ood, clip_in,clip_ood):
+    print("clip 1 shape : ",clip_in.shape)
+    print("clip 2 shape : ",clip_ood.shape)
     imgs = torch.stack([clip_in, clip_ood], dim=0).to(model.device)
     score1, score2 = model.cnn(imgs).cpu().chunk(2, dim=0) # model.cnn(imgs)[0].cpu().chunk(2, dim=0)
     #class1, class2 = model.cnn(imgs)[1].cpu().chunk(2, dim=0)
