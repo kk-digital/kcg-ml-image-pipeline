@@ -16,7 +16,7 @@ def get_sequential_id(request: Request, dataset: str, limit: int = 1):
     sequential_id_arr = []
 
     # find
-    sequential_id = request.app.dataset_sequential_id_collection.find_one({"dataset_name": dataset})
+    sequential_id = request.app.inpainting_dataset_sequential_id_collection.find_one({"dataset_name": dataset})
     if sequential_id is None:
         # create one
         new_sequential_id = SequentialID(dataset)
