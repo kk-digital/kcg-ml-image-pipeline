@@ -946,16 +946,13 @@ def get_clip_embeddings_by_tag(id_classes,label_value):
     
     images_paths = [] 
 
-    # i = 0
-    # for class_id in id_classes:
-    #     images_paths[i] = get_tag_jobs(class_id)
-    #     i += 1
-    #     print("yep ", i)
-
-
+    i = 0
     for class_id in id_classes:
-        temp_img_path = get_tag_jobs(class_id)
-        images_paths =  images_paths + temp_img_path
+        images_paths[i] = get_tag_jobs(class_id)
+        i += 1
+        print("yep ", i)
+
+
 
     clip_embeddings = []
     clip_embeddings.append(get_clip_vectors(images_paths))
