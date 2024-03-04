@@ -1030,6 +1030,11 @@ print("Class B: ",images_paths_ClassB)
 images_paths_ClassC = get_tag_jobs(7)
 print("Class C: ",images_paths_ClassC)
 
+
+images_paths_ClassBnC = images_paths_ClassB + images_paths_ClassC
+
+print("Class B + C: ",images_paths_ClassBnC)
+
 cyber_clips = get_clip_vectors(images_paths_ClassB)
 #data_cyber_clips = cyber_clips
 data_cyber_clips = [(clip, 0) for clip in cyber_clips]
