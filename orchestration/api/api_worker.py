@@ -1,6 +1,6 @@
 from fastapi import Request, APIRouter, HTTPException, Query, Body
 from utility.minio import cmd
-from .api_utils import PrettyJSONResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandlerV1, StandardSuccessResponseV1
 import json
 import paramiko
 import csv
@@ -41,3 +41,14 @@ def get_worker_stats(ssh_key_path: str = Query(...),
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@router.get("/ping", 
+            response_model=StandardSuccessResponseV1[None],
+            responses=ApiResponseHandlerV1.listErrors([422, 500]))
+def ping(request: Request):
+    response_handler = ApiResponseHandlerV1(request)
+    # Simply return None for data, indicating a successful ping with no additional data
+    return response_handler.create_success_response_v1(
+        response_data=None,  
+        http_status_code=200
+    )

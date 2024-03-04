@@ -100,35 +100,30 @@ def create_index_if_not_exists(collection, index_key, index_name):
         print(f"Index '{index_name}' already exists on collection '{collection.name}'.")
 
 
-# Define the exception handler
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     print(exc.errors())
-    start_time = datetime.now()  # Capture start time at the beginning of request processing
-    end_time = datetime.now()  # Capture end time when handling the exception
-    duration = (end_time - start_time).total_seconds()
-    
-    # Constructing a detailed error message from the validation errors
-    error_messages = []
-    for error in exc.errors():
-        field_path = "->".join(str(loc) for loc in error['loc'])
-        message = error['msg']
-        error_messages.append(f"{field_path}: {message}")
-    detailed_error_message = "; ".join(error_messages)
+    start_time = datetime.now() 
+
+    # Directly calculate elapsed time instead of using a method
+    elapsed_time = datetime.now() - start_time
+    elapsed_time_str = str(elapsed_time.total_seconds())  # Convert elapsed time to a string
+
+    error_response = StandardErrorResponseV1(
+        request_error_string="Validation Error",
+        request_error_code=ErrorCode.INVALID_PARAMS.value,  # Adjust as necessary
+        request_url=str(request.url),
+        request_dictionary=dict(request.query_params),
+        request_method=request.method,
+        request_time_total=elapsed_time_str,
+        request_time_start=start_time.isoformat(),
+        request_time_finished=datetime.now().isoformat(),
+        request_response_code=status.HTTP_422_UNPROCESSABLE_ENTITY
+    )
 
     return PrettyJSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={
-            "request_error_string": detailed_error_message,
-            "request_error_code": ErrorCode.INVALID_PARAMS.value,  # Ensure this matches the expected format
-            "request_url": str(request.url),
-            "request_dictionary": dict(request.query_params),
-            "request_method": request.method,
-            "request_time_total": duration,
-            "request_time_start": start_time.isoformat(),
-            "request_time_finished": end_time.isoformat(),
-            "request_response_code": status.HTTP_422_UNPROCESSABLE_ENTITY
-        },
+        content=error_response.dict(),  # Convert the Pydantic model to a dictionary for the response
     )
 
 
