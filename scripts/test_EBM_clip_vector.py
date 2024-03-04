@@ -904,13 +904,8 @@ def compare_clip_show(img_in, img_ood, clip_in,clip_ood):
 def energy_evaluation_with_pictures_clip(imgpath_id,imgpath_ood):
     
 
-    pathin = imgpath_id[0]
-    pathood= imgpath_ood[0]
-
-    print("path in : ", pathin)
-    print("path ood : ", pathood)
-    image_in, clip_emb_in  = get_clip_and_image_from_path(imgpath_id[0])
-    image_ood, clip_emb_ood  = get_clip_and_image_from_path(imgpath_ood[0])
+    image_in, clip_emb_in  = get_clip_and_image_from_path(imgpath_id)
+    image_ood, clip_emb_ood  = get_clip_and_image_from_path(imgpath_ood)
 
     compare_clip_show(image_in,image_ood,clip_emb_in,clip_emb_ood)
 
@@ -1201,7 +1196,7 @@ plt.clf()
 id_classes_in = [39]
 
 images_paths_in = get_tag_jobs(id_classes_in[0])
-print("path " , images_paths_in)
+#print("path " , images_paths_in)
 i = 1
 for i in range(1,len(id_classes_in)):
     images_paths_in = images_paths_in + get_tag_jobs(id_classes_in[i])
@@ -1218,7 +1213,9 @@ for i in range(1,len(id_classes_ood)):
 # print("in : ",images_paths_in)
 # print("ood : ",images_paths_ood)
     
-
+image_in_1 = '/datasets/environmental/0386/385189.jpg'
+images_ood_1 = '/datasets/environmental/0393/392360.jpg'
+energy_evaluation_with_pictures_clip(image_in_1,images_ood_1)
     
 #energy_evaluation_with_pictures_clip(images_paths_in,images_paths_ood)
 
