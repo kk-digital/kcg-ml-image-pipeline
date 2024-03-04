@@ -958,10 +958,7 @@ def get_clip_embeddings_by_tag(id_classes,label_value):
         images_paths =  images_paths + temp_img_path
 
     clip_embeddings = []
-
-    for j in range(len(images_paths)):
-        for path in images_paths[j]:
-            clip_embeddings.append(get_clip_vectors(path))
+    clip_embeddings.append(get_clip_vectors(images_paths))
 
     # Create labels
     data_occcult_clips = [(clip, label_value) for clip in clip_embeddings]
