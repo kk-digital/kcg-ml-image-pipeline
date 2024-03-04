@@ -1,4 +1,4 @@
-from fastapi import Request, APIRouter, HTTPException, Query, Body
+from fastapi import Request, APIRouter, HTTPException, Query, Body, File, UploadFile
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 import uuid
@@ -55,7 +55,7 @@ def get_job(request: Request, task_type= None, model_type=""):
              tags=["inpainting jobs"],
              response_model=StandardSuccessResponseV1[AddJob],
              responses=ApiResponseHandlerV1.listErrors([500]))
-def add_job(request: Request, task: Task):
+def add_job(request: Request, task: Task, mask_image: UploadFile = File(...), input_image: UploadFile = File(...)):
     task_dict = jsonable_encoder(task)
     api_response_handler = ApiResponseHandlerV1(request, body_data=task_dict)
     try:
@@ -74,7 +74,7 @@ def add_job(request: Request, task: Task):
             task.task_input_dict["file_path"] = new_file_path
 
         # Insert task into pending_jobs_collection
-        request.app.pending_inpainting_jobs_collection.insert_one(task.dict())
+        request.app.pending_inpainting_jobs_collection.insert_one(task.to_dict())
 
 
         # Convert datetime to ISO 8601 formatted string for JSON serialization
