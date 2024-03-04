@@ -1213,8 +1213,8 @@ for i in range(1,len(id_classes_ood)):
 # print("in : ",images_paths_in)
 # print("ood : ",images_paths_ood)
     
-image_in_1 = '/datasets/environmental/0386/385189.jpg'
-images_ood_1 = '/datasets/environmental/0393/392360.jpg'
+image_in_1 = 'datasets/environmental/0386/385189.jpg'
+images_ood_1 = 'datasets/environmental/0393/392360.jpg'
 energy_evaluation_with_pictures_clip(image_in_1,images_ood_1)
     
 #energy_evaluation_with_pictures_clip(images_paths_in,images_paths_ood)
