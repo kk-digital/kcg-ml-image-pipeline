@@ -184,14 +184,15 @@ class ABRankingFcTrainingPipeline:
                                                                 image_embeds=latent_batch_tensor.squeeze(1),
                                                                 batch_size= self.batch_size)
             clip_vectors = self.get_image_features(output_images).float()  # Assuming this returns a batch of vectors
-            
+            print(clip_vectors)
+
             # Iterate through the batch for scoring (since scoring model processes one item at a time)
             for j, (latent, clip_vector) in enumerate(zip(latent_batch_tensor, clip_vectors)):
-
                 input_clip_score = self.scoring_model.predict_clip(latent.float()).item()  # Convert back if necessary
                 image_score = self.scoring_model.predict_clip(clip_vector.unsqueeze(0)).item()
                 input_clip_score= (input_clip_score - self.mean) / self.std
                 image_score= (image_score - self.mean) / self.std
+                print(image_score)
                 cosine_sim =cosine_similarity(clip_vector.unsqueeze(0), latent).item()
 
                 data = {
@@ -226,8 +227,6 @@ class ABRankingFcTrainingPipeline:
             features_data = get_object(self.minio_client, features_vector_path)
             features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
             features_vector= torch.tensor(features_vector).to(device=self.device, dtype=torch.float32)
-
-            print(features_vector.shape)
             
             latents.append(features_vector)
 
