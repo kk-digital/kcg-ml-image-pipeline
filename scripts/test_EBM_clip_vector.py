@@ -867,8 +867,16 @@ def compare_clip_show(img_in, img_ood, clip_in,clip_ood):
     # clip_ood = [(clip_ood, 1)]
     # print("clip 1 shape : ",clip_in.shape)
     # print("clip 2 shape : ",clip_ood.shape)
-    imgs = torch.stack([clip_in, clip_ood], dim=0).to(model.device)
-    score1, score2 = model.cnn(imgs).cpu().chunk(2, dim=0) # model.cnn(imgs)[0].cpu().chunk(2, dim=0)
+    # imgs = torch.stack([clip_in, clip_ood], dim=0).to(model.device)
+    # score1, score2 = model.cnn(imgs).cpu().chunk(2, dim=0) # model.cnn(imgs)[0].cpu().chunk(2, dim=0)
+
+    score1 = model.cnn(clip_in.unsqueeze(0).to(model.device)).cpu()
+
+    # Pass the second image through the CNN model and get its score
+    score2 = model.cnn(clip_ood.unsqueeze(0).to(model.device)).cpu()
+
+
+
     #class1, class2 = model.cnn(imgs)[1].cpu().chunk(2, dim=0)
     grid = torchvision.utils.make_grid([img_in.cpu(), img_ood.cpu()], nrow=2, normalize=True, pad_value=0.5, padding=2)
     grid = grid.permute(1, 2, 0)
