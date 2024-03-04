@@ -114,9 +114,8 @@ class ABRankingFCNetwork(nn.Module):
             
             with torch.no_grad():
                 for inputs, targets in val_loader:
-                    inputs=inputs.to(self._device)
+                    inputs=inputs.to(self._device).squeeze(1)
                     targets=targets.to(self._device)
-
                     print(inputs.shape)
                     print(inputs)
                     outputs = self.model(inputs)
@@ -131,11 +130,8 @@ class ABRankingFCNetwork(nn.Module):
             total_train_samples = 0
             
             for inputs, targets in train_loader:
-                inputs=inputs.to(self._device)
+                inputs=inputs.to(self._device).squeeze(1)
                 targets=targets.to(self._device)
-
-                print(inputs.shape)
-                print(inputs)
 
                 optimizer.zero_grad()
                 outputs = self.model(inputs)
