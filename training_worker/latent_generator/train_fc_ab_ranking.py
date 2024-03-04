@@ -44,7 +44,7 @@ def parse_args():
     parser.add_argument('--kandinsky-batch-size', type=int, default=5)
     parser.add_argument('--training-batch-size', type=int, default=64)
     parser.add_argument('--epochs', type=int, default=10)
-    parser.add_argument('--learning-rate', type=int, default=0.001)
+    parser.add_argument('--learning-rate', type=float, default=0.001)
     parser.add_argument('--construct-dataset', action='store_true', default=False)
     parser.add_argument('--num-samples', type=int, default=10000)
 
