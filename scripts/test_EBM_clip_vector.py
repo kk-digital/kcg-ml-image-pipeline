@@ -864,8 +864,8 @@ def compare_clip_show(img_in, img_ood, clip_in,clip_ood):
 
     clip_in = [(clip_in, 0)]
     clip_ood = [(clip_ood, 1)]
-    print("clip 1 shape : ",clip_in.shape)
-    print("clip 2 shape : ",clip_ood.shape)
+    # print("clip 1 shape : ",clip_in.shape)
+    # print("clip 2 shape : ",clip_ood.shape)
     imgs = torch.stack([clip_in, clip_ood], dim=0).to(model.device)
     score1, score2 = model.cnn(imgs).cpu().chunk(2, dim=0) # model.cnn(imgs)[0].cpu().chunk(2, dim=0)
     #class1, class2 = model.cnn(imgs)[1].cpu().chunk(2, dim=0)
@@ -1201,6 +1201,7 @@ plt.clf()
 id_classes_in = [39]
 
 images_paths_in = get_tag_jobs(id_classes_in[0])
+print("path " , images_paths_in)
 i = 1
 for i in range(1,len(id_classes_in)):
     images_paths_in = images_paths_in + get_tag_jobs(id_classes_in[i])
@@ -1216,7 +1217,10 @@ for i in range(1,len(id_classes_ood)):
 
 # print("in : ",images_paths_in)
 # print("ood : ",images_paths_ood)
-energy_evaluation_with_pictures_clip(images_paths_in,images_paths_ood)
+    
+
+    
+#energy_evaluation_with_pictures_clip(images_paths_in,images_paths_ood)
 
 #energy_evaluation_with_pictures(val_loader,adv_loader)
 # energy_evaluation_with_pictures(val_loader,val_cifarset_loader)
