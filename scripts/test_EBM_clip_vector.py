@@ -127,17 +127,27 @@ batchsize_x = 16
 
 ########### Get embedings
 
-# from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
+from kandinsky.models.clip_image_encoder.clip_image_encoder import KandinskyCLIPImageEncoder
 
-# image_embedder= KandinskyCLIPImageEncoder(device="cuda")
-#     image_embedder.load_submodels()
+image_embedder= KandinskyCLIPImageEncoder(device="cuda")
+image_embedder.load_submodels()
 
-#     image_paths= get_image_paths("input/characters")
-#     images=[]
+# image_paths= get_image_paths("input/characters")
+# images=[]
 
-#     for index, path in enumerate(image_paths):
-#         image= Image.open(path).convert("RGB")
-#         image_embedding=image_embedder.get_image_features(image)
+# for index, path in enumerate(image_paths):
+#     image= Image.open(path).convert("RGB")
+#     image_embedding=image_embedder.get_image_features(image)
+
+
+def get_clip_from_image(image):
+    return image_embedder.get_image_features(image)
+
+
+def get_clip_and_image_from_path(image_path):
+    image= Image.open(image_path).convert("RGB")
+    clip_embedding =  image_embedder.get_image_features(image)
+    return image,clip_embedding
 
 
 
@@ -715,7 +725,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=30,
+                         max_epochs=10,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -848,29 +858,63 @@ def energy_evaluation_with_pictures(training_loader,adv_loader):
 
 
 ########### For clip
+    
+@torch.no_grad()
+def compare_clip_show(img_in, img_ood, clip_in,clip_ood):
+    imgs = torch.stack([clip_in, clip_ood], dim=0).to(model.device)
+    score1, score2 = model.cnn(imgs).cpu().chunk(2, dim=0) # model.cnn(imgs)[0].cpu().chunk(2, dim=0)
+    #class1, class2 = model.cnn(imgs)[1].cpu().chunk(2, dim=0)
+    grid = torchvision.utils.make_grid([img_in.cpu(), img_ood.cpu()], nrow=2, normalize=True, pad_value=0.5, padding=2)
+    grid = grid.permute(1, 2, 0)
+    plt.figure(figsize=(4,4))
+    plt.imshow(grid)
+    plt.xticks([(img_in.shape[2]+2)*(0.5+j) for j in range(2)],
+               labels=[f"ID: {score1.item():4.2f}", f"OOD: {score2.item():4.2f}"])
+    plt.yticks([])
+    plt.savefig("output/comparaison_1.png")
+
+    # Save the figure to a file
+    bufx = io.BytesIO()
+    plt.savefig(bufx, format='png')
+    bufx.seek(0)
+
+    # upload the photo
+    
+    minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
+                "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+                None)
+    minio_path="environmental/output/my_test"
+    date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
+    minio_path= minio_path + "/compare_id_vs_ood" +date_now+".png"
+    cmd.upload_data(minio_client, 'datasets', minio_path, bufx)
+    # Remove the temporary file
+    os.remove("output/comparaison_1.png")
+    # Clear the current figure
+    plt.clf()
+    return score1.item(), score2.item()
+
+
+
+
 def energy_evaluation_with_pictures_clip(imgpath_id,imgpath_ood):
     
-    some_a = 0
-    some_b = 0
-    # load training set images
-    test_imgs, _ = next(iter(training_loader))
+
+
     
+    image_in, clip_emb_in  = get_clip_and_image_from_path(imgpath_id[0])
+    image_ood, clip_emb_ood  = get_clip_and_image_from_path(imgpath_ood[0])
 
-    # load adv set images
-    fake_imgs, _ = next(iter(adv_loader)) # val_loader_dog  val_ood_loader val val_loader_noncats val_loader
-    
-    # print("tes_imgs shape : ", test_imgs.shape)
-    # print("fake_imgs shape : ", fake_imgs.shape)
+    compare_clip_show(image_in,image_ood,clip_emb_in,clip_emb_ood)
 
 
-    rangeX = 16
-    for i in range(rangeX):
-        a,b =  compare_images_show(test_imgs[i].to(model.device),fake_imgs[i].to(model.device))
-        some_a += a
-        some_b += b
+    # rangeX = 16
+    # for i in range(rangeX):
+    #     a,b =  compare_images_show(test_imgs[i].to(model.device),fake_imgs[i].to(model.device))
+    #     some_a += a
+    #     some_b += b
 
-    some_a = some_a / rangeX
-    some_b = some_b / rangeX
+    # some_a = some_a / rangeX
+    # some_b = some_b / rangeX
 
    
 
@@ -1146,6 +1190,23 @@ plt.clf()
 
 
 
+id_classes_in = [39]
+
+images_paths_in = get_tag_jobs(id_classes_in[0])
+i = 1
+for i in range(1,len(id_classes_in)):
+    images_paths_in = images_paths_in + get_tag_jobs(id_classes_in[i])
+
+
+id_classes_ood = [7,8,9,15,20,21,22]
+
+images_paths_ood  = get_tag_jobs(id_classes_ood [0])
+i = 1
+for i in range(1,len(id_classes_ood)):
+    images_paths_ood  = images_paths_ood  + get_tag_jobs(id_classes_ood [i])
+
+
+energy_evaluation_with_pictures_clip(id_classes_in)
 
 #energy_evaluation_with_pictures(val_loader,adv_loader)
 # energy_evaluation_with_pictures(val_loader,val_cifarset_loader)
