@@ -861,6 +861,9 @@ def energy_evaluation_with_pictures(training_loader,adv_loader):
     
 @torch.no_grad()
 def compare_clip_show(img_in, img_ood, clip_in,clip_ood):
+
+    clip_in = [(clip_in, 0)]
+    clip_ood = [(clip_ood, 1)]
     print("clip 1 shape : ",clip_in.shape)
     print("clip 2 shape : ",clip_ood.shape)
     imgs = torch.stack([clip_in, clip_ood], dim=0).to(model.device)
