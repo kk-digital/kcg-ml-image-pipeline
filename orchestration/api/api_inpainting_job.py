@@ -71,11 +71,12 @@ def add_job(request: Request, task: Task, mask_image: UploadFile = File(...), in
             dataset_name = task.task_input_dict["dataset"]
             sequential_id_arr = get_sequential_id_inpainting(request, dataset=dataset_name)
             new_file_path = "{}.jpg".format(sequential_id_arr[0])
-            init_mask = "{}_mask.jpg".format(sequential_id_arr[0])
-            init_img = "{}_input_image.jpg".format(sequential_id_arr[0])
+            init_mask = "{0}/{1}_mask.jpg".format(dataset_name, sequential_id_arr[0])
+            init_img = "{0}/{1}_input_image.jpg".format(dataset_name, sequential_id_arr[0])
             task.task_input_dict["file_path"] = new_file_path
-            task.task_input_dict["init_img"] = new_file_path
-            task.task_input_dict["init_mask"] = new_file_path
+            task.task_input_dict["init_img"] = init_mask
+            task.task_input_dict["init_mask"] = init_img
+
             
 
         # Insert task into pending_jobs_collection
