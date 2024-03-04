@@ -944,22 +944,23 @@ transform = transforms.Compose([
 
 
 def get_clip_embeddings_by_tag(id_classes,label_value):
-    
-    # images_paths = [0] * len(id_classes)
-    # i = 0
-    # for class_id in id_classes:
-    #     images_paths[i] = get_tag_jobs(class_id)
-    #     i += 1
+    images_paths = []
+    i = 0
+    for class_id in id_classes:
+        images_paths[i] = get_tag_jobs(class_id)
+        i += 1
 
-    data_occcult_clipsx = []
-    for i in range(len(id_classes)):
-        images_paths_ClassA = get_tag_jobs(i)
-        ocult_clips = get_clip_vectors(images_paths_ClassA)
-        data_occcult_clipsx = data_occcult_clipsx.append(ocult_clips)
+
+
+    ocult_images = []
+
+    for j in range(i):
+        for path in images_paths[j]:
+            ocult_images.append(get_clip_vectors(path))
 
 
     # Create labels
-    data_occcult_clips = [(clip, label_value) for clip in data_occcult_clipsx]
+    data_occcult_clips = [(clip, label_value) for clip in ocult_images]
     print("Clip embeddings array lenght : ",len(data_occcult_clips))
 
     # Split
@@ -975,37 +976,6 @@ def get_clip_embeddings_by_tag(id_classes,label_value):
     return train_loader_clip, val_loader_clip
 
     
-
-def get_data_loaders_by_tag(tag_ids, id_value, batchsize_x):
-    # Initialize an empty list to store data for each tag
-    # Initialize an empty list to store data for each tag
-    all_data = []
-
-    # Collect all images from multiple tag ids
-    all_images = []
-    for tag_id in tag_ids:
-        images_paths = get_tag_jobs(tag_id)
-        all_images.append(images_paths)
-
-    # Get clip vectors once for all collected images
-    all_clips = get_clip_vectors(all_images)
-
-    # Create data tuples (clip, label) for each clip
-    all_data = [(clip, id_value) for clip in all_clips]
-
-    # Calculate sizes and split the data
-    num_samples = len(all_data)
-    train_size = int(0.8 * num_samples)
-    val_size = num_samples - train_size
-    train_set, val_set = random_split(all_data, [train_size, val_size])
-
-    # Create data loaders
-    train_loader = data.DataLoader(train_set, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
-    val_loader = data.DataLoader(val_set, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
-
-    return train_loader, val_loader
-
-
 # # Load occult images
 # images_paths_ClassA = get_tag_jobs(39)
 # ocult_clips = get_clip_vectors(images_paths_ClassA)
@@ -1023,7 +993,7 @@ def get_data_loaders_by_tag(tag_ids, id_value, batchsize_x):
 # val_loader_clip_ocult = data.DataLoader(val_set_ocult, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
 
-train_loader_clip_occult, val_loader_clip_ocult = get_data_loaders_by_tag([39],1,64)
+train_loader_clip_occult, val_loader_clip_ocult = get_clip_embeddings_by_tag([39],1,64)
 
 # Load cybernetics images
 images_paths_ClassB = get_tag_jobs(35)
