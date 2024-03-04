@@ -17,6 +17,7 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from inpainting_worker.worker_state import WorkerState
+from utility.http import generation_request
 from utility.http import inpainting_request
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
@@ -305,7 +306,7 @@ def upload_image_data_and_update_job_status(worker_state,
                             }
 
     inpainting_request.http_add_job(kandinsky_clip_calculation_job)
-    inpainting_request.http_add_job(sd_clip_calculation_job)
+    generation_request.http_add_job(sd_clip_calculation_job)
 
 
 def process_jobs(worker_state):
