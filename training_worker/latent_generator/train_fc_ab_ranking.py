@@ -41,7 +41,10 @@ def parse_args():
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
     parser.add_argument('--model-type', type=str, help='model type, linear or elm', default="elm")
-    parser.add_argument('--batch-size', type=int, default=32)
+    parser.add_argument('--kandinsky-batch-size', type=int, default=5)
+    parser.add_argument('--training-batch-size', type=int, default=64)
+    parser.add_argument('--epochs', type=int, default=10)
+    parser.add_argument('--learning-rate', type=int, default=0.001)
     parser.add_argument('--construct-dataset', action='store_true', default=False)
     parser.add_argument('--num-samples', type=int, default=10000)
 
@@ -53,8 +56,11 @@ class ABRankingFcTrainingPipeline:
                     minio_secret_key,
                     dataset,
                     model_type,
-                    batch_size=32,
-                    num_samples=10000):
+                    kandinsky_batch_size=5,
+                    training_batch_size=64,
+                    num_samples=10000,
+                    learning_rate=0.001,
+                    epochs=10):
         
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
@@ -69,10 +75,13 @@ class ABRankingFcTrainingPipeline:
         
         self.dataset= dataset
         self.model_type= model_type
-        self.batch_size= batch_size
+        self.training_batch_size= training_batch_size
+        self.kandinsky_batch_size= kandinsky_batch_size
         self.num_samples= num_samples
+        self.learning_rate= learning_rate
+        self.epochs= epochs
 
-        self.model= ABRankingFCNetwork(minio_client=self.minio_client)
+        self.model= ABRankingFCNetwork(minio_client=self.minio_client, learning_rate=self.learning_rate)
 
         # load kandinsky clip
         self.image_processor= CLIPImageProcessor.from_pretrained(PRIOR_MODEL_PATH, subfolder="image_processor", local_files_only=True)
@@ -171,20 +180,19 @@ class ABRankingFcTrainingPipeline:
         # generate latents
         latents= self.load_samples_from_minio()
         training_data=[]
-        init_image_batch = [Image.open("./test/test_inpainting/white_512x512.jpg") for i in range(self.batch_size)]
+        init_image_batch = [Image.open("./test/test_inpainting/white_512x512.jpg") for i in range(self.kandinsky_batch_size)]
 
-        for i in range(0, len(latents), self.batch_size):
+        for i in range(0, len(latents), self.kandinsky_batch_size):
             # Prepare the batch
-            latent_batch = latents[i:i + self.batch_size]
+            latent_batch = latents[i:i + self.kandinsky_batch_size]
             latent_batch_tensor = torch.stack(latent_batch).to(self.device).half()  # Ensure correct device and dtype
             
             # Process batch through image generator and feature extraction
             # Adjust generate_img2img and get_image_features to accept and return batches
             output_images, _ = self.image_generator.generate_img2img_in_batches(init_imgs=init_image_batch,
                                                                 image_embeds=latent_batch_tensor.squeeze(1),
-                                                                batch_size= self.batch_size)
+                                                                batch_size= self.kandinsky_batch_size)
             clip_vectors = self.get_image_features(output_images).float()  # Assuming this returns a batch of vectors
-            print(clip_vectors)
 
             # Iterate through the batch for scoring (since scoring model processes one item at a time)
             for j, (latent, clip_vector) in enumerate(zip(latent_batch_tensor, clip_vectors)):
@@ -192,7 +200,6 @@ class ABRankingFcTrainingPipeline:
                 image_score = self.scoring_model.predict_clip(clip_vector.unsqueeze(0)).item()
                 input_clip_score= (input_clip_score - self.mean) / self.std
                 image_score= (image_score - self.mean) / self.std
-                print(image_score)
                 cosine_sim =cosine_similarity(clip_vector.unsqueeze(0), latent).item()
 
                 data = {
@@ -258,7 +265,7 @@ class ABRankingFcTrainingPipeline:
             outputs.extend(self_training_outputs)
         
         # training and saving the model
-        loss=self.model.train(inputs, outputs)
+        loss=self.model.train(inputs, outputs, num_epochs= self.epochs, batch_size=self.training_batch_size)
         self.model.save_model()
     
     def load_self_training_data(self, data):
@@ -336,8 +343,11 @@ def main():
                                 minio_secret_key=args.minio_secret_key,
                                 dataset= args.dataset,
                                 model_type=args.model_type,
-                                batch_size=args.batch_size,
-                                num_samples= args.num_samples)
+                                kandinsky_batch_size=args.kandinsky_batch_size,
+                                training_batch_size=args.training_batch_size,
+                                num_samples= args.num_samples,
+                                epochs= args.epochs,
+                                learning_rate= args.learning_rate)
     
     global DATA_MINIO_DIRECTORY
     DATA_MINIO_DIRECTORY= f"{args.dataset}/" + DATA_MINIO_DIRECTORY
