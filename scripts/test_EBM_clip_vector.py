@@ -976,6 +976,30 @@ def get_clip_embeddings_by_tag(id_classes,label_value):
 
     
 
+def get_data_loaders_by_tag(tag_ids, id_value, batchsize_x):
+    # Initialize an empty list to store data for each tag
+    all_data = []
+
+    # Iterate over each tag id and collect data
+    for tag_id in tag_ids:
+        images_paths = get_tag_jobs(tag_id)
+        clips = get_clip_vectors(images_paths)
+        data_clips = [(clip, id_value) for clip in clips]
+        all_data.extend(data_clips)
+
+    # Calculate sizes and split the data
+    num_samples = len(all_data)
+    train_size = int(0.8 * num_samples)
+    val_size = num_samples - train_size
+    train_set, val_set = random_split(all_data, [train_size, val_size])
+
+    # Create data loaders
+    train_loader = data.DataLoader(train_set, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+    val_loader = data.DataLoader(val_set, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+
+    return train_loader, val_loader
+
+
 
 
 # # Load occult images
@@ -995,7 +1019,7 @@ def get_clip_embeddings_by_tag(id_classes,label_value):
 # val_loader_clip_ocult = data.DataLoader(val_set_ocult, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
 
-train_loader_clip_occult, val_loader_clip_ocult = get_clip_embeddings_by_tag([39],1)
+train_loader_clip_occult, val_loader_clip_ocult = get_data_loaders_by_tag([39],1,64)
 
 # Load cybernetics images
 images_paths_ClassB = get_tag_jobs(35)
