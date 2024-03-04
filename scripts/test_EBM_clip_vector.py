@@ -978,14 +978,20 @@ def get_clip_embeddings_by_tag(id_classes,label_value):
 
 def get_data_loaders_by_tag(tag_ids, id_value, batchsize_x):
     # Initialize an empty list to store data for each tag
+    # Initialize an empty list to store data for each tag
     all_data = []
 
-    # Iterate over each tag id and collect data
+    # Collect all images from multiple tag ids
+    all_images = []
     for tag_id in tag_ids:
         images_paths = get_tag_jobs(tag_id)
-        clips = get_clip_vectors(images_paths)
-        data_clips = [(clip, id_value) for clip in clips]
-        all_data.extend(data_clips)
+        all_images.extend(images_paths)
+
+    # Get clip vectors once for all collected images
+    all_clips = get_clip_vectors(all_images)
+
+    # Create data tuples (clip, label) for each clip
+    all_data = [(clip, id_value) for clip in all_clips]
 
     # Calculate sizes and split the data
     num_samples = len(all_data)
@@ -998,8 +1004,6 @@ def get_data_loaders_by_tag(tag_ids, id_value, batchsize_x):
     val_loader = data.DataLoader(val_set, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
     return train_loader, val_loader
-
-
 
 
 # # Load occult images
