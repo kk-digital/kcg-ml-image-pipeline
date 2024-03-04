@@ -1253,7 +1253,12 @@ for i in range(1,len(id_classes_ood)):
 # Run comp test    
 image_in_1 = 'datasets/environmental/0386/385189.jpg'
 images_ood_1 = 'datasets/environmental/0393/392360.jpg'
-energy_evaluation_with_pictures_clip(image_in_1,images_ood_1)
+
+
+for i in range (16):
+    energy_evaluation_with_pictures_clip(images_paths_in[i],images_paths_ood[i])
+
+
     
 #energy_evaluation_with_pictures_clip(images_paths_in,images_paths_ood)
 
