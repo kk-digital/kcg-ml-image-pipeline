@@ -1211,7 +1211,7 @@ for i in range(1,len(id_classes_ood)):
 
 # print("in : ",images_paths_in)
 # print("ood : ",images_paths_ood)
-energy_evaluation_with_pictures_clip(id_classes_in,images_paths_ood)
+energy_evaluation_with_pictures_clip(images_paths_in,images_paths_ood)
 
 #energy_evaluation_with_pictures(val_loader,adv_loader)
 # energy_evaluation_with_pictures(val_loader,val_cifarset_loader)
