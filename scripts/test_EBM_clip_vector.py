@@ -145,7 +145,7 @@ def get_clip_from_image(image):
 
 
 def get_clip_and_image_from_path(image_path):
-    image= Image.open(image_path).convert("RGB")
+    image=get_image(image_path)
     clip_embedding =  image_embedder.get_image_features(image)
     return image,clip_embedding
 
