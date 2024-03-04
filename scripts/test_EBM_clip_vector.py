@@ -899,8 +899,11 @@ def compare_clip_show(img_in, img_ood, clip_in,clip_ood):
 def energy_evaluation_with_pictures_clip(imgpath_id,imgpath_ood):
     
 
+    pathin = imgpath_id[0]
+    pathood= imgpath_ood[0]
 
-    
+    print("path in : ", pathin)
+    print("path ood : ", pathood)
     image_in, clip_emb_in  = get_clip_and_image_from_path(imgpath_id[0])
     image_ood, clip_emb_ood  = get_clip_and_image_from_path(imgpath_ood[0])
 
@@ -1206,8 +1209,8 @@ for i in range(1,len(id_classes_ood)):
     images_paths_ood  = images_paths_ood  + get_tag_jobs(id_classes_ood [i])
 
 
-print("in : ",images_paths_in)
-print("ood : ",images_paths_ood)
+# print("in : ",images_paths_in)
+# print("ood : ",images_paths_ood)
 energy_evaluation_with_pictures_clip(id_classes_in,images_paths_ood)
 
 #energy_evaluation_with_pictures(val_loader,adv_loader)
