@@ -1005,7 +1005,7 @@ def get_clip_embeddings_by_tag(id_classes,label_value):
     
 # Load occult images
 images_paths_ClassA = get_tag_jobs(39)
-print(images_paths_ClassA)
+
 ocult_clips = get_clip_vectors(images_paths_ClassA)
 #data_occcult_clips = ocult_clips
 data_occcult_clips = [(clip, 1) for clip in ocult_clips]
@@ -1025,6 +1025,11 @@ val_loader_clip_ocult = data.DataLoader(val_set_ocult, batch_size=batchsize_x, s
 
 # Load cybernetics images
 images_paths_ClassB = get_tag_jobs(35)
+print("Class B: ",images_paths_ClassB)
+
+images_paths_ClassC = get_tag_jobs(7)
+print("Class C: ",images_paths_ClassC)
+
 cyber_clips = get_clip_vectors(images_paths_ClassB)
 #data_cyber_clips = cyber_clips
 data_cyber_clips = [(clip, 0) for clip in cyber_clips]
