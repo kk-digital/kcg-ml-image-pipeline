@@ -6,13 +6,13 @@ router = APIRouter()
 
 
 @router.get("/datasets-inpainting/list")
-def get_datasets(request: Request):
+def get_datasets_inpainting(request: Request):
     objects = cmd.get_list_of_objects(request.app.minio_client, "datasets-inpainting")
 
     return objects
 
 @router.get("/datasets-inpainting/sequential-id/{dataset}")
-def get_sequential_id(request: Request, dataset: str, limit: int = 1):
+def get_sequential_id_inpainting(request: Request, dataset: str, limit: int = 1):
     sequential_id_arr = []
 
     # find
