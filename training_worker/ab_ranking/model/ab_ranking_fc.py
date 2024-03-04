@@ -116,10 +116,8 @@ class ABRankingFCNetwork(nn.Module):
                 for inputs, targets in val_loader:
                     inputs=inputs.to(self._device).squeeze(1)
                     targets=targets.to(self._device)
-                    print(inputs.shape)
-                    print(inputs)
+
                     outputs = self.model(inputs)
-                    print(outputs.shape, targets.shape)
                     loss = criterion(outputs.squeeze(1), targets)
 
                     total_val_loss += loss.item() * inputs.size(0)
@@ -135,7 +133,7 @@ class ABRankingFCNetwork(nn.Module):
 
                 optimizer.zero_grad()
                 outputs = self.model(inputs)
-                print(outputs.shape, targets.shape)
+                print(outputs, outputs.squeeze(1))
                 loss = criterion(outputs.squeeze(1), targets)
                 loss.backward()
                 optimizer.step()
