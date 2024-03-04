@@ -4,7 +4,7 @@ from utility.minio import cmd
 import uuid
 from datetime import datetime, timedelta
 from orchestration.api.mongo_schemas import Task
-from orchestration.api.api_dataset import get_sequential_id
+from orchestration.api.api_inpainting_dataset import get_sequential_id_inpainting
 import pymongo
 from .api_utils import PrettyJSONResponse
 from typing import List
@@ -69,9 +69,14 @@ def add_job(request: Request, task: Task, mask_image: UploadFile = File(...), in
         # Check if file_path is blank and dataset is provided
         if (task.task_input_dict is None or "file_path" not in task.task_input_dict or task.task_input_dict["file_path"] in ['', "[auto]", "[default]"]) and "dataset" in task.task_input_dict:
             dataset_name = task.task_input_dict["dataset"]
-            sequential_id_arr = get_sequential_id(request, dataset=dataset_name)
+            sequential_id_arr = get_sequential_id_inpainting(request, dataset=dataset_name)
             new_file_path = "{}.jpg".format(sequential_id_arr[0])
+            init_mask = "{}_mask.jpg".format(sequential_id_arr[0])
+            init_img = "{}_input_image.jpg".format(sequential_id_arr[0])
             task.task_input_dict["file_path"] = new_file_path
+            task.task_input_dict["init_img"] = new_file_path
+            task.task_input_dict["init_mask"] = new_file_path
+            
 
         # Insert task into pending_jobs_collection
         request.app.pending_inpainting_jobs_collection.insert_one(task.to_dict())
