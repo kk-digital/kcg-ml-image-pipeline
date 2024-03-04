@@ -848,7 +848,7 @@ def energy_evaluation_with_pictures(training_loader,adv_loader):
 
 
 ########### For clip
-def energy_evaluation_with_pictures_clip(training_loader,adv_loader):
+def energy_evaluation_with_pictures_clip(imgpath_id,imgpath_ood):
     
     some_a = 0
     some_b = 0
@@ -1005,6 +1005,7 @@ def get_clip_embeddings_by_tag(id_classes,label_value):
     
 # Load occult images
 images_paths_ClassA = get_tag_jobs(39)
+print(images_paths_ClassA)
 ocult_clips = get_clip_vectors(images_paths_ClassA)
 #data_occcult_clips = ocult_clips
 data_occcult_clips = [(clip, 1) for clip in ocult_clips]
@@ -1056,95 +1057,103 @@ first_batch_data, first_batch_labels = next(iter(train_loader_clip_occult))
 print(f"Shape of the first batch data: {first_batch_data.shape}")
 print(f"Shape of the first batch labels: {first_batch_labels.shape}")
 
-# Train
-model = train_model(img_shape=(1,1280),
-                    batch_size=train_loader.batch_size,
-                    lr=0.001,
-                    beta1=0.0)
 
 
 
-# Plot
 
 
-epochs = range(1, len(total_losses) + 1)  
 
 
-# Create subplots grid (3 rows, 1 column)
-fig, axes = plt.subplots(4, 1, figsize=(10, 24))
 
-# Plot each loss on its own subplot
-axes[0].plot(epochs, total_losses, label='Total Loss')
-axes[0].set_xlabel('Steps')
-axes[0].set_ylabel('Loss')
-axes[0].set_title('Total Loss')
-axes[0].legend()
-axes[0].grid(True)
+# ###################################### Train
+# model = train_model(img_shape=(1,1280),
+#                     batch_size=train_loader.batch_size,
+#                     lr=0.001,
+#                     beta1=0.0)
 
-# axes[1].plot(epochs, class_losses, label='Classification Loss')
+
+
+# # Plot
+
+
+# epochs = range(1, len(total_losses) + 1)  
+
+
+# # Create subplots grid (3 rows, 1 column)
+# fig, axes = plt.subplots(4, 1, figsize=(10, 24))
+
+# # Plot each loss on its own subplot
+# axes[0].plot(epochs, total_losses, label='Total Loss')
+# axes[0].set_xlabel('Steps')
+# axes[0].set_ylabel('Loss')
+# axes[0].set_title('Total Loss')
+# axes[0].legend()
+# axes[0].grid(True)
+
+# # axes[1].plot(epochs, class_losses, label='Classification Loss')
+# # axes[1].set_xlabel('Steps')
+# # axes[1].set_ylabel('Loss')
+# # axes[1].set_title('Classification Loss')
+# # axes[1].legend()
+# # axes[1].grid(True)
+
+# axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
 # axes[1].set_xlabel('Steps')
 # axes[1].set_ylabel('Loss')
-# axes[1].set_title('Classification Loss')
+# axes[1].set_title('Contrastive Divergence Loss')
 # axes[1].legend()
 # axes[1].grid(True)
 
-axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
-axes[1].set_xlabel('Steps')
-axes[1].set_ylabel('Loss')
-axes[1].set_title('Contrastive Divergence Loss')
-axes[1].legend()
-axes[1].grid(True)
 
+# axes[2].plot(epochs, reg_losses , label='Regression Loss')
+# axes[2].set_xlabel('Steps')
+# axes[2].set_ylabel('Loss')
+# axes[2].set_title('Regression Loss')
+# axes[2].legend()
+# axes[2].grid(True)
 
-axes[2].plot(epochs, reg_losses , label='Regression Loss')
-axes[2].set_xlabel('Steps')
-axes[2].set_ylabel('Loss')
-axes[2].set_title('Regression Loss')
-axes[2].legend()
-axes[2].grid(True)
+# # Plot real and fake scores on the fourth subplot
+# axes[3].plot(epochs, real_scores_s, label='Real Scores')
+# axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
+# axes[3].set_xlabel('Steps')
+# axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
+# axes[3].set_title('Real vs. Fake Scores')
+# axes[3].legend()
+# axes[3].grid(True)
 
-# Plot real and fake scores on the fourth subplot
-axes[3].plot(epochs, real_scores_s, label='Real Scores')
-axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
-axes[3].set_xlabel('Steps')
-axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
-axes[3].set_title('Real vs. Fake Scores')
-axes[3].legend()
-axes[3].grid(True)
+# # Adjust spacing between subplots for better visualization
+# plt.tight_layout()
 
-# Adjust spacing between subplots for better visualization
-plt.tight_layout()
+# plt.savefig("output/loss_tracking_per_step.png")
 
-plt.savefig("output/loss_tracking_per_step.png")
+# # Save the figure to a file
+# buf = io.BytesIO()
+# plt.savefig(buf, format='png')
+# buf.seek(0)
 
-# Save the figure to a file
-buf = io.BytesIO()
-plt.savefig(buf, format='png')
-buf.seek(0)
-
-# upload the graph report
-minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss" +date_now+".png"
-cmd.upload_data(minio_client, 'datasets', minio_path, buf)
-# Remove the temporary file
-os.remove("output/loss_tracking_per_step.png")
-# Clear the current figure
-plt.clf()
+# # upload the graph report
+# minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss" +date_now+".png"
+# cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+# # Remove the temporary file
+# os.remove("output/loss_tracking_per_step.png")
+# # Clear the current figure
+# plt.clf()
 
 
 
 
-#energy_evaluation_with_pictures(val_loader,adv_loader)
-# energy_evaluation_with_pictures(val_loader,val_cifarset_loader)
-# energy_evaluation_with_pictures(val_loader,val_ood_loader)
+# #energy_evaluation_with_pictures(val_loader,adv_loader)
+# # energy_evaluation_with_pictures(val_loader,val_cifarset_loader)
+# # energy_evaluation_with_pictures(val_loader,val_ood_loader)
 
-#val_ood_loader
-##### Value eval
-print("Occult VS Cyber")
-energy_evaluation(val_loader,adv_loader)
-# print("Occult VS Cifar")
-# energy_evaluation(val_loader,val_cifarset_loader)
-# print("Occult VS SVHN")
-# energy_evaluation(val_loader,val_ood_loader)
+# #val_ood_loader
+# ##### Value eval
+# print("Occult VS Cyber")
+# energy_evaluation(val_loader,adv_loader)
+# # print("Occult VS Cifar")
+# # energy_evaluation(val_loader,val_cifarset_loader)
+# # print("Occult VS SVHN")
+# # energy_evaluation(val_loader,val_ood_loader)
 
 
 
