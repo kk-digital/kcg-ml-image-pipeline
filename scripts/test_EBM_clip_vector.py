@@ -945,19 +945,17 @@ transform = transforms.Compose([
 
 def get_clip_embeddings_by_tag(id_classes,label_value):
     
-    images_paths = [0] * len(id_classes)
-    i = 0
-    for class_id in id_classes:
-        images_paths[i] = get_tag_jobs(class_id)
-        i += 1
+    # images_paths = [0] * len(id_classes)
+    # i = 0
+    # for class_id in id_classes:
+    #     images_paths[i] = get_tag_jobs(class_id)
+    #     i += 1
 
 
-
-    clip_embeddings = []
-    for j in range(i):
-        for path in images_paths[j]:
-            clip_embeddings.append(get_clip_vectors(path))
-
+    for i in range(id_classes):
+        images_paths_ClassA = get_tag_jobs(id_classes)
+        ocult_clips = get_clip_vectors(images_paths_ClassA)
+        data_occcult_clips = data_occcult_clips.append(ocult_clips)
 
 
     # Create labels
