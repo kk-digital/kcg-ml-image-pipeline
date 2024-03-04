@@ -847,6 +847,33 @@ def energy_evaluation_with_pictures(training_loader,adv_loader):
 
 
 
+########### For clip
+def energy_evaluation_with_pictures_clip(training_loader,adv_loader):
+    
+    some_a = 0
+    some_b = 0
+    # load training set images
+    test_imgs, _ = next(iter(training_loader))
+    
+
+    # load adv set images
+    fake_imgs, _ = next(iter(adv_loader)) # val_loader_dog  val_ood_loader val val_loader_noncats val_loader
+    
+    # print("tes_imgs shape : ", test_imgs.shape)
+    # print("fake_imgs shape : ", fake_imgs.shape)
+
+
+    rangeX = 16
+    for i in range(rangeX):
+        a,b =  compare_images_show(test_imgs[i].to(model.device),fake_imgs[i].to(model.device))
+        some_a += a
+        some_b += b
+
+    some_a = some_a / rangeX
+    some_b = some_b / rangeX
+
+   
+
 
 
 
@@ -976,24 +1003,24 @@ def get_clip_embeddings_by_tag(id_classes,label_value):
     return train_loader_clip, val_loader_clip
 
     
-# # Load occult images
-# images_paths_ClassA = get_tag_jobs(39)
-# ocult_clips = get_clip_vectors(images_paths_ClassA)
-# #data_occcult_clips = ocult_clips
-# data_occcult_clips = [(clip, 1) for clip in ocult_clips]
-# print("Occult length:", len(data_occcult_clips))
+# Load occult images
+images_paths_ClassA = get_tag_jobs(39)
+ocult_clips = get_clip_vectors(images_paths_ClassA)
+#data_occcult_clips = ocult_clips
+data_occcult_clips = [(clip, 1) for clip in ocult_clips]
+print("Occult length:", len(data_occcult_clips))
 
-# # Split and create data loaders for occult
-# num_samples_ocult = len(data_occcult_clips)
-# train_size_ocult = int(0.8 * num_samples_ocult)
-# val_size_ocult = num_samples_ocult - train_size_ocult
-# train_set_ocult, val_set_ocult = random_split(data_occcult_clips, [train_size_ocult, val_size_ocult])
+# Split and create data loaders for occult
+num_samples_ocult = len(data_occcult_clips)
+train_size_ocult = int(0.8 * num_samples_ocult)
+val_size_ocult = num_samples_ocult - train_size_ocult
+train_set_ocult, val_set_ocult = random_split(data_occcult_clips, [train_size_ocult, val_size_ocult])
 
-# train_loader_clip_occult = data.DataLoader(train_set_ocult, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
-# val_loader_clip_ocult = data.DataLoader(val_set_ocult, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+train_loader_clip_occult = data.DataLoader(train_set_ocult, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+val_loader_clip_ocult = data.DataLoader(val_set_ocult, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
 
-train_loader_clip_occult, val_loader_clip_ocult = get_clip_embeddings_by_tag([39],1)
+# train_loader_clip_occult, val_loader_clip_ocult = get_clip_embeddings_by_tag([39],1)
 
 # Load cybernetics images
 images_paths_ClassB = get_tag_jobs(35)
@@ -1106,7 +1133,7 @@ plt.clf()
 
 
 
-# energy_evaluation_with_pictures(val_loader,adv_loader)
+#energy_evaluation_with_pictures(val_loader,adv_loader)
 # energy_evaluation_with_pictures(val_loader,val_cifarset_loader)
 # energy_evaluation_with_pictures(val_loader,val_ood_loader)
 
