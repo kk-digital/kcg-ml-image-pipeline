@@ -95,8 +95,8 @@ class ABRankingFCNetwork(nn.Module):
         train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
         # Create data loaders
-        train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=True)
+        train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+        val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
         criterion = nn.L1Loss()  # Define the loss function
         optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)  # Define the optimizer
@@ -133,7 +133,6 @@ class ABRankingFCNetwork(nn.Module):
 
                 optimizer.zero_grad()
                 outputs = self.model(inputs)
-                print(outputs, outputs.squeeze(1))
                 loss = criterion(outputs.squeeze(1), targets)
                 loss.backward()
                 optimizer.step()
