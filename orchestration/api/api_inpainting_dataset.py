@@ -26,7 +26,7 @@ def get_sequential_id(request: Request, dataset: str, limit: int = 1):
             sequential_id_arr.append(new_sequential_id.get_sequential_id())
 
         # add to collection
-        request.app.dataset_sequential_id_collection.insert_one(new_sequential_id.to_dict())
+        request.app.inpainting_dataset_sequential_id_collection.insert_one(new_sequential_id.to_dict())
 
         return sequential_id_arr
 
@@ -40,6 +40,6 @@ def get_sequential_id(request: Request, dataset: str, limit: int = 1):
     new_values = {"$set": found_sequential_id.to_dict()}
 
     # # update existing sequential id
-    request.app.dataset_sequential_id_collection.update_one({"dataset_name": dataset}, new_values)
+    request.app.inpainting_dataset_sequential_id_collection.update_one({"dataset_name": dataset}, new_values)
 
     return sequential_id_arr
