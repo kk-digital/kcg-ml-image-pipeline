@@ -725,7 +725,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=10,
+                         max_epochs=5,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -1206,7 +1206,7 @@ for i in range(1,len(id_classes_ood)):
     images_paths_ood  = images_paths_ood  + get_tag_jobs(id_classes_ood [i])
 
 
-energy_evaluation_with_pictures_clip(id_classes_in)
+energy_evaluation_with_pictures_clip(id_classes_in,images_paths_ood)
 
 #energy_evaluation_with_pictures(val_loader,adv_loader)
 # energy_evaluation_with_pictures(val_loader,val_cifarset_loader)
