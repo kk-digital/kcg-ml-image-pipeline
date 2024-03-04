@@ -945,7 +945,7 @@ transform = transforms.Compose([
 def get_clip_embeddings_by_tag(id_classes,label_value):
     
     images_paths = [] 
-
+    print("id classes : " ,id_classes)
     i = 0
     for class_id in id_classes:
         images_paths[i] = get_tag_jobs(class_id)
