@@ -985,7 +985,7 @@ def get_data_loaders_by_tag(tag_ids, id_value, batchsize_x):
     all_images = []
     for tag_id in tag_ids:
         images_paths = get_tag_jobs(tag_id)
-        all_images.extend(images_paths)
+        all_images.append(images_paths)
 
     # Get clip vectors once for all collected images
     all_clips = get_clip_vectors(all_images)
