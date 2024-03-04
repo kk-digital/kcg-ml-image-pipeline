@@ -1213,9 +1213,37 @@ for i in range(1,len(id_classes_ood)):
 # print("in : ",images_paths_in)
 # print("ood : ",images_paths_ood)
     
-image_in_1 = 'datasets/environmental/0386/385189.jpg'
-images_ood_1 = 'datasets/environmental/0393/392360.jpg'
-energy_evaluation_with_pictures_clip(image_in_1,images_ood_1)
+
+
+
+# run score test
+    
+test_imgs, _ = next(iter(train_loader_clip_occult))
+
+
+# load adv set images
+fake_imgs, _ = next(iter(adv_loader)) # val_loader_dog  val_ood_loader val val_loader_noncats val_loader
+
+# print("tes_imgs shape : ", test_imgs.shape)
+# print("fake_imgs shape : ", fake_imgs.shape)
+
+imgs = torch.stack([test_imgs[i].to(model.device), fake_imgs[i].to(model.device)], dim=0).to(model.device)
+score1, score2 = model.cnn(imgs).cpu().chunk(2, dim=0) # model.cnn(imgs)[0].cpu().chunk(2, dim=0)
+
+# score1 = model.cnn(img1.unsqueeze(0).to(model.device)).cpu()
+
+# # Pass the second image through the CNN model and get its score
+# score2 = model.cnn(img2.unsqueeze(0).to(model.device)).cpu()
+
+print("dem scores are : ",score1, " and ",score2)
+
+
+
+
+# # Run comp test    
+# image_in_1 = 'datasets/environmental/0386/385189.jpg'
+# images_ood_1 = 'datasets/environmental/0393/392360.jpg'
+# energy_evaluation_with_pictures_clip(image_in_1,images_ood_1)
     
 #energy_evaluation_with_pictures_clip(images_paths_in,images_paths_ood)
 
