@@ -1018,26 +1018,32 @@ def get_clip_embeddings_by_tag(id_classes,label_value):
 
 train_loader_clip_occult, val_loader_clip_ocult = get_clip_embeddings_by_tag([39],1)
 
-# Load cybernetics images
-images_paths_ClassB = get_tag_jobs(35)
-print("Class B: ",images_paths_ClassB)
+# # Load cybernetics images
+# images_paths_ClassB = get_tag_jobs(35)
+# print("Class B: ",images_paths_ClassB)
 
 
 
-cyber_clips = get_clip_vectors(images_paths_ClassB)
-#data_cyber_clips = cyber_clips
-data_cyber_clips = [(clip, 0) for clip in cyber_clips]
+# cyber_clips = get_clip_vectors(images_paths_ClassB)
+# #data_cyber_clips = cyber_clips
+# data_cyber_clips = [(clip, 0) for clip in cyber_clips]
 
-print("Cybernetics length:", len(data_cyber_clips))
+# print("Cybernetics length:", len(data_cyber_clips))
 
-# Split and create data loaders for cybernetics
-num_samples_cyber = len(data_cyber_clips)
-train_size_cyber = int(0.8 * num_samples_cyber)
-val_size_cyber = num_samples_cyber - train_size_cyber
-train_set_cyber, val_set_cyber = random_split(data_cyber_clips, [train_size_cyber, val_size_cyber])
+# # Split and create data loaders for cybernetics
+# num_samples_cyber = len(data_cyber_clips)
+# train_size_cyber = int(0.8 * num_samples_cyber)
+# val_size_cyber = num_samples_cyber - train_size_cyber
+# train_set_cyber, val_set_cyber = random_split(data_cyber_clips, [train_size_cyber, val_size_cyber])
 
-train_loader_clip_cyber = data.DataLoader(train_set_cyber, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
-val_loader_clip_cyber = data.DataLoader(val_set_cyber, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+# train_loader_clip_cyber = data.DataLoader(train_set_cyber, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+# val_loader_clip_cyber = data.DataLoader(val_set_cyber, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+
+
+
+
+train_loader_clip_cyber, val_loader_clip_cyber = get_clip_embeddings_by_tag([7,8,9,15,20,21,22],0)
+
 
 # Set loaders
 train_loader = train_loader_clip_occult
