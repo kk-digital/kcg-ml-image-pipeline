@@ -140,6 +140,66 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
     return output_file_path, output_file_hash, img_byte_arr, latents, seed
 
 
+def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
+    # TODO(): Make a cache for these images
+    # Check if they changed on disk maybe and reload
+    random.seed(time.time())
+    seed = random.randint(0, 2 ** 24 - 1)
+
+    generation_task.task_input_dict["seed"] = seed
+    init_image = Image.open(generation_task.task_input_dict["init_img"])
+
+    image_width = generation_task.task_input_dict["image_width"]
+    image_height = generation_task.task_input_dict["image_height"]
+    strength = generation_task.task_input_dict["strength"]
+    decoder_steps = generation_task.task_input_dict["decoder_steps"]
+    decoder_guidance_scale = generation_task.task_input_dict["decoder_guidance_scale"]
+    dataset = generation_task.task_input_dict["dataset"]
+
+    image_encoder=worker_state.clip.vision_model
+    decoder_model = worker_state.img2img_decoder
+
+    img2img_processor = KandinskyPipeline(
+        device=worker_state.device,
+        width= image_width,
+        height= image_height,
+        batch_size=1,
+        decoder_steps= decoder_steps,
+        strength= strength,
+        decoder_guidance_scale= decoder_guidance_scale
+    )
+
+    img2img_processor.set_models(
+        unet=None,
+        prior_model=None,
+        image_encoder= image_encoder,
+        decoder_model= decoder_model
+    )
+    
+    # get the input image embeddings from minIO
+    output_file_path = os.path.join(dataset, generation_task.task_input_dict['file_path'])
+    image_embeddings_path = output_file_path.replace(".jpg", "_embedding.msgpack")    
+    embedding_data = get_object(worker_state.minio_client, image_embeddings_path)
+    embedding_dict = ImageEmbedding.from_msgpack_bytes(embedding_data)
+    image_embedding= embedding_dict.image_embedding.to(worker_state.device)
+    negative_image_embedding= embedding_dict.negative_image_embedding
+    if negative_image_embedding is not None:
+        negative_image_embedding= negative_image_embedding.to(worker_state.device)
+
+    # generate image
+    image, latents = img2img_processor.generate_img2img(init_img=init_image,
+                                                        image_embeds= image_embedding,
+                                                        negative_image_embeds= negative_image_embedding,
+                                                        seed=seed)
+
+    output_file_path = os.path.join("datasets", output_file_path)
+    # convert image to png from RGB
+    output_file_hash, img_byte_arr = img2img_processor.convert_image_to_png(image)
+
+    # Return the latent vector along with other values
+    return output_file_path, output_file_hash, img_byte_arr, latents, seed
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Worker for image generation")
 
