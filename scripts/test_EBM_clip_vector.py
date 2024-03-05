@@ -1289,7 +1289,7 @@ energy_evaluation(val_loader,adv_loader)
 train_loader_clip_cyber, val_loader_clip_cyber = get_clip_embeddings_by_tag([35],1)
 train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([7,8,9,15,20,21,22],0)
 
-print("val loader lenght: " len(val_loader_clip_cyber))
+print("val loader lenght: ", len(val_loader_clip_cyber))
 
 train_loader = train_loader_clip_cyber
 val_loader = val_loader_clip_cyber
