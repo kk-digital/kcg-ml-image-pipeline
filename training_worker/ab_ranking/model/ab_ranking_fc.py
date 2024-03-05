@@ -46,7 +46,7 @@ class DatasetLoader(Dataset):
 
 class ABRankingFCNetwork(nn.Module):
     def __init__(self, minio_client, input_size=1280, hidden_sizes=[512, 256], input_type="input_clip" , output_size=1, 
-                 output_type="sigma_score", dataset="environmental", learning_rate=0.001, validation_split=0.2):
+                 output_type="sigma_score", dataset="environmental"):
         
         super(ABRankingFCNetwork, self).__init__()
         # set device
@@ -76,21 +76,17 @@ class ABRankingFCNetwork(nn.Module):
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path=self.get_model_path()
 
-        # Training parameters
-        self.learning_rate = learning_rate
-        self.validation_split = validation_split
-
     def get_model_path(self):
         local_path=f"output/{self.output_type}_fc_{self.input_type}.pth"
         minio_path=f"{self.dataset}/models/latent-generator/{self.date}_{self.output_type}_fc_{self.input_type}.pth"
 
         return local_path, minio_path
 
-    def train(self, inputs, outputs, num_epochs=100, batch_size=256):
+    def train(self, inputs, outputs, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256):
         # load the dataset
         dataset= DatasetLoader(features=inputs, labels=outputs)
         # Split dataset into training and validation
-        val_size = int(len(dataset) * self.validation_split)
+        val_size = int(len(dataset) * validation_split)
         train_size = len(dataset) - val_size
         train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
@@ -99,7 +95,7 @@ class ABRankingFCNetwork(nn.Module):
         val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
         criterion = nn.L1Loss()  # Define the loss function
-        optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)  # Define the optimizer
+        optimizer = optim.Adam(self.parameters(), lr=learning_rate)  # Define the optimizer
 
         # save loss for each epoch and features
         train_loss=[]
@@ -183,7 +179,7 @@ class ABRankingFCNetwork(nn.Module):
                               train_loss=train_loss, 
                               val_loss=val_loss, 
                               inference_speed= inference_speed,
-                              learning_rate=self.learning_rate)
+                              learning_rate=learning_rate)
         
         return val_loss[-1]
         
