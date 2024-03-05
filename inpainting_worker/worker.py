@@ -368,6 +368,16 @@ def process_jobs(worker_state):
                         job, output_file_path, output_file_hash, clip_data, worker_state.minio_client,))
                     thread.start()
 
+                elif task_type == 'kandinsky-2-img-to-img-inpainting':
+                    output_file_path, output_file_hash, clip_data = run_clip_calculation_task(worker_state,
+                                                                                              generation_task,
+                                                                                              model_type="kandinsky")
+
+                    # spawn upload data and update job thread
+                    thread = threading.Thread(target=upload_data_and_update_job_status, args=(
+                        job, output_file_path, output_file_hash, clip_data, worker_state.minio_client,))
+                    thread.start()
+
                 else:
                     e = "job with task type '" + task_type + "' is not supported"
                     error(thread_state, e)
