@@ -499,7 +499,7 @@ def get_list_completed_jobs_by_dataset(request: Request, dataset, limit: Optiona
 
 @router.get("/queue/image-generation/list-by-date", response_class=PrettyJSONResponse)
 def get_list_completed_jobs_by_date(
-    request: Request, 
+    request: Request,
     start_date: str = Query(..., description="Start date for filtering jobs"), 
     end_date: str = Query(..., description="End date for filtering jobs"),
     min_clip_sigma_score: float = Query(None, description="Minimum CLIP sigma score to filter jobs")
@@ -542,9 +542,52 @@ def get_list_completed_jobs_by_date(
 
     return datasets
 
+@router.get("/queue/image-generation/list-by-dataset", response_class=PrettyJSONResponse)
+def get_list_completed_jobs_by_dataset(
+    request: Request,
+    dataset: str= Query(..., description="Dataset name"),  
+    model_type: str= Query("elm-v1", description="Model type, elm-v1 or linear"),  
+    min_clip_sigma_score: float = Query(None, description="Minimum CLIP sigma score to filter jobs"),
+    size: int = Query(1, description="Number of images to return")
+):
 
+    query = {
+        "task_input_dict.dataset": dataset
+    }
 
+    # Add condition to filter by min_clip_sigma_score if provided
+    if min_clip_sigma_score is not None:
+        query[f"task_attributes_dict.{model_type}.image_clip_sigma_score"] = {"$gte": min_clip_sigma_score}
 
+    # jobs = list(request.app.completed_jobs_collection.find(query))
+        
+    # Use $match to filter documents based on dataset, creation time, and prompt_generation_policy
+    documents = request.app.completed_jobs_collection.aggregate([
+        {"$match": query},
+        {"$sample": {"size": size}}
+    ])
+
+    # Convert cursor type to list
+    jobs = list(documents)    
+
+    datasets = []
+    for job in jobs:
+        job_uuid = job.get("uuid")
+        file_path = job.get("task_output_file_dict", {}).get("output_file_path")
+        clip_sigma_score = job.get("task_attributes_dict",{}).get(model_type, {}).get("image_clip_sigma_score")
+
+        if not job_uuid or not file_path:
+            continue
+
+        job_info = {
+            "job_uuid": job_uuid,
+            "file_path": file_path, 
+            "clip_sigma_score": clip_sigma_score
+        }
+
+        datasets.append(job_info)
+
+    return datasets
 
 
 @router.get("/queue/image-generation/list-failed", response_class=PrettyJSONResponse)

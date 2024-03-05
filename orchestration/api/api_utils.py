@@ -16,7 +16,24 @@ from dateutil import parser
 from datetime import datetime
 import os
 
+class ModelResponse(BaseModel):
+    model_name: str
+    model_architecture: str
+    model_creation_date: str
+    model_type: str
+    model_path: str
+    model_file_hash: str
+    input_type: str
+    output_type: str
+    number_of_training_points: str
+    number_of_validation_points: str
+    training_loss: str
+    validation_loss: str
+    graph_report: str
 
+class ModelsAndScoresResponse(BaseModel):
+    models: List[str]
+    scores: List[str]
 class ListImageTag(BaseModel):
      images: List[ImageTag]
 
@@ -26,7 +43,7 @@ class RankCountResponse(BaseModel):
 
 class CountResponse(BaseModel):
     count: int
-    
+
 class RechableResponse(BaseModel):
     reachable: bool
 
@@ -198,8 +215,8 @@ class StandardErrorResponseV1(BaseModel):
     request_dictionary: dict 
     request_method: str
     request_time_total: float
-    request_time_start: datetime 
-    request_time_finished: datetime
+    request_time_start: str 
+    request_time_finished: str
     request_response_code: int 
 
      
