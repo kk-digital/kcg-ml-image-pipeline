@@ -408,7 +408,11 @@ def upload_image_data_and_update_job_status_img2img(worker_state,
                          latent, 
                          output_file_path)
     
-
+    info_v2("Upload for job {} completed".format(generation_task.uuid))
+    info_v2("Upload time elapsed: {:.4f}s".format(time.time() - start_time))
+    info_v2("output file path: " + output_file_path)
+    info_v2("output file hash: " + output_file_hash)
+    info_v2("job completed: " + generation_task.uuid)
 
 def process_jobs(worker_state):
     thread_state = ThreadState(1, "Job Processor")
