@@ -473,7 +473,7 @@ def upload_image_data_and_update_job_status_img2img(worker_state,
     info_v2("job completed: " + generation_task.uuid)
 
     # update status
-    generation_request.http_update_job_completed(job)
+    inpainting_request.http_update_job_completed(job)
 
     # add clip calculation tasks
     kandinsky_clip_calculation_job = {"uuid": "",
@@ -492,7 +492,7 @@ def upload_image_data_and_update_job_status_img2img(worker_state,
                             },
                             }
 
-    generation_request.http_add_job(kandinsky_clip_calculation_job)
+    inpainting_request.http_add_job(kandinsky_clip_calculation_job)
     generation_request.http_add_job(sd_clip_calculation_job)
 
 
