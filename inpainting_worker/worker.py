@@ -137,7 +137,7 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
     # convert image to png from RGB
     output_file_hash, img_byte_arr = inpainting_processor.convert_image_to_png(image)
     
-    output_file_path = os.path.join("datasets", dataset, generation_task.task_input_dict['file_path'])
+    output_file_path = os.path.join("datasets-inpainting", dataset, generation_task.task_input_dict['file_path'])
 
     # Return the latent vector along with other values
     return output_file_path, output_file_hash, img_byte_arr, latents, seed
@@ -218,7 +218,7 @@ def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
                                                         negative_image_embeds= negative_image_embedding,
                                                         seed=seed)
 
-    output_file_path = os.path.join("inpainting-datasets", output_file_path)
+    output_file_path = os.path.join("datasets-inpainting", output_file_path)
     # convert image to png from RGB
     output_file_hash, img_byte_arr = img2img_processor.convert_image_to_png(image)
 
