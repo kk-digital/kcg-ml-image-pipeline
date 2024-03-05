@@ -139,7 +139,7 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
     dataset = generation_task.task_input_dict["dataset"]
 
     image_encoder=worker_state.clip.vision_model
-    unet = worker_state.unet
+    unet = worker_state.inpainting_unet
     prior_model = worker_state.prior_model
     decoder_model = worker_state.inpainting_decoder_model
 

@@ -88,6 +88,8 @@ class WorkerState:
             self.clip_text_embedder.load_submodels()
             
             self.unet = UNet2DConditionModel.from_pretrained(decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
+
+            self.inpainting_unet = UNet2DConditionModel.from_pretrained(inpaint_decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
             
             self.prior_model = KandinskyV22PriorPipeline.from_pretrained(prior_path, local_files_only=True, 
                                                                     image_encoder=self.clip.vision_model, torch_dtype=torch.float16).to(self.device)
