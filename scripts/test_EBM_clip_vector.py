@@ -1108,7 +1108,7 @@ for i in range (16):
 
 #val_ood_loader
 ##### Value eval
-print("Occult VS Cyber")
+print("Occult VS OOD")
 energy_evaluation(val_loader,adv_loader)
 
 
@@ -1226,7 +1226,7 @@ for i in range (16):
     energy_evaluation_with_pictures_clip(images_paths_in[i],images_paths_ood[i])
 
 #val_ood_loader
-print("Occult VS Cyber")
+print("Cyber VS OOD")
 energy_evaluation(val_loader,adv_loader)
 
 
