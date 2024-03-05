@@ -381,17 +381,33 @@ def upload_image_data_and_update_job_status_img2img(worker_state,
                                             job_completion_time,
                                             data):
     
-    start_time = time.time()
     bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
 
     minio_client = worker_state.minio_client
 
     image_width = generation_task.task_input_dict["image_width"]
     image_height = generation_task.task_input_dict["image_height"]
-    # strength = generation_task.task_input_dict["strength"]
-    # decoder_steps = generation_task.task_input_dict["decoder_steps"]
     decoder_guidance_scale = generation_task.task_input_dict["decoder_guidance_scale"]
     dataset = generation_task.task_input_dict["dataset"]
+
+    cmd.upload_data(minio_client, bucket_name, file_path, data)
+
+    save_img2img_data_to_minio(minio_client,
+                             generation_task.uuid,
+                             job_completion_time,
+                             dataset,
+                             output_file_path,
+                             output_file_hash,
+                             seed,
+                             decoder_guidance_scale)
+    
+    save_latent_to_minio(minio_client, 
+                         bucket_name, 
+                         generation_task.uuid, 
+                         output_file_hash, 
+                         latent, 
+                         output_file_path)
+    
 
 
 def process_jobs(worker_state):
