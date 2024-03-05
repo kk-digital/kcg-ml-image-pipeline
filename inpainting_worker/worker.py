@@ -431,9 +431,9 @@ def process_jobs(worker_state):
                     thread.start()
 
                 elif task_type == 'kandinsky-2-img-to-img-inpainting':
-                    output_file_path, output_file_hash, clip_data = run_clip_calculation_task(worker_state,
-                                                                                              generation_task,
-                                                                                              model_type="kandinsky")
+                    output_file_path, output_file_hash, img_data, latent, seed = run_image_generation_task(worker_state,
+                                                                                generation_task)
+
 
                     # spawn upload data and update job thread
                     thread = threading.Thread(target=upload_data_and_update_job_status, args=(
