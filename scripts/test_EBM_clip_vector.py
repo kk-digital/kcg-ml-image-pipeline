@@ -1418,7 +1418,7 @@ for i in range(1,len(id_classes_ood)):
 
 
 
-for i in range (5):
+for i in range (len(images_paths_in)):
     energy_evaluation_with_pictures_clip(images_paths_in[i],images_paths_ood[i])
     
 #energy_evaluation_with_pictures_clip(images_paths_in,images_paths_ood)
