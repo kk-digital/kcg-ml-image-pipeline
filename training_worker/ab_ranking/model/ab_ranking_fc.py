@@ -361,7 +361,7 @@ class ABRankingFCNetwork(nn.Module):
             model_file_data =cmd.get_file_from_minio(self.minio_client, 'datasets', most_recent_model)
         else:
             print("No .pth files found in the list.")
-            return
+            return None
         
         print(most_recent_model)
 
