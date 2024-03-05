@@ -42,7 +42,7 @@ class WorkerState:
         for dataset in dataset_list:
             scoring_model= self.load_scoring_model(dataset)
 
-            if scoring_model.model is not None:
+            if scoring_model is not None:
                  self.scoring_models[dataset]= scoring_model
 
     # load elm scoring models
