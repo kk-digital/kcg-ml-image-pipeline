@@ -49,13 +49,13 @@ def get_job(request: Request, task_type= None, model_type=""):
 
  # --------------------- Add ---------------------------
 
-@router.post("/queue/inpainting-generation/add-job", 
+@router.post("/queue/inpainting-generation/add-job-with-upload", 
              description="Add a job to db",
              status_code=200,
              tags=["inpainting jobs"],
              response_model=StandardSuccessResponseV1[AddJob],
              responses=ApiResponseHandlerV1.listErrors([500]))
-def add_job(request: Request, task: Task = Body(...), mask_image: UploadFile = File(...), input_image: UploadFile = File(...)):
+def add_job_with_upload(request: Request, task: Task = Body(...), mask_image: UploadFile = File(...), input_image: UploadFile = File(...)):
     task_dict = jsonable_encoder(task)
     api_response_handler = ApiResponseHandlerV1(request, body_data=task_dict)
     try:
@@ -84,6 +84,50 @@ def add_job(request: Request, task: Task = Body(...), mask_image: UploadFile = F
 
         cmd.upload_data(request.app.minio_client, "datasets-inpainting", init_mask, mask_image.file)
         cmd.upload_data(request.app.minio_client, "datasets-inpainting", init_img, input_image.file)
+
+        # Insert task into pending_jobs_collection
+        request.app.pending_inpainting_jobs_collection.insert_one(task.to_dict())
+
+
+        # Convert datetime to ISO 8601 formatted string for JSON serialization
+        creation_time_iso = task.task_creation_time.isoformat() if task.task_creation_time else None
+        # Use ApiResponseHandler for standardized success response
+        return api_response_handler.create_success_response_v1(
+            response_data={"uuid": task.uuid, "creation_time": creation_time_iso},
+            http_status_code=200
+        )
+
+    except Exception as e:
+        # Log the error and return a standardized error response
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+    
+@router.post("/queue/inpainting-generation/add-job", 
+             description="Add a job to db",
+             status_code=200,
+             tags=["inpainting jobs"],
+             response_model=StandardSuccessResponseV1[AddJob],
+             responses=ApiResponseHandlerV1.listErrors([500]))
+def add_job(request: Request, task: Task):
+    task_dict = jsonable_encoder(task)
+    api_response_handler = ApiResponseHandlerV1(request, body_data=task_dict)
+    try:
+        if task.uuid in ["", None]:
+            # Generate UUID since it's empty
+            task.uuid = str(uuid.uuid4())
+
+        # Add task creation time
+        task.task_creation_time = datetime.now()
+
+        # Check if file_path is blank and dataset is provided
+        if (task.task_input_dict is None or "file_path" not in task.task_input_dict or task.task_input_dict["file_path"] in ['', "[auto]", "[default]"]) and "dataset" in task.task_input_dict:
+            dataset_name = task.task_input_dict["dataset"]
+            sequential_id_arr = get_sequential_id_inpainting(request, dataset=dataset_name)
+            new_file_path = "{}.jpg".format(sequential_id_arr[0])
+            task.task_input_dict["file_path"] = new_file_path
 
         # Insert task into pending_jobs_collection
         request.app.pending_inpainting_jobs_collection.insert_one(task.to_dict())
