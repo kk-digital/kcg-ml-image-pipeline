@@ -932,6 +932,11 @@ def energy_evaluation_with_pictures_clip(imgpath_id,imgpath_ood):
 
 
 
+
+################################################################    Use clip embeddings directly       ################################################################
+################################################################    Use clip embeddings directly       ################################################################
+################################################################    Use clip embeddings directly       ################################################################
+
 ##################### Load images
 
 # Transformations: # don't use greyscale
@@ -973,17 +978,323 @@ def get_clip_embeddings_by_tag(id_classes,label_value):
     
 
 
-train_loader_clip_occult, val_loader_clip_ocult = get_clip_embeddings_by_tag([39],1)
-train_loader_clip_cyber, val_loader_clip_cyber = get_clip_embeddings_by_tag([7,8,9,15,20,21,22],0)
+# train_loader_clip_occult, val_loader_clip_ocult = get_clip_embeddings_by_tag([39],1)
+# train_loader_clip_cyber, val_loader_clip_cyber = get_clip_embeddings_by_tag([7,8,9,15,20,21,22],0)
+
+
+# # Set loaders
+# train_loader = train_loader_clip_occult
+# val_loader = val_loader_clip_ocult
+# adv_loader = train_loader_clip_cyber
+
+
+
+
+# ###################################### Train
+# model = train_model(img_shape=(1,1280),
+#                     batch_size=train_loader.batch_size,
+#                     lr=0.001,
+#                     beta1=0.0)
+
+
+
+# # Plot
+
+
+# epochs = range(1, len(total_losses) + 1)  
+
+
+# # Create subplots grid (3 rows, 1 column)
+# fig, axes = plt.subplots(4, 1, figsize=(10, 24))
+
+# # Plot each loss on its own subplot
+# axes[0].plot(epochs, total_losses, label='Total Loss')
+# axes[0].set_xlabel('Steps')
+# axes[0].set_ylabel('Loss')
+# axes[0].set_title('Total Loss')
+# axes[0].legend()
+# axes[0].grid(True)
+
+# axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
+# axes[1].set_xlabel('Steps')
+# axes[1].set_ylabel('Loss')
+# axes[1].set_title('Contrastive Divergence Loss')
+# axes[1].legend()
+# axes[1].grid(True)
+
+
+# axes[2].plot(epochs, reg_losses , label='Regression Loss')
+# axes[2].set_xlabel('Steps')
+# axes[2].set_ylabel('Loss')
+# axes[2].set_title('Regression Loss')
+# axes[2].legend()
+# axes[2].grid(True)
+
+# # Plot real and fake scores on the fourth subplot
+# axes[3].plot(epochs, real_scores_s, label='Real Scores')
+# axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
+# axes[3].set_xlabel('Steps')
+# axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
+# axes[3].set_title('Real vs. Fake Scores')
+# axes[3].legend()
+# axes[3].grid(True)
+
+# # Adjust spacing between subplots for better visualization
+# plt.tight_layout()
+
+# plt.savefig("output/loss_tracking_per_step.png")
+
+# # Save the figure to a file
+# buf = io.BytesIO()
+# plt.savefig(buf, format='png')
+# buf.seek(0)
+
+# # upload the graph report
+# minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_occult_training" +date_now+".png"
+# cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+# # Remove the temporary file
+# os.remove("output/loss_tracking_per_step.png")
+# # Clear the current figure
+# plt.clf()
+
+
+
+# id_classes_in = [39]
+
+# images_paths_in = get_tag_jobs(id_classes_in[0])
+# #print("path " , images_paths_in)
+# i = 1
+# for i in range(1,len(id_classes_in)):
+#     images_paths_in = images_paths_in + get_tag_jobs(id_classes_in[i])
+
+
+# id_classes_ood = [7,8,9,15,20,21,22]
+
+# images_paths_ood  = get_tag_jobs(id_classes_ood [0])
+# i = 1
+# for i in range(1,len(id_classes_ood)):
+#     images_paths_ood  = images_paths_ood  + get_tag_jobs(id_classes_ood [i])
+
+
+
+# for i in range (16):
+#     energy_evaluation_with_pictures_clip(images_paths_in[i],images_paths_ood[i])
+    
+
+# #val_ood_loader
+# ##### Value eval
+# print("Occult VS Cyber")
+# energy_evaluation(val_loader,adv_loader)
+
+
+
+
+
+
+
+
+
+# #################################################################################################### Entrainement inverse
+
+# # Get real images
+
+# train_loader_clip_cyber, val_loader_clip_cyber = get_clip_embeddings_by_tag([35],1)
+# train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([7,8,9,15,20,21,22],0)
+
+# print("val loader lenght: ", len(val_loader_clip_cyber))
+
+# train_loader = train_loader_clip_cyber
+# val_loader = train_loader_clip_cyber
+# adv_loader = train_loader_clip_ood
+
+
+# # Train
+# model2 = train_model(img_shape=(1,1280),
+#                     batch_size=train_loader.batch_size,
+#                     lr=0.001,
+#                     beta1=0.0)
+
+# modelsave = model
+# model = model2
+# # Plot
+
+
+
+
+# ############### Plot graph
+# epochs = range(1, len(total_losses) + 1)  
+
+# # Create subplots grid (3 rows, 1 column)
+# fig, axes = plt.subplots(4, 1, figsize=(10, 24))
+
+# # Plot each loss on its own subplot
+# axes[0].plot(epochs, total_losses, label='Total Loss')
+# axes[0].set_xlabel('Steps')
+# axes[0].set_ylabel('Loss')
+# axes[0].set_title('Total Loss')
+# axes[0].legend()
+# axes[0].grid(True)
+
+# axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
+# axes[1].set_xlabel('Steps')
+# axes[1].set_ylabel('Loss')
+# axes[1].set_title('Contrastive Divergence Loss')
+# axes[1].legend()
+# axes[1].grid(True)
+
+
+# axes[2].plot(epochs, reg_losses , label='Regression Loss')
+# axes[2].set_xlabel('Steps')
+# axes[2].set_ylabel('Loss')
+# axes[2].set_title('Regression Loss')
+# axes[2].legend()
+# axes[2].grid(True)
+
+# # Plot real and fake scores on the fourth subplot
+# axes[3].plot(epochs, real_scores_s, label='Real Scores')
+# axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
+# axes[3].set_xlabel('Steps')
+# axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
+# axes[3].set_title('Real vs. Fake Scores')
+# axes[3].legend()
+# axes[3].grid(True)
+
+# # Adjust spacing between subplots for better visualization
+# plt.tight_layout()
+
+# plt.savefig("output/loss_tracking_per_step.png")
+
+# # Save the figure to a file
+# buf = io.BytesIO()
+# plt.savefig(buf, format='png')
+# buf.seek(0)
+
+# # upload the graph report
+# minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_cyber_training" +date_now+".png"
+# cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+# # Remove the temporary file
+# os.remove("output/loss_tracking_per_step.png")
+# # Clear the current figure
+# plt.clf()
+
+
+# # Load images
+# id_classes_in = [35]
+
+# images_paths_in = get_tag_jobs(id_classes_in[0])
+# #print("path " , images_paths_in)
+# i = 1
+# for i in range(1,len(id_classes_in)):
+#     images_paths_in = images_paths_in + get_tag_jobs(id_classes_in[i])
+
+
+# id_classes_ood = [7,8,9,15,20,21,22]
+
+# images_paths_ood  = get_tag_jobs(id_classes_ood [0])
+# i = 1
+# for i in range(1,len(id_classes_ood)):
+#     images_paths_ood  = images_paths_ood  + get_tag_jobs(id_classes_ood [i])
+
+
+# # Test on some pcitures
+# for i in range (16):
+#     energy_evaluation_with_pictures_clip(images_paths_in[i],images_paths_ood[i])
+
+# #val_ood_loader
+# print("Occult VS Cyber")
+# energy_evaluation(val_loader,adv_loader)
+
+
+
+
+
+################################################################    Use Data augmentation       ################################################################
+################################################################    Use Data augmentation       ################################################################
+################################################################    Use Data augmentation       ################################################################
+
+
+# # Get raw images from Class A
+# images_paths_class_A = get_tag_jobs(39)
+
+# class_A_images = []
+
+
+# for path in images_paths_class_A:
+#     class_A_images.append(get_image(path))
+
+
+# # Transforme into tansors
+# class_A_images = [transform(img) for img in class_A_images]
+
+
+# # Call your data_augmentation function
+# class_A_images = data_augmentation(class_A_images, 5)
+
+# class_A_clips = []
+# for image in class_A_images:
+#     img_res, clip_emb = get_clip_and_image_from_path(image)
+#     class_A_clips.append(clip_emb)
+
+
+
+
+
+def get_clip_embeddings_by_tag_with_data_augmentation(id_classes,label_value):
+    images_paths = get_tag_jobs(id_classes[0])
+    i = 1
+    for i in range(1,len(id_classes)):
+        images_paths = images_paths + get_tag_jobs(id_classes[i])
+       
+    
+    for path in images_paths:
+        class_A_images.append(get_image(path))
+
+    # Transforme into tansors
+    class_A_images = [transform(img) for img in class_A_images]
+
+
+    # Call your data_augmentation function
+    class_A_images = data_augmentation(class_A_images, 5)
+ 
+    class_A_clips = []
+    for image in class_A_images:
+        img_res, clip_emb = get_clip_and_image_from_path(image)
+        class_A_clips.append(clip_emb)
+
+
+    # Create labels
+    data_occcult_clips = [(clip, label_value) for clip in class_A_clips]
+    print("Clip embeddings array lenght : ",len(data_occcult_clips))
+
+    # Split
+
+    num_samples = len(data_occcult_clips)
+    train_size = int(0.8 * num_samples)
+    val_size = num_samples - train_size
+    train_set, val_set = random_split(data_occcult_clips, [train_size, val_size])
+
+    train_loader_clip = data.DataLoader(train_set, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+    val_loader_clip = data.DataLoader(val_set, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+
+    return train_loader_clip, val_loader_clip
+
+
+
+
+
+
+train_loader_clip_cyber_Aug, val_loader_clip_cyber_Aug = get_clip_embeddings_by_tag_with_data_augmentation([35],1)
+train_loader_clip_ood_Aug , val_loader_clip_ood_Aug  = get_clip_embeddings_by_tag_with_data_augmentation([7,8,9,15,20,21,22],0)
 
 
 # Set loaders
-train_loader = train_loader_clip_occult
-val_loader = val_loader_clip_ocult
-adv_loader = train_loader_clip_cyber
+train_loader = train_loader_clip_cyber_Aug
+val_loader = val_loader_clip_cyber_Aug
+adv_loader = val_loader_clip_ood_Aug
 
-
-
+print("Train data set lenght : ", len(train_loader))
+print("Val data set lenght : ", len(val_loader))
+print("OOD data set lenght : ", len(adv_loader))
 
 ###################################### Train
 model = train_model(img_shape=(1,1280),
@@ -1009,13 +1320,6 @@ axes[0].set_ylabel('Loss')
 axes[0].set_title('Total Loss')
 axes[0].legend()
 axes[0].grid(True)
-
-# axes[1].plot(epochs, class_losses, label='Classification Loss')
-# axes[1].set_xlabel('Steps')
-# axes[1].set_ylabel('Loss')
-# axes[1].set_title('Classification Loss')
-# axes[1].legend()
-# axes[1].grid(True)
 
 axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
 axes[1].set_xlabel('Steps')
@@ -1087,178 +1391,6 @@ for i in range (16):
 ##### Value eval
 print("Occult VS Cyber")
 energy_evaluation(val_loader,adv_loader)
-
-
-
-
-
-
-
-
-
-#################################################################################################### Entrainement inverse
-
-
-
-
-
-
-
-
-train_loader_clip_cyber, val_loader_clip_cyber = get_clip_embeddings_by_tag([35],1)
-train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([7,8,9,15,20,21,22],0)
-
-print("val loader lenght: ", len(val_loader_clip_cyber))
-
-train_loader = train_loader_clip_cyber
-val_loader = train_loader_clip_cyber
-adv_loader = train_loader_clip_ood
-
-
-# Train
-model2 = train_model(img_shape=(1,1280),
-                    batch_size=train_loader.batch_size,
-                    lr=0.001,
-                    beta1=0.0)
-
-modelsave = model
-model = model2
-# Plot
-
-
-epochs = range(1, len(total_losses) + 1)  
-
-
-# Create subplots grid (3 rows, 1 column)
-fig, axes = plt.subplots(4, 1, figsize=(10, 24))
-
-# Plot each loss on its own subplot
-axes[0].plot(epochs, total_losses, label='Total Loss')
-axes[0].set_xlabel('Steps')
-axes[0].set_ylabel('Loss')
-axes[0].set_title('Total Loss')
-axes[0].legend()
-axes[0].grid(True)
-
-# axes[1].plot(epochs, class_losses, label='Classification Loss')
-# axes[1].set_xlabel('Steps')
-# axes[1].set_ylabel('Loss')
-# axes[1].set_title('Classification Loss')
-# axes[1].legend()
-# axes[1].grid(True)
-
-axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
-axes[1].set_xlabel('Steps')
-axes[1].set_ylabel('Loss')
-axes[1].set_title('Contrastive Divergence Loss')
-axes[1].legend()
-axes[1].grid(True)
-
-
-axes[2].plot(epochs, reg_losses , label='Regression Loss')
-axes[2].set_xlabel('Steps')
-axes[2].set_ylabel('Loss')
-axes[2].set_title('Regression Loss')
-axes[2].legend()
-axes[2].grid(True)
-
-# Plot real and fake scores on the fourth subplot
-axes[3].plot(epochs, real_scores_s, label='Real Scores')
-axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
-axes[3].set_xlabel('Steps')
-axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
-axes[3].set_title('Real vs. Fake Scores')
-axes[3].legend()
-axes[3].grid(True)
-
-# Adjust spacing between subplots for better visualization
-plt.tight_layout()
-
-plt.savefig("output/loss_tracking_per_step.png")
-
-# Save the figure to a file
-buf = io.BytesIO()
-plt.savefig(buf, format='png')
-buf.seek(0)
-
-# upload the graph report
-minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_cyber_training" +date_now+".png"
-cmd.upload_data(minio_client, 'datasets', minio_path, buf)
-# Remove the temporary file
-os.remove("output/loss_tracking_per_step.png")
-# Clear the current figure
-plt.clf()
-
-
-
-
-
-
-id_classes_in = [35]
-
-images_paths_in = get_tag_jobs(id_classes_in[0])
-#print("path " , images_paths_in)
-i = 1
-for i in range(1,len(id_classes_in)):
-    images_paths_in = images_paths_in + get_tag_jobs(id_classes_in[i])
-
-
-id_classes_ood = [7,8,9,15,20,21,22]
-
-images_paths_ood  = get_tag_jobs(id_classes_ood [0])
-i = 1
-for i in range(1,len(id_classes_ood)):
-    images_paths_ood  = images_paths_ood  + get_tag_jobs(id_classes_ood [i])
-
-
-# print("in : ",images_paths_in)
-# print("ood : ",images_paths_ood)
-    
-
-
-
-# # run score test working
-    
-# test_imgs, _ = next(iter(train_loader_clip_occult))
-
-
-# # load adv set images
-# fake_imgs, _ = next(iter(adv_loader)) # val_loader_dog  val_ood_loader val val_loader_noncats val_loader
-
-# # print("tes_imgs shape : ", test_imgs.shape)
-# # print("fake_imgs shape : ", fake_imgs.shape)
-
-# imgs = torch.stack([test_imgs[i].to(model.device), fake_imgs[i].to(model.device)], dim=0).to(model.device)
-# score1, score2 = model.cnn(imgs).cpu().chunk(2, dim=0) # model.cnn(imgs)[0].cpu().chunk(2, dim=0)
-
-# # score1 = model.cnn(img1.unsqueeze(0).to(model.device)).cpu()
-
-# # # Pass the second image through the CNN model and get its score
-# # score2 = model.cnn(img2.unsqueeze(0).to(model.device)).cpu()
-
-# print("dem scores are : ",score1, " and ",score2)
-
-
-
-for i in range (16):
-    energy_evaluation_with_pictures_clip(images_paths_in[i],images_paths_ood[i])
-    
-#energy_evaluation_with_pictures_clip(images_paths_in,images_paths_ood)
-#energy_evaluation_with_pictures(val_loader,adv_loader)
-# energy_evaluation_with_pictures(val_loader,val_cifarset_loader)
-# energy_evaluation_with_pictures(val_loader,val_ood_loader)
-
-#val_ood_loader
-##### Value eval
-print("Occult VS Cyber")
-energy_evaluation(val_loader,adv_loader)
-# print("Occult VS Cifar")
-# energy_evaluation(val_loader,val_cifarset_loader)
-# print("Occult VS SVHN")
-# energy_evaluation(val_loader,val_ood_loader)
-
-
-
 
 
 
