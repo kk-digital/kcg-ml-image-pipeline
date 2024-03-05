@@ -152,8 +152,6 @@ def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
     generation_task.task_input_dict["seed"] = seed
     
 
-    # init_image = Image.open(generation_task.task_input_dict["init_img"])
-    # init_mask = Image.open(generation_task.task_input_dict["init_mask"])
     try:
         #get the image data that is stored in minio
         bucket_name, file_path = separate_bucket_and_file_path(generation_task.task_input_dict["init_img"])
@@ -203,15 +201,14 @@ def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
     
     # get the input image embeddings from minIO
     output_file_path = os.path.join(dataset, generation_task.task_input_dict['file_path'])
-    # image_embeddings_path = output_file_path.replace(".jpg", "_embedding.msgpack")    
-    # embedding_data = get_object_with_bucket(worker_state.minio_client, "datasets-inpainting", image_embeddings_path)
-    # embedding_data = worker_state.clip.get_image_features(init_image)
-    # embedding_dict = ImageEmbedding.from_msgpack_bytes(embedding_data)
-    # image_embedding= embedding_dict.image_embedding.to(worker_state.device)
-    # negative_image_embedding= embedding_dict.negative_image_embedding
+    image_embeddings_path = output_file_path.replace(".jpg", "_embedding.msgpack")    
+    embedding_data = get_object_with_bucket(worker_state.minio_client, "datasets-inpainting", image_embeddings_path)
+    embedding_dict = ImageEmbedding.from_msgpack_bytes(embedding_data)
+    image_embedding= embedding_dict.image_embedding.to(worker_state.device)
+    negative_image_embedding= embedding_dict.negative_image_embedding
     
-    image_embedding = worker_state.clip.get_image_features(init_image)
-    negative_image_embedding = None
+    # image_embedding = worker_state.clip.get_image_features(init_image)
+    # negative_image_embedding = None
 
     if negative_image_embedding is not None:
         negative_image_embedding= negative_image_embedding.to(worker_state.device)
