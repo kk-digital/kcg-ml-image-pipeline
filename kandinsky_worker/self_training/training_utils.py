@@ -38,14 +38,19 @@ def store_self_training_data(worker_state: WorkerState, job: dict):
     dataset= file_path.split('/')[0]
     scoring_model= worker_state.scoring_models[dataset]
 
+    score_mean= float(scoring_model.mean)
+    score_std= float(scoring_model.standard_deviation)
+
     if scoring_model is None:
         raise Exception("No scoring model has been loaded for this dataset.")
 
     input_clip_vector= get_input_clip_vector(minio_client, dataset, file_path)
     output_clip_vector= get_output_clip_vector(minio_client, dataset, file_path)
 
-    input_clip_score = scoring_model.predict_clip(input_clip_vector).item() 
+    input_clip_score = scoring_model.predict_clip(input_clip_vector).item()
+    input_clip_score = (input_clip_score - score_mean) / score_std 
     output_clip_score = scoring_model.predict_clip(output_clip_vector).item()
+    output_clip_score = (output_clip_score - score_mean) / score_std 
 
     cosine_sim = cosine_similarity(input_clip_vector, output_clip_vector).item()
 
