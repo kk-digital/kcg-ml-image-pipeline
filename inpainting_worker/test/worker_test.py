@@ -34,9 +34,9 @@ def add_jobs():
             "decoder_steps": 50,
             "prior_guidance_scale": 4,
             "decoder_guidance_scale": 4,
-            "positive_prompt":"a tiger sitting on a park bench",
-            "negative_prior_prompt":"",
-            "negative_decoder_prompt":""
+        #     "positive_prompt":"a tiger sitting on a park bench",
+        #     "negative_prior_prompt":"",
+        #     "negative_decoder_prompt":""
         },
         "task_input_file_dict": None,
         "task_output_file_dict": None,
