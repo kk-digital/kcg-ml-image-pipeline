@@ -431,13 +431,15 @@ def process_jobs(worker_state):
                     thread.start()
 
                 elif task_type == 'kandinsky-2-img-to-img-inpainting':
-                    output_file_path, output_file_hash, img_data, latent, seed = run_image_generation_task(worker_state,
-                                                                                generation_task)
+                    output_file_path, output_file_hash, img_data, latent, seed = run_img2img_generation_task(worker_state,
+                                                                                                   generation_task)
 
+
+                    job_completion_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
                     # spawn upload data and update job thread
-                    thread = threading.Thread(target=upload_data_and_update_job_status, args=(
-                        job, output_file_path, output_file_hash, clip_data, worker_state.minio_client,))
+                    thread = threading.Thread(target=upload_image_data_and_update_job_status_img2img, args=(
+                        worker_state, job, generation_task, seed, latent, output_file_path, output_file_hash, job_completion_time, img_data))
                     thread.start()
 
                 else:
