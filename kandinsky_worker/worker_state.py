@@ -49,7 +49,7 @@ class WorkerState:
     def load_scoring_model(self, dataset):
         input_path=f"{dataset}/models/ranking/"
         scoring_model = ABRankingELMModel(1280)
-        file_name=f"score-elm-v1-kandinsky-clip.safetensors"
+        file_name=f"score-elm-v1-clip-h.safetensors"
 
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
         most_recent_model = None
