@@ -190,7 +190,8 @@ def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
         negative_image_embedding= negative_image_embedding.to(worker_state.device)
 
     # generate image
-    image, latents = img2img_processor.generate_img2img(init_img=init_image,
+    image, latents = img2img_processor.generate_img2img_inpainting(init_img=init_image,
+                                                        mask_img=mask_img,
                                                         image_embeds= image_embedding,
                                                         negative_image_embeds= negative_image_embedding,
                                                         seed=seed)
