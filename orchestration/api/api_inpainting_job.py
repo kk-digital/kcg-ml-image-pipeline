@@ -56,9 +56,7 @@ def get_job(request: Request, task_type= None, model_type=""):
              response_model=StandardSuccessResponseV1[AddJob],
              responses=ApiResponseHandlerV1.listErrors([500]))
 def add_job(request: Request, task: Task = Body(...), mask_image: UploadFile = File(...), input_image: UploadFile = File(...)):
-    print(task, "this is the task-------------------------")
     task_dict = jsonable_encoder(task)
-    print(task_dict, "this task is already")
     api_response_handler = ApiResponseHandlerV1(request, body_data=task_dict)
     try:
         if task.uuid in ["", None]:
@@ -75,15 +73,17 @@ def add_job(request: Request, task: Task = Body(...), mask_image: UploadFile = F
             sequential_id_arr = get_sequential_id_inpainting(request, dataset=dataset_name)
             
             new_file_path = "{}.jpg".format(sequential_id_arr[0])
-            init_mask = "{0}/{1}_mask.jpg".format(dataset_name, sequential_id_arr[0])
-            init_img = "{0}/{1}_input_image.jpg".format(dataset_name, sequential_id_arr[0])
             
             task.task_input_dict["file_path"] = new_file_path
-            task.task_input_dict["init_img"] = init_mask
-            task.task_input_dict["init_mask"] = init_img
 
-            cmd.upload_data(request.app.minio_client, "datasets-inpainting", init_mask, mask_image)
-            cmd.upload_data(request.app.minio_client, "datasets-inpainting", init_img, input_image)
+        init_mask = "{0}/{1}_mask.jpg".format(dataset_name, sequential_id_arr[0])
+        init_img = "{0}/{1}_input_image.jpg".format(dataset_name, sequential_id_arr[0])
+        
+        task.task_input_dict["init_img"] = init_mask
+        task.task_input_dict["init_mask"] = init_img
+
+        cmd.upload_data(request.app.minio_client, "datasets-inpainting", init_mask, mask_image.file)
+        cmd.upload_data(request.app.minio_client, "datasets-inpainting", init_img, input_image.file)
 
         # Insert task into pending_jobs_collection
         request.app.pending_inpainting_jobs_collection.insert_one(task.to_dict())
