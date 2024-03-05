@@ -23,8 +23,8 @@ def add_jobs():
         "task_input_dict": {
             "strength": 0.4,
             "seed": "",
-            "dataset": "test-generations",
-            "file_path": "0001/025003.jpg",
+            "dataset": "test-dataset",
+            "file_path": "025003.jpg",
             "init_img":"datasets-inpainting/test-dataset/test_inpainting_init_img_001.jpg",
             "init_mask":"datasets-inpainting/test-dataset/test_inpainting_init_mask_001.png",
             "num_images": 1,
