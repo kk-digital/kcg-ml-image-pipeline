@@ -1288,6 +1288,9 @@ energy_evaluation(val_loader,adv_loader)
 
 train_loader_clip_cyber, val_loader_clip_cyber = get_clip_embeddings_by_tag([35],1)
 train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([7,8,9,15,20,21,22],0)
+
+print("val loader lenght: " len(val_loader_clip_cyber))
+
 train_loader = train_loader_clip_cyber
 val_loader = val_loader_clip_cyber
 adv_loader = train_loader_clip_ood
@@ -1418,7 +1421,7 @@ for i in range(1,len(id_classes_ood)):
 
 
 
-for i in range (len(images_paths_in)):
+for i in range (16):
     energy_evaluation_with_pictures_clip(images_paths_in[i],images_paths_ood[i])
     
 #energy_evaluation_with_pictures_clip(images_paths_in,images_paths_ood)
