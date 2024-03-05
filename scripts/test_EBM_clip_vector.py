@@ -271,7 +271,35 @@ def data_augmentation(images_tensor, num_of_passes):
 
     return combined_images
 
+def data_augmentation_no_tensor(images_tensor, num_of_passes):
+    # Define probabilities for each transformation
+    prob_mirror = 0.9
+    prob_zoom = 0.5
+    prob_rotation = 0.2
+    prob_contrast = 0.5
+    prob_brightness = 0.5
 
+    # Augmentation transformations
+    augmentations = transforms.Compose([
+        transforms.RandomHorizontalFlip(p=prob_mirror),
+        transforms.RandomResizedCrop(size=(512, 512), scale=(0.9, 1.1), ratio=(0.9, 1.1)),
+        transforms.RandomRotation(degrees=(-20, 20)),
+        transforms.ColorJitter(brightness=(0.2, 2), contrast=(0.5, 1.5)),
+    ])
+
+    all_images = []  # This will contain both original and augmented images
+
+    for image in images_list:
+        # First, add the original image to the list
+        all_images.append(image)
+
+        # Now, create augmented versions of this image
+        for _ in range(num_of_passes):
+            augmented_image = augmentations(image)
+            all_images.append(augmented_image)
+
+    # `all_images` now contains both the original images and their augmented versions
+    return all_images
 
 ########################################### Model Architectures
 
@@ -1253,13 +1281,13 @@ def get_clip_embeddings_by_tag_with_data_augmentation(id_classes,label_value):
 
 
     # Call your data_augmentation function
-    class_A_images = data_augmentation(class_A_images, 5)
+    class_A_images = data_augmentation_no_tensor(class_A_images, 5)
  
     class_A_clips = []
     for image in class_A_images:
         image = tensor_to_image(image)
         clip_emb = image_embedder.get_image_features(image)
-        #clip_emb = clip_emb.float()
+        clip_emb = clip_emb.float()
         class_A_clips.append(clip_emb)
 
 
