@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import pymongo
 from bson.objectid import ObjectId
 from fastapi.responses import JSONResponse
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode,  StandardErrorResponseV1, StandardSuccessResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandlerV1, ErrorCode,  StandardErrorResponseV1, StandardSuccessResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi import status, Request
 from dotenv import dotenv_values
@@ -102,6 +102,7 @@ def create_index_if_not_exists(collection, index_key, index_name):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    response_handler = ApiResponseHandlerV1(request)
     print(exc.errors())
     start_time = datetime.now() 
 
@@ -113,7 +114,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         request_error_string="Validation Error",
         request_error_code=ErrorCode.INVALID_PARAMS.value,  # Adjust as necessary
         request_url=str(request.url),
-        request_dictionary=dict(request.query_params),
+        request_dictionary=response_handler.request_data,
         request_method=request.method,
         request_time_total=elapsed_time_str,
         request_time_start=start_time.isoformat(),
