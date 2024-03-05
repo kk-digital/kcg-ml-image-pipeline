@@ -1287,10 +1287,10 @@ energy_evaluation(val_loader,adv_loader)
 
 
 train_loader_clip_cyber, val_loader_clip_cyber = get_clip_embeddings_by_tag([35],1)
-
+train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([7,8,9,15,20,21,22],0)
 train_loader = train_loader_clip_cyber
 val_loader = val_loader_clip_cyber
-adv_loader = train_loader_clip_cyber
+adv_loader = train_loader_clip_ood
 
 
 # Train
