@@ -9,7 +9,8 @@ from inpainting_worker import worker
 
 def add_jobs():
     inpainting_request.http_add_job({
-        "task_type": "kandinsky-2-txt-to-img-inpainting",
+        # "task_type": "kandinsky-2-txt-to-img-inpainting",
+        "task_type": "kandinsky-2-img-to-img-inpainting",
         "uuid": "400a0cdf-fb83-412b-8c02-2027146490ad",
         "model_name": "kandinsky_2_2",
         "model_file_name": "kandinsky-2-2-decoder-inpaint",
