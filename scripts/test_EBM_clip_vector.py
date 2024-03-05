@@ -1245,7 +1245,7 @@ def get_clip_embeddings_by_tag_with_data_augmentation(id_classes,label_value):
     for i in range(1,len(id_classes)):
         images_paths = images_paths + get_tag_jobs(id_classes[i])
        
-    
+    print("images paths ", images_paths)
     class_A_images = []
     for path in images_paths:
         class_A_images.append(get_image(path))
