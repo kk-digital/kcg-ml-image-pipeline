@@ -1144,8 +1144,10 @@ model = model2
 # Plot
 
 
-epochs = range(1, len(total_losses) + 1)  
 
+
+############### Plot graph
+epochs = range(1, len(total_losses) + 1)  
 
 # Create subplots grid (3 rows, 1 column)
 fig, axes = plt.subplots(4, 1, figsize=(10, 24))
@@ -1193,14 +1195,12 @@ plt.savefig(buf, format='png')
 buf.seek(0)
 
 # upload the graph report
-minio_path="environmental/output/my_test"
 minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_cyber_training" +date_now+".png"
 cmd.upload_data(minio_client, 'datasets', minio_path, buf)
 # Remove the temporary file
 os.remove("output/loss_tracking_per_step.png")
 # Clear the current figure
 plt.clf()
-
 
 
 # Load images
