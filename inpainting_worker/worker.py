@@ -380,18 +380,22 @@ def upload_image_data_and_update_job_status_img2img(worker_state,
                                             output_file_hash,
                                             job_completion_time,
                                             data):
-    
+    start_time = time.time()
     bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
 
     minio_client = worker_state.minio_client
 
     image_width = generation_task.task_input_dict["image_width"]
     image_height = generation_task.task_input_dict["image_height"]
+    strength = generation_task.task_input_dict["strength"]
+    decoder_steps = generation_task.task_input_dict["decoder_steps"]
     decoder_guidance_scale = generation_task.task_input_dict["decoder_guidance_scale"]
     dataset = generation_task.task_input_dict["dataset"]
 
     cmd.upload_data(minio_client, bucket_name, file_path, data)
 
+    # save image meta data
+    # Todo(): Implement this function
     save_img2img_data_to_minio(minio_client,
                              generation_task.uuid,
                              job_completion_time,
@@ -399,22 +403,32 @@ def upload_image_data_and_update_job_status_img2img(worker_state,
                              output_file_path,
                              output_file_hash,
                              seed,
+                             image_width,
+                             image_height,
+                             strength,
+                             decoder_steps,
                              decoder_guidance_scale)
-    
+
     save_latent_to_minio(minio_client, 
                          bucket_name, 
                          generation_task.uuid, 
                          output_file_hash, 
                          latent, 
                          output_file_path)
-    
+
     info_v2("Upload for job {} completed".format(generation_task.uuid))
     info_v2("Upload time elapsed: {:.4f}s".format(time.time() - start_time))
+
+    # update job info
+    job['task_completion_time'] = job_completion_time
+    job['task_output_file_dict'] = {
+        'output_file_path': output_file_path,
+        'output_file_hash': output_file_hash
+    }
     info_v2("output file path: " + output_file_path)
     info_v2("output file hash: " + output_file_hash)
     info_v2("job completed: " + generation_task.uuid)
 
-    
     # update status
     generation_request.http_update_job_completed(job)
 
@@ -437,6 +451,7 @@ def upload_image_data_and_update_job_status_img2img(worker_state,
 
     generation_request.http_add_job(kandinsky_clip_calculation_job)
     generation_request.http_add_job(sd_clip_calculation_job)
+
 
 def process_jobs(worker_state):
     thread_state = ThreadState(1, "Job Processor")
