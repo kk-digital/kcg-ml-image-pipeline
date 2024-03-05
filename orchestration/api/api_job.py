@@ -927,7 +927,7 @@ async def update_task_definitions(request:Request):
     }
 
 
-@router.get("/queue/image-generation/score-counts", response_class=JSONResponse)
+@router.get("/queue/image-generation/score-counts", response_class=PrettyJSONResponse)
 def get_image_score_counts(request: Request):
     # Fetch all jobs
     jobs = list(request.app.completed_jobs_collection.find({}))
