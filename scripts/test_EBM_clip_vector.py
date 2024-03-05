@@ -1257,6 +1257,7 @@ def get_clip_embeddings_by_tag_with_data_augmentation(id_classes,label_value):
  
     class_A_clips = []
     for image in class_A_images:
+        image = tensor_to_image(image)
         clip_emb = image_embedder.get_image_features(image)
         clip_emb = clip_emb.float()
         class_A_clips.append(clip_emb)
@@ -1280,7 +1281,21 @@ def get_clip_embeddings_by_tag_with_data_augmentation(id_classes,label_value):
 
 
 
+def tensor_to_image(tensor):
+    # Convert the tensor to a range [0, 255]
+    tensor = tensor.detach().cpu() # Move tensor to CPU and detach from its computation history
+    tensor = tensor.mul(255).byte() # Scale to [0, 255] and convert to uint8
+    tensor = tensor.numpy() # Convert to numpy array
 
+    if tensor.shape[0] == 3: # If it's a 3-channel image
+        # Convert from (C, H, W) to (H, W, C)
+        tensor = tensor.transpose(1, 2, 0)
+    else: # For a single channel image, add a dimension to make it (H, W, C)
+        tensor = tensor.squeeze()
+
+    # Convert numpy array to PIL Image
+    image = Image.fromarray(tensor)
+    return image
 
 
 train_loader_clip_cyber_Aug, val_loader_clip_cyber_Aug = get_clip_embeddings_by_tag_with_data_augmentation([35],1)
