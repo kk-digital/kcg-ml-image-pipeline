@@ -369,18 +369,6 @@ def upload_image_data_and_update_job_status_img2img(worker_state,
     generation_request.http_add_job(kandinsky_clip_calculation_job)
     generation_request.http_add_job(sd_clip_calculation_job)
 
-
-def upload_image_data_and_update_job_status_img2img(worker_state,
-                                            job,
-                                            generation_task,
-                                            seed,
-                                            latent,
-                                            output_file_path,
-                                            output_file_hash,
-                                            job_completion_time,
-                                            data):
-
-
 def upload_image_data_and_update_job_status(worker_state,
                                             job,
                                             generation_task,
