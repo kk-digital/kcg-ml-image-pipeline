@@ -6,6 +6,7 @@ import sys
 import hashlib
 import time
 from io import BytesIO
+import json
 from safetensors.torch import save as safetensors_save
 from safetensors.torch import load as safetensors_load
 
@@ -204,6 +205,35 @@ class ELMRegression():
         self.loss_func_name = model['loss-func']
         self.activation_func_name = model['activation-func']
         self._activation = self.get_activation_func(self.activation_func_name)
+
+    def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
+        input_path = f"{model_dataset}/models/classifiers/{tag_name}/"
+        file_suffix = ".safetensors"
+
+        # Use the MinIO client's list_objects method directly with recursive=True
+        model_files = [obj.object_name for obj in minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix) and model_type in obj.object_name and scoring_model in obj.object_name and not_include not in obj.object_name ]
+        
+        if not model_files:
+            print(f"No .safetensors models found for tag: {tag_name}")
+            return None
+
+        # Assuming there's only one model per tag or choosing the first one
+        model_files.sort(reverse=True)
+        model_file = model_files[0]
+        print(f"Loading model: {model_file}")
+
+        model_data = minio_client.get_object('datasets', model_file)
+        
+        clip_model = ELMRegression(device=device)
+        
+        # Create a BytesIO object from the model data
+        byte_buffer = BytesIO(model_data.data)
+        clip_model.load_safetensors(byte_buffer)
+
+        print(f"Model loaded for tag: {tag_name}")
+        
+        return clip_model
+
 
     def get_activation_func(self, activation_func_name):
         if activation_func_name == "sigmoid":

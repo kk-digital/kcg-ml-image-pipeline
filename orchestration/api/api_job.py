@@ -925,3 +925,38 @@ async def update_task_definitions(request:Request):
         "inpainting_update_matched_count": inpainting_update_result.matched_count,
         "inpainting_update_modified_count": inpainting_update_result.modified_count,
     }
+
+
+@router.get("/queue/image-generation/score-counts", response_class=PrettyJSONResponse)
+def get_image_score_counts(request: Request):
+    # Fetch all jobs
+    jobs = list(request.app.completed_jobs_collection.find({}))
+    
+    # Initialize counts
+    counts = {
+        'linear': {'more_than_0': 0, 'more_than_1': 0, 'more_than_2': 0, 'more_than_3': 0, 'total': 0},
+        'elm-v1': {'more_than_0': 0, 'more_than_1': 0, 'more_than_2': 0, 'more_than_3': 0, 'total': 0}
+    }
+    
+    # Iterate through jobs to count based on image_clip_sigma_score
+    for job in jobs:
+        # Skip jobs without 'task_attributes_dict' or without 'linear' and 'elm-v1' keys
+        if 'task_attributes_dict' not in job or not ('linear' in job['task_attributes_dict'] and 'elm-v1' in job['task_attributes_dict']):
+            continue
+
+        # Now safe to assume 'task_attributes_dict' exists and contains 'linear' and 'elm-v1'
+        for model_type in ['linear', 'elm-v1']:
+            score = job["task_attributes_dict"][model_type].get("image_clip_sigma_score", None)
+            if score is not None:
+                counts[model_type]['total'] += 1
+                if score > 0:
+                    counts[model_type]['more_than_0'] += 1
+                if score > 1:
+                    counts[model_type]['more_than_1'] += 1
+                if score > 2:
+                    counts[model_type]['more_than_2'] += 1
+                if score > 3:
+                    counts[model_type]['more_than_3'] += 1
+    
+    # Return the counts
+    return {'counts': counts}
