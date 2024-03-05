@@ -45,5 +45,9 @@ class WorkerState:
 
             self.inpainting_decoder_model = KandinskyV22InpaintPipeline.from_pretrained(inpaint_decoder_path, local_files_only=True,
                                                                                         unet=self.unet, torch_dtype=torch.float16).to(self.device)
-            self.img2img_decoder = KandinskyV22Img2ImgPipeline.from_pretrained(inpaint_decoder_path, local_files_only=True,
-                                                                    unet=self.unet, torch_dtype=torch.float16).to(self.device)
+            
+            self.unet_decoder = UNet2DConditionModel.from_pretrained(inpaint_decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
+            
+            
+            self.img2img_decoder = KandinskyV22Img2ImgPipeline.from_pretrained(decoder_path, local_files_only=True,
+                                                                    unet=self.unet_decoder, torch_dtype=torch.float16).to(self.device)
