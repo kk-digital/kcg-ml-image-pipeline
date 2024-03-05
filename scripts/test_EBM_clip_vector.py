@@ -1144,10 +1144,8 @@ model = model2
 # Plot
 
 
-
-
-############### Plot graph
 epochs = range(1, len(total_losses) + 1)  
+
 
 # Create subplots grid (3 rows, 1 column)
 fig, axes = plt.subplots(4, 1, figsize=(10, 24))
@@ -1201,6 +1199,7 @@ cmd.upload_data(minio_client, 'datasets', minio_path, buf)
 os.remove("output/loss_tracking_per_step.png")
 # Clear the current figure
 plt.clf()
+
 
 
 # Load images
