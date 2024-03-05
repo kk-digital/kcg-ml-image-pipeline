@@ -151,9 +151,6 @@ def get_clip_and_image_from_path(image_path):
     return image,clip_embedding.float()
 
 
-
-
-
 def get_tag_jobs(tag_id):
     response = requests.get(f'{API_URL}/tags/get-images-by-tag-id/?tag_id={tag_id}')
     
@@ -1240,6 +1237,11 @@ def get_clip_embeddings_by_tag(id_classes,label_value):
 
 
 def get_clip_embeddings_by_tag_with_data_augmentation(id_classes,label_value):
+    image_embedder= KandinskyCLIPImageEncoder(device="cuda")
+    image_embedder.load_submodels()
+    
+
+
     images_paths = get_tag_jobs(id_classes[0])
     i = 1
     for i in range(1,len(id_classes)):
@@ -1259,7 +1261,7 @@ def get_clip_embeddings_by_tag_with_data_augmentation(id_classes,label_value):
  
     class_A_clips = []
     for image in class_A_images:
-        img_res, clip_emb = get_clip_and_image_from_path(image)
+        img_res, clip_emb = image_embedder.get_image_features(image)
         class_A_clips.append(clip_emb)
 
 
