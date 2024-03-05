@@ -1193,6 +1193,7 @@ plt.savefig(buf, format='png')
 buf.seek(0)
 
 # upload the graph report
+minio_path="environmental/output/my_test"
 minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_cyber_training" +date_now+".png"
 cmd.upload_data(minio_client, 'datasets', minio_path, buf)
 # Remove the temporary file
