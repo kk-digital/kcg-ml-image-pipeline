@@ -55,8 +55,10 @@ def get_job(request: Request, task_type= None, model_type=""):
              tags=["inpainting jobs"],
              response_model=StandardSuccessResponseV1[AddJob],
              responses=ApiResponseHandlerV1.listErrors([500]))
-def add_job(request: Request, task: Task, mask_image: UploadFile = File(...), input_image: UploadFile = File(...)):
+def add_job(request: Request, task: Task = Body(...), mask_image: UploadFile = File(...), input_image: UploadFile = File(...)):
+    print(task, "this is the task-------------------------")
     task_dict = jsonable_encoder(task)
+    print(task_dict, "this task is already")
     api_response_handler = ApiResponseHandlerV1(request, body_data=task_dict)
     try:
         if task.uuid in ["", None]:
