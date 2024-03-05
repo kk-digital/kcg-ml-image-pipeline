@@ -1259,7 +1259,7 @@ def get_clip_embeddings_by_tag_with_data_augmentation(id_classes,label_value):
     for image in class_A_images:
         image = tensor_to_image(image)
         clip_emb = image_embedder.get_image_features(image)
-        clip_emb = clip_emb.float()
+        #clip_emb = clip_emb.float()
         class_A_clips.append(clip_emb)
 
 
