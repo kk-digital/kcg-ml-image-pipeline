@@ -26,7 +26,7 @@ from kandinsky.utils_image import  save_image_data_to_minio, save_latent_to_mini
 from worker.clip_calculation.clip_calculator import run_clip_calculation_task
 from worker.generation_task.generation_task import GenerationTask
 from kandinsky.models.kandisky import KandinskyPipeline
-from data_loader.utils import get_object, get_object_from_datasets_inpainting
+from data_loader.utils import get_object
 from kandinsky_worker.dataloaders.image_embedding import ImageEmbedding
 from kandinsky_worker.dataloaders.generated_img2img_data import GeneratedImg2imgData
 
