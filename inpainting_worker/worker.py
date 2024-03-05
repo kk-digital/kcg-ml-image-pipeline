@@ -28,6 +28,7 @@ from worker.generation_task.generation_task import GenerationTask
 from kandinsky.models.kandisky import KandinskyPipeline
 from data_loader.utils import get_object
 from kandinsky_worker.dataloaders.image_embedding import ImageEmbedding
+from kandinsky_worker.dataloaders.generated_img2img_data import GeneratedImg2imgData
 
 class ThreadState:
     def __init__(self, thread_id, thread_name):
@@ -230,6 +231,25 @@ def get_job_if_exist(worker_type_list):
             break
 
     return job
+
+
+def save_img2img_data_to_minio(minio_client, job_uuid, creation_time, dataset, file_path, file_hash, seed,
+                             image_width, image_height, strength, decoder_steps, decoder_guidance_scale):
+    
+    bucket_name, file_path = separate_bucket_and_file_path(file_path)
+
+    generated_image_data = GeneratedImg2imgData(job_uuid, creation_time, dataset, file_path, file_hash,
+                                              seed, image_width, image_height, strength, decoder_steps, 
+                                              decoder_guidance_scale)
+
+
+    msgpack_string = generated_image_data.get_msgpack_string()
+
+    buffer = io.BytesIO()
+    buffer.write(msgpack_string)
+    buffer.seek(0)
+
+    cmd.upload_data(minio_client, bucket_name, file_path.replace('.jpg', '_data.msgpack'), buffer)
 
 
 def upload_data_and_update_job_status(job, output_file_path, output_file_hash, data, minio_client):
