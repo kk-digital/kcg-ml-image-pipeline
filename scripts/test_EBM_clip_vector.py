@@ -922,76 +922,6 @@ def energy_evaluation_with_pictures_clip(imgpath_id,imgpath_ood):
    
 
 
-def plot_loss_progression(graph_name):
-    minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
-            "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
-            None)
-    minio_path="environmental/output/my_test"
-    date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
-    minio_path= minio_path + "/compare_id_vs_ood" +date_now+".png"
-    epochs = range(1, len(total_losses) + 1)  
-
-
-    # Create subplots grid (3 rows, 1 column)
-    fig, axes = plt.subplots(4, 1, figsize=(10, 24))
-
-    # Plot each loss on its own subplot
-    axes[0].plot(epochs, total_losses, label='Total Loss')
-    axes[0].set_xlabel('Steps')
-    axes[0].set_ylabel('Loss')
-    axes[0].set_title('Total Loss')
-    axes[0].legend()
-    axes[0].grid(True)
-
-    # axes[1].plot(epochs, class_losses, label='Classification Loss')
-    # axes[1].set_xlabel('Steps')
-    # axes[1].set_ylabel('Loss')
-    # axes[1].set_title('Classification Loss')
-    # axes[1].legend()
-    # axes[1].grid(True)
-
-    axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
-    axes[1].set_xlabel('Steps')
-    axes[1].set_ylabel('Loss')
-    axes[1].set_title('Contrastive Divergence Loss')
-    axes[1].legend()
-    axes[1].grid(True)
-
-
-    axes[2].plot(epochs, reg_losses , label='Regression Loss')
-    axes[2].set_xlabel('Steps')
-    axes[2].set_ylabel('Loss')
-    axes[2].set_title('Regression Loss')
-    axes[2].legend()
-    axes[2].grid(True)
-
-    # Plot real and fake scores on the fourth subplot
-    axes[3].plot(epochs, real_scores_s, label='Real Scores')
-    axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
-    axes[3].set_xlabel('Steps')
-    axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
-    axes[3].set_title('Real vs. Fake Scores')
-    axes[3].legend()
-    axes[3].grid(True)
-
-    # Adjust spacing between subplots for better visualization
-    plt.tight_layout()
-
-    plt.savefig("output/loss_tracking_per_step.png")
-
-    # Save the figure to a file
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png')
-    buf.seek(0)
-
-    # upload the graph report
-    minio_path= minio_path + "/"+ graph_name +date_now+".png"
-    cmd.upload_data(minio_client, 'datasets', minio_path, buf)
-    # Remove the temporary file
-    os.remove("output/loss_tracking_per_step.png")
-    # Clear the current figure
-    plt.clf()
-    plt.close()
 
 
 
@@ -1065,7 +995,69 @@ model = train_model(img_shape=(1,1280),
 
 # Plot
 
-plot_loss_progression("occult_traing")
+
+epochs = range(1, len(total_losses) + 1)  
+
+
+# Create subplots grid (3 rows, 1 column)
+fig, axes = plt.subplots(4, 1, figsize=(10, 24))
+
+# Plot each loss on its own subplot
+axes[0].plot(epochs, total_losses, label='Total Loss')
+axes[0].set_xlabel('Steps')
+axes[0].set_ylabel('Loss')
+axes[0].set_title('Total Loss')
+axes[0].legend()
+axes[0].grid(True)
+
+# axes[1].plot(epochs, class_losses, label='Classification Loss')
+# axes[1].set_xlabel('Steps')
+# axes[1].set_ylabel('Loss')
+# axes[1].set_title('Classification Loss')
+# axes[1].legend()
+# axes[1].grid(True)
+
+axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
+axes[1].set_xlabel('Steps')
+axes[1].set_ylabel('Loss')
+axes[1].set_title('Contrastive Divergence Loss')
+axes[1].legend()
+axes[1].grid(True)
+
+
+axes[2].plot(epochs, reg_losses , label='Regression Loss')
+axes[2].set_xlabel('Steps')
+axes[2].set_ylabel('Loss')
+axes[2].set_title('Regression Loss')
+axes[2].legend()
+axes[2].grid(True)
+
+# Plot real and fake scores on the fourth subplot
+axes[3].plot(epochs, real_scores_s, label='Real Scores')
+axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
+axes[3].set_xlabel('Steps')
+axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
+axes[3].set_title('Real vs. Fake Scores')
+axes[3].legend()
+axes[3].grid(True)
+
+# Adjust spacing between subplots for better visualization
+plt.tight_layout()
+
+plt.savefig("output/loss_tracking_per_step.png")
+
+# Save the figure to a file
+buf = io.BytesIO()
+plt.savefig(buf, format='png')
+buf.seek(0)
+
+# upload the graph report
+minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_occult_training" +date_now+".png"
+cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+# Remove the temporary file
+os.remove("output/loss_tracking_per_step.png")
+# Clear the current figure
+plt.clf()
 
 
 
@@ -1087,8 +1079,8 @@ for i in range(1,len(id_classes_ood)):
 
 
 
-# for i in range (16):
-#     energy_evaluation_with_pictures_clip(images_paths_in[i],images_paths_ood[i])
+for i in range (16):
+    energy_evaluation_with_pictures_clip(images_paths_in[i],images_paths_ood[i])
     
 
 #val_ood_loader
@@ -1134,7 +1126,71 @@ model = model2
 # Plot
 
 
-plot_loss_progression("cyber_traing")
+epochs = range(1, len(total_losses) + 1)  
+
+
+# Create subplots grid (3 rows, 1 column)
+fig, axes = plt.subplots(4, 1, figsize=(10, 24))
+
+# Plot each loss on its own subplot
+axes[0].plot(epochs, total_losses, label='Total Loss')
+axes[0].set_xlabel('Steps')
+axes[0].set_ylabel('Loss')
+axes[0].set_title('Total Loss')
+axes[0].legend()
+axes[0].grid(True)
+
+# axes[1].plot(epochs, class_losses, label='Classification Loss')
+# axes[1].set_xlabel('Steps')
+# axes[1].set_ylabel('Loss')
+# axes[1].set_title('Classification Loss')
+# axes[1].legend()
+# axes[1].grid(True)
+
+axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
+axes[1].set_xlabel('Steps')
+axes[1].set_ylabel('Loss')
+axes[1].set_title('Contrastive Divergence Loss')
+axes[1].legend()
+axes[1].grid(True)
+
+
+axes[2].plot(epochs, reg_losses , label='Regression Loss')
+axes[2].set_xlabel('Steps')
+axes[2].set_ylabel('Loss')
+axes[2].set_title('Regression Loss')
+axes[2].legend()
+axes[2].grid(True)
+
+# Plot real and fake scores on the fourth subplot
+axes[3].plot(epochs, real_scores_s, label='Real Scores')
+axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
+axes[3].set_xlabel('Steps')
+axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
+axes[3].set_title('Real vs. Fake Scores')
+axes[3].legend()
+axes[3].grid(True)
+
+# Adjust spacing between subplots for better visualization
+plt.tight_layout()
+
+plt.savefig("output/loss_tracking_per_step.png")
+
+# Save the figure to a file
+buf = io.BytesIO()
+plt.savefig(buf, format='png')
+buf.seek(0)
+
+# upload the graph report
+minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_cyber_training" +date_now+".png"
+cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+# Remove the temporary file
+os.remove("output/loss_tracking_per_step.png")
+# Clear the current figure
+plt.clf()
+
+
+
 
 
 
@@ -1155,13 +1211,54 @@ for i in range(1,len(id_classes_ood)):
     images_paths_ood  = images_paths_ood  + get_tag_jobs(id_classes_ood [i])
 
 
+# print("in : ",images_paths_in)
+# print("ood : ",images_paths_ood)
+    
 
-# for i in range (16):
-#     energy_evaluation_with_pictures_clip(images_paths_in[i],images_paths_ood[i])
 
+
+# # run score test working
+    
+# test_imgs, _ = next(iter(train_loader_clip_occult))
+
+
+# # load adv set images
+# fake_imgs, _ = next(iter(adv_loader)) # val_loader_dog  val_ood_loader val val_loader_noncats val_loader
+
+# # print("tes_imgs shape : ", test_imgs.shape)
+# # print("fake_imgs shape : ", fake_imgs.shape)
+
+# imgs = torch.stack([test_imgs[i].to(model.device), fake_imgs[i].to(model.device)], dim=0).to(model.device)
+# score1, score2 = model.cnn(imgs).cpu().chunk(2, dim=0) # model.cnn(imgs)[0].cpu().chunk(2, dim=0)
+
+# # score1 = model.cnn(img1.unsqueeze(0).to(model.device)).cpu()
+
+# # # Pass the second image through the CNN model and get its score
+# # score2 = model.cnn(img2.unsqueeze(0).to(model.device)).cpu()
+
+# print("dem scores are : ",score1, " and ",score2)
+
+
+
+for i in range (16):
+    energy_evaluation_with_pictures_clip(images_paths_in[i],images_paths_ood[i])
+    
+#energy_evaluation_with_pictures_clip(images_paths_in,images_paths_ood)
+#energy_evaluation_with_pictures(val_loader,adv_loader)
+# energy_evaluation_with_pictures(val_loader,val_cifarset_loader)
+# energy_evaluation_with_pictures(val_loader,val_ood_loader)
+
+#val_ood_loader
 ##### Value eval
 print("Occult VS Cyber")
 energy_evaluation(val_loader,adv_loader)
+# print("Occult VS Cifar")
+# energy_evaluation(val_loader,val_cifarset_loader)
+# print("Occult VS SVHN")
+# energy_evaluation(val_loader,val_ood_loader)
+
+
+
 
 
 
