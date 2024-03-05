@@ -271,7 +271,7 @@ def data_augmentation(images_tensor, num_of_passes):
 
     return combined_images
 
-def data_augmentation_no_tensor(images_tensor, num_of_passes):
+def data_augmentation_no_tensor(images_list, num_of_passes):
     # Define probabilities for each transformation
     prob_mirror = 0.9
     prob_zoom = 0.5
