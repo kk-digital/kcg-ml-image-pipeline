@@ -150,7 +150,26 @@ def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
     seed = random.randint(0, 2 ** 24 - 1)
 
     generation_task.task_input_dict["seed"] = seed
-    init_image = Image.open(generation_task.task_input_dict["init_img"])
+    
+    try:
+        #get the image data that is stored in minio
+        bucket_name, file_path = separate_bucket_and_file_path(generation_task.task_input_dict["init_img"])
+        response = worker_state.minio_client.get_object(bucket_name, file_path)
+        image_data = BytesIO(response.data)
+        init_image = Image.open(image_data)
+        init_image = init_image.convert("RGB")
+
+        # get the mask data that is stored in minio
+        bucket_name, file_path = separate_bucket_and_file_path(generation_task.task_input_dict["init_mask"])
+        response = worker_state.minio_client.get_object(bucket_name, file_path)
+        image_data = BytesIO(response.data)
+        init_mask = Image.open(image_data)
+        init_mask = init_mask.convert("RGB")
+    except Exception as e:
+        raise e
+    finally:
+        response.close()
+        response.release_conn()
 
     image_width = generation_task.task_input_dict["image_width"]
     image_height = generation_task.task_input_dict["image_height"]
@@ -191,7 +210,7 @@ def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
 
     # generate image
     image, latents = img2img_processor.generate_img2img_inpainting(init_img=init_image,
-                                                        mask_img=mask_img,
+                                                        mask_img=init_mask,
                                                         image_embeds= image_embedding,
                                                         negative_image_embeds= negative_image_embedding,
                                                         seed=seed)
