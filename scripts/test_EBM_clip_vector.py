@@ -991,6 +991,7 @@ def plot_loss_progression(graph_name):
     os.remove("output/loss_tracking_per_step.png")
     # Clear the current figure
     plt.clf()
+    plt.close()
 
 
 
