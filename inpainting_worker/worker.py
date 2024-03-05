@@ -26,7 +26,7 @@ from kandinsky.utils_image import  save_image_data_to_minio, save_latent_to_mini
 from worker.clip_calculation.clip_calculator import run_clip_calculation_task
 from worker.generation_task.generation_task import GenerationTask
 from kandinsky.models.kandisky import KandinskyPipeline
-from data_loader.utils import get_object
+from data_loader.utils import get_object, get_object_from_datasets_inpainting
 from kandinsky_worker.dataloaders.image_embedding import ImageEmbedding
 from kandinsky_worker.dataloaders.generated_img2img_data import GeneratedImg2imgData
 
@@ -204,7 +204,7 @@ def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
     # get the input image embeddings from minIO
     output_file_path = os.path.join(dataset, generation_task.task_input_dict['file_path'])
     image_embeddings_path = output_file_path.replace(".jpg", "_embedding.msgpack")    
-    embedding_data = get_object(worker_state.minio_client, image_embeddings_path)
+    embedding_data = worker_state.minio_client.get_object("datasets-inpainting", image_embeddings_path)
     embedding_dict = ImageEmbedding.from_msgpack_bytes(embedding_data)
     image_embedding= embedding_dict.image_embedding.to(worker_state.device)
     negative_image_embedding= embedding_dict.negative_image_embedding
