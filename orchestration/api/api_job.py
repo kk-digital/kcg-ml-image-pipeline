@@ -927,7 +927,7 @@ async def update_task_definitions(request:Request):
     }
 
 
-@router.get("/queue/image-generation/score-counts", response_class=PrettyJSONResponse)
+@router.get("/queue/image-generation/score-counts", response_class=JSONResponse)
 def get_image_score_counts(request: Request):
     # Fetch all jobs
     jobs = list(request.app.completed_jobs_collection.find({}))
@@ -940,13 +940,14 @@ def get_image_score_counts(request: Request):
     
     # Iterate through jobs to count based on image_clip_sigma_score
     for job in jobs:
-        # Skip jobs without 'task_attributes_dict' or without 'linear' and 'elm-v1' keys
-        if 'task_attributes_dict' not in job or not ('linear' in job['task_attributes_dict'] and 'elm-v1' in job['task_attributes_dict']):
+        task_attributes_dict = job.get('task_attributes_dict')
+        # Check if task_attributes_dict is None or if 'linear' or 'elm-v1' keys are missing
+        if task_attributes_dict is None or not ('linear' in task_attributes_dict and 'elm-v1' in task_attributes_dict):
             continue
 
-        # Now safe to assume 'task_attributes_dict' exists and contains 'linear' and 'elm-v1'
+        # Now safe to assume 'task_attributes_dict' is not None and contains 'linear' and 'elm-v1'
         for model_type in ['linear', 'elm-v1']:
-            score = job["task_attributes_dict"][model_type].get("image_clip_sigma_score", None)
+            score = task_attributes_dict[model_type].get("image_clip_sigma_score", None)
             if score is not None:
                 counts[model_type]['total'] += 1
                 if score > 0:
