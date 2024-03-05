@@ -1292,7 +1292,7 @@ train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([7,8,9,1
 print("val loader lenght: ", len(val_loader_clip_cyber))
 
 train_loader = train_loader_clip_cyber
-val_loader = val_loader_clip_cyber
+val_loader = train_loader_clip_cyber
 adv_loader = train_loader_clip_ood
 
 
