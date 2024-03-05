@@ -154,24 +154,17 @@ class KandinskyImageGenerator:
     def sample_embedding(self, num_samples=1000):
         sampled_embeddings = torch.normal(mean=self.clip_mean.repeat(num_samples, 1),
                                       std=self.clip_std.repeat(num_samples, 1))
-    
-        # Clip the sampled embeddings based on the min and max vectors to ensure they stay within observed bounds
-        # clipped_embeddings = torch.max(torch.min(sampled_embeddings, self.clip_max.repeat(num_samples, 1)),
-        #                             self.clip_min.repeat(num_samples, 1))
         
         # Score each sampled embedding
         scores=[]
         embeddings=[]
         for embed in sampled_embeddings:
             embeddings.append(embed.unsqueeze(0))
-            score = self.ranking_model.model(embed.unsqueeze(0)).item() 
+            score = self.scoring_model.model(embed.unsqueeze(0)).item() 
             scores.append(score)
         
         # Find the index of the highest scoring embedding
         highest_score_index = np.argmax(scores)
-        loawest_score_index = np.argmin(scores)
-
-        print(scores[highest_score_index], scores[loawest_score_index], np.mean(scores))
         
         # Select the highest scoring embedding
         highest_scoring_embedding = embeddings[highest_score_index]
@@ -205,9 +198,10 @@ class KandinskyImageGenerator:
         for step in range(self.steps):
             optimizer.zero_grad()
 
-            inputs = optimized_embedding.reshape(len(optimized_embedding), -1)
-            score = self.ranking_model.model.forward(inputs).squeeze()
-            sigma_score= (score - self.mean) / self.std
+            score= self.scoring_model.model(optimized_embedding)
+            # inputs = optimized_embedding.reshape(len(optimized_embedding), -1)
+            # score = self.ranking_model.model.forward(inputs).squeeze()
+            # sigma_score= (score - self.mean) / self.std
 
             score_loss =  self.target_score - score
             

@@ -27,6 +27,7 @@ from kandinsky.models.kandisky import KandinskyPipeline
 from utility.utils_logger import logger
 from data_loader.utils import get_object
 from kandinsky_worker.dataloaders.image_embedding import ImageEmbedding
+from kandinsky_worker.self_training.training_utils import store_self_training_data
 
 class ThreadState:
     def __init__(self, thread_id, thread_name):
@@ -266,7 +267,7 @@ def get_job_if_exist(worker_type_list):
     return job
 
 
-def upload_data_and_update_job_status(job, output_file_path, output_file_hash, data, minio_client):
+def upload_data_and_update_job_status(worker_state, job, output_file_path, output_file_hash, data, minio_client):
     start_time = time.time()
     bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
 
@@ -287,6 +288,9 @@ def upload_data_and_update_job_status(job, output_file_path, output_file_hash, d
 
     # update status
     generation_request.http_update_job_completed(job)
+
+    if job['task_input_dict']['self_training']:
+        store_self_training_data(worker_state, job)
 
 
 def upload_image_data_and_update_job_status_img2img(worker_state,
@@ -354,7 +358,8 @@ def upload_image_data_and_update_job_status_img2img(worker_state,
                             "task_type": "clip_calculation_task_kandinsky",
                             "task_input_dict": {
                                 "input_file_path": output_file_path,
-                                "input_file_hash": output_file_hash
+                                "input_file_hash": output_file_hash,
+                                "self_training": job['task_input_dict']['self_training']
                             },
                             }
     
@@ -579,7 +584,7 @@ def process_jobs(worker_state):
 
                     # spawn upload data and update job thread
                     thread = threading.Thread(target=upload_data_and_update_job_status, args=(
-                        job, output_file_path, output_file_hash, clip_data, worker_state.minio_client,))
+                        worker_state, job, output_file_path, output_file_hash, clip_data, worker_state.minio_client,))
                     thread.start()
 
                 else:
