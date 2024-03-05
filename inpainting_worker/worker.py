@@ -213,7 +213,7 @@ def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
 
     # generate image
     image, latents = img2img_processor.generate_img2img_inpainting(init_img=init_image,
-                                                        mask_img=init_mask,
+                                                        img_mask=init_mask,
                                                         image_embeds= image_embedding,
                                                         negative_image_embeds= negative_image_embedding,
                                                         seed=seed)
