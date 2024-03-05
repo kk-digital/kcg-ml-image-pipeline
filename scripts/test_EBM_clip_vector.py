@@ -923,6 +923,12 @@ def energy_evaluation_with_pictures_clip(imgpath_id,imgpath_ood):
 
 
 def plot_loss_progression(graph_name):
+    minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
+            "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+            None)
+    minio_path="environmental/output/my_test"
+    date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
+    minio_path= minio_path + "/compare_id_vs_ood" +date_now+".png"
     epochs = range(1, len(total_losses) + 1)  
 
 
