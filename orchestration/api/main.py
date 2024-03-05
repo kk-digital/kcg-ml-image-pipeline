@@ -10,6 +10,7 @@ from dotenv import dotenv_values
 from datetime import datetime
 from orchestration.api.api_clip import router as clip_router
 from orchestration.api.api_dataset import router as dataset_router
+from orchestration.api.api_inpainting_dataset import router as inpainting_dataset_router
 from orchestration.api.api_image import router as image_router
 from orchestration.api.api_job_stats import router as job_stats_router
 from orchestration.api.api_job import router as job_router
@@ -46,6 +47,7 @@ app.add_middleware(
 
 app.include_router(clip_router)
 app.include_router(dataset_router)
+app.include_router(inpainting_dataset_router)
 app.include_router(image_router)
 app.include_router(image_by_rank_router)
 app.include_router(job_router)
@@ -162,6 +164,8 @@ def startup_db_client():
 
     # used to store sequential ids of generated images
     app.dataset_sequential_id_collection = app.mongodb_db["dataset-sequential-id"]
+    # used to store sequential ids of generated images
+    app.inpainting_dataset_sequential_id_collection = app.mongodb_db["inpainting-dataset-sequential-id"]
 
     # for training jobs
     app.training_pending_jobs_collection = app.mongodb_db["training-pending-jobs"]
