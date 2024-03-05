@@ -24,7 +24,7 @@ def add_jobs():
             "strength": 0.4,
             "seed": "",
             "dataset": "test-generations",
-            "file_path": "[auto]",
+            "file_path": "0001/025003.jpg",
             "init_img":"datasets-inpainting/test-dataset/test_inpainting_init_img_001.jpg",
             "init_mask":"datasets-inpainting/test-dataset/test_inpainting_init_mask_001.png",
             "num_images": 1,
