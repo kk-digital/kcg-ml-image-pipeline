@@ -73,6 +73,7 @@ def store_self_training_data(worker_state: WorkerState, job: dict):
         data = minio_client.get_object('datasets', last_file_path)
         content = data.read()
         batch = msgpack.loads(content)
+        print(batch)
         index = len(dataset_files)
         batch= batch.append(data_to_save)
 
