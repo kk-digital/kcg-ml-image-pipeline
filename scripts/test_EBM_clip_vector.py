@@ -1153,21 +1153,26 @@ id_classes_ood = [42]
 
 
 images_paths_ood  = get_tag_jobs(id_classes_ood [0])
-# Test on some pcitures
-for i in range (len(images_paths_in)):
-    for j in range (len(images_paths_ood)):
-        energy_evaluation_with_pictures_clip(images_paths_in[i],images_paths_ood[j])
+i = 1
+for i in range(1,len(id_classes_ood)):
+    images_paths_ood  = images_paths_ood  + get_tag_jobs(id_classes_ood [i])
+
+# # Test on some pcitures
+# for i in range (len(images_paths_in)):
+#     for j in range (len(images_paths_ood)):
+#         energy_evaluation_with_pictures_clip(images_paths_in[i],images_paths_ood[j])
 
 
-for i in range (16):
-    energy_evaluation_with_pictures_clip(images_paths_in[i],images_paths_ood[i])
-    
 
-#val_ood_loader
-##### Value eval
-print("Occult VS OOD")
-energy_evaluation(val_loader,adv_loader)
+# #val_ood_loader
+# ##### Value eval
+# print("Occult VS OOD")
+# energy_evaluation(val_loader,adv_loader)
 
+
+
+
+id_classes_ood = [42]
 
 
 
