@@ -748,7 +748,9 @@ def save_model(model,local_path):
 
         # Upload the model to MinIO
         minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",None)
-        minio_path
+        minio_path="environmental/output/my_test"
+        date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
+        minio_path= minio_path + "/model-"+date_now+".pt"
         cmd.upload_data(minio_client, 'datasets', minio_path, BytesIO(model_bytes))
         print(f'Model saved to {minio_path}')
 
@@ -1066,7 +1068,7 @@ model = train_model(img_shape=(1,1280),
 
 # Plot
 
-save_model(model,'/modelv1')
+#save_model(model,'/modelv1')
 
 
 epochs = range(1, len(total_losses) + 1)  
