@@ -29,8 +29,8 @@ class ScoringXgboostModel:
         self.input_size=0
 
     def get_model_path(self):
-        local_path=f"output/{self.output_type}_xgboost_{self.input_type}.pth"
-        minio_path=f"{self.dataset}/models/latent-generator/{self.date}_{self.output_type}_xgboost_{self.input_type}.pth"
+        local_path=f"output/{self.output_type}_xgboost_{self.input_type}.json"
+        minio_path=f"{self.dataset}/models/latent-generator/{self.date}_{self.output_type}_xgboost_{self.input_type}.json"
 
         return local_path, minio_path
 
@@ -285,7 +285,7 @@ class ScoringXgboostModel:
 
     def load_model(self):
         prefix= f"{self.dataset}/models/latent-generator/"
-        suffix= f"_{self.output_type}_xgboost_{self.input_type}.pth"
+        suffix= f"_{self.output_type}_xgboost_{self.input_type}.json"
         # get model file data from MinIO
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', prefix)
         most_recent_model = None
