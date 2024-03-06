@@ -53,7 +53,7 @@ def store_self_training_data(worker_state: WorkerState, job: dict):
 
     cosine_sim = cosine_similarity(input_clip_vector, output_clip_vector).item()
 
-    data = {
+    data_to_save = {
         'input_clip': input_clip_vector.detach().cpu().numpy().tolist(),
         'output_clip': output_clip_vector.detach().cpu().numpy().tolist(),
         'input_clip_score': input_clip_score,
@@ -74,7 +74,7 @@ def store_self_training_data(worker_state: WorkerState, job: dict):
         content = data.read()
         batch = msgpack.loads(content)
         index = len(dataset_files)
-        batch= batch.append(data)
+        batch= batch.append(data_to_save)
 
         if len(batch) == batch_size:
             minio_client.remove_object('datasets', last_file_path)
@@ -83,7 +83,7 @@ def store_self_training_data(worker_state: WorkerState, job: dict):
             store_batch_in_msgpack_file(minio_client, dataset, batch, index, incomplete=True)
     else:
         index = len(dataset_files) + 1
-        store_batch_in_msgpack_file(minio_client, dataset, [data], index, incomplete=True)
+        store_batch_in_msgpack_file(minio_client, dataset, [data_to_save], index, incomplete=True)
 
 
 # function for storing self training data in a msgpack file
