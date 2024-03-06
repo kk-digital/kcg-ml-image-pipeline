@@ -94,7 +94,6 @@ def run_image_generation_task(worker_state, generation_task):
 
     text2img_processor.set_models(
         image_encoder= image_encoder,
-        unet=unet,
         prior_model= prior_model,
         decoder_model= decoder_model
     )
@@ -157,7 +156,6 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
 
     inpainting_processor.set_models(
         image_encoder= image_encoder,
-        unet=unet,
         prior_model= prior_model,
         decoder_model= decoder_model
     )
@@ -208,7 +206,6 @@ def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
     )
 
     img2img_processor.set_models(
-        unet=None,
         prior_model=None,
         image_encoder= image_encoder,
         decoder_model= decoder_model
