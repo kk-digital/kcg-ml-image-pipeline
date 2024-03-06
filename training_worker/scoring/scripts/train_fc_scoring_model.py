@@ -268,7 +268,7 @@ class ABRankingFcTrainingPipeline:
         if self.model_type=="fc":
             loss=self.model.train(inputs, outputs, num_epochs= self.epochs, batch_size=self.training_batch_size, learning_rate=self.learning_rate)
         elif self.model_type=="xgboost":
-            print(len(inputs), inputs[0])
+            print(len(outputs), outputs[0])
             loss=self.model.train(inputs, outputs)
         self.model.save_model()
     
