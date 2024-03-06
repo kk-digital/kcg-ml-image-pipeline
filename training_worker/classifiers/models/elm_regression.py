@@ -225,7 +225,7 @@ class ELMRegression():
 
         model_data = minio_client.get_object('datasets', model_file)
         
-        clip_model = ELMRegression(device=device)
+        clip_model = ELMRegression(device=self._device)
         
         # Create a BytesIO object from the model data
         byte_buffer = BytesIO(model_data.data)

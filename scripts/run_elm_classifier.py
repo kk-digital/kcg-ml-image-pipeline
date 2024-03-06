@@ -81,12 +81,20 @@ def get_unique_tag_names(minio_client, model_dataset):
             tag_names.add(tag_name)
     return list(tag_names)
 
+# Initialize your ELMRegression model
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+# Print a message indicating the device being used
+if torch.cuda.is_available():
+    print("CUDA (GPU) is available. Using GPU for computations.")
+else:
+    print("CUDA (GPU) is not available. Using CPU for computations.")
     
 # Initialize MinIO client
 minio_client = cmd.connect_to_minio_client(MINIO_ADDRESS, access_key=ACCESS_KEY, secret_key=SECRET_KEY)
 
-# Initialize your ELMRegression model
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+
 elm_model = ELMRegression(device=device)
 
 tag_name_list = get_unique_tag_names(minio_client, MODEL_DATASET)
