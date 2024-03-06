@@ -721,6 +721,7 @@ class SamplerCallback(pl.Callback):
 
 class OutlierCallback(pl.Callback):
 
+
     def __init__(self, batch_size=1024):
         super().__init__()
         self.batch_size = batch_size
@@ -736,7 +737,33 @@ class OutlierCallback(pl.Callback):
         trainer.logger.experiment.add_scalar("rand_out", rand_out, global_step=trainer.current_epoch)
 
 
+from safetensors import save_file
 
+# Save model 
+def save_model_minio(model, name):
+    
+  
+  
+    PATH = "state_dict_model.pt"
+    # Get the model state dictionary
+    model_state_dict = model.state_dict()
+
+    # Create a MinIO client
+    minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",None)
+
+
+    minio_path="environmental/output/my_test"
+    date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
+    minio_path= minio_path + "/" +name+'-'+date_now+".pt"
+
+    bufx = io.BytesIO()
+    model.savefig(bufx, 'model_v1.pt')
+    bufx.seek(0)
+
+
+    cmd.upload_data(minio_client, 'datasets', minio_path, bufx)
+    # Remove the temporary file
+    
 
 
 
@@ -751,7 +778,7 @@ def train_model(**kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
-                         max_epochs=15,
+                         max_epochs=2,
                          gradient_clip_val=0.1,
                          callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
                                     GenerateCallback(every_n_epochs=5),
@@ -1024,6 +1051,8 @@ model = train_model(img_shape=(1,1280),
 
 
 # Plot
+
+save_model_minio(model,'modelv1')
 
 
 epochs = range(1, len(total_losses) + 1)  
