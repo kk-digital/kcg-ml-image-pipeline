@@ -176,6 +176,7 @@ class KandinskyImageGenerator:
                     negative_image_embedding=None,
                     dataset_name="environmental",
                     prompt_generation_policy=GENERATION_POLICY,
+                    self_training=True
                 )
 
                 task_uuid = response['uuid']
