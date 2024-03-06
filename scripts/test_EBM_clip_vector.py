@@ -1355,12 +1355,13 @@ def plot_images_with_scores(sorted_dataset):
     # Number of images
     num_images = len(sorted_dataset)
     
-    # Calculate grid size for plotting
-    rows = int(num_images**0.5) + 1
+    # Fixed columns to 4
     cols = 4
-    
+    # Calculate rows needed for 4 images per row. Use math.ceil for rounding up
+    rows = math.ceil(num_images / cols)
+
     # Create figure with subplots
-    fig, axes = plt.subplots(rows, cols, figsize=(20, 10))
+    fig, axes = plt.subplots(rows, cols, figsize=(20, 10))  # Adjust figsize as needed
     fig.tight_layout(pad=5.0)
 
     # Flatten axes array for easy indexing
@@ -1381,6 +1382,7 @@ def plot_images_with_scores(sorted_dataset):
     # Hide any unused subplots
     for j in range(i + 1, len(axes)):
         axes[j].axis('off')
+
     plt.savefig("output/rank.png")
 
     # Save the figure to a file
