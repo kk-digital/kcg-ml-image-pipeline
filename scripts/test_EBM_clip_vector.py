@@ -737,7 +737,21 @@ class OutlierCallback(pl.Callback):
         trainer.logger.experiment.add_scalar("rand_out", rand_out, global_step=trainer.current_epoch)
 
 
-from safetensors import save_file
+# save mdoel 2
+def save_model(model,local_path):
+         # Save the model locally
+        torch.save(model.state_dict(), local_path )
+        
+        #Read the contents of the saved model file
+        with open(local_path, "rb") as model_file:
+            model_bytes = model_file.read()
+
+        # Upload the model to MinIO
+        minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",None)
+        minio_path
+        cmd.upload_data(minio_client, 'datasets', minio_path, BytesIO(model_bytes))
+        print(f'Model saved to {minio_path}')
+
 
 # Save model 
 def save_model_minio(model, name):
@@ -1052,7 +1066,7 @@ model = train_model(img_shape=(1,1280),
 
 # Plot
 
-save_model_minio(model,'modelv1')
+save_model(model,'/modelv1')
 
 
 epochs = range(1, len(total_losses) + 1)  
