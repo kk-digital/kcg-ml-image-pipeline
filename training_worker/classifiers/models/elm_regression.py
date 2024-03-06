@@ -181,9 +181,9 @@ class ELMRegression():
         data = model_buffer.read()
         safetensors_data = safetensors_load(data)
   
-        self._weight = safetensors_data['weight']
-        self._beta = safetensors_data['beta']
-        self._bias = safetensors_data['bias']
+        self._weight = safetensors_data['weight'].to(self._device)
+        self._beta = safetensors_data['beta'].to(self._device)
+        self._bias = safetensors_data['bias'].to(self._device)
         print(f"_weight tensor device: {self._weight.device}")
         print(f"_beta tensor device: {self._beta.device}")
         print(f"_bias tensor device: {self._bias.device}")
