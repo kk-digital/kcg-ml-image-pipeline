@@ -46,9 +46,9 @@ def store_self_training_data(worker_state: WorkerState, job: dict):
     input_clip_vector= get_input_clip_vector(minio_client, dataset, file_path)
     output_clip_vector= get_output_clip_vector(minio_client, dataset, file_path)
 
-    input_clip_score = scoring_model.predict_clip(input_clip_vector).item()
+    input_clip_score = scoring_model.predict_clip(input_clip_vector.to(device=scoring_model._device)).item()
     input_clip_score = (input_clip_score - score_mean) / score_std 
-    output_clip_score = scoring_model.predict_clip(output_clip_vector).item()
+    output_clip_score = scoring_model.predict_clip(output_clip_vector.to(device=scoring_model._device)).item()
     output_clip_score = (output_clip_score - score_mean) / score_std 
 
     cosine_sim = cosine_similarity(input_clip_vector, output_clip_vector).item()
