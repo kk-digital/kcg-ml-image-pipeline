@@ -15,8 +15,6 @@ from PIL import Image
 import time
 import random
 
-from training_worker.scoring.models.scoring_xgboost import ScoringXgboostModel
-
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
@@ -31,6 +29,7 @@ from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 from data_loader.utils import get_object
 from torch.nn.functional import cosine_similarity 
+from training_worker.scoring.models.scoring_xgboost import ScoringXgboostModel
 
 
 DATA_MINIO_DIRECTORY="data/latent-generator"
