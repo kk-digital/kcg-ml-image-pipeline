@@ -1284,7 +1284,7 @@ for i in range(1,len(id_classes_in)):
 
 #id_classes_ood = [7,8,9,15,20,21,22]
 # VS comic book
-id_classes_ood = [20]
+id_classes_ood = [18,19,23,39,35,36]
 
 
 
