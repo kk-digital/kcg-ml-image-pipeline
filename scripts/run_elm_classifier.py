@@ -90,6 +90,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 elm_model = ELMRegression(device=device)
 
 tag_name_list = get_unique_tag_names(minio_client, MODEL_DATASET)
+base_path = f"{MODEL_DATASET}/0356/"
+clip_vectors_and_paths = get_clip_vectors(minio_client, base_path)
 
 for tag_name in tag_name_list:
     # Load the model for the specified tag
@@ -97,8 +99,6 @@ for tag_name in tag_name_list:
 
     if loaded_model:
         print(f"Model for tag '{tag_name}' loaded successfully.")
-        base_path = f"{MODEL_DATASET}/"
-        clip_vectors_and_paths = get_clip_vectors(minio_client, base_path)
         
         scores = []
         path_to_score = {}
