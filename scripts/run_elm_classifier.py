@@ -114,8 +114,15 @@ for tag_name in tag_name_list:
 
         for vector, path in clip_vectors_and_paths:
             try:
-                vector = vector.to(device).unsqueeze(0)  
+                print(f"Original device of vector: {vector.device}")  # Check the device of the vector before moving
+                vector = vector.to(device)
+                print(f"Device of vector after .to(device): {vector.device}")  # Check the device of the vector after moving
+                vector = vector.unsqueeze(0)
+                print(f"Shape of vector after unsqueeze: {vector.shape}")  # Check the shape of the vector
+
                 classification_score = loaded_model.classify(vector).item()  # Get the actual float value of the score
+                print(f"Classification score: {classification_score}")  # Print the obtained classification score
+                
                 scores.append(classification_score)
                 image_path = path.replace('_clip.msgpack', '.jpg')  # Convert clip vector path to image path
                 path_to_score[image_path] = classification_score
