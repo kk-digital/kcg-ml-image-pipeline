@@ -54,8 +54,9 @@ def get_clip_vectors(minio_client, base_path, num_samples=20):
         obj_data = minio_client.get_object('datasets', clip_obj.object_name)
         obj_content = obj_data.read()
         unpacked_data = msgpack.unpackb(obj_content, raw=False)
-        vector = unpacked_data['clip-feature-vector'][0].to(device)
-        clip_vectors_and_paths.append((torch.tensor(vector), clip_obj.object_name))  # Store both tensor and path
+        vector = unpacked_data['clip-feature-vector'][0]
+        vector_tensor = torch.tensor(vector).to(device)
+        clip_vectors_and_paths.append((vector_tensor, clip_obj.object_name))  # Store both tensor and path
 
     return clip_vectors_and_paths
 
