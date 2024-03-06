@@ -5,6 +5,7 @@ import os
 import sys
 import hashlib
 import time
+from os.path import basename
 from io import BytesIO
 import json
 from safetensors.torch import save as safetensors_save
@@ -232,7 +233,7 @@ class ELMRegression():
 
         print(f"Model loaded for tag: {tag_name}")
         
-        return clip_model
+        return clip_model, basename(model_file)
 
 
     def get_activation_func(self, activation_func_name):
