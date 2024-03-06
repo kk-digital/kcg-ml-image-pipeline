@@ -1147,7 +1147,10 @@ for i in range(1,len(id_classes_in)):
     images_paths_in = images_paths_in + get_tag_jobs(id_classes_in[i])
 
 
-id_classes_ood = [7,8,9,15,20,21,22]
+#id_classes_ood = [7,8,9,15,20,21,22]
+# VS comic book
+id_classes_ood = [42]
+
 
 images_paths_ood  = get_tag_jobs(id_classes_ood [0])
 i = 1
