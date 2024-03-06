@@ -1294,14 +1294,14 @@ for i in range(1,len(id_classes_ood)):
     images_paths_ood  = images_paths_ood  + get_tag_jobs(id_classes_ood [i])
 
 
-# Test on some pcitures
-for i in range (len(images_paths_in)):
-    for j in range (len(images_paths_ood)):
-        energy_evaluation_with_pictures_clip(images_paths_in[i],images_paths_ood[j])
+# # Test on some pcitures
+# for i in range (len(images_paths_in)):
+#     for j in range (len(images_paths_ood)):
+#         energy_evaluation_with_pictures_clip(images_paths_in[i],images_paths_ood[j])
 
-#val_ood_loader
-print("Cyber VS OOD")
-energy_evaluation(val_loader,adv_loader)
+# #val_ood_loader
+# print("Cyber VS OOD")
+# energy_evaluation(val_loader,adv_loader)
 
 
 
