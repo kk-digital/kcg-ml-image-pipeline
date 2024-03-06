@@ -1205,112 +1205,112 @@ energy_evaluation(val_loader,adv_loader)
 
 # Get real images
 
-train_loader_clip_cyber, val_loader_clip_cyber = get_clip_embeddings_by_tag([35],1)
-train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([7,8,9,15,20,21,22],0)
+# train_loader_clip_cyber, val_loader_clip_cyber = get_clip_embeddings_by_tag([35],1)
+# train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([7,8,9,15,20,21,22],0)
 
-print("val loader lenght: ", len(val_loader_clip_cyber))
+# print("val loader lenght: ", len(val_loader_clip_cyber))
 
-train_loader = train_loader_clip_cyber
-val_loader = train_loader_clip_cyber
-adv_loader = train_loader_clip_ood
-
-
-# Train
-model2 = train_model(img_shape=(1,1280),
-                    batch_size=train_loader.batch_size,
-                    lr=0.001,
-                    beta1=0.0)
-
-modelsave = model
-model = model2
-# Plot
+# train_loader = train_loader_clip_cyber
+# val_loader = train_loader_clip_cyber
+# adv_loader = train_loader_clip_ood
 
 
+# # Train
+# model2 = train_model(img_shape=(1,1280),
+#                     batch_size=train_loader.batch_size,
+#                     lr=0.001,
+#                     beta1=0.0)
+
+# modelsave = model
+# model = model2
+# # Plot
 
 
-############### Plot graph
-epochs = range(1, len(total_losses) + 1)  
-
-# Create subplots grid (3 rows, 1 column)
-fig, axes = plt.subplots(4, 1, figsize=(10, 24))
-
-# Plot each loss on its own subplot
-axes[0].plot(epochs, total_losses, label='Total Loss')
-axes[0].set_xlabel('Steps')
-axes[0].set_ylabel('Loss')
-axes[0].set_title('Total Loss')
-axes[0].legend()
-axes[0].grid(True)
-
-axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
-axes[1].set_xlabel('Steps')
-axes[1].set_ylabel('Loss')
-axes[1].set_title('Contrastive Divergence Loss')
-axes[1].legend()
-axes[1].grid(True)
 
 
-axes[2].plot(epochs, reg_losses , label='Regression Loss')
-axes[2].set_xlabel('Steps')
-axes[2].set_ylabel('Loss')
-axes[2].set_title('Regression Loss')
-axes[2].legend()
-axes[2].grid(True)
+# ############### Plot graph
+# epochs = range(1, len(total_losses) + 1)  
 
-# Plot real and fake scores on the fourth subplot
-axes[3].plot(epochs, real_scores_s, label='Real Scores')
-axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
-axes[3].set_xlabel('Steps')
-axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
-axes[3].set_title('Real vs. Fake Scores')
-axes[3].legend()
-axes[3].grid(True)
+# # Create subplots grid (3 rows, 1 column)
+# fig, axes = plt.subplots(4, 1, figsize=(10, 24))
 
-# Adjust spacing between subplots for better visualization
-plt.tight_layout()
+# # Plot each loss on its own subplot
+# axes[0].plot(epochs, total_losses, label='Total Loss')
+# axes[0].set_xlabel('Steps')
+# axes[0].set_ylabel('Loss')
+# axes[0].set_title('Total Loss')
+# axes[0].legend()
+# axes[0].grid(True)
 
-plt.savefig("output/loss_tracking_per_step.png")
-
-# Save the figure to a file
-buf = io.BytesIO()
-plt.savefig(buf, format='png')
-buf.seek(0)
-
-# upload the graph report
-minio_path="environmental/output/my_tests"
-minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_cyber_training" +date_now+".png"
-cmd.upload_data(minio_client, 'datasets', minio_path, buf)
-# Remove the temporary file
-os.remove("output/loss_tracking_per_step.png")
-# Clear the current figure
-plt.clf()
+# axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
+# axes[1].set_xlabel('Steps')
+# axes[1].set_ylabel('Loss')
+# axes[1].set_title('Contrastive Divergence Loss')
+# axes[1].legend()
+# axes[1].grid(True)
 
 
-# Load images
-id_classes_in = [35]
+# axes[2].plot(epochs, reg_losses , label='Regression Loss')
+# axes[2].set_xlabel('Steps')
+# axes[2].set_ylabel('Loss')
+# axes[2].set_title('Regression Loss')
+# axes[2].legend()
+# axes[2].grid(True)
 
-images_paths_in = get_tag_jobs(id_classes_in[0])
-#print("path " , images_paths_in)
-i = 1
-for i in range(1,len(id_classes_in)):
-    images_paths_in = images_paths_in + get_tag_jobs(id_classes_in[i])
+# # Plot real and fake scores on the fourth subplot
+# axes[3].plot(epochs, real_scores_s, label='Real Scores')
+# axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
+# axes[3].set_xlabel('Steps')
+# axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
+# axes[3].set_title('Real vs. Fake Scores')
+# axes[3].legend()
+# axes[3].grid(True)
+
+# # Adjust spacing between subplots for better visualization
+# plt.tight_layout()
+
+# plt.savefig("output/loss_tracking_per_step.png")
+
+# # Save the figure to a file
+# buf = io.BytesIO()
+# plt.savefig(buf, format='png')
+# buf.seek(0)
+
+# # upload the graph report
+# minio_path="environmental/output/my_tests"
+# minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_cyber_training" +date_now+".png"
+# cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+# # Remove the temporary file
+# os.remove("output/loss_tracking_per_step.png")
+# # Clear the current figure
+# plt.clf()
 
 
-id_classes_ood = [7,8,9,15,20,21,22]
+# # Load images
+# id_classes_in = [35]
 
-images_paths_ood  = get_tag_jobs(id_classes_ood [0])
-i = 1
-for i in range(1,len(id_classes_ood)):
-    images_paths_ood  = images_paths_ood  + get_tag_jobs(id_classes_ood [i])
+# images_paths_in = get_tag_jobs(id_classes_in[0])
+# #print("path " , images_paths_in)
+# i = 1
+# for i in range(1,len(id_classes_in)):
+#     images_paths_in = images_paths_in + get_tag_jobs(id_classes_in[i])
 
 
-# Test on some pcitures
-for i in range (16):
-    energy_evaluation_with_pictures_clip(images_paths_in[i],images_paths_ood[i])
+# id_classes_ood = [7,8,9,15,20,21,22]
 
-#val_ood_loader
-print("Cyber VS OOD")
-energy_evaluation(val_loader,adv_loader)
+# images_paths_ood  = get_tag_jobs(id_classes_ood [0])
+# i = 1
+# for i in range(1,len(id_classes_ood)):
+#     images_paths_ood  = images_paths_ood  + get_tag_jobs(id_classes_ood [i])
+
+
+# # Test on some pcitures
+# for i in range (16):
+#     energy_evaluation_with_pictures_clip(images_paths_in[i],images_paths_ood[i])
+
+# #val_ood_loader
+# print("Cyber VS OOD")
+# energy_evaluation(val_loader,adv_loader)
 
 
 
