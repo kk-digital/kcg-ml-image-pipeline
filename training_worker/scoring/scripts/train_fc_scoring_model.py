@@ -15,6 +15,8 @@ from PIL import Image
 import time
 import random
 
+from tqdm import tqdm
+
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
@@ -231,7 +233,7 @@ class ABRankingFcTrainingPipeline:
 
         latents=[]
         missing=0
-        for path in file_paths:
+        for path in tqdm(file_paths):
             try:
                 clip_path= path.replace('.jpg', '_clip_kandinsky.msgpack')
                 bucket, features_vector_path= separate_bucket_and_file_path(clip_path) 
