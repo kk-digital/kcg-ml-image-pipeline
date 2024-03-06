@@ -26,7 +26,6 @@ class WorkerState:
     def __init__(self, device, minio_access_key, minio_secret_key, queue_size):
         self.device = device
         self.config = ModelPathConfig()
-        self.unet= None
         self.prior_model= None
         self.decoder_model= None
         self.inpainting_decoder_model= None
@@ -42,14 +41,14 @@ class WorkerState:
         for dataset in dataset_list:
             scoring_model= self.load_scoring_model(dataset)
 
-            if scoring_model.model is not None:
+            if scoring_model is not None:
                  self.scoring_models[dataset]= scoring_model
 
     # load elm scoring models
     def load_scoring_model(self, dataset):
         input_path=f"{dataset}/models/ranking/"
         scoring_model = ABRankingELMModel(1280)
-        file_name=f"score-elm-v1-kandinsky-clip.safetensors"
+        file_name=f"score-elm-v1-clip-h.safetensors"
 
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
         most_recent_model = None
@@ -87,16 +86,22 @@ class WorkerState:
             self.clip_text_embedder= KandinskyCLIPTextEmbedder(device= self.device)
             self.clip_text_embedder.load_submodels()
             
-            self.unet = UNet2DConditionModel.from_pretrained(decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
+            unet = UNet2DConditionModel.from_pretrained(decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
             
-            self.prior_model = KandinskyV22PriorPipeline.from_pretrained(prior_path, local_files_only=True, 
-                                                                    image_encoder=self.clip.vision_model, torch_dtype=torch.float16).to(self.device)
             self.decoder_model = KandinskyV22Pipeline.from_pretrained(decoder_path, local_files_only=True, use_safetensors=True, 
-                                                                unet=self.unet, torch_dtype=torch.float16).to(self.device)
-            self.inpainting_decoder_model = KandinskyV22InpaintPipeline.from_pretrained(inpaint_decoder_path, local_files_only=True,
-                                                                                        unet=self.unet, torch_dtype=torch.float16).to(self.device)
-
+                                                                unet=unet, torch_dtype=torch.float16).to(self.device)
+            
             self.img2img_decoder = KandinskyV22Img2ImgPipeline.from_pretrained(decoder_path, local_files_only=True,
-                                                                    unet=self.unet, torch_dtype=torch.float16).to(self.device)
+                                                                    unet=unet, torch_dtype=torch.float16).to(self.device)
+            del unet
+
+            inpainting_unet = UNet2DConditionModel.from_pretrained(inpaint_decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
+
+            self.inpainting_decoder_model = KandinskyV22InpaintPipeline.from_pretrained(inpaint_decoder_path, local_files_only=True,
+                                                                                        unet=inpainting_unet, torch_dtype=torch.float16).to(self.device)
+            del inpainting_unet
+
+            self.prior_model = KandinskyV22PriorPipeline.from_pretrained(prior_path, local_files_only=True, 
+                                                                    image_encoder=self.clip.vision_model, torch_dtype=torch.float16).to(self.device) 
         
             self.load_scoring_models()

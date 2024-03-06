@@ -51,7 +51,6 @@ class KandinskyPipeline:
         self.width=width
         self.height=height
 
-        self.inpainting_model=None
         self.device = device
 
 
@@ -61,33 +60,32 @@ class KandinskyPipeline:
         with section("Loading kandinsky models"):
             self.image_encoder = CLIPVisionModelWithProjection.from_pretrained(prior_path, local_files_only=True, subfolder='image_encoder').to(torch.float16).to(self.device)
             if task_type == "text2img":
-                self.unet = UNet2DConditionModel.from_pretrained(decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
+                unet = UNet2DConditionModel.from_pretrained(decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
                 
                 self.prior = KandinskyV22PriorPipeline.from_pretrained(prior_path, local_files_only=True, 
                                                                        image_encoder=self.image_encoder, torch_dtype=torch.float16).to(self.device)
                 self.decoder = KandinskyV22Pipeline.from_pretrained(decoder_path, local_files_only=True, use_safetensors=True, 
-                                                                    unet=self.unet, torch_dtype=torch.float16).to(self.device)
+                                                                    unet=unet, torch_dtype=torch.float16).to(self.device)
             elif task_type == "inpainting":
-                self.unet = UNet2DConditionModel.from_pretrained(inpaint_decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
+                unet = UNet2DConditionModel.from_pretrained(inpaint_decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
                 self.prior = KandinskyV22PriorPipeline.from_pretrained(prior_path, local_files_only=True, 
                                                                        image_encoder=self.image_encoder, torch_dtype=torch.float16).to(self.device)
                 self.decoder = KandinskyV22InpaintPipeline.from_pretrained(inpaint_decoder_path, local_files_only=True, 
-                                                                    unet=self.unet, torch_dtype=torch.float16).to(self.device)
+                                                                    unet=unet, torch_dtype=torch.float16).to(self.device)
             elif task_type == "img2img":
-                self.unet = UNet2DConditionModel.from_pretrained(decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
-                # self.prior = KandinskyV22PriorPipeline.from_pretrained(prior_path, local_files_only=True,
-                #                                                        image_encoder=self.image_encoder, torch_dtype=torch.float32).to(self.device)
+                unet = UNet2DConditionModel.from_pretrained(decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
                 self.decoder = KandinskyV22Img2ImgPipeline.from_pretrained(decoder_path, local_files_only=True,
-                                                                    unet=self.unet, torch_dtype=torch.float16).to(self.device)
+                                                                    unet=unet, torch_dtype=torch.float16).to(self.device)
+                
             else:
                 raise ValueError("Only text2img, img2img, inpainting is available")
             
+            del unet
             logger.debug(f"Kandinsky Inpainting model successfully loaded")
    
-    def set_models(self, image_encoder, unet, prior_model, decoder_model):
+    def set_models(self, image_encoder, prior_model, decoder_model):
         # setting the kandinsky submodels directly
         self.image_encoder=image_encoder
-        self.unet = unet
         self.prior = prior_model
         self.decoder = decoder_model
         
@@ -96,11 +94,6 @@ class KandinskyPipeline:
             self.image_encoder.to("cpu")
             del self.image_encoder
             self.image_encoder = None
-        
-        if self.unet is not None:
-            self.unet.to("cpu")
-            del self.unet
-            self.unet = None
         
         if self.prior is not None:
             self.prior.to("cpu")

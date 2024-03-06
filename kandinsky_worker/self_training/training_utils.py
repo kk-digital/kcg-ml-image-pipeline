@@ -16,7 +16,7 @@ from worker.generation_task.generation_task import GenerationTask
 from data_loader.utils import get_object
 
 def get_input_clip_vector(minio_client, dataset, output_file_path):
-    image_embeddings_path = output_file_path.replace(".jpg", "_embedding.msgpack")    
+    image_embeddings_path = output_file_path.replace("_clip_kandinsky.msgpack", "_embedding.msgpack")    
     embedding_data = get_object(minio_client, image_embeddings_path)
     embedding_dict = ImageEmbedding.from_msgpack_bytes(embedding_data)
     features_vector= embedding_dict.image_embedding
@@ -24,8 +24,7 @@ def get_input_clip_vector(minio_client, dataset, output_file_path):
     return features_vector
 
 def get_output_clip_vector(minio_client, dataset, output_file_path):
-    clip_path= output_file_path.replace('.jpg', '_clip_kandinsky.msgpack')
-    features_data = get_object(minio_client, clip_path)
+    features_data = get_object(minio_client, output_file_path)
     features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
     features_vector= torch.tensor(features_vector)
 
@@ -38,18 +37,23 @@ def store_self_training_data(worker_state: WorkerState, job: dict):
     dataset= file_path.split('/')[0]
     scoring_model= worker_state.scoring_models[dataset]
 
+    score_mean= float(scoring_model.mean)
+    score_std= float(scoring_model.standard_deviation)
+
     if scoring_model is None:
         raise Exception("No scoring model has been loaded for this dataset.")
 
     input_clip_vector= get_input_clip_vector(minio_client, dataset, file_path)
     output_clip_vector= get_output_clip_vector(minio_client, dataset, file_path)
 
-    input_clip_score = scoring_model.predict_clip(input_clip_vector).item() 
-    output_clip_score = scoring_model.predict_clip(output_clip_vector).item()
+    input_clip_score = scoring_model.predict_clip(input_clip_vector.to(device=scoring_model._device)).item()
+    input_clip_score = (input_clip_score - score_mean) / score_std 
+    output_clip_score = scoring_model.predict_clip(output_clip_vector.to(device=scoring_model._device)).item()
+    output_clip_score = (output_clip_score - score_mean) / score_std 
 
     cosine_sim = cosine_similarity(input_clip_vector, output_clip_vector).item()
 
-    data = {
+    data_to_save = {
         'input_clip': input_clip_vector.detach().cpu().numpy().tolist(),
         'output_clip': output_clip_vector.detach().cpu().numpy().tolist(),
         'input_clip_score': input_clip_score,
@@ -68,7 +72,7 @@ def store_self_training_data(worker_state: WorkerState, job: dict):
         content = data.read()
         batch = msgpack.loads(content)
         index = len(dataset_files)
-        batch= batch.append(data)
+        batch.append(data_to_save)
 
         if len(batch) == batch_size:
             minio_client.remove_object('datasets', last_file_path)
@@ -77,7 +81,7 @@ def store_self_training_data(worker_state: WorkerState, job: dict):
             store_batch_in_msgpack_file(minio_client, dataset, batch, index, incomplete=True)
     else:
         index = len(dataset_files) + 1
-        store_batch_in_msgpack_file(minio_client, dataset, [data], index, incomplete=True)
+        store_batch_in_msgpack_file(minio_client, dataset, [data_to_save], index, incomplete=True)
 
 
 # function for storing self training data in a msgpack file
