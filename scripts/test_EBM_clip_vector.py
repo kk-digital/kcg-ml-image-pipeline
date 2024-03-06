@@ -1270,7 +1270,7 @@ adv_loader = train_loader_clip_ood
 #load model
 model4 = DeepEnergyModel(img_shape=(1280,))
 load_model(model4,'cyber')
-model = model3
+model = model4
 
 # Load images
 id_classes_in = [35]
