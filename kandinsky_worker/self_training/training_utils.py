@@ -63,10 +63,12 @@ def store_self_training_data(worker_state: WorkerState, job: dict):
     
     batch_size = 10000
     dataset_path = f"{dataset}/data/latent-generator" + "/self_training/"
+    print(dataset_path)
     dataset_files = minio_client.list_objects('datasets', prefix=dataset_path, recursive=True)
     dataset_files = [file.object_name for file in dataset_files]
     last_file_path= dataset_files[-1]
 
+    print(last_file_path)
     if last_file_path.endswith("_incomplete.msgpack"):
         data = minio_client.get_object('datasets', last_file_path)
         content = data.read()
