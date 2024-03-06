@@ -154,30 +154,6 @@ class KandinskyImageGenerator:
             # Total loss
             total_loss = score_loss
 
-            if self.send_job and ((step+1)  % self.generate_step == 0):
-                try:
-                    response= generate_img2img_generation_jobs_with_kandinsky(
-                        image_embedding=optimized_embedding,
-                        negative_image_embedding=None,
-                        dataset_name="test-generations",
-                        prompt_generation_policy=GENERATION_POLICY,
-                    )
-                    task_uuid = response['uuid']
-                    task_time = response['creation_time']
-                except:
-                    print("An error occured.")
-                    task_uuid = -1
-                    task_time = -1
-                  
-                # storing job data to put in csv file later
-                df_data.append({
-                    'task_uuid': task_uuid,
-                    'score': score.item(),
-                    'step': step,
-                    'generation_policy_string': GENERATION_POLICY,
-                    'time': task_time
-                })
-
             # Backpropagate
             total_loss.backward()
 
@@ -198,7 +174,7 @@ class KandinskyImageGenerator:
                 response= generate_img2img_generation_jobs_with_kandinsky(
                     image_embedding=optimized_embedding,
                     negative_image_embedding=None,
-                    dataset_name="test-generations",
+                    dataset_name="environmental",
                     prompt_generation_policy=GENERATION_POLICY,
                 )
 
@@ -236,7 +212,7 @@ class KandinskyImageGenerator:
         buffer.seek(0)
 
         current_date=datetime.now().strftime("%Y-%m-%d-%H:%M")
-        minio_path= minio_path + f"/{current_date}-pez_optimization-environmental.csv"
+        minio_path= minio_path + f"/{current_date}-gradient_descent_optimization-environmental.csv"
         cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
         # Remove the temporary file
         os.remove(local_path)
