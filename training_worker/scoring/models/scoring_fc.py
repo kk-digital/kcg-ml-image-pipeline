@@ -110,7 +110,7 @@ class ScoringFCNetwork(nn.Module):
             
             with torch.no_grad():
                 for inputs, targets in val_loader:
-                    inputs=inputs.to(self._device)
+                    inputs=inputs.to(self._device).squeeze(1)
                     targets=targets.to(self._device)
 
                     outputs = self.model(inputs)
@@ -124,7 +124,7 @@ class ScoringFCNetwork(nn.Module):
             total_train_samples = 0
             
             for inputs, targets in train_loader:
-                inputs=inputs.to(self._device)
+                inputs=inputs.to(self._device).squeeze(1)
                 targets=targets.to(self._device)
 
                 optimizer.zero_grad()
