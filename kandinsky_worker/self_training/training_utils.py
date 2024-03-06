@@ -16,7 +16,7 @@ from worker.generation_task.generation_task import GenerationTask
 from data_loader.utils import get_object
 
 def get_input_clip_vector(minio_client, dataset, output_file_path):
-    image_embeddings_path = output_file_path.replace("'_clip_kandinsky.msgpack", "_embedding.msgpack")    
+    image_embeddings_path = output_file_path.replace("_clip_kandinsky.msgpack", "_embedding.msgpack")    
     embedding_data = get_object(minio_client, image_embeddings_path)
     embedding_dict = ImageEmbedding.from_msgpack_bytes(embedding_data)
     features_vector= embedding_dict.image_embedding
