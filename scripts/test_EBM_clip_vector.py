@@ -1357,8 +1357,8 @@ def plot_images_with_scores(sorted_dataset):
     
     # Calculate grid size for plotting
     rows = int(num_images**0.5) + 1
-    cols = (num_images // rows) + 1
-
+    cols = 4
+    
     # Create figure with subplots
     fig, axes = plt.subplots(rows, cols, figsize=(20, 10))
     fig.tight_layout(pad=5.0)
