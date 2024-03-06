@@ -75,7 +75,7 @@ def store_self_training_data(worker_state: WorkerState, job: dict):
         batch = msgpack.loads(content)
         print(batch)
         index = len(dataset_files)
-        batch= batch.append(data_to_save)
+        batch.append(data_to_save)
 
         if len(batch) == batch_size:
             minio_client.remove_object('datasets', last_file_path)
