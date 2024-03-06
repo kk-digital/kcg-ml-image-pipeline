@@ -230,14 +230,20 @@ class ABRankingFcTrainingPipeline:
         print(len(file_paths))
 
         latents=[]
+        missing=0
         for path in file_paths:
-            clip_path= path.replace('.jpg', '_clip_kandinsky.msgpack')
-            bucket, features_vector_path= separate_bucket_and_file_path(clip_path) 
-            features_data = get_object(self.minio_client, features_vector_path)
-            features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
-            features_vector= torch.tensor(features_vector).to(device=self.device, dtype=torch.float32)
-            
-            latents.append(features_vector)
+            try:
+                clip_path= path.replace('.jpg', '_clip_kandinsky.msgpack')
+                bucket, features_vector_path= separate_bucket_and_file_path(clip_path) 
+                features_data = get_object(self.minio_client, features_vector_path)
+                features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
+                features_vector= torch.tensor(features_vector).to(device=self.device, dtype=torch.float32)
+                
+                latents.append(features_vector)
+            except:
+                missing+=1
+        
+        print(missing)
 
         return latents
 
