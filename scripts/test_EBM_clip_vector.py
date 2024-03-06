@@ -1361,9 +1361,10 @@ def plot_images_with_scores(sorted_dataset):
     rows = math.ceil(num_images / cols)
 
     # Create figure with subplots
-    fig, axes = plt.subplots(rows, cols, figsize=(20, 10))  # Adjust figsize as needed
-    fig.tight_layout(pad=5.0)
-
+    # Adjust figsize here: width, height in inches. Increase for larger images.
+    # Assuming each image should have more space, let's allocate more width and height.
+    fig, axes = plt.subplots(rows, cols, figsize=(4*cols, 4*rows))  # 4 inches per image in each dimension
+    fig.tight_layout(pad=3.0)  # Adjust padding as needed
     # Flatten axes array for easy indexing
     axes = axes.flatten()
 
