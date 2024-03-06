@@ -12,9 +12,9 @@ import csv
 
 
 # Define MinIO access
-MINIO_ADDRESS = '192.168.3.5:9000'
-ACCESS_KEY = 'v048BpXpWrsVIHUfdAix'
-SECRET_KEY = '4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu'
+MINIO_ADDRESS = '123.176.98.90:9000'
+ACCESS_KEY = '3lUCPCfLMgQoxrYaxgoz'
+SECRET_KEY = 'MXszqU6KFV6X95Lo5jhMeuu5Xm85R79YImgI3Xmp'
 MODEL_DATASET = 'environmental'  
 MODEL_TYPE = 'clip'
 SCORING_MODEL = 'elm'
@@ -44,7 +44,7 @@ def save_image(local_dir, image_name, image_data):
         file.write(image_data)
     print(f"Image saved to {file_path}.")
 
-def get_clip_vectors(minio_client, base_path, num_samples=900):
+def get_clip_vectors(minio_client, base_path, num_samples=10):
     objects_list = list(minio_client.list_objects(bucket_name='datasets', prefix=base_path, recursive=False))
     clip_objects = [obj for obj in objects_list if obj.object_name.endswith('_clip.msgpack')]
     selected_clip_objects = random.sample(clip_objects, min(len(clip_objects), num_samples))
@@ -102,6 +102,14 @@ tag_name_list = get_unique_tag_names(minio_client, MODEL_DATASET)
 base_path = f"{MODEL_DATASET}/0356/"
 clip_vectors_and_paths = get_clip_vectors(minio_client, base_path)
 
+# Define the base output directory for classifier results
+elm_output_base_dir = os.path.join(base_directory, "elm-classifier-output")
+
+# Make sure the elm-classifier-output directory exists
+if not os.path.exists(elm_output_base_dir):
+    os.makedirs(elm_output_base_dir)
+
+# Now, iterate over each tag_name and process accordingly
 for tag_name in tag_name_list:
     # Load the model for the specified tag
     loaded_model, model_file_name = elm_model.load_model(minio_client, MODEL_DATASET, tag_name, MODEL_TYPE, SCORING_MODEL, not_include, device=device)
@@ -112,30 +120,27 @@ for tag_name in tag_name_list:
         scores = []
         path_to_score = {}
         
-
         for vector, path in clip_vectors_and_paths:
             try:
-                
-                vector = vector.to(device)
-                
-                vector = vector.unsqueeze(0)
-                
-                classification_score = loaded_model.classify(vector).item()  # Get the actual float value of the score
-                
+                # Ensure vector is on the correct device
+                vector = vector.to(device).unsqueeze(0)  
+                classification_score = loaded_model.classify(vector).item()
                 scores.append(classification_score)
-                image_path = path.replace('_clip.msgpack', '.jpg')  # Convert clip vector path to image path
+                
+                # Derive the image path and store the classification score
+                image_path = path.replace('_clip.msgpack', '.jpg')
                 path_to_score[image_path] = classification_score
             except RuntimeError as e:
                 print(f"Skipping vector due to error: {e}")
                 continue
-            
-        percentile_bins = calculate_percentiles(scores)
         
-        # Create a base directory for the current tag model
-        tag_base_dir = os.path.join(base_directory, tag_name)
+        percentile_bins = calculate_percentiles(scores)
 
+        # Create a base directory for the current tag model
+        tag_base_dir = os.path.join(elm_output_base_dir, tag_name)
         csv_results = []
 
+        # Process images and scores, and prepare CSV data
         for bin, bin_scores in percentile_bins.items():
             bin_dir = os.path.join(tag_base_dir, f"{bin:.1f}")
             for score in bin_scores:
@@ -147,6 +152,7 @@ for tag_name in tag_name_list:
                     'tag': tag_name,
                     'model': model_file_name
                 })
+                
                 image_data = cmd.get_file_from_minio(minio_client, 'datasets', image_path)
                 if image_data:
                     image_content = image_data.read()
@@ -154,7 +160,7 @@ for tag_name in tag_name_list:
                 else:
                     print(f"Failed to fetch image for score {score}.")
         
-        # Save the results to a CSV file in the tag directory
+        # Save the CSV file in the adjusted `tag_base_dir`
         csv_filename = f"{tag_name}_classification_results.csv"
         save_scores_to_csv(csv_results, tag_base_dir, csv_filename)
     else:
