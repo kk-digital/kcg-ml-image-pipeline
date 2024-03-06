@@ -1368,15 +1368,12 @@ def plot_images_with_scores(sorted_dataset):
 
     # Loop over sorted dataset and plot each image with its score
     for i, (image_path, _, score, image_tensor) in enumerate(sorted_dataset):
-        # Convert image tensor to numpy array if it's not already
-        image = image_tensor.numpy() if image_tensor.is_cuda else image_tensor.cpu().numpy()
-        # Assuming the image tensor is in CxHxW format, transpose it to HxWxC for plotting
-        # Check if image is grayscale (1 channel) and convert accordingly
-        if image.shape[0] == 1:  # Grayscale
-            image = image.squeeze(0)  # Remove channel dimension for plotting
-        else:  # RGB
-            image = image.transpose(1, 2, 0)
+        # Check if image_tensor is a PIL Image; no need to convert if already a numpy array
+        if not isinstance(image_tensor, np.ndarray):
+            # Convert PIL Image to a format suitable for matplotlib
+            image = np.array(image_tensor)
         
+        # Plot the image
         axes[i].imshow(image)
         axes[i].set_title(f"Score: {score:.2f}")
         axes[i].axis('off')  # Hide axis ticks and labels
@@ -1384,7 +1381,6 @@ def plot_images_with_scores(sorted_dataset):
     # Hide any unused subplots
     for j in range(i + 1, len(axes)):
         axes[j].axis('off')
-
     plt.savefig("output/rank.png")
 
     # Save the figure to a file
