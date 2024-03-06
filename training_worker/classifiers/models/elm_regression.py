@@ -180,13 +180,14 @@ class ELMRegression():
     def load_safetensors(self, model_buffer):
         data = model_buffer.read()
         safetensors_data = safetensors_load(data)
-        print(f"Model _weight device: {self._weight.device}")
-        print(f"Model _bias device: {self._bias.device}")
+  
         self._weight = safetensors_data['weight']
         self._beta = safetensors_data['beta']
         self._bias = safetensors_data['bias']
-
-        # load metadata
+        print(f"_weight tensor device: {self._weight.device}")
+        print(f"_beta tensor device: {self._beta.device}")
+        print(f"_bias tensor device: {self._bias.device}")
+        # load met  adata
         n_header = data[:8]
         n = int.from_bytes(n_header, "little")
         metadata_bytes = data[8: 8 + n]
