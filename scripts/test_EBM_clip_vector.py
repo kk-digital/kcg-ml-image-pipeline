@@ -1163,7 +1163,7 @@ adv_loader = train_loader_clip_cyber
 # plt.clf()
 
 
-model3 = DeepEnergyModel()
+model3 = DeepEnergyModel(img_shape=1280)
 load_model(model3)
 model = model3
 id_classes_in = [39]
