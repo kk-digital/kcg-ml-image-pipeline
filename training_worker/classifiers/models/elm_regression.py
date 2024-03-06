@@ -37,7 +37,7 @@ class ELMRegression():
         else:
             device = 'cpu'
 
-        self._device = torch.device(device)
+        self._device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         self._activation = nn.Sigmoid()
 
@@ -184,6 +184,7 @@ class ELMRegression():
         self._weight = safetensors_data['weight'].to(self._device)
         self._beta = safetensors_data['beta'].to(self._device)
         self._bias = safetensors_data['bias'].to(self._device)
+
         print(f"_weight tensor device: {self._weight.device}")
         print(f"_beta tensor device: {self._beta.device}")
         print(f"_bias tensor device: {self._bias.device}")
