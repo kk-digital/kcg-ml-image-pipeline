@@ -184,14 +184,6 @@ class KandinskyImageGenerator:
                 print("An error occured.")
                 task_uuid = -1
                 task_time = -1
-        
-            df_data.append({
-                'task_uuid': task_uuid,
-                'score': score.item(),
-                'step': step,
-                'generation_policy_string': GENERATION_POLICY,
-                'time': task_time
-            })
 
         if self.save_csv:
             self.store_uuids_in_csv_file(df_data)
