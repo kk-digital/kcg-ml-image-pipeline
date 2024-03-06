@@ -95,7 +95,7 @@ print(date_now)
 minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
             "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
             None)
-minio_path="environmental/output/my_test"
+minio_path="environmental/output/my_tests"
 
 
 
@@ -748,7 +748,7 @@ def save_model(model,local_path):
 
         # Upload the model to MinIO
         minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",None)
-        minio_path="environmental/output/my_test"
+        minio_path="environmental/output/my_tests"
         date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
         minio_path= minio_path + "/model-"+date_now+".pt"
         cmd.upload_data(minio_client, 'datasets', minio_path, BytesIO(model_bytes))
@@ -768,7 +768,7 @@ def save_model_minio(model, name):
     minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",None)
 
 
-    minio_path="environmental/output/my_test"
+    minio_path="environmental/output/my_tests"
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
     minio_path= minio_path + "/" +name+'-'+date_now+".pt"
 
@@ -855,7 +855,7 @@ def compare_images_show(img1, img2):
     minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
                 "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
                 None)
-    minio_path="environmental/output/my_test"
+    minio_path="environmental/output/my_tests"
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
     minio_path= minio_path + "/compare_id_vs_ood" +date_now+".png"
     cmd.upload_data(minio_client, 'datasets', minio_path, bufx)
@@ -966,7 +966,7 @@ def compare_clip_show(img_in, img_ood, clip_in,clip_ood):
     minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
                 "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
                 None)
-    minio_path="environmental/output/my_test"
+    minio_path="environmental/output/my_tests"
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
     minio_path= minio_path + "/compare_id_vs_ood" +date_now+".png"
     cmd.upload_data(minio_client, 'datasets', minio_path, bufx)
@@ -1240,7 +1240,7 @@ plt.savefig(buf, format='png')
 buf.seek(0)
 
 # upload the graph report
-minio_path="environmental/output/my_test"
+minio_path="environmental/output/my_tests"
 minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_cyber_training" +date_now+".png"
 cmd.upload_data(minio_client, 'datasets', minio_path, buf)
 # Remove the temporary file
