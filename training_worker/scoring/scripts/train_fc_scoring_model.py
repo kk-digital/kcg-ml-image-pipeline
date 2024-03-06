@@ -218,7 +218,7 @@ class ABRankingFcTrainingPipeline:
 
     def get_file_paths(self):
         print('Loading image file paths')
-        response = requests.get(f'{API_URL}/queue/image-generation/list-by-dataset?dataset={self.dataset}&model_type=elm-v1&min_clip_sigma_score=0.8&size={self.num_samples}')
+        response = requests.get(f'{API_URL}/queue/image-generation/list-by-dataset?dataset={self.dataset}&model_type=elm-v1&min_clip_sigma_score=0&size={self.num_samples}')
         
         jobs = json.loads(response.content)
 
@@ -278,7 +278,7 @@ class ABRankingFcTrainingPipeline:
         if self.model_type=="fc":
             loss=self.model.train(inputs, outputs, num_epochs= self.epochs, batch_size=self.training_batch_size, learning_rate=self.learning_rate)
         elif self.model_type=="xgboost":
-            loss=self.model.train(inputs, outputs, max_depth=5, gamma=0.05, eta=0.1)
+            loss=self.model.train(inputs, outputs)
         self.model.save_model()
     
     def load_self_training_data(self, data):
