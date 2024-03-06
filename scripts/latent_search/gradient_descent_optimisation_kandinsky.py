@@ -35,12 +35,9 @@ def parse_args():
         parser.add_argument('--minio-access-key', type=str, help='Minio access key')
         parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
         parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
-        parser.add_argument('--model-type', type=str, help='model type, linear or elm', default="linear")
         parser.add_argument('--steps', type=int, help='number of optimisation steps', default=100)
         parser.add_argument('--learning-rate', type=float, help='learning rate for optimization', default=0.001)
         parser.add_argument('--target-score', type=float, help='number of optimisation steps', default=5)
-        parser.add_argument('--penalty-weight', type=float, help='weight of deviation panalty', default=1)
-        parser.add_argument('--deviation-threshold', type=float, help='deviation penalty threshold', default=2)
         parser.add_argument('--send-job', action='store_true', default=False)
         parser.add_argument('--save-csv', action='store_true', default=False)
         parser.add_argument('--generate-step', type=int, default=100)
@@ -53,12 +50,9 @@ class KandinskyImageGenerator:
                  minio_access_key,
                  minio_secret_key,
                  dataset,
-                 model_type,
                  steps=100,
                  learning_rate=0.005,
                  target_score=5.0,
-                 penalty_weight=1,
-                 deviation_threshold= 2,
                  send_job=False,
                  save_csv=False,
                  generate_step=100,
@@ -66,11 +60,8 @@ class KandinskyImageGenerator:
                  ):
         
         self.dataset= dataset
-        self.model_type= model_type
         self.steps= steps
         self.learning_rate= learning_rate
-        self.penalty_weight= penalty_weight
-        self.deviation_threshold= deviation_threshold
         self.target_score= target_score
         self.send_job= send_job
         self.save_csv= save_csv
@@ -91,11 +82,6 @@ class KandinskyImageGenerator:
         # load kandinsky clip
         self.image_processor= CLIPImageProcessor.from_pretrained(PRIOR_MODEL_PATH, subfolder="image_processor", local_files_only=True)
 
-        # load ranking model
-        self.ranking_model= self.load_scoring_model()
-        self.mean= float(self.ranking_model.mean)
-        self.std= float(self.ranking_model.standard_deviation)
-
         self.scoring_model= ABRankingFCNetwork(minio_client=self.minio_client)
         self.scoring_model.load_model()
 
@@ -113,45 +99,6 @@ class KandinskyImageGenerator:
         min_vector = torch.tensor(data_dict["min"]).to(device=self.device, dtype=torch.float32)
 
         return mean_vector, std_vector, max_vector, min_vector
-
-
-    # load elm or linear scoring models
-    def load_scoring_model(self):
-        input_path=f"{self.dataset}/models/ranking/"
-
-        if(self.model_type=="elm"):
-            scoring_model = ABRankingELMModel(1280)
-            file_name=f"score-elm-v1-kandinsky-clip.safetensors"
-        else:
-            scoring_model= ABRankingModel(1280)
-            file_name=f"score-linear-kandinsky-clip.safetensors"
-
-        model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
-        most_recent_model = None
-
-        for model_file in model_files:
-            if model_file.endswith(file_name):
-                most_recent_model = model_file
-
-        if most_recent_model:
-            model_file_data =cmd.get_file_from_minio(self.minio_client, 'datasets', most_recent_model)
-        else:
-            print("No .safetensors files found in the list.")
-            return
-
-        print(most_recent_model)
-
-        # Create a BytesIO object and write the downloaded content into it
-        byte_buffer = io.BytesIO()
-        for data in model_file_data.stream(amt=8192):
-            byte_buffer.write(data)
-        # Reset the buffer's position to the beginning
-        byte_buffer.seek(0)
-
-        scoring_model.load_safetensors(byte_buffer)
-        scoring_model.model=scoring_model.model.to(torch.device(self.device))
-
-        return scoring_model
     
     def sample_embedding(self, num_samples=1000):
         sampled_embeddings = torch.normal(mean=self.clip_mean.repeat(num_samples, 1),
@@ -294,36 +241,15 @@ class KandinskyImageGenerator:
         # Remove the temporary file
         os.remove(local_path)
 
-    def test_image_score(self):
-
-        features_data1 = get_object(self.minio_client, "environmental/0435/434997_clip_kandinsky.msgpack")
-        features_vector1 = msgpack.unpackb(features_data1)["clip-feature-vector"]
-        features_vector1= torch.tensor(features_vector1).to(device=self.device, dtype=torch.float32)
-
-        inputs1 = features_vector1.reshape(len(features_vector1), -1)
-        score1 = self.scoring_model.model.forward(inputs1).squeeze()
-
-        features_data2 = get_object(self.minio_client, "test-generations/0024/023629_clip_kandinsky.msgpack")
-        features_vector2 = msgpack.unpackb(features_data2)["clip-feature-vector"]
-        features_vector2= torch.tensor(features_vector2).to(device=self.device, dtype=torch.float32)
-
-        inputs2 = features_vector2.reshape(len(features_vector2), -1)
-        score2 = self.scoring_model.model.forward(inputs2).squeeze()
-
-        print(f"score before {score1} and after {score2}")
-
 def main():
     args= parse_args()
     # initialize generator
     generator= KandinskyImageGenerator(minio_access_key=args.minio_access_key,
                                        minio_secret_key=args.minio_secret_key,
                                        dataset=args.dataset,
-                                       model_type=args.model_type,
                                        steps=args.steps,
                                        learning_rate= args.learning_rate,
                                        target_score=args.target_score,
-                                       deviation_threshold=args.deviation_threshold,
-                                       penalty_weight=args.penalty_weight,
                                        send_job= args.send_job,
                                        save_csv= args.save_csv,
                                        generate_step=args.generate_step,

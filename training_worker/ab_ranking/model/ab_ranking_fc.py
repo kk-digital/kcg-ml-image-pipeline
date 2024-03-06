@@ -349,12 +349,13 @@ class ABRankingFCNetwork(nn.Module):
 
     def load_model(self):
         # get model file data from MinIO
-        file_name= self.minio_path.split('/')[-1]
-        model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', self.minio_path)
+        prefix= f"{self.dataset}/models/latent-generator/"
+        suffix= f"_{self.output_type}_fc_{self.input_type}.pth"
+        model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', prefix)
         most_recent_model = None
 
         for model_file in model_files:
-            if model_file.endswith(file_name):
+            if model_file.endswith(suffix):
                 most_recent_model = model_file
 
         if most_recent_model:
