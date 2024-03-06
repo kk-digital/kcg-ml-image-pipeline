@@ -207,7 +207,7 @@ class KandinskyImageGenerator:
             # Total loss
             total_loss = score_loss
 
-            if self.send_job and (step % self.generate_step == 0):
+            if self.send_job and ((step+1)  % self.generate_step == 0):
                 try:
                     response= generate_img2img_generation_jobs_with_kandinsky(
                         image_embedding=optimized_embedding,
