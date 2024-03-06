@@ -2,8 +2,6 @@ import io
 import queue
 import sys
 import torch
-from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
-from utility.minio import cmd
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -19,8 +17,9 @@ from kandinsky.pipelines.kandinsky_inpainting import KandinskyV22InpaintPipeline
 from diffusers.models import UNet2DConditionModel
 from diffusers.models import UNet2DConditionModel
 from kandinsky.models.clip_text_encoder.clip_text_encoder import KandinskyCLIPTextEmbedder
-from training_worker.ab_ranking.model.ab_ranking_fc import ABRankingFCNetwork
 from utility.http import request
+from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
+from utility.minio import cmd
 
 class WorkerState:
     def __init__(self, device, minio_access_key, minio_secret_key, queue_size):
