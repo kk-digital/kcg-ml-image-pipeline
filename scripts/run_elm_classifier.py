@@ -44,8 +44,8 @@ def save_image(local_dir, image_name, image_data):
         file.write(image_data)
     print(f"Image saved to {file_path}.")
 
-def get_clip_vectors(minio_client, base_path, num_samples=900):
-    objects_list = list(minio_client.list_objects(bucket_name='datasets', prefix=base_path, recursive=True))
+def get_clip_vectors(minio_client, base_path, num_samples=20):
+    objects_list = list(minio_client.list_objects(bucket_name='datasets', prefix=base_path, recursive=False))
     clip_objects = [obj for obj in objects_list if obj.object_name.endswith('_clip.msgpack')]
     selected_clip_objects = random.sample(clip_objects, min(len(clip_objects), num_samples))
 
@@ -72,7 +72,7 @@ def calculate_percentiles(scores):
 
 def get_unique_tag_names(minio_client, model_dataset):
     prefix = f"{model_dataset}/models/classifiers/"
-    objects = minio_client.list_objects(bucket_name='datasets', prefix=prefix, recursive=True)
+    objects = minio_client.list_objects(bucket_name='datasets', prefix=prefix, recursive=False)
     tag_names = set()  # Use a set to avoid duplicates
     for obj in objects:
         parts = obj.object_name.split('/')
