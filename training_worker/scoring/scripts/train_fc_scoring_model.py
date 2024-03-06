@@ -227,6 +227,8 @@ class ABRankingFcTrainingPipeline:
     def load_samples_from_minio(self):
         file_paths= self.get_file_paths()
 
+        print(len(file_paths))
+
         latents=[]
         for path in file_paths:
             clip_path= path.replace('.jpg', '_clip_kandinsky.msgpack')
