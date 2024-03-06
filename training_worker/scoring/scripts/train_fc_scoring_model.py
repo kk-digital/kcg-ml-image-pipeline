@@ -15,6 +15,8 @@ from PIL import Image
 import time
 import random
 
+from training_worker.scoring.models.scoring_xgboost import ScoringXgboostModel
+
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
@@ -40,7 +42,7 @@ def parse_args():
     parser.add_argument('--minio-access-key', type=str, help='Minio access key')
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
-    parser.add_argument('--model-type', type=str, help='model type, linear or elm', default="elm")
+    parser.add_argument('--model-type', type=str, help='model type, fc or xgboost', default="fc")
     parser.add_argument('--kandinsky-batch-size', type=int, default=5)
     parser.add_argument('--training-batch-size', type=int, default=64)
     parser.add_argument('--epochs', type=int, default=10)
@@ -74,14 +76,17 @@ class ABRankingFcTrainingPipeline:
         self.device = torch.device(device)
         
         self.dataset= dataset
-        self.model_type= model_type
         self.training_batch_size= training_batch_size
         self.kandinsky_batch_size= kandinsky_batch_size
         self.num_samples= num_samples
         self.learning_rate= learning_rate
         self.epochs= epochs
+        self.model_type= model_type
 
-        self.model= ScoringFCNetwork(minio_client=self.minio_client)
+        if(self.model_type=="fc"):
+            self.model= ScoringFCNetwork(minio_client=self.minio_client)
+        elif(self.model_type=="xgboost"):
+            self.model= ScoringXgboostModel(minio_client=self.minio_client)
 
         # load kandinsky clip
         self.image_processor= CLIPImageProcessor.from_pretrained(PRIOR_MODEL_PATH, subfolder="image_processor", local_files_only=True)
@@ -116,12 +121,8 @@ class ABRankingFcTrainingPipeline:
     def load_scoring_model(self):
         input_path=f"{self.dataset}/models/ranking/"
 
-        if(self.model_type=="elm"):
-            scoring_model = ABRankingELMModel(1280)
-            file_name=f"score-elm-v1-clip-h.safetensors"
-        else:
-            scoring_model= ABRankingModel(1280)
-            file_name=f"score-linear-clip-h.safetensors"
+        scoring_model = ABRankingELMModel(1280)
+        file_name=f"score-elm-v1-clip-h.safetensors"
 
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
         most_recent_model = None
@@ -265,7 +266,10 @@ class ABRankingFcTrainingPipeline:
             outputs.extend(self_training_outputs)
         
         # training and saving the model
-        loss=self.model.train(inputs, outputs, num_epochs= self.epochs, batch_size=self.training_batch_size, learning_rate=self.learning_rate)
+        if self.model_type=="fc":
+            loss=self.model.train(inputs, outputs, num_epochs= self.epochs, batch_size=self.training_batch_size, learning_rate=self.learning_rate)
+        elif self.model_type=="xgboost":
+            loss=self.model.train(inputs, outputs)
         self.model.save_model()
     
     def load_self_training_data(self, data):
