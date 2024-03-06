@@ -276,7 +276,7 @@ class ABRankingFcTrainingPipeline:
         inputs=[]
         outputs=[]
         for d in data:
-            inputs.append(d['input_clip'])
+            inputs.append(d['input_clip'][0])
             outputs.append(d['output_clip_score'])
         
         return inputs, outputs
