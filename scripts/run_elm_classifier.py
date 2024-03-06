@@ -44,7 +44,7 @@ def save_image(local_dir, image_name, image_data):
         file.write(image_data)
     print(f"Image saved to {file_path}.")
 
-def get_clip_vectors(minio_client, base_path, num_samples=20):
+def get_clip_vectors(minio_client, base_path, num_samples=900):
     objects_list = list(minio_client.list_objects(bucket_name='datasets', prefix=base_path, recursive=False))
     clip_objects = [obj for obj in objects_list if obj.object_name.endswith('_clip.msgpack')]
     selected_clip_objects = random.sample(clip_objects, min(len(clip_objects), num_samples))
@@ -115,14 +115,12 @@ for tag_name in tag_name_list:
 
         for vector, path in clip_vectors_and_paths:
             try:
-                print(f"Original device of vector: {vector.device}")  # Check the device of the vector before moving
+                
                 vector = vector.to(device)
-                print(f"Device of vector after .to(device): {vector.device}")  # Check the device of the vector after moving
+                
                 vector = vector.unsqueeze(0)
-                print(f"Shape of vector after unsqueeze: {vector.shape}")  # Check the shape of the vector
-
+                
                 classification_score = loaded_model.classify(vector).item()  # Get the actual float value of the score
-                print(f"Classification score: {classification_score}")  # Print the obtained classification score
                 
                 scores.append(classification_score)
                 image_path = path.replace('_clip.msgpack', '.jpg')  # Convert clip vector path to image path
