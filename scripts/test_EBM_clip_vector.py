@@ -1083,6 +1083,32 @@ def process_and_sort_dataset(images_paths, model):
 
 
 
+
+def process_and_sort_dataset_combined(images_paths, model1,model2):
+    # Initialize an empty list to hold the structure for each image
+    structure = []
+
+    # Process each image path
+    for image_path in images_paths:
+        # Extract embedding and image tensor from the image path
+        image, embedding = get_clip_and_image_from_path(image_path)
+        
+        # Compute the score by passing the image tensor through the model
+        # Ensure the tensor is in the correct shape, device, etc.
+        score = model1.cnn(embedding.unsqueeze(0).to(model.device)).cpu() + model2.cnn(embedding.unsqueeze(0).to(model.device)).cpu()
+        
+        # Append the path, embedding, and score as a tuple to the structure list
+        structure.append((image_path, embedding, score.item(),image))  # Assuming score is a tensor, use .item() to get the value
+
+    # Sort the structure list by the score in descending order (for ascending, remove 'reverse=True')
+    # The lambda function specifies that the sorting is based on the third element of each tuple (index 2)
+    sorted_structure = sorted(structure, key=lambda x: x[2], reverse=True)
+
+    return sorted_structure
+
+
+
+
 def plot_images_with_scores(sorted_dataset,name):
     minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
             "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
@@ -1429,20 +1455,8 @@ images_paths_ood = get_file_paths("environmental",30000)
 ##################################################################################################### Sorting 
 
 
-# structure = [3][len(images_paths_ood)][len(images_paths_ood)]
-# def sorte_dataset(images_paths,model):
-#     for i in range(len(images_paths)):
-#         structure[i][0], structure[i][1] = get_clip_and_image_from_path(images_paths[i])
-#         # Pass the second image through the CNN model and get its score
-#         structure[i][3] = model.cnn(structure[i][1].unsqueeze(0).to(model.device)).cpu()
-    
 
-#     return structure
-
-
-
-
-    
+# on class sorting   
 # print("yep it's here")
 # sorted_comic_book = process_and_sort_dataset(images_paths_ood, model)
 # selected_structure_first_52 = sorted_comic_book[:52]
@@ -1453,120 +1467,27 @@ images_paths_ood = get_file_paths("environmental",30000)
 
 
 
-#################
-################# train on characters
-#################
 
 
 
 
+model_cyber = DeepEnergyModel(img_shape=(1280,))
+load_model(model_cyber,'cyber')
+model_cyber = model_cyber
 
+model_occult= DeepEnergyModel(img_shape=(1280,))
+load_model(model_occult,'occult')
+model_occult = model_occult
 
-
-
-images_paths_characters = get_file_paths("character",1500)
-
-
-train_loader_clip_characters, val_loader_clip_characters= get_clip_embeddings_by_path(images_paths_characters,0)
-
-train_loader_clip_cyber, val_loader_clip_cyber = get_clip_embeddings_by_tag([7,8,9,15,20,21,22],0)
-
-
-# Set loaders
-train_loader = train_loader_clip_characters
-val_loader = val_loader_clip_characters
-adv_loader = train_loader_clip_cyber
-
-
-
-
-##################################### Train
-model = train_model(img_shape=(1,1280),
-                    batch_size=train_loader.batch_size,
-                    lr=0.001,
-                    beta1=0.0)
-
-
-
-# Plot
-
-save_model(model,'characters','temp_model.pth')
-
-
-epochs = range(1, len(total_losses) + 1)  
-
-
-# Create subplots grid (3 rows, 1 column)
-fig, axes = plt.subplots(4, 1, figsize=(10, 24))
-
-# Plot each loss on its own subplot
-axes[0].plot(epochs, total_losses, label='Total Loss')
-axes[0].set_xlabel('Steps')
-axes[0].set_ylabel('Loss')
-axes[0].set_title('Total Loss')
-axes[0].legend()
-axes[0].grid(True)
-
-axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
-axes[1].set_xlabel('Steps')
-axes[1].set_ylabel('Loss')
-axes[1].set_title('Contrastive Divergence Loss')
-axes[1].legend()
-axes[1].grid(True)
-
-
-axes[2].plot(epochs, reg_losses , label='Regression Loss')
-axes[2].set_xlabel('Steps')
-axes[2].set_ylabel('Loss')
-axes[2].set_title('Regression Loss')
-axes[2].legend()
-axes[2].grid(True)
-
-# Plot real and fake scores on the fourth subplot
-axes[3].plot(epochs, real_scores_s, label='Real Scores')
-axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
-axes[3].set_xlabel('Steps')
-axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
-axes[3].set_title('Real vs. Fake Scores')
-axes[3].legend()
-axes[3].grid(True)
-
-# Adjust spacing between subplots for better visualization
-plt.tight_layout()
-
-plt.savefig("output/loss_tracking_per_step.png")
-
-# Save the figure to a file
-buf = io.BytesIO()
-plt.savefig(buf, format='png')
-buf.seek(0)
-
-# upload the graph report
-minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_characters_training" +date_now+".png"
-cmd.upload_data(minio_client, 'datasets', minio_path, buf)
-# Remove the temporary file
-os.remove("output/loss_tracking_per_step.png")
-# Clear the current figure
-plt.clf()
-
-
-#load model
-model5 = DeepEnergyModel(img_shape=(1280,))
-load_model(model5,'characters')
-model = model5
-
-
-
-#     
 print("yep it's here")
-sorted_comic_book = process_and_sort_dataset(images_paths_ood, model)
+sorted_comic_book = process_and_sort_dataset_combined(images_paths_ood, model_cyber,model_occult)
 selected_structure_first_52 = sorted_comic_book[:52]
 selected_structure_second_52 = sorted_comic_book[52:103]
+selected_structure_third_52 = sorted_comic_book[103:154]
 
-plot_images_with_scores(selected_structure_first_52,"Top_first_52_characters_env")
-plot_images_with_scores(selected_structure_second_52,"Top_second_52_characters_env")
-
-
+plot_images_with_scores(selected_structure_first_52,"Top_first_52_occult_and_cyber_env")
+plot_images_with_scores(selected_structure_second_52,"Top_second_52_occult_and_cyber_env")
+plot_images_with_scores(selected_structure_third_52,"Top_third_52_occult_and_cyber_env")
 
 
 ################################################################    Use Data augmentation       ################################################################
