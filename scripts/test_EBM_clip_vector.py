@@ -1182,30 +1182,30 @@ def plot_images_with_scores(sorted_dataset,name):
     plt.clf()
 
 
-#old
-# def get_file_paths(dataset,num_samples):
-#         print('Loading image file paths')
-#         response = requests.get(f'{API_URL}/queue/image-generation/list-by-dataset?dataset={dataset}&size={num_samples}')
-        
-#         jobs = json.loads(response.content)
-
-#         file_paths=[job['file_path'] for job in jobs]
-
-#         return file_paths
-
-def get_file_paths(dataset, num_samples):
-    print('Loading image file paths')
-    
-    try:
+###old
+def get_file_paths(dataset,num_samples):
+        print('Loading image file paths')
         response = requests.get(f'{API_URL}/queue/image-generation/list-by-dataset?dataset={dataset}&size={num_samples}')
-        response.raise_for_status()  # Raise an HTTPError for bad responses
+        
         jobs = json.loads(response.content)
-        file_paths = [job['file_path'] for job in jobs]
-    except requests.exceptions.RequestException as req_err:
-        print(f"Error in request: {req_err}")
-        file_paths = []  # Assign an empty list in case of an error
 
-    return file_paths
+        file_paths=[job['file_path'] for job in jobs]
+
+        return file_paths
+
+# def get_file_paths(dataset, num_samples):
+#     print('Loading image file paths')
+    
+#     try:
+#         response = requests.get(f'{API_URL}/queue/image-generation/list-by-dataset?dataset={dataset}&size={num_samples}')
+#         response.raise_for_status()  # Raise an HTTPError for bad responses
+#         jobs = json.loads(response.content)
+#         file_paths = [job['file_path'] for job in jobs]
+#     except requests.exceptions.RequestException as req_err:
+#         print(f"Error in request: {req_err}")
+#         file_paths = []  # Assign an empty list in case of an error
+
+#     return file_paths
 
 #load model
 model4 = DeepEnergyModel(img_shape=(1280,))
