@@ -1269,7 +1269,7 @@ adv_loader = train_loader_clip_ood
 
 #load model
 model4 = DeepEnergyModel(img_shape=(1280,))
-load_model(model4,'occult')
+load_model(model4,'cyber')
 model = model4
 
 # Load images
@@ -1284,7 +1284,7 @@ for i in range(1,len(id_classes_in)):
 
 #id_classes_ood = [7,8,9,15,20,21,22]
 # VS comic book
-id_classes_ood = [18,19,23,39,35,36]
+id_classes_ood = [10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40]
 
 
 
@@ -1404,9 +1404,9 @@ def plot_images_with_scores(sorted_dataset,name):
     
 print("yep it's here")
 sorted_comic_book = process_and_sort_dataset(images_paths_ood, model)
-# selected_structure = sorted_comic_book[:20]
+selected_structure = sorted_comic_book[:50]
 
-plot_images_with_scores(sorted_comic_book,"all_occult")
+plot_images_with_scores(selected_structure,"Top_50_cyber")
 
 
 
