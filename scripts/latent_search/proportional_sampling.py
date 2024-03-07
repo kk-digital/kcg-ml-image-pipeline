@@ -1,15 +1,9 @@
 import argparse
-from datetime import datetime
-import io
 import os
 import sys
-from matplotlib import pyplot as plt
 import numpy as np
-import pandas as pd
 import torch
-import torch.optim as optim
 import msgpack
-from PIL import Image
 
 
 base_dir = "./"
@@ -27,6 +21,11 @@ def parse_args():
         parser.add_argument('--minio-access-key', type=str, help='Minio access key')
         parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
         parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
+        parser.add_argument('--min-sigma', type=float, help='Minimal sigma score', default=-5)
+        parser.add_argument('--max-sigma', type=float, help='Maximal sigma score', default=5)
+        parser.add_argument('--max-generations', type=int, help='Maximum number of generated vectors', default=500000)
+        parser.add_argument('--num-bins', type=int, help='Number of bins', default=10)
+        parser.add_argument('--num-images', type=int, help='Number of images to generate', default=50)
         parser.add_argument('--send-job', action='store_true', default=False)
         parser.add_argument('--save-csv', action='store_true', default=False)
 
@@ -37,13 +36,21 @@ class KandinskyImageGenerator:
                  minio_access_key,
                  minio_secret_key,
                  dataset,
+                 min_sigma,
+                 max_sigma,
+                 max_generations,
+                 num_bins,
                  send_job=False,
                  save_csv=False
-                 ):
+                ):
         
         self.dataset= dataset
         self.send_job= send_job
         self.save_csv= save_csv
+        self.min_sigma= min_sigma
+        self.max_sigma= max_sigma
+        self.max_generations= max_generations
+        self.num_bins= num_bins
 
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
@@ -72,6 +79,56 @@ class KandinskyImageGenerator:
         min_vector = torch.tensor(data_dict["min"]).to(device=self.device, dtype=torch.float32)
 
         return mean_vector, std_vector, max_vector, min_vector
+    
+    def generate_sample(self):
+        """Generates a single embedding."""
+        return torch.normal(mean=self.clip_mean, std=self.clip_std).unsqueeze(0)
+    
+    def get_score(self, embedding):
+        """Scores a given embedding."""
+        with torch.no_grad:
+            score= self.scoring_model.model(embedding).item()
+
+        return score
+
+    def proportional_sampling(self, num_samples):
+        num_bins = self.num_bins
+        embeddings_per_bin = num_samples // self.num_bins
+
+        # Define bins
+        bins = np.linspace(self.min_sigma, self.max_sigma, num_bins+1)
+
+        # Initialize bins
+        binned_vectors = {i: [] for i in range(num_bins)}
+        bins_full = 0
+
+        for _ in range(self.max_generations):
+            if bins_full == num_bins:
+                break
+
+            # Generate a sample embedding and score it
+            embedding = self.generate_sample()
+            score = self.get_score(embedding)
+
+            # Determine the appropriate bin for the current score
+            bin_index = np.digitize(score, bins) - 1
+            # Adjust bin index to fit within the range of defined bins
+            bin_index = max(0, min(bin_index, num_bins-1))
+
+            # Add embedding to the bin if not full
+            if len(binned_vectors[bin_index]) < embeddings_per_bin:
+                binned_vectors[bin_index].append(embedding)
+
+                # Check if the bin is now full
+                if len(binned_vectors[bin_index]) == embeddings_per_bin:
+                    bins_full += 1
+
+        # At this point, all necessary bins are filled or the max number of generations is reached
+        # Process the binned embeddings as needed for your application
+
+        print("Binning complete. Summary:")
+        for bin_index, embeddings in bins.items():
+            print(f"Bin {bin_index}: {len(embeddings)} embeddings")
 
     def sample_embeddings(self, num_samples=1000):
         sampled_embeddings = torch.normal(mean=self.clip_mean.repeat(num_samples, 1),
@@ -87,40 +144,20 @@ class KandinskyImageGenerator:
         
         return scores
     
-    def scores_histogram(self):
-
-        scores= self.sample_embeddings(num_samples=100000)
-
-        # Create a histogram
-        plt.figure(figsize=(10, 5))
-        plt.hist(scores, bins=30, alpha=0.7, color='b', label='Data')
-
-        plt.xlabel('Sigma Score')
-        plt.ylabel('Frequency')
-        plt.title(f'Distribution of scores')
-
-        # Save the figure to a file
-        buf = io.BytesIO()
-        plt.savefig(buf, format='png')
-        buf.seek(0)
-
-        # upload the graph report
-        minio_path= f"{self.dataset}/data/latent-generator/score_distribution.png"
-        cmd.upload_data(self.minio_client, 'datasets', minio_path, buf)
-
-        # Clear the current figure
-        plt.clf()
-    
 def main():
     args= parse_args()
     # initialize generator
     generator= KandinskyImageGenerator(minio_access_key=args.minio_access_key,
                                        minio_secret_key=args.minio_secret_key,
                                        dataset=args.dataset,
+                                       min_sigma=args.min_sigma,
+                                       max_sigma=args.max_sigma,
+                                       max_generations=args.max_generations,
+                                       num_bins=args.num_bins,
                                        send_job= args.send_job,
                                        save_csv= args.save_csv)
     
-    generator.scores_histogram()
+    generator.proportional_sampling(num_samples=args.num_images)
 
 if __name__ == "__main__":
     main()
