@@ -26,6 +26,9 @@ from kandinsky.utils_image import  save_image_data_to_minio, save_latent_to_mini
 from worker.clip_calculation.clip_calculator import run_clip_calculation_task
 from worker.generation_task.generation_task import GenerationTask
 from kandinsky.models.kandisky import KandinskyPipeline
+from data_loader.utils import get_object, get_object_with_bucket
+from kandinsky_worker.dataloaders.image_embedding import ImageEmbedding
+from kandinsky_worker.dataloaders.generated_img2img_data import GeneratedImg2imgData
 
 class ThreadState:
     def __init__(self, thread_id, thread_name):
@@ -134,7 +137,92 @@ def run_inpainting_generation_task(worker_state, generation_task: GenerationTask
     # convert image to png from RGB
     output_file_hash, img_byte_arr = inpainting_processor.convert_image_to_png(image)
     
-    output_file_path = os.path.join("datasets", dataset, generation_task.task_input_dict['file_path'])
+    output_file_path = os.path.join("datasets-inpainting", dataset, generation_task.task_input_dict['file_path'])
+
+    # Return the latent vector along with other values
+    return output_file_path, output_file_hash, img_byte_arr, latents, seed
+
+
+def run_img2img_generation_task(worker_state, generation_task: GenerationTask):
+    # TODO(): Make a cache for these images
+    # Check if they changed on disk maybe and reload
+    random.seed(time.time())
+    seed = random.randint(0, 2 ** 24 - 1)
+
+    generation_task.task_input_dict["seed"] = seed
+    
+
+    try:
+        #get the image data that is stored in minio
+        bucket_name, file_path = separate_bucket_and_file_path(generation_task.task_input_dict["init_img"])
+        response = worker_state.minio_client.get_object(bucket_name, file_path)
+        image_data = BytesIO(response.data)
+        init_image = Image.open(image_data)
+        init_image = init_image.convert("RGB")
+
+        # get the mask data that is stored in minio
+        bucket_name, file_path = separate_bucket_and_file_path(generation_task.task_input_dict["init_mask"])
+        response = worker_state.minio_client.get_object(bucket_name, file_path)
+        image_data = BytesIO(response.data)
+        init_mask = Image.open(image_data)
+        init_mask = init_mask.convert("RGB")
+    except Exception as e:
+        raise e
+    finally:
+        response.close()
+        response.release_conn()
+
+    image_width = generation_task.task_input_dict["image_width"]
+    image_height = generation_task.task_input_dict["image_height"]
+    strength = generation_task.task_input_dict["strength"]
+    decoder_steps = generation_task.task_input_dict["decoder_steps"]
+    decoder_guidance_scale = generation_task.task_input_dict["decoder_guidance_scale"]
+    dataset = generation_task.task_input_dict["dataset"]
+
+    image_encoder=worker_state.clip.vision_model
+    decoder_model = worker_state.img2img_decoder
+
+    img2img_processor = KandinskyPipeline(
+        device=worker_state.device,
+        width= image_width,
+        height= image_height,
+        batch_size=1,
+        decoder_steps= decoder_steps,
+        strength= strength,
+        decoder_guidance_scale= decoder_guidance_scale
+    )
+
+    img2img_processor.set_models(
+        unet=None,
+        prior_model=None,
+        image_encoder= image_encoder,
+        decoder_model= decoder_model
+    )
+    
+    # get the input image embeddings from minIO
+    output_file_path = os.path.join(dataset, generation_task.task_input_dict['file_path'])
+    # image_embeddings_path = output_file_path.replace(".jpg", "_embedding.msgpack")    
+    # embedding_data = get_object_with_bucket(worker_state.minio_client, "datasets-inpainting", image_embeddings_path)
+    # embedding_dict = ImageEmbedding.from_msgpack_bytes(embedding_data)
+    # image_embedding= embedding_dict.image_embedding.to(worker_state.device)
+    # negative_image_embedding= embedding_dict.negative_image_embedding
+    
+    image_embedding = worker_state.clip.get_image_features(init_image)
+    negative_image_embedding = None
+
+    if negative_image_embedding is not None:
+        negative_image_embedding= negative_image_embedding.to(worker_state.device)
+
+    # generate image
+    image, latents = img2img_processor.generate_img2img_inpainting(init_img=init_image,
+                                                        img_mask=init_mask,
+                                                        image_embeds= image_embedding,
+                                                        negative_image_embeds= negative_image_embedding,
+                                                        seed=seed)
+
+    output_file_path = os.path.join("datasets-inpainting", output_file_path)
+    # convert image to png from RGB
+    output_file_hash, img_byte_arr = img2img_processor.convert_image_to_png(image)
 
     # Return the latent vector along with other values
     return output_file_path, output_file_hash, img_byte_arr, latents, seed
@@ -168,6 +256,25 @@ def get_job_if_exist(worker_type_list):
             break
 
     return job
+
+
+def save_img2img_data_to_minio(minio_client, job_uuid, creation_time, dataset, file_path, file_hash, seed,
+                             image_width, image_height, strength, decoder_steps, decoder_guidance_scale):
+    
+    bucket_name, file_path = separate_bucket_and_file_path(file_path)
+
+    generated_image_data = GeneratedImg2imgData(job_uuid, creation_time, dataset, file_path, file_hash,
+                                              seed, image_width, image_height, strength, decoder_steps, 
+                                              decoder_guidance_scale)
+
+
+    msgpack_string = generated_image_data.get_msgpack_string()
+
+    buffer = io.BytesIO()
+    buffer.write(msgpack_string)
+    buffer.seek(0)
+
+    cmd.upload_data(minio_client, bucket_name, file_path.replace('.jpg', '_data.msgpack'), buffer)
 
 
 def upload_data_and_update_job_status(job, output_file_path, output_file_hash, data, minio_client):
@@ -309,6 +416,88 @@ def upload_image_data_and_update_job_status(worker_state,
     generation_request.http_add_job(sd_clip_calculation_job)
 
 
+def upload_image_data_and_update_job_status_img2img(worker_state,
+                                            job,
+                                            generation_task,
+                                            seed,
+                                            latent,
+                                            output_file_path,
+                                            output_file_hash,
+                                            job_completion_time,
+                                            data):
+    start_time = time.time()
+    bucket_name, file_path = separate_bucket_and_file_path(output_file_path)
+
+    minio_client = worker_state.minio_client
+
+    image_width = generation_task.task_input_dict["image_width"]
+    image_height = generation_task.task_input_dict["image_height"]
+    strength = generation_task.task_input_dict["strength"]
+    decoder_steps = generation_task.task_input_dict["decoder_steps"]
+    decoder_guidance_scale = generation_task.task_input_dict["decoder_guidance_scale"]
+    dataset = generation_task.task_input_dict["dataset"]
+
+    cmd.upload_data(minio_client, bucket_name, file_path, data)
+
+    # save image meta data
+    # Todo(): Implement this function
+    save_img2img_data_to_minio(minio_client,
+                             generation_task.uuid,
+                             job_completion_time,
+                             dataset,
+                             output_file_path,
+                             output_file_hash,
+                             seed,
+                             image_width,
+                             image_height,
+                             strength,
+                             decoder_steps,
+                             decoder_guidance_scale)
+
+    save_latent_to_minio(minio_client, 
+                         bucket_name, 
+                         generation_task.uuid, 
+                         output_file_hash, 
+                         latent, 
+                         output_file_path)
+
+    info_v2("Upload for job {} completed".format(generation_task.uuid))
+    info_v2("Upload time elapsed: {:.4f}s".format(time.time() - start_time))
+
+    # update job info
+    job['task_completion_time'] = job_completion_time
+    job['task_output_file_dict'] = {
+        'output_file_path': output_file_path,
+        'output_file_hash': output_file_hash
+    }
+    info_v2("output file path: " + output_file_path)
+    info_v2("output file hash: " + output_file_hash)
+    info_v2("job completed: " + generation_task.uuid)
+
+    # update status
+    inpainting_request.http_update_job_completed(job)
+
+    # add clip calculation tasks
+    kandinsky_clip_calculation_job = {"uuid": "",
+                            "task_type": "clip_calculation_task_kandinsky",
+                            "task_input_dict": {
+                                "input_file_path": output_file_path,
+                                "input_file_hash": output_file_hash
+                            },
+                            }
+    
+    sd_clip_calculation_job = {"uuid": "",
+                            "task_type": "clip_calculation_task_sd_1_5",
+                            "task_input_dict": {
+                                "input_file_path": output_file_path,
+                                "input_file_hash": output_file_hash
+                            },
+                            }
+
+    inpainting_request.http_add_job(kandinsky_clip_calculation_job)
+    generation_request.http_add_job(sd_clip_calculation_job)
+
+
 def process_jobs(worker_state):
     thread_state = ThreadState(1, "Job Processor")
     last_job_time = time.time()
@@ -366,6 +555,18 @@ def process_jobs(worker_state):
                     # spawn upload data and update job thread
                     thread = threading.Thread(target=upload_data_and_update_job_status, args=(
                         job, output_file_path, output_file_hash, clip_data, worker_state.minio_client,))
+                    thread.start()
+
+                elif task_type == 'kandinsky-2-img-to-img-inpainting':
+                    output_file_path, output_file_hash, img_data, latent, seed = run_img2img_generation_task(worker_state,
+                                                                                                   generation_task)
+
+
+                    job_completion_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+                    # spawn upload data and update job thread
+                    thread = threading.Thread(target=upload_image_data_and_update_job_status_img2img, args=(
+                        worker_state, job, generation_task, seed, latent, output_file_path, output_file_hash, job_completion_time, img_data))
                     thread.start()
 
                 else:
