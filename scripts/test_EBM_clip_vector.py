@@ -1466,6 +1466,8 @@ images_paths_ood = get_file_paths("environmental",30000)
 
 images_paths_characters = get_file_paths("character",1500)
 
+print("firs image : ", images_paths_characters[0] )
+
 print("character dataset is lenght is ",len(images_paths_characters))
 
 # train_loader_clip_characters, val_loader_clip_characters= get_clip_embeddings_by_path(images_paths_characters,0)
