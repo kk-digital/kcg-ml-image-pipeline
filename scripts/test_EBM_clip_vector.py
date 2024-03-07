@@ -1222,6 +1222,43 @@ for i in range(1,len(id_classes_in)):
     images_paths_in = images_paths_in + get_tag_jobs(id_classes_in[i])
 
 
+
+import csv
+
+def get_structure_csv_content(sorted_structure,name):
+    # Calculate the percentile and assign bin numbers
+    scores = [item[2] for item in sorted_structure]
+    bin_numbers = pd.qcut(scores, q=100, labels=False) + 1
+
+    # Combine image paths, scores, and bin numbers into a list of dictionaries
+    data = [
+        {
+            'image_path': item[0],
+            'score': item[2],
+            'bin_number': bin_numbers[i] + 1  # Adjust bin_number to start from 1
+        }
+        for i, item in enumerate(sorted_structure)
+    ]
+
+    # Write the list of dictionaries to an in-memory buffer
+    csv_buffer = io.StringIO()
+    writer = csv.DictWriter(csv_buffer, fieldnames=['image_path', 'score', 'bin_number'])
+    writer.writeheader()
+    writer.writerows(data)
+
+    # Return the content of the buffer
+
+    # Upload the model to MinIO
+    minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",None)
+    minio_path="environmental/output/my_tests"
+    date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
+    minio_path= minio_path + "/best_results_for"+name+'_'+date_now+".csv"
+    cmd.upload_data(minio_client, 'datasets', minio_path, BytesIO(csv_buffer.getvalue()))
+    print(f'Model saved to {minio_path}')
+
+     
+
+
 #######################################################################################################################################################
 ################################################################    Run code here      ################################################################
 #######################################################################################################################################################
@@ -1469,7 +1506,8 @@ adv_loader = train_loader_clip_ood
 
 
 #"test-generations" environmental
-images_paths_ood = get_file_paths("environmental",30000)
+#images_paths_ood = get_file_paths("environmental",30000)
+images_paths_ood = get_file_paths("environmental",3000)
 
 # # Test on some pcitures
 # for i in range (len(images_paths_in)):
@@ -1619,46 +1657,47 @@ images_paths_ood = get_file_paths("environmental",30000)
 ################# Running test
 #################
 
-# #load model
-# model5 = DeepEnergyModel(img_shape=(1280,))
-# load_model(model5,'cyber')
-# model = model5
-
-# print("yep it's here")
-# sorted_comic_book = process_and_sort_dataset(images_paths_ood, model)
-# selected_structure_first_52 = sorted_comic_book[:52]
-# selected_structure_second_52 = sorted_comic_book[52:103]
-# selected_structure_third_52 = sorted_comic_book[103:154]
-
-# plot_images_with_scores(selected_structure_first_52,"Top_first_52_cyber_test_gen")
-# plot_images_with_scores(selected_structure_second_52,"Top_second_52_cyber_test_gen")
-# plot_images_with_scores(selected_structure_third_52,"Top_third_52_cyber_test_gen")
-
-###################################################################################### Combined ######################################################################################
-
-model_cyber = DeepEnergyModel(img_shape=(1280,))
-load_model(model_cyber,'cyber')
-model_cyber = model_cyber
-
-model_occult= DeepEnergyModel(img_shape=(1280,))
-load_model(model_occult,'occult')
-model_occult = model_occult
-
-model_characters= DeepEnergyModel(img_shape=(1280,))
-load_model(model_characters,'characters')
-model_characters = model_occult
-
-
+#load model
+model5 = DeepEnergyModel(img_shape=(1280,))
+load_model(model5,'cyber')
+model = model5
 
 print("yep it's here")
-sorted_comic_book = process_and_sort_dataset_combined(images_paths_ood, model_cyber,model_characters)
+sorted_comic_book = process_and_sort_dataset(images_paths_ood, model)
+get_structure_csv_content(sorted_comic_book,"cyber_on_env_3000_sample")
 selected_structure_first_52 = sorted_comic_book[:52]
 selected_structure_second_52 = sorted_comic_book[52:103]
 selected_structure_third_52 = sorted_comic_book[103:154]
 
-plot_images_with_scores(selected_structure_first_52,"Top_first_52_cyber_and_characters_env")
-plot_images_with_scores(selected_structure_second_52,"Top_second_52_cyber_and_characters_env")
-plot_images_with_scores(selected_structure_third_52,"Top_third_52__cyber_and_characters_env")
+plot_images_with_scores(selected_structure_first_52,"Top_first_52_cyber_env_3000_sample")
+plot_images_with_scores(selected_structure_second_52,"Top_second_52_cyber_env_3000_sample")
+plot_images_with_scores(selected_structure_third_52,"Top_third_52_cyber_env_3000_sample")
+
+###################################################################################### Combined ######################################################################################
+
+# model_cyber = DeepEnergyModel(img_shape=(1280,))
+# load_model(model_cyber,'cyber')
+# model_cyber = model_cyber
+
+# model_occult= DeepEnergyModel(img_shape=(1280,))
+# load_model(model_occult,'occult')
+# model_occult = model_occult
+
+# model_characters= DeepEnergyModel(img_shape=(1280,))
+# load_model(model_characters,'characters')
+# model_characters = model_occult
+
+
+
+# print("yep it's here")
+# sorted_comic_book = process_and_sort_dataset_combined(images_paths_ood, model_cyber,model_characters)
+# selected_structure_first_52 = sorted_comic_book[:52]
+# selected_structure_second_52 = sorted_comic_book[52:103]
+# selected_structure_third_52 = sorted_comic_book[103:154]
+
+# plot_images_with_scores(selected_structure_first_52,"Top_first_52_cyber_and_characters_env")
+# plot_images_with_scores(selected_structure_second_52,"Top_second_52_cyber_and_characters_env")
+# plot_images_with_scores(selected_structure_third_52,"Top_third_52__cyber_and_characters_env")
 
 
 
