@@ -232,7 +232,8 @@ class KandinskyImageGenerator:
                     'time': task_time
                 })
 
-        self.store_uuids_in_csv_file(df_data)
+        if self.save_csv:
+            self.store_uuids_in_csv_file(df_data)
     
     # store list of initial prompts in a csv to use for prompt mutation
     def store_uuids_in_csv_file(self, data):
