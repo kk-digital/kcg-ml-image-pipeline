@@ -118,6 +118,7 @@ class KandinskyImageGenerator:
         print("Binning complete. Summary:")
         for bin_index, embeddings in binned_vectors.items():
             print(f"Bin {bin_index}: {len(embeddings)} embeddings")
+            print(embeddings[0])
 
     def sample_embeddings(self, num_samples):
         sampled_embeddings = torch.normal(mean=self.clip_mean.repeat(num_samples, 1),
