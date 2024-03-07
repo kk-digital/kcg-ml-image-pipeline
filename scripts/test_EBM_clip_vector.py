@@ -1619,40 +1619,46 @@ images_paths_ood = get_file_paths("test-generations",25000)
 ################# Running test
 #################
 
-#load model
-model5 = DeepEnergyModel(img_shape=(1280,))
-load_model(model5,'cyber')
-model = model5
-
-print("yep it's here")
-sorted_comic_book = process_and_sort_dataset(images_paths_ood, model)
-selected_structure_first_52 = sorted_comic_book[:52]
-selected_structure_second_52 = sorted_comic_book[52:103]
-selected_structure_third_52 = sorted_comic_book[103:154]
-
-plot_images_with_scores(selected_structure_first_52,"Top_first_52_cyber_test_gen")
-plot_images_with_scores(selected_structure_second_52,"Top_second_52_cyber_test_gen")
-plot_images_with_scores(selected_structure_third_52,"Top_third_52_cyber_test_gen")
-
-###################################################################################### Combined ######################################################################################
-
-# model_cyber = DeepEnergyModel(img_shape=(1280,))
-# load_model(model_cyber,'cyber')
-# model_cyber = model_cyber
-
-# model_occult= DeepEnergyModel(img_shape=(1280,))
-# load_model(model_occult,'occult')
-# model_occult = model_occult
+# #load model
+# model5 = DeepEnergyModel(img_shape=(1280,))
+# load_model(model5,'cyber')
+# model = model5
 
 # print("yep it's here")
-# sorted_comic_book = process_and_sort_dataset_combined(images_paths_ood, model_cyber,model_occult)
+# sorted_comic_book = process_and_sort_dataset(images_paths_ood, model)
 # selected_structure_first_52 = sorted_comic_book[:52]
 # selected_structure_second_52 = sorted_comic_book[52:103]
 # selected_structure_third_52 = sorted_comic_book[103:154]
 
-# plot_images_with_scores(selected_structure_first_52,"Top_first_52_occult_and_cyber_env")
-# plot_images_with_scores(selected_structure_second_52,"Top_second_52_occult_and_cyber_env")
-# plot_images_with_scores(selected_structure_third_52,"Top_third_52_occult_and_cyber_env")
+# plot_images_with_scores(selected_structure_first_52,"Top_first_52_cyber_test_gen")
+# plot_images_with_scores(selected_structure_second_52,"Top_second_52_cyber_test_gen")
+# plot_images_with_scores(selected_structure_third_52,"Top_third_52_cyber_test_gen")
+
+###################################################################################### Combined ######################################################################################
+
+model_cyber = DeepEnergyModel(img_shape=(1280,))
+load_model(model_cyber,'cyber')
+model_cyber = model_cyber
+
+model_occult= DeepEnergyModel(img_shape=(1280,))
+load_model(model_occult,'occult')
+model_occult = model_occult
+
+model_characters= DeepEnergyModel(img_shape=(1280,))
+load_model(model_characters,'characters')
+model_characters = model_occult
+
+
+
+print("yep it's here")
+sorted_comic_book = process_and_sort_dataset_combined(images_paths_ood, model_cyber,model_characters)
+selected_structure_first_52 = sorted_comic_book[:52]
+selected_structure_second_52 = sorted_comic_book[52:103]
+selected_structure_third_52 = sorted_comic_book[103:154]
+
+plot_images_with_scores(selected_structure_first_52,"Top_first_52_cyber_and_characters_env")
+plot_images_with_scores(selected_structure_second_52,"Top_second_52_cyber_and_characters_env")
+plot_images_with_scores(selected_structure_third_52,"Top_third_52__cyber_and_characters_env")
 
 
 
