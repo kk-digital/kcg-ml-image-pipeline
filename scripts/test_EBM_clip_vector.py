@@ -1265,7 +1265,15 @@ adv_loader = train_loader_clip_ood
 # # Clear the current figure
 # plt.clf()
 
+def get_file_paths(self):
+        print('Loading image file paths')
+        response = requests.get(f'{API_URL}/queue/image-generation/list-by-dataset?dataset={self.dataset}&size={self.num_samples}')
+        
+        jobs = json.loads(response.content)
 
+        file_paths=[job['file_path'] for job in jobs]
+
+        return file_paths
 
 #load model
 model4 = DeepEnergyModel(img_shape=(1280,))
@@ -1284,7 +1292,7 @@ for i in range(1,len(id_classes_in)):
 
 #id_classes_ood = [7,8,9,15,20,21,22]
 # VS comic book
-id_classes_ood = [10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40]
+id_classes_ood = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,45,46,47,48,49,50]
 
 
 
