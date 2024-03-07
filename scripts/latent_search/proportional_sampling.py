@@ -152,7 +152,7 @@ class KandinskyImageGenerator:
         clip_vectors= self.top_k_sampling(num_samples=num_samples)
 
         # Convert list of embeddings to a tensor if not already one
-        optimized_embeddings = clip_vectors.clone().detach().requires_grad_(True)
+        optimized_embeddings = torch.stack(clip_vectors).detach().requires_grad_(True)
 
         # Setup the optimizer for the batch
         optimizer = optim.Adam([optimized_embeddings], lr=self.learning_rate)
@@ -174,10 +174,12 @@ class KandinskyImageGenerator:
 
             optimizer.step()
 
-            if step % self.print_step == 0:
-                print(f"Step: {step}, Mean Score: {scores.mean().item()}, Loss: {total_loss.item()}")
-        
-        return optimized_embeddings
+            print(f"Step: {step}, Mean Score: {scores.mean().item()}, Loss: {total_loss.item()}")
+
+        # Optionally, convert optimized embeddings back to a list of tensors
+        optimized_embeddings_list = [optimized_embeddings[i] for i in range(optimized_embeddings.size(0))]
+
+        return optimized_embeddings_list
 
     def sample_embeddings(self, num_samples):
         sampled_embeddings = torch.normal(mean=self.clip_mean.repeat(num_samples, 1),
