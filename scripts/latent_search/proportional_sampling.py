@@ -164,7 +164,7 @@ class KandinskyImageGenerator:
             scores = self.scoring_model.model(optimized_embeddings)
 
             # Calculate the loss for each embedding in the batch
-            score_losses = self.target_score - scores.squeeze()
+            score_losses = - scores.squeeze()
 
             # Calculate the total loss for the batch
             total_loss = score_losses.mean()
