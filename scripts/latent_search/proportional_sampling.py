@@ -24,6 +24,7 @@ def parse_args():
         parser.add_argument('--num-bins', type=int, help='Number of bins', default=10)
         parser.add_argument('--num-images', type=int, help='Number of images to generate', default=1000)
         parser.add_argument('--top-k', type=float, help='Portion of samples to generate images with', default=0.1)
+        parser.add_argument('--batch-size', type=float, help='Inference batch size used by the scoring model', default=64)
         parser.add_argument('--send-job', action='store_true', default=False)
         parser.add_argument('--save-csv', action='store_true', default=False)
 
@@ -36,6 +37,7 @@ class KandinskyImageGenerator:
                  dataset,
                  num_bins,
                  top_k,
+                 batch_size,
                  send_job=False,
                  save_csv=False
                 ):
@@ -45,6 +47,7 @@ class KandinskyImageGenerator:
         self.save_csv= save_csv
         self.num_bins= num_bins
         self.top_k= top_k
+        self.batch_size= batch_size
 
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
@@ -142,6 +145,7 @@ def main():
                                        dataset=args.dataset,
                                        num_bins=args.num_bins,
                                        top_k= args.top_k,
+                                       batch_size= args.batch_size,
                                        send_job= args.send_job,
                                        save_csv= args.save_csv)
     
