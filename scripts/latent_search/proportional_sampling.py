@@ -121,3 +121,6 @@ def main():
                                        save_csv= args.save_csv)
     
     generator.scores_histogram()
+
+if __name__ == "__main__":
+    main()
