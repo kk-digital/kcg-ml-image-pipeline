@@ -1236,7 +1236,7 @@ def get_structure_csv_content(sorted_structure,name):
         {
             'image_path': item[0],
             'score': item[2],
-            'bin_number': bin_numbers[i] + 1  # Adjust bin_number to start from 1
+            'bin_number': bin_numbers[i]  # Adjust bin_number to start from 1
         }
         for i, item in enumerate(sorted_structure)
     ]
@@ -1509,7 +1509,7 @@ adv_loader = train_loader_clip_ood
 
 #"test-generations" environmental
 #images_paths_ood = get_file_paths("environmental",30000)
-images_paths_ood = get_file_paths("environmental",300)
+images_paths_ood = get_file_paths("environmental",30000)
 
 # # Test on some pcitures
 # for i in range (len(images_paths_in)):
@@ -1666,14 +1666,14 @@ model = model5
 
 print("yep it's here")
 sorted_comic_book = process_and_sort_dataset(images_paths_ood, model)
-get_structure_csv_content(sorted_comic_book,"cyber_on_env_3000_sample")
+get_structure_csv_content(sorted_comic_book,"cyber_on_env_30000_sample")
 selected_structure_first_52 = sorted_comic_book[:52]
 selected_structure_second_52 = sorted_comic_book[52:103]
 selected_structure_third_52 = sorted_comic_book[103:154]
 
-plot_images_with_scores(selected_structure_first_52,"Top_first_52_cyber_env_3000_sample")
-plot_images_with_scores(selected_structure_second_52,"Top_second_52_cyber_env_3000_sample")
-plot_images_with_scores(selected_structure_third_52,"Top_third_52_cyber_env_3000_sample")
+plot_images_with_scores(selected_structure_first_52,"Top_first_52_cyber_env_30000_sample")
+plot_images_with_scores(selected_structure_second_52,"Top_second_52_cyber_env_30000_sample")
+plot_images_with_scores(selected_structure_third_52,"Top_third_52_cyber_env_30000_sample")
 
 ###################################################################################### Combined ######################################################################################
 
