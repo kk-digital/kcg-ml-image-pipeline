@@ -1300,8 +1300,8 @@ for i in range(1,len(id_classes_in)):
 #     images_paths_ood  = images_paths_ood  + get_tag_jobs(id_classes_ood [i])
 
 
-
-images_paths_ood = get_file_paths("test-generations",1000)
+#"test-generations"
+images_paths_ood = get_file_paths("environmental",30000)
 
 # # Test on some pcitures
 # for i in range (len(images_paths_in)):
@@ -1414,10 +1414,10 @@ def plot_images_with_scores(sorted_dataset,name):
 print("yep it's here")
 sorted_comic_book = process_and_sort_dataset(images_paths_ood, model)
 selected_structure_first_52 = sorted_comic_book[:52]
-selected_structure_second_52 = sorted_comic_book[52:101]
+selected_structure_second_52 = sorted_comic_book[52:103]
 
-plot_images_with_scores(selected_structure_first_52,"Top_first_52_cyber")
-plot_images_with_scores(selected_structure_second_52,"Top_second_52_cyber")
+plot_images_with_scores(selected_structure_first_52,"Top_first_52_cyber_env")
+plot_images_with_scores(selected_structure_second_52,"Top_second_52_cyber_env")
 
 
 ################################################################    Use Data augmentation       ################################################################
