@@ -1301,7 +1301,7 @@ for i in range(1,len(id_classes_in)):
 
 
 
-images_paths_ood = get_file_paths("test-generations",10000)
+images_paths_ood = get_file_paths("test-generations",500)
 
 # # Test on some pcitures
 # for i in range (len(images_paths_in)):
