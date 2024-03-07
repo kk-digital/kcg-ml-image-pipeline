@@ -1469,7 +1469,7 @@ adv_loader = train_loader_clip_ood
 
 
 #"test-generations" environmental
-images_paths_ood = get_file_paths("test-generations",25000)
+images_paths_ood = get_file_paths("environmental",30000)
 
 # # Test on some pcitures
 # for i in range (len(images_paths_in)):
