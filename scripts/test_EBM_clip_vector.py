@@ -1224,6 +1224,7 @@ for i in range(1,len(id_classes_in)):
 
 
 import csv
+import pandas as pd
 
 def get_structure_csv_content(sorted_structure,name):
     # Calculate the percentile and assign bin numbers
