@@ -15,6 +15,8 @@ from PIL import Image
 import time
 import random
 
+from tqdm import tqdm
+
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
@@ -23,12 +25,13 @@ from kandinsky.model_paths import PRIOR_MODEL_PATH
 from transformers import CLIPImageProcessor
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
-from training_worker.ab_ranking.model.ab_ranking_fc import ABRankingFCNetwork
+from training_worker.scoring.models.scoring_fc import ScoringFCNetwork
 from kandinsky.models.kandisky import KandinskyPipeline
 from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 from data_loader.utils import get_object
 from torch.nn.functional import cosine_similarity 
+from training_worker.scoring.models.scoring_xgboost import ScoringXgboostModel
 
 
 DATA_MINIO_DIRECTORY="data/latent-generator"
@@ -40,7 +43,7 @@ def parse_args():
     parser.add_argument('--minio-access-key', type=str, help='Minio access key')
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
-    parser.add_argument('--model-type', type=str, help='model type, linear or elm', default="elm")
+    parser.add_argument('--model-type', type=str, help='model type, fc or xgboost', default="fc")
     parser.add_argument('--kandinsky-batch-size', type=int, default=5)
     parser.add_argument('--training-batch-size', type=int, default=64)
     parser.add_argument('--epochs', type=int, default=10)
@@ -74,14 +77,17 @@ class ABRankingFcTrainingPipeline:
         self.device = torch.device(device)
         
         self.dataset= dataset
-        self.model_type= model_type
         self.training_batch_size= training_batch_size
         self.kandinsky_batch_size= kandinsky_batch_size
         self.num_samples= num_samples
         self.learning_rate= learning_rate
         self.epochs= epochs
+        self.model_type= model_type
 
-        self.model= ABRankingFCNetwork(minio_client=self.minio_client, learning_rate=self.learning_rate)
+        if(self.model_type=="fc"):
+            self.model= ScoringFCNetwork(minio_client=self.minio_client)
+        elif(self.model_type=="xgboost"):
+            self.model= ScoringXgboostModel(minio_client=self.minio_client)
 
         # load kandinsky clip
         self.image_processor= CLIPImageProcessor.from_pretrained(PRIOR_MODEL_PATH, subfolder="image_processor", local_files_only=True)
@@ -116,12 +122,8 @@ class ABRankingFcTrainingPipeline:
     def load_scoring_model(self):
         input_path=f"{self.dataset}/models/ranking/"
 
-        if(self.model_type=="elm"):
-            scoring_model = ABRankingELMModel(1280)
-            file_name=f"score-elm-v1-clip-h.safetensors"
-        else:
-            scoring_model= ABRankingModel(1280)
-            file_name=f"score-linear-clip-h.safetensors"
+        scoring_model = ABRankingELMModel(1280)
+        file_name=f"score-elm-v1-clip-h.safetensors"
 
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
         most_recent_model = None
@@ -216,7 +218,7 @@ class ABRankingFcTrainingPipeline:
 
     def get_file_paths(self):
         print('Loading image file paths')
-        response = requests.get(f'{API_URL}/queue/image-generation/list-by-dataset?dataset={self.dataset}&model_type=elm-v1&min_clip_sigma_score=0.8&size={self.num_samples}')
+        response = requests.get(f'{API_URL}/queue/image-generation/list-by-dataset?dataset={self.dataset}&model_type=elm-v1&min_clip_sigma_score=0&size={self.num_samples}')
         
         jobs = json.loads(response.content)
 
@@ -227,15 +229,23 @@ class ABRankingFcTrainingPipeline:
     def load_samples_from_minio(self):
         file_paths= self.get_file_paths()
 
+        print(len(file_paths))
+
         latents=[]
-        for path in file_paths:
-            clip_path= path.replace('.jpg', '_clip_kandinsky.msgpack')
-            bucket, features_vector_path= separate_bucket_and_file_path(clip_path) 
-            features_data = get_object(self.minio_client, features_vector_path)
-            features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
-            features_vector= torch.tensor(features_vector).to(device=self.device, dtype=torch.float32)
-            
-            latents.append(features_vector)
+        missing=0
+        for path in tqdm(file_paths):
+            try:
+                clip_path= path.replace('.jpg', '_clip_kandinsky.msgpack')
+                bucket, features_vector_path= separate_bucket_and_file_path(clip_path) 
+                features_data = get_object(self.minio_client, features_vector_path)
+                features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
+                features_vector= torch.tensor(features_vector).to(device=self.device, dtype=torch.float32)
+                
+                latents.append(features_vector)
+            except:
+                missing+=1
+        
+        print(missing)
 
         return latents
 
@@ -265,14 +275,17 @@ class ABRankingFcTrainingPipeline:
             outputs.extend(self_training_outputs)
         
         # training and saving the model
-        loss=self.model.train(inputs, outputs, num_epochs= self.epochs, batch_size=self.training_batch_size)
+        if self.model_type=="fc":
+            loss=self.model.train(inputs, outputs, num_epochs= self.epochs, batch_size=self.training_batch_size, learning_rate=self.learning_rate)
+        elif self.model_type=="xgboost":
+            loss=self.model.train(inputs, outputs)
         self.model.save_model()
     
     def load_self_training_data(self, data):
         inputs=[]
         outputs=[]
         for d in data:
-            inputs.append(d['input_clip'])
+            inputs.append(d['input_clip'][0])
             outputs.append(d['output_clip_score'])
         
         return inputs, outputs

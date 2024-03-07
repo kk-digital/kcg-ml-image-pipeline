@@ -9,8 +9,6 @@ import torch
 import torch.optim as optim
 import msgpack
 from PIL import Image
-import time
-import random
 
 
 base_dir = "./"
@@ -19,11 +17,8 @@ sys.path.insert(0, os.getcwd())
 
 from kandinsky.model_paths import PRIOR_MODEL_PATH
 from transformers import CLIPImageProcessor
-from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
-from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
-from kandinsky.models.kandisky import KandinskyPipeline
-from training_worker.ab_ranking.model.ab_ranking_fc import ABRankingFCNetwork
+from training_worker.scoring.models.scoring_fc import ScoringFCNetwork
 from utility.minio import cmd
 from data_loader.utils import get_object
 
@@ -82,7 +77,7 @@ class KandinskyImageGenerator:
         # load kandinsky clip
         self.image_processor= CLIPImageProcessor.from_pretrained(PRIOR_MODEL_PATH, subfolder="image_processor", local_files_only=True)
 
-        self.scoring_model= ABRankingFCNetwork(minio_client=self.minio_client)
+        self.scoring_model= ScoringFCNetwork(minio_client=self.minio_client)
         self.scoring_model.load_model()
 
         self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()

@@ -44,11 +44,11 @@ class DatasetLoader(Dataset):
         return sample_features, sample_label
 
 
-class ABRankingFCNetwork(nn.Module):
+class ScoringFCNetwork(nn.Module):
     def __init__(self, minio_client, input_size=1280, hidden_sizes=[512, 256], input_type="input_clip" , output_size=1, 
                  output_type="sigma_score", dataset="environmental"):
         
-        super(ABRankingFCNetwork, self).__init__()
+        super(ScoringFCNetwork, self).__init__()
         # set device
         if torch.cuda.is_available():
             device = 'cuda'
@@ -110,7 +110,7 @@ class ABRankingFCNetwork(nn.Module):
             
             with torch.no_grad():
                 for inputs, targets in val_loader:
-                    inputs=inputs.to(self._device).squeeze(1)
+                    inputs=inputs.to(self._device)
                     targets=targets.to(self._device)
 
                     outputs = self.model(inputs)
@@ -124,7 +124,7 @@ class ABRankingFCNetwork(nn.Module):
             total_train_samples = 0
             
             for inputs, targets in train_loader:
-                inputs=inputs.to(self._device).squeeze(1)
+                inputs=inputs.to(self._device)
                 targets=targets.to(self._device)
 
                 optimizer.zero_grad()
