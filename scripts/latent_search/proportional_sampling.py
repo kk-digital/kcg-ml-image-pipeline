@@ -129,16 +129,10 @@ class KandinskyImageGenerator:
         with torch.no_grad():
             for i in range(0, len(sampled_embeddings), self.batch_size):
                 batch = sampled_embeddings[i:i + self.batch_size]  # Extract a batch
-
-                if len(batch) < self.batch_size:
-                    break
                 embeddings.extend(batch)
-                outputs = self.scoring_model.model(batch)  # Get predictions for this batch
+                outputs = self.scoring_model.model(batch).squeeze(1)  # Get predictions for this batch
                 # Concatenate all scores and convert to a list
-                scores.append(outputs)
-        
-        # Concatenate all predictions and convert to a NumPy array
-        scores = torch.cat(scores, dim=1).cpu().numpy().tolist()
+                scores.extend(outputs.tolist())
 
         print(scores[0])
         
