@@ -1295,8 +1295,8 @@ def get_tagged_images(
             description="Get all tagged images",
             response_model=StandardSuccessResponseV1[ListImageTag], 
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-def get_all_tagged_images(request: Request):
-    response_handler = ApiResponseHandlerV1(request)
+async def get_all_tagged_images(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
         # Execute the query to get all tagged images
@@ -1336,9 +1336,9 @@ def get_all_tagged_images(request: Request):
              description="Add Tag Category",
              response_model=StandardSuccessResponseV1[TagCategory],
              responses=ApiResponseHandlerV1.listErrors([422, 500]))
-def add_new_tag_category(request: Request, tag_category_data: NewTagCategory):
-    tag_category_dict = jsonable_encoder(tag_category_data) 
-    response_handler = ApiResponseHandlerV1(request, body_data=tag_category_dict)
+async def add_new_tag_category(request: Request, tag_category_data: NewTagCategory):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
     try:
         # Assign new tag_category_id
         last_entry = request.app.tag_categories_collection.find_one({}, sort=[("tag_category_id", -1)])
@@ -1440,14 +1440,12 @@ def get_image_count_by_tag(
               description="Update tag category",
               response_model=StandardSuccessResponseV1[TagCategory],
               responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
-def update_tag_category_v1(
+async def update_tag_category_v1(
     request: Request, 
     tag_category_id: int,
     update_data: NewTagCategory
 ):
-    
-    update_data_dict = jsonable_encoder(update_data)
-    response_handler = ApiResponseHandlerV1(request, body_data=update_data_dict)
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     query = {"tag_category_id": tag_category_id}
     existing_category = request.app.tag_categories_collection.find_one(query)

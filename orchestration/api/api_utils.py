@@ -231,6 +231,23 @@ class ApiResponseHandlerV1:
             "query": dict(request.query_params)  # Extracted from request
         }
 
+    @staticmethod
+    async def createInstance(request: Request):
+        body = await request.body()
+        body_dictionary = {}
+        if (len(body) > 0):
+            body_string = body.decode('utf-8')
+            body_dictionary = json.loads(body_string)
+
+        instance = ApiResponseHandlerV1(request, body_dictionary)
+        return instance
+    
+    # In middlewares, this must be called instead of "createInstance", as "createInstance" may hang trying to get the request body.
+    @staticmethod
+    def createInstanceWithBody(request: Request, body_data: Dict[str, Any]):
+        instance = ApiResponseHandlerV1(request, body_data)
+        return instance
+
     
     def _elapsed_time(self) -> float:
         return datetime.now() - self.start_time

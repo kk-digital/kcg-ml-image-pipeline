@@ -1,15 +1,17 @@
+import json
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import pymongo
 from bson.objectid import ObjectId
 from fastapi.responses import JSONResponse
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode,  StandardErrorResponseV1, StandardSuccessResponse
+from .api_utils import ApiResponseHandlerV1, PrettyJSONResponse, ApiResponseHandler, ErrorCode,  StandardErrorResponseV1, StandardSuccessResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi import status, Request
 from dotenv import dotenv_values
 from datetime import datetime
 from orchestration.api.api_clip import router as clip_router
 from orchestration.api.api_dataset import router as dataset_router
+from orchestration.api.api_inpainting_dataset import router as inpainting_dataset_router
 from orchestration.api.api_image import router as image_router
 from orchestration.api.api_job_stats import router as job_stats_router
 from orchestration.api.api_job import router as job_router
@@ -46,6 +48,7 @@ app.add_middleware(
 
 app.include_router(clip_router)
 app.include_router(dataset_router)
+app.include_router(inpainting_dataset_router)
 app.include_router(image_router)
 app.include_router(image_by_rank_router)
 app.include_router(job_router)
@@ -103,27 +106,17 @@ def create_index_if_not_exists(collection, index_key, index_name):
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     print(exc.errors())
-    start_time = datetime.now() 
 
-    # Directly calculate elapsed time instead of using a method
-    elapsed_time = datetime.now() - start_time
-    elapsed_time_str = str(elapsed_time.total_seconds())  # Convert elapsed time to a string
+    error_string = ""
+    for err in exc.errors():
+        error_string += "(" + err["loc"][1] + " param in " + err["loc"][0] + ": " + err["msg"] + ") "
 
-    error_response = StandardErrorResponseV1(
-        request_error_string="Validation Error",
-        request_error_code=ErrorCode.INVALID_PARAMS.value,  # Adjust as necessary
-        request_url=str(request.url),
-        request_dictionary=dict(request.query_params),
-        request_method=request.method,
-        request_time_total=elapsed_time_str,
-        request_time_start=start_time.isoformat(),
-        request_time_finished=datetime.now().isoformat(),
-        request_response_code=status.HTTP_422_UNPROCESSABLE_ENTITY
-    )
+    response_handler = ApiResponseHandlerV1.createInstanceWithBody(request, exc.body)
 
-    return PrettyJSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content=error_response.dict(),  # Convert the Pydantic model to a dictionary for the response
+    return response_handler.create_error_response_v1(
+        error_code=ErrorCode.INVALID_PARAMS,
+        error_string="Validation Error " + error_string,
+        http_status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
     )
 
 
@@ -162,6 +155,8 @@ def startup_db_client():
 
     # used to store sequential ids of generated images
     app.dataset_sequential_id_collection = app.mongodb_db["dataset-sequential-id"]
+    # used to store sequential ids of generated images
+    app.inpainting_dataset_sequential_id_collection = app.mongodb_db["inpainting-dataset-sequential-id"]
 
     # for training jobs
     app.training_pending_jobs_collection = app.mongodb_db["training-pending-jobs"]

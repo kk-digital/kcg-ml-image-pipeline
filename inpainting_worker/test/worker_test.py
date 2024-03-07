@@ -9,7 +9,8 @@ from inpainting_worker import worker
 
 def add_jobs():
     inpainting_request.http_add_job({
-        "task_type": "kandinsky-2-txt-to-img-inpainting",
+        # "task_type": "kandinsky-2-txt-to-img-inpainting",
+        "task_type": "kandinsky-2-img-to-img-inpainting",
         "uuid": "400a0cdf-fb83-412b-8c02-2027146490ad",
         "model_name": "kandinsky_2_2",
         "model_file_name": "kandinsky-2-2-decoder-inpaint",
@@ -23,9 +24,9 @@ def add_jobs():
             "strength": 0.4,
             "seed": "",
             "dataset": "test-generations",
-            "file_path": "datasets-inpainting/environmental/output/test_inpainting/022912.jpg",
-            "init_img":"datasets-inpainting/environmental/output/test_inpainting/test_inpainting_init_img_001.jpg",
-            "init_mask":"datasets-inpainting/environmental/output/test_inpainting/test_inpainting_init_mask_001.png",
+            "file_path": "0001/0001.jpg",
+            "init_img":"datasets-inpainting/test-dataset/test_inpainting_init_img_001.jpg",
+            "init_mask":"datasets-inpainting/test-dataset/test_inpainting_init_mask_001.png",
             "num_images": 1,
             "image_width": 512,
             "image_height": 512,
@@ -33,9 +34,9 @@ def add_jobs():
             "decoder_steps": 50,
             "prior_guidance_scale": 4,
             "decoder_guidance_scale": 4,
-            "positive_prompt":"a tiger sitting on a park bench",
-            "negative_prior_prompt":"",
-            "negative_decoder_prompt":""
+        #     "positive_prompt":"a tiger sitting on a park bench",
+        #     "negative_prior_prompt":"",
+        #     "negative_decoder_prompt":""
         },
         "task_input_file_dict": None,
         "task_output_file_dict": None,
