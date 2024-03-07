@@ -1248,16 +1248,17 @@ def get_structure_csv_content(sorted_structure,name):
     writer.writerows(data)
 
     # Return the content of the buffer
+    # Convert the content of csv_buffer to bytes
+    csv_content_bytes = csv_buffer.getvalue().encode('utf-8')
 
     # Upload the model to MinIO
-    minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",None)
-    minio_path="environmental/output/my_tests"
+    minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V", None)
+    minio_path = "environmental/output/my_tests"
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
-    minio_path= minio_path + "/best_results_for"+name+'_'+date_now+".csv"
-    cmd.upload_data(minio_client, 'datasets', minio_path, BytesIO(csv_buffer.getvalue()))
+    minio_path = minio_path + "/best_results_for" + name + '_' + date_now + ".csv"
+    cmd.upload_data(minio_client, 'datasets', minio_path, BytesIO(csv_content_bytes))
     print(f'Model saved to {minio_path}')
-
-     
+        
 
 
 #######################################################################################################################################################
@@ -1508,7 +1509,7 @@ adv_loader = train_loader_clip_ood
 
 #"test-generations" environmental
 #images_paths_ood = get_file_paths("environmental",30000)
-images_paths_ood = get_file_paths("environmental",3000)
+images_paths_ood = get_file_paths("environmental",300)
 
 # # Test on some pcitures
 # for i in range (len(images_paths_in)):
