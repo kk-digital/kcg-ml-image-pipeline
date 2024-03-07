@@ -1348,7 +1348,7 @@ def process_and_sort_dataset(images_paths, model):
 
 
 
-def plot_images_with_scores(sorted_dataset):
+def plot_images_with_scores(sorted_dataset,name):
     minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
             "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
             None)
@@ -1393,7 +1393,7 @@ def plot_images_with_scores(sorted_dataset):
 
     # upload the graph report
     minio_path="environmental/output/my_tests"
-    minio_path= minio_path + "/ranking_ds" +date_now+".png"
+    minio_path= minio_path + "/ranking_ds_"+ name + '_' +date_now+".png"
     cmd.upload_data(minio_client, 'datasets', minio_path, buf)
     # Remove the temporary file
     os.remove("output/rank.png")
@@ -1406,7 +1406,7 @@ print("yep it's here")
 sorted_comic_book = process_and_sort_dataset(images_paths_ood, model)
 selected_structure = sorted_comic_book[:20]
 
-plot_images_with_scores(selected_structure)
+plot_images_with_scores(selected_structure,"top_20_cyber")
 
 
 
