@@ -127,7 +127,7 @@ class KandinskyImageGenerator:
         # Process the binned embeddings as needed for your application
 
         print("Binning complete. Summary:")
-        for bin_index, embeddings in bins.items():
+        for bin_index, embeddings in binned_vectors.items():
             print(f"Bin {bin_index}: {len(embeddings)} embeddings")
 
     def sample_embeddings(self, num_samples=1000):
