@@ -86,7 +86,7 @@ class KandinskyImageGenerator:
     
     def get_score(self, embedding):
         """Scores a given embedding."""
-        with torch.no_grad:
+        with torch.no_grad():
             score= self.scoring_model.model(embedding).item()
 
         return score
