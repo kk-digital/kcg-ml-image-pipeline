@@ -31,7 +31,6 @@ def parse_args():
         parser.add_argument('--batch-size', type=int, help='Inference batch size used by the scoring model', default=64)
         parser.add_argument('--learning-rate', type=float, help='Learning rate of optimization', default=0.001)
         parser.add_argument('--steps', type=int, help='Number of steps for optimization', default=200)
-        parser.add_argument('--batch-size', type=int, help='Inference batch size used by the scoring model', default=64)
         parser.add_argument('--send-job', action='store_true', default=False)
         parser.add_argument('--save-csv', action='store_true', default=False)
         parser.add_argument('--generation-policy', type=str, help='generation policy', default="proportional_sampling")
