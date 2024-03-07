@@ -1655,25 +1655,142 @@ images_paths_ood = get_file_paths("environmental",30000)
 
 
 
-#################
-################# Running test
-#################
+
+#################################################################################### Train for textures
+
+################
+################ train on textures
+################
+
+train_loader_clip_texture, val_loader_clip_texture = get_clip_embeddings_by_tag([14],1)
+
+
+# 4,5,6,18,19,20,21,34, 38,35 37 36, 39, 40, 41,42
+
+#train_loader_clip_cyber, val_loader_clip_cyber = get_clip_embeddings_by_tag([7,8,9,15,20,21,22],0)
+train_loader_clip_cyber, val_loader_clip_cyber = get_clip_embeddings_by_tag([4,5,6,18,19,20,21,34, 38,35, 37, 36, 39, 40, 41,42],0)
+
+# Set loaders
+train_loader = train_loader_clip_texture
+val_loader = val_loader_clip_texture
+adv_loader = train_loader_clip_cyber
+
+
+
+
+##################################### Train
+model = train_model(img_shape=(1,1280),
+                    batch_size=train_loader.batch_size,
+                    lr=0.001,
+                    beta1=0.0)
+
+
+
+# Plot
+
+save_model(model,'defect-only-a-texture','temp_model.pth')
+
+
+epochs = range(1, len(total_losses) + 1)  
+
+
+# Create subplots grid (3 rows, 1 column)
+fig, axes = plt.subplots(4, 1, figsize=(10, 24))
+
+# Plot each loss on its own subplot
+axes[0].plot(epochs, total_losses, label='Total Loss')
+axes[0].set_xlabel('Steps')
+axes[0].set_ylabel('Loss')
+axes[0].set_title('Total Loss')
+axes[0].legend()
+axes[0].grid(True)
+
+axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
+axes[1].set_xlabel('Steps')
+axes[1].set_ylabel('Loss')
+axes[1].set_title('Contrastive Divergence Loss')
+axes[1].legend()
+axes[1].grid(True)
+
+
+axes[2].plot(epochs, reg_losses , label='Regression Loss')
+axes[2].set_xlabel('Steps')
+axes[2].set_ylabel('Loss')
+axes[2].set_title('Regression Loss')
+axes[2].legend()
+axes[2].grid(True)
+
+# Plot real and fake scores on the fourth subplot
+axes[3].plot(epochs, real_scores_s, label='Real Scores')
+axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
+axes[3].set_xlabel('Steps')
+axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
+axes[3].set_title('Real vs. Fake Scores')
+axes[3].legend()
+axes[3].grid(True)
+
+# Adjust spacing between subplots for better visualization
+plt.tight_layout()
+
+plt.savefig("output/loss_tracking_per_step.png")
+
+# Save the figure to a file
+buf = io.BytesIO()
+plt.savefig(buf, format='png')
+buf.seek(0)
+
+# upload the graph report
+minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_characters_training" +date_now+".png"
+cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+# Remove the temporary file
+os.remove("output/loss_tracking_per_step.png")
+# Clear the current figure
+plt.clf()
+
 
 #load model
-model5 = DeepEnergyModel(img_shape=(1280,))
-load_model(model5,'occult')
-model = model5
+model6 = DeepEnergyModel(img_shape=(1280,))
+load_model(model6,'defect-only-a-texture')
+model = model6
+
 
 print("yep it's here")
 sorted_comic_book = process_and_sort_dataset(images_paths_ood, model)
-get_structure_csv_content(sorted_comic_book,"occult_on_env_30000_sample")
+get_structure_csv_content(sorted_comic_book,"textures_on_env_30000_sample")
 selected_structure_first_52 = sorted_comic_book[:52]
 selected_structure_second_52 = sorted_comic_book[52:103]
 selected_structure_third_52 = sorted_comic_book[103:154]
 
-plot_images_with_scores(selected_structure_first_52,"Top_first_52_occult_env_30000_sample")
-plot_images_with_scores(selected_structure_second_52,"Top_second_52_occult_env_30000_sample")
-plot_images_with_scores(selected_structure_third_52,"Top_third_52_occult_env_30000_sample")
+plot_images_with_scores(selected_structure_first_52,"Top_first_52_textures_env_30000_sample")
+plot_images_with_scores(selected_structure_second_52,"Top_second_52_textures_env_30000_sample")
+plot_images_with_scores(selected_structure_third_52,"Top_third_52_textures_env_30000_sample")
+
+
+
+
+
+
+
+
+#################
+################# Running test
+#################
+
+# #load model
+# model5 = DeepEnergyModel(img_shape=(1280,))
+# load_model(model5,'occult')
+# model = model5
+
+# print("yep it's here")
+# sorted_comic_book = process_and_sort_dataset(images_paths_ood, model)
+# get_structure_csv_content(sorted_comic_book,"occult_on_env_30000_sample")
+# selected_structure_first_52 = sorted_comic_book[:52]
+# selected_structure_second_52 = sorted_comic_book[52:103]
+# selected_structure_third_52 = sorted_comic_book[103:154]
+
+# plot_images_with_scores(selected_structure_first_52,"Top_first_52_occult_env_30000_sample")
+# plot_images_with_scores(selected_structure_second_52,"Top_second_52_occult_env_30000_sample")
+# plot_images_with_scores(selected_structure_third_52,"Top_third_52_occult_env_30000_sample")
 
 ###################################################################################### Combined ######################################################################################
 
