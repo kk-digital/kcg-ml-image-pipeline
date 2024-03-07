@@ -1277,7 +1277,7 @@ def get_file_paths(dataset,num_samples):
 
 #load model
 model4 = DeepEnergyModel(img_shape=(1280,))
-load_model(model4,'cyber')
+load_model(model4,'occult')
 model = model4
 
 # Load images
@@ -1416,8 +1416,8 @@ sorted_comic_book = process_and_sort_dataset(images_paths_ood, model)
 selected_structure_first_52 = sorted_comic_book[:52]
 selected_structure_second_52 = sorted_comic_book[52:103]
 
-plot_images_with_scores(selected_structure_first_52,"Top_first_52_cyber_env")
-plot_images_with_scores(selected_structure_second_52,"Top_second_52_cyber_env")
+plot_images_with_scores(selected_structure_first_52,"Top_first_52_occult_env")
+plot_images_with_scores(selected_structure_second_52,"Top_second_52_occult_env")
 
 
 ################################################################    Use Data augmentation       ################################################################
