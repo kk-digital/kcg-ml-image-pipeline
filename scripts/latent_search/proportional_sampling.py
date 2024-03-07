@@ -79,7 +79,7 @@ class KandinskyImageGenerator:
         embeddings_per_bin = num_samples // self.num_bins
 
         # Generate a large batch of embeddings
-        embeddings, scores = self.sample_embeddings(num_samples / self.top_k)
+        embeddings, scores = self.sample_embeddings(int(num_samples / self.top_k))
 
         # Determine min and max scores
         min_score, max_score = min(scores), max(scores)
