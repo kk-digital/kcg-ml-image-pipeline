@@ -1404,7 +1404,9 @@ def plot_images_with_scores(sorted_dataset):
     
 print("yep it's here")
 sorted_comic_book = process_and_sort_dataset(images_paths_ood, model)
-plot_images_with_scores(sorted_comic_book)
+selected_structure = sorted_comic_book[:20]
+
+plot_images_with_scores(selected_structure)
 
 
 
