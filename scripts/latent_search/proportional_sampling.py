@@ -103,7 +103,6 @@ class KandinskyImageGenerator:
 
         # Define bins based on the range of scores
         bins = np.linspace(min_score, max_score, num_bins + 1)
-        print(bins)
 
         # Initialize bins
         binned_vectors = {i: [] for i in range(num_bins)}
