@@ -132,8 +132,10 @@ class KandinskyImageGenerator:
                 embeddings.extend(batch)
                 outputs = self.scoring_model.model(batch)  # Get predictions for this batch
                 # Concatenate all scores and convert to a list
-                outputs = torch.cat(outputs, dim=0).cpu().numpy().list()
-                scores.extend(outputs)
+                scores.append(outputs)
+        
+        # Concatenate all predictions and convert to a NumPy array
+        scores = torch.cat(scores, dim=0).cpu().numpy()
         
         return embeddings, scores
     
