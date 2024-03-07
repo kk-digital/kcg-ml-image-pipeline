@@ -1499,13 +1499,17 @@ images_paths_ood = get_file_paths("environmental",30000)
 
 
 
-images_paths_characters = get_file_paths("character",1500)
+images_paths_characters = get_file_paths("character",3000)
 
 
 train_loader_clip_characters, val_loader_clip_characters= get_clip_embeddings_by_path(images_paths_characters,0)
 
-train_loader_clip_cyber, val_loader_clip_cyber = get_clip_embeddings_by_tag([7,8,9,15,20,21,22],0)
 
+
+# 4,5,6,18,19,20,21,34, 38,35 37 36, 39, 40, 41,42
+
+#train_loader_clip_cyber, val_loader_clip_cyber = get_clip_embeddings_by_tag([7,8,9,15,20,21,22],0)
+train_loader_clip_cyber, val_loader_clip_cyber = get_clip_embeddings_by_tag([4,5,6,18,19,20,21,34, 38,35, 37, 36, 39, 40, 41,42],0)
 
 # Set loaders
 train_loader = train_loader_clip_characters
