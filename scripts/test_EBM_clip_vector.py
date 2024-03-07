@@ -1277,7 +1277,7 @@ def get_file_paths(dataset,num_samples):
 
 #load model
 model4 = DeepEnergyModel(img_shape=(1280,))
-load_model(model4,'occult')
+load_model(model4,'cyber')
 model = model4
 
 # Load images
@@ -1301,7 +1301,7 @@ for i in range(1,len(id_classes_in)):
 
 
 
-images_paths_ood = get_file_paths("environmental",10000)
+images_paths_ood = get_file_paths("test-generations",10000)
 
 # # Test on some pcitures
 # for i in range (len(images_paths_in)):
