@@ -1301,7 +1301,7 @@ for i in range(1,len(id_classes_in)):
 
 
 
-images_paths_ood = get_file_paths("environmental",1000)
+images_paths_ood = get_file_paths("environmental",10000)
 
 # # Test on some pcitures
 # for i in range (len(images_paths_in)):
@@ -1413,9 +1413,9 @@ def plot_images_with_scores(sorted_dataset,name):
     
 print("yep it's here")
 sorted_comic_book = process_and_sort_dataset(images_paths_ood, model)
-selected_structure = sorted_comic_book[:50]
+selected_structure = sorted_comic_book[:52]
 
-plot_images_with_scores(selected_structure,"Top_50_cyber")
+plot_images_with_scores(selected_structure,"Top_52_cyber")
 
 
 
