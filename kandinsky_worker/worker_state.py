@@ -46,7 +46,7 @@ class WorkerState:
     # load elm scoring models
     def load_scoring_model(self, dataset):
         input_path=f"{dataset}/models/ranking/"
-        scoring_model = ABRankingELMModel(1280)
+        scoring_model = ABRankingELMModel(1280, device=self.device)
         file_name=f"score-elm-v1-clip-h.safetensors"
 
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', input_path)
