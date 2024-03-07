@@ -133,8 +133,6 @@ class KandinskyImageGenerator:
                 outputs = self.scoring_model.model(batch).squeeze(1)  # Get predictions for this batch
                 # Concatenate all scores and convert to a list
                 scores.extend(outputs.tolist())
-
-        print(scores[0])
         
         return embeddings, scores
     
