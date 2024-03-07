@@ -24,7 +24,7 @@ def parse_args():
         parser.add_argument('--num-bins', type=int, help='Number of bins', default=10)
         parser.add_argument('--num-images', type=int, help='Number of images to generate', default=1000)
         parser.add_argument('--top-k', type=float, help='Portion of samples to generate images with', default=0.1)
-        parser.add_argument('--batch-size', type=float, help='Inference batch size used by the scoring model', default=64)
+        parser.add_argument('--batch-size', type=int, help='Inference batch size used by the scoring model', default=64)
         parser.add_argument('--send-job', action='store_true', default=False)
         parser.add_argument('--save-csv', action='store_true', default=False)
 
