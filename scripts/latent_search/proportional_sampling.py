@@ -135,7 +135,7 @@ class KandinskyImageGenerator:
                 scores.append(outputs)
         
         # Concatenate all predictions and convert to a NumPy array
-        scores = torch.cat(scores, dim=0).cpu().numpy().list()
+        scores = torch.cat(scores, dim=0).cpu().numpy().tolist()
         
         return embeddings, scores
     
