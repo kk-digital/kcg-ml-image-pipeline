@@ -1661,19 +1661,19 @@ images_paths_ood = get_file_paths("environmental",30000)
 
 #load model
 model5 = DeepEnergyModel(img_shape=(1280,))
-load_model(model5,'cyber')
+load_model(model5,'occult')
 model = model5
 
 print("yep it's here")
 sorted_comic_book = process_and_sort_dataset(images_paths_ood, model)
-get_structure_csv_content(sorted_comic_book,"cyber_on_env_30000_sample")
+get_structure_csv_content(sorted_comic_book,"occult_on_env_30000_sample")
 selected_structure_first_52 = sorted_comic_book[:52]
 selected_structure_second_52 = sorted_comic_book[52:103]
 selected_structure_third_52 = sorted_comic_book[103:154]
 
-plot_images_with_scores(selected_structure_first_52,"Top_first_52_cyber_env_30000_sample")
-plot_images_with_scores(selected_structure_second_52,"Top_second_52_cyber_env_30000_sample")
-plot_images_with_scores(selected_structure_third_52,"Top_third_52_cyber_env_30000_sample")
+plot_images_with_scores(selected_structure_first_52,"Top_first_52_occult_env_30000_sample")
+plot_images_with_scores(selected_structure_second_52,"Top_second_52_occult_env_30000_sample")
+plot_images_with_scores(selected_structure_third_52,"Top_third_52_occult_env_30000_sample")
 
 ###################################################################################### Combined ######################################################################################
 
