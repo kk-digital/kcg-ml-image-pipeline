@@ -1269,7 +1269,7 @@ adv_loader = train_loader_clip_ood
 
 #load model
 model4 = DeepEnergyModel(img_shape=(1280,))
-load_model(model4,'cyber')
+load_model(model4,'occult')
 model = model4
 
 # Load images
@@ -1406,7 +1406,7 @@ print("yep it's here")
 sorted_comic_book = process_and_sort_dataset(images_paths_ood, model)
 selected_structure = sorted_comic_book[:20]
 
-plot_images_with_scores(selected_structure,"top_20_cyber")
+plot_images_with_scores(selected_structure,"top_20_occult")
 
 
 
