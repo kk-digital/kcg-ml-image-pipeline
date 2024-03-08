@@ -1438,10 +1438,13 @@ sorted_comic_book = process_and_sort_dataset(images_paths_ood, cyber_model)
 selected_structure_first_500 = sorted_comic_book[:500]
 # selected_structure_first_500 = selected_structure_first_500[0,:]
 selected_structure_first_500 = [item[0] for item in selected_structure_first_500]
+selected_structure_first_500 = selected_structure_first_500 + get_tag_jobs(35)
+
+for path in selected_structure_first_500:
+    print("New paths : " path)
 
 
 train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(selected_structure_first_500,1)
-
 
 #Get real images
 train_loader_clip_cyber, val_loader_clip_cyber = get_clip_embeddings_by_tag([35],1)
