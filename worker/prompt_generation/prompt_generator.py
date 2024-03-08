@@ -580,7 +580,7 @@ def generate_image_generation_jobs_using_generated_prompts(csv_dataset_path,
     for prompt in prompts:
         # generate UUID
         task_uuid = str(uuid.uuid4())
-        task_type = "image_generation_task"
+        task_type = "image_generation_sd_1_5"
         model_name = "v1-5-pruned-emaonly"
         model_file_name = "v1-5-pruned-emaonly"
         model_file_path = "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors"
@@ -633,7 +633,7 @@ def generate_inpainting_generation_jobs_using_generated_prompts(csv_dataset_path
     for prompt in prompts:
         # generate UUID
         task_uuid = str(uuid.uuid4())
-        task_type = "inpainting_generation_task"
+        task_type = "inpainting_sd_1_5"
         model_name = "v1-5-pruned-emaonly"
         model_file_name = "v1-5-pruned-emaonly"
         model_file_path = "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors"
@@ -709,7 +709,7 @@ def generate_image_generation_jobs(positive_prompt,
     count = 0
     # generate UUID
     task_uuid = str(uuid.uuid4())
-    task_type = "image_generation_task"
+    task_type = "image_generation_sd_1_5"
     model_name = "v1-5-pruned-emaonly"
     model_file_name = "v1-5-pruned-emaonly"
     model_file_path = "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors"
@@ -765,7 +765,7 @@ def generate_image_generation_jobs_with_temperature(positive_prompt,
     count = 0
     # generate UUID
     task_uuid = str(uuid.uuid4())
-    task_type = "image_generation_task"
+    task_type = "image_generation_sd_1_5"
     model_name = "v1-5-pruned-emaonly"
     model_file_name = "v1-5-pruned-emaonly"
     model_file_path = "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors"
@@ -822,7 +822,7 @@ def generate_inpainting_job(positive_prompt,
     sequential_ids = request.http_get_sequential_id(dataset_name, 1)
 
     task_uuid = str(uuid.uuid4())
-    task_type = "inpainting_generation_task"
+    task_type = "inpainting_sd_1_5"
     model_name = "v1-5-pruned-emaonly"
     model_file_name = "v1-5-pruned-emaonly"
     model_file_path = "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors"
@@ -887,7 +887,7 @@ def generate_inpainting_job_with_temperature(positive_prompt,
     sequential_ids = request.http_get_sequential_id(dataset_name, 1)
 
     task_uuid = str(uuid.uuid4())
-    task_type = "inpainting_generation_task"
+    task_type = "inpainting_sd_1_5"
     model_name = "v1-5-pruned-emaonly"
     model_file_name = "v1-5-pruned-emaonly"
     model_file_path = "input/model/sd/v1-5-pruned-emaonly/v1-5-pruned-emaonly.safetensors"

@@ -122,13 +122,14 @@ class ABRankingELMBaseModelDeprecate(nn.Module):
             self.random_layers.append(random_layer)
 
 class ABRankingELMModel:
-    def __init__(self, inputs_shape, num_random_layers=1, elm_sparsity=0.5):
+    def __init__(self, inputs_shape, device=None, num_random_layers=1, elm_sparsity=0.5):
         print("inputs_shape=", inputs_shape)
-        if torch.cuda.is_available():
-            device = 'cuda'
+        if device is not None:
+            self._device = torch.device(device)
+        elif torch.cuda.is_available():
+            self._device = torch.device('cuda')
         else:
-            device = 'cpu'
-        self._device = torch.device(device)
+            self._device = torch.device('cpu')
 
         self.inputs_shape = inputs_shape
         self.model = ABRankingELMBaseModel(inputs_shape, num_random_layers, elm_sparsity).to(self._device)

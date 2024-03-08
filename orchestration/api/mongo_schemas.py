@@ -1,5 +1,6 @@
-from pydantic import BaseModel, Field, constr, validator
+from pydantic import BaseModel, Field, constr, validator, model_validator
 from typing import List, Union, Optional
+import json
 import re
 
 class Task(BaseModel):
@@ -37,6 +38,14 @@ class Task(BaseModel):
             "task_attributes_dict": self.task_attributes_dict,
             "prompt_generation_data": self.prompt_generation_data
         }
+
+    @model_validator(mode='before')
+    @classmethod
+    def validate_to_json(cls, value):
+        if isinstance(value, str):
+            return cls(**json.loads(value))
+        return value
+
 
 class KandinskyTask(BaseModel):
     job: Task # task data

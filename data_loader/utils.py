@@ -76,6 +76,17 @@ def get_object(client, file_path):
 
     return data
 
+def get_object_with_bucket(client, bucket_name, file_path):
+    try:
+        response = client.get_object(bucket_name, file_path)
+        data = response.data
+    finally:
+        if response:
+            response.close()
+            response.release_conn()
+
+    return data
+
 
 def index_select(tensor, dim, index):
     return tensor.gather(dim, index.unsqueeze(dim)).squeeze(dim)
