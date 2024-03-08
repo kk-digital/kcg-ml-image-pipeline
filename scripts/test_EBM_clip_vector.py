@@ -1774,7 +1774,9 @@ def getAccuracy(cyber_sample_emb,model1,model2):
     average_score = 0
     for embedding in cyber_sample_emb:
         score1 = model1.cnn(embedding.unsqueeze(0).to(model.device)).cpu()
+        score1 = score1.item()
         score2 = model2.cnn(embedding.unsqueeze(0).to(model.device)).cpu()
+        score2 = score2.item()
         print("Score 1: ", score1)
         print("Score 2: ", score2)
         if score1 > score2:
