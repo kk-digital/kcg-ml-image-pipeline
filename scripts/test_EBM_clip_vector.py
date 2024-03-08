@@ -198,6 +198,7 @@ def get_clip_vectors(file_paths):
     clip_vectors = []
 
     for path in file_paths:
+        print("path : " , path)
         clip_path = path.replace(".jpg", "_clip_kandinsky.msgpack")
         bucket, features_vector_path = separate_bucket_and_file_path(clip_path)
 
@@ -1419,7 +1420,7 @@ id_classes_ood = [42]
 # Add top 200 images to the train set
 
 #load original model
-
+images_paths_ood = get_file_paths("environmental",30000)
 cyber_model = DeepEnergyModel(img_shape=(1280,))
 load_model(cyber_model,'cyber')
 
@@ -1541,6 +1542,22 @@ images_paths_ood = get_file_paths("environmental",30000)
 print("Cyber VS OOD")
 energy_evaluation(val_loader,adv_loader)
 
+
+
+
+#automated model
+#toodoo
+#go create something
+print("yep it's here")
+sorted_comic_book = process_and_sort_dataset(images_paths_ood, model)
+get_structure_csv_content(sorted_comic_book,"cyber_on_env_30000_sample")
+selected_structure_first_52 = sorted_comic_book[:52]
+selected_structure_second_52 = sorted_comic_book[52:103]
+selected_structure_third_52 = sorted_comic_book[103:154]
+
+plot_images_with_scores(selected_structure_first_52,"Top_first_52_cyber_env_30000_sample")
+plot_images_with_scores(selected_structure_second_52,"Top_second_52_cyber_env_30000_sample")
+plot_images_with_scores(selected_structure_third_52,"Top_third_52_cyber_env_30000_sample")
 
 
 
