@@ -102,7 +102,7 @@ class DatasetLoader(Dataset):
 
 
 class ScoringTreeConnectNetwork(nn.Module):
-    def __init__(self, minio_client, input_size=1280, input_type="input_clip" , output_size=1, 
+    def __init__(self, minio_client, input_size=1280, input_type="input_clip",
                  output_type="sigma_score", dataset="environmental"):
         
         super(ScoringTreeConnectNetwork, self).__init__()
