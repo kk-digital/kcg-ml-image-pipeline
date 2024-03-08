@@ -1441,7 +1441,7 @@ selected_structure_first_500 = [item[0] for item in selected_structure_first_500
 selected_structure_first_500 = selected_structure_first_500 + get_tag_jobs(35)
 
 for path in selected_structure_first_500:
-    print("New paths : " path)
+    print("New paths : ", path)
 
 
 train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(selected_structure_first_500,1)
