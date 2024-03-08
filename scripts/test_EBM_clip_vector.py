@@ -1856,7 +1856,7 @@ load_model(cyber_model,'cyber')
 
 
 
-cyber_sample_emb = get_all_clip_embeddings_by_tag([35],1)
+cyber_sample_emb, _ = get_all_clip_embeddings_by_tag([35],1)
 
 getAccuracy(cyber_sample_emb,cyber_model,occult_model)
 
