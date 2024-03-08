@@ -16,7 +16,8 @@ from dateutil import parser
 from datetime import datetime
 import os
 
-class ModelResponse(BaseModel):
+
+class SingleModelResponse(BaseModel):
     model_name: str
     model_architecture: str
     model_creation_date: str
@@ -30,6 +31,10 @@ class ModelResponse(BaseModel):
     training_loss: str
     validation_loss: str
     graph_report: str
+
+class ModelResponse(BaseModel):
+
+    models: List[SingleModelResponse]
 
 class TagListForImages(BaseModel):
     tags: List[TagDefinition]
@@ -65,6 +70,9 @@ class TagsListResponse(BaseModel):
 class TagCountResponse(BaseModel):
     tag_id: int
     count: int
+
+class ModelIdResponse(BaseModel):
+    model_id: int
 
 class UrlResponse(BaseModel):
     url: str
