@@ -17,8 +17,8 @@ router = APIRouter()
              description="Adds a new tag",
              response_model=StandardSuccessResponseV1[PseudoTagDefinition],
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-def add_new_pseudo_tag_definition(request: Request, tag_data: NewPseudoTagRequest):
-    response_handler = ApiResponseHandlerV1(request, body_data=tag_data)
+async def add_new_pseudo_tag_definition(request: Request, tag_data: NewPseudoTagRequest):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
         # Check for existing tag_category_id
@@ -128,8 +128,9 @@ def get_pseudo_tag_id_by_name(request: Request, pseudo_tag_string: str = Query(.
               description="Update pseudo tag definitions",
               response_model=StandardSuccessResponseV1[PseudoTagDefinition], 
               responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
-def update_pseudo_tag_definition(request: Request, pseudo_tag_id: int, update_data: NewPseudoTagRequest):
-    response_handler = ApiResponseHandlerV1(request, body_data=update_data)
+async def update_pseudo_tag_definition(request: Request, pseudo_tag_id: int, update_data: NewPseudoTagRequest):
+   
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     query = {"pseudo_tag_id": pseudo_tag_id}
     existing_tag = request.app.pseudo_tag_definitions_collection.find_one(query)
@@ -250,8 +251,9 @@ def list_pseudo_tag_definitions(request: Request):
             description="Set vector index to pseudo tag definition",
             response_model=StandardSuccessResponseV1[VectorIndexUpdateRequest],
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-def set_pseudo_tag_vector_index(request: Request, pseudo_tag_id: int, update_data: VectorIndexUpdateRequest):
-    response_handler = ApiResponseHandlerV1(request, body_data=update_data)
+async def set_pseudo_tag_vector_index(request: Request, pseudo_tag_id: int, update_data: VectorIndexUpdateRequest):
+    
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     # Find the tag definition using the provided tag_id
     query = {"pseudo_tag_id": pseudo_tag_id}
@@ -516,8 +518,9 @@ def get_all_pseudo_tagged_images(request: Request):
              description="Add pseudo Tag Category",
              response_model=StandardSuccessResponseV1[PseudoTagCategory],
              responses=ApiResponseHandlerV1.listErrors([422, 500]))
-def add_pseudo_tag_category(request: Request, tag_category_data: NewPseudoTagCategory):
-    response_handler = ApiResponseHandlerV1(request, body_data=tag_category_data)
+async def add_pseudo_tag_category(request: Request, tag_category_data: NewPseudoTagCategory):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+   
     try:
         # Assign new tag_category_id
         last_entry = request.app.pseudo_tag_categories_collection.find_one({}, sort=[("pseudo_tag_category_id", -1)])
@@ -556,12 +559,13 @@ def add_pseudo_tag_category(request: Request, tag_category_data: NewPseudoTagCat
               description="Update pseudo tag category",
               response_model=StandardSuccessResponseV1[PseudoTagCategory],
               responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
-def update_pseudo_tag_category(
+async def update_pseudo_tag_category(
     request: Request, 
     pseudo_tag_category_id: int,
     update_data: NewPseudoTagCategory
 ):
-    response_handler = ApiResponseHandlerV1(request, body_data=update_data)
+   
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     query = {"pseudo_tag_category_id": pseudo_tag_category_id}
     existing_category = request.app.pseudo_tag_categories_collection.find_one(query)
