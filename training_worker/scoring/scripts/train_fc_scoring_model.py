@@ -85,9 +85,9 @@ class ABRankingFcTrainingPipeline:
         self.model_type= model_type
 
         if(self.model_type=="fc"):
-            self.model= ScoringFCNetwork(minio_client=self.minio_client)
+            self.model= ScoringFCNetwork(minio_client=self.minio_client, dataset=dataset)
         elif(self.model_type=="xgboost"):
-            self.model= ScoringXgboostModel(minio_client=self.minio_client)
+            self.model= ScoringXgboostModel(minio_client=self.minio_client, dataset=dataset)
 
         # load kandinsky clip
         self.image_processor= CLIPImageProcessor.from_pretrained(PRIOR_MODEL_PATH, subfolder="image_processor", local_files_only=True)
@@ -185,34 +185,38 @@ class ABRankingFcTrainingPipeline:
         init_image_batch = [Image.open("./test/test_inpainting/white_512x512.jpg") for i in range(self.kandinsky_batch_size)]
 
         for i in range(0, len(latents), self.kandinsky_batch_size):
-            # Prepare the batch
-            latent_batch = latents[i:i + self.kandinsky_batch_size]
-            latent_batch_tensor = torch.stack(latent_batch).to(self.device).half()  # Ensure correct device and dtype
-            
-            # Process batch through image generator and feature extraction
-            # Adjust generate_img2img and get_image_features to accept and return batches
-            output_images, _ = self.image_generator.generate_img2img_in_batches(init_imgs=init_image_batch,
-                                                                image_embeds=latent_batch_tensor.squeeze(1),
-                                                                batch_size= self.kandinsky_batch_size)
-            clip_vectors = self.get_image_features(output_images).float()  # Assuming this returns a batch of vectors
 
-            # Iterate through the batch for scoring (since scoring model processes one item at a time)
-            for j, (latent, clip_vector) in enumerate(zip(latent_batch_tensor, clip_vectors)):
-                input_clip_score = self.scoring_model.predict_clip(latent.float()).item()  # Convert back if necessary
-                image_score = self.scoring_model.predict_clip(clip_vector.unsqueeze(0)).item()
-                input_clip_score= (input_clip_score - self.mean) / self.std
-                image_score= (image_score - self.mean) / self.std
-                cosine_sim =cosine_similarity(clip_vector.unsqueeze(0), latent).item()
+            try:
+                # Prepare the batch
+                latent_batch = latents[i:i + self.kandinsky_batch_size]
+                latent_batch_tensor = torch.stack(latent_batch).to(self.device).half()  # Ensure correct device and dtype
+                
+                # Process batch through image generator and feature extraction
+                # Adjust generate_img2img and get_image_features to accept and return batches
+                output_images, _ = self.image_generator.generate_img2img_in_batches(init_imgs=init_image_batch,
+                                                                    image_embeds=latent_batch_tensor.squeeze(1),
+                                                                    batch_size= self.kandinsky_batch_size)
+                clip_vectors = self.get_image_features(output_images).float()  # Assuming this returns a batch of vectors
 
-                data = {
-                    'input_clip': latent.detach().cpu().numpy().tolist(),
-                    'output_clip': clip_vector.unsqueeze(0).detach().cpu().numpy().tolist(),
-                    'input_clip_score': input_clip_score,
-                    'output_clip_score': image_score,
-                    'cosine_sim': cosine_sim
-                }
+                # Iterate through the batch for scoring (since scoring model processes one item at a time)
+                for j, (latent, clip_vector) in enumerate(zip(latent_batch_tensor, clip_vectors)):
+                    input_clip_score = self.scoring_model.predict_clip(latent.float()).item()  # Convert back if necessary
+                    image_score = self.scoring_model.predict_clip(clip_vector.unsqueeze(0)).item()
+                    input_clip_score= (input_clip_score - self.mean) / self.std
+                    image_score= (image_score - self.mean) / self.std
+                    cosine_sim =cosine_similarity(clip_vector.unsqueeze(0), latent).item()
 
-                training_data.append(data)
+                    data = {
+                        'input_clip': latent.detach().cpu().numpy().tolist(),
+                        'output_clip': clip_vector.unsqueeze(0).detach().cpu().numpy().tolist(),
+                        'input_clip_score': input_clip_score,
+                        'output_clip_score': image_score,
+                        'cosine_sim': cosine_sim
+                    }
+
+                    training_data.append(data)
+            except:
+                print("an error occured")
 
         self.store_training_data(training_data)
 
