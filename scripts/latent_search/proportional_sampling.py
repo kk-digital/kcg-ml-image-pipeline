@@ -28,7 +28,7 @@ def parse_args():
         parser.add_argument('--num-bins', type=int, help='Number of bins', default=10)
         parser.add_argument('--num-images', type=int, help='Number of images to generate', default=1000)
         parser.add_argument('--top-k', type=float, help='Portion of samples to generate images with', default=0.1)
-        parser.add_argument('--batch-size', type=int, help='Inference batch size used by the scoring model', default=64)
+        parser.add_argument('--batch-size', type=int, help='Inference batch size used by the scoring model', default=256)
         parser.add_argument('--learning-rate', type=float, help='Learning rate of optimization', default=0.001)
         parser.add_argument('--steps', type=int, help='Number of steps for optimization', default=200)
         parser.add_argument('--send-job', action='store_true', default=False)
@@ -149,43 +149,49 @@ class KandinskyImageGenerator:
         return samples
     
     def gradient_descent_optimization(self, num_samples):
-        clip_vectors= self.top_k_sampling(num_samples=num_samples)
+        clip_vectors = self.top_k_sampling(num_samples=num_samples)
 
-        # Convert list of embeddings to a tensor if not already one
-        optimized_embeddings = torch.stack(clip_vectors).detach().requires_grad_(True)
+        # Convert list of embeddings to a tensor
+        all_embeddings = torch.stack(clip_vectors).detach()
 
-        # Setup the optimizer for the batch
-        optimizer = optim.Adam([optimized_embeddings], lr=self.learning_rate)
- 
-        gradient_magnitudes=[]
-        for step in range(self.steps):
-            optimizer.zero_grad()
-
-            # Compute scores for the batch of embeddings
-            scores = self.scoring_model.model(optimized_embeddings)
-
-            # Calculate the loss for each embedding in the batch
-            score_losses = - scores.squeeze()
-
-            # Calculate the total loss for the batch
-            total_loss = score_losses.mean()
-
-            # Backpropagate
-            total_loss.backward()
-
-            grad_magnitude = optimized_embeddings.grad.norm().item()
-            gradient_magnitudes.append(grad_magnitude)
-            print(f"grad_magnitude: {grad_magnitude}")
-
-            optimizer.step()
-
-            print(f"Step: {step}, Mean Score: {scores.mean().item()}, Loss: {total_loss.item()}")
-
-        # Optionally, convert optimized embeddings back to a list of tensors
-        optimized_embeddings_list = [optimized_embeddings[i] for i in range(optimized_embeddings.size(0))]
-
-        print(gradient_magnitudes[0], gradient_magnitudes[-1])
+        # Calculate the total number of batches
+        num_batches = len(all_embeddings) // self.batch_size + (0 if len(all_embeddings) % self.batch_size == 0 else 1)
         
+        optimized_embeddings_list = []
+
+        for batch_idx in range(num_batches):
+            # Select a batch of embeddings
+            start_idx = batch_idx * self.batch_size
+            end_idx = min((batch_idx + 1) * self.batch_size, len(all_embeddings))
+            batch_embeddings = all_embeddings[start_idx:end_idx].clone().detach().requires_grad_(True)
+            
+            # Setup the optimizer for the current batch
+            optimizer = optim.Adam([batch_embeddings], lr=self.learning_rate)
+            
+            for step in range(self.steps):
+                optimizer.zero_grad()
+
+                # Compute scores for the current batch of embeddings
+                scores = self.scoring_model.model(batch_embeddings)
+
+                # Calculate the loss for each embedding in the batch
+                score_losses = -scores.squeeze()
+
+                # Calculate the total loss for the batch
+                total_loss = score_losses.mean()
+
+                # Backpropagate
+                total_loss.backward()
+
+                optimizer.step()
+
+                if step % self.print_step == 0:
+                    print(f"Batch: {batch_idx + 1}/{num_batches}, Step: {step}, Mean Score: {scores.mean().item()}, Loss: {total_loss.item()}")
+
+            # After optimization, detach and add the optimized batch embeddings to the list
+            optimized_batch_embeddings = batch_embeddings.detach()
+            optimized_embeddings_list.extend([emb for emb in optimized_batch_embeddings])
+
         return optimized_embeddings_list
 
     def sample_embeddings(self, num_samples):
