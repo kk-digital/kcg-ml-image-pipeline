@@ -1875,12 +1875,15 @@ load_model(cyber_model,'cyber')
 #cyber_sample_emb, _ = next(iter(train_loader_clip_cyber))
 #getAccuracy(cyber_sample_emb,cyber_model,occult_model)
 
-getAccuracy_v2(train_loader_clip_cyber,cyber_model,occult_model)
+
+
+# Evaluate cyber vs occult
+#getAccuracy_v2(train_loader_clip_cyber,cyber_model,occult_model)
 
 
 
-
-
+# Evaluate occult vs cyber
+getAccuracy_v2(train_loader_clip_occult,occult_model,cyber_model)
 
 
 
