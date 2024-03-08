@@ -33,6 +33,7 @@ from orchestration.api.api_active_learning_policy import router as active_learni
 from orchestration.api.api_pseudo_tag import router as pseudo_tags_router
 from orchestration.api.api_worker import router as worker_router
 from orchestration.api.api_inpainting_job import router as inpainting_job_router
+from orchestration.api.api_server_utility import router as server_utility_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -70,6 +71,7 @@ app.include_router(active_learning_policy_router)
 app.include_router(pseudo_tags_router)
 app.include_router(worker_router)
 app.include_router(inpainting_job_router)
+app.include_router(server_utility_router)
 
 
 
