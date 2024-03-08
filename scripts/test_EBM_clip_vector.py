@@ -1772,6 +1772,7 @@ def getAccuracy(cyber_sample_emb,model1,model2):
     preci = 0
     cpt = 0
     average_score = 0
+    average_score_ood = 0
     for embedding in cyber_sample_emb:
         score1 = model1.cnn(embedding.unsqueeze(0).to(model.device)).cpu()
         score1 = score1.item()
@@ -1787,7 +1788,7 @@ def getAccuracy(cyber_sample_emb,model1,model2):
 
 
     average_score = average_score / len(cyber_sample_emb)
-
+    average_score_ood = average_score_ood / len(cyber_sample_emb)
 
     print(f"Score in distribution : {average_score:4.2f}")
     print(f"Score OOD : {average_score_ood:4.2f}")
