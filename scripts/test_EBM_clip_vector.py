@@ -1783,12 +1783,14 @@ def getAccuracy(cyber_sample_emb,model1,model2):
             preci += 1
         cpt += 1
         average_score += score1
+        average_score_ood += score2
 
 
     average_score = average_score / len(cyber_sample_emb)
 
 
     print(f"Score in distribution : {average_score:4.2f}")
+    print(f"Score OOD : {average_score_ood:4.2f}")
     print(f"Accuracy : ", preci , " / ",cpt)
     
 
