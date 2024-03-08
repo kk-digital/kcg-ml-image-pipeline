@@ -1427,7 +1427,7 @@ id_classes_ood = [42]
 # Add top 200 images to the train set
 
 #load original model
-images_paths_ood = get_file_paths("environmental",30000)
+images_paths_ood = get_file_paths("environmental",500)
 cyber_model = DeepEnergyModel(img_shape=(1280,))
 load_model(cyber_model,'cyber')
 
@@ -1436,7 +1436,7 @@ print("yep it's here")
 sorted_comic_book = process_and_sort_dataset(images_paths_ood, cyber_model)
 
 selected_structure_first_500 = sorted_comic_book[:500]
-selected_structure_first_500 = selected_structure_first_500[0]
+selected_structure_first_500 = selected_structure_first_500[0,:]
 
 for path in selected_structure_first_500:
     print ("dat path is : ", path)
