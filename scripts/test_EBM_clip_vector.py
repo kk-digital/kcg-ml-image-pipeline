@@ -1050,27 +1050,6 @@ def get_clip_embeddings_by_tag(id_classes,label_value):
     return train_loader_clip, val_loader_clip
 
     
-def get_all_clip_embeddings_by_tag(id_classes,label_value):
-    images_paths = get_tag_jobs(id_classes[0])
-    i = 1
-    for i in range(1,len(id_classes)):
-        images_paths = images_paths + get_tag_jobs(id_classes[i])
-       
- 
-    
-    ocult_clips = get_clip_vectors(images_paths)
-
-
-    # Create labels
-    data_occcult_clips = [(clip, label_value) for clip in ocult_clips]
-
-    return data_occcult_clips
-
-
-
-
-
-
 
 
 def get_clip_embeddings_by_path(images_paths,label_value):
@@ -1795,7 +1774,6 @@ def getAccuracy(cyber_sample_emb,model1,model2):
     average_score = 0
     average_score_ood = 0
     for embedding in cyber_sample_emb:
-        print("embedding :",embedding)
         score1 = model1.cnn(embedding.unsqueeze(0).to(model.device)).cpu()
         score1 = score1.item()
         score2 = model2.cnn(embedding.unsqueeze(0).to(model.device)).cpu()
@@ -1817,7 +1795,45 @@ def getAccuracy(cyber_sample_emb,model1,model2):
     print(f"Accuracy : ", preci , " / ",cpt)
     
 
+def getAccuracy_v2(cyber_sample_loader, model1, model2):
+    preci = 0
+    cpt = 0
+    average_score = 0
+    average_score_ood = 0
 
+    # Set models to evaluation mode
+    model1.eval()
+    model2.eval()
+
+    # Iterate through all batches in the DataLoader
+    for batch in cyber_sample_loader:
+        embeddings = batch[0]  # Assuming the embeddings are the first element in each batch
+
+        # Move embeddings to the correct device
+        embeddings = embeddings.to(model1.device)
+
+        # Get scores from both models
+        scores1 = model1.cnn(embeddings).cpu().detach().numpy()
+        scores2 = model2.cnn(embeddings).cpu().detach().numpy()
+
+        # Iterate through scores in the batch
+        for score1, score2 in zip(scores1, scores2):
+            print("Score 1:", score1.item())
+            print("Score 2:", score2.item())
+
+            if score1 > score2:
+                preci += 1
+            cpt += 1
+            average_score += score1.item()
+            average_score_ood += score2.item()
+
+    # Calculate average scores
+    average_score /= cpt
+    average_score_ood /= cpt
+
+    print(f"Score in distribution : {average_score:4.2f}")
+    print(f"Score OOD : {average_score_ood:4.2f}")
+    print(f"Accuracy : {preci} / {cpt}")
 
 
 #################
@@ -1856,10 +1872,10 @@ load_model(cyber_model,'cyber')
 
 
 
-cyber_sample_emb, _ = get_all_clip_embeddings_by_tag([35],1)
+#cyber_sample_emb, _ = next(iter(train_loader_clip_cyber))
+#getAccuracy(cyber_sample_emb,cyber_model,occult_model)
 
-getAccuracy(cyber_sample_emb,cyber_model,occult_model)
-
+getAccuracy_v2(train_loader_clip_cyber,cyber_model,occult_model)
 
 
 
