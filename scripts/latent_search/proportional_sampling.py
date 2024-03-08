@@ -172,6 +172,9 @@ class KandinskyImageGenerator:
             # Backpropagate
             total_loss.backward()
 
+            grad_magnitude = optimized_embeddings.grad.norm().item()
+            print(f"grad_magnitude: {grad_magnitude}")
+
             optimizer.step()
 
             print(f"Step: {step}, Mean Score: {scores.mean().item()}, Loss: {total_loss.item()}")
