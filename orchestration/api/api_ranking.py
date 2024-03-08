@@ -702,12 +702,12 @@ async def calculate_delta_scores(request: Request):
              tags=["ranking"],
              response_model=StandardSuccessResponseV1[Selection],  
              responses=ApiResponseHandlerV1.listErrors([422, 500]))
-def add_selection_datapoint_v2(
+async def add_selection_datapoint_v2(
     request: Request, 
     selection: Selection,
     dataset: str = Query(..., description="Dataset as a query parameter")  
 ):
-    response_handler = ApiResponseHandlerV1(request, body_data=selection)
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
         time = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
         selection.datetime = time
@@ -733,14 +733,14 @@ def add_selection_datapoint_v2(
             update_image_rank_use_count(request, img_hash)
 
         return response_handler.create_success_response_v1(
-            response_data = data, 
+            response_data = dict_data, 
             http_status_code=201,
         )
     except Exception as e:
         # Handle exceptions and return an error response
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
-            error_string="Internal Server Error",
+            error_string=str(e),
             http_status_code=500,
         )
     
@@ -860,8 +860,8 @@ def get_image_rank_use_count_v1(request: Request, image_hash: str):
              tags=["ranking"],
              response_model=StandardSuccessResponseV1[RelevanceSelection],  
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-def add_relevancy_selection_datapoint_v1(request: Request, relevance_selection: RelevanceSelection, dataset: str = Query(..., description="Dataset as a query parameter")):
-    response_handler = ApiResponseHandlerV1(request, body_data=relevance_selection)
+async def add_relevancy_selection_datapoint_v1(request: Request, relevance_selection: RelevanceSelection, dataset: str = Query(..., description="Dataset as a query parameter")):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
         # Current datetime for filename and metadata
         time = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
