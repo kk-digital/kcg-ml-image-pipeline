@@ -185,8 +185,7 @@ class KandinskyImageGenerator:
 
                 optimizer.step()
 
-                if step % self.print_step == 0:
-                    print(f"Batch: {batch_idx + 1}/{num_batches}, Step: {step}, Mean Score: {scores.mean().item()}, Loss: {total_loss.item()}")
+                print(f"Batch: {batch_idx + 1}/{num_batches}, Step: {step}, Mean Score: {scores.mean().item()}, Loss: {total_loss.item()}")
 
             # After optimization, detach and add the optimized batch embeddings to the list
             optimized_batch_embeddings = batch_embeddings.detach()
