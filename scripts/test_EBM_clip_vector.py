@@ -1436,7 +1436,8 @@ print("yep it's here")
 sorted_comic_book = process_and_sort_dataset(images_paths_ood, cyber_model)
 
 selected_structure_first_500 = sorted_comic_book[:500]
-selected_structure_first_500 = selected_structure_first_500[0,:]
+# selected_structure_first_500 = selected_structure_first_500[0,:]
+selected_structure_first_500 = [item[0] for item in selected_structure_first_500]
 
 for path in selected_structure_first_500:
     print ("dat path is : ", path)
