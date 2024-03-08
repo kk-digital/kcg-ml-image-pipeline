@@ -1435,7 +1435,7 @@ load_model(cyber_model,'cyber')
 print("yep it's here")
 sorted_comic_book = process_and_sort_dataset(images_paths_ood, cyber_model)
 
-selected_structure_first_500 = sorted_comic_book[:500]
+selected_structure_first_500 = sorted_comic_book[:100]
 # selected_structure_first_500 = selected_structure_first_500[0,:]
 selected_structure_first_500 = [item[0] for item in selected_structure_first_500]
 selected_structure_first_500 = selected_structure_first_500 + get_tag_jobs(35)
@@ -1568,9 +1568,9 @@ selected_structure_first_52 = sorted_comic_book[:52]
 selected_structure_second_52 = sorted_comic_book[52:103]
 selected_structure_third_52 = sorted_comic_book[103:154]
 
-plot_images_with_scores(selected_structure_first_52,"Top_first_52_cyber_env_30000_sample")
-plot_images_with_scores(selected_structure_second_52,"Top_second_52_cyber_env_30000_sample")
-plot_images_with_scores(selected_structure_third_52,"Top_third_52_cyber_env_30000_sample")
+plot_images_with_scores(selected_structure_first_52,"Top_first_52_cyber_env_added_100")
+plot_images_with_scores(selected_structure_second_52,"Top_second_52_cyber_env_added_100")
+plot_images_with_scores(selected_structure_third_52,"Top_third_52_cyber_env_added_100")
 
 
 
