@@ -1883,7 +1883,18 @@ load_model(cyber_model,'cyber')
 
 
 # Evaluate occult vs cyber
-getAccuracy_v2(train_loader_clip_occult,occult_model,cyber_model)
+
+
+# Concatenate the datasets
+
+
+from torch.utils.data import ConcatDataset
+combined_train_dataset = ConcatDataset([train_loader_clip_cyber.dataset, val_loader_clip_cyber.dataset])
+
+# Create a new DataLoader for the combined dataset
+combined_loader = data.DataLoader(combined_train_dataset, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+
+getAccuracy_v2(combined_loader,cyber_model,occult_model)
 
 
 
