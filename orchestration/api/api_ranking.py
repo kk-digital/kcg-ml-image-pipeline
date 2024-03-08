@@ -697,12 +697,12 @@ async def calculate_delta_scores(request: Request):
 
 # New Standardized APIs
 
-@router.post("/rank/add-ranking-data-point-v1", 
+@router.post("/rank/add-ranking-data-point-v2", 
              status_code=201,
              tags=["ranking"],
              response_model=StandardSuccessResponseV1[Selection],  
              responses=ApiResponseHandlerV1.listErrors([422, 500]))
-def add_selection_datapoint_v1(
+def add_selection_datapoint_v2(
     request: Request, 
     selection: Selection,
     dataset: str = Query(..., description="Dataset as a query parameter")  
@@ -732,9 +732,8 @@ def add_selection_datapoint_v1(
         for img_hash in [image_1_hash, image_2_hash]:
             update_image_rank_use_count(request, img_hash)
 
-        # Since the actual processing doesn't return a specific object, adjust the response accordingly
         return response_handler.create_success_response_v1(
-            response_data = data,  # Adjust according to your needs
+            response_data = data, 
             http_status_code=201,
         )
     except Exception as e:
@@ -814,7 +813,7 @@ def set_image_rank_use_count(request: Request, image_hash: str, count: int):
 
         # Return a success response indicating the action performed
         return response_handler.create_success_response_v1(
-            response_data={"image_hash": image_hash, "new_count": count},
+            response_data={"image_hash": image_hash, "count": count},
             http_status_code=200,
         )
     except Exception as e:
@@ -856,10 +855,10 @@ def get_image_rank_use_count_v1(request: Request, image_hash: str):
             http_status_code=500,
         )
 
-@router.post("/ranking/submit-relevance-data-v1",
+@router.post("/rank/add-relevance-data-point",
              status_code=201,
              tags=["ranking"],
-             response_model=StandardSuccessResponseV1[RelevanceSelection],  # Adjust the response model as necessary
+             response_model=StandardSuccessResponseV1[RelevanceSelection],  
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def add_relevancy_selection_datapoint_v1(request: Request, relevance_selection: RelevanceSelection, dataset: str = Query(..., description="Dataset as a query parameter")):
     response_handler = ApiResponseHandlerV1(request, body_data=relevance_selection)
@@ -874,15 +873,16 @@ def add_relevancy_selection_datapoint_v1(request: Request, relevance_selection: 
         full_path = os.path.join(dataset, path, file_name)
 
         # Convert selection to JSON bytes
-        dict_data = relevance_selection.dict()  # Assuming RelevanceSelection is a Pydantic model; use .dict() method
+        dict_data = relevance_selection.to_dict()
         json_data = json.dumps(dict_data, indent=4).encode('utf-8')
         data = BytesIO(json_data)
+
 
         # Upload data to MinIO
         cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
 
         return response_handler.create_success_response_v1(
-            response_data=data, 
+            response_data = dict_data, 
             http_status_code=201,
         )
     except Exception as e:
@@ -893,6 +893,7 @@ def add_relevancy_selection_datapoint_v1(request: Request, relevance_selection: 
             error_string=str(e),
             http_status_code=500,
         )
+
     
 
 @router.get("/rank/list-ranking-data-v1", 
@@ -1007,7 +1008,7 @@ def list_ranking_data_by_residual(
 @router.get("/rank/sort-ranking-data-by-date-v1", 
             description="list ranking data by date",
             tags=["ranking"],
-            response_model=StandardSuccessResponseV1[Selection],  
+            response_model=StandardSuccessResponseV1[List[Selection]],  
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def list_ranking_data_by_date(
     request: Request,
@@ -1112,7 +1113,7 @@ def count_selected_residual_data(request: Request):
             http_status_code=500,
         )
 
-@router.post("/update/add-residual-data-v1", 
+@router.post("/rank/add-residual-data-v1", 
              response_model=StandardSuccessResponseV1[List[Selection]],
              tags=["ranking"],
              status_code=200,
