@@ -1050,6 +1050,27 @@ def get_clip_embeddings_by_tag(id_classes,label_value):
     return train_loader_clip, val_loader_clip
 
     
+def get_all_clip_embeddings_by_tag(id_classes,label_value):
+    images_paths = get_tag_jobs(id_classes[0])
+    i = 1
+    for i in range(1,len(id_classes)):
+        images_paths = images_paths + get_tag_jobs(id_classes[i])
+       
+ 
+    
+    ocult_clips = get_clip_vectors(images_paths)
+
+
+    # Create labels
+    data_occcult_clips = [(clip, label_value) for clip in ocult_clips]
+
+    return data_occcult_clips
+
+
+
+
+
+
 
 
 def get_clip_embeddings_by_path(images_paths,label_value):
@@ -1834,7 +1855,7 @@ load_model(cyber_model,'cyber')
 
 
 
-cyber_sample_emb, _ = next(iter(train_loader_clip_cyber))
+cyber_sample_emb = get_all_clip_embeddings_by_tag([35],1)
 
 getAccuracy(cyber_sample_emb,cyber_model,occult_model)
 
