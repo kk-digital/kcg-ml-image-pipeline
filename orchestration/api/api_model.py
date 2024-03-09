@@ -2,7 +2,7 @@ from fastapi import Request, APIRouter, Query, HTTPException, Response
 from utility.minio import cmd
 import json
 from orchestration.api.mongo_schemas import RankingModel
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, ApiResponseHandlerV1, StandardSuccessResponseV1, ModelResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, ApiResponseHandlerV1, StandardSuccessResponseV1, ModelResponse, ModelIdResponse
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import re
@@ -120,41 +120,6 @@ def get_ranking_models(request: Request, dataset: str = Query(...)):
     return models_list
 
 
-@router.get("/models/rank-embedding/list-models-v2", response_class=PrettyJSONResponse)
-def get_ranking_models(request: Request, dataset: str = Query(...)):
-    bucket_name = "datasets"
-    base_path = f"{dataset}/models/ranking"
-
-    objects = request.app.minio_client.list_objects(bucket_name, prefix=base_path, recursive=True)
-    model_objects = [obj.object_name for obj in objects if obj.object_name.endswith('.json')]
-
-    def fetch_model_content(obj_name):
-        data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, obj_name)
-        return json.loads(data.read().decode('utf-8'))
-
-    models_list = []
-    with ThreadPoolExecutor() as executor:
-        future_to_obj = {executor.submit(fetch_model_content, obj): obj for obj in model_objects}
-        for future in as_completed(future_to_obj):
-            obj_name = future_to_obj[future]
-            try:
-                model_content = future.result()
-                model_name = model_content['model_path'].split('/')[-1].split('.')[0]
-                model_architecture = obj_name.split('/')[-2]
-                arranged_content = {
-                    'model_name': model_name,
-                    'model_architecture': model_architecture,
-                    **model_content
-                }
-                models_list.append(arranged_content)
-            except Exception as exc:
-                print(f'{obj_name} generated an exception: {exc}')
-
-    models_list.sort(key=lambda x: not x["model_name"].endswith('.pth'))
-    models_list.sort(key=lambda x: x["model_name"].split('_')[0] if x["model_name"].endswith('.pth') else x["model_name"], reverse=True)
-
-    return models_list
-
 @router.get("/models/rank-embedding/latest-model")
 def get_latest_ranking_model(request: Request,
                              dataset: str = Query(...),
@@ -229,7 +194,7 @@ def get_latest_ranking_model(request: Request,
     return result_model
 
 # TODO: deprecate
-@router.get("/models/get-model-card", response_class=PrettyJSONResponse)
+@router.get("/models/get-model-card", tags = ["deprecated"], response_class=PrettyJSONResponse)
 def get_model_card(request: Request, file_path: str = Query(...)):
     bucket_name = "datasets"
     
@@ -246,7 +211,7 @@ def get_model_card(request: Request, file_path: str = Query(...)):
         return data.read()
 
 
-@router.get("/models/get-graph")
+@router.get("/models/get-graph", tags = ["deprecated"])
 def get_graph(request: Request, file_path: str = Query(...)):
     bucket_name = "datasets"
     
@@ -266,7 +231,7 @@ def get_graph(request: Request, file_path: str = Query(...)):
 
 
 # TODO: deprecate
-@router.get("/models/get-report")
+@router.get("/models/get-report", tags = ['deprecated'])
 def get_report(request: Request, file_path: str = Query(...)):
     bucket_name = "datasets"
     
@@ -420,7 +385,7 @@ def get_report(request: Request, file_path: str):
 # new apis
 
 @router.get("/models/rank-relevancy/list-models-v1",
-            response_model=StandardSuccessResponseV1[List[ModelResponse]], 
+            response_model=StandardSuccessResponseV1[ModelResponse], 
             description="List relevancy models",
             tags=["models"],
             status_code=200,
@@ -475,7 +440,7 @@ def get_relevancy_models(request: Request, dataset: str = Query(...)):
         )
 
 @router.get("/models/rank-embedding/list-models-v1",
-            response_model=StandardSuccessResponseV1[List[ModelResponse]],  
+            response_model=StandardSuccessResponseV1[ModelResponse],  
             description="List ranking models ",
             tags=["models"],
             status_code=200,
@@ -526,13 +491,13 @@ def get_ranking_models(request: Request, dataset: str = Query(...)):
         )        
 
 
-@router.get("/models/rank-embedding/latest-model",
+@router.get("/models/rank-embedding/get-latest-model",
             response_model=StandardSuccessResponseV1[ModelResponse],  
             description="Get the latest ranking model",
-            tags=["models", "rank-embedding"],
+            tags=["models"],
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([400, 500]))
-def get_latest_ranking_model(request: Request,
+def get_latest_ranking_model_v1(request: Request,
                              dataset: str = Query(...),
                              input_type: str = 'embedding',
                              output_type: str = 'score'):
@@ -614,8 +579,9 @@ def add_model(request: Request, model: RankingModel):
     
 
 @router.get("/models/get-id-v1",
-            response_model=StandardSuccessResponseV1[int],  
+            response_model=StandardSuccessResponseV1[ModelIdResponse],  
             description="Get model id",
+            tags = ["models"],
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([400, 404, 500]))
 def get_model_id(request: Request, model_hash: str):

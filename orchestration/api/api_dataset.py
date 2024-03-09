@@ -282,7 +282,7 @@ def list_ranking_files(
 
     return filtered_json_files
 
-@router.get("/datasets/rank/list-v2", response_class=PrettyJSONResponse)
+@router.get("/datasets/rank/list-v2", tags = ['deprecated'], response_class=PrettyJSONResponse)
 def list_ranking_files(
     request: Request, 
     dataset: str, 
@@ -514,7 +514,7 @@ def list_relevancy_files(request: Request, dataset: str):
     return json_files
 
 
-@router.get("/datasets/rank/read", response_class=PrettyJSONResponse)
+@router.get("/datasets/rank/read",tags = ['ranking'], response_class=PrettyJSONResponse)
 def read_ranking_file(request: Request, dataset: str,
                       filename: str = Query(..., description="Filename of the JSON to read")):
     # Construct the object name for ranking
@@ -534,7 +534,7 @@ def read_ranking_file(request: Request, dataset: str,
     return json.loads(file_content)
 
 
-@router.get("/datasets/relevancy/read", response_class=PrettyJSONResponse)
+@router.get("/datasets/relevancy/read", tags = ['ranking'], response_class=PrettyJSONResponse)
 def read_relevancy_file(request: Request, dataset: str,
                         filename: str = Query(..., description="Filename of the JSON to read")):
     # Construct the object name for relevancy
@@ -582,7 +582,7 @@ def update_ranking_file(request: Request, dataset: str, filename: str, update_da
 
     return {"message": f"File {filename} has been updated."}
 
-@router.put("/datasets/rank/update_datapoint-v1")
+@router.put("/datasets/rank/update_datapoint-v1", tags=['ranking'])
 def update_ranking_file(request: Request, dataset: str, filename: str, update_data: FlaggedDataUpdate):
     # Construct the object name based on the dataset
     object_name = f"{dataset}/data/ranking/aggregate/{filename}"

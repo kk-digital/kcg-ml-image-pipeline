@@ -16,7 +16,8 @@ from dateutil import parser
 from datetime import datetime
 import os
 
-class ModelResponse(BaseModel):
+
+class SingleModelResponse(BaseModel):
     model_name: str
     model_architecture: str
     model_creation_date: str
@@ -30,6 +31,13 @@ class ModelResponse(BaseModel):
     training_loss: str
     validation_loss: str
     graph_report: str
+
+class ModelResponse(BaseModel):
+
+    models: List[SingleModelResponse]
+
+class TagListForImages(BaseModel):
+    tags: List[TagDefinition]
 
 class ModelsAndScoresResponse(BaseModel):
     models: List[str]
@@ -62,6 +70,9 @@ class TagsListResponse(BaseModel):
 class TagCountResponse(BaseModel):
     tag_id: int
     count: int
+
+class ModelIdResponse(BaseModel):
+    model_id: int
 
 class UrlResponse(BaseModel):
     url: str
@@ -286,7 +297,7 @@ class ApiResponseHandlerV1:
 
     def create_success_delete_response_v1(
             self, 
-            reachable: bool, 
+            wasPresent: bool, 
             http_status_code: int,
             headers: dict = {"Cache-Control": "no-store"} ):
         """Construct a success response for deletion operations."""
@@ -300,7 +311,7 @@ class ApiResponseHandlerV1:
             "request_time_start": self.start_time.isoformat(),
             "request_time_finished": datetime.now().isoformat(),
             "request_response_code": http_status_code,
-            "response": {"reachable": reachable}
+            "response": {"wasPresent": wasPresent}
         }
         return PrettyJSONResponse(status_code=http_status_code, content=response_content, headers=headers)
 
