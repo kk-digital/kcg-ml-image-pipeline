@@ -37,7 +37,7 @@ class ELMRegression():
         else:
             device = 'cpu'
 
-        self._device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self._device = torch.device(device)
 
         self._activation = nn.Sigmoid()
 
