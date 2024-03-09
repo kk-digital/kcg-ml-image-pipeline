@@ -77,25 +77,15 @@ def generate_img2img_generation_jobs_with_kandinsky(image_embedding,
 if __name__ == "__main__":
     # Replace these file paths with the actual paths to your msgpack files
     image_embedding_msgpack_file_path = 'test/025920_clip_kandinsky.msgpack'
-    negative_image_embedding_msgpack_file_path = None
     
     # Read msgpack bytes from the files
     image_embedding_msgpack_bytes = read_msgpack_file(image_embedding_msgpack_file_path)
     
-    # Assuming you might not always have a negative image embedding,
-    # check if the file path for it is provided before reading
-    if negative_image_embedding_msgpack_file_path:
-        negative_image_embedding_msgpack_bytes = read_msgpack_file(negative_image_embedding_msgpack_file_path)
-    else:
-        negative_image_embedding_msgpack_bytes = None
+
 
     # Use the `from_msgpack_bytes` class method to instantiate ImageEmbedding objects
     image_embedding = ImageEmbedding.from_msgpack_bytes(image_embedding_msgpack_bytes)
 
-    # For the negative image embedding, check if you actually have msgpack bytes before attempting to deserialize
-    negative_image_embedding = None
-    if negative_image_embedding_msgpack_bytes:
-        negative_image_embedding = ImageEmbedding.from_msgpack_bytes(negative_image_embedding_msgpack_bytes)
 
     dataset_name = "test-generations"
     prompt_generation_policy = "top-k"  
@@ -103,7 +93,7 @@ if __name__ == "__main__":
     # Call the function to generate img2img generation jobs with Kandinsky
     response = generate_img2img_generation_jobs_with_kandinsky(
         image_embedding,
-        negative_image_embedding,
+        None,
         dataset_name,
         prompt_generation_policy
     )
