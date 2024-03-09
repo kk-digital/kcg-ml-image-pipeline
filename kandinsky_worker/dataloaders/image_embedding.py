@@ -28,15 +28,17 @@ class ImageEmbedding:
     @classmethod
     def deserialize(cls, data):
         # Convert dictionary back to object
-        negative_image_embedding= None
-        if data["negative_image_embedding"] is not None:
+        # Safely access 'negative_image_embedding' with .get() to avoid KeyError if it's missing
+        negative_image_embedding = None
+        if 'negative_image_embedding' in data and data.get("negative_image_embedding") is not None:
             negative_image_embedding = torch.tensor([data["negative_image_embedding"]])
-        else:
-            negative_image_embedding = None
-        return cls(data["job_uuid"],
-                   data["dataset"],
-                   torch.tensor([data["image_embedding"]]),
-                   negative_image_embedding)
+
+        return cls(
+            data["job_uuid"],
+            data["dataset"],
+            torch.tensor([data["image_embedding"]]),
+            negative_image_embedding
+        )
 
     def get_msgpack_string(self):
         serialized = self.serialize()
