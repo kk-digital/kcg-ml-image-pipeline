@@ -185,7 +185,7 @@ class ELMRegression():
         self._beta = safetensors_data['beta']
         self._bias = safetensors_data['bias']
 
-        # load met  adata
+        # load metadata
         n_header = data[:8]
         n = int.from_bytes(n_header, "little")
         metadata_bytes = data[8: 8 + n]
