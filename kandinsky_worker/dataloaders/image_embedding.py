@@ -31,7 +31,8 @@ class ImageEmbedding:
         negative_image_embedding= None
         if data["negative_image_embedding"] is not None:
             negative_image_embedding = torch.tensor([data["negative_image_embedding"]])
-
+        else:
+            negative_image_embedding = None
         return cls(data["job_uuid"],
                    data["dataset"],
                    torch.tensor([data["image_embedding"]]),
