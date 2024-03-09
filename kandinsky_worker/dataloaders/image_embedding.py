@@ -34,8 +34,8 @@ class ImageEmbedding:
             negative_image_embedding = torch.tensor([data["negative_image_embedding"]])
 
         return cls(
-            data["job_uuid"],
-            data["dataset"],
+            data.get["job_uuid"],
+            data.get["dataset"],
             torch.tensor([data["image_embedding"]]),
             negative_image_embedding
         )
