@@ -176,7 +176,7 @@ class WorkerState:
             batch= self.self_training_data[dataset].copy()
             self.self_training_data[dataset]=[]
         
-            file_path=f"{str(index+1).zfill(4)}.msgpack"
+            file_path=f"{str(index).zfill(4)}.msgpack"
             packed_data = msgpack.packb(batch, use_single_float=True)
 
             # Create a BytesIO buffer with the packed data
