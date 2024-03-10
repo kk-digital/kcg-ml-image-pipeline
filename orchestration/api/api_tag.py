@@ -811,9 +811,8 @@ def delete_tag_category(request: Request, tag_category_id: int):
              description="Adds a new tag",
              response_model=StandardSuccessResponseV1[TagDefinition],
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-def add_new_tag_definition_v1(request: Request, tag_data: NewTagRequest):
-    tag_data_dict = jsonable_encoder(tag_data)
-    response_handler = ApiResponseHandlerV1(request, body_data=tag_data_dict)
+async def add_new_tag_definition_v1(request: Request, tag_data: NewTagRequest):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
         # Check for existing tag_category_id
         if tag_data.tag_category_id is not None:
@@ -897,9 +896,8 @@ def add_new_tag_definition_v1(request: Request, tag_data: NewTagRequest):
               description="Update tag definitions",
               response_model=StandardSuccessResponseV1[TagDefinition], 
               responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
-def update_tag_definition_v1(request: Request, tag_id: int, update_data: NewTagRequest):
-    tag_data_dict = jsonable_encoder(update_data)
-    response_handler = ApiResponseHandlerV1(request, body_data=tag_data_dict)
+async def update_tag_definition_v1(request: Request, tag_id: int, update_data: NewTagRequest):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     query = {"tag_id": tag_id}
     existing_tag = request.app.tag_definitions_collection.find_one(query)
@@ -1101,10 +1099,9 @@ def get_tag_list_for_image_v1(request: Request, file_hash: str):
             description="Set vector index to tag definition",
             response_model=StandardSuccessResponseV1[VectorIndexUpdateRequest],
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-def set_tag_vector_index(request: Request, tag_id: int, update_data: VectorIndexUpdateRequest):
+async def set_tag_vector_index(request: Request, tag_id: int, update_data: VectorIndexUpdateRequest):
     
-    update_data_dict = jsonable_encoder(update_data)
-    response_handler = ApiResponseHandlerV1(request, body_data=update_data_dict)
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     # Find the tag definition using the provided tag_id
     query = {"tag_id": tag_id}

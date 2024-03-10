@@ -55,9 +55,8 @@ def get_job(request: Request, task_type= None, model_type=""):
              tags=["inpainting jobs"],
              response_model=StandardSuccessResponseV1[AddJob],
              responses=ApiResponseHandlerV1.listErrors([500]))
-def add_job_with_upload(request: Request, task: Task = Body(...), mask_image: UploadFile = File(...), input_image: UploadFile = File(...)):
-    task_dict = jsonable_encoder(task)
-    api_response_handler = ApiResponseHandlerV1(request, body_data=task_dict)
+async def add_job_with_upload(request: Request, task: Task = Body(...), mask_image: UploadFile = File(...), input_image: UploadFile = File(...)):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
         if task.uuid in ["", None]:
             # Generate UUID since it's empty
@@ -111,9 +110,9 @@ def add_job_with_upload(request: Request, task: Task = Body(...), mask_image: Up
              tags=["inpainting jobs"],
              response_model=StandardSuccessResponseV1[AddJob],
              responses=ApiResponseHandlerV1.listErrors([500]))
-def add_job(request: Request, task: Task):
-    task_dict = jsonable_encoder(task)
-    api_response_handler = ApiResponseHandlerV1(request, body_data=task_dict)
+async def add_job(request: Request, task: Task):
+
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
         if task.uuid in ["", None]:
             # Generate UUID since it's empty

@@ -556,8 +556,8 @@ def get_latest_ranking_model_v1(request: Request,
              description="Add a model to model collection",
              status_code=200,
              responses=ApiResponseHandlerV1.listErrors([400, 500]))
-def add_model(request: Request, model: RankingModel):
-    response_handler = ApiResponseHandlerV1(request, body_data=model)
+async def add_model(request: Request, model: RankingModel):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
         query = {"model_file_hash": model.model_file_hash}
         item = request.app.models_collection.find_one(query)
