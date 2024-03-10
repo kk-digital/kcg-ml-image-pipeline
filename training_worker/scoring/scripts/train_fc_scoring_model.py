@@ -260,7 +260,8 @@ class ABRankingFcTrainingPipeline:
 
         for file in self_training_files:
             print(file)
-
+            if file.endswith('incomplete.msgpack'):
+                continue
             # get data
             data = self.minio_client.get_object('datasets', file)
             # Read the content of the msgpack file
