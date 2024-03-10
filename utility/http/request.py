@@ -44,6 +44,26 @@ def http_get_sequential_id(dataset_name: str, limit: int):
 
     return None
 
+# Get request to get the self training sequential id of a dataset
+def http_get_self_training_sequential_id(dataset_name: str):
+    url = SERVER_ADDRESS + "/dataset/self-training-sequential-id/{0}".format(dataset_name)
+    response = None
+
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            job_json = response.json()
+            return job_json
+        
+    except Exception as e:
+        print('request exception ', e)
+
+    finally:
+        if response:
+            response.close()
+
+    return None
+
 
 def http_add_model(model_card):
     url = SERVER_ADDRESS + "/models/add"

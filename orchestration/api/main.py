@@ -157,6 +157,8 @@ def startup_db_client():
     app.dataset_sequential_id_collection = app.mongodb_db["dataset-sequential-id"]
     # used to store sequential ids of generated images
     app.inpainting_dataset_sequential_id_collection = app.mongodb_db["inpainting-dataset-sequential-id"]
+    # used store the sequential ids of self training data
+    app.self_training_sequential_id_collection = app.mongodb_db["self-training-sequential-id"]
 
     # for training jobs
     app.training_pending_jobs_collection = app.mongodb_db["training-pending-jobs"]

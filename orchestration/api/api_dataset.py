@@ -60,6 +60,30 @@ def get_sequential_id(request: Request, dataset: str, limit: int = 1):
 
     return sequential_id_arr
 
+@router.get("/dataset/self-training-sequential-id/{dataset}")
+def get_self_training_sequential_id(request: Request, dataset: str):
+    dataset_path = f"{dataset}/data/latent-generator/self_training/"
+    
+    # Check and initialize if necessary
+    existing_index = request.app.self_training_sequential_id_collection.find_one({"dataset": dataset})
+    if existing_index is None:
+        # Count the files in MinIO for the dataset to initialize the index
+        files = request.app.minio_client.list_objects('datasets', prefix=dataset_path)
+        files_count = len([file.object_name for file in files])
+
+        request.app.self_training_sequential_id_collection.insert_one({"dataset": dataset, "sequential_id": files_count})
+    
+    # Atomically fetch and increment the index
+    result = request.app.self_training_sequential_id_collection.find_one_and_update(
+        {"dataset": dataset},
+        {"$inc": {"sequential_id": 1}},
+        return_document=ReturnDocument.AFTER
+    )
+    
+    if result:
+        return result["sequential_id"]
+    else:
+        raise HTTPException(status_code=500, detail="Failed to fetch the sequential id")
 
 # -------------------- Dataset rate -------------------------
 @router.get("/dataset/get-rate")
