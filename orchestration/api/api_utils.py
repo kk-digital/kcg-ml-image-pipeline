@@ -209,6 +209,8 @@ class ApiResponseHandler:
 
 
 class StandardSuccessResponseV1(BaseModel, Generic[T]):
+    request_error_string: str = ""
+    request_error_code: int = 0
     request_url: str
     request_dictionary: dict 
     request_method: str
