@@ -44,6 +44,7 @@ def get_worker_stats(ssh_key_path: str = Query(...),
     
 @router.get("/ping", 
             response_model=StandardSuccessResponseV1[None],
+            description="dummy endpoint to test connection with the server",
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
 def ping(request: Request):
     response_handler = ApiResponseHandlerV1(request)
