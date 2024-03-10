@@ -542,7 +542,6 @@ total_losses = []
 class_losses = []
 cdiv_losses = []
 reg_losses = []
-
 real_scores_s = []
 fake_scores_s = []
 
@@ -1019,11 +1018,6 @@ def energy_evaluation_with_pictures_clip(imgpath_id,imgpath_ood):
    
 
 
-
-
-
-
-
 def get_clip_embeddings_by_tag(id_classes,label_value):
     images_paths = get_tag_jobs(id_classes[0])
     i = 1
@@ -1224,9 +1218,6 @@ for i in range(1,len(id_classes_in)):
     images_paths_in = images_paths_in + get_tag_jobs(id_classes_in[i])
 
 
-
-import csv
-import pandas as pd
 
 def get_structure_csv_content(sorted_structure,name):
     # Calculate the percentile and assign bin numbers
