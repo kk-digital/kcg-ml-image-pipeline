@@ -41,14 +41,14 @@ def main():
     minio_client= cmd.get_minio_client(minio_access_key=args.minio_access_key,
                                        minio_secret_key=args.minio_secret_key)
     
-    datasets=["environmental", "character", "icons", "mech", "propaganda-poster", "waifu"]
+    datasets=["character", "icons", "mech", "propaganda-poster", "waifu"]
     
     for dataset in datasets:
-        print("fetching job data...........")
+        print(f"fetching job data for {dataset}...........")
         jobs_list= get_job_list(dataset=dataset)
         clip_vectors=[]
 
-        print("fetching image clip files...........")
+        print(f"fetching image clip files for {dataset}...........")
         for job in tqdm(jobs_list):
             try:
                 image_path= job['image_path']
