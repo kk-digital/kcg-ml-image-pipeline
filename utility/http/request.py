@@ -53,7 +53,7 @@ def http_get_self_training_sequential_id(dataset_name: str):
         response = requests.get(url)
         if response.status_code == 200:
             job_json = response.json()
-            return job_json
+            return job_json["sequential_id"]
         
     except Exception as e:
         print('request exception ', e)

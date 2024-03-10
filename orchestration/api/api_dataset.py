@@ -81,7 +81,7 @@ def get_self_training_sequential_id(request: Request, dataset: str):
     )
     
     if result:
-        return result["sequential_id"]
+        return result
     else:
         raise HTTPException(status_code=500, detail="Failed to fetch the sequential id")
 
