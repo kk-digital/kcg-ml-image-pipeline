@@ -206,6 +206,20 @@ class RankingScore(BaseModel):
             "image_hash": self.image_hash,
             "score": self.score,
         }
+    
+
+class ClassifierScore(BaseModel):
+    model_id: int
+    tag_id: int
+    image_hash: str
+    score: float
+
+    def to_dict(self):
+        return {
+            "model_id": self.model_id,
+            "image_hash": self.image_hash,
+            "score": self.score,
+        }
 
 
 class RankingSigmaScore(BaseModel):
