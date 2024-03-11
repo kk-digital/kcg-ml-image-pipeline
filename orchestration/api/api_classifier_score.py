@@ -1,8 +1,11 @@
 from fastapi import Request, APIRouter
 from .api_utils import ErrorCode, WasPresentResponse, ApiResponseHandlerV1, StandardSuccessResponseV1
 from orchestration.api.mongo_schemas import ClassifierScore
+from fastapi.encoders import jsonable_encoder
+
 
 router = APIRouter()
+
 
 @router.get("/classifier-score/get-image-classifier-scores-by-tag",
             description="Get the images scores by tag",
@@ -14,7 +17,7 @@ def get_image_classifier_scores_by_tag(request: Request, tag_id: str, model_id: 
     api_response_handler = ApiResponseHandlerV1(request)
 
     query = {"tag_id": tag_id, "model_id": model_id}
-    items = request.app.image_classifier_scores_collection.find_many(query).sort("score", sort)
+    items = request.app.image_classifier_scores_collection.find(query).sort("score", sort)
 
     if not items:
         # If no items found, use ApiResponseHandler to return a standardized error response
@@ -37,7 +40,7 @@ def get_image_classifier_scores_by_tag(request: Request, tag_id: str, model_id: 
     )    
 
 
-@router.get("/classifier-score/image-classifier-score-by-hash", 
+@router.get("/classifier-score/get-image-classifier-score-by-hash", 
             description="Get image classifier score by model_id, tag_id and image_hash",
             status_code=200,
             tags=["score"],  
@@ -69,17 +72,18 @@ def get_image_classifier_score_by_hash(request: Request, image_hash: str, model_
     )
 
 
-@router.put("/classifier-score/image-classifier-score-by-hash", 
+@router.put("/classifier-score/update-image-classifier-score-by-hash", 
             description="put image classfier score by hash",
             status_code=200,
-            tags=["score"],  
+            tags=["put_score_by_hash"],
             response_model=StandardSuccessResponseV1[ClassifierScore],  # Specify the expected response model, adjust as needed
             responses=ApiResponseHandlerV1.listErrors([400,422]))
-def update_image_classifier_score_by_hash(request: Request, image_hash: str, model_id: int, tag_id: str, score: float):
-    api_response_handler = ApiResponseHandlerV1(request)
+def update_image_classifier_score_by_hash(request: Request, classifier_score: ClassifierScore):
+    print("Updating classifier score", classifier_score)
+    api_response_handler = ApiResponseHandlerV1(request, body_data=classifier_score.to_dict())
 
     # check if exists
-    query = {"image_hash": image_hash, "model_id": model_id, "tag_id": tag_id}
+    query = {"image_hash": classifier_score.image_hash, "model_id": classifier_score.model_id, "tag_id": classifier_score.tag_id}
 
     item = request.app.image_classifier_scores_collection.find_one(query)
 
@@ -96,14 +100,18 @@ def update_image_classifier_score_by_hash(request: Request, image_hash: str, mod
             query,
             {
                 "$set": {
-                    "score": score
+                    "score": classifier_score.score
                 },
             }
         )
-
+    
+    if not item:
+        updated = True
+    else:
+        updated = False
     # Return a standardized success response
     return api_response_handler.create_success_response_v1(
-        response_data=item,
+        response_data={"update": updated},
         http_status_code=200
     )
 
@@ -112,11 +120,10 @@ def update_image_classifier_score_by_hash(request: Request, image_hash: str, mod
              status_code=200,
              description="Set classifier image score",
              tags=["score"],  
-             response_model=StandardSuccessResponseV1[ClassifierScore],
-             responses=ApiResponseHandlerV1.listErrors([400, 422]))  # Added 409 for conflict
+             )  # Added 409 for conflict
 def set_image_classifier_score(request: Request, classifier_score: ClassifierScore):
-    api_response_handler = ApiResponseHandlerV1(request, body_data=classifier_score)
-    
+
+    api_response_handler = ApiResponseHandlerV1(request, body_data=classifier_score.to_dict())
     # check if exists
     query = {"image_hash": classifier_score.image_hash,
              "tag_id": classifier_score.tag_id,
@@ -141,12 +148,13 @@ def set_image_classifier_score(request: Request, classifier_score: ClassifierSco
     )
 
 
-@router.delete("/classifier-score/image-classifier-score-by-hash", 
+@router.delete("/classifier-score/delete-image-classifier-score-by-hash", 
                description="Delete image classifier score by specific hash.",
                status_code=200,
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([422]))
-def delete_image_classifier_score_by_hash(request: Request, image_hash: str, model_id: str, tag_id: str):
+def delete_image_classifier_score_by_hash(request: Request, image_hash: str, model_id: int, tag_id: str):
+
     api_response_handler = ApiResponseHandlerV1(request)
     
     # Adjust the query to include model_id
