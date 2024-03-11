@@ -196,6 +196,9 @@ def startup_db_client():
     # scores
     app.image_scores_collection = app.mongodb_db["image-scores"]
 
+    # scores for image classfier
+    app.image_classifier_scores_collection = app.mongodb_db["image_classifier_scores"]
+
     # active learning
     app.active_learning_policies_collection = app.mongodb_db["active-learning-policies"]
     app.active_learning_queue_pairs_collection = app.mongodb_db["queue-pairs"]
@@ -211,6 +214,24 @@ def startup_db_client():
     ('image_hash', pymongo.ASCENDING)
     ]
     create_index_if_not_exists(app.image_scores_collection ,hash_index, 'score_hash_index')
+
+    # classifier scores hash index
+    classifier_hash_index=[
+    ('model_id', pymongo.ASCENDING), 
+    ('image_hash', pymongo.ASCENDING),
+    ('tag_id', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_hash_index, 'classifier_hash_index')
+
+    
+    # classifier scores tag index
+    classifier_tag_index=[
+    ('model_id', pymongo.ASCENDING), 
+    ('tag_id', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_tag_index, 'classifier_hash_index')
+
+
 
     # sigma scores
     app.image_sigma_scores_collection = app.mongodb_db["image-sigma-scores"]
