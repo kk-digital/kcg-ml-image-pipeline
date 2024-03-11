@@ -63,13 +63,13 @@ def get_sequential_id(request: Request, dataset: str, limit: int = 1):
 @router.get("/dataset/self-training-sequential-id/{dataset}")
 def get_self_training_sequential_id(request: Request, dataset: str):
     dataset_path = f"{dataset}/data/latent-generator/self_training/"
-    
     # Check and initialize if necessary
     existing_index = request.app.self_training_sequential_id_collection.find_one({"dataset": dataset})
     if existing_index is None:
         # Count the files in MinIO for the dataset to initialize the index
         files = request.app.minio_client.list_objects('datasets', prefix=dataset_path)
-        files_count = len([file.object_name for file in files])
+        files = [file.object_name for file in files]
+        files_count = len(files)
 
         request.app.self_training_sequential_id_collection.insert_one({"dataset": dataset, "sequential_id": files_count})
     
@@ -79,6 +79,8 @@ def get_self_training_sequential_id(request: Request, dataset: str):
         {"$inc": {"sequential_id": 1}},
         return_document=ReturnDocument.AFTER
     )
+
+    result.pop("_id", None)
     
     if result:
         return result
