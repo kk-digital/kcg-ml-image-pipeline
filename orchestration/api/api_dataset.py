@@ -60,6 +60,12 @@ def get_sequential_id(request: Request, dataset: str, limit: int = 1):
 
     return sequential_id_arr
 
+@router.delete("/dataset/clear-self-training-sequential-id")
+def clear_self_training_sequential_id_jobs(request: Request):
+    request.app.self_training_sequential_id_collection.delete_many({})
+
+    return True
+
 @router.get("/dataset/self-training-sequential-id/{dataset}")
 def get_self_training_sequential_id(request: Request, dataset: str):
     dataset_path = f"{dataset}/data/latent-generator/self_training/"
