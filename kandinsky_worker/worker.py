@@ -27,7 +27,6 @@ from kandinsky.models.kandisky import KandinskyPipeline
 from utility.utils_logger import logger
 from data_loader.utils import get_object
 from kandinsky_worker.dataloaders.image_embedding import ImageEmbedding
-from kandinsky_worker.self_training.training_utils import store_self_training_data
 
 class ThreadState:
     def __init__(self, thread_id, thread_name):
@@ -287,7 +286,7 @@ def upload_data_and_update_job_status(worker_state, job, output_file_path, outpu
     generation_request.http_update_job_completed(job)
 
     if job['task_input_dict']['self_training']:
-        store_self_training_data(worker_state, job)
+        worker_state.calculate_self_training_data(job)
 
 
 def upload_image_data_and_update_job_status_img2img(worker_state,
@@ -490,6 +489,7 @@ def process_jobs(worker_state):
     last_job_time = time.time()
 
     while True:
+        worker_state.store_self_training_data()
         job = worker_state.job_queue.get()
 
         if job is not None:
