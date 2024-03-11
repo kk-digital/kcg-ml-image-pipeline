@@ -33,12 +33,14 @@ class SingleModelResponse(BaseModel):
     graph_report: str
 
 class ModelResponse(BaseModel):
-
     models: List[SingleModelResponse]
 
 class TagListForImages(BaseModel):
     tags: List[TagDefinition]
 
+class ModelTypeResponse(BaseModel):
+    model_types: List[str]
+    
 class ModelsAndScoresResponse(BaseModel):
     models: List[str]
     scores: List[str]
