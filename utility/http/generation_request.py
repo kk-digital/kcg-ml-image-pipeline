@@ -2,6 +2,7 @@
 # this is also used by training workers
 import requests
 import json
+from utility.http.http_request_utils import get_url_with_query_params, http_request
 
 SERVER_ADDRESS = 'http://192.168.3.1:8111'
 #SERVER_ADDRESS = 'http://127.0.0.1:8000'
@@ -36,6 +37,32 @@ def http_get_job(worker_type: str = None, model_type: str = None):
             response.close()
 
     return None
+
+# get the list by dataset
+def http_get_list_by_dataset(dataset:str, model_type:str, min_clip_sigma_socre:float, size:int):
+    """
+    Constructs a URL with query parameters by appending 'dataset' and 'model_type' to a specific URL.
+    
+    Args:
+        dataset (str): The dataset parameter for the request.
+        model_type (str): The model type parameter for the request.
+        min_clip_sigma_score (float): The minimum clip sigma score parameter.
+        size (int): The number of samplese for the request.
+    """
+
+    url = SERVER_ADDRESS + "/queue/image-generation/list-by-dataset"
+
+    query_params = {
+        "dataset": dataset,
+        "model_type": model_type,
+        "min_clip_sigma_score": min_clip_sigma_socre,
+        "size": size
+    }
+    
+    url = get_url_with_query_params(url, query_params)
+
+    return http_request(url, "GET")
+
 
 
 def http_add_job(job):
