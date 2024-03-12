@@ -70,7 +70,7 @@ def get_object(client, file_path):
         response = client.get_object("datasets", file_path)
         data = response.data
     finally:
-        if response:
+        if 'response' in locals() and response:
             response.close()
             response.release_conn()
 
