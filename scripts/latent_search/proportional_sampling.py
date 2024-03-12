@@ -17,6 +17,7 @@ sys.path.insert(0, os.getcwd())
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 from training_worker.scoring.models.scoring_fc import ScoringFCNetwork
 from utility.minio import cmd
+from utility.http import request
 from data_loader.utils import get_object
 
 def parse_args():
@@ -270,20 +271,46 @@ class KandinskyImageGenerator:
 
 def main():
     args= parse_args()
-    # initialize generator
-    generator= KandinskyImageGenerator(minio_access_key=args.minio_access_key,
-                                       minio_secret_key=args.minio_secret_key,
-                                       dataset=args.dataset,
-                                       num_bins=args.num_bins,
-                                       top_k= args.top_k,
-                                       batch_size= args.batch_size,
-                                       learning_rate= args.learning_rate,
-                                       steps= args.steps,
-                                       generation_policy= args.generation_policy,
-                                       send_job= args.send_job,
-                                       save_csv= args.save_csv)
-    
-    generator.generate_images(num_images=args.num_images)
+
+    if args.dataset != "all":
+        # initialize generator
+        generator= KandinskyImageGenerator(minio_access_key=args.minio_access_key,
+                                            minio_secret_key=args.minio_secret_key,
+                                            dataset=args.dataset,
+                                            num_bins=args.num_bins,
+                                            top_k= args.top_k,
+                                            batch_size= args.batch_size,
+                                            learning_rate= args.learning_rate,
+                                            steps= args.steps,
+                                            generation_policy= args.generation_policy,
+                                            send_job= args.send_job,
+                                            save_csv= args.save_csv)
+
+        generator.generate_images(num_images=args.num_images)
+    else:
+        # if all, generate num_images for each dataset
+        # get dataset name list
+        dataset_names = request.http_get_dataset_names()
+        print("dataset names=", dataset_names)
+        for dataset in dataset_names:
+            try:
+                generator= KandinskyImageGenerator(minio_access_key=args.minio_access_key,
+                                            minio_secret_key=args.minio_secret_key,
+                                            dataset=args.dataset,
+                                            num_bins=args.num_bins,
+                                            top_k= args.top_k,
+                                            batch_size= args.batch_size,
+                                            learning_rate= args.learning_rate,
+                                            steps= args.steps,
+                                            generation_policy= args.generation_policy,
+                                            send_job= args.send_job,
+                                            save_csv= args.save_csv)
+
+                generator.generate_images(num_images=args.num_images)
+
+            except Exception as e:
+                print("Error generating images for {}: {}".format(dataset, e))
+
 
 if __name__ == "__main__":
     main()
