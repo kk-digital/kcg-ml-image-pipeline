@@ -609,6 +609,17 @@ def count_completed(request: Request, dataset: str = None):
 
     return len(jobs)
 
+
+@router.get("/queue/image-generation/count-by-task-type")
+def count_by_task_type(request: Request, task_type: str = "image_generation_task"):
+    # Define the query to count documents with a specific task_type
+    count = request.app.completed_jobs_collection.count_documents({
+        'task_type': task_type
+    })
+
+    # Return the count
+    return {"count": count}
+
 @router.get("/queue/image-generation/count-pending")
 def count_completed(request: Request, dataset: str = None):
 
