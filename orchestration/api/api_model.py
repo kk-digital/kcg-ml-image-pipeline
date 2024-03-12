@@ -439,7 +439,7 @@ def get_relevancy_models(request: Request, dataset: str = Query(...)):
             http_status_code=500,
         )
 
-@router.get("/models/rank-embedding/list-models-v1",
+@router.get("/models/rank-embedding/list-models-v2",
             response_model=StandardSuccessResponseV1[ModelResponse],  
             description="List ranking models ",
             tags=["models"],
