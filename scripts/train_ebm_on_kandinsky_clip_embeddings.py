@@ -657,6 +657,30 @@ def process_and_sort_dataset_combined(images_paths, model1,model2):
     return sorted_structure
 
 
+# 
+def process_and_sort_dataset_weighted_combinations(images_paths, models,weights):
+    # Initialize an empty list to hold the structure for each image
+    structure = []
+
+    # Process each image path
+    for image_path in images_paths:
+        # Extract embedding and image tensor from the image path
+        image, embedding = get_clip_and_image_from_path(image_path)
+        
+        # Compute the score by passing the image tensor through the model
+        # Ensure the tensor is in the correct shape, device, etc.
+        score = 0
+        for i in range(len(models)):
+            score += weights[i] *models[i].cnn(embedding.unsqueeze(0).to(models[i].device)).cpu() 
+        
+        # Append the path, embedding, and score as a tuple to the structure list
+        structure.append((image_path, embedding, score.item(),image))  # Assuming score is a tensor, use .item() to get the value
+
+    # Sort the structure list by the score in descending order (for ascending, remove 'reverse=True')
+    # The lambda function specifies that the sorting is based on the third element of each tuple (index 2)
+    sorted_structure = sorted(structure, key=lambda x: x[2], reverse=True)
+
+    return sorted_structure
 
 # ---------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------- Displayer images with scores --------------------------------------
@@ -949,14 +973,19 @@ occult_model = DeepEnergyModel(img_shape=(1280,))
 load_model(occult_model,'occult')
 
 
-
 # Create a new Model    
 cybernetics_model = DeepEnergyModel(img_shape=(1280,))
 # Load the last occult trained model
 load_model(cybernetics_model,'cyber')
 
-sorted_combined_images = process_and_sort_dataset_combined(images_paths_ood,occult_model,cybernetics_model)
 
+# Create a new Model    
+texture_model = DeepEnergyModel(img_shape=(1280,))
+# Load the last occult trained model
+load_model(texture_model,'defect-only')
+
+#sorted_combined_images = process_and_sort_dataset_combined(images_paths_ood,occult_model,cybernetics_model)
+sorted_combined_images = process_and_sort_dataset_weighted_combinations(images_paths_ood,[occult_model,cybernetics_model,texture_model],[1,1,1])
 
 get_structure_csv_content(sorted_combined_images,"occult_x_cybernetics_on_env_30000_sample")
 selected_structure_first_52 = sorted_combined_images[:52]
