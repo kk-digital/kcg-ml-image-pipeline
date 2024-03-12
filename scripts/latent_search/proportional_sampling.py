@@ -28,7 +28,7 @@ def parse_args():
         parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
         parser.add_argument('--num-bins', type=int, help='Number of bins', default=10)
         parser.add_argument('--num-images', type=int, help='Number of images to generate', default=1000)
-        parser.add_argument('--top-k', type=float, help='Portion of samples to generate images with', default=0.1)
+        parser.add_argument('--top-k', type=float, help='Portion of samples to generate images with', default=0.01)
         parser.add_argument('--batch-size', type=int, help='Inference batch size used by the scoring model', default=256)
         parser.add_argument('--learning-rate', type=float, help='Learning rate of optimization', default=0.001)
         parser.add_argument('--steps', type=int, help='Number of steps for optimization', default=200)
