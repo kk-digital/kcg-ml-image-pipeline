@@ -118,6 +118,7 @@ class ABRankingFcTrainingPipeline:
 
 def main():
     args = parse_args()
+    global DATA_MINIO_DIRECTORY
 
     if args.dataset != "all":
         training_pipeline=ABRankingFcTrainingPipeline(minio_access_key=args.minio_access_key,
@@ -130,7 +131,6 @@ def main():
                                     epochs= args.epochs,
                                     learning_rate= args.learning_rate)
         
-        global DATA_MINIO_DIRECTORY
         DATA_MINIO_DIRECTORY= f"{args.dataset}/data/latent-generator"
         
         # do self training
@@ -142,7 +142,6 @@ def main():
         dataset_names = request.http_get_dataset_names()
         print("dataset names=", dataset_names)
         for dataset in dataset_names:
-            global DATA_MINIO_DIRECTORY
             DATA_MINIO_DIRECTORY= f"{dataset}/data/latent-generator"
             
             try:
