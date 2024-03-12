@@ -962,3 +962,7 @@ get_structure_csv_content(sorted_combined_images,"occult_x_cybernetics_on_env_30
 selected_structure_first_52 = sorted_combined_images[:52]
 selected_structure_second_52 = sorted_combined_images[52:103]
 selected_structure_third_52 = sorted_combined_images[103:154]
+
+plot_images_with_scores(selected_structure_first_52,"Top_first_52_occult_x_cybernetics_env_added_50")
+plot_images_with_scores(selected_structure_second_52,"Top_second_52_occult_x_cybernetics_env_added_50")
+plot_images_with_scores(selected_structure_third_52,"Top_third_52_occult_x_cybernetics_env_added_50")
