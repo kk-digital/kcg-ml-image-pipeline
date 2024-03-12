@@ -25,7 +25,6 @@ def parse_args():
                         help="The minio access key to use so worker can upload files to minio server")
     parser.add_argument("--minio-secret-key", type=str,
                         help="The minio secret key to use so worker can upload files to minio server")
-    parser.add_argument("--dataset", type=str, default="environmental")
 
     return parser.parse_args()
 
@@ -42,49 +41,55 @@ def main():
     minio_client= cmd.get_minio_client(minio_access_key=args.minio_access_key,
                                        minio_secret_key=args.minio_secret_key)
     
-    print("fetching job data...........")
-    jobs_list= get_job_list(dataset=args.dataset)
-    clip_vectors=[]
+    datasets=["character", "icons", "mech", "propaganda-poster", "waifu"]
+    
+    for dataset in datasets:
+        print(f"fetching job data for {dataset}...........")
+        jobs_list= get_job_list(dataset=dataset)
+        clip_vectors=[]
 
-    print("fetching image clip files...........")
-    for job in tqdm(jobs_list):
-        image_path= job['image_path']
-        bucket_name, input_file_path = separate_bucket_and_file_path(image_path)
-        file_path = os.path.splitext(input_file_path)[0]
+        print(f"fetching image clip files for {dataset}...........")
+        for job in tqdm(jobs_list):
+            try:
+                image_path= job['image_path']
+                bucket_name, input_file_path = separate_bucket_and_file_path(image_path)
+                file_path = os.path.splitext(input_file_path)[0]
 
-        clip_path = file_path + "_clip_kandinsky.msgpack"
-        clip_data = get_object(minio_client, clip_path)
-        clip_vector = msgpack.unpackb(clip_data)['clip-feature-vector']
-        clip_vectors.append(clip_vector)
+                clip_path = file_path + "_clip_kandinsky.msgpack"
+                clip_data = get_object(minio_client, clip_path)
+                clip_vector = msgpack.unpackb(clip_data)['clip-feature-vector']
+                clip_vectors.append(clip_vector)
+            except:
+                print("an error occured")
 
-    # Convert list of vectors into a numpy array for easier computation
-    clip_vectors_np = np.array(clip_vectors)
+        # Convert list of vectors into a numpy array for easier computation
+        clip_vectors_np = np.array(clip_vectors)
 
-    # Calculate mean and std for each feature
-    mean_vector = np.mean(clip_vectors_np, axis=0)
-    std_vector = np.std(clip_vectors_np, axis=0)
+        # Calculate mean and std for each feature
+        mean_vector = np.mean(clip_vectors_np, axis=0)
+        std_vector = np.std(clip_vectors_np, axis=0)
 
-    # Calculate max and min vectors
-    max_vector = np.max(clip_vectors_np, axis=0)
-    min_vector = np.min(clip_vectors_np, axis=0)
+        # Calculate max and min vectors
+        max_vector = np.max(clip_vectors_np, axis=0)
+        min_vector = np.min(clip_vectors_np, axis=0)
 
-    stats = {
-        "mean": mean_vector.tolist(),
-        "std": std_vector.tolist(),
-        "max": max_vector.tolist(),
-        "min": min_vector.tolist(),
-    }
+        stats = {
+            "mean": mean_vector.tolist(),
+            "std": std_vector.tolist(),
+            "max": max_vector.tolist(),
+            "min": min_vector.tolist(),
+        }
 
-    stats_msgpack = msgpack.packb(stats)
+        stats_msgpack = msgpack.packb(stats)
 
-    data = BytesIO()
-    data.write(stats_msgpack)
-    data.seek(0)
+        data = BytesIO()
+        data.write(stats_msgpack)
+        data.seek(0)
 
-    # Storing stats in MinIO
-    bucket_name = "datasets"
-    output_path = f"{args.dataset}/output/stats/clip_stats.msgpack"
-    cmd.upload_data(minio_client, bucket_name, output_path, data)
+        # Storing stats in MinIO
+        bucket_name = "datasets"
+        output_path = f"{dataset}/output/stats/clip_stats.msgpack"
+        cmd.upload_data(minio_client, bucket_name, output_path, data)
 
 if __name__ == '__main__':
     main()

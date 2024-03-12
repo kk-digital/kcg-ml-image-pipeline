@@ -33,6 +33,8 @@ from orchestration.api.api_active_learning_policy import router as active_learni
 from orchestration.api.api_pseudo_tag import router as pseudo_tags_router
 from orchestration.api.api_worker import router as worker_router
 from orchestration.api.api_inpainting_job import router as inpainting_job_router
+from orchestration.api.api_server_utility import router as server_utility_router
+from orchestration.api.api_classifier_score import router as classifier_score_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -70,6 +72,8 @@ app.include_router(active_learning_policy_router)
 app.include_router(pseudo_tags_router)
 app.include_router(worker_router)
 app.include_router(inpainting_job_router)
+app.include_router(server_utility_router)
+app.include_router(classifier_score_router)
 
 
 
@@ -157,6 +161,8 @@ def startup_db_client():
     app.dataset_sequential_id_collection = app.mongodb_db["dataset-sequential-id"]
     # used to store sequential ids of generated images
     app.inpainting_dataset_sequential_id_collection = app.mongodb_db["inpainting-dataset-sequential-id"]
+    # used store the sequential ids of self training data
+    app.self_training_sequential_id_collection = app.mongodb_db["self-training-sequential-id"]
 
     # for training jobs
     app.training_pending_jobs_collection = app.mongodb_db["training-pending-jobs"]
@@ -194,6 +200,9 @@ def startup_db_client():
     # scores
     app.image_scores_collection = app.mongodb_db["image-scores"]
 
+    # scores for image classfier
+    app.image_classifier_scores_collection = app.mongodb_db["image_classifier_scores"]
+
     # active learning
     app.active_learning_policies_collection = app.mongodb_db["active-learning-policies"]
     app.active_learning_queue_pairs_collection = app.mongodb_db["queue-pairs"]
@@ -209,6 +218,24 @@ def startup_db_client():
     ('image_hash', pymongo.ASCENDING)
     ]
     create_index_if_not_exists(app.image_scores_collection ,hash_index, 'score_hash_index')
+
+    # classifier scores hash index
+    classifier_hash_index=[
+    ('model_id', pymongo.ASCENDING), 
+    ('image_hash', pymongo.ASCENDING),
+    ('tag_id', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_hash_index, 'classifier_hash_index')
+
+    
+    # classifier scores tag index
+    classifier_tag_index=[
+    ('model_id', pymongo.ASCENDING), 
+    ('tag_id', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_tag_index, 'classifier_hash_index')
+
+
 
     # sigma scores
     app.image_sigma_scores_collection = app.mongodb_db["image-sigma-scores"]
