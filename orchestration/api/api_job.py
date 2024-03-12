@@ -19,6 +19,8 @@ from typing import Optional, Dict
 import csv
 from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, AddJob, WasPresentResponse
 from pymongo import UpdateMany
+from bson import ObjectId
+
 
 router = APIRouter()
 
@@ -608,6 +610,24 @@ def count_completed(request: Request, dataset: str = None):
     }))
 
     return len(jobs)
+
+
+@router.get("/queue/image-generation/count-by-task-type")
+def count_by_task_type(request: Request, task_type: str = "image_generation_task"):
+    # Get the completed jobs collection
+    completed_jobs_collection = request.app.completed_jobs_collection
+
+    # Define the query to count documents with a specific task_type
+    count = completed_jobs_collection.count_documents({'task_type': task_type})
+
+    # Fetch documents with the specified task_type
+    documents = completed_jobs_collection.find({'task_type': task_type})
+
+    # Convert ObjectId to string for JSON serialization
+    documents_list = [{k: str(v) if isinstance(v, ObjectId) else v for k, v in doc.items()} for doc in documents]
+
+    # Return the count and documents
+    return PrettyJSONResponse(content={"count": count, "documents": documents_list})
 
 @router.get("/queue/image-generation/count-pending")
 def count_completed(request: Request, dataset: str = None):

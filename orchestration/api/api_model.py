@@ -2,7 +2,7 @@ from fastapi import Request, APIRouter, Query, HTTPException, Response
 from utility.minio import cmd
 import json
 from orchestration.api.mongo_schemas import RankingModel
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, ApiResponseHandlerV1, StandardSuccessResponseV1, ModelResponse, ModelIdResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, ApiResponseHandlerV1, StandardSuccessResponseV1, ModelResponse, ModelIdResponse, ModelTypeResponse
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import re
@@ -439,7 +439,7 @@ def get_relevancy_models(request: Request, dataset: str = Query(...)):
             http_status_code=500,
         )
 
-@router.get("/models/rank-embedding/list-models-v1",
+@router.get("/models/rank-embedding/list-models-v2",
             response_model=StandardSuccessResponseV1[ModelResponse],  
             description="List ranking models ",
             tags=["models"],
@@ -552,12 +552,13 @@ def get_latest_ranking_model_v1(request: Request,
     
 
 @router.post("/models/add-v1",
-             response_model=StandardSuccessResponseV1[int], 
+             response_model=StandardSuccessResponseV1[ModelIdResponse], 
              description="Add a model to model collection",
+             tags=["models"],
              status_code=200,
              responses=ApiResponseHandlerV1.listErrors([400, 500]))
-def add_model(request: Request, model: RankingModel):
-    response_handler = ApiResponseHandlerV1(request, body_data=model)
+async def add_model(request: Request, model: RankingModel):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
         query = {"model_file_hash": model.model_file_hash}
         item = request.app.models_collection.find_one(query)
@@ -606,6 +607,7 @@ def get_model_id(request: Request, model_hash: str):
 
 @router.get("/static/models/get-latest-graph",
             description="Get the latest graph",
+            tags=["models"],
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([400, 404, 500]))
 async def get_latest_graph(request: Request, dataset: str = Query(...), model_type: str = Query(...)):
@@ -637,11 +639,13 @@ async def get_latest_graph(request: Request, dataset: str = Query(...), model_ty
             http_status_code=500,
         )
 
-@router.get("/models/list-model-types",
+@router.get("/models/list-model-types-v1",
             description="List model types",
+            response_model=StandardSuccessResponseV1[ModelTypeResponse],
+            tags=["models"],
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([400, 500]))
-async def list_model_types(request: Request, dataset: str):
+async def list_model_types_v1(request: Request, dataset: str):
     response_handler = ApiResponseHandlerV1(request)
     bucket_name = "datasets"
     base_path = f"{dataset}/output/scores-graph"
@@ -672,6 +676,7 @@ async def list_model_types(request: Request, dataset: str):
 
 @router.get("/static/models/get-model-card/{file_path:path}",
             description="Get model card",
+            tags=["models"],
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 def get_model_card(request: Request, file_path: str):
@@ -705,6 +710,7 @@ def get_model_card(request: Request, file_path: str):
 
 @router.get("/static/models/get-graph/{file_path:path}",
             description="Get graph",
+            tags=["models"],
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 def get_graph(request: Request, file_path: str):
@@ -733,6 +739,7 @@ def get_graph(request: Request, file_path: str):
 
 @router.get("/static/models/get-report/{file_path:path}",
             description="Get report",
+            tags=["models"],
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 def get_report(request: Request, file_path: str):
