@@ -23,7 +23,7 @@ def parse_args():
     parser.add_argument('--minio-access-key', type=str, help='Minio access key')
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
-    parser.add_argument('--model-type', type=str, help='model type, fc or xgboost', default="fc")
+    parser.add_argument('--model-type', type=str, help='Model type, fc, xgboost and treeconnect', default="fc")
     parser.add_argument('--kandinsky-batch-size', type=int, default=5)
     parser.add_argument('--training-batch-size', type=int, default=64)
     parser.add_argument('--epochs', type=int, default=10)
@@ -63,13 +63,6 @@ class ABRankingFcTrainingPipeline:
         self.epochs= epochs
         self.model_type= model_type
 
-        if(self.model_type=="fc"):
-            self.model= ScoringFCNetwork(minio_client=self.minio_client, dataset=dataset)
-        elif(self.model_type=="xgboost"):
-            self.model= ScoringXgboostModel(minio_client=self.minio_client, dataset=dataset)
-        elif(self.model_type=="treeconnect"):
-            self.model= ScoringTreeConnectNetwork(minio_client=self.minio_client, dataset=dataset)
-
     def train(self):
         inputs=[]
         outputs=[]
@@ -96,11 +89,23 @@ class ABRankingFcTrainingPipeline:
             outputs.extend(self_training_outputs)
         
         # training and saving the model
-        if self.model_type in ["fc", "treeconnect"]:
-            loss=self.model.train(inputs, outputs, num_epochs= self.epochs, batch_size=self.training_batch_size, learning_rate=self.learning_rate)
-        elif self.model_type=="xgboost":
-            loss=self.model.train(inputs, outputs)
-        self.model.save_model()
+        if self.model_type == "fc" or self.model_type == "all":
+            print(f"training an fc model for the {self.dataset} dataset")
+            model= ScoringFCNetwork(minio_client=self.minio_client, dataset=self.dataset)
+            loss=model.train(inputs, outputs, num_epochs= self.epochs, batch_size=self.training_batch_size, learning_rate=self.learning_rate)
+            model.save_model()
+        
+        if self.model_type == "treeconnect" or self.model_type == "all":
+            print(f"training a treeconnect model for the {self.dataset} dataset")
+            model= ScoringTreeConnectNetwork(minio_client=self.minio_client, dataset=self.dataset)
+            loss=model.train(inputs, outputs, num_epochs= self.epochs, batch_size=self.training_batch_size, learning_rate=self.learning_rate)
+            model.save_model()
+        
+        if self.model_type=="xgboost" or self.model_type == "all":
+            print(f"training an xgboost model for the {self.dataset} dataset")
+            model= ScoringXgboostModel(minio_client=self.minio_client, dataset=self.dataset)
+            loss=model.train(inputs, outputs)
+            model.save_model()
     
     def load_self_training_data(self, data):
         inputs=[]
@@ -118,7 +123,7 @@ def main():
         training_pipeline=ABRankingFcTrainingPipeline(minio_access_key=args.minio_access_key,
                                     minio_secret_key=args.minio_secret_key,
                                     dataset= args.dataset,
-                                    model_type=args.model_type,
+                                    model_type= args.model_type,
                                     kandinsky_batch_size=args.kandinsky_batch_size,
                                     training_batch_size=args.training_batch_size,
                                     num_samples= args.num_samples,
@@ -141,7 +146,7 @@ def main():
                 # initialize training pipeline
                 training_pipeline=ABRankingFcTrainingPipeline(minio_access_key=args.minio_access_key,
                                     minio_secret_key=args.minio_secret_key,
-                                    dataset= args.dataset,
+                                    dataset= dataset,
                                     model_type=args.model_type,
                                     kandinsky_batch_size=args.kandinsky_batch_size,
                                     training_batch_size=args.training_batch_size,
@@ -150,7 +155,7 @@ def main():
                                     learning_rate= args.learning_rate)
         
                 global DATA_MINIO_DIRECTORY
-                DATA_MINIO_DIRECTORY= f"{args.dataset}/data/latent-generator"
+                DATA_MINIO_DIRECTORY= f"{dataset}/data/latent-generator"
                 
                 # Train the model
                 training_pipeline.train()

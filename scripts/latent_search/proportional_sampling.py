@@ -296,7 +296,7 @@ def main():
             try:
                 generator= KandinskyImageGenerator(minio_access_key=args.minio_access_key,
                                             minio_secret_key=args.minio_secret_key,
-                                            dataset=args.dataset,
+                                            dataset=dataset,
                                             num_bins=args.num_bins,
                                             top_k= args.top_k,
                                             batch_size= args.batch_size,
