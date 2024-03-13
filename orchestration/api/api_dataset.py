@@ -314,6 +314,64 @@ def list_ranking_files(
 
     return filtered_json_files
 
+
+@router.get("/datasets/rank/list-v3", response_class=PrettyJSONResponse)
+def list_ranking_files_v3(
+    request: Request,
+    dataset: str,
+    start_date: str = None,
+    end_date: str = None,
+    list_size: int = Query(100),
+    offset: int = Query(0, description="Offset for pagination"),
+    order: str = Query("desc")
+):
+    # Convert start_date and end_date strings to datetime objects
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
+
+    # Construct the path prefix for ranking
+    path_prefix = f"{dataset}/data/ranking/aggregate"
+
+    # Fetch the list of objects with the given prefix
+    objects = cmd.get_list_of_objects_with_prefix(request.app.minio_client, "datasets", path_prefix)
+
+    # Filter out non-JSON files and apply date filters
+    filtered_json_contents = []
+    for obj in objects:
+        if obj.endswith('.json'):
+            # Extract date from the filename
+            file_date_str = obj.split('/')[-1].split('-')[0:3]
+            file_date_str = '-'.join(file_date_str)  # Reformat to 'YYYY-MM-DD'
+            file_date_obj = datetime.strptime(file_date_str, "%Y-%m-%d")
+
+            # Apply date filtering
+            if start_date_obj and file_date_obj < start_date_obj:
+                continue
+            if end_date_obj and file_date_obj > end_date_obj:
+                continue
+
+            # Fetch and load the JSON file content
+            json_content = cmd.get_file_content(request.app.minio_client, "datasets", obj)
+            if json_content:
+                filtered_json_contents.append(json.loads(json_content))
+
+    # Apply ordering
+    if order == "desc":
+        filtered_json_contents.sort(key=lambda x: x['datetime'], reverse=True)
+    else:
+        filtered_json_contents.sort(key=lambda x: x['datetime'])
+
+    # Apply offset and list size limit
+    start_index = offset
+    end_index = offset + list_size
+    filtered_json_contents = filtered_json_contents[start_index:end_index]
+
+    if not filtered_json_contents:
+        return []
+
+    # Return the content of the JSON files
+    return filtered_json_contents
+
 @router.get("/datasets/rank/list-v2", tags = ['deprecated'], response_class=PrettyJSONResponse)
 def list_ranking_files(
     request: Request, 

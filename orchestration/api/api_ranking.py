@@ -141,6 +141,43 @@ def add_relevancy_selection_datapoint(request: Request, relevance_selection: Rel
 
     return True
 
+@router.post("/rank/submit-relevance-data-v1",
+             tags=['ranking'],
+             response_model=StandardSuccessResponseV1[bool],
+             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+def add_relevancy_selection_datapoint_v1(request: Request, relevance_selection: RelevanceSelection, dataset: str = Query(...)):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        # If datetime is not provided, set it to the current time
+        if not relevance_selection.datetime:
+            relevance_selection.datetime = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+
+        # prepare path
+        file_name = f"{relevance_selection.datetime}-{relevance_selection.username}.json"
+        path = "data/relevancy/aggregate"
+        full_path = os.path.join(dataset, path, file_name)
+
+        # convert to JSON bytes
+        dict_data = relevance_selection.dict(exclude_unset=True)
+        json_data = json.dumps(dict_data, indent=4).encode('utf-8')
+        data = BytesIO(json_data)
+
+        # upload
+        cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
+
+        # return a success response
+        return response_handler.create_success_response_v1(
+            response_data={"message": "Relevance data successfully uploaded."},
+            http_status_code=201
+        )
+    except Exception as e:
+        # Log the exception and return an error response
+        request.app.logger.error(f"Exception occurred: {e}")
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string="Internal Server Error",
+            http_status_code=500,
+        )
 
 @router.post("/rank/add-ranking-data-point-v1", 
              status_code=201,
@@ -748,7 +785,7 @@ async def add_selection_datapoint_v2(
 
 @router.post("/rank/update-image-rank-use-count-v1", 
              description="Update image rank use count", 
-             tags=["ranking"],
+             tags=["deprecated"],
              response_model=StandardSuccessResponseV1[RankCountResponse],  
              responses=ApiResponseHandlerV1.listErrors([ 422, 500]))
 def update_image_rank_use_count_v1(request: Request, image_hash: str):
