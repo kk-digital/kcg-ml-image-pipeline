@@ -203,10 +203,10 @@ class ImageScorer:
 
         return features_data, image_paths
 
-    def get_scores(self, msgpack_paths):
+    def get_scores(self, features_data, image_paths):
         hash_score_pairs = []
         job_uuids_hash_dict = {}
-        features_data, image_paths = self.get_all_feature_pairs(msgpack_paths)
+
         print('Predicting dataset scores...')
         with torch.no_grad():
             count=0
@@ -229,10 +229,13 @@ class ImageScorer:
                     score = self.model.predict_positive_or_negative_only_pooled(negative_embedding_array)
 
                 elif self.model_input_type == "clip":
-                    clip_feature_vector = data[1].to(self.device)
-                    image_hash = data[0]
-                    score = self.model.predict_clip(clip_feature_vector)
-
+                    try:
+                        clip_feature_vector = data[1].to(self.device)
+                        image_hash = data[0]
+                        score = self.model.classify(clip_feature_vector)
+                    except Exception as e:
+                        print(f"Skipping vector due to error: {e}")
+                        continue
                 if score > 100000.0 or score < -100000.0:
                     print("score more than or less than 100k and -100k")
                     print("Score=", score)
@@ -330,19 +333,19 @@ class ImageScorer:
 
         return csv_data
 
-    def upload_scores(self, hash_score_pairs):
+    def upload_scores(self, hash_score_pairs, tag_id):
         print("Uploading scores to mongodb...")
         with ThreadPoolExecutor(max_workers=50) as executor:
             futures = []
             for pair in hash_score_pairs:
                 # upload score
                 score_data = {
-                    "model_id": self.model_id,
+                    "model_id": 1,
                     "image_hash": pair[0],
                     "score": pair[1],
+                    "tag_id": tag_id
                 }
-
-                futures.append(executor.submit(request.http_add_score, score_data=score_data))
+                futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data))
 
             for _ in tqdm(as_completed(futures), total=len(hash_score_pairs)):
                 continue
@@ -581,31 +584,31 @@ def run_image_scorer(minio_client,
                          model_name=model_name,
                          not_include=not_include,
                          generation_policy=generation_policy)
-    tag_name_list = scorer.get_unique_tag_names()
+    tag_list = request.http_get_tag_list()
+    print(tag_list)
 
+    if not tag_list:
+        return
     paths = scorer.get_paths()
     print(paths)
+
+    features_data, image_paths = scorer.get_all_feature_pairs(paths)
     
-    for tag_name in tag_name_list:
-        scorer.load_model(tag_name=tag_name)
-        hash_score_pairs, image_paths, job_uuids_hash_dict = scorer.get_scores(paths)
+    for tag in tag_list:
+        try:
+            is_loaded = scorer.load_model(tag_name=tag["tag_string"])
+        except Exception as e:
+            print("Failed loading model, tag_name:", tag["tag_string"])
+            continue
+        if not is_loaded:
+            continue
+        
+        hash_score_pairs, image_paths, job_uuids_hash_dict = scorer.get_scores(features_data, image_paths)
 
-    # features_data_job_uuid_dict = scorer.get_all_feature_data(job_uuids_hash_dict)
-    # hash_percentile_dict = scorer.get_percentiles(hash_score_pairs)
-    # hash_sigma_score_dict = scorer.get_sigma_scores(hash_score_pairs)
+        scorer.upload_scores(hash_score_pairs, tag["tag_id"])
 
-    # csv_data = scorer.upload_csv(hash_score_pairs=hash_score_pairs,
-    #                               hash_percentile_dict=hash_percentile_dict,
-    #                               hash_sigma_score_dict=hash_sigma_score_dict,
-    #                               image_paths=image_paths,
-    #                               features_data_job_uuid_dict=features_data_job_uuid_dict)
-    # scorer.generate_graphs(hash_score_pairs, hash_percentile_dict, hash_sigma_score_dict)
-    # scorer.upload_scores(hash_score_pairs)
-    # scorer.upload_percentile(hash_percentile_dict)
-    # scorer.upload_sigma_scores(hash_sigma_score_dict)
-
-    # time_elapsed = time.time() - start_time
-    # print("Dataset: {}: Total Time elapsed: {}s".format(dataset_name, format(time_elapsed, ".2f")))
+    time_elapsed = time.time() - start_time
+    print("Dataset: {}: Total Time elapsed: {}s".format(dataset_name, format(time_elapsed, ".2f")))
 
 
 def main():

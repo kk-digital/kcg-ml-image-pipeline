@@ -210,7 +210,7 @@ class RankingScore(BaseModel):
 
 class ClassifierScore(BaseModel):
     model_id: int
-    tag_id: str
+    tag_id: int
     image_hash: str
     score: float
 

@@ -1,7 +1,8 @@
 import requests
 import json
 
-SERVER_ADDRESS = 'http://192.168.3.1:8111'
+SERVER_ADDRESS = 'http://123.176.98.90:8764'
+# SERVER_ADDRESS = 'http://192.168.3.1:8111'
 
 
 def http_get_list_completed_jobs():
@@ -113,6 +114,25 @@ def http_add_score(score_data):
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
     response = None
 
+    try:
+        response = requests.post(url, json=score_data, headers=headers)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}: {str(response.content)}")
+    except Exception as e:
+        print('request exception ', e)
+
+    finally:
+        if response:
+            response.close()
+
+    return None
+
+def http_add_classifier_score(score_data):
+    url = "http://127.0.0.1:8000/classifier-score/set-image-classifier-score"
+    # url = SERVER_ADDRESS + "/classifier-score/set-image-classifier-score"
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+    response = None
     try:
         response = requests.post(url, json=score_data, headers=headers)
 
