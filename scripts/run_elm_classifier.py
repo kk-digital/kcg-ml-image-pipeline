@@ -12,7 +12,7 @@ import csv
 
 
 # Define MinIO access
-MINIO_ADDRESS = '192.168.3.5:90000'
+MINIO_ADDRESS = '192.168.3.5:9000'
 ACCESS_KEY = 'v048BpXpWrsVIHUfdAix'
 SECRET_KEY = '4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu'
 MODEL_DATASET = 'environmental'  
