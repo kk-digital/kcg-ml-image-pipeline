@@ -30,6 +30,8 @@ def determine_model_input_type_size(model_filename):
         return "embedding-negative", 768
     elif "embedding" in model_filename:
         return "embedding", 2 * 768
+    elif "clip-h" in model_filename:
+        return "clip-h", 1280
     elif "clip" in model_filename:
         return "clip", 768
     else:
@@ -93,7 +95,12 @@ class ImageScorer:
         all_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', self.dataset)
 
         # Depending on the model type, choose the appropriate msgpack files
-        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "-text-embedding-average-pooled.msgpack"
+        file_suffix = "-text-embedding-average-pooled.msgpack"
+        if self.model_input_type == "clip":
+            file_suffix = "_clip.msgpack"
+        elif self.model_input_type == "clip-h":
+            file_suffix = "_clip_kandinsky.msgpack"
+
 
         # Filter the objects to get only those that end with the chosen suffix
         type_paths = [obj for obj in all_objects if obj.endswith(file_suffix)]
@@ -168,15 +175,18 @@ class ImageScorer:
             negative_embedding = list(data['negative_embedding'].values())
             first_feature = torch.tensor(np.array(negative_embedding)).float()
 
-        elif self.model_input_type == "clip":
+        elif self.model_input_type == "clip" or self.model_input_type == "clip-h":
             clip_feature = data['clip-feature-vector']
             first_feature = torch.tensor(np.array(clip_feature)).float()
 
+            data_msgpack_path = path.replace("clip.msgpack", "data.msgpack")
+            if self.model_input_type == "clip-h":
+                data_msgpack_path = path.replace("clip_kandinsky.msgpack", "data.msgpack")
+
             # clip image hash isn't in clip.msgpack so get it from _data.msgpack
-            data_msgpack = cmd.get_file_from_minio(self.minio_client, 'datasets',
-                                                   path.replace("clip.msgpack", "data.msgpack"))
+            data_msgpack = cmd.get_file_from_minio(self.minio_client, 'datasets',data_msgpack_path)
             if not data_msgpack:
-                print("No msgpack file found at path: {}".format(path.replace("clip.msgpack", "data.msgpack")))
+                print("No msgpack file found at path: {}".format(data_msgpack_path))
                 return None
 
             data = msgpack.unpackb(data_msgpack.data)
@@ -184,7 +194,7 @@ class ImageScorer:
         image_hash = data['file_hash']
         job_uuid = data['job_uuid']
 
-        if self.model_input_type == "clip":
+        if self.model_input_type == "clip" or self.model_input_type == "clip-h":
             image_path = data['file_path'].replace("_data.msgpack", ".jpg")
         else:
             image_path = data['file_path'].replace("_embedding.msgpack", ".jpg")
@@ -238,7 +248,7 @@ class ImageScorer:
                     image_hash = data[0]
                     score = self.model.predict_positive_or_negative_only_pooled(negative_embedding_array)
 
-                elif self.model_input_type == "clip":
+                elif self.model_input_type == "clip"  or self.model_input_type == "clip-h":
                     clip_feature_vector = data[1].to(self.device)
                     image_hash = data[0]
                     score = self.model.predict_clip(clip_feature_vector)
