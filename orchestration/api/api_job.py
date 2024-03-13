@@ -508,7 +508,7 @@ def get_list_completed_jobs_by_dataset_and_task_type(request: Request, dataset: 
         file_path = job.get("task_output_file_dict", {}).get("output_file_path")
         clip_sigma_score = job.get("task_attributes_dict",{}).get("image_clip_sigma_score")
 
-        if not job_uuid or not file_path:
+        if not clip_sigma_score or not job_uuid or not file_path:
             continue
 
         job_info = {
