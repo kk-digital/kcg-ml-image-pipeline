@@ -55,7 +55,7 @@ def create_sphere_dataset(clip_vectors, n_spheres, target_avg=5):
     Create spheres around clip vectors with an approximate average of `target_avg` points per sphere.
     """
     # Convert clip vectors to numpy array if they aren't already
-    clip_vectors = np.stack(clip_vectors)
+    clip_vectors = np.array(clip_vectors)(clip_vectors)
 
     # Step 1: Cluster to find sphere centers
     kmeans = KMeans(n_clusters=n_spheres, random_state=42).fit(clip_vectors)
