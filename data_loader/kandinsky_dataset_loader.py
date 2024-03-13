@@ -138,6 +138,7 @@ def main():
     dataset= dataloader.load_clip_vector_data()
 
     print(f"Number of datapoints loaded: {len(dataset)}")
+    print(f"{dataset[0]}")
 
 
 if __name__ == "__main__":
