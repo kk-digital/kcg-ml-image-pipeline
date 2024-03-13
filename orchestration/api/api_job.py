@@ -499,6 +499,30 @@ def get_list_completed_jobs_by_dataset(request: Request, dataset, limit: Optiona
 
     return jobs
 
+@router.get("/queue/image-generation/list-completed-by-dataset-and-task-type", response_class=PrettyJSONResponse)
+def get_list_completed_jobs_by_dataset_and_task_type(request: Request, dataset: str, task_type: str, model_type: str):
+    # Use the limit parameter in the find query to limit the results
+    jobs = list(request.app.completed_jobs_collection.find({"task_input_dict.dataset": dataset,"task_type": task_type}))
+
+    job_data=[]
+    for job in jobs:
+        job_uuid = job.get("uuid")
+        file_path = job.get("task_output_file_dict", {}).get("output_file_path")
+        clip_sigma_score = job.get("task_attributes_dict",{}).get(model_type, {}).get("image_clip_sigma_score")
+
+        if not clip_sigma_score or not job_uuid or not file_path:
+            continue
+
+        job_info = {
+            "job_uuid": job_uuid,
+            "file_path": file_path, 
+            "clip_sigma_score": clip_sigma_score
+        }
+
+        job_data.append(job_info)
+
+    return job_data
+
 @router.get("/queue/image-generation/list-by-date", response_class=PrettyJSONResponse)
 def get_list_completed_jobs_by_date(
     request: Request,
