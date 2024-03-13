@@ -1,8 +1,13 @@
 import os
+import sys
 import requests
 import json
 from tqdm import tqdm
 import argparse
+
+base_dir = "./"
+sys.path.insert(0, base_dir)
+sys.path.insert(0, os.getcwd())
 
 from data_loader.utils import get_object
 from kandinsky_worker.dataloaders.image_embedding import ImageEmbedding
