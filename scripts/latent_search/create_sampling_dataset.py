@@ -86,3 +86,6 @@ def main():
     points_per_sphere = [len(assignments) for assignments in sphere_assignments]
     print("Points per sphere:", points_per_sphere)
     print("Average points per sphere:", np.mean(points_per_sphere))
+
+if __name__ == "__main__":
+    main()
