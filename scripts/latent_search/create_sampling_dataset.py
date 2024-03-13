@@ -1,8 +1,14 @@
 import argparse
+import os
+import sys
 import numpy as np
 from sklearn.cluster import KMeans
 from scipy.spatial.distance import cdist
 import torch
+
+base_dir = "./"
+sys.path.insert(0, base_dir)
+sys.path.insert(0, os.getcwd())
 
 from data_loader.kandinsky_dataset_loader import KandinskyDatasetLoader
 
