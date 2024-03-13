@@ -144,7 +144,8 @@ def add_relevancy_selection_datapoint(request: Request, relevance_selection: Rel
 
 @router.post("/rank/add-ranking-data-point-v1", 
              status_code=201,
-             description="Add Selection Datapoint",
+             tags = ['deprecated'],
+             description="'rank/add-ranking-data-point-v2' is the replacement.",
              response_model=StandardSuccessResponse[Selection],
              responses=ApiResponseHandler.listErrors([422, 500]))
 def add_selection_datapoint(request: Request, selection: Selection):

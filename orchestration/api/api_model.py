@@ -120,7 +120,7 @@ def get_ranking_models(request: Request, dataset: str = Query(...)):
     return models_list
 
 
-@router.get("/models/rank-embedding/latest-model")
+@router.get("/models/rank-embedding/latest-model", tags = ['deprecated'], description="'/models/rank-embedding/get-latest-model' is the replacement")
 def get_latest_ranking_model(request: Request,
                              dataset: str = Query(...),
                              input_type: str = 'embedding',
