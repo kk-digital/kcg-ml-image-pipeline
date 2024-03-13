@@ -16,8 +16,7 @@ import math
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
-from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
-from training_worker.ab_ranking.model.ab_ranking_linear import ABRankingModel as ABRankingLinearModel
+from training_worker.classifiers.models.elm_regression import ELMRegression
 from utility.http import model_training_request
 from utility.http import request
 from utility.minio import cmd
@@ -40,14 +39,19 @@ class ImageScorer:
     def __init__(self,
                  minio_client,
                  dataset_name="characters",
-                 model_name="",
+                 model_dataset = "environmental",
+                 model_name="elm",
+                 model_type="clip",
+                 not_include="kandinsky",
                  generation_policy="all"):
         self.minio_client = minio_client
         self.model = None
+        self.model_dataset = model_dataset
         self.dataset = dataset_name
         self.generation_policy = generation_policy
         self.model_name = model_name
-        self.model_input_type, self.input_size = determine_model_input_type_size(model_name)
+        self.not_include = not_include
+        self.model_input_type = model_type
         self.model_id = None
         if torch.cuda.is_available():
             device = 'cuda'
@@ -60,32 +64,18 @@ class ImageScorer:
         print("Input type=", self.model_input_type)
         print("device=", self.device)
 
-    def load_model(self):
-        model_path = os.path.join(self.dataset, "models", "ranking", self.model_name)
+    def load_model(self, tag_name):
+        elm_model = ELMRegression(device=self.device)
+        loaded_model, model_file_name = elm_model.load_model(self.minio_client, self.model_dataset, tag_name, self.model_input_type, self.model_name, self.not_include, device=self.device)
 
-        if "elm" in self.model_name:
-            model = ABRankingELMModel(self.input_size)
-        else:
-            model = ABRankingLinearModel(self.input_size)
+        self.model = loaded_model
 
-        model_file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', model_path)
-        if not model_file_data:
-            raise Exception("No .safetensors file found at path: ", model_path)
-
-        byte_buffer = io.BytesIO()
-        for data in model_file_data.stream(amt=8192):
-            byte_buffer.write(data)
-        byte_buffer.seek(0)
-        model.load_safetensors(byte_buffer)
-
-        # assign
-        self.model = model
-        self.model.model = model.model.to(self.device)
-
-        # get model id
         self.model_id = request.http_get_model_id(self.model.model_hash)
-        print("model_hash=", self.model.model_hash)
-        print("model_id=", self.model_id)
+        print("model_id", self.model_id)
+        print("model file name", model_file_name)
+        if not loaded_model:
+            return False
+        return True
 
     def get_paths(self):
         print("Getting paths for dataset: {}...".format(self.dataset))
@@ -546,6 +536,18 @@ class ImageScorer:
         graph_output = os.path.join(self.dataset, "output/scores-graph", graph_name)
         cmd.upload_data(self.minio_client, 'datasets', graph_output, buf)
 
+    
+    def get_unique_tag_names(self):
+        prefix = f"{self.model_dataset}/models/classifiers/"
+        objects = self.minio_client.list_objects(bucket_name='datasets', prefix=prefix, recursive=False)
+        tag_names = set()  # Use a set to avoid duplicates
+        for obj in objects:
+            parts = obj.object_name.split('/')
+            if len(parts) > 3:  # Ensures that the path is deep enough to include a tag_name
+                tag_name = parts[3]  # Assumes tag_name is the fourth element in the path
+                tag_names.add(tag_name)
+        return list(tag_names)
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Embedding Scorer")
     parser.add_argument('--minio-addr', required=False, help='Minio server address', default="192.168.3.5:9000")
@@ -553,41 +555,57 @@ def parse_args():
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
     parser.add_argument('--dataset-name', required=True, help='Name of the dataset for embeddings')
     parser.add_argument('--generation-policy', required=False, default="all", help='Name of generation policy to get, default is all')
-    parser.add_argument('--model-filename', required=True, help='Filename of the main model (e.g., "XXX..safetensors")')
+    parser.add_argument('--model-dataset', required=False, help="dataset included classifier, ex, environmental", default="environmental")
+    parser.add_argument('--model-type', required=False, help="mode type, ex, clip, embedding, embedding-positive, embedding-positive or clip", default="clip")
+    parser.add_argument("--model-name", required=False, help="Model name, ex, elm, linear or logistic", default="elm")
+    parser.add_argument('--not-include', required=False, help="string for helping to indentify model", default="kandinsky")
+
     args = parser.parse_args()
     return args
 
 
 def run_image_scorer(minio_client,
                      dataset_name,
-                     model_filename,
+                     model_name,
+                     model_dataset,
+                     model_type,
+                     not_include,
                      generation_policy):
     start_time = time.time()
 
+
     scorer = ImageScorer(minio_client=minio_client,
                          dataset_name=dataset_name,
-                         model_name=model_filename,
+                         model_dataset=model_dataset,
+                         model_type=model_type,
+                         model_name=model_name,
+                         not_include=not_include,
                          generation_policy=generation_policy)
+    tag_name_list = scorer.get_unique_tag_names()
 
-    scorer.load_model()
     paths = scorer.get_paths()
-    hash_score_pairs, image_paths, job_uuids_hash_dict = scorer.get_scores(paths)
-    features_data_job_uuid_dict = scorer.get_all_feature_data(job_uuids_hash_dict)
-    hash_percentile_dict = scorer.get_percentiles(hash_score_pairs)
-    hash_sigma_score_dict = scorer.get_sigma_scores(hash_score_pairs)
+    print(paths)
+    
+    for tag_name in tag_name_list:
+        scorer.load_model(tag_name=tag_name)
+        hash_score_pairs, image_paths, job_uuids_hash_dict = scorer.get_scores(paths)
 
-    csv_data = scorer.upload_csv(hash_score_pairs=hash_score_pairs,
-                                  hash_percentile_dict=hash_percentile_dict,
-                                  hash_sigma_score_dict=hash_sigma_score_dict,
-                                  image_paths=image_paths,
-                                  features_data_job_uuid_dict=features_data_job_uuid_dict)
-    scorer.generate_graphs(hash_score_pairs, hash_percentile_dict, hash_sigma_score_dict)
+    # features_data_job_uuid_dict = scorer.get_all_feature_data(job_uuids_hash_dict)
+    # hash_percentile_dict = scorer.get_percentiles(hash_score_pairs)
+    # hash_sigma_score_dict = scorer.get_sigma_scores(hash_score_pairs)
+
+    # csv_data = scorer.upload_csv(hash_score_pairs=hash_score_pairs,
+    #                               hash_percentile_dict=hash_percentile_dict,
+    #                               hash_sigma_score_dict=hash_sigma_score_dict,
+    #                               image_paths=image_paths,
+    #                               features_data_job_uuid_dict=features_data_job_uuid_dict)
+    # scorer.generate_graphs(hash_score_pairs, hash_percentile_dict, hash_sigma_score_dict)
     # scorer.upload_scores(hash_score_pairs)
     # scorer.upload_percentile(hash_percentile_dict)
     # scorer.upload_sigma_scores(hash_sigma_score_dict)
 
-    time_elapsed = time.time() - start_time
-    print("Dataset: {}: Total Time elapsed: {}s".format(dataset_name, format(time_elapsed, ".2f")))
+    # time_elapsed = time.time() - start_time
+    # print("Dataset: {}: Total Time elapsed: {}s".format(dataset_name, format(time_elapsed, ".2f")))
 
 
 def main():
@@ -600,7 +618,10 @@ def main():
     if dataset_name != "all":
         run_image_scorer(minio_client,
                          args.dataset_name,
-                         args.model_filename,
+                         args.model_name,
+                         args.model_dataset,
+                         args.model_type,
+                         args.not_include,
                          args.generation_policy)
     else:
         # if all, train models for all existing datasets
