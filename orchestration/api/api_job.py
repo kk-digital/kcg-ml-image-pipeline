@@ -895,6 +895,9 @@ def add_attributes_job_completed(
     text_embedding_score: float = Body(..., embed=True),
     text_embedding_percentile: float = Body(..., embed=True),
     text_embedding_sigma_score: float = Body(..., embed=True),
+    image_clip_h_score: float = Body(..., embed=True),
+    image_clip_h_percentile: float = Body(..., embed=True),
+    image_clip_h_sigma_score: float = Body(..., embed=True),
     delta_sigma_score: float = Body(..., embed=True)
 ):
     query = {"task_output_file_dict.output_file_hash": image_hash}
@@ -906,6 +909,9 @@ def add_attributes_job_completed(
         f"task_attributes_dict.{model_type}.text_embedding_score": text_embedding_score,
         f"task_attributes_dict.{model_type}.text_embedding_percentile": text_embedding_percentile,
         f"task_attributes_dict.{model_type}.text_embedding_sigma_score": text_embedding_sigma_score,
+        f"task_attributes_dict.{model_type}.image_clip_h_score": image_clip_h_score,
+        f"task_attributes_dict.{model_type}.image_clip_h_percentile": image_clip_h_percentile,
+        f"task_attributes_dict.{model_type}.image_clip_h_sigma_score": image_clip_h_sigma_score,
         f"task_attributes_dict.{model_type}.delta_sigma_score": delta_sigma_score
     }}
 
