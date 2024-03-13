@@ -86,7 +86,7 @@ def main():
     sphere_centers, sphere_radii, sphere_assignments = create_sphere_dataset(clip_vectors, args.n_spheres, args.n_components)
 
     # Debug: Print the number of points per sphere to check distribution
-    points_per_sphere = [len(assignments) for assignments in sphere_assignments]
+    points_per_sphere = [len(sphere_assignments[i]) for i in range(args.n_spheres)]
     print("Points per sphere:", points_per_sphere)
     print("Average points per sphere:", np.mean(points_per_sphere))
 
