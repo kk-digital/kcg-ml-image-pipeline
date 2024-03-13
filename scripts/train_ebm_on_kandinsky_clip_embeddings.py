@@ -1005,13 +1005,32 @@ def getAccuracy_v2(cyber_sample_loader, model1, model2):
 # ---------------------------------------------------------------------------------------------------------------------
  
 
-# Get data
-    
-#  # Load the environmental dataset     
+
+
+# Load the environmental dataset     
 images_paths_ood = get_file_paths("environmental",30000)
 
+# Create a new Model    
+isometric_model = DeepEnergyModel(img_shape=(1280,))
+# Load the last occult trained model
+load_model(isometric_model,'isometric')
+
+# Get sort the images by energy (from best to worst)
+sorted_images_for_occult = process_and_sort_dataset(images_paths_ood, isometric_model)
+
+# Get top 50 images
+selected_best_50_for_isometric = sorted_images_for_occult[:50]
+
+# Only keep the paths
+selected_best_50_for_occult = [item[0] for item in selected_best_50_for_isometric]
+# Concat the paths of the best 50 with the tagged images
+new_combined_paths = selected_best_50_for_occult + get_tag_jobs(4)
+
+
+
+
 # Create dataloader of occult
-train_loader_automated, val_loader_automated = get_clip_embeddings_by_tag([4],1)
+train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(new_combined_paths,1)
 
 # Get adversarial dataset
 train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,20,21,22],0)
@@ -1020,6 +1039,10 @@ train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8
 train_loader = train_loader_automated
 val_loader = val_loader_automated
 adv_loader = train_loader_clip_ood
+
+
+
+############################
 
 
 # Train
