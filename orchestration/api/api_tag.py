@@ -1488,3 +1488,87 @@ def delete_tag_category(request: Request, tag_category_id: int):
                                                        )
 
 
+
+@router.put("/tags/update-deprecated-status", 
+            tags=["deprecated"],
+            status_code=200,
+            description="Update the 'deprecated' status of a tag definition.",
+            response_model=StandardSuccessResponseV1[TagDefinition],
+            responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
+def update_tag_deprecated_status(request: Request, tag_id: int, deprecated: bool):
+    response_handler = ApiResponseHandlerV1(request)
+
+    query = {"tag_id": tag_id}
+    existing_tag = request.app.tag_definitions_collection.find_one(query)
+
+    if existing_tag is None:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+            error_string="Tag not found.", 
+            http_status_code=404,
+        )
+
+    if existing_tag.get("deprecated", False) == deprecated:
+        # If the existing 'deprecated' status matches the input, return a message indicating no change
+        message = "The 'deprecated' status for tag_id {} is already set to {}.".format(tag_id, deprecated)
+        return response_handler.create_success_response_v1(
+            response_data={"message": message}, 
+            http_status_code=200,
+        )
+
+    # Update the 'deprecated' status of the tag
+    request.app.tag_definitions_collection.update_one(query, {"$set": {"deprecated": deprecated}})
+
+    # Retrieve the updated tag to confirm the change
+    updated_tag = request.app.tag_definitions_collection.find_one(query)
+
+    # Serialize ObjectId to string if necessary and prepare the response
+    updated_tag = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_tag.items()}
+
+    # Return the updated tag object with a success message
+    return response_handler.create_success_response_v1(
+        response_data= updated_tag,
+        http_status_code=200,
+    )
+
+@router.put("/tag-categories/update-deprecated-status",  
+            tags=["deprecated"],
+            status_code=200,
+            description="Set the 'deprecated' status of a tag category.",
+            response_model=StandardSuccessResponseV1[TagCategory],
+            responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
+def update_tag_category_deprecated_status(request: Request, tag_category_id: int, deprecated: bool):
+    response_handler = ApiResponseHandlerV1(request)
+
+    query = {"tag_category_id": tag_category_id}
+    existing_tag_category = request.app.tag_categories_collection.find_one(query)
+
+    if existing_tag_category is None:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+            error_string="Tag category not found.", 
+            http_status_code=404,
+        )
+
+    if existing_tag_category.get("deprecated", False) == deprecated:
+        # If the existing 'deprecated' status matches the input, return a message indicating no change
+        message = "The 'deprecated' status for tag_category_id {} is already set to {}.".format(tag_category_id, deprecated)
+        return response_handler.create_success_response_v1(
+            response_data={"message": message}, 
+            http_status_code=200,
+        )
+
+    # Update the 'deprecated' status of the tag category
+    request.app.tag_categories_collection.update_one(query, {"$set": {"deprecated": deprecated}})
+
+    # Retrieve the updated tag category to confirm the change
+    updated_tag_category = request.app.tag_categories_collection.find_one(query)
+
+    # Serialize ObjectId to string if necessary and prepare the response
+    updated_tag_category = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_tag_category.items()}
+
+    # Return the updated tag category object with a success message
+    return response_handler.create_success_response_v1(
+        response_data= updated_tag_category, 
+        http_status_code=200,
+    )
