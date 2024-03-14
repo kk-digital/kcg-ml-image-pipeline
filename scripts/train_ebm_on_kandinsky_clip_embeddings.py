@@ -1174,13 +1174,13 @@ load_model(isometric_model,'isometric')
 #sorted_combined_images = process_and_sort_dataset_combined(images_paths_ood,occult_model,cybernetics_model)
 sorted_combined_images = process_and_sort_dataset_weighted_combinations(images_paths_ood,[occult_model,isometric_model,texture_model],[1,1,-1])
 
-get_structure_csv_content(sorted_combined_images,"iso_minus_cyber_on_env_30000_sample")
+get_structure_csv_content(sorted_combined_images,"Iso +  Occult - texture")
 selected_structure_first_52 = sorted_combined_images[:52]
 selected_structure_second_52 = sorted_combined_images[52:103]
 selected_structure_third_52 = sorted_combined_images[103:154]
 
-plot_images_with_scores(selected_structure_first_52,"Top_first_52_iso_minus_cyber")
-plot_images_with_scores(selected_structure_second_52,"Top_second_52_iso_minus_cyber")
-plot_images_with_scores(selected_structure_third_52,"Top_third_52_iso_minus_cyber")
+plot_images_with_scores(selected_structure_first_52,"Iso +  Occult - texture : Tier 1")
+plot_images_with_scores(selected_structure_second_52,"Iso +  Occult - texture : Tier 2")
+plot_images_with_scores(selected_structure_third_52,"Iso +  Occult - texture : Tier 3")
 
 
