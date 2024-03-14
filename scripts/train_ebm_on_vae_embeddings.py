@@ -421,7 +421,7 @@ class DeepEnergyModel(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
 
-        self.cnn = Clip_NN(img_shape=(64, 64, 4), hidden_size = 512, output_size =1) 
+        self.cnn = Clip_NN(input_size=(64, 64, 4), hidden_size = 512, output_size =1) 
         self.example_input_array = torch.zeros(1, *img_shape)
 
     def forward(self, x):
