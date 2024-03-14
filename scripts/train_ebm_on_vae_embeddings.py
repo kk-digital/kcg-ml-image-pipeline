@@ -401,20 +401,15 @@ def get_dataset_from_id(id_class,data_augment_passes,label_value):
 class Clip_NN(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super(Clip_NN, self).__init__()
-        # Calculate the input feature size for the first linear layer
-        input_feature_size = input_size[0] * input_size[1] * input_size[2]
-        self.fc1 = nn.Linear(input_feature_size, hidden_size)
+        self.fc1 = nn.Linear(input_size, hidden_size)
         self.relu = nn.ReLU()
         self.fc2 = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
-        # Flatten the input tensor to match the expected shape of the linear layer
-        x = x.view(x.size(0), -1)
         x = self.fc1(x)
         x = self.relu(x)
         x = self.fc2(x)
         return x
-
 class DeepEnergyModel(pl.LightningModule):
 
     def __init__(self, img_shape, batch_size = batchsize_x, alpha=0.1, lr=1e-4, beta1=0.0, **CNN_args):
