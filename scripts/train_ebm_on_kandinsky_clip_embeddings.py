@@ -1172,15 +1172,15 @@ load_model(isometric_model,'isometric')
 
 
 #sorted_combined_images = process_and_sort_dataset_combined(images_paths_ood,occult_model,cybernetics_model)
-sorted_combined_images = process_and_sort_dataset_weighted_combinations(images_paths_ood,[cybernetics_model,isometric_model],[1,1])
+sorted_combined_images = process_and_sort_dataset_weighted_combinations(images_paths_ood,[cybernetics_model,isometric_model],[-1,1])
 
-get_structure_csv_content(sorted_combined_images,"cyber_plus_iso_on_env_30000_sample")
+get_structure_csv_content(sorted_combined_images,"iso_minus_cyber_on_env_30000_sample")
 selected_structure_first_52 = sorted_combined_images[:52]
 selected_structure_second_52 = sorted_combined_images[52:103]
 selected_structure_third_52 = sorted_combined_images[103:154]
 
-plot_images_with_scores(selected_structure_first_52,"Top_first_52_cyber_plus_iso")
-plot_images_with_scores(selected_structure_second_52,"Top_second_52_cyber_plus_iso")
-plot_images_with_scores(selected_structure_third_52,"Top_third_52_cyber_plus_iso")
+plot_images_with_scores(selected_structure_first_52,"Top_first_52_iso_minus_cyber")
+plot_images_with_scores(selected_structure_second_52,"Top_second_52_iso_minus_cyber")
+plot_images_with_scores(selected_structure_third_52,"Top_third_52_iso_minus_cyber")
 
 
