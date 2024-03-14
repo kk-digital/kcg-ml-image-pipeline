@@ -408,7 +408,7 @@ class Clip_NN(nn.Module):
         self.fc2 = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
-        # Reshape the input tensor to match the expected shape of the linear layer
+        # Flatten the input tensor to match the expected shape of the linear layer
         x = x.view(x.size(0), -1)
         x = self.fc1(x)
         x = self.relu(x)
@@ -421,7 +421,7 @@ class DeepEnergyModel(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
 
-        self.cnn = Clip_NN(input_size = [64,64,4], hidden_size = 512, output_size =1) 
+        self.cnn = Clip_NN(input_size = 64 * 64 * 4, hidden_size = 512, output_size =1) 
         self.example_input_array = torch.zeros(1, *img_shape)
 
     def forward(self, x):
