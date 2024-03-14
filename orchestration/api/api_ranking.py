@@ -30,11 +30,11 @@ def check_missing_clip_files(request: Request):
     all_datasets = minio_client.list_objects(bucket_name, recursive=False)  # Assuming datasets are top-level folders
     missing_files_total = 0
     missing_files_details = []
-    test = ['test-generations']
-    for dataset in test:
-        #if not dataset.is_dir:
-            #continue
-        dataset_name = dataset
+
+    for dataset in all_datasets:
+        if not dataset.is_dir:
+            continue
+        dataset_name = dataset.object_name
         print(dataset_name)
         objects = tqdm(minio_client.list_objects(bucket_name, prefix=dataset_name, recursive=True))
         jpg_files = []
@@ -54,7 +54,7 @@ def check_missing_clip_files(request: Request):
             "missing_files_count": len(missing_clip_files),
             "missing_files": missing_clip_files
         })
-
+        
     results_str = f"Total missing files count: {missing_files_total}\n"
     for detail in missing_files_details:
         results_str += f"Dataset: {detail['dataset']}, Missing Files Count: {detail['missing_files_count']}\n"
