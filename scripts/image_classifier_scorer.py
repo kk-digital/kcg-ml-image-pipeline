@@ -590,8 +590,6 @@ def run_image_scorer(minio_client,
     if not tag_list:
         return
     paths = scorer.get_paths()
-    # remove
-    paths = paths[:10]
     print(paths)
 
     features_data, image_paths = scorer.get_all_feature_pairs(paths)

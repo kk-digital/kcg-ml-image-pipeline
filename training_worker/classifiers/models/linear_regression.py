@@ -209,13 +209,12 @@ class LinearRegression:
     def classify(self, input, normalize_feature_vectors=False):
         if normalize_feature_vectors:
             input = normalize_feature_vector(input)
+        input = input.to(self._device)
         return self.model(input).squeeze()
         
     def classify_pooled_embeddings(self, positive_embedding_array, negative_embedding_array):
         # Average pooling
         embedding_array = torch.cat((positive_embedding_array, negative_embedding_array), dim=-1)
-        # remove
-        print(embedding_array.shape)
         avg_pool = torch.nn.AvgPool2d(kernel_size=(77, 1))
 
         embedding_array = avg_pool(embedding_array)
@@ -223,10 +222,8 @@ class LinearRegression:
 
         return self.classify(embedding_array)
     
-    def predict_positive_or_negative_only_pooled(self, inputs):
+    def predict_positive_or_negative_only_pooled(self, embedding_array):
         # Average pooling
-        # remove
-        print(inputs.shape)
 
         avg_pool = torch.nn.AvgPool2d(kernel_size=(77, 1))
 
