@@ -75,7 +75,7 @@ def create_sphere_dataset(clip_vectors, n_spheres, n_components=None):
             if distances[sphere_index] <= radius:
                 sphere_assignments[sphere_index].append(idx)
     
-    return sphere_centers, radii, sphere_assignments
+    return clip_vectors_reduced ,sphere_centers, radii, sphere_assignments
     
 def plot(minio_client, clip_vectors_reduced, sphere_assignments, centers, radii, scores):
     fig, axs = plt.subplots(1, 3, figsize=(24, 8))
@@ -138,9 +138,9 @@ def main():
     scores=[data['score'] for data in dataset]
 
     n_components= args.n_components if args.reduce_dimensions else None
-    sphere_centers, sphere_radii, sphere_assignments = create_sphere_dataset(clip_vectors, args.n_spheres, args.n_components)
+    clip_vectors_reduced, sphere_centers, sphere_radii, sphere_assignments = create_sphere_dataset(clip_vectors, args.n_spheres, args.n_components)
 
-    plot(dataloader.minio_client, clip_vectors, sphere_assignments, sphere_centers, sphere_radii, scores)
+    plot(dataloader.minio_client, clip_vectors_reduced, sphere_assignments, sphere_centers, sphere_radii, scores)
 
     # Debug: Print the number of points per sphere to check distribution
     points_per_sphere = [len(sphere_assignments[i]) for i in range(args.n_spheres)]
