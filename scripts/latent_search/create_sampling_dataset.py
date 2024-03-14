@@ -78,7 +78,7 @@ def create_sphere_dataset(clip_vectors, n_spheres, n_components=None):
     return clip_vectors_reduced ,sphere_centers, radii, sphere_assignments
     
 def plot(minio_client, sphere_assignments, centers, scores):
-    fig, axs = plt.subplots(1, 3, figsize=(24, 8))
+    fig, axs = plt.subplots(1, 2, figsize=(16, 8))
     
     # Preparing data for plots
     n_spheres = len(centers)
