@@ -9,13 +9,12 @@ from scipy.spatial.distance import cdist
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
-from utility.minio import cmd
-
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 
 from data_loader.kandinsky_dataset_loader import KandinskyDatasetLoader
+from utility.minio import cmd
 
 def parse_args():
         parser = argparse.ArgumentParser()
