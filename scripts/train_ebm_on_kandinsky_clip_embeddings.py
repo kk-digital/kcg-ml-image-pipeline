@@ -1169,7 +1169,7 @@ isometric_model = DeepEnergyModel(img_shape=(1280,))
 load_model(isometric_model,'isometric')
 
 
-isometric
+
 
 #sorted_combined_images = process_and_sort_dataset_combined(images_paths_ood,occult_model,cybernetics_model)
 sorted_combined_images = process_and_sort_dataset_weighted_combinations(images_paths_ood,[cybernetics_model,isometric_model],[0,1])
