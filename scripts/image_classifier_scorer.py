@@ -17,23 +17,11 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 
 from training_worker.classifiers.models.elm_regression import ELMRegression
+from training_worker.classifiers.models.linear_regression import LinearRegression
+from training_worker.classifiers.models.logistic_regression import LogisticRegression
 from utility.http import model_training_request
 from utility.http import request
 from utility.minio import cmd
-
-
-def determine_model_input_type_size(model_filename):
-    if "embedding-positive" in model_filename:
-        return "embedding-positive", 768
-    elif "embedding-negative" in model_filename:
-        return "embedding-negative", 768
-    elif "embedding" in model_filename:
-        return "embedding", 2 * 768
-    elif "clip" in model_filename:
-        return "clip", 768
-    else:
-        raise ValueError("Unknown model type in the filename.")
-
 
 class ImageScorer:
     def __init__(self,
@@ -65,12 +53,22 @@ class ImageScorer:
         print("device=", self.device)
 
     def load_model(self, tag_name):
-        elm_model = ELMRegression(device=self.device)
-        loaded_model, model_file_name = elm_model.load_model(self.minio_client, self.model_dataset, tag_name, self.model_input_type, self.model_name, self.not_include, device=self.device)
+        if self.model_name == "elm":
+            elm_model = ELMRegression(device=self.device)
+            loaded_model, model_file_name = elm_model.load_model(self.minio_client, self.model_dataset, tag_name, self.model_input_type + ".", self.model_name, self.not_include, device=self.device)
+            self.model = loaded_model
+        elif self.model_name == 'linear':
+            linear_model = LinearRegression(device=self.device)
+            loaded_model, model_file_name = linear_model.load_model(self.minio_client, self.model_dataset, tag_name, self.model_input_type + ".", self.model_name, self.not_include, device=self.device)
+            self.model = loaded_model
+        elif self.model_name == "logistic":
+            logistic_model = LogisticRegression(device=self.device)
+            loaded_model, model_file_name = logistic_model.load_model(self.minio_client, self.model_dataset, tag_name, self.model_input_type + ".", self.model_name, self.not_include, device=self.device)
+            self.model = loaded_model
+        else:
+            print(f"Not support classifier model: {self.model_name}")
 
-        self.model = loaded_model
-
-        self.model_id = request.http_get_model_id(self.model.model_hash)
+        self.model_id = request.http_get_model_id_v1(self.model.model_hash)
         print("model_id", self.model_id)
         print("model file name", model_file_name)
         if not loaded_model:
@@ -83,7 +81,7 @@ class ImageScorer:
         all_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', self.dataset)
 
         # Depending on the model type, choose the appropriate msgpack files
-        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "-text-embedding-average-pooled.msgpack"
+        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "embedding.msgpack"
 
         # Filter the objects to get only those that end with the chosen suffix
         type_paths = [obj for obj in all_objects if obj.endswith(file_suffix)]
@@ -212,30 +210,32 @@ class ImageScorer:
             count=0
             weird_count = 0
             for data in tqdm(features_data):
-                if self.model_input_type == "embedding":
-                    positive_embedding_array = data[1].to(self.device)
-                    negative_embedding_array = data[2].to(self.device)
-                    image_hash = data[0]
-                    score = self.model.predict_pooled_embeddings(positive_embedding_array, negative_embedding_array)
-
-                elif self.model_input_type == "embedding-positive":
-                    positive_embedding_array = data[1].to(self.device)
-                    image_hash = data[0]
-                    score = self.model.predict_positive_or_negative_only_pooled(positive_embedding_array)
-
-                elif self.model_input_type == "embedding-negative":
-                    negative_embedding_array = data[1].to(self.device)
-                    image_hash = data[0]
-                    score = self.model.predict_positive_or_negative_only_pooled(negative_embedding_array)
-
-                elif self.model_input_type == "clip":
-                    try:
-                        clip_feature_vector = data[1].to(self.device)
+                try:
+                    if self.model_input_type == "embedding":
+                        positive_embedding_array = data[1].to(self.device)
+                        negative_embedding_array = data[2].to(self.device)
                         image_hash = data[0]
-                        score = self.model.classify(clip_feature_vector)
-                    except Exception as e:
-                        print(f"Skipping vector due to error: {e}")
-                        continue
+
+                        score = self.model.classify_pooled_embeddings(positive_embedding_array, negative_embedding_array)
+
+                    elif self.model_input_type == "embedding-positive":
+                        positive_embedding_array = data[1].to(self.device)
+                        image_hash = data[0]
+
+                        score = self.model.predict_positive_or_negative_only_pooled(positive_embedding_array)
+
+                    elif self.model_input_type == "embedding-negative":
+                        negative_embedding_array = data[1].to(self.device)
+                        image_hash = data[0]
+                        score = self.model.predict_positive_or_negative_only_pooled(negative_embedding_array)
+
+                    elif self.model_input_type == "clip":
+                            clip_feature_vector = data[1].to(self.device)
+                            image_hash = data[0]
+                            score = self.model.classify(clip_feature_vector)
+                except Exception as e:
+                    print(f"Skipping vector due to error: {e}")
+                    continue
                 if score > 100000.0 or score < -100000.0:
                     print("score more than or less than 100k and -100k")
                     print("Score=", score)
@@ -340,7 +340,7 @@ class ImageScorer:
             for pair in hash_score_pairs:
                 # upload score
                 score_data = {
-                    "model_id": 1,
+                    "model_id": self.model_id,
                     "image_hash": pair[0],
                     "score": pair[1],
                     "tag_id": tag_id
@@ -590,6 +590,8 @@ def run_image_scorer(minio_client,
     if not tag_list:
         return
     paths = scorer.get_paths()
+    # remove
+    paths = paths[:10]
     print(paths)
 
     features_data, image_paths = scorer.get_all_feature_pairs(paths)
@@ -598,13 +600,12 @@ def run_image_scorer(minio_client,
         try:
             is_loaded = scorer.load_model(tag_name=tag["tag_string"])
         except Exception as e:
-            print("Failed loading model, tag_name:", tag["tag_string"])
+            print("Failed loading model, tag_name:", tag["tag_string"], e)
             continue
         if not is_loaded:
             continue
-        
         hash_score_pairs, image_paths, job_uuids_hash_dict = scorer.get_scores(features_data, image_paths)
-
+        print("Successfully calculated")
         scorer.upload_scores(hash_score_pairs, tag["tag_id"])
 
     time_elapsed = time.time() - start_time
