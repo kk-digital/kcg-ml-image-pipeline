@@ -103,13 +103,13 @@ def plot(minio_client, sphere_assignments, centers, scores):
     axs[0].bar(range(n_spheres), points_per_cluster, color='skyblue')
     axs[0].set_xlabel('Cluster ID')
     axs[0].set_ylabel('Number of Points')
-    axs[0].set_title('Reassigned Points per Cluster')
+    axs[0].set_title('Number of Points per Cluster')
     
     # Scatter Plot of Cluster Density vs. Mean Score
     axs[1].scatter(points_per_cluster, mean_scores, c='blue', marker='o')
     axs[1].set_xlabel('Cluster Density (Number of Points)')
     axs[1].set_ylabel('Mean Score')
-    axs[1].set_title('Cluster Density vs. Mean Score After Reassignment')
+    axs[1].set_title('Cluster Density vs. Mean Score')
     axs[1].grid(True)
     
     plt.tight_layout()
