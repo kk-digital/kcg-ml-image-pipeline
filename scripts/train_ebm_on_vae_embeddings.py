@@ -421,7 +421,7 @@ class DeepEnergyModel(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
 
-        self.cnn = Clip_NN(input_size = 1280, hidden_size = 512, output_size =1) 
+        self.cnn = Clip_NN(input_size = [64,64,4], hidden_size = 512, output_size =1) 
         self.example_input_array = torch.zeros(1, *img_shape)
 
     def forward(self, x):
@@ -1034,8 +1034,6 @@ def getAccuracy_v2(cyber_sample_loader, model1, model2):
 
 
 
-# Load the environmental dataset     
-images_paths_ood = get_file_paths("environmental",30000)
 
 
 
@@ -1130,6 +1128,8 @@ plt.clf()
 
 
 
+# Load the environmental dataset     
+images_paths_ood = get_file_paths("environmental",30000)
 
 # Evaluate new model
 #automated model
