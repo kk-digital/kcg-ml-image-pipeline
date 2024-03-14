@@ -1,14 +1,18 @@
 import argparse
 from datetime import datetime
 import io
+import json
 import os
 import random
 import sys
 import numpy as np
 import pandas as pd
+import requests
 import torch
 import msgpack
 import torch.optim as optim
+
+from utility.path import separate_bucket_and_file_path
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -35,8 +39,11 @@ def parse_args():
         parser.add_argument('--send-job', action='store_true', default=False)
         parser.add_argument('--save-csv', action='store_true', default=False)
         parser.add_argument('--generation-policy', type=str, help='generation policy', default="proportional_sampling")
+        parser.add_argument('--sampling-policy', type=str, help='sampling policy random, or existing', default="random")
 
         return parser.parse_args()
+
+API_URL="http://192.168.3.1:8111"
 
 class KandinskyImageGenerator:
     def __init__(self,
@@ -49,6 +56,7 @@ class KandinskyImageGenerator:
                  steps,
                  learning_rate,
                  generation_policy,
+                 sampling_policy,
                  send_job=False,
                  save_csv=False
                 ):
@@ -62,6 +70,7 @@ class KandinskyImageGenerator:
         self.steps= steps
         self.learning_rate= learning_rate
         self.generation_policy= generation_policy
+        self.sampling_policy= sampling_policy
 
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
@@ -139,6 +148,45 @@ class KandinskyImageGenerator:
 
         return final_list
     
+    def get_file_paths(self, num_samples):
+        print('Loading image file paths')
+        response = requests.get(f'{API_URL}/queue/image-generation/list-by-dataset?dataset={self.dataset}&size={num_samples}')
+
+        jobs = json.loads(response.content)
+
+        file_paths=[job['file_path'] for job in jobs]
+
+        return file_paths
+
+    # From multiples image paths
+    def get_clip_vectors(self, file_paths):
+        clip_vectors = []
+
+        for path in file_paths:
+            try:
+                print("path : " , path)
+                clip_path = path.replace(".jpg", "_clip_kandinsky.msgpack")
+                bucket, features_vector_path = separate_bucket_and_file_path(clip_path)
+
+                features_data = get_object(self.minio_client, features_vector_path)
+                features = msgpack.unpackb(features_data)["clip-feature-vector"]
+                features = torch.tensor(features)
+                clip_vectors.append(features)
+            except Exception as e:
+                # Handle the specific exception (e.g., FileNotFoundError, ConnectionError) or a general exception.
+                print(f"Error processing clip at path {path}: {e}")
+                # You might want to log the error for further analysis or take alternative actions.
+
+        return clip_vectors
+
+    def sampling_from_dataset(self, num_samples):
+        # get random file paths for samples 
+        file_paths= self.get_file_paths(num_samples)
+        # get their clip vectors
+        clip_vectors= self.get_clip_vectors(file_paths)
+
+        return clip_vectors
+    
     def top_k_sampling(self, num_samples):
         # Generate a large batch of embeddings
         num_generated_samples= max(int(num_samples / self.top_k), 1000)
@@ -150,7 +198,10 @@ class KandinskyImageGenerator:
         return samples
     
     def gradient_descent_optimization(self, num_samples):
-        clip_vectors = self.top_k_sampling(num_samples=num_samples)
+        if(self.sampling_policy=="random"):
+            clip_vectors = self.top_k_sampling(num_samples=num_samples)
+        elif(self.sampling_policy=="existing"):
+            clip_vectors = self.sampling_from_dataset(num_samples=num_samples)
 
         # Convert list of embeddings to a tensor
         all_embeddings = torch.stack(clip_vectors).detach()
@@ -283,6 +334,7 @@ def main():
                                             learning_rate= args.learning_rate,
                                             steps= args.steps,
                                             generation_policy= args.generation_policy,
+                                            sampling_policy= args.sampling_policy,
                                             send_job= args.send_job,
                                             save_csv= args.save_csv)
 
