@@ -11,7 +11,7 @@ from bson import ObjectId
 router = APIRouter()
 
 
-@router.post("/add-new-pseudotag", 
+@router.post("/pseudo-tag/add-new-pseudotag", 
              status_code=201,
              tags=["pseudo_tags"],
              description="Adds a new tag",
@@ -88,7 +88,7 @@ async def add_new_pseudo_tag_definition(request: Request, tag_data: NewPseudoTag
                                                          http_status_code=500)
     
 
-@router.get("/tags/get-id-by-pseudotag-name", 
+@router.get("/pseudo-tag/get-id-by-pseudotag-name", 
              status_code=200,
              tags=["pseudo_tags"],
              response_model=StandardSuccessResponseV1[PseudoTagIdResponse],
@@ -348,7 +348,7 @@ def add_pseudo_tag_to_image(request: Request, pseudo_tag_id: int, file_hash: str
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
 
 
-@router.delete("/tags/remove_pseudo_tag_from_image", status_code=200,
+@router.delete("/pseudo-tag/remove_pseudo_tag_from_image", status_code=200,
                 tags=["pseudo_tags"], 
                description="Remove pseudo tag from image",
                response_model=StandardSuccessResponseV1[WasPresentResponse],
@@ -869,7 +869,7 @@ def remove_tag_deprecated(request: Request, pseudo_tag_id: int):
         http_status_code=200,
         )
 
-@router.put("/tag-categories/remove-deprecated", 
+@router.put("/pseudotag-categories/remove-deprecated", 
               tags=["pseudotag-categories"],
               status_code=200,
               description="Set the 'deprecated' status of a pseudo tag category to False",

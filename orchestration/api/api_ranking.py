@@ -17,6 +17,24 @@ import time
 router = APIRouter()
 
 
+@router.post("/check-missing-clip")
+def check_missing_clip_files(
+    request: Request,
+):
+    objects_list = list(request.app.minio_client.list_objects(bucket_name="datasets", recursive=True))
+    jpg_files = [obj.object_name for obj in objects_list if obj.object_name.endswith('.jpg')]
+    missing_clip_files = []
+
+    for jpg_file in jpg_files:
+        expected_clip_file = jpg_file.replace('.jpg', '_clip_kandinsky.msgpack')
+        if not any(obj.object_name == expected_clip_file for obj in objects_list):
+            missing_clip_files.append(expected_clip_file)
+
+    if not missing_clip_files:
+        return {"missing_files_count": 0, "missing_files": []}
+
+    return {"missing_files_count": len(missing_clip_files), "missing_files": missing_clip_files}
+
 @router.get("/ranking/list-selection-policies")
 def list_policies(request: Request):
     # hard code policies for now
