@@ -77,7 +77,7 @@ def create_sphere_dataset(clip_vectors, n_spheres, n_components=None):
     
     return clip_vectors_reduced ,sphere_centers, radii, sphere_assignments
     
-def plot(minio_client, clip_vectors_reduced, sphere_assignments, centers, radii, scores):
+def plot(minio_client, sphere_assignments, centers, scores):
     fig, axs = plt.subplots(1, 3, figsize=(24, 8))
     
     # Preparing data for plots
@@ -86,31 +86,31 @@ def plot(minio_client, clip_vectors_reduced, sphere_assignments, centers, radii,
     mean_scores = [np.mean([scores[j] for j in sphere_assignments[i]]) if sphere_assignments[i] else 0 for i in range(n_spheres)]
     
     # Scatter Plot of Clusters with Centers and Radii
-    for label, assignments in sphere_assignments.items():
-        if assignments:  # Check if there are points assigned to the sphere
-            cluster_points = clip_vectors_reduced[assignments]
-            axs[0].scatter(cluster_points[:, 0], cluster_points[:, 1], alpha=0.5, edgecolor='k')
+    # for label, assignments in sphere_assignments.items():
+    #     if assignments:  # Check if there are points assigned to the sphere
+    #         cluster_points = clip_vectors_reduced[assignments]
+    #         axs[0].scatter(cluster_points[:, 0], cluster_points[:, 1], alpha=0.5, edgecolor='k')
     
-    for i, (center, radius) in enumerate(zip(centers, radii)):
-        circle = plt.Circle(center[:2], radius, color='r', fill=False, lw=2, ls='--')
-        axs[0].add_artist(circle)
-        axs[0].text(center[0], center[1], str(i), color='red', fontsize=12)
-    axs[0].set_title('Clusters with Centers and Radii')
-    axs[0].set_xlabel('Dimension 1')
-    axs[0].set_ylabel('Dimension 2')
+    # for i, (center, radius) in enumerate(zip(centers, radii)):
+    #     circle = plt.Circle(center[:2], radius, color='r', fill=False, lw=2, ls='--')
+    #     axs[0].add_artist(circle)
+    #     axs[0].text(center[0], center[1], str(i), color='red', fontsize=12)
+    # axs[0].set_title('Clusters with Centers and Radii')
+    # axs[0].set_xlabel('Dimension 1')
+    # axs[0].set_ylabel('Dimension 2')
     
     # Histogram of Points per Cluster
-    axs[1].bar(range(n_spheres), points_per_cluster, color='skyblue')
-    axs[1].set_xlabel('Cluster ID')
-    axs[1].set_ylabel('Number of Points')
-    axs[1].set_title('Reassigned Points per Cluster')
+    axs[0].bar(range(n_spheres), points_per_cluster, color='skyblue')
+    axs[0].set_xlabel('Cluster ID')
+    axs[0].set_ylabel('Number of Points')
+    axs[0].set_title('Reassigned Points per Cluster')
     
     # Scatter Plot of Cluster Density vs. Mean Score
-    axs[2].scatter(points_per_cluster, mean_scores, c='blue', marker='o')
-    axs[2].set_xlabel('Cluster Density (Number of Points)')
-    axs[2].set_ylabel('Mean Score')
-    axs[2].set_title('Cluster Density vs. Mean Score After Reassignment')
-    axs[2].grid(True)
+    axs[1].scatter(points_per_cluster, mean_scores, c='blue', marker='o')
+    axs[1].set_xlabel('Cluster Density (Number of Points)')
+    axs[1].set_ylabel('Mean Score')
+    axs[1].set_title('Cluster Density vs. Mean Score After Reassignment')
+    axs[1].grid(True)
     
     plt.tight_layout()
 
@@ -140,7 +140,7 @@ def main():
     n_components= args.n_components if args.reduce_dimensions else None
     clip_vectors_reduced, sphere_centers, sphere_radii, sphere_assignments = create_sphere_dataset(clip_vectors, args.n_spheres, args.n_components)
 
-    plot(dataloader.minio_client, clip_vectors_reduced, sphere_assignments, sphere_centers, sphere_radii, scores)
+    plot(dataloader.minio_client, sphere_assignments, sphere_centers, scores)
 
     # Debug: Print the number of points per sphere to check distribution
     points_per_sphere = [len(sphere_assignments[i]) for i in range(args.n_spheres)]
