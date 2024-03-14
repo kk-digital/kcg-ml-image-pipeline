@@ -407,11 +407,12 @@ class Clip_NN(nn.Module):
         self.fc2 = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
+        # Flatten the input tensor if it's not already flattened
+        x = x.view(x.size(0), -1)
         x = self.fc1(x)
         x = self.relu(x)
         x = self.fc2(x)
         return x
-    
 class DeepEnergyModel(pl.LightningModule):
 
     def __init__(self, img_shape, batch_size = batchsize_x, alpha=0.1, lr=1e-4, beta1=0.0, **CNN_args):
