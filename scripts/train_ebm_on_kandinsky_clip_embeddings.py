@@ -1025,6 +1025,120 @@ def getAccuracy_v2(cyber_sample_loader, model1, model2):
 
 
 # ---------------------------------------------------------------------------------------------------------------------
+# -------------------------------------------------------- Train for new class veiw ----------------------------------
+# ---------------------------------------------------------------------------------------------------------------------
+ 
+
+new_combined_paths =   get_tag_jobs(20)
+
+# Create dataloader of occult
+train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(new_combined_paths,1)
+
+# Get adversarial dataset
+train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,35,40,21,22],0)
+
+# init the loader
+train_loader = train_loader_automated
+val_loader = val_loader_automated
+adv_loader = train_loader_clip_ood
+
+
+
+# Train
+new_desert_model = train_model(img_shape=(1,1280),
+                    batch_size=train_loader.batch_size,
+                    lr=0.001,
+                    beta1=0.0)
+save_model(new_desert_model,'desert','temp_model.pth')
+
+
+# up loader graphs
+
+# # Plot
+
+# ############### Plot graph
+epochs = range(1, len(total_losses) + 1)  
+
+# Create subplots grid (3 rows, 1 column)
+fig, axes = plt.subplots(4, 1, figsize=(10, 24))
+
+# Plot each loss on its own subplot
+axes[0].plot(epochs, total_losses, label='Total Loss')
+axes[0].set_xlabel('Steps')
+axes[0].set_ylabel('Loss')
+axes[0].set_title('Total Loss')
+axes[0].legend()
+axes[0].grid(True)
+
+axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
+axes[1].set_xlabel('Steps')
+axes[1].set_ylabel('Loss')
+axes[1].set_title('Contrastive Divergence Loss')
+axes[1].legend()
+axes[1].grid(True)
+
+
+axes[2].plot(epochs, reg_losses , label='Regression Loss')
+axes[2].set_xlabel('Steps')
+axes[2].set_ylabel('Loss')
+axes[2].set_title('Regression Loss')
+axes[2].legend()
+axes[2].grid(True)
+
+# Plot real and fake scores on the fourth subplot
+axes[3].plot(epochs, real_scores_s, label='Real Scores')
+axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
+axes[3].set_xlabel('Steps')
+axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
+axes[3].set_title('Real vs. Fake Scores')
+axes[3].legend()
+axes[3].grid(True)
+
+# Adjust spacing between subplots for better visualization
+plt.tight_layout()
+
+plt.savefig("output/loss_tracking_per_step.png")
+
+# Save the figure to a file
+buf = io.BytesIO()
+plt.savefig(buf, format='png')
+buf.seek(0)
+
+# upload the graph report
+minio_path="environmental/output/my_tests"
+minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_isometric_training" +date_now+".png"
+cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+# Remove the temporary file
+os.remove("output/loss_tracking_per_step.png")
+# Clear the current figure
+plt.clf()
+
+
+
+
+# Evaluate new model
+#automated model
+#toodoo
+
+# Load the environmental dataset     
+images_paths_ood = get_file_paths("environmental",30000)
+
+#go create something
+print("yep it's here")
+new_sorted_images = process_and_sort_dataset(images_paths_ood, new_desert_model)
+
+
+get_structure_csv_content(new_sorted_images,"desert_on_env_30000_sample")
+selected_structure_first_52 = new_sorted_images[:52]
+selected_structure_second_52 = new_sorted_images[52:103]
+selected_structure_third_52 = new_sorted_images[103:154]
+
+plot_images_with_scores(selected_structure_first_52,"Top_first_52_desert_env_added_50")
+plot_images_with_scores(selected_structure_second_52,"Top_second_52_desert__env_added_50")
+plot_images_with_scores(selected_structure_third_52,"Top_third_52_desert__env_added_50")
+    
+
+# ---------------------------------------------------------------------------------------------------------------------
 # -------------------------------------------------------- Train for isometric veiw ----------------------------------
 # ---------------------------------------------------------------------------------------------------------------------
  
@@ -1166,45 +1280,45 @@ def getAccuracy_v2(cyber_sample_loader, model1, model2):
 # ---------------------------------------------------------------------------------------------------------------------
  
 
- # Load the environmental dataset     
-images_paths_ood = get_file_paths("environmental",30000)
+#  # Load the environmental dataset     
+# images_paths_ood = get_file_paths("environmental",30000)
 
-# Create a new Model    
-occult_model = DeepEnergyModel(img_shape=(1280,))
-# Load the last occult trained model
-load_model(occult_model,'occult')
-
-
-# Create a new Model    
-cybernetics_model = DeepEnergyModel(img_shape=(1280,))
-# Load the last occult trained model
-load_model(cybernetics_model,'cyber')
+# # Create a new Model    
+# occult_model = DeepEnergyModel(img_shape=(1280,))
+# # Load the last occult trained model
+# load_model(occult_model,'occult')
 
 
-# Create a new Model    
-texture_model = DeepEnergyModel(img_shape=(1280,))
-# Load the last occult trained model
-load_model(texture_model,'defect-only')
+# # Create a new Model    
+# cybernetics_model = DeepEnergyModel(img_shape=(1280,))
+# # Load the last occult trained model
+# load_model(cybernetics_model,'cyber')
 
 
-# Create a new Model    
-isometric_model = DeepEnergyModel(img_shape=(1280,))
-# Load the last occult trained model
-load_model(isometric_model,'isometric')
+# # Create a new Model    
+# texture_model = DeepEnergyModel(img_shape=(1280,))
+# # Load the last occult trained model
+# load_model(texture_model,'defect-only')
+
+
+# # Create a new Model    
+# isometric_model = DeepEnergyModel(img_shape=(1280,))
+# # Load the last occult trained model
+# load_model(isometric_model,'isometric')
 
 
 
 
-#sorted_combined_images = process_and_sort_dataset_combined(images_paths_ood,occult_model,cybernetics_model)
-sorted_combined_images = process_and_sort_dataset_weighted_combinations(images_paths_ood,[occult_model,isometric_model,texture_model],[1,1,-1])
+# #sorted_combined_images = process_and_sort_dataset_combined(images_paths_ood,occult_model,cybernetics_model)
+# sorted_combined_images = process_and_sort_dataset_weighted_combinations(images_paths_ood,[occult_model,isometric_model,texture_model],[1,1,-1])
 
-get_structure_csv_content(sorted_combined_images,"Iso +  Occult - texture")
-selected_structure_first_52 = sorted_combined_images[:52]
-selected_structure_second_52 = sorted_combined_images[52:103]
-selected_structure_third_52 = sorted_combined_images[103:154]
+# get_structure_csv_content(sorted_combined_images,"Iso +  Occult - texture")
+# selected_structure_first_52 = sorted_combined_images[:52]
+# selected_structure_second_52 = sorted_combined_images[52:103]
+# selected_structure_third_52 = sorted_combined_images[103:154]
 
-plot_images_with_scores(selected_structure_first_52,"Iso +  Occult - texture : Tier 1")
-plot_images_with_scores(selected_structure_second_52,"Iso +  Occult - texture : Tier 2")
-plot_images_with_scores(selected_structure_third_52,"Iso +  Occult - texture : Tier 3")
+# plot_images_with_scores(selected_structure_first_52,"Iso +  Occult - texture : Tier 1")
+# plot_images_with_scores(selected_structure_second_52,"Iso +  Occult - texture : Tier 2")
+# plot_images_with_scores(selected_structure_third_52,"Iso +  Occult - texture : Tier 3")
 
 
