@@ -1060,7 +1060,7 @@ adv_loader = train_loader_clip_ood
 
 
 # Train
-new_cyber_vae_model = train_model(img_shape=(1,1280),
+new_cyber_vae_model = train_model(img_shape=(64,64,4),
                     batch_size=train_loader.batch_size,
                     lr=0.001,
                     beta1=0.0)
