@@ -105,11 +105,36 @@ class ELMRegression():
 
     def classify(self, dataset_feature_vector):
         print("Classifying...")
-
+        # remove
+        print(dataset_feature_vector.shape, self._weight.shape, self._weight.shape)
         h = self._activation(torch.add(dataset_feature_vector.mm(self._weight), self._bias))
         out = h.mm(self._beta)
 
         return out
+    
+    def classify_pooled_embeddings(self, positive_embedding_array, negative_embedding_array):
+        # Average pooling
+        embedding_array = torch.cat((positive_embedding_array, negative_embedding_array), dim=-1)
+        # remove
+        print(embedding_array.shape)
+        avg_pool = torch.nn.AvgPool2d(kernel_size=(77, 1))
+
+        embedding_array = avg_pool(embedding_array)
+        embedding_array = embedding_array.squeeze().unsqueeze(0)
+
+        return self.classify(embedding_array)
+    
+    def predict_positive_or_negative_only_pooled(self, inputs):
+        # Average pooling
+        # remove
+        print(inputs.shape)
+
+        avg_pool = torch.nn.AvgPool2d(kernel_size=(77, 1))
+
+        embedding_array = avg_pool(embedding_array)
+        embedding_array = embedding_array.squeeze().unsqueeze(0)
+
+        return self.classify(embedding_array)
 
     def evaluate(self, validation_feature_vector, validation_targets, threshold=0.5):
         print("Evaluating...")
