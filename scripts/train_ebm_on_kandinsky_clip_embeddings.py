@@ -1172,7 +1172,7 @@ load_model(isometric_model,'isometric')
 
 
 #sorted_combined_images = process_and_sort_dataset_combined(images_paths_ood,occult_model,cybernetics_model)
-sorted_combined_images = process_and_sort_dataset_weighted_combinations(images_paths_ood,[cybernetics_model,isometric_model],[-1,1])
+sorted_combined_images = process_and_sort_dataset_weighted_combinations(images_paths_ood,[occult_model,isometric_model],[1,1])
 
 get_structure_csv_content(sorted_combined_images,"iso_minus_cyber_on_env_30000_sample")
 selected_structure_first_52 = sorted_combined_images[:52]
