@@ -83,7 +83,7 @@ class ImageScorer:
     def get_paths(self):
         print("Getting paths for dataset: {}...".format(self.dataset))
         if self.model_input_type in self.image_paths_cache:
-            return self.model_paths_cache[self.model_input_type]
+            return self.image_paths_cache[self.model_input_type]
         all_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', self.dataset)
 
         # Depending on the model type, choose the appropriate msgpack files
