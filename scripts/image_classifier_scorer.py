@@ -580,8 +580,8 @@ class ImageScorer:
         model_file = model_files[0]
         print(f"Loading model: {model_file}")
 
-        self.model_input_type = next((model_input_type for model_input_type in self.model_input_type if model_input_type in model_file), None)
-        self.model_name = next((model_name for model_name in self.model_name_list if model_name + "." in model_file), None)
+        self.model_input_type = next((model_input_type for model_input_type in self.model_input_type_list + "." if model_input_type in model_file), None)
+        self.model_name = next((model_name for model_name in self.model_name_list if model_name in model_file), None)
         
         return model_file
 
@@ -606,7 +606,8 @@ def run_image_scorer(minio_client,
                      not_include,
                      generation_policy):
     start_time = time.time()
-
+    # remove
+    print("run_image_scorer")
 
     scorer = ImageScorer(minio_client=minio_client,
                          dataset_name=dataset_name,
@@ -645,10 +646,14 @@ def run_every_day():
     args = parse_args()
 
     dataset_name = args.dataset_name
-    minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key,
-                                        minio_secret_key=args.minio_secret_key,
-                                        minio_ip_addr=args.minio_addr)
-    
+    # uncomment
+
+    # minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key,
+    #                                     minio_secret_key=args.minio_secret_key,
+    #                                     minio_ip_addr=args.minio_addr)
+
+    # remove
+    minio_client = None
     now = datetime.now()
     # Calculate the number of seconds until 12:00 PM
     future_time = datetime(now.year, now.month, now.day, 12, 0)
