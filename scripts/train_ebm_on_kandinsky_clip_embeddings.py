@@ -434,7 +434,7 @@ class DeepEnergyModel(pl.LightningModule):
         scheduler = optim.lr_scheduler.StepLR(optimizer, 1, gamma=0.97) # Exponential decay over epochs
         return [optimizer], [scheduler]
 
-    def training_step(self, batch): #maybe add the adv loader
+    def training_step(self, batch,adv_loader): #maybe add the adv loader
         # We add minimal noise to the original images to prevent the model from focusing on purely "clean" inputs
         real_imgs, _ = batch
         #print("the _ is ",_)
