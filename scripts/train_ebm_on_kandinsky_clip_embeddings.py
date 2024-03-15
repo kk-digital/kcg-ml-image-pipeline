@@ -416,10 +416,10 @@ class Clip_NN(nn.Module):
 
 class DeepEnergyModel(pl.LightningModule):
 
-    def __init__(self, img_shape, batch_size = batchsize_x, alpha=0.1, lr=1e-4, beta1=0.0, **CNN_args):
+    def __init__(self, img_shape,adv_loader, batch_size = batchsize_x, alpha=0.1, lr=1e-4, beta1=0.0, **CNN_args):
         super().__init__()
         self.save_hyperparameters()
-        
+        self.adv_loader = adv_loader
         self.cnn = Clip_NN(input_size = 1280, hidden_size = 512, output_size =1) 
         self.example_input_array = torch.zeros(1, *img_shape)
 
