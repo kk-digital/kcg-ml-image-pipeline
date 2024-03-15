@@ -298,6 +298,9 @@ def http_add_score_attributes(model_type,
                               text_embedding_score,
                               text_embedding_percentile,
                               text_embedding_sigma_score,
+                              image_clip_h_score,
+                              image_clip_h_percentile,
+                              image_clip_h_sigma_score,
                               delta_sigma_score):
     data = {
         "image_hash": img_hash,
@@ -308,8 +311,10 @@ def http_add_score_attributes(model_type,
         "text_embedding_score": text_embedding_score,
         "text_embedding_percentile": text_embedding_percentile,
         "text_embedding_sigma_score": text_embedding_sigma_score,
+        "image_clip_h_score":image_clip_h_score,
+        "image_clip_h_percentile":image_clip_h_percentile,
+        "image_clip_h_sigma_score":image_clip_h_sigma_score,
         "delta_sigma_score": delta_sigma_score
-
     }
 
     url = SERVER_ADDRESS + "/job/add-attributes"

@@ -33,12 +33,14 @@ class SingleModelResponse(BaseModel):
     graph_report: str
 
 class ModelResponse(BaseModel):
-
     models: List[SingleModelResponse]
 
 class TagListForImages(BaseModel):
     tags: List[TagDefinition]
 
+class ModelTypeResponse(BaseModel):
+    model_types: List[str]
+    
 class ModelsAndScoresResponse(BaseModel):
     models: List[str]
     scores: List[str]
@@ -209,6 +211,8 @@ class ApiResponseHandler:
 
 
 class StandardSuccessResponseV1(BaseModel, Generic[T]):
+    request_error_string: str = ""
+    request_error_code: int = 0
     request_url: str
     request_dictionary: dict 
     request_method: str

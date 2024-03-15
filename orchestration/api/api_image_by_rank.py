@@ -503,6 +503,7 @@ def list_task_attributes_v1(request: Request, dataset: str = Query(..., descript
 
 
 @router.get("/image-by-rank/image-list-sorted-by-score-v1",
+            tags= ['images by rank'],
             responses=ApiResponseHandlerV1.listErrors([404, 500]),
          description="List unique score types from task_attributes_dict")
 def image_list_sorted_by_score(
@@ -582,6 +583,7 @@ def image_list_sorted_by_score(
 
 @router.get("/image-by-rank/image-list-sorted-v1", 
             response_model=StandardSuccessResponseV1[ImageData],
+            tags= ['images by rank'],
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([500]),
             description="List sorted images from jobs collection")
@@ -650,6 +652,7 @@ def image_list_sorted_by_score_v1(
 
 @router.get("/image-by-rank/image-list-sampled-sorted-v1", 
             response_model=StandardSuccessResponseV1[ImageData],
+            tags= ['images by rank'],
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([500]),
             description="List randomly sampled and sorted images from jobs collection")
@@ -721,6 +724,7 @@ def image_list_sampled_sorted(
 
 @router.get("/image-by-rank/image-list-sorted-by-percentile-v1", 
             status_code=200,
+            tags= ['images by rank'],
             responses=ApiResponseHandlerV1.listErrors([500]),
             description="List images sorted by percentile")
 def image_list_sorted_by_percentile_v1(
@@ -799,6 +803,7 @@ def image_list_sorted_by_percentile_v1(
     
 @router.get("/image-by-rank/image-list-sorted-by-residual-v1",
             status_code=200,
+            tags= ['images by rank'],
             responses=ApiResponseHandlerV1.listErrors([500]),
             description="List images sorted by percentile")
 def image_list_sorted_by_residual(
