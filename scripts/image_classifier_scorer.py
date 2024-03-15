@@ -44,7 +44,6 @@ class ImageScorer:
         self.not_include = not_include
         self.model_input_type = None
         self.model_input_type_list = ["clip", "embedding", "embedding-negative", "embedding-positive"]
-        self.model_id = None
 
         self.image_paths_cache = {}
         self.image_all_feature_pairs_cache = {}
@@ -77,8 +76,6 @@ class ImageScorer:
         else:
             print(f"Not support classifier model: {self.model_name}")
 
-        self.model_id = request.http_get_model_id_v1(self.model.model_hash)
-        print("model_id", self.model_id)
         print("model file name", model_file_name)
         if not loaded_model:
             return False
@@ -357,7 +354,6 @@ class ImageScorer:
             for pair in hash_score_pairs:
                 # upload score
                 score_data = {
-                    "model_id": self.model_id,
                     "image_hash": pair[0],
                     "score": pair[1],
                     "tag_id": tag_id
@@ -374,7 +370,6 @@ class ImageScorer:
             for key, val in hash_sigma_score_dict.items():
                 # upload score
                 sigma_score_data = {
-                    "model_id": self.model_id,
                     "image_hash": key,
                     "sigma_score": val,
                 }
@@ -391,7 +386,6 @@ class ImageScorer:
             for image_hash, percentile in hash_percentile_dict.items():
                 # upload percentile
                 percentile_data = {
-                    "model_id": self.model_id,
                     "image_hash": image_hash,
                     "percentile": percentile,
                 }
