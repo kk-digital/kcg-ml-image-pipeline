@@ -191,7 +191,7 @@ class ImageScorer:
         print('Getting dataset features...')
         
         if self.model_input_type in self.image_all_feature_pairs_cache:
-            return self.image_paths_cache[self.model_input_type]
+            return self.image_all_feature_pairs_cache[self.model_input_type]
 
         features_data = [None] * len(msgpack_paths)
         image_paths = [None] * len(msgpack_paths)
@@ -210,7 +210,7 @@ class ImageScorer:
                                         job_uuid)
                 image_paths[index] = image_path
 
-        self.image_paths_cache[self.model_input_type] = (features_data, image_paths)
+        self.image_all_feature_pairs_cache[self.model_input_type] = (features_data, image_paths)
 
         return features_data, image_paths
 
@@ -357,8 +357,6 @@ class ImageScorer:
                     "score": pair[1],
                     "tag_id": tag_id
                 }
-                # remove print for test
-                print("score_data", score_data)
                 futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data))
 
             for _ in tqdm(as_completed(futures), total=len(hash_score_pairs)):
