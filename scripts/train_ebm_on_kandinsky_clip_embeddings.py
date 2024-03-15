@@ -419,7 +419,7 @@ class DeepEnergyModel(pl.LightningModule):
     def __init__(self, img_shape, batch_size = batchsize_x, alpha=0.1, lr=1e-4, beta1=0.0, **CNN_args):
         super().__init__()
         self.save_hyperparameters()
-
+        
         self.cnn = Clip_NN(input_size = 1280, hidden_size = 512, output_size =1) 
         self.example_input_array = torch.zeros(1, *img_shape)
 
@@ -434,7 +434,7 @@ class DeepEnergyModel(pl.LightningModule):
         scheduler = optim.lr_scheduler.StepLR(optimizer, 1, gamma=0.97) # Exponential decay over epochs
         return [optimizer], [scheduler]
 
-    def training_step(self, batch,adv_loader): #maybe add the adv loader
+    def training_step(self, batch): #maybe add the adv loader
         # We add minimal noise to the original images to prevent the model from focusing on purely "clean" inputs
         real_imgs, _ = batch
         #print("the _ is ",_)
@@ -442,7 +442,7 @@ class DeepEnergyModel(pl.LightningModule):
         real_imgs.add_(small_noise).clamp_(min=-1.0, max=1.0)
 
         # Obtain samples #Give more steps later
-        fake_imgs, fake_labels = next(iter(adv_loader))
+        fake_imgs, fake_labels = next(iter(self.adv_loader))
         fake_imgs = fake_imgs.to(device)
         fake_labels = fake_labels.to(device)
 
