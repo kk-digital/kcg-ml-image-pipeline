@@ -96,11 +96,9 @@ class UniformSphereGenerator:
         for center, radius in zip(valid_centers, valid_radii):
             # Convert center to a query matrix of shape (1, d) for FAISS
             query_matrix = center.reshape(1, d).astype('float32')
-            # The radius needs to be squared because FAISS uses squared L2 distances
-            squared_radius = radius ** 2
             
             # Perform the range search
-            lims, D, I = index.range_search(query_matrix, squared_radius)
+            lims, D, I = index.range_search(query_matrix, radius)
             
             # Extract indices of points within the radius
             point_indices = I[lims[0]:lims[1]]
