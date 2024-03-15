@@ -90,11 +90,16 @@ class UniformSphereGenerator:
         feature_vectors= np.array(feature_vectors)
 
         # generate initial spheres
+        print("generating the initial spheres-------------")
         centers, radii = self.generate_initial_spheres(feature_vectors, n_spheres)
-        best_deviation, _ = self.evaluate_spheres(feature_vectors, centers, radii, target_avg_points)
+        best_deviation, avg_density = self.evaluate_spheres(feature_vectors, centers, radii, target_avg_points)
+        print(f"initial density {avg_density}")
         best_radii = radii
 
-        for _ in range(iterations):
+        print(f"Optimizing sphere distribution ----------") 
+        for i in range(iterations):
+            print(f"Iteration:{i} ------------------")
+
             adjusted_radii = self.adjust_spheres(centers, radii)
             deviation, avg_density = self.evaluate_spheres(feature_vectors, centers, adjusted_radii, target_avg_points)
             
@@ -104,6 +109,8 @@ class UniformSphereGenerator:
 
                 print(f"Current best sphere density is : {avg_density}")
         
+            print(f"No improvement this iteration")
+            
         return centers, best_radii
     
 def main():
