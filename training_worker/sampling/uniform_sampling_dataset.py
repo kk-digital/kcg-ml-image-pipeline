@@ -64,12 +64,14 @@ class UniformSphereGenerator:
         # Generate random values between 0 and 1, then scale and shift them into the [min, max] range for each feature
         sphere_centers = np.random.rand(n_spheres, len(max_vector)) * (max_vector - min_vector) + min_vector
 
+        res = faiss.StandardGpuResources()  # use a single GPU
+
         d = feature_vectors.shape[1]
-        index = faiss.IndexFlatL2(d)
+        index_flat = faiss.IndexFlatL2(d)
         
         # Move the index to the GPU
         # Note: 0 is the GPU ID, change it if you have multiple GPUs and want to use a different one
-        index = faiss.index_cpu_to_gpus_list(index, gpus=[0])
+        index = faiss.index_cpu_to_gpu(res, 0, index_flat)
         index.add(feature_vectors)
         
         print("Searching for k nearest neighbors-------------")
