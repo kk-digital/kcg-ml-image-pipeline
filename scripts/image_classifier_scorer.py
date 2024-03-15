@@ -567,7 +567,9 @@ class ImageScorer:
     def get_latest_classifier_model(self, tag_name): 
         input_path = f"{self.model_dataset}/models/classifiers/{tag_name}"
         file_suffix = ".safetensors"
-
+        
+        # remove
+        print("input_path", input_path)
         # Use the MinIO client's list_objects method directly with recursive=True
         model_files = [obj.object_name for obj in self.minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix) and self.not_include not in obj.object_name ]
         
