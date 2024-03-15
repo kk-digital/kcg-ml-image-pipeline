@@ -221,7 +221,6 @@ def startup_db_client():
 
     # classifier scores hash index
     classifier_hash_index=[
-    ('model_id', pymongo.ASCENDING), 
     ('image_hash', pymongo.ASCENDING),
     ('tag_id', pymongo.ASCENDING)
     ]
@@ -230,7 +229,6 @@ def startup_db_client():
     
     # classifier scores tag index
     classifier_tag_index=[
-    ('model_id', pymongo.ASCENDING), 
     ('tag_id', pymongo.ASCENDING)
     ]
     create_index_if_not_exists(app.image_classifier_scores_collection , classifier_tag_index, 'classifier_hash_index')
