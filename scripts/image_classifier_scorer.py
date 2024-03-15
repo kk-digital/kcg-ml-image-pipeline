@@ -582,7 +582,7 @@ class ImageScorer:
         model_file = model_files[0]
         print(f"Loading model: {model_file}")
 
-        self.model_input_type = next((model_input_type for model_input_type + "."  in self.model_input_type_list if model_input_type in model_file), None)
+        self.model_input_type = next((model_input_type for model_input_type in self.model_input_type_list if model_input_type + "." in model_file), None)
         self.model_name = next((model_name for model_name in self.model_name_list if model_name in model_file), None)
         
         return model_file
