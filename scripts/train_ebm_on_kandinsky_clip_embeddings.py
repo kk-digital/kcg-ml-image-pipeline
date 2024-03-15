@@ -501,7 +501,7 @@ class DeepEnergyModel(pl.LightningModule):
 # ------------------------------------------------- Train model --------------------------------------------------
 
 
-def train_model(train_loader,val_loader,**kwargs):
+def train_model(train_loader,val_loader, adv_loader, **kwargs):
     # Create a PyTorch Lightning trainer with the generation callback
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
@@ -513,7 +513,7 @@ def train_model(train_loader,val_loader,**kwargs):
                                    ])
 
     pl.seed_everything(42)
-    model = DeepEnergyModel(**kwargs)
+    model = DeepEnergyModel(adv_loader,**kwargs)
     trainer.fit(model, train_loader, val_loader)
 
     return model
@@ -1444,7 +1444,8 @@ class EBM_Single_Class_Trainer:
                             lr=self.learning_rate,
                             beta1=0.0,
                             train_loader = train_loader,
-                            val_loader = val_loader)
+                            val_loader = val_loader,
+                            adv_loader =adv_loader )
         save_model(model,self.save_name,'temp_model.pth')
 
 
