@@ -1388,6 +1388,7 @@ def parse_args():
 
 class EBM_Single_Class_Trainer:
     def __init__(self,
+                
                 model,
                 class_name,
                 minio_access_key,
@@ -1397,7 +1398,7 @@ class EBM_Single_Class_Trainer:
                 class_id,
                 training_batch_size=64,
                 num_samples=30000,
-                learning_rate=0.001,
+                learning_rate = 0.001,
                 epochs=25):
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
@@ -1416,6 +1417,9 @@ class EBM_Single_Class_Trainer:
         self.training_batch_size= training_batch_size
         self.model = DeepEnergyModel(img_shape=(1280,))
         self.classe_name = class_name
+        self.learning_rate = learning_rate
+        self.epochs = epochs
+        self.model = model
 
     def load_EBM_model(self):
         # cybernetics_model = DeepEnergyModel(img_shape=(1280,))
