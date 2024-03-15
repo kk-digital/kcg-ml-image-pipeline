@@ -114,27 +114,30 @@ class UniformSphereGenerator:
         points_per_sphere = [len(sphere['points']) for sphere in sphere_data]
         print(points_per_sphere)
         avg_points_per_sphere = np.mean(points_per_sphere) if points_per_sphere else 0
+
+        # plot results
+        self.plot(sphere_data, points_per_sphere, n_spheres, scores)
         
         return sphere_data, avg_points_per_sphere, len(total_covered_points)
 
 
-    def plot(minio_client, sphere_data, points_per_cluster, n_spheres, scores):
+    def plot(minio_client, sphere_data, points_per_sphere, n_spheres, scores):
         fig, axs = plt.subplots(1, 2, figsize=(16, 8))
         
         # Preparing data for plots
         mean_scores = [np.mean([scores[j] for j in sphere_data[i]['points']]) if sphere_data[i] else 0 for i in range(n_spheres)]
         
         # Histogram of Points per Cluster
-        axs[0].bar(range(n_spheres), points_per_cluster, color='skyblue')
-        axs[0].set_xlabel('Cluster ID')
+        axs[0].bar(range(n_spheres), points_per_sphere, color='skyblue')
+        axs[0].set_xlabel('Sphere ID')
         axs[0].set_ylabel('Number of Points')
-        axs[0].set_title('Number of Points per Cluster')
+        axs[0].set_title('Number of Points per Sphere')
         
         # Scatter Plot of Cluster Density vs. Mean Score
-        axs[1].scatter(points_per_cluster, mean_scores, c='blue', marker='o')
-        axs[1].set_xlabel('Cluster Density (Number of Points)')
+        axs[1].scatter(points_per_sphere, mean_scores, c='blue', marker='o')
+        axs[1].set_xlabel('Sphere Density (Number of Points)')
         axs[1].set_ylabel('Mean Score')
-        axs[1].set_title('Cluster Density vs. Mean Score')
+        axs[1].set_title('Sphere Density vs. Mean Score')
         axs[1].grid(True)
         
         plt.tight_layout()
@@ -159,6 +162,7 @@ def main():
     
     sphere_data, avg_points_per_sphere, total_covered_points= generator.generate_spheres(n_spheres=args.n_spheres,
                                                        target_avg_points= args.target_avg_points)
+    
     
     print(f"average points per sphere: {avg_points_per_sphere}")
     print(f"total points covered: {total_covered_points}")
