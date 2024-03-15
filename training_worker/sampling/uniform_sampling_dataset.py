@@ -1,6 +1,8 @@
 import argparse
+from io import BytesIO
 import os
 import sys
+from matplotlib import pyplot as plt
 import numpy as np
 import faiss
 
@@ -9,6 +11,7 @@ sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 
 from data_loader.kandinsky_dataset_loader import KandinskyDatasetLoader
+from utility.minio import cmd
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -114,7 +117,39 @@ class UniformSphereGenerator:
         
         return sphere_data, avg_points_per_sphere, len(total_covered_points)
 
-    
+
+    def plot(minio_client, sphere_data, points_per_cluster, n_spheres, scores):
+        fig, axs = plt.subplots(1, 2, figsize=(16, 8))
+        
+        # Preparing data for plots
+        mean_scores = [np.mean([scores[j] for j in sphere_data[i]['points']]) if sphere_data[i] else 0 for i in range(n_spheres)]
+        
+        # Histogram of Points per Cluster
+        axs[0].bar(range(n_spheres), points_per_cluster, color='skyblue')
+        axs[0].set_xlabel('Cluster ID')
+        axs[0].set_ylabel('Number of Points')
+        axs[0].set_title('Number of Points per Cluster')
+        
+        # Scatter Plot of Cluster Density vs. Mean Score
+        axs[1].scatter(points_per_cluster, mean_scores, c='blue', marker='o')
+        axs[1].set_xlabel('Cluster Density (Number of Points)')
+        axs[1].set_ylabel('Mean Score')
+        axs[1].set_title('Cluster Density vs. Mean Score')
+        axs[1].grid(True)
+        
+        plt.tight_layout()
+
+        # Save the figure to a file
+        buf = BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+
+        # upload the graph report
+        cmd.upload_data(minio_client, 'datasets', "environmental/output/sphere_dataset/graphs.png", buf)  
+
+        # Clear the current figure
+        plt.clf()
+
 def main():
     args= parse_args()
 
