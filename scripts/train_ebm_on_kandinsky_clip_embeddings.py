@@ -513,7 +513,7 @@ def train_model(train_loader,val_loader, adv_loader, **kwargs):
                                    ])
 
     pl.seed_everything(42)
-    model = DeepEnergyModel(adv_loader,**kwargs)
+    model = DeepEnergyModel(adv_loader =adv_loader ,**kwargs)
     trainer.fit(model, train_loader, val_loader)
 
     return model
