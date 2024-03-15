@@ -5,6 +5,7 @@ import sys
 from matplotlib import pyplot as plt
 import numpy as np
 import faiss
+from tqdm import tqdm
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -55,6 +56,9 @@ class UniformSphereGenerator:
         - total_covered_points: Total number of unique points covered by the valid spheres.
         """
         
+        # score distribution bin
+        bins = np.array([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, np.inf])
+
         # load data from mongodb
         feature_vectors, scores= self.dataloader.load_clip_vector_data()
         feature_vectors= np.array(feature_vectors, dtype='float32')
@@ -105,9 +109,23 @@ class UniformSphereGenerator:
             
             # Extract indices of points within the radius
             point_indices = I[lims[0]:lims[1]]
+
+            # calculate score distribution
+            score_distribution=np.zeros(len(bins))
+            scores_sum=0
+            for index in point_indices:
+                score= scores[index]
+                for i in range(bins):
+                    if score < bins[i]:
+                        scores_sum+= score
+                        score_distribution[i]=+1
+                        break
+            
+            score_distribution= score_distribution / scores_sum
             
             # Update sphere data and covered points
-            sphere_data.append({'center': center, 'radius': radius, 'points': point_indices})
+            sphere_data.append({'center': center, 'radius': radius, 'points': point_indices, 
+                                "score_distribution": score_distribution})
             total_covered_points.update(point_indices)
         
         # Calculate statistics
@@ -117,33 +135,12 @@ class UniformSphereGenerator:
         # plot results
         self.plot(sphere_data, points_per_sphere, n_spheres, scores)
         
-        return sphere_data, scores, avg_points_per_sphere, len(total_covered_points)
-
-    def calculate_score_distribution(self, spheres, scores):
-        # Define the bins for the score distribution: < -5, -5 to -4, ..., 4 to 5, > 5
-        bins = np.array([-np.inf, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, np.inf])
-        # Initialize a list to hold the score distribution for each sphere
-        sphere_distributions = []
-
-        for sphere in spheres:
-            point_indices = sphere['points']
-            # Fetch the scores for the points within the current sphere
-            sphere_scores = [scores[index] for index in point_indices]
-            # Digitize the scores to find out which bin they fall into
-            binned_scores = np.digitize(sphere_scores, bins) - 1  # Adjust indices to be 0-based
-            # Count the occurrences in each bin to get the distribution
-            distribution_counts = np.bincount(binned_scores, minlength=len(bins)-1)
-            # Calculate the percentage for each bin to get a probability distribution
-            distribution_percentage = distribution_counts / distribution_counts.sum()
-            # Append the distribution to the list of distributions
-            sphere_distributions.append(distribution_percentage)
-
-        return sphere_distributions
+        return sphere_data, avg_points_per_sphere, len(total_covered_points)
 
 
     def load_sphere_dataset(self, n_spheres, target_avg_points):
         # generating spheres
-        sphere_data, scores, avg_points_per_sphere, total_covered_points= self.generate_spheres(n_spheres=n_spheres,
+        sphere_data, avg_points_per_sphere, total_covered_points= self.generate_spheres(n_spheres=n_spheres,
                                                        target_avg_points=target_avg_points)
         
         inputs=[]
@@ -151,8 +148,8 @@ class UniformSphereGenerator:
         for sphere in sphere_data:
             # get input vectors
             inputs.append(sphere['center'] + [sphere['radius']])
-            # calculate score distribution
-            outputs= self.calculate_score_distribution(sphere_data, scores)
+            # get score distribution
+            outputs= sphere['score_distribution']
 
         return inputs, outputs 
 
