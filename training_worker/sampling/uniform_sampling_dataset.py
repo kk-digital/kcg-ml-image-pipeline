@@ -54,7 +54,7 @@ class UniformSphereGenerator:
         
         # load data from mongodb
         feature_vectors, scores= self.dataloader.load_clip_vector_data()
-        feature_vectors= np.array(feature_vectors)
+        feature_vectors= np.array(feature_vectors, dtype='float32')
      
         # Calculate max and min vectors
         max_vector = np.max(feature_vectors, axis=0)
