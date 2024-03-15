@@ -68,9 +68,6 @@ class UniformSphereGenerator:
 
         d = feature_vectors.shape[1]
         index = faiss.IndexFlatL2(d)
-        
-        # Move the index to the GPU
-        # Note: 0 is the GPU ID, change it if you have multiple GPUs and want to use a different one
         index.add(feature_vectors)
         
         print("Searching for k nearest neighbors-------------")
@@ -91,12 +88,32 @@ class UniformSphereGenerator:
             valid_radii = radii
 
         print("Calculating metrics for each sphere-------------")
-        # Calculate coverage metrics
-        unique_indices = np.unique(indices)
-        total_covered_points = len(unique_indices)
-        avg_points_per_sphere = total_covered_points / len(valid_centers) if len(valid_centers) > 0 else 0
-
-        return valid_centers, valid_radii, avg_points_per_sphere, total_covered_points
+        # Prepare to collect sphere data and statistics
+        sphere_data = []
+        total_covered_points = set()
+        
+        # Perform a range search for each valid sphere to find points within its radius
+        for center, radius in zip(valid_centers, valid_radii):
+            # Convert center to a query matrix of shape (1, d) for FAISS
+            query_matrix = center.reshape(1, d).astype('float32')
+            # The radius needs to be squared because FAISS uses squared L2 distances
+            squared_radius = radius ** 2
+            
+            # Perform the range search
+            lims, D, I = index.range_search(query_matrix, squared_radius)
+            
+            # Extract indices of points within the radius
+            point_indices = I[lims[0]:lims[1]]
+            
+            # Update sphere data and covered points
+            sphere_data.append({'center': center, 'radius': radius, 'points': point_indices})
+            total_covered_points.update(point_indices)
+        
+        # Calculate statistics
+        points_per_sphere = [len(sphere['points']) for sphere in sphere_data]
+        avg_points_per_sphere = np.mean(points_per_sphere) if points_per_sphere else 0
+        
+        return sphere_data, avg_points_per_sphere, len(total_covered_points)
 
     
 def main():
@@ -106,7 +123,7 @@ def main():
                                     minio_secret_key=args.minio_secret_key,
                                     dataset=args.dataset)
     
-    valid_centers, valid_radii, avg_points_per_sphere, total_covered_points= generator.generate_spheres(n_spheres=args.n_spheres,
+    sphere_data, avg_points_per_sphere, total_covered_points= generator.generate_spheres(n_spheres=args.n_spheres,
                                                        target_avg_points= args.target_avg_points)
     
     print(f"average points per sphere: {avg_points_per_sphere}")
