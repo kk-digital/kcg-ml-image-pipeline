@@ -66,12 +66,10 @@ class UniformSphereGenerator:
 
         d = feature_vectors.shape[1]
         index = faiss.IndexFlatL2(d)
-        # Use StandardGpuResources to control the GPU memory and computation
-        gpu_resources = faiss.StandardGpuResources()
         
         # Move the index to the GPU
         # Note: 0 is the GPU ID, change it if you have multiple GPUs and want to use a different one
-        index = faiss.index_cpu_to_gpu(gpu_resources, 0, index)
+        index = faiss.index_cpu_to_gpus_list(index, gpus=[0])
         index.add(feature_vectors)
         
         print("Searching for k nearest neighbors-------------")
