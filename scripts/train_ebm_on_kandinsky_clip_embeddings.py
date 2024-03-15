@@ -1513,6 +1513,7 @@ def main():
                                 minio_secret_key=args.minio_secret_key,
                                 dataset= args.dataset,
                                 class_name= args.class_name,
+                                model = None,
                                 save_name = args.save_name,
                                 class_id = args.class_id,
                                 training_batch_size=args.training_batch_size,
