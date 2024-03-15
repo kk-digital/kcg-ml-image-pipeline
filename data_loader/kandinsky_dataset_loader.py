@@ -112,16 +112,16 @@ class KandinskyDatasetLoader:
                 input_clip_vector= embedding_dict.image_embedding
                 input_clip_vector= input_clip_vector[0].cpu().numpy().tolist()
 
-                # output_clip_path = file_path + "_clip_kandinsky.msgpack"
-                # features_data = get_object(self.minio_client, output_clip_path)
-                # features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
-                # output_clip_vector= torch.tensor(features_vector).to(device=self.device)
+                output_clip_path = file_path + "_clip_kandinsky.msgpack"
+                features_data = get_object(self.minio_client, output_clip_path)
+                features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
+                output_clip_vector= torch.tensor(features_vector).to(device=self.device)
 
-                # output_clip_score = self.ranking_model.predict_clip(output_clip_vector).item()
-                # image_clip_sigma_score = (output_clip_score - self.score_mean) / self.score_std 
+                output_clip_score = self.ranking_model.predict_clip(output_clip_vector).item()
+                image_clip_sigma_score = (output_clip_score - self.score_mean) / self.score_std 
 
                 feature_vectors.append(input_clip_vector)
-                scores.append(0)
+                scores.append(image_clip_sigma_score)
 
             except:
                 print("An error occured")
