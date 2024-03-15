@@ -1315,17 +1315,17 @@ load_model(desert_model,'desert')
 
 
 
-#sorted_combined_images = process_and_sort_dataset_combined(images_paths_ood,occult_model,cybernetics_model)
-sorted_combined_images = process_and_sort_dataset_weighted_combinations(images_paths_ood,[cybernetics_model,desert_model],[1,1])
+# #sorted_combined_images = process_and_sort_dataset_combined(images_paths_ood,occult_model,cybernetics_model)
+# sorted_combined_images = process_and_sort_dataset_weighted_combinations(images_paths_ood,[cybernetics_model,desert_model],[1,1])
 
-get_structure_csv_content(sorted_combined_images,"Cybernetic + Desert")
-selected_structure_first_52 = sorted_combined_images[:52]
-selected_structure_second_52 = sorted_combined_images[52:103]
-selected_structure_third_52 = sorted_combined_images[103:154]
+# get_structure_csv_content(sorted_combined_images,"Cybernetic + Desert")
+# selected_structure_first_52 = sorted_combined_images[:52]
+# selected_structure_second_52 = sorted_combined_images[52:103]
+# selected_structure_third_52 = sorted_combined_images[103:154]
 
-plot_images_with_scores(selected_structure_first_52,"Cybernetic + Desert : Tier 1")
-plot_images_with_scores(selected_structure_second_52,"Cybernetic + Desert : Tier 2")
-plot_images_with_scores(selected_structure_third_52,"Cybernetic + Desert : Tier 3")
+# plot_images_with_scores(selected_structure_first_52,"Cybernetic + Desert : Tier 1")
+# plot_images_with_scores(selected_structure_second_52,"Cybernetic + Desert : Tier 2")
+# plot_images_with_scores(selected_structure_third_52,"Cybernetic + Desert : Tier 3")
 
 
 
