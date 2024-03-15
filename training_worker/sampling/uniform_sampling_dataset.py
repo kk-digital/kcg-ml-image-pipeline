@@ -128,7 +128,7 @@ class UniformSphereGenerator:
         for sphere in spheres:
             point_indices = sphere['points']
             # Fetch the scores for the points within the current sphere
-            sphere_scores = scores[point_indices]
+            sphere_scores = [scores[index] for index in point_indices]
             # Digitize the scores to find out which bin they fall into
             binned_scores = np.digitize(sphere_scores, bins) - 1  # Adjust indices to be 0-based
             # Count the occurrences in each bin to get the distribution
