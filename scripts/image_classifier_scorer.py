@@ -568,8 +568,6 @@ class ImageScorer:
         input_path = f"{self.model_dataset}/models/classifiers/{tag_name}"
         file_suffix = ".safetensors"
 
-        # remove
-        print("input_path", input_path)
         # Use the MinIO client's list_objects method directly with recursive=True
         model_files = [obj.object_name for obj in self.minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix) and self.not_include not in obj.object_name ]
         
@@ -584,7 +582,8 @@ class ImageScorer:
 
         self.model_input_type = next((model_input_type for model_input_type in self.model_input_type_list if model_input_type + "." in model_file), None)
         self.model_name = next((model_name for model_name in self.model_name_list if model_name in model_file), None)
-        
+        # remove
+        print(self.model_input_type, self.model_name)
         return model_file
 
 
