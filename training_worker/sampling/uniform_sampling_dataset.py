@@ -121,7 +121,7 @@ class UniformSphereGenerator:
         return sphere_data, avg_points_per_sphere, len(total_covered_points)
 
 
-    def plot(minio_client, sphere_data, points_per_sphere, n_spheres, scores):
+    def plot(self, sphere_data, points_per_sphere, n_spheres, scores):
         fig, axs = plt.subplots(1, 2, figsize=(16, 8))
         
         # Preparing data for plots
@@ -148,7 +148,7 @@ class UniformSphereGenerator:
         buf.seek(0)
 
         # upload the graph report
-        cmd.upload_data(minio_client, 'datasets', "environmental/output/sphere_dataset/graphs.png", buf)  
+        cmd.upload_data(self.minio_client, 'datasets', "environmental/output/sphere_dataset/graphs.png", buf)  
 
         # Clear the current figure
         plt.clf()
