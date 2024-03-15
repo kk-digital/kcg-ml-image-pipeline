@@ -112,14 +112,49 @@ class UniformSphereGenerator:
         
         # Calculate statistics
         points_per_sphere = [len(sphere['points']) for sphere in sphere_data]
-        print(points_per_sphere)
         avg_points_per_sphere = np.mean(points_per_sphere) if points_per_sphere else 0
 
         # plot results
         self.plot(sphere_data, points_per_sphere, n_spheres, scores)
         
-        return sphere_data, avg_points_per_sphere, len(total_covered_points)
+        return sphere_data, scores, avg_points_per_sphere, len(total_covered_points)
 
+    def calculate_score_distribution(self, spheres, scores):
+        # Define the bins for the score distribution: < -5, -5 to -4, ..., 4 to 5, > 5
+        bins = np.array([-np.inf, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, np.inf])
+        # Initialize a list to hold the score distribution for each sphere
+        sphere_distributions = []
+
+        for sphere in spheres:
+            point_indices = sphere['points']
+            # Fetch the scores for the points within the current sphere
+            sphere_scores = scores[point_indices]
+            # Digitize the scores to find out which bin they fall into
+            binned_scores = np.digitize(sphere_scores, bins) - 1  # Adjust indices to be 0-based
+            # Count the occurrences in each bin to get the distribution
+            distribution_counts = np.bincount(binned_scores, minlength=len(bins)-1)
+            # Calculate the percentage for each bin to get a probability distribution
+            distribution_percentage = distribution_counts / distribution_counts.sum()
+            # Append the distribution to the list of distributions
+            sphere_distributions.append(distribution_percentage)
+
+        return sphere_distributions
+
+
+    def load_sphere_dataset(self, n_spheres, target_avg_points):
+        # generating spheres
+        sphere_data, scores, avg_points_per_sphere, total_covered_points= self.generate_spheres(n_spheres=n_spheres,
+                                                       target_avg_points=target_avg_points)
+        
+        inputs=[]
+        outputs=[]
+        for sphere in sphere_data:
+            # get input vectors
+            inputs.append(sphere['center'] + [sphere['radius']])
+            # calculate score distribution
+            outputs= self.calculate_score_distribution(sphere_data, scores)
+
+        return inputs, outputs 
 
     def plot(self, sphere_data, points_per_sphere, n_spheres, scores):
         fig, axs = plt.subplots(1, 2, figsize=(16, 8))
@@ -160,12 +195,13 @@ def main():
                                     minio_secret_key=args.minio_secret_key,
                                     dataset=args.dataset)
     
-    sphere_data, avg_points_per_sphere, total_covered_points= generator.generate_spheres(n_spheres=args.n_spheres,
+    inputs, outputs = generator.load_sphere_dataset(n_spheres=args.n_spheres,
                                                        target_avg_points= args.target_avg_points)
     
     
-    print(f"average points per sphere: {avg_points_per_sphere}")
-    print(f"total points covered: {total_covered_points}")
+    print(f"Number of datapoints {len(inputs)}")
+    print(f" Example input: {inputs[0]}")
+    print(f" Score distribution: {outputs[0]}")
 
 if __name__ == "__main__":
     main()
