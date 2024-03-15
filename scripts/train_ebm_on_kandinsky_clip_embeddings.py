@@ -1415,7 +1415,7 @@ class EBM_Single_Class_Trainer:
         self.class_id= class_id
         self.num_samples= num_samples
         self.training_batch_size= training_batch_size
-        self.model = DeepEnergyModel(img_shape=(1280,))
+        self.model = DeepEnergyModel(adv_loader=None, img_shape=(1280,))
         self.classe_name = class_name
         self.learning_rate = learning_rate
         self.epochs = epochs
