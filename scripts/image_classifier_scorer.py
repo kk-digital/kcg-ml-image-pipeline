@@ -692,10 +692,9 @@ def run_every_day():
 
 
 def main():
-    schedular = sched.scheduler(time.time, time.sleep)
 
     run_every_day()
-    schedular.run()
+    scheduler.run()
 
 
 if __name__ == "__main__":
