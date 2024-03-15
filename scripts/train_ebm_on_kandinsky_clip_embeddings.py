@@ -1512,8 +1512,6 @@ def main():
     training_pipeline=EBM_Single_Class_Trainer(minio_access_key=args.minio_access_key,
                                 minio_secret_key=args.minio_secret_key,
                                 dataset= args.dataset,
-                                model_type=args.model_type,
-                                kandinsky_batch_size=args.kandinsky_batch_size,
                                 training_batch_size=args.training_batch_size,
                                 num_samples= args.num_samples,
                                 epochs= args.epochs,
