@@ -1375,7 +1375,7 @@ def parse_args():
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
     parser.add_argument('--target-class-id', type=int, help='id number of the class to train', default=35)
-    parser.add_argument('--target-class-name', type=int, help='the name of the class to train or to load', default='cyber')
+    parser.add_argument('--target-class-name', type=str, help='the name of the class to train or to load', default='cyber')
     parser.add_argument('--training-batch-size', type=int, default=64)
     parser.add_argument('--epochs', type=int, default=20)
     parser.add_argument('--learning-rate', type=float, default=0.001)
