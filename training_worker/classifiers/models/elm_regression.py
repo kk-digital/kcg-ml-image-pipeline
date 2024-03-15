@@ -244,6 +244,9 @@ class ELMRegression():
         model_file = model_files[0]
         print(f"Loading model: {model_file}")
 
+        return self.load_model_with_filename(minio_client, model_file, tag_name)
+    
+    def load_model_with_filename(self, minio_client, model_file, tag_name):
         model_data = minio_client.get_object('datasets', model_file)
         
         clip_model = ELMRegression(device=self._device)
