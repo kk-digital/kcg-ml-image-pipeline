@@ -45,6 +45,10 @@ class ImageScorer:
         self.model_input_type = None
         self.model_input_type_list = ["clip", "embedding", "embedding-negative", "embedding-positive"]
         self.model_id = None
+
+        self.image_paths_cache = {}
+        self.image_all_feature_pairs_cache = {}
+
         if torch.cuda.is_available():
             device = 'cuda'
         else:
@@ -82,7 +86,8 @@ class ImageScorer:
 
     def get_paths(self):
         print("Getting paths for dataset: {}...".format(self.dataset))
-
+        if self.model_input_type in self.image_paths_cache:
+            return self.model_paths_cache[self.model_input_type]
         all_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', self.dataset)
 
         # Depending on the model type, choose the appropriate msgpack files
@@ -90,6 +95,8 @@ class ImageScorer:
 
         # Filter the objects to get only those that end with the chosen suffix
         type_paths = [obj for obj in all_objects if obj.endswith(file_suffix)]
+
+        self.image_paths_cache[self.model_input_type] = type_paths
 
         print("Total paths found=", len(type_paths))
         return type_paths
@@ -186,6 +193,9 @@ class ImageScorer:
 
     def get_all_feature_pairs(self, msgpack_paths):
         print('Getting dataset features...')
+        
+        if self.model_input_type in self.image_all_feature_pairs_cache:
+            return self.image_paths_cache[self.model_input_type]
 
         features_data = [None] * len(msgpack_paths)
         image_paths = [None] * len(msgpack_paths)
@@ -203,6 +213,8 @@ class ImageScorer:
                                         second_feature,
                                         job_uuid)
                 image_paths[index] = image_path
+
+        self.image_paths_cache[self.model_input_type] = (features_data, image_paths)
 
         return features_data, image_paths
 
