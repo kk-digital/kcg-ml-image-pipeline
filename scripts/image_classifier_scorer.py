@@ -598,8 +598,6 @@ def parse_args():
     parser.add_argument('--dataset-name', required=True, help='Name of the dataset for embeddings')
     parser.add_argument('--generation-policy', required=False, default="all", help='Name of generation policy to get, default is all')
     parser.add_argument('--model-dataset', required=False, help="dataset included classifier, ex, environmental", default="environmental")
-    parser.add_argument('--model-type', required=False, help="mode type, ex, clip, embedding, embedding-positive, embedding-positive or clip", default="clip")
-    parser.add_argument("--model-name", required=False, help="Model name, ex, elm, linear or logistic", default="elm")
     parser.add_argument('--not-include', required=False, help="string for helping to indentify model", default="kandinsky")
 
     args = parser.parse_args()
@@ -670,7 +668,7 @@ def run_every_day():
                         run_image_scorer, 
                         [minio_client,
                          args.dataset_name, 
-                          args.model_dataset,
+                         args.model_dataset,
                          args.not_include,
                          args.generation_policy
                          ])
