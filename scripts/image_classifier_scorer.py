@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from matplotlib.ticker import PercentFormatter
 from tqdm import tqdm
 import math
-import datetime
+from datetime import datetime
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
