@@ -358,6 +358,8 @@ class ImageScorer:
                     "score": pair[1],
                     "tag_id": tag_id
                 }
+                # remove print for test
+                print("score_data", score_data)
                 futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data))
 
             for _ in tqdm(as_completed(futures), total=len(hash_score_pairs)):
