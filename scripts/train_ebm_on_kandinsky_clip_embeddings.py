@@ -1375,7 +1375,7 @@ def parse_args():
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
     parser.add_argument('--target-class-id', type=int, help='id number of the class to train', default=35)
-    parser.add_argument('--target-class-name', type=str, help='the name of the class to train or to load', default='cyber')
+    parser.add_argument('--class-name', type=str, help='the name of the class to train or to load', default='cyber')
     parser.add_argument('--training-batch-size', type=int, default=64)
     parser.add_argument('--epochs', type=int, default=20)
     parser.add_argument('--learning-rate', type=float, default=0.001)
@@ -1389,7 +1389,7 @@ def parse_args():
 class EBM_Single_Class_Trainer:
     def __init__(self,
                 model,
-                classe_name,
+                class_name,
                 minio_access_key,
                 minio_secret_key,
                 save_name,
@@ -1415,7 +1415,7 @@ class EBM_Single_Class_Trainer:
         self.num_samples= num_samples
         self.training_batch_size= training_batch_size
         self.model = DeepEnergyModel(img_shape=(1280,))
-        self.classe_name = classe_name
+        self.classe_name = class_name
 
     def load_EBM_model(self):
         # cybernetics_model = DeepEnergyModel(img_shape=(1280,))
@@ -1512,7 +1512,7 @@ def main():
     training_pipeline=EBM_Single_Class_Trainer(minio_access_key=args.minio_access_key,
                                 minio_secret_key=args.minio_secret_key,
                                 dataset= args.dataset,
-                                classe_name= args.classe_name,
+                                class_name= args.class_name,
                                 save_name = args.save_name,
                                 class_id = args.class_id,
                                 training_batch_size=args.training_batch_size,
