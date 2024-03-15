@@ -64,15 +64,15 @@ class ImageScorer:
 
         if self.model_name == "elm":
             elm_model = ELMRegression(device=self.device)
-            loaded_model, model_file_name = elm_model.load_model(self.minio_client, self.model_dataset, tag_name, self.model_input_type + ".", self.model_name, self.not_include, device=self.device)
+            loaded_model, model_file_name = elm_model.load_model_with_filename(self.minio_client, model_filename, tag_name)
             self.model = loaded_model
         elif self.model_name == 'linear':
             linear_model = LinearRegression(device=self.device)
-            loaded_model, model_file_name = linear_model.load_model(self.minio_client, self.model_dataset, tag_name, self.model_input_type + ".", self.model_name, self.not_include, device=self.device)
+            loaded_model, model_file_name = linear_model.load_model_with_filename(self.minio_client, model_filename, tag_name)
             self.model = loaded_model
         elif self.model_name == "logistic":
             logistic_model = LogisticRegression(device=self.device)
-            loaded_model, model_file_name = logistic_model.load_model(self.minio_client, self.model_dataset, tag_name, self.model_input_type + ".", self.model_name, self.not_include, device=self.device)
+            loaded_model, model_file_name = logistic_model.load_model_with_filename(self.minio_client, model_filename, tag_name)
             self.model = loaded_model
         else:
             print(f"Not support classifier model: {self.model_name}")
