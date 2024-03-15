@@ -59,7 +59,7 @@ class ImageScorer:
         print("device=", self.device)
 
     def load_model(self, tag_name):
-        self.model_input_type, self.model_name, model_filename = self.get_latest_classifier_model(tag_name)
+        model_filename = self.get_latest_classifier_model(tag_name)
 
         if self.model_name == "elm":
             elm_model = ELMRegression(device=self.device)
@@ -76,7 +76,6 @@ class ImageScorer:
         else:
             print(f"Not support classifier model: {self.model_name}")
 
-        print("model file name", model_file_name)
         if not loaded_model:
             return False
         return True
