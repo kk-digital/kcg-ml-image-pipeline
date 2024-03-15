@@ -1512,7 +1512,6 @@ def main():
     training_pipeline=EBM_Single_Class_Trainer(minio_access_key=args.minio_access_key,
                                 minio_secret_key=args.minio_secret_key,
                                 dataset= args.dataset,
-                                model= args.model,
                                 classe_name= args.classe_name,
                                 save_name = args.save_name,
                                 class_id = args.class_id,
