@@ -66,14 +66,11 @@ class UniformSphereGenerator:
         # Convert sphere_centers to float32
         sphere_centers = sphere_centers.astype('float32')
 
-        res = faiss.StandardGpuResources()  # use a single GPU
-
         d = feature_vectors.shape[1]
-        index_flat = faiss.IndexFlatL2(d)
+        index = faiss.IndexFlatL2(d)
         
         # Move the index to the GPU
         # Note: 0 is the GPU ID, change it if you have multiple GPUs and want to use a different one
-        index = faiss.index_cpu_to_gpu(res, 0, index_flat)
         index.add(feature_vectors)
         
         print("Searching for k nearest neighbors-------------")
