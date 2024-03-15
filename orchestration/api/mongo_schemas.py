@@ -209,14 +209,12 @@ class RankingScore(BaseModel):
     
 
 class ClassifierScore(BaseModel):
-    model_id: int
     tag_id: int
     image_hash: str
     score: float
 
     def to_dict(self):
         return {
-            "model_id": self.model_id,
             "tag_id": self.tag_id,
             "image_hash": self.image_hash,
             "score": self.score,
