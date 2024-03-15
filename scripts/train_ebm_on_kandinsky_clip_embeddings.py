@@ -1380,7 +1380,7 @@ def parse_args():
     parser.add_argument('--epochs', type=int, default=20)
     parser.add_argument('--learning-rate', type=float, default=0.001)
     parser.add_argument('--num-samples', type=int, default=30000)
-    parser.add_argument('--model-save-name', type=str, default='new-model')
+    parser.add_argument('--save-name', type=str, default='new-model')
 
     return parser.parse_args()
 
