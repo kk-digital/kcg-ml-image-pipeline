@@ -567,7 +567,7 @@ class ImageScorer:
     def get_latest_classifier_model(self, tag_name): 
         input_path = f"{self.model_dataset}/models/classifiers/{tag_name}"
         file_suffix = ".safetensors"
-        
+
         # remove
         print("input_path", input_path)
         # Use the MinIO client's list_objects method directly with recursive=True
@@ -648,14 +648,11 @@ def run_every_day():
     args = parse_args()
 
     dataset_name = args.dataset_name
-    # uncomment
 
-    # minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key,
-    #                                     minio_secret_key=args.minio_secret_key,
-    #                                     minio_ip_addr=args.minio_addr)
+    minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key,
+                                        minio_secret_key=args.minio_secret_key,
+                                        minio_ip_addr=args.minio_addr)
 
-    # remove
-    minio_client = None
     now = datetime.now()
     # Calculate the number of seconds until 12:00 PM
     future_time = datetime(now.year, now.month, now.day, 12, 0)
