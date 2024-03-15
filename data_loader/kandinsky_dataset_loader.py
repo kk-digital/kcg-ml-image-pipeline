@@ -96,7 +96,8 @@ class KandinskyDatasetLoader:
     
     def load_clip_vector_data(self):
         jobs= self.load_kandinsky_jobs()
-        clip_vectors=[]
+        feature_vectors=[]
+        scores=[]
         
         print("Loading input clip vectors and sigma scores for each job")
         for job in tqdm(jobs):
@@ -109,6 +110,7 @@ class KandinskyDatasetLoader:
                 clip_data = get_object(self.minio_client, input_clip_path)
                 embedding_dict = ImageEmbedding.from_msgpack_bytes(clip_data)
                 input_clip_vector= embedding_dict.image_embedding
+                input_clip_vector= input_clip_vector[0].cpu().numpy().tolist()
 
                 output_clip_path = file_path + "_clip_kandinsky.msgpack"
                 features_data = get_object(self.minio_client, output_clip_path)
@@ -118,15 +120,13 @@ class KandinskyDatasetLoader:
                 output_clip_score = self.ranking_model.predict_clip(output_clip_vector).item()
                 image_clip_sigma_score = (output_clip_score - self.score_mean) / self.score_std 
 
-                clip_vectors.append({
-                    "input_clip": input_clip_vector,
-                    "score": image_clip_sigma_score
-                })
+                feature_vectors.append(input_clip_vector)
+                scores.append(image_clip_sigma_score)
 
             except:
                 print("An error occured")
         
-        return clip_vectors
+        return feature_vectors, scores
 
 def main():
     args= parse_args()
