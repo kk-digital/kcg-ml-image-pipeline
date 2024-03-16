@@ -688,6 +688,8 @@ def run_every_day():
                 print("Error running image scorer for {}: {}".format(dataset, e))
     
     scheduler.enter(time_diff, 2, run_every_day, ())
+    print(f"Completed scoring images : {datetime.now()}")
+    print(f"Next time to run image scorer : {future_time}")
 
 
 def main():
