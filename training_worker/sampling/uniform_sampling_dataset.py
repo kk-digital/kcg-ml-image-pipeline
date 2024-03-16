@@ -1,5 +1,6 @@
 import argparse
 from io import BytesIO
+import math
 import os
 import sys
 from matplotlib import pyplot as plt
@@ -77,7 +78,7 @@ class UniformSphereGenerator:
         index = faiss.IndexFlatL2(d)
         index.add(feature_vectors)
         
-        print("Searching for k nearest neighbors-------------")
+        print("Searching for k nearest neighbors for each sphere center-------------")
         # Search for the k nearest neighbors of each sphere center in the dataset
         distances, indices = index.search(sphere_centers, target_avg_points)
 
@@ -94,13 +95,13 @@ class UniformSphereGenerator:
             valid_centers = sphere_centers
             valid_radii = radii
 
-        print("Calculating metrics for each sphere-------------")
+        print("Calculating points assigned to each sphere-------------")
         # Prepare to collect sphere data and statistics
         sphere_data = []
         total_covered_points = set()
         
         # Perform a range search for each valid sphere to find points within its radius
-        for center, radius in zip(valid_centers, valid_radii):
+        for center, radius in tqdm(zip(valid_centers, valid_radii)):
             # Convert center to a query matrix of shape (1, d) for FAISS
             query_matrix = center.reshape(1, d).astype('float32')
             
@@ -124,7 +125,7 @@ class UniformSphereGenerator:
             score_distribution= score_distribution / scores_sum
             
             # Update sphere data and covered points
-            sphere_data.append({'center': center, 'radius': radius, 'points': point_indices, 
+            sphere_data.append({'center': center, 'radius': math.sqrt(radius), 'points': point_indices, 
                                 "score_distribution": score_distribution})
             total_covered_points.update(point_indices)
         
@@ -147,9 +148,9 @@ class UniformSphereGenerator:
         outputs=[]
         for sphere in sphere_data:
             # get input vectors
-            inputs.append(sphere['center'] + [sphere['radius']])
+            inputs.append(np.concatenate([sphere['center'], [sphere['radius']]]))
             # get score distribution
-            outputs= sphere['score_distribution']
+            outputs.append(sphere['score_distribution'])
 
         return inputs, outputs 
 
