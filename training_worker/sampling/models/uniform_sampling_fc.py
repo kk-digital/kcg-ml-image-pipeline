@@ -369,8 +369,9 @@ class SamplingFCNetwork(nn.Module):
         for pred_probs, true_preds in zip(predictions, true_values):
             pred_label= np.argmax(pred_probs)
             true_label= np.argmax(true_preds)
-            pred_labels.append(pred_label)
-            true_labels.append(true_label)
+
+            pred_labels.append(self.class_labels[pred_label])
+            true_labels.append(self.class_labels[true_label])
 
         return pred_labels, true_labels
 
