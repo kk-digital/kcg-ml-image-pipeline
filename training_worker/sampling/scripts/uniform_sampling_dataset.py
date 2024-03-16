@@ -111,16 +111,14 @@ class UniformSphereGenerator:
 
             # calculate score distribution
             score_distribution=np.zeros(len(bins))
-            scores_sum=0
             for idx in point_indices:
                 score= scores[idx]
                 for i in range(len(bins)):
                     if score < bins[i]:
-                        scores_sum+= score
                         score_distribution[i]+=1
                         break
             
-            score_distribution= score_distribution / scores_sum
+            score_distribution= score_distribution / len(point_indices)
             
             # Update sphere data and covered points
             sphere_data.append({'center': center, 'radius': math.sqrt(radius), 'points': point_indices, 
