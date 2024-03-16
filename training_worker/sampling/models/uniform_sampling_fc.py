@@ -202,17 +202,6 @@ class SamplingFCNetwork(nn.Module):
                               learning_rate=learning_rate)
         
         return val_loss[-1]
-    
-    def get_labels(self, prob_distributions):
-        labels=[]
-        class_labels=[]
-        for probs in prob_distributions:
-            label_id= np.argmax(probs)
-            label= self.class_labels[label_id]
-            labels.append(label_id)
-            class_labels.append(label)
-        
-        return class_labels, labels
         
     def save_model_report(self,num_training,
                               num_validation,
@@ -268,11 +257,11 @@ class SamplingFCNetwork(nn.Module):
         # Remove the temporary file
         os.remove(local_report_path)
 
-    def save_graph_report(self, train_mae_per_round, val_mae_per_round,
+    def save_graph_report(self, train_loss_per_round, val_loss_per_round,
                           y_true, y_pred, training_size, validation_size):
         
         # Create a figure and a set of subplots
-        fig, axs = plt.subplots(1, 1, figsize=(12, 10))
+        fig, axs = plt.subplots(2, 1, figsize=(12, 10))
 
         # Info text about the model
         info_text = ("Date = {}\n"
@@ -293,16 +282,16 @@ class SamplingFCNetwork(nn.Module):
                                                         self.output_type,
                                                         training_size,
                                                         validation_size,
-                                                        train_mae_per_round[-1],
-                                                        val_mae_per_round[-1])
+                                                        train_loss_per_round[-1],
+                                                        val_loss_per_round[-1])
 
         # Use figtext to place text to the left of the plot
         fig.text(0.03, 0.7, info_text)
 
         # Plot validation and training MAE vs. Rounds on the ax
-        axs[0].plot(range(1, len(train_mae_per_round) + 1), train_mae_per_round, 'b', label='Training loss')
-        axs[0].plot(range(1, len(val_mae_per_round) + 1), val_mae_per_round, 'r', label='Validation loss')
-        axs[0].set_title('MAE per Round')
+        axs[0].plot(range(1, len(train_loss_per_round) + 1), train_loss_per_round, 'b', label='Training loss')
+        axs[0].plot(range(1, len(val_loss_per_round) + 1), val_loss_per_round, 'r', label='Validation loss')
+        axs[0].set_title('KL loss per Round')
         axs[0].set_ylabel('Loss')
         axs[0].set_xlabel('Rounds')
         axs[0].legend(['Training loss', 'Validation loss'])
