@@ -32,3 +32,5 @@ scikit-learn
 xgboost
 clip-interrogator
 omegaconf
+faiss
+seaborn
