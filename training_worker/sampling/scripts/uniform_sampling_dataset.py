@@ -29,15 +29,13 @@ def parse_args():
 
 class UniformSphereGenerator:
     def __init__(self,
-                 minio_access_key,
-                 minio_secret_key,
+                 minio_client,
                  dataset):
         
-        self.dataloader= KandinskyDatasetLoader(minio_access_key=minio_access_key,
-                                       minio_secret_key=minio_secret_key,
-                                       dataset=dataset)
+        self.dataloader= KandinskyDatasetLoader(minio_client=minio_client,
+                                                dataset=dataset)
         
-        self.minio_client= self.dataloader.minio_client
+        self.minio_client= minio_client
         self.dataset= dataset
 
     def generate_spheres(self, n_spheres, target_avg_points , discard_threshold=None):
@@ -119,7 +117,7 @@ class UniformSphereGenerator:
                 for i in range(len(bins)):
                     if score < bins[i]:
                         scores_sum+= score
-                        score_distribution[i]=+1
+                        score_distribution[i]+=1
                         break
             
             score_distribution= score_distribution / scores_sum
@@ -133,8 +131,8 @@ class UniformSphereGenerator:
         points_per_sphere = [len(sphere['points']) for sphere in sphere_data]
         avg_points_per_sphere = np.mean(points_per_sphere) if points_per_sphere else 0
 
-        # plot results
-        self.plot(sphere_data, points_per_sphere, n_spheres, scores)
+        print(f"total datapoints: {total_covered_points}")
+        print(f"average points per sphere: {avg_points_per_sphere}")
         
         return sphere_data, avg_points_per_sphere, len(total_covered_points)
 
@@ -189,18 +187,17 @@ class UniformSphereGenerator:
 def main():
     args= parse_args()
 
-    generator= UniformSphereGenerator(minio_access_key=args.minio_access_key,
-                                    minio_secret_key=args.minio_secret_key,
+    # get minio client
+    minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key,
+                                        minio_secret_key=args.minio_secret_key)
+
+    generator= UniformSphereGenerator(minio_client=minio_client,
                                     dataset=args.dataset)
     
     inputs, outputs = generator.load_sphere_dataset(n_spheres=args.n_spheres,
                                                        target_avg_points= args.target_avg_points)
     
     
-    print(f"Number of datapoints {len(inputs)}")
-    print(f" Example input: {inputs[0]}")
-    print(f" Score distribution: {outputs[0]}")
-
 if __name__ == "__main__":
     main()
 
