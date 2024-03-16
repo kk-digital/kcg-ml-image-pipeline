@@ -113,8 +113,8 @@ class UniformSphereGenerator:
             # calculate score distribution
             score_distribution=np.zeros(len(bins))
             scores_sum=0
-            for index in point_indices:
-                score= scores[index]
+            for idx in point_indices:
+                score= scores[idx]
                 for i in range(len(bins)):
                     if score < bins[i]:
                         scores_sum+= score
