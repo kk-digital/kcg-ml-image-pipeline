@@ -122,7 +122,7 @@ class SamplingFCNetwork(nn.Module):
                     print(targets[0], targets.shape)
 
                     outputs = self.model(inputs)
-                    loss = criterion(outputs.squeeze(1), targets)
+                    loss = criterion(outputs, targets)
 
                     print(outputs[0], outputs.shape)
                     print(loss)
@@ -143,7 +143,7 @@ class SamplingFCNetwork(nn.Module):
 
                 optimizer.zero_grad()
                 outputs = self.model(inputs)
-                loss = criterion(outputs.squeeze(1), targets)
+                loss = criterion(outputs, targets)
                 print(outputs[0], outputs.shape)
                 print(loss)
                 
