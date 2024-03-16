@@ -31,13 +31,11 @@ def parse_args():
 
 class KandinskyDatasetLoader:
     def __init__(self,
-                 minio_access_key,
-                 minio_secret_key, 
+                 minio_client, 
                  dataset):
         
         # get minio client
-        self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
-                                            minio_secret_key=minio_secret_key)
+        self.minio_client = minio_client
         self.dataset= dataset
 
         # get device
@@ -131,8 +129,11 @@ class KandinskyDatasetLoader:
 def main():
     args= parse_args()
 
-    dataloader= KandinskyDatasetLoader(minio_access_key=args.minio_access_key,
-                                       minio_secret_key=args.minio_secret_key,
+    # get minio client
+    minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key,
+                                        minio_secret_key=args.minio_secret_key)
+
+    dataloader= KandinskyDatasetLoader(minio_client=minio_client,
                                        dataset=args.dataset)
     
     dataset= dataloader.load_clip_vector_data()
