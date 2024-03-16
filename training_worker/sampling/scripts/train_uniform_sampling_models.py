@@ -38,5 +38,7 @@ def main():
                                  n_spheres=args.n_spheres, 
                                  target_avg_points=args.target_avg_points)
     
+    uniform_sampling_model.save_model()
+    
 if __name__ == "__main__":
     main()
