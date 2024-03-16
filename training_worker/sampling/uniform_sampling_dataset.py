@@ -115,7 +115,7 @@ class UniformSphereGenerator:
             scores_sum=0
             for index in point_indices:
                 score= scores[index]
-                for i in range(bins):
+                for i in range(len(bins)):
                     if score < bins[i]:
                         scores_sum+= score
                         score_distribution[i]=+1
