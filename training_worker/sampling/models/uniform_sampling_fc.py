@@ -4,6 +4,7 @@ import os
 import sys
 import tempfile
 from matplotlib import pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 import torch
 import time
@@ -12,6 +13,9 @@ import torch.optim as optim
 from torch.utils.data import Dataset
 from torch.utils.data import random_split
 from torch.utils.data.dataloader import DataLoader
+from sklearn.metrics import confusion_matrix
+import seaborn as sb
+from sklearn.metrics import classification_report
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -47,7 +51,7 @@ class DatasetLoader(Dataset):
 
 class SamplingFCNetwork(nn.Module):
     def __init__(self, minio_client, input_size=1281, hidden_sizes=[512, 256], input_type="input_clip" , output_size=12, 
-                 output_type="score_distribution", dataset="environmental"):
+                 bin_size=1, output_type="score_distribution", dataset="environmental"):
         
         super(SamplingFCNetwork, self).__init__()
         # set device
@@ -69,12 +73,14 @@ class SamplingFCNetwork(nn.Module):
         # Combine all layers into a sequential model
         self.model = nn.Sequential(*layers).to(self._device)
         self.input_size= input_size
+        self.bin_size= bin_size
         self.minio_client= minio_client
         self.input_type= input_type
         self.output_type= output_type
         self.dataset=dataset
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path=self.get_model_path()
+        self.class_labels= self.get_class_labels()
 
         # sphere dataloader
         self.dataloader= UniformSphereGenerator(minio_client, dataset)
@@ -84,6 +90,27 @@ class SamplingFCNetwork(nn.Module):
         minio_path=f"{self.dataset}/models/sampling/{self.date}_{self.output_type}_fc_{self.input_type}.pth"
 
         return local_path, minio_path
+
+    def get_class_labels(self):
+        input_size= self.input_size
+        bin_size= self.bin_size
+
+        class_labels=[]
+        for i in range(0, input_size):
+            # calculate min and max for bin
+            min_score_value= (i-(input_size/2)) * bin_size
+            max_score_value= min_score_value + bin_size
+            # get label str values
+            if i==0:
+                class_label= f"<{max_score_value}"
+            elif i == input_size-1:
+                class_label= f">{min_score_value}"
+            else:
+                class_label= f"[{min_score_value},{max_score_value}]"
+
+            class_labels.append(class_label)
+
+        return class_labels 
 
     def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256):
         # load the dataset
@@ -164,30 +191,45 @@ class SamplingFCNetwork(nn.Module):
         training_time= end - start
 
         start = time.time()
-        # Inference and calculate residuals on the training and validation set
-        val_preds = self.inference(val_dataset, batch_size)
-        train_preds = self.inference(train_dataset, batch_size)
-        
+        # Classifying all validation datapoints
+        val_preds, val_true = self.classify(val_dataset, batch_size)
+
         end = time.time()
-        inference_speed=(train_size + val_size)/(end - start)
-        print(f'Time taken for inference of {(train_size + val_size)} data points is: {end - start:.2f} seconds')
+        inference_speed=(val_size)/(end - start)
+        print(f'Time taken for inference of {(val_size)} data points is: {end - start:.2f} seconds')
         
         self.save_graph_report(train_loss, val_loss,
+                               val_true, val_preds,
                                train_size, val_size)
         
         self.save_model_report(num_training=train_size,
                               num_validation=val_size,
-                              training_time=training_time, 
+                              training_time=training_time,
+                              y_pred=val_preds, 
+                              y_true=val_true,
                               train_loss=train_loss, 
                               val_loss=val_loss, 
                               inference_speed= inference_speed,
                               learning_rate=learning_rate)
         
         return val_loss[-1]
+    
+    def get_labels(self, prob_distributions):
+        labels=[]
+        class_labels=[]
+        for probs in prob_distributions:
+            label_id= np.argmax(probs)
+            label= self.class_labels[label_id]
+            labels.append(label_id)
+            class_labels.append(label)
+        
+        return class_labels, labels
         
     def save_model_report(self,num_training,
                               num_validation,
-                              training_time, 
+                              training_time,
+                              y_true,
+                              y_pred, 
                               train_loss, 
                               val_loss, 
                               inference_speed,
@@ -196,6 +238,8 @@ class SamplingFCNetwork(nn.Module):
             input_type="[output_image_clip_vector[1280]]"
         elif self.input_type=="input_clip":
             input_type="[input_clip_vector[1280]]"
+
+        class_report = classification_report(y_true, y_pred, target_names=self.class_labels, zero_division=0)
 
         report_text = (
             "================ Model Report ==================\n"
@@ -211,6 +255,8 @@ class SamplingFCNetwork(nn.Module):
             f"Input: {input_type} \n"
             f"Input Size: {self.input_size} \n" 
             f"Output: {self.output_type} \n\n"
+            "================ Classification Report ==================\n"
+            f"{class_report}\n"
         )
 
         # Define the local file path for the report
@@ -233,14 +279,11 @@ class SamplingFCNetwork(nn.Module):
         # Remove the temporary file
         os.remove(local_report_path)
 
-    def save_graph_report(self, train_mae_per_round, val_mae_per_round, 
-                          training_size, validation_size):
+    def save_graph_report(self, train_mae_per_round, val_mae_per_round,
+                          y_true, y_pred, training_size, validation_size):
         
         # Create a figure and a set of subplots
-        fig, ax = plt.subplots()
-
-        # Adjust the subplot parameters to give specified padding
-        fig.subplots_adjust(left=0.3)  # Adjust as needed to fit your text
+        fig, axs = plt.subplots(1, 1, figsize=(12, 10))
 
         # Info text about the model
         info_text = ("Date = {}\n"
@@ -265,15 +308,31 @@ class SamplingFCNetwork(nn.Module):
                                                         val_mae_per_round[-1])
 
         # Use figtext to place text to the left of the plot
-        fig.text(0.02, 0.7, info_text)
+        fig.text(0.03, 0.7, info_text)
 
         # Plot validation and training MAE vs. Rounds on the ax
-        ax.plot(range(1, len(train_mae_per_round) + 1), train_mae_per_round, 'b', label='Training loss')
-        ax.plot(range(1, len(val_mae_per_round) + 1), val_mae_per_round, 'r', label='Validation loss')
-        ax.set_title('MAE per Round')
-        ax.set_ylabel('Loss')
-        ax.set_xlabel('Rounds')
-        ax.legend(['Training loss', 'Validation loss'])
+        axs[0].plot(range(1, len(train_mae_per_round) + 1), train_mae_per_round, 'b', label='Training loss')
+        axs[0].plot(range(1, len(val_mae_per_round) + 1), val_mae_per_round, 'r', label='Validation loss')
+        axs[0].set_title('MAE per Round')
+        axs[0].set_ylabel('Loss')
+        axs[0].set_xlabel('Rounds')
+        axs[0].legend(['Training loss', 'Validation loss'])
+
+        #confusion matrix
+        # Generate a custom colormap representing brightness
+        colors = [(1, 1, 1), (1, 0, 0)]  # White to Red
+        custom_cmap = LinearSegmentedColormap.from_list('custom_colormap', colors, N=256)
+ 
+        cm = confusion_matrix(y_true, y_pred, labels=self.class_labels)
+        sb.heatmap(cm ,cbar=True, annot=True, cmap=custom_cmap, ax=axs[1], 
+                   yticklabels=self.class_labels, xticklabels=self.class_labels, fmt='g')
+        axs[1].set_title('Confusion Matrix')
+        axs[1].set_xlabel('Predicted Labels')
+        axs[1].set_ylabel('True Labels')
+        axs[1].invert_yaxis()
+
+        # Adjust spacing between subplots
+        plt.subplots_adjust(hspace=0.7, wspace=0, left=0.4)
 
         # Save the figure to a local file
         plt.savefig(self.local_path.replace('.pth', '.png'))
@@ -311,16 +370,31 @@ class SamplingFCNetwork(nn.Module):
 
         return predictions         
 
-    def inference(self, dataset, batch_size=64):
+    def classify(self, dataset, batch_size=64):
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
         self.model.eval()  # Set the model to evaluation mode
         predictions = []
+        true_values = []
         with torch.no_grad():
-            for inputs, _ in loader:
+            for inputs, targets in loader:
                 inputs= inputs.to(self._device)
                 outputs = self.model(inputs)
+                true_values.append(targets)
                 predictions.append(outputs)
-        return torch.cat(predictions).squeeze()
+        
+        # Concatenate all predictions and convert to a NumPy array
+        predictions = torch.cat(predictions, dim=0).cpu().numpy()
+        true_values = torch.cat(true_values, dim=0).cpu().numpy()
+
+        pred_labels=[]
+        true_labels=[]
+        for pred_probs, true_preds in zip(predictions, true_values):
+            pred_label= np.argmax(pred_probs)
+            true_label= np.argmax(true_preds)
+            pred_labels.append(pred_label)
+            true_labels.append(true_label)
+
+        return pred_labels, true_labels
 
     def load_model(self):
         # get model file data from MinIO
