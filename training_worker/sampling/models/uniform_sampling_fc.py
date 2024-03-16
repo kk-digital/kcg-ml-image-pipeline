@@ -145,14 +145,8 @@ class SamplingFCNetwork(nn.Module):
                     inputs=inputs.to(self._device)
                     targets=targets.to(self._device)
 
-                    print(inputs[0], inputs.shape)
-                    print(targets[0], targets.shape)
-
                     outputs = self.model(inputs)
                     loss = criterion(outputs, targets)
-
-                    print(outputs[0], outputs.shape)
-                    print(loss)
 
                     total_val_loss += loss.item() * inputs.size(0)
                     total_val_samples += inputs.size(0)
@@ -165,14 +159,9 @@ class SamplingFCNetwork(nn.Module):
                 inputs=inputs.to(self._device)
                 targets=targets.to(self._device)
 
-                print(inputs[0], inputs.shape)
-                print(targets[0], targets.shape)
-
                 optimizer.zero_grad()
                 outputs = self.model(inputs)
                 loss = criterion(outputs, targets)
-                print(outputs[0], outputs.shape)
-                print(loss)
                 
                 loss.backward()
                 optimizer.step()
