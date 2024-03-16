@@ -118,8 +118,14 @@ class SamplingFCNetwork(nn.Module):
                     inputs=inputs.to(self._device)
                     targets=targets.to(self._device)
 
+                    print(inputs[0], inputs.shape)
+                    print(targets[0], targets.shape)
+
                     outputs = self.model(inputs)
                     loss = criterion(outputs.squeeze(1), targets)
+
+                    print(outputs[0], outputs.shape)
+                    print(loss)
 
                     total_val_loss += loss.item() * inputs.size(0)
                     total_val_samples += inputs.size(0)
@@ -132,9 +138,15 @@ class SamplingFCNetwork(nn.Module):
                 inputs=inputs.to(self._device)
                 targets=targets.to(self._device)
 
+                print(inputs[0], inputs.shape)
+                print(targets[0], targets.shape)
+
                 optimizer.zero_grad()
                 outputs = self.model(inputs)
                 loss = criterion(outputs.squeeze(1), targets)
+                print(outputs[0], outputs.shape)
+                print(loss)
+                
                 loss.backward()
                 optimizer.step()
 
@@ -224,50 +236,58 @@ class SamplingFCNetwork(nn.Module):
     def save_graph_report(self, train_mae_per_round, val_mae_per_round, 
                           training_size, validation_size):
         
-        #info text about the model
-        plt.figtext(0.02, 0.7, "Date = {}\n"
-                            "Dataset = {}\n"
-                            "Model type = {}\n"
-                            "Input type = {}\n"
-                            "Input shape = {}\n"
-                            "Output type= {}\n\n"
-                            ""
-                            "Training size = {}\n"
-                            "Validation size = {}\n"
-                            "Training loss = {:.4f}\n"
-                            "Validation loss = {:.4f}\n".format(self.date,
-                                                            self.dataset,
-                                                            'Fc_Network',
-                                                            self.input_type,
-                                                            self.input_size,
-                                                            self.output_type,
-                                                            training_size,
-                                                            validation_size,
-                                                            train_mae_per_round[-1],
-                                                            val_mae_per_round[-1],
-                                                            ))
+        # Create a figure and a set of subplots
+        fig, ax = plt.subplots()
 
-        # Plot validation and training Rmse vs. Rounds
-        plt.plot(range(1, len(train_mae_per_round) + 1), train_mae_per_round,'b', label='Training loss')
-        plt.plot(range(1, len(val_mae_per_round) + 1), val_mae_per_round,'r', label='Validation loss')
-        plt.title('MAE per Round')
-        plt.ylabel('Loss')
-        plt.xlabel('Rounds')
-        plt.legend(['Training loss', 'Validation loss'])
+        # Adjust the subplot parameters to give specified padding
+        fig.subplots_adjust(left=0.3)  # Adjust as needed to fit your text
 
+        # Info text about the model
+        info_text = ("Date = {}\n"
+                    "Dataset = {}\n"
+                    "Model type = {}\n"
+                    "Input type = {}\n"
+                    "Input shape = {}\n"
+                    "Output type= {}\n\n"
+                    ""
+                    "Training size = {}\n"
+                    "Validation size = {}\n"
+                    "Training loss = {:.4f}\n"
+                    "Validation loss = {:.4f}\n").format(self.date,
+                                                        self.dataset,
+                                                        'Fc_Network',
+                                                        self.input_type,
+                                                        self.input_size,
+                                                        self.output_type,
+                                                        training_size,
+                                                        validation_size,
+                                                        train_mae_per_round[-1],
+                                                        val_mae_per_round[-1])
 
+        # Use figtext to place text to the left of the plot
+        fig.text(0.02, 0.7, info_text)
+
+        # Plot validation and training MAE vs. Rounds on the ax
+        ax.plot(range(1, len(train_mae_per_round) + 1), train_mae_per_round, 'b', label='Training loss')
+        ax.plot(range(1, len(val_mae_per_round) + 1), val_mae_per_round, 'r', label='Validation loss')
+        ax.set_title('MAE per Round')
+        ax.set_ylabel('Loss')
+        ax.set_xlabel('Rounds')
+        ax.legend(['Training loss', 'Validation loss'])
+
+        # Save the figure to a local file
         plt.savefig(self.local_path.replace('.pth', '.png'))
 
-        # Save the figure to a file
+        # Save the figure to a buffer for uploading
         buf = BytesIO()
         plt.savefig(buf, format='png')
         buf.seek(0)
 
-        # upload the graph report
+        # Upload the graph report
         cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.pth', '.png'), buf)  
 
-        # Clear the current figure
-        plt.clf()
+        # Clear the figure to free up memory
+        plt.close(fig)
 
     def predict(self, data, batch_size=64):
         # Convert the features array into a PyTorch Tensor
