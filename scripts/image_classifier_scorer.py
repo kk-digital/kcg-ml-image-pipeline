@@ -656,7 +656,7 @@ def run_every_day():
     if now > future_time:
         future_time = future_time.replace(day=future_time.day + 1)
 
-    # time_diff = (future_time - now).total_seconds()
+    time_diff = (future_time - now).total_seconds()
     time_diff = 0
 
     if dataset_name != "all":
@@ -688,7 +688,7 @@ def run_every_day():
             except Exception as e:
                 print("Error running image scorer for {}: {}".format(dataset, e))
     
-    # scheduler.enter(time_diff, 2, run_every_day, ())
+    scheduler.enter(time_diff, 2, run_every_day, ())
 
 
 def main():
