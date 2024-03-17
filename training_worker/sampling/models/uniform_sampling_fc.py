@@ -193,23 +193,22 @@ class SamplingFCNetwork(nn.Module):
 
         start = time.time()
         # Classifying all validation datapoints
-        val_preds, val_true, pred_val_avg_scores, true_val_avg_scores = self.classify(val_dataset, batch_size)
-        _, _, pred_train_avg_scores, true_train_avg_scores = self.classify(train_dataset, batch_size)
+        val_preds, val_true, val_residuals = self.classify(val_dataset, batch_size)
+        _, _, train_residuals = self.classify(train_dataset, batch_size)
 
         end = time.time()
         inference_speed=(val_size + train_size)/(end - start)
         print(f'Time taken for inference of {(val_size + train_size)} data points is: {end - start:.2f} seconds')
 
-        val_residuals = np.array(true_val_avg_scores) - np.array(pred_val_avg_scores)
-        train_residuals = np.array(true_train_avg_scores) - np.array(pred_train_avg_scores)
+        # val_residuals = np.array(true_val_avg_scores) - np.array(pred_val_avg_scores)
+        # train_residuals = np.array(true_train_avg_scores) - np.array(pred_train_avg_scores)
         
         self.save_graph_report(train_loss, val_loss,
                                best_train_loss, best_val_loss,
                                val_residuals, train_residuals,
-                               pred_val_avg_scores, true_val_avg_scores,
                                train_size, val_size)
         
-        self.save_confusion_matrix(val_true, val_preds)
+        # self.save_confusion_matrix(val_true, val_preds)
         
         self.save_model_report(num_training=train_size,
                               num_validation=val_size,
@@ -281,10 +280,9 @@ class SamplingFCNetwork(nn.Module):
 
     def save_graph_report(self, train_loss_per_round, val_loss_per_round,
                           best_train_loss, best_val_loss, 
-                          val_residuals, train_residuals, 
-                          predicted_values, actual_values,
+                          val_residuals, train_residuals,
                           training_size, validation_size):
-        fig, axs = plt.subplots(3, 2, figsize=(12, 10))
+        fig, axs = plt.subplots(3, 1, figsize=(12, 10))
         
         #info text about the model
         plt.figtext(0.02, 0.7, "Date = {}\n"
@@ -310,42 +308,24 @@ class SamplingFCNetwork(nn.Module):
                                                             ))
 
         # Plot validation and training Rmse vs. Rounds
-        axs[0][0].plot(range(1, len(train_loss_per_round) + 1), train_loss_per_round,'b', label='Training loss')
-        axs[0][0].plot(range(1, len(val_loss_per_round) + 1), val_loss_per_round,'r', label='Validation loss')
-        axs[0][0].set_title('KL loss per Round')
-        axs[0][0].set_ylabel('Loss')
-        axs[0][0].set_xlabel('Epochs')
-        axs[0][0].legend(['Training loss', 'Validation loss'])
-
-        # Scatter Plot of actual values vs predicted values
-        axs[0][1].scatter(predicted_values, actual_values, color='green', alpha=0.5)
-        axs[0][1].set_title('Predicted values vs actual values')
-        axs[0][1].set_ylabel('True')
-        axs[0][1].set_xlabel('Predicted')
+        axs[0].plot(range(1, len(train_loss_per_round) + 1), train_loss_per_round,'b', label='Training loss')
+        axs[0].plot(range(1, len(val_loss_per_round) + 1), val_loss_per_round,'r', label='Validation loss')
+        axs[0].set_title('KL loss per Round')
+        axs[0].set_ylabel('Loss')
+        axs[0].set_xlabel('Epochs')
+        axs[0].legend(['Training loss', 'Validation loss'])
 
         # plot histogram of training residuals
-        axs[1][0].hist(train_residuals, bins=30, color='blue', alpha=0.7)
-        axs[1][0].set_xlabel('Residuals')
-        axs[1][0].set_ylabel('Frequency')
-        axs[1][0].set_title('Training Residual Histogram')
+        axs[1].hist(train_residuals, bins=30, color='blue', alpha=0.7)
+        axs[1].set_xlabel('Residuals')
+        axs[1].set_ylabel('Frequency')
+        axs[1].set_title('Training Residual Histogram')
 
         # plot histogram of validation residuals
-        axs[1][1].hist(val_residuals, bins=30, color='blue', alpha=0.7)
-        axs[1][1].set_xlabel('Residuals')
-        axs[1][1].set_ylabel('Frequency')
-        axs[1][1].set_title('Validation Residual Histogram')
-        
-        # plot histogram of predicted values
-        axs[2][0].hist(predicted_values, bins=30, color='blue', alpha=0.7)
-        axs[2][0].set_xlabel('Predicted Values')
-        axs[2][0].set_ylabel('Frequency')
-        axs[2][0].set_title('Validation Predicted Values Histogram')
-        
-        # plot histogram of true values
-        axs[2][1].hist(actual_values, bins=30, color='blue', alpha=0.7)
-        axs[2][1].set_xlabel('Actual values')
-        axs[2][1].set_ylabel('Frequency')
-        axs[2][1].set_title('Validation True Values Histogram')
+        axs[2].hist(val_residuals, bins=30, color='blue', alpha=0.7)
+        axs[2].set_xlabel('Residuals')
+        axs[2].set_ylabel('Frequency')
+        axs[2].set_title('Validation Residual Histogram')
 
         # Adjust spacing between subplots
         plt.subplots_adjust(hspace=0.7, wspace=0.3, left=0.3)
@@ -432,22 +412,17 @@ class SamplingFCNetwork(nn.Module):
         pred_labels=[]
         true_labels=[]
 
-        pred_mean_scores=[]
-        true_mean_scores=[]
+        residuals=[]
         for pred_probs, true_probs in zip(predictions, true_values):
-            print("predicted:", pred_probs)
-            print("True:", true_probs)
             pred_label= np.argmax(pred_probs)
             true_label= np.argmax(true_probs)
             pred_labels.append(self.class_labels[pred_label])
             true_labels.append(self.class_labels[true_label])
             
-            pred_mean_score= self.calculate_mean_score(pred_probs)
-            true_mean_score= self.calculate_mean_score(true_probs)
-            pred_mean_scores.append(pred_mean_score)
-            true_mean_scores.append(true_mean_score)
+            residual= np.mean(np.abs(pred_probs - true_probs))
+            residuals.append(residual)
 
-        return pred_labels, true_labels, pred_mean_scores, true_mean_scores
+        return pred_labels, true_labels, residuals
 
     def calculate_mean_score(self, score_distribution):
         mean_score=0
