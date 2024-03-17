@@ -540,7 +540,7 @@ def save_model_to_minio(model,name,local_path):
 
 
 # ------------------------------------------------- Load Model--------------------------------------------------
-def load_model(model,type):
+def load_model_to_minio(model,type):
         # get model file data from MinIO
         prefix= "environmental/output/my_tests/model-"+type
         suffix= ".safetensors"
@@ -921,7 +921,7 @@ class EBM_Single_Class_Trainer:
     def load_EBM_model(self):
         # cybernetics_model = DeepEnergyModel(img_shape=(1280,))
         # Load the last occult trained model
-        load_model(self.model,self.classe_name)
+        load_model_to_minio(self.model,self.classe_name)
 
     def train(self):
     
@@ -1049,13 +1049,13 @@ class EBM_Single_Class_Trainer:
 # # Create a new Model    
 # occult_model = DeepEnergyModel(img_shape=(1280,))
 # # Load the last occult trained model
-# load_model(occult_model,'occult')
+# load_model_to_minio(occult_model,'occult')
 
 
 # # Create a new Model    
 # occult_model = DeepEnergyModel(img_shape=(1280,))
 # # Load the last occult trained model
-# load_model(occult_model,'occult')
+# load_model_to_minio(occult_model,'occult')
 
 # # Get sort the images by energy (from best to worst)
 # sorted_images_for_occult = process_and_sort_dataset(images_paths_ood, occult_model)
@@ -1184,19 +1184,19 @@ class EBM_Single_Class_Trainer:
 # # Create a new Model    
 # occult_model = DeepEnergyModel(img_shape=(1280,))
 # # Load the last occult trained model
-# load_model(occult_model,'occult')
+# load_model_to_minio(occult_model,'occult')
 
 
 # # Create a new Model    
 # cybernetics_model = DeepEnergyModel(img_shape=(1280,))
 # # Load the last occult trained model
-# load_model(cybernetics_model,'cyber')
+# load_model_to_minio(cybernetics_model,'cyber')
 
 
 # # Create a new Model    
 # texture_model = DeepEnergyModel(img_shape=(1280,))
 # # Load the last occult trained model
-# load_model(texture_model,'defect-only')
+# load_model_to_minio(texture_model,'defect-only')
 
 # #sorted_combined_images = process_and_sort_dataset_combined(images_paths_ood,occult_model,cybernetics_model)
 # sorted_combined_images = process_and_sort_dataset_weighted_combinations(images_paths_ood,[occult_model,cybernetics_model,texture_model],[0,1,-1])
@@ -1315,7 +1315,7 @@ class EBM_Single_Class_Trainer:
 # Create a new Model    
 new_aquatic_model_st = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
-load_model(new_aquatic_model_st,'aquatic')
+load_model_to_minio(new_aquatic_model_st,'aquatic')
 
 
 # Load the environmental dataset     
@@ -1349,7 +1349,7 @@ plot_images_with_scores(selected_structure_third_52,"aquatic_env_500_tier_3")
 # # Create a new Model    
 # desert_model = DeepEnergyModel(img_shape=(1280,))
 # # Load the last occult trained model
-# load_model(desert_model,'desert')
+# load_model_to_minio(desert_model,'desert')
 
 # # Get sort the images by energy (from best to worst)
 # sorted_images_for_occult = process_and_sort_dataset(images_paths_ood, desert_model)
@@ -1484,30 +1484,30 @@ plot_images_with_scores(selected_structure_third_52,"aquatic_env_500_tier_3")
 # # Create a new Model    
 # occult_model = DeepEnergyModel(img_shape=(1280,))
 # # Load the last occult trained model
-# load_model(occult_model,'occult')
+# load_model_to_minio(occult_model,'occult')
 
 
 # # Create a new Model    
 # cybernetics_model = DeepEnergyModel(img_shape=(1280,))
 # # Load the last occult trained model
-# load_model(cybernetics_model,'cyber')
+# load_model_to_minio(cybernetics_model,'cyber')
 
 
 # # Create a new Model    
 # texture_model = DeepEnergyModel(img_shape=(1280,))
 # # Load the last occult trained model
-# load_model(texture_model,'defect-only')
+# load_model_to_minio(texture_model,'defect-only')
 
 
 # # Create a new Model    
 # isometric_model = DeepEnergyModel(img_shape=(1280,))
 # # Load the last occult trained model
-# load_model(isometric_model,'isometric')
+# load_model_to_minio(isometric_model,'isometric')
 
 # # Create a new Model    
 # desert_model = DeepEnergyModel(img_shape=(1280,))
 # # Load the last occult trained model
-# load_model(desert_model,'desert')
+# load_model_to_minio(desert_model,'desert')
 
 
 
