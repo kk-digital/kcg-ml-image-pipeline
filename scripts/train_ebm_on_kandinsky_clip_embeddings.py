@@ -853,6 +853,183 @@ def getAccuracy_v2(cyber_sample_loader, model1, model2):
 
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# -------------------------------------------------------- Define the main function -----------------------------------
+# ---------------------------------------------------------------------------------------------------------------------
+ 
+# ---------------------------------------------------------------------------------------------------------------------
+# -------------------------------------------------------- Train for new class veiw ----------------------------------
+# ---------------------------------------------------------------------------------------------------------------------
+ 
+def parse_args():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--minio-access-key', type=str, help='Minio access key')
+    parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
+    parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
+    parser.add_argument('--class-id', type=int, help='id number of the class to train', default=35)
+    parser.add_argument('--class-name', type=str, help='the name of the class to train or to load', default='cyber')
+    parser.add_argument('--training-batch-size', type=int, default=64)
+    parser.add_argument('--epochs', type=int, default=20)
+    parser.add_argument('--learning-rate', type=float, default=0.001)
+    parser.add_argument('--num-samples', type=int, default=30000)
+    parser.add_argument('--save-name', type=str, default='new-model')
+
+    return parser.parse_args()
+
+
+
+class EBM_Single_Class_Trainer:
+    def __init__(self,
+                
+                model,
+                class_name,
+                minio_access_key,
+                minio_secret_key,
+                save_name,
+                dataset,
+                class_id,
+                training_batch_size=64,
+                num_samples=30000,
+                learning_rate = 0.001,
+                epochs=25):
+        # get minio client
+        self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
+                                            minio_secret_key=minio_secret_key)
+        # get device
+        if torch.cuda.is_available():
+            device = 'cuda'
+        else:
+            device = 'cpu'
+        self.device = torch.device(device)
+
+        self.dataset= dataset
+        self.save_name= save_name
+        self.class_id= class_id
+        self.num_samples= num_samples
+        self.training_batch_size= training_batch_size
+        self.model = DeepEnergyModel(adv_loader=None, img_shape=(1280,))
+        self.classe_name = class_name
+        self.learning_rate = learning_rate
+        self.epochs = epochs
+        self.model = model
+
+    def load_EBM_model(self):
+        # cybernetics_model = DeepEnergyModel(img_shape=(1280,))
+        # Load the last occult trained model
+        load_model(self.model,self.classe_name)
+
+    def train(self):
+    
+        # Create dataloader of target class
+        train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(get_tag_jobs(self.class_id),1)
+
+        # Create dataloader of adversarial classes
+        train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,21,22,35,39],0)
+        # init the loader
+        train_loader = train_loader_automated
+        val_loader = val_loader_automated
+        adv_loader = train_loader_clip_ood
+
+        # Train
+        model = train_model(img_shape=(1,1280),
+                            batch_size=self.training_batch_size,
+                            lr=self.learning_rate,
+                            beta1=0.0,
+                            train_loader = train_loader,
+                            val_loader = val_loader,
+                            adv_loader =adv_loader )
+        save_model(model,self.save_name,'temp_model.pth')
+
+
+        # up loader graphs
+
+        # # Plot
+
+        # ############### Plot graph
+        epochs = range(1, len(total_losses) + 1)  
+
+        # Create subplots grid (3 rows, 1 column)
+        fig, axes = plt.subplots(4, 1, figsize=(10, 24))
+
+        # Plot each loss on its own subplot
+        axes[0].plot(epochs, total_losses, label='Total Loss')
+        axes[0].set_xlabel('Steps')
+        axes[0].set_ylabel('Loss')
+        axes[0].set_title('Total Loss')
+        axes[0].legend()
+        axes[0].grid(True)
+
+        axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
+        axes[1].set_xlabel('Steps')
+        axes[1].set_ylabel('Loss')
+        axes[1].set_title('Contrastive Divergence Loss')
+        axes[1].legend()
+        axes[1].grid(True)
+
+
+        axes[2].plot(epochs, reg_losses , label='Regression Loss')
+        axes[2].set_xlabel('Steps')
+        axes[2].set_ylabel('Loss')
+        axes[2].set_title('Regression Loss')
+        axes[2].legend()
+        axes[2].grid(True)
+
+        # Plot real and fake scores on the fourth subplot
+        axes[3].plot(epochs, real_scores_s, label='Real Scores')
+        axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
+        axes[3].set_xlabel('Steps')
+        axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
+        axes[3].set_title('Real vs. Fake Scores')
+        axes[3].legend()
+        axes[3].grid(True)
+
+        # Adjust spacing between subplots for better visualization
+        plt.tight_layout()
+
+        plt.savefig("output/loss_tracking_per_step.png")
+
+        # Save the figure to a file
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+
+        # upload the graph report
+        minio_path="environmental/output/my_tests"
+        minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_isometric_training" +date_now+".png"
+        cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+        # Remove the temporary file
+        os.remove("output/loss_tracking_per_step.png")
+        # Clear the current figure
+        plt.clf()
+
+
+def main():
+    args = parse_args()
+
+    training_pipeline=EBM_Single_Class_Trainer(minio_access_key=args.minio_access_key,
+                                minio_secret_key=args.minio_secret_key,
+                                dataset= args.dataset,
+                                class_name= args.class_name,
+                                model = None,
+                                save_name = args.save_name,
+                                class_id = args.class_id,
+                                training_batch_size=args.training_batch_size,
+                                num_samples= args.num_samples,
+                                epochs= args.epochs,
+                                learning_rate= args.learning_rate)
+
+    # do self training
+    training_pipeline.train()
+
+if __name__ == "__main__":
+    main()
+
+            
+
+
+
+
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1031,113 +1208,113 @@ def getAccuracy_v2(cyber_sample_loader, model1, model2):
 # ---------------------------------------------------------------------------------------------------------------------
  
 
-# new_combined_paths =   get_tag_jobs(20)
+new_combined_paths =  get_tag_jobs(21)
 
-# # Create dataloader of occult
-# train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(new_combined_paths,1)
+# Create dataloader of occult
+train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(new_combined_paths,1)
 
-# # Get adversarial dataset
-# train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,35,40,21,22],0)
+# Get adversarial dataset
+train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,35,40,20,22],0)
 
-# # init the loader
-# train_loader = train_loader_automated
-# val_loader = val_loader_automated
-# adv_loader = train_loader_clip_ood
+# init the loader
+train_loader = train_loader_automated
+val_loader = val_loader_automated
+adv_loader = train_loader_clip_ood
 
 
 
-# # Train
-# new_desert_model = train_model(img_shape=(1,1280),
-#                     batch_size=train_loader.batch_size,
-#                     lr=0.001,
-#                     beta1=0.0)
-# save_model(new_desert_model,'desert','temp_model.pth')
+# Train
+new_aquatic_model = train_model(img_shape=(1,1280),
+                    batch_size=train_loader.batch_size,
+                    lr=0.001,
+                    beta1=0.0)
+save_model(new_aquatic_model,'aquatic','temp_model.pth')
 
 
 # # up loader graphs
 
 # # # Plot
 
-# # ############### Plot graph
-# epochs = range(1, len(total_losses) + 1)  
+# ############### Plot graph
+epochs = range(1, len(total_losses) + 1)  
 
-# # Create subplots grid (3 rows, 1 column)
-# fig, axes = plt.subplots(4, 1, figsize=(10, 24))
+# Create subplots grid (3 rows, 1 column)
+fig, axes = plt.subplots(4, 1, figsize=(10, 24))
 
-# # Plot each loss on its own subplot
-# axes[0].plot(epochs, total_losses, label='Total Loss')
-# axes[0].set_xlabel('Steps')
-# axes[0].set_ylabel('Loss')
-# axes[0].set_title('Total Loss')
-# axes[0].legend()
-# axes[0].grid(True)
+# Plot each loss on its own subplot
+axes[0].plot(epochs, total_losses, label='Total Loss')
+axes[0].set_xlabel('Steps')
+axes[0].set_ylabel('Loss')
+axes[0].set_title('Total Loss')
+axes[0].legend()
+axes[0].grid(True)
 
-# axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
-# axes[1].set_xlabel('Steps')
-# axes[1].set_ylabel('Loss')
-# axes[1].set_title('Contrastive Divergence Loss')
-# axes[1].legend()
-# axes[1].grid(True)
-
-
-# axes[2].plot(epochs, reg_losses , label='Regression Loss')
-# axes[2].set_xlabel('Steps')
-# axes[2].set_ylabel('Loss')
-# axes[2].set_title('Regression Loss')
-# axes[2].legend()
-# axes[2].grid(True)
-
-# # Plot real and fake scores on the fourth subplot
-# axes[3].plot(epochs, real_scores_s, label='Real Scores')
-# axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
-# axes[3].set_xlabel('Steps')
-# axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
-# axes[3].set_title('Real vs. Fake Scores')
-# axes[3].legend()
-# axes[3].grid(True)
-
-# # Adjust spacing between subplots for better visualization
-# plt.tight_layout()
-
-# plt.savefig("output/loss_tracking_per_step.png")
-
-# # Save the figure to a file
-# buf = io.BytesIO()
-# plt.savefig(buf, format='png')
-# buf.seek(0)
-
-# # upload the graph report
-# minio_path="environmental/output/my_tests"
-# minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_isometric_training" +date_now+".png"
-# cmd.upload_data(minio_client, 'datasets', minio_path, buf)
-# # Remove the temporary file
-# os.remove("output/loss_tracking_per_step.png")
-# # Clear the current figure
-# plt.clf()
+axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
+axes[1].set_xlabel('Steps')
+axes[1].set_ylabel('Loss')
+axes[1].set_title('Contrastive Divergence Loss')
+axes[1].legend()
+axes[1].grid(True)
 
 
+axes[2].plot(epochs, reg_losses , label='Regression Loss')
+axes[2].set_xlabel('Steps')
+axes[2].set_ylabel('Loss')
+axes[2].set_title('Regression Loss')
+axes[2].legend()
+axes[2].grid(True)
+
+# Plot real and fake scores on the fourth subplot
+axes[3].plot(epochs, real_scores_s, label='Real Scores')
+axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
+axes[3].set_xlabel('Steps')
+axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
+axes[3].set_title('Real vs. Fake Scores')
+axes[3].legend()
+axes[3].grid(True)
+
+# Adjust spacing between subplots for better visualization
+plt.tight_layout()
+
+plt.savefig("output/loss_tracking_per_step.png")
+
+# Save the figure to a file
+buf = io.BytesIO()
+plt.savefig(buf, format='png')
+buf.seek(0)
+
+# upload the graph report
+minio_path="environmental/output/my_tests"
+minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_isometric_training" +date_now+".png"
+cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+# Remove the temporary file
+os.remove("output/loss_tracking_per_step.png")
+# Clear the current figure
+plt.clf()
 
 
-# # Evaluate new model
-# #automated model
-# #toodoo
-
-# # Load the environmental dataset     
-# images_paths_ood = get_file_paths("environmental",30000)
-
-# #go create something
-# print("yep it's here")
-# new_sorted_images = process_and_sort_dataset(images_paths_ood, new_desert_model)
 
 
-# get_structure_csv_content(new_sorted_images,"desert_on_env_30000_sample")
-# selected_structure_first_52 = new_sorted_images[:52]
-# selected_structure_second_52 = new_sorted_images[52:103]
-# selected_structure_third_52 = new_sorted_images[103:154]
+# Evaluate new model
+#automated model
+#toodoo
 
-# plot_images_with_scores(selected_structure_first_52,"Top_first_52_desert_env_added_50")
-# plot_images_with_scores(selected_structure_second_52,"Top_second_52_desert__env_added_50")
-# plot_images_with_scores(selected_structure_third_52,"Top_third_52_desert__env_added_50")
+# Load the environmental dataset     
+images_paths_ood = get_file_paths("environmental",30000)
+
+#go create something
+print("yep it's here")
+new_sorted_images = process_and_sort_dataset(images_paths_ood, new_aquatic_model)
+
+
+get_structure_csv_content(new_sorted_images,"aquatic_on_env_30000_sample")
+selected_structure_first_52 = new_sorted_images[:52]
+selected_structure_second_52 = new_sorted_images[52:103]
+selected_structure_third_52 = new_sorted_images[103:154]
+
+plot_images_with_scores(selected_structure_first_52,"aquatic_env_tier_1")
+plot_images_with_scores(selected_structure_second_52,"aquatic_env_tier_2")
+plot_images_with_scores(selected_structure_third_52,"aquatic_env_tier_3")
     
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1358,178 +1535,3 @@ def getAccuracy_v2(cyber_sample_loader, model1, model2):
 # plot_images_with_scores(selected_structure_first_52,"Iso + Desert : Tier 1")
 # plot_images_with_scores(selected_structure_second_52,"Iso + Desert : Tier 2")
 # plot_images_with_scores(selected_structure_third_52,"Iso + Desert : Tier 3")
-
-
-# ---------------------------------------------------------------------------------------------------------------------
-# -------------------------------------------------------- Define the main function -----------------------------------
-# ---------------------------------------------------------------------------------------------------------------------
- 
-# ---------------------------------------------------------------------------------------------------------------------
-# -------------------------------------------------------- Train for new class veiw ----------------------------------
-# ---------------------------------------------------------------------------------------------------------------------
- 
-def parse_args():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument('--minio-access-key', type=str, help='Minio access key')
-    parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
-    parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
-    parser.add_argument('--class-id', type=int, help='id number of the class to train', default=35)
-    parser.add_argument('--class-name', type=str, help='the name of the class to train or to load', default='cyber')
-    parser.add_argument('--training-batch-size', type=int, default=64)
-    parser.add_argument('--epochs', type=int, default=20)
-    parser.add_argument('--learning-rate', type=float, default=0.001)
-    parser.add_argument('--num-samples', type=int, default=30000)
-    parser.add_argument('--save-name', type=str, default='new-model')
-
-    return parser.parse_args()
-
-
-
-class EBM_Single_Class_Trainer:
-    def __init__(self,
-                
-                model,
-                class_name,
-                minio_access_key,
-                minio_secret_key,
-                save_name,
-                dataset,
-                class_id,
-                training_batch_size=64,
-                num_samples=30000,
-                learning_rate = 0.001,
-                epochs=25):
-        # get minio client
-        self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
-                                            minio_secret_key=minio_secret_key)
-        # get device
-        if torch.cuda.is_available():
-            device = 'cuda'
-        else:
-            device = 'cpu'
-        self.device = torch.device(device)
-
-        self.dataset= dataset
-        self.save_name= save_name
-        self.class_id= class_id
-        self.num_samples= num_samples
-        self.training_batch_size= training_batch_size
-        self.model = DeepEnergyModel(adv_loader=None, img_shape=(1280,))
-        self.classe_name = class_name
-        self.learning_rate = learning_rate
-        self.epochs = epochs
-        self.model = model
-
-    def load_EBM_model(self):
-        # cybernetics_model = DeepEnergyModel(img_shape=(1280,))
-        # Load the last occult trained model
-        load_model(self.model,self.classe_name)
-
-    def train(self):
-    
-        # Create dataloader of target class
-        train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(get_tag_jobs(self.class_id),1)
-
-        # Create dataloader of adversarial classes
-        train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,21,22,35,39],0)
-        # init the loader
-        train_loader = train_loader_automated
-        val_loader = val_loader_automated
-        adv_loader = train_loader_clip_ood
-
-        # Train
-        model = train_model(img_shape=(1,1280),
-                            batch_size=self.training_batch_size,
-                            lr=self.learning_rate,
-                            beta1=0.0,
-                            train_loader = train_loader,
-                            val_loader = val_loader,
-                            adv_loader =adv_loader )
-        save_model(model,self.save_name,'temp_model.pth')
-
-
-        # up loader graphs
-
-        # # Plot
-
-        # ############### Plot graph
-        epochs = range(1, len(total_losses) + 1)  
-
-        # Create subplots grid (3 rows, 1 column)
-        fig, axes = plt.subplots(4, 1, figsize=(10, 24))
-
-        # Plot each loss on its own subplot
-        axes[0].plot(epochs, total_losses, label='Total Loss')
-        axes[0].set_xlabel('Steps')
-        axes[0].set_ylabel('Loss')
-        axes[0].set_title('Total Loss')
-        axes[0].legend()
-        axes[0].grid(True)
-
-        axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
-        axes[1].set_xlabel('Steps')
-        axes[1].set_ylabel('Loss')
-        axes[1].set_title('Contrastive Divergence Loss')
-        axes[1].legend()
-        axes[1].grid(True)
-
-
-        axes[2].plot(epochs, reg_losses , label='Regression Loss')
-        axes[2].set_xlabel('Steps')
-        axes[2].set_ylabel('Loss')
-        axes[2].set_title('Regression Loss')
-        axes[2].legend()
-        axes[2].grid(True)
-
-        # Plot real and fake scores on the fourth subplot
-        axes[3].plot(epochs, real_scores_s, label='Real Scores')
-        axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
-        axes[3].set_xlabel('Steps')
-        axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
-        axes[3].set_title('Real vs. Fake Scores')
-        axes[3].legend()
-        axes[3].grid(True)
-
-        # Adjust spacing between subplots for better visualization
-        plt.tight_layout()
-
-        plt.savefig("output/loss_tracking_per_step.png")
-
-        # Save the figure to a file
-        buf = io.BytesIO()
-        plt.savefig(buf, format='png')
-        buf.seek(0)
-
-        # upload the graph report
-        minio_path="environmental/output/my_tests"
-        minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_isometric_training" +date_now+".png"
-        cmd.upload_data(minio_client, 'datasets', minio_path, buf)
-        # Remove the temporary file
-        os.remove("output/loss_tracking_per_step.png")
-        # Clear the current figure
-        plt.clf()
-
-
-def main():
-    args = parse_args()
-
-    training_pipeline=EBM_Single_Class_Trainer(minio_access_key=args.minio_access_key,
-                                minio_secret_key=args.minio_secret_key,
-                                dataset= args.dataset,
-                                class_name= args.class_name,
-                                model = None,
-                                save_name = args.save_name,
-                                class_id = args.class_id,
-                                training_batch_size=args.training_batch_size,
-                                num_samples= args.num_samples,
-                                epochs= args.epochs,
-                                learning_rate= args.learning_rate)
-
-    # do self training
-    training_pipeline.train()
-
-if __name__ == "__main__":
-    main()
-
-            
