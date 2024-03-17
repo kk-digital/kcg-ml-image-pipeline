@@ -423,10 +423,10 @@ class SamplingFCNetwork(nn.Module):
                 inputs= inputs.to(self._device)
                 outputs = self.model(inputs)
                 true_values.append(targets)
-                predictions.append(outputs)
+                predictions.append(torch.exp(outputs))
         
         # Concatenate all predictions and convert to a NumPy array
-        predictions = torch.exp(torch.cat(predictions, dim=0)).cpu().numpy()
+        predictions = torch.cat(predictions, dim=0).cpu().numpy()
         true_values = torch.cat(true_values, dim=0).cpu().numpy()
 
         pred_labels=[]
