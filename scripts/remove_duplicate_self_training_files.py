@@ -34,7 +34,7 @@ def get_self_training_data(minio_client):
     self_training_path = DATA_MINIO_DIRECTORY + "/self_training/"
     self_training_files = minio_client.list_objects('datasets', prefix=self_training_path, recursive=True)
     
-    hash_to_file = {}
+    previous_content = []
     duplicates = []
 
     for file in self_training_files:
@@ -46,17 +46,14 @@ def get_self_training_data(minio_client):
         # Read and deserialize the msgpack file content
         content = msgpack.unpackb(data.read(), raw=False)
 
-        # Generate a hash for the standardized content
-        content_hash = standardize_and_hash(content)
-
         # Check if this content has been seen before
-        if content_hash in hash_to_file:
+        if content[0] in previous_content:
             # Duplicate content found
             print(f"Duplicate found: {file_path}")
             duplicates.append(file_path)
         else:
             # New unique content
-            hash_to_file[content_hash] = file_path
+            previous_content.append(content[0])
 
     # Handling duplicates
     for duplicate_path in duplicates:
