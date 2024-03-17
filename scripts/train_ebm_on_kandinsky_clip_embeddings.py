@@ -518,11 +518,11 @@ def train_model(train_loader,val_loader, adv_loader, **kwargs):
 
     return model
 
-
+from safetensors.torch import load_model, save_model
 # ------------------------------------------------- Save Model --------------------------------------------------
 def save_model(model,name,local_path):
-         # Save the model locally
-        torch.save(model.state_dict(), local_path )
+         # Save the model locally pth
+        save_model(model.state_dict(), local_path )
         
         #Read the contents of the saved model file
         with open(local_path, "rb") as model_file:
@@ -532,7 +532,7 @@ def save_model(model,name,local_path):
         minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",None)
         minio_path="environmental/output/my_tests"
         date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
-        minio_path= minio_path + "/model-"+name+'_'+date_now+".pth"
+        minio_path= minio_path + "/model-"+name+'_'+date_now+".safetensors"
         cmd.upload_data(minio_client, 'datasets', minio_path, BytesIO(model_bytes))
         print(f'Model saved to {minio_path}')
 
@@ -939,7 +939,7 @@ class EBM_Single_Class_Trainer:
                             train_loader = train_loader,
                             val_loader = val_loader,
                             adv_loader =adv_loader )
-        save_model(model,self.save_name,'temp_model.pth')
+        save_model(model,self.save_name,'temp_model.safetensors')
 
 
         # up loader graphs
