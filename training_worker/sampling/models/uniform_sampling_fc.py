@@ -115,7 +115,7 @@ class SamplingFCNetwork(nn.Module):
 
     def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256):
         # load the dataset
-        inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points)
+        inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_size, self.bin_size)
 
         dataset= DatasetLoader(features=inputs, labels=outputs)
         # Split dataset into training and validation

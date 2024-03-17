@@ -38,25 +38,14 @@ class UniformSphereGenerator:
         self.minio_client= minio_client
         self.dataset= dataset
 
-    def generate_spheres(self, n_spheres, target_avg_points , discard_threshold=None):
-        """
-        Determine sphere radii and coverage metrics using FAISS, with separate lists for datapoints and sphere centers.
-
-        Parameters:
-        - data: numpy array of shape (n_datapoints, n_features), the datapoints.
-        - sphere_centers: numpy array of shape (n_spheres, n_features), the randomly selected sphere centers.
-        - target_avg_points: int, number of nearest neighbors to consider for determining the sphere's radius.
-        - discard_threshold: float, minimum acceptable distance to the nearest datapoint for a sphere not to be discarded.
-
-        Returns:
-        - valid_centers: List of sphere centers not discarded.
-        - valid_radii: Corresponding list of radii for the valid centers.
-        - avg_points_per_sphere: Average number of points per valid sphere.
-        - total_covered_points: Total number of unique points covered by the valid spheres.
-        """
+    def generate_spheres(self, n_spheres, target_avg_points, score_bins, bin_size, discard_threshold=None):
         
-        # score distribution bin
-        bins = np.array([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, np.inf])
+        bins=[]
+        for i in range(len(score_bins)-1):
+            max_score= int((i+1-(score_bins/2)) * bin_size)
+            bins.append(max_score)
+        
+        bins[len(score_bins)-1]= np.inf
 
         # load data from mongodb
         feature_vectors, scores= self.dataloader.load_clip_vector_data()
@@ -129,16 +118,18 @@ class UniformSphereGenerator:
         points_per_sphere = [len(sphere['points']) for sphere in sphere_data]
         avg_points_per_sphere = np.mean(points_per_sphere) if points_per_sphere else 0
 
-        print(f"total datapoints: {total_covered_points}")
+        print(f"total datapoints: {len(total_covered_points)}")
         print(f"average points per sphere: {avg_points_per_sphere}")
         
         return sphere_data, avg_points_per_sphere, len(total_covered_points)
 
 
-    def load_sphere_dataset(self, n_spheres, target_avg_points):
+    def load_sphere_dataset(self, n_spheres, target_avg_points, score_bins, bin_size):
         # generating spheres
         sphere_data, avg_points_per_sphere, total_covered_points= self.generate_spheres(n_spheres=n_spheres,
-                                                       target_avg_points=target_avg_points)
+                                                       target_avg_points=target_avg_points,
+                                                       score_bins=score_bins,
+                                                       bin_size=bin_size)
         
         inputs=[]
         outputs=[]
