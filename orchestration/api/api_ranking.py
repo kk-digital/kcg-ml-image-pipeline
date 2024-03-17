@@ -14,67 +14,12 @@ from pymongo import ReturnDocument
 from typing import Optional, List
 import time
 import io
-from tqdm import tqdm
+
 
 
 
 
 router = APIRouter()
-
-MINIO_ADDRESS='192.168.3.5:9000'
-MINIO_ACCESS_KEY='v048BpXpWrsVIHUfdAix'
-MINIO_SECRET_KEY='4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu'
-
-@router.get("/check-missing-clip", response_class=PrettyJSONResponse)
-def check_missing_clip_files(request: Request):
-    minio_client = cmd.connect_to_minio_client(MINIO_ADDRESS, access_key=MINIO_ACCESS_KEY, secret_key=MINIO_SECRET_KEY)
-    bucket_name = "datasets"
-
-    all_datasets = minio_client.list_objects(bucket_name, recursive=False)  # Assuming datasets are top-level folders
-    missing_files_total = 0
-    missing_files_details = []
-
-    for dataset in all_datasets:
-        if not dataset.is_dir:
-            continue
-        dataset_name = dataset.object_name
-        print(dataset_name)
-        objects = tqdm(minio_client.list_objects(bucket_name, prefix=dataset_name, recursive=True))
-        jpg_files = []
-        clip_files = []
-        for obj in objects:
-            if obj.object_name.endswith('.jpg'):
-                jpg_files.append(obj.object_name)
-            elif obj.object_name.endswith('_clip_kandinsky.msgpack'):
-                clip_files.append(obj.object_name)
-        
-        # Derive expected clip file names from jpg files and check if they're missing
-        missing_clip_files = [jpg_file.replace('.jpg', '_clip_kandinsky.msgpack') for jpg_file in jpg_files if jpg_file.replace('.jpg', '_clip_kandinsky.msgpack') not in clip_files]
-        
-        missing_files_total += len(missing_clip_files)
-        missing_files_details.append({
-            "dataset": dataset_name,
-            "missing_files_count": len(missing_clip_files),
-            "missing_files": missing_clip_files
-        })
-        
-    results_str = f"Total missing files count: {missing_files_total}\n"
-    for detail in missing_files_details:
-        results_str += f"Dataset: {detail['dataset']}, Missing Files Count: {detail['missing_files_count']}\n"
-        results_str += "\n".join(detail['missing_files']) + "\n\n"
-
-    # Generate a filename with the current timestamp
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    filename = f"missing_clip_files_{timestamp}.txt"
-    
-    # Save the results to a text file in the current working directory
-    with open(filename, 'w') as file:
-        file.write(results_str)
-    return {
-        "total_missing_files_count": missing_files_total,
-        "details_by_dataset": missing_files_details
-    }
-
 
 
 @router.get("/ranking/list-selection-policies")
