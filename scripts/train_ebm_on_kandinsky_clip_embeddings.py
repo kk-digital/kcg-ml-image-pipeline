@@ -1004,26 +1004,26 @@ class EBM_Single_Class_Trainer:
         plt.clf()
 
 
-def main():
-    args = parse_args()
+# def main():
+#     args = parse_args()
 
-    training_pipeline=EBM_Single_Class_Trainer(minio_access_key=args.minio_access_key,
-                                minio_secret_key=args.minio_secret_key,
-                                dataset= args.dataset,
-                                class_name= args.class_name,
-                                model = None,
-                                save_name = args.save_name,
-                                class_id = args.class_id,
-                                training_batch_size=args.training_batch_size,
-                                num_samples= args.num_samples,
-                                epochs= args.epochs,
-                                learning_rate= args.learning_rate)
+#     training_pipeline=EBM_Single_Class_Trainer(minio_access_key=args.minio_access_key,
+#                                 minio_secret_key=args.minio_secret_key,
+#                                 dataset= args.dataset,
+#                                 class_name= args.class_name,
+#                                 model = None,
+#                                 save_name = args.save_name,
+#                                 class_id = args.class_id,
+#                                 training_batch_size=args.training_batch_size,
+#                                 num_samples= args.num_samples,
+#                                 epochs= args.epochs,
+#                                 learning_rate= args.learning_rate)
 
-    # do self training
-    training_pipeline.train()
+#     # do self training
+#     training_pipeline.train()
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
 
             
 
@@ -1224,7 +1224,8 @@ adv_loader = train_loader_clip_ood
 
 
 # Train
-new_aquatic_model = train_model(img_shape=(1,1280),
+
+new_aquatic_model = train_model(train_loader,val_loader, adv_loader, img_shape=(1,1280),
                     batch_size=train_loader.batch_size,
                     lr=0.001,
                     beta1=0.0)
