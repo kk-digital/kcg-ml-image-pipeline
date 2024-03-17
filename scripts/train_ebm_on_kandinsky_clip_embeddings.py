@@ -1310,7 +1310,7 @@ class EBM_Single_Class_Trainer:
 
 
 # Create a new Model    
-new_aquatic_model_st = DeepEnergyModel(None,None,None,img_shape=(1280,))
+new_aquatic_model_st = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
 load_model(new_aquatic_model_st,'aquatic')
 
