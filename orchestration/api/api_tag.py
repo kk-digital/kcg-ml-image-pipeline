@@ -203,7 +203,7 @@ def update_tag_definition(request: Request, tag_id: int, update_data: NewTagRequ
 
 
 
-@router.delete("/tags/remove_tag")
+@router.delete("/tags/remove_tag", tags = ['deprecated'])
 def remove_test_tag(request: Request, tag_id: int):
     # Check if the tag exists
     tag_query = {"tag_id": tag_id}
@@ -260,7 +260,7 @@ def remove_tag(request: Request, tag_id: int):
     return response_handler.create_success_delete_response({"wasPresent": True})
 
 
-@router.put("/tags/set_tag_vector_index")
+@router.put("/tags/set_tag_vector_index", tags = ['deprecated'])
 def set_tag_vector_index(request: Request, tag_id: int, vector_index: int):
     # Find the tag definition using the provided tag_id
     query = {"tag_id": tag_id}
@@ -317,7 +317,7 @@ def set_tag_vector_index(request: Request, tag_id: int, update_data: VectorIndex
     )
 
 
-@router.get("/tags/get_tag_vector_index")
+@router.get("/tags/get_tag_vector_index", tags= ["deprecated"])
 def get_tag_vector_index(request: Request, tag_id: int):
     # Find the tag definition using the provided tag_id
     query = {"tag_id": tag_id}
@@ -400,7 +400,7 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: in
 
 
 
-@router.delete("/tags/remove_tag_from_image")
+@router.delete("/tags/remove_tag_from_image", tags = ['deprecated'])
 def remove_image_tag(
     request: Request,
     image_hash: str,  
@@ -482,7 +482,7 @@ def remove_all_tagged_images(request: Request):
 
 
 
-@router.get("/tags/get_tag_list_for_image")
+@router.get("/tags/get_tag_list_for_image", tags = ["deprecated"])
 def get_tag_list_for_image(request: Request, file_hash: str):
     # Fetch image tags based on image_hash
     image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash})
@@ -519,7 +519,7 @@ def get_tag_list_for_image(request: Request, file_hash: str):
 
 
 
-@router.get("/tags/get_images_by_tag", response_model=List[ImageTag], response_class=PrettyJSONResponse)
+@router.get("/tags/get_images_by_tag", tags = ['deprecated'], response_model=List[ImageTag], response_class=PrettyJSONResponse)
 def get_tagged_images(
     request: Request, 
     tag_id: int,
@@ -745,7 +745,7 @@ def get_image_count_by_tag(
     return response_handler.create_success_response({"tag_id": tag_id, "count": count}, 200)
 
 
-@router.delete("/tags/remove_tag_category", response_class=PrettyJSONResponse)
+@router.delete("/tags/remove_tag_category", tags = ['deprecated'], response_class=PrettyJSONResponse)
 def remove_tag_category(request: Request, tag_category_id: int):
     response_handler = ApiResponseHandler(request)
     try:
