@@ -37,9 +37,12 @@ def upload_scores_attributes_to_completed_jobs(model_type,
                                                clip_hash_sigma_score_dict,
                                                embedding_hash_score_dict,
                                                embedding_hash_sigma_score_dict,
+                                               clip_h_hash_score_dict,
+                                               clip_h_hash_sigma_score_dict,
                                                hash_delta_score_dict,
                                                clip_hash_percentile_dict,
-                                               embedding_hash_percentile_dict
+                                               embedding_hash_percentile_dict,
+                                               clip_h_hash_percentile_dict
                                                ):
     print("Uploading scores, sigma scores, and delta scores to mongodb...")
     with ThreadPoolExecutor(max_workers=50) as executor:
@@ -47,17 +50,23 @@ def upload_scores_attributes_to_completed_jobs(model_type,
         for img_hash, clip_score in clip_hash_score_dict.items():
             clip_percentile = clip_hash_percentile_dict[img_hash]
             clip_sigma_score = clip_hash_sigma_score_dict[img_hash]
+
             if img_hash not in embedding_hash_score_dict:
                 continue
             embedding_score = embedding_hash_score_dict[img_hash]
             embedding_percentile = embedding_hash_percentile_dict[img_hash]
             embedding_sigma_score = embedding_hash_sigma_score_dict[img_hash]
 
+            if img_hash not in clip_h_hash_score_dict:
+                continue
+            clip_h_score = clip_h_hash_score_dict[img_hash]
+            clip_h_percentile = clip_h_hash_percentile_dict[img_hash]
+            clip_h_sigma_score = clip_h_hash_sigma_score_dict[img_hash]
+
             if img_hash not in hash_delta_score_dict:
                 continue
 
             delta_score = hash_delta_score_dict[img_hash]
-
 
             futures.append(executor.submit(request.http_add_score_attributes,
                                            model_type=model_type,
@@ -68,6 +77,9 @@ def upload_scores_attributes_to_completed_jobs(model_type,
                                            text_embedding_score=embedding_score,
                                            text_embedding_percentile=embedding_percentile,
                                            text_embedding_sigma_score=embedding_sigma_score,
+                                           image_clip_h_score=clip_h_score,
+                                           image_clip_h_percentile=clip_h_percentile,
+                                           image_clip_h_sigma_score=clip_h_sigma_score,
                                            delta_sigma_score=delta_score,))
 
         for _ in tqdm(as_completed(futures), total=len(futures)):
@@ -339,7 +351,8 @@ def generate_delta_scores_graph(minio_client,
 def run_image_delta_scorer(minio_client,
                            dataset_name,
                            clip_model_filename,
-                           embedding_model_filename):
+                           embedding_model_filename,
+                           clip_h_model_filename):
 
     start_time = time.time()
 
@@ -368,14 +381,26 @@ def run_image_delta_scorer(minio_client,
     embedding_paths = embedding_scorer.get_paths()
     embedding_hash_score_pairs, image_paths, _ = embedding_scorer.get_scores(embedding_paths)
     embedding_hash_percentile_dict = embedding_scorer.get_percentiles(embedding_hash_score_pairs)
-
     embedding_hash_sigma_score_dict = embedding_scorer.get_sigma_scores(embedding_hash_score_pairs)
 
+    # clip_h
+    clip_h_scorer = ImageScorer(minio_client=minio_client,
+                                dataset_name=dataset_name,
+                                model_name=clip_h_model_filename)
+
+    clip_h_scorer.load_model()
+    clip_h_paths = clip_h_scorer.get_paths()
+    clip_h_hash_score_pairs, image_paths, _ = clip_h_scorer.get_scores(clip_h_paths)
+    clip_h_hash_percentile_dict = clip_h_scorer.get_percentiles(clip_h_hash_score_pairs)
+    clip_h_hash_sigma_score_dict = clip_h_scorer.get_sigma_scores(clip_h_hash_score_pairs)
+
+    # --------------------------------------------------------------------------------------------------- #
     hash_delta_score_dict = get_delta_score(clip_hash_sigma_score_dict=clip_hash_sigma_score_dict,
                                             embedding_hash_sigma_score_dict=embedding_hash_sigma_score_dict)
 
     clip_hash_score_dict = convert_pairs_to_dict(clip_hash_score_pairs)
     embedding_hash_score_dict = convert_pairs_to_dict(embedding_hash_score_pairs)
+    clip_h_hash_score_dict = convert_pairs_to_dict(clip_h_hash_score_pairs)
 
     delta_score_csv_data = get_delta_score_csv_data(clip_hash_score_dict=clip_hash_score_dict,
                                                     clip_hash_sigma_score_dict=clip_hash_sigma_score_dict,
@@ -391,9 +416,12 @@ def run_image_delta_scorer(minio_client,
                                                clip_hash_sigma_score_dict=clip_hash_sigma_score_dict,
                                                embedding_hash_score_dict=embedding_hash_score_dict,
                                                embedding_hash_sigma_score_dict=embedding_hash_sigma_score_dict,
+                                               clip_h_hash_score_dict=clip_h_hash_score_dict,
+                                               clip_h_hash_sigma_score_dict=clip_h_hash_sigma_score_dict,
                                                hash_delta_score_dict=hash_delta_score_dict,
                                                clip_hash_percentile_dict=clip_hash_percentile_dict,
-                                               embedding_hash_percentile_dict=embedding_hash_percentile_dict)
+                                               embedding_hash_percentile_dict=embedding_hash_percentile_dict,
+                                               clip_h_hash_percentile_dict=clip_h_hash_percentile_dict)
 
     upload_delta_score_to_csv(minio_client=minio_client,
                               dataset=dataset_name,
@@ -424,6 +452,7 @@ def parse_args():
     parser.add_argument('--dataset-name', required=True, help='Name of the dataset for embeddings')
     parser.add_argument('--clip-model-filename', required=True, help='Filename of the clip model (e.g., "XXX.safetensors")')
     parser.add_argument('--embedding-model-filename', required=True, help='Filename of the embedding model (e.g., "XXX.safetensors")')
+    parser.add_argument('--clip-h-model-filename', required=True, help='Filename of the clip-h model (e.g., "XXX.safetensors")')
     args = parser.parse_args()
     return args
 
@@ -439,7 +468,8 @@ def main():
         run_image_delta_scorer(minio_client,
                                args.dataset_name,
                                args.clip_model_filename,
-                               args.embedding_model_filename)
+                               args.embedding_model_filename,
+                               args.clip_h_model_filename)
     else:
         # if all, train models for all existing datasets
         # get dataset name list
@@ -450,7 +480,8 @@ def main():
                 run_image_delta_scorer(minio_client,
                                        dataset,
                                        args.clip_model_filename,
-                                       args.embedding_model_filename)
+                                       args.embedding_model_filename,
+                                       args.clip_h_model_filename)
             except Exception as e:
                 print("Error running image scorer for {}: {}".format(dataset, e))
     
