@@ -50,7 +50,7 @@ class DatasetLoader(Dataset):
 
 
 class SamplingFCNetwork(nn.Module):
-    def __init__(self, minio_client, input_size=1281, hidden_sizes=[512, 256], input_type="input_clip" , output_size=12, 
+    def __init__(self, minio_client, input_size=1281, hidden_sizes=[512, 256], input_type="input_clip" , output_size=8, 
                  bin_size=1, output_type="score_distribution", dataset="environmental"):
         
         super(SamplingFCNetwork, self).__init__()
@@ -99,8 +99,8 @@ class SamplingFCNetwork(nn.Module):
         class_labels=[]
         for i in range(0, output_size):
             # calculate min and max for bin
-            min_score_value= (i-(output_size/2)) * bin_size
-            max_score_value= min_score_value + bin_size
+            min_score_value= int((i-(output_size/2)) * bin_size)
+            max_score_value= int(min_score_value + bin_size)
             # get label str values
             if i==0:
                 class_label= f"<{max_score_value}"
@@ -134,6 +134,8 @@ class SamplingFCNetwork(nn.Module):
         train_loss=[]
         val_loss=[]
 
+        best_val_loss = float('inf')  # Initialize best validation loss as infinity
+        best_train_loss = float('inf')  # Initialize best training loss as infinity
         start = time.time()
         # Training and Validation Loop
         for epoch in range(num_epochs):
@@ -175,7 +177,16 @@ class SamplingFCNetwork(nn.Module):
             train_loss.append(avg_train_loss)
             val_loss.append(avg_val_loss)
 
+            # Update best model if current epoch's validation loss is the best
+            if val_loss[-1] < best_val_loss:
+                best_val_loss = val_loss[-1]
+                best_train_loss = train_loss[-1]
+                best_model_state = self.model
+
             print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss}, Val Loss: {avg_val_loss}')
+        
+        # save the model at the best epoch
+        self.model= best_model_state
         
         end = time.time()
         training_time= end - start
@@ -189,6 +200,7 @@ class SamplingFCNetwork(nn.Module):
         print(f'Time taken for inference of {(val_size)} data points is: {end - start:.2f} seconds')
         
         self.save_graph_report(train_loss, val_loss,
+                               best_train_loss, best_val_loss,
                                val_true, val_preds,
                                train_size, val_size)
         
@@ -197,12 +209,12 @@ class SamplingFCNetwork(nn.Module):
                               training_time=training_time,
                               y_pred=val_preds, 
                               y_true=val_true,
-                              train_loss=train_loss, 
-                              val_loss=val_loss, 
+                              train_loss=best_train_loss, 
+                              val_loss=best_val_loss, 
                               inference_speed= inference_speed,
                               learning_rate=learning_rate)
         
-        return val_loss[-1]
+        return best_val_loss
         
     def save_model_report(self,num_training,
                               num_validation,
@@ -229,8 +241,8 @@ class SamplingFCNetwork(nn.Module):
             f"Total training Time: {training_time:.2f} seconds\n"
             "Loss Function: L1 \n"
             f"Learning Rate: {learning_rate} \n"
-            f"Training Loss: {train_loss[-1]} \n"
-            f"Validation Loss: {val_loss[-1]} \n"
+            f"Training Loss: {train_loss} \n"
+            f"Validation Loss: {val_loss} \n"
             f"Inference Speed: {inference_speed:.2f} predictions per second\n\n"
             "================ Input and output ==================\n"
             f"Input: {input_type} \n"
@@ -261,7 +273,8 @@ class SamplingFCNetwork(nn.Module):
         os.remove(local_report_path)
 
     def save_graph_report(self, train_loss_per_round, val_loss_per_round,
-                          y_true, y_pred, training_size, validation_size):
+                          best_train_loss, best_val_loss, y_true, y_pred, 
+                          training_size, validation_size):
         
         # Create a figure and a set of subplots
         fig, axs = plt.subplots(2, 1, figsize=(12, 10))
@@ -285,8 +298,8 @@ class SamplingFCNetwork(nn.Module):
                                                         self.output_type,
                                                         training_size,
                                                         validation_size,
-                                                        train_loss_per_round[-1],
-                                                        val_loss_per_round[-1])
+                                                        best_train_loss,
+                                                        best_val_loss)
 
         # Use figtext to place text to the left of the plot
         fig.text(0.03, 0.7, info_text)
