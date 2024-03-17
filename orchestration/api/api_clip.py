@@ -383,12 +383,14 @@ def get_random_image_similarity_date_range(
     print(similarity_score_list)
 
     if similarity_score_list is None:
+        print("similarity_score_list is empty")
         return {
             "images" : []
         }
 
     # make sure the similarity list is the correct format
     if 'similarity_list' not in similarity_score_list:
+        print("'similarity_list' not in similarity_score_list")
         return {
             "images": []
         }
