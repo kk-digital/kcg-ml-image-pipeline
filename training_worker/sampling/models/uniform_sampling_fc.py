@@ -201,7 +201,7 @@ class SamplingFCNetwork(nn.Module):
         print(f'Time taken for inference of {(val_size + train_size)} data points is: {end - start:.2f} seconds')
 
         val_residuals = np.array(true_val_avg_scores) - np.array(pred_val_avg_scores)
-        train_residuals = np.array(pred_train_avg_scores) - np.array(true_train_avg_scores)
+        train_residuals = np.array(true_train_avg_scores) - np.array(pred_train_avg_scores)
         
         self.save_graph_report(train_loss, val_loss,
                                best_train_loss, best_val_loss,
@@ -435,6 +435,8 @@ class SamplingFCNetwork(nn.Module):
         pred_mean_scores=[]
         true_mean_scores=[]
         for pred_probs, true_probs in zip(predictions, true_values):
+            print("predicted:", pred_probs)
+            print("True:", true_probs)
             pred_label= np.argmax(pred_probs)
             true_label= np.argmax(true_probs)
             pred_labels.append(self.class_labels[pred_label])
