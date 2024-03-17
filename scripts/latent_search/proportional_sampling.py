@@ -150,7 +150,7 @@ class KandinskyImageGenerator:
     
     def get_file_paths(self, num_samples):
         print('Loading image file paths')
-        response = requests.get(f'{API_URL}/queue/image-generation/list-by-dataset?dataset={self.dataset}&size={num_samples}')
+        response = requests.get(f'{API_URL}/queue/image-generation/list-by-dataset?dataset={self.dataset}&size={num_samples}&min_clip_sigma_score=0')
 
         jobs = json.loads(response.content)
 
@@ -355,6 +355,7 @@ def main():
                                             learning_rate= args.learning_rate,
                                             steps= args.steps,
                                             generation_policy= args.generation_policy,
+                                            sampling_policy= args.sampling_policy,
                                             send_job= args.send_job,
                                             save_csv= args.save_csv)
 
