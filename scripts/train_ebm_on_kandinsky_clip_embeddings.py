@@ -518,11 +518,12 @@ def train_model(train_loader,val_loader, adv_loader, **kwargs):
 
     return model
 
-from safetensors.torch import load_model, save_model
+
 # ------------------------------------------------- Save Model --------------------------------------------------
-def save_model_to_minio(model,name,local_path):
+from safetensors.torch import save
+def save_model(model,name,local_path):
          # Save the model locally pth
-        save_model(model.state_dict(), local_path )
+        save(model.state_dict(), local_path )
         
         #Read the contents of the saved model file
         with open(local_path, "rb") as model_file:
@@ -532,7 +533,7 @@ def save_model_to_minio(model,name,local_path):
         minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",None)
         minio_path="environmental/output/my_tests"
         date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
-        minio_path= minio_path + "/model-"+name+'_'+date_now+".safetensors"
+        minio_path= minio_path + "/model-"+name+'_'+date_now+".pth"
         cmd.upload_data(minio_client, 'datasets', minio_path, BytesIO(model_bytes))
         print(f'Model saved to {minio_path}')
 
@@ -939,7 +940,7 @@ class EBM_Single_Class_Trainer:
                             train_loader = train_loader,
                             val_loader = val_loader,
                             adv_loader =adv_loader )
-        save_model_to_minio(model,self.save_name,'temp_model.safetensors')
+        save_model(model,self.save_name,'temp_model.safetensors')
 
 
         # up loader graphs
@@ -1080,7 +1081,7 @@ class EBM_Single_Class_Trainer:
 #                     batch_size=train_loader.batch_size,
 #                     lr=0.001,
 #                     beta1=0.0)
-# save_model_to_minio(new_occult_model,'occult','temp_model.pth')
+# save_model(new_occult_model,'occult','temp_model.pth')
 
 
 # # Plot
@@ -1229,7 +1230,7 @@ new_aquatic_model = train_model(train_loader,val_loader, adv_loader, img_shape=(
                     batch_size=train_loader.batch_size,
                     lr=0.001,
                     beta1=0.0)
-save_model_to_minio(new_aquatic_model,'aquatic','temp_model.safetensors')
+save_model(new_aquatic_model,'aquatic','temp_model.pth')
 
 
 # # up loader graphs
@@ -1296,26 +1297,26 @@ plt.clf()
 
 
 
-# # Evaluate new model
-# #automated model
-# #toodoo
+# Evaluate new model
+#automated model
+#toodoo
 
-# # Load the environmental dataset     
-# images_paths_ood = get_file_paths("environmental",30000)
+# Load the environmental dataset     
+images_paths_ood = get_file_paths("environmental",30000)
 
-# #go create something
-# print("yep it's here")
-# new_sorted_images = process_and_sort_dataset(images_paths_ood, new_aquatic_model)
+#go create something
+print("yep it's here")
+new_sorted_images = process_and_sort_dataset(images_paths_ood, new_aquatic_model)
 
 
-# get_structure_csv_content(new_sorted_images,"aquatic_on_env_30000_sample")
-# selected_structure_first_52 = new_sorted_images[:52]
-# selected_structure_second_52 = new_sorted_images[52:103]
-# selected_structure_third_52 = new_sorted_images[103:154]
+get_structure_csv_content(new_sorted_images,"aquatic_on_env_30000_sample")
+selected_structure_first_52 = new_sorted_images[:52]
+selected_structure_second_52 = new_sorted_images[52:103]
+selected_structure_third_52 = new_sorted_images[103:154]
 
-# plot_images_with_scores(selected_structure_first_52,"aquatic_env_tier_1")
-# plot_images_with_scores(selected_structure_second_52,"aquatic_env_tier_2")
-# plot_images_with_scores(selected_structure_third_52,"aquatic_env_tier_3")
+plot_images_with_scores(selected_structure_first_52,"aquatic_env_tier_1")
+plot_images_with_scores(selected_structure_second_52,"aquatic_env_tier_2")
+plot_images_with_scores(selected_structure_third_52,"aquatic_env_tier_3")
     
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1368,7 +1369,7 @@ plt.clf()
 #                     batch_size=train_loader.batch_size,
 #                     lr=0.001,
 #                     beta1=0.0)
-# save_model_to_minio(new_desert_model,'desert','temp_model.pth')
+# save_model(new_desert_model,'desert','temp_model.pth')
 
 
 # # up loader graphs
