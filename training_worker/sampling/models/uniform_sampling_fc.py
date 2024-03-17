@@ -426,7 +426,7 @@ class SamplingFCNetwork(nn.Module):
                 predictions.append(outputs)
         
         # Concatenate all predictions and convert to a NumPy array
-        predictions = torch.cat(predictions, dim=0).cpu().numpy()
+        predictions = torch.exp(torch.cat(predictions, dim=0)).cpu().numpy()
         true_values = torch.cat(true_values, dim=0).cpu().numpy()
 
         pred_labels=[]
