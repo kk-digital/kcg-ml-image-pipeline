@@ -549,6 +549,7 @@ def load_model(model,type):
         most_recent_model = None
 
         for model_file in model_files:
+            print(model_file)
             if model_file.endswith(suffix):
                 most_recent_model = model_file
 
@@ -1316,21 +1317,21 @@ load_model(new_aquatic_model_st,'aquatic')
 
 
 # Load the environmental dataset     
-images_paths_ood = get_file_paths("environmental",30000)
+images_paths_ood = get_file_paths("environmental",500)
 
 # #go create something
 # print("yep it's here")
 new_sorted_images = process_and_sort_dataset(images_paths_ood, new_aquatic_model_st)
 
 
-get_structure_csv_content(new_sorted_images,"aquatic_on_env_30000_sample")
+get_structure_csv_content(new_sorted_images,"aquatic_on_env_500_sample")
 selected_structure_first_52 = new_sorted_images[:52]
 selected_structure_second_52 = new_sorted_images[52:103]
 selected_structure_third_52 = new_sorted_images[103:154]
 
-plot_images_with_scores(selected_structure_first_52,"aquatic_env_30000_tier_1")
-plot_images_with_scores(selected_structure_second_52,"aquatic_env_30000_tier_2")
-plot_images_with_scores(selected_structure_third_52,"aquatic_env_30000_tier_3")
+plot_images_with_scores(selected_structure_first_52,"aquatic_env_500_tier_1")
+plot_images_with_scores(selected_structure_second_52,"aquatic_env_500_tier_2")
+plot_images_with_scores(selected_structure_third_52,"aquatic_env_500_tier_3")
     
 
 # ---------------------------------------------------------------------------------------------------------------------
