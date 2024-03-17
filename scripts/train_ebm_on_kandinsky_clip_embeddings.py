@@ -533,7 +533,7 @@ def save_model_to_minio(model,name,local_path):
         minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",None)
         minio_path="environmental/output/my_tests"
         date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
-        minio_path= minio_path + "/model-"+name+'_'+date_now+".pth"
+        minio_path= minio_path + "/model-"+name+'_'+date_now+".safetensors"
         cmd.upload_data(minio_client, 'datasets', minio_path, BytesIO(model_bytes))
         print(f'Model saved to {minio_path}')
 
@@ -1301,22 +1301,22 @@ plt.clf()
 #automated model
 #toodoo
 
-# Load the environmental dataset     
-images_paths_ood = get_file_paths("environmental",30000)
+# # Load the environmental dataset     
+# images_paths_ood = get_file_paths("environmental",30000)
 
-#go create something
-print("yep it's here")
-new_sorted_images = process_and_sort_dataset(images_paths_ood, new_aquatic_model)
+# #go create something
+# print("yep it's here")
+# new_sorted_images = process_and_sort_dataset(images_paths_ood, new_aquatic_model)
 
 
-get_structure_csv_content(new_sorted_images,"aquatic_on_env_30000_sample")
-selected_structure_first_52 = new_sorted_images[:52]
-selected_structure_second_52 = new_sorted_images[52:103]
-selected_structure_third_52 = new_sorted_images[103:154]
+# get_structure_csv_content(new_sorted_images,"aquatic_on_env_30000_sample")
+# selected_structure_first_52 = new_sorted_images[:52]
+# selected_structure_second_52 = new_sorted_images[52:103]
+# selected_structure_third_52 = new_sorted_images[103:154]
 
-plot_images_with_scores(selected_structure_first_52,"aquatic_env_tier_1")
-plot_images_with_scores(selected_structure_second_52,"aquatic_env_tier_2")
-plot_images_with_scores(selected_structure_third_52,"aquatic_env_tier_3")
+# plot_images_with_scores(selected_structure_first_52,"aquatic_env_tier_1")
+# plot_images_with_scores(selected_structure_second_52,"aquatic_env_tier_2")
+# plot_images_with_scores(selected_structure_third_52,"aquatic_env_tier_3")
     
 
 # ---------------------------------------------------------------------------------------------------------------------
