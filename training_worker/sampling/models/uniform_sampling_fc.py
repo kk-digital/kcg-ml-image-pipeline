@@ -193,16 +193,23 @@ class SamplingFCNetwork(nn.Module):
 
         start = time.time()
         # Classifying all validation datapoints
-        val_preds, val_true = self.classify(val_dataset, batch_size)
+        val_preds, val_true, pred_val_avg_scores, true_val_avg_scores = self.classify(val_dataset, batch_size)
+        _, _, pred_train_avg_scores, true_train_avg_scores = self.classify(train_dataset, batch_size)
 
         end = time.time()
-        inference_speed=(val_size)/(end - start)
-        print(f'Time taken for inference of {(val_size)} data points is: {end - start:.2f} seconds')
+        inference_speed=(val_size + train_size)/(end - start)
+        print(f'Time taken for inference of {(val_size + train_size)} data points is: {end - start:.2f} seconds')
+
+        val_residuals = np.array(true_val_avg_scores) - np.array(pred_val_avg_scores)
+        train_residuals = np.array(pred_train_avg_scores) - np.array(true_train_avg_scores)
         
         self.save_graph_report(train_loss, val_loss,
                                best_train_loss, best_val_loss,
-                               val_true, val_preds,
+                               val_residuals, train_residuals,
+                               pred_val_avg_scores, true_val_avg_scores,
                                train_size, val_size)
+        
+        self.save_confusion_matrix(val_true, val_preds)
         
         self.save_model_report(num_training=train_size,
                               num_validation=val_size,
@@ -273,63 +280,105 @@ class SamplingFCNetwork(nn.Module):
         os.remove(local_report_path)
 
     def save_graph_report(self, train_loss_per_round, val_loss_per_round,
-                          best_train_loss, best_val_loss, y_true, y_pred, 
+                          best_train_loss, best_val_loss, 
+                          val_residuals, train_residuals, 
+                          predicted_values, actual_values,
                           training_size, validation_size):
+        fig, axs = plt.subplots(3, 2, figsize=(12, 10))
         
-        # Create a figure and a set of subplots
-        fig, axs = plt.subplots(2, 1, figsize=(12, 10))
+        #info text about the model
+        plt.figtext(0.02, 0.7, "Date = {}\n"
+                            "Dataset = {}\n"
+                            "Model type = {}\n"
+                            "Input type = {}\n"
+                            "Input shape = {}\n"
+                            "Output type= {}\n\n"
+                            ""
+                            "Training size = {}\n"
+                            "Validation size = {}\n"
+                            "Training loss = {:.4f}\n"
+                            "Validation loss = {:.4f}\n".format(self.date,
+                                                            self.dataset,
+                                                            'Fc_Network',
+                                                            self.input_type,
+                                                            self.input_size,
+                                                            self.output_type,
+                                                            training_size,
+                                                            validation_size,
+                                                            best_train_loss,
+                                                            best_val_loss,
+                                                            ))
 
-        # Info text about the model
-        info_text = ("Date = {}\n"
-                    "Dataset = {}\n"
-                    "Model type = {}\n"
-                    "Input type = {}\n"
-                    "Input shape = {}\n"
-                    "Output type= {}\n\n"
-                    ""
-                    "Training size = {}\n"
-                    "Validation size = {}\n"
-                    "Training loss = {:.4f}\n"
-                    "Validation loss = {:.4f}\n").format(self.date,
-                                                        self.dataset,
-                                                        'Fc_Network',
-                                                        self.input_type,
-                                                        self.input_size,
-                                                        self.output_type,
-                                                        training_size,
-                                                        validation_size,
-                                                        best_train_loss,
-                                                        best_val_loss)
+        # Plot validation and training Rmse vs. Rounds
+        axs[0][0].plot(range(1, len(train_loss_per_round) + 1), train_loss_per_round,'b', label='Training loss')
+        axs[0][0].plot(range(1, len(val_loss_per_round) + 1), val_loss_per_round,'r', label='Validation loss')
+        axs[0][0].set_title('KL loss per Round')
+        axs[0][0].set_ylabel('Loss')
+        axs[0][0].set_xlabel('Epochs')
+        axs[0][0].legend(['Training loss', 'Validation loss'])
 
-        # Use figtext to place text to the left of the plot
-        fig.text(0.03, 0.7, info_text)
+        # Scatter Plot of actual values vs predicted values
+        axs[0][1].scatter(predicted_values, actual_values, color='green', alpha=0.5)
+        axs[0][1].set_title('Predicted values vs actual values')
+        axs[0][1].set_ylabel('True')
+        axs[0][1].set_xlabel('Predicted')
 
-        # Plot validation and training MAE vs. Rounds on the ax
-        axs[0].plot(range(1, len(train_loss_per_round) + 1), train_loss_per_round, 'b', label='Training loss')
-        axs[0].plot(range(1, len(val_loss_per_round) + 1), val_loss_per_round, 'r', label='Validation loss')
-        axs[0].set_title('KL loss per Round')
-        axs[0].set_ylabel('Loss')
-        axs[0].set_xlabel('Rounds')
-        axs[0].legend(['Training loss', 'Validation loss'])
+        # plot histogram of training residuals
+        axs[1][0].hist(train_residuals, bins=30, color='blue', alpha=0.7)
+        axs[1][0].set_xlabel('Residuals')
+        axs[1][0].set_ylabel('Frequency')
+        axs[1][0].set_title('Training Residual Histogram')
 
+        # plot histogram of validation residuals
+        axs[1][1].hist(val_residuals, bins=30, color='blue', alpha=0.7)
+        axs[1][1].set_xlabel('Residuals')
+        axs[1][1].set_ylabel('Frequency')
+        axs[1][1].set_title('Validation Residual Histogram')
+        
+        # plot histogram of predicted values
+        axs[2][0].hist(predicted_values, bins=30, color='blue', alpha=0.7)
+        axs[2][0].set_xlabel('Predicted Values')
+        axs[2][0].set_ylabel('Frequency')
+        axs[2][0].set_title('Validation Predicted Values Histogram')
+        
+        # plot histogram of true values
+        axs[2][1].hist(actual_values, bins=30, color='blue', alpha=0.7)
+        axs[2][1].set_xlabel('Actual values')
+        axs[2][1].set_ylabel('Frequency')
+        axs[2][1].set_title('Validation True Values Histogram')
+
+        # Adjust spacing between subplots
+        plt.subplots_adjust(hspace=0.7, wspace=0.3, left=0.3)
+
+        plt.savefig(self.local_path.replace('.pth', '.png'))
+
+        # Save the figure to a file
+        buf = BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+
+        # upload the graph report
+        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.pth', '.png'), buf)  
+
+        # Clear the current figure
+        plt.clf()
+    
+    def save_confusion_matrix(self, y_true, y_pred):
         #confusion matrix
         # Generate a custom colormap representing brightness
         colors = [(1, 1, 1), (1, 0, 0)]  # White to Red
         custom_cmap = LinearSegmentedColormap.from_list('custom_colormap', colors, N=256)
  
         cm = confusion_matrix(y_true, y_pred, labels=self.class_labels)
-        sb.heatmap(cm ,cbar=True, annot=True, cmap=custom_cmap, ax=axs[1], 
+        sb.heatmap(cm ,cbar=True, annot=True, cmap=custom_cmap, 
                    yticklabels=self.class_labels, xticklabels=self.class_labels, fmt='g')
-        axs[1].set_title('Confusion Matrix')
-        axs[1].set_xlabel('Predicted Labels')
-        axs[1].set_ylabel('True Labels')
-        axs[1].invert_yaxis()
-
-        # Adjust spacing between subplots
-        plt.subplots_adjust(hspace=0.7, wspace=0, left=0.4)
+        plt.title('Confusion Matrix')
+        plt.xlabel('Predicted Labels')
+        plt.ylabel('True Labels')
+        plt.gca().invert_yaxis()
 
         # Save the figure to a local file
-        plt.savefig(self.local_path.replace('.pth', '.png'))
+        plt.savefig(self.local_path.replace('.pth', '_confusion_matrix.png'))
 
         # Save the figure to a buffer for uploading
         buf = BytesIO()
@@ -337,10 +386,10 @@ class SamplingFCNetwork(nn.Module):
         buf.seek(0)
 
         # Upload the graph report
-        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.pth', '.png'), buf)  
+        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.pth', '_confusion_matrix.png'), buf)  
 
         # Clear the figure to free up memory
-        plt.close(fig)
+        plt.close()
 
     def predict(self, data, batch_size=64):
         # Convert the features array into a PyTorch Tensor
@@ -382,14 +431,39 @@ class SamplingFCNetwork(nn.Module):
 
         pred_labels=[]
         true_labels=[]
-        for pred_probs, true_preds in zip(predictions, true_values):
-            pred_label= np.argmax(pred_probs)
-            true_label= np.argmax(true_preds)
 
+        pred_mean_scores=[]
+        true_mean_scores=[]
+        for pred_probs, true_probs in zip(predictions, true_values):
+            pred_label= np.argmax(pred_probs)
+            true_label= np.argmax(true_probs)
             pred_labels.append(self.class_labels[pred_label])
             true_labels.append(self.class_labels[true_label])
+            
+            pred_mean_score= self.calculate_mean_score(pred_probs)
+            true_mean_score= self.calculate_mean_score(true_probs)
+            pred_mean_scores.append(pred_mean_score)
+            true_mean_scores.append(true_mean_score)
 
-        return pred_labels, true_labels
+        return pred_labels, true_labels, pred_mean_scores, true_mean_scores
+
+    def calculate_mean_score(self, score_distribution):
+        mean_score=0
+        output_size= self.output_size
+        bin_size= self.bin_size
+        for i, prob in enumerate(score_distribution):
+            if prob == 0:
+                continue
+            # calculate min and max for bin
+            min_score_value= int((i-(output_size/2)) * bin_size)
+            max_score_value= int(min_score_value + bin_size)
+            bin_median= (min_score_value + max_score_value)/2
+            # add score
+            mean_score+= prob * bin_median
+        
+        mean_score= mean_score / output_size
+
+        return mean_score
 
     def load_model(self):
         # get model file data from MinIO

@@ -38,14 +38,14 @@ class UniformSphereGenerator:
         self.minio_client= minio_client
         self.dataset= dataset
 
-    def generate_spheres(self, n_spheres, target_avg_points, score_bins, bin_size, discard_threshold=None):
+    def generate_spheres(self, n_spheres, target_avg_points, num_bins, bin_size, discard_threshold=None):
         
         bins=[]
-        for i in range(len(score_bins)-1):
-            max_score= int((i+1-(score_bins/2)) * bin_size)
+        for i in range(num_bins-1):
+            max_score= int((i+1-(num_bins/2)) * bin_size)
             bins.append(max_score)
         
-        bins[len(score_bins)-1]= np.inf
+        bins[len(num_bins)-1]= np.inf
 
         # load data from mongodb
         feature_vectors, scores= self.dataloader.load_clip_vector_data()
@@ -124,11 +124,11 @@ class UniformSphereGenerator:
         return sphere_data, avg_points_per_sphere, len(total_covered_points)
 
 
-    def load_sphere_dataset(self, n_spheres, target_avg_points, score_bins, bin_size):
+    def load_sphere_dataset(self, n_spheres, target_avg_points, num_bins, bin_size):
         # generating spheres
         sphere_data, avg_points_per_sphere, total_covered_points= self.generate_spheres(n_spheres=n_spheres,
                                                        target_avg_points=target_avg_points,
-                                                       score_bins=score_bins,
+                                                       num_bins=num_bins,
                                                        bin_size=bin_size)
         
         inputs=[]
