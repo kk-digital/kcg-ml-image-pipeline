@@ -45,7 +45,7 @@ class UniformSphereGenerator:
             max_score= int((i+1-(num_bins/2)) * bin_size)
             bins.append(max_score)
         
-        bins[num_bins-1]= np.inf
+        bins.append(np.inf)
 
         # load data from mongodb
         feature_vectors, scores= self.dataloader.load_clip_vector_data()
