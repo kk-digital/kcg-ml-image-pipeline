@@ -523,7 +523,7 @@ def train_model(train_loader,val_loader, adv_loader, **kwargs):
 from safetensors.torch import load_model, save_model
 def save_model_to_minio(model,name,local_path):
          # Save the model locally pth
-        save_model(model.state_dict(), local_path)
+        save_model(model, local_path)
         
         #Read the contents of the saved model file
         with open(local_path, "rb") as model_file:
