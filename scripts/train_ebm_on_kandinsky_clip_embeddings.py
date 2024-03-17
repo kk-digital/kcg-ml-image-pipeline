@@ -522,7 +522,7 @@ from safetensors.torch import load_model, save_model
 # ------------------------------------------------- Save Model --------------------------------------------------
 def save_model(model,name,local_path):
          # Save the model locally pth
-        save_model(model.state_dict(), local_path )
+        safetensors.torch.save_model(model.state_dict(), local_path )
         
         #Read the contents of the saved model file
         with open(local_path, "rb") as model_file:
