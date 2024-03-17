@@ -520,9 +520,9 @@ def train_model(train_loader,val_loader, adv_loader, **kwargs):
 
 from safetensors.torch import load_model, save_model
 # ------------------------------------------------- Save Model --------------------------------------------------
-def save_model(model,name,local_path):
+def save_model_to_minio(model,name,local_path):
          # Save the model locally pth
-        safetensors.torch.save_model(model.state_dict(), local_path )
+        save_model(model.state_dict(), local_path )
         
         #Read the contents of the saved model file
         with open(local_path, "rb") as model_file:
@@ -939,7 +939,7 @@ class EBM_Single_Class_Trainer:
                             train_loader = train_loader,
                             val_loader = val_loader,
                             adv_loader =adv_loader )
-        save_model(model,self.save_name,'temp_model.safetensors')
+        save_model_to_minio(model,self.save_name,'temp_model.safetensors')
 
 
         # up loader graphs
@@ -1080,7 +1080,7 @@ class EBM_Single_Class_Trainer:
 #                     batch_size=train_loader.batch_size,
 #                     lr=0.001,
 #                     beta1=0.0)
-# save_model(new_occult_model,'occult','temp_model.pth')
+# save_model_to_minio(new_occult_model,'occult','temp_model.pth')
 
 
 # # Plot
@@ -1229,7 +1229,7 @@ new_aquatic_model = train_model(train_loader,val_loader, adv_loader, img_shape=(
                     batch_size=train_loader.batch_size,
                     lr=0.001,
                     beta1=0.0)
-save_model(new_aquatic_model,'aquatic','temp_model.safetensors')
+save_model_to_minio(new_aquatic_model,'aquatic','temp_model.safetensors')
 
 
 # # up loader graphs
@@ -1368,7 +1368,7 @@ plt.clf()
 #                     batch_size=train_loader.batch_size,
 #                     lr=0.001,
 #                     beta1=0.0)
-# save_model(new_desert_model,'desert','temp_model.pth')
+# save_model_to_minio(new_desert_model,'desert','temp_model.pth')
 
 
 # # up loader graphs
