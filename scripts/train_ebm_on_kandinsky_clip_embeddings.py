@@ -551,6 +551,7 @@ def load_model(model,type):
         for model_file in model_files:
             print(model_file)
             if model_file.endswith(suffix):
+                print("yep found one")
                 most_recent_model = model_file
 
         if most_recent_model:
