@@ -489,7 +489,6 @@ def process_jobs(worker_state):
     last_job_time = time.time()
 
     while True:
-        worker_state.store_self_training_data()
         job = worker_state.job_queue.get()
 
         if job is not None:
@@ -634,6 +633,9 @@ def main():
     thread.start()
 
     while True:
+        # store self training data
+        worker_state.store_self_training_data()
+
         # if we have more than n jobs in queue
         # sleep for a while
         if worker_state.job_queue.qsize() >= worker_state.queue_size:
