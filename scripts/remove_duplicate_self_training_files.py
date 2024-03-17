@@ -24,17 +24,12 @@ def parse_args():
 
     return parser.parse_args()
 
-def standardize_and_hash(data):
-    """Standardize the data format for comparison and compute a hash."""
-    # Sorting the dictionaries by keys and the list of dictionaries to ensure consistent ordering
-    standardized_data = json.dumps(data, sort_keys=True)
-    return hashlib.md5(standardized_data.encode('utf-8')).hexdigest()
 
 def get_self_training_data(minio_client):
     self_training_path = DATA_MINIO_DIRECTORY + "/self_training/"
     self_training_files = minio_client.list_objects('datasets', prefix=self_training_path, recursive=True)
     
-    previous_content = []
+    unique_data = []
     duplicates = []
 
     for file in self_training_files:
@@ -46,20 +41,12 @@ def get_self_training_data(minio_client):
         # Read and deserialize the msgpack file content
         content = msgpack.unpackb(data.read(), raw=False)
 
-        # Check if this content has been seen before
-        if content[0] in previous_content:
-            # Duplicate content found
+        # Check if this content is already in unique_data
+        if any(content == existing_content for existing_content in unique_data):
             print(f"Duplicate found: {file_path}")
             duplicates.append(file_path)
         else:
-            # New unique content
-            previous_content.append(content[0])
-
-    # Handling duplicates
-    for duplicate_path in duplicates:
-        print(f"Removing duplicate: {duplicate_path}")
-
-    print("Processed files. Duplicates identified.")
+            unique_data.append(content)
 
 def main():
     args = parse_args()
