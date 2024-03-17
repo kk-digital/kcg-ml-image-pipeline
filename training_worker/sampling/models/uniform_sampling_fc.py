@@ -73,6 +73,7 @@ class SamplingFCNetwork(nn.Module):
         # Combine all layers into a sequential model
         self.model = nn.Sequential(*layers).to(self._device)
         self.input_size= input_size
+        self.output_size= output_size
         self.bin_size= bin_size
         self.minio_client= minio_client
         self.input_type= input_type
@@ -92,18 +93,18 @@ class SamplingFCNetwork(nn.Module):
         return local_path, minio_path
 
     def get_class_labels(self):
-        input_size= self.input_size
+        output_size= self.output_size
         bin_size= self.bin_size
 
         class_labels=[]
-        for i in range(0, input_size):
+        for i in range(0, output_size):
             # calculate min and max for bin
-            min_score_value= (i-(input_size/2)) * bin_size
+            min_score_value= (i-(output_size/2)) * bin_size
             max_score_value= min_score_value + bin_size
             # get label str values
             if i==0:
                 class_label= f"<{max_score_value}"
-            elif i == input_size-1:
+            elif i == output_size-1:
                 class_label= f">{min_score_value}"
             else:
                 class_label= f"[{min_score_value},{max_score_value}]"
@@ -217,7 +218,9 @@ class SamplingFCNetwork(nn.Module):
         elif self.input_type=="input_clip":
             input_type="[input_clip_vector[1280]]"
 
-        class_report = classification_report(y_true, y_pred, target_names=self.class_labels, zero_division=0)
+        # Identify all unique labels present in the data
+        labels = np.unique(np.hstack([y_true, y_pred]))
+        class_report = classification_report(y_true, y_pred, target_names=labels, zero_division=0)
 
         report_text = (
             "================ Model Report ==================\n"
