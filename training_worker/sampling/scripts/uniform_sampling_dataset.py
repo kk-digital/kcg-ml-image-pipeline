@@ -73,7 +73,7 @@ class UniformSphereGenerator:
 
         # The radius of each sphere is the distance to the k-th nearest neighbor
         radii = distances[:, -1]
-        
+
         # Determine which spheres to keep based on the discard threshold
         if discard_threshold is not None:
             valid_mask = radii < discard_threshold
@@ -84,44 +84,41 @@ class UniformSphereGenerator:
             valid_centers = sphere_centers
             valid_radii = radii
 
-        print("Calculating points assigned to each sphere-------------")
+        print("Processing sphere data-------------")
         # Prepare to collect sphere data and statistics
         sphere_data = []
         total_covered_points = set()
-        
-        # Perform a range search for each valid sphere to find points within its radius
-        for center, radius in tqdm(zip(valid_centers, valid_radii)):
-            # Convert center to a query matrix of shape (1, d) for FAISS
-            query_matrix = center.reshape(1, d).astype('float32')
-            
-            # Perform the range search
-            lims, D, I = index.range_search(query_matrix, radius)
-            
-            # Extract indices of points within the radius
-            point_indices = I[lims[0]:lims[1]]
 
-            # calculate score distribution
-            score_distribution=np.zeros(len(bins))
+        # Assuming 'scores' contains the scores for all points and 'bins' defines the score bins
+        for center, radius, sphere_indices in zip(valid_centers, valid_radii, indices):
+            # Extract indices of points within the sphere
+            point_indices = sphere_indices
+
+            # Calculate score distribution for the sphere
+            score_distribution = np.zeros(len(bins))
             for idx in point_indices:
-                score= scores[idx]
-                for i in range(len(bins)):
-                    if score < bins[i]:
-                        score_distribution[i]+=1
+                score = scores[idx]
+                for i, bin_edge in enumerate(bins):
+                    if score < bin_edge:
+                        score_distribution[i] += 1
                         break
-            
-            score_distribution= score_distribution / len(point_indices)
+
+            # Normalize the score distribution by the number of points in the sphere
+            if len(point_indices) > 0:
+                score_distribution = score_distribution / len(point_indices)
             
             # Update sphere data and covered points
-            sphere_data.append({'center': center, 'radius': math.sqrt(radius), 'points': point_indices, 
-                                "score_distribution": score_distribution})
+            sphere_data.append({
+                'center': center, 
+                'radius': math.sqrt(radius),  # Assuming radius needs to be sqrt to represent actual distance
+                'points': point_indices, 
+                "score_distribution": score_distribution
+            })
             total_covered_points.update(point_indices)
         
         # Calculate statistics
         points_per_sphere = [len(sphere['points']) for sphere in sphere_data]
         avg_points_per_sphere = np.mean(points_per_sphere) if points_per_sphere else 0
-
-        # graph stats
-        self.plot(sphere_data, points_per_sphere, n_spheres, scores)
 
         print(f"total datapoints: {len(total_covered_points)}")
         print(f"average points per sphere: {avg_points_per_sphere}")
