@@ -1060,25 +1060,26 @@ async def get_pending_job_count_task_type(request: Request):
     aggregation_pipeline = [
         {
             "$group": {
-                "_id": "$task_type",  # Group by the `task_type`
-                "count": {"$sum": 1}  # Count the documents in each group
+                "_id": "$task_type",
+                "count": {"$sum": 1}
             }
         },
         {
             "$project": {
-                "_id": 0,  # Exclude the _id field from the results
-                "task_type": "$_id",  # Assign the grouped task_type to a new field
-                "count": 1  # Include the count in the results
+                "_id": 0,
+                "task_type": "$_id",
+                "count": 1
             }
         },
         {
-            "$sort": {"task_type": 1}  # Sort by task_type alphabetically
+            "$sort": {"task_type": 1}
         }
     ]
     
-    # Execute the aggregation pipeline
     cursor = request.app.pending_jobs_collection.aggregate(aggregation_pipeline)
-    results = await cursor.to_list(length=None)
+    results = list(cursor)
     
-    # Directly return the results which are now in the desired format
-    return results    
+    # Transform the results to match the expected output
+    formatted_results = [{"task_type": result["task_type"], "count": result["count"]} for result in results]
+    
+    return formatted_results
