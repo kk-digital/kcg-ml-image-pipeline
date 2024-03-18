@@ -1112,3 +1112,37 @@ def get_task_times(request: Request):
         "first_five": first_five_results,
         "last_five": last_five_results
     } 
+
+@router.get("/completed-jobs/kandinsky/dataset-score-count")
+async def get_dataset_image_clip_h_sigma_score_count(request: Request):
+    task_type = "img2img_generation_kandinsky"
+    field_path = "task_attributes_dict.elm-v1.image_clip_h_sigma_score"
+
+    aggregation_pipeline = [
+        {
+            # Filter by task_type and check that the specific field exists
+            "$match": {
+                "task_type": task_type,
+                field_path: {"$exists": True}
+            }
+        },
+        {
+            # Group by dataset and count occurrences
+            "$group": {
+                "_id": "$task_input_dict.dataset",  # Assuming the dataset field is under task_input_dict
+                "count": {"$sum": 1}
+            }
+        },
+        {
+            # Optionally, sort the results by dataset name
+            "$sort": {"_id": 1}
+        }
+    ]
+
+    cursor = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
+    results = list(cursor) 
+
+    # Transform the results to be more readable
+    formatted_results = [{"dataset": result["_id"], "count": result["count"]} for result in results]
+
+    return formatted_results    
