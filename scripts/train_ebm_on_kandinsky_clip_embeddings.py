@@ -1027,8 +1027,8 @@ def main():
     # do self training
     training_pipeline.train()
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
 
             
 
@@ -1310,33 +1310,33 @@ if __name__ == "__main__":
 
 
 
-# # Evaluate new model
-# #automated model
-# #toodoo
+# Evaluate new model
+#automated model
+#toodoo
 
 
-# # Create a new Model    
-# new_forest_model_st = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-# # Load the last occult trained model
-# load_model_to_minio(new_forest_model_st,'forest')
+# Create a new Model    
+new_text_model_st = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# Load the last occult trained model
+load_model_to_minio(new_text_model_st,'content-has-text')
 
 
-# # Load the environmental dataset     
-# images_paths_ood = get_file_paths("environmental",30000)
+# Load the environmental dataset     
+images_paths_ood = get_file_paths("environmental",30000)
 
-# # #go create something
-# # print("yep it's here")
-# new_sorted_images = process_and_sort_dataset(images_paths_ood, new_forest_model_st)
+# #go create something
+# print("yep it's here")
+new_sorted_images = process_and_sort_dataset(images_paths_ood, new_text_model_st)
 
 
-# get_structure_csv_content(new_sorted_images,"aquatic_on_env_30000_sample")
-# selected_structure_first_52 = new_sorted_images[:52]
-# selected_structure_second_52 = new_sorted_images[52:103]
-# selected_structure_third_52 = new_sorted_images[103:154]
+get_structure_csv_content(new_sorted_images,"text_on_env_30000_sample")
+selected_structure_first_52 = new_sorted_images[:52]
+selected_structure_second_52 = new_sorted_images[52:103]
+selected_structure_third_52 = new_sorted_images[103:154]
 
-# plot_images_with_scores(selected_structure_first_52,"aquatic_env_30000_tier_1")
-# plot_images_with_scores(selected_structure_second_52,"aquatic_env_30000_tier_2")
-# plot_images_with_scores(selected_structure_third_52,"aquatic_env_30000_tier_3")
+plot_images_with_scores(selected_structure_first_52,"text_env_30000_tier_1")
+plot_images_with_scores(selected_structure_second_52,"text_env_30000_tier_2")
+plot_images_with_scores(selected_structure_third_52,"text_env_30000_tier_3")
     
 
 # ---------------------------------------------------------------------------------------------------------------------
