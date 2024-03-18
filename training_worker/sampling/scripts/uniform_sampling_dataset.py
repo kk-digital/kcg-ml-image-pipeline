@@ -24,6 +24,8 @@ def parse_args():
     parser.add_argument('--target-avg-points', type=int, help='Target average of datapoints per sphere', 
                         default=5)
     parser.add_argument('--n-spheres', type=int, help='Number of spheres', default=100000)
+    parser.add_argument('--num-bins', type=int, help='Number of score bins', default=8)
+    parser.add_argument('--bin-size', type=int, help='Range of each bin', default=1)
 
     return parser.parse_args()
 
@@ -193,8 +195,9 @@ def main():
     generator= UniformSphereGenerator(minio_client=minio_client,
                                     dataset=args.dataset)
     
-    inputs, outputs = generator.load_sphere_dataset(n_spheres=args.n_spheres,
-                                                       target_avg_points= args.target_avg_points)
+    inputs, outputs = generator.load_sphere_dataset(
+                                                    n_spheres=args.n_spheres,
+                                                    target_avg_points= args.target_avg_points)
     
     
 if __name__ == "__main__":
