@@ -2,8 +2,8 @@ from fastapi import Request, APIRouter, Query, HTTPException, Response
 from utility.minio import cmd
 import json
 from orchestration.api.mongo_schemas import RankingModel
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, ApiResponseHandlerV1, StandardSuccessResponseV1, ModelResponse, ModelIdResponse
-from datetime import datetime
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, ApiResponseHandlerV1, StandardSuccessResponseV1, ModelResponse, ModelIdResponse, ModelTypeResponse, ModelsAndScoresResponse
+from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import re
 from typing import List
@@ -120,7 +120,7 @@ def get_ranking_models(request: Request, dataset: str = Query(...)):
     return models_list
 
 
-@router.get("/models/rank-embedding/latest-model")
+@router.get("/models/rank-embedding/latest-model", tags = ['deprecated'], description="'/models/rank-embedding/get-latest-model' is the replacement")
 def get_latest_ranking_model(request: Request,
                              dataset: str = Query(...),
                              input_type: str = 'embedding',
@@ -439,7 +439,7 @@ def get_relevancy_models(request: Request, dataset: str = Query(...)):
             http_status_code=500,
         )
 
-@router.get("/models/rank-embedding/list-models-v1",
+@router.get("/models/rank-embedding/list-models-v2",
             response_model=StandardSuccessResponseV1[ModelResponse],  
             description="List ranking models ",
             tags=["models"],
@@ -552,12 +552,13 @@ def get_latest_ranking_model_v1(request: Request,
     
 
 @router.post("/models/add-v1",
-             response_model=StandardSuccessResponseV1[int], 
+             response_model=StandardSuccessResponseV1[ModelIdResponse], 
              description="Add a model to model collection",
+             tags=["models"],
              status_code=200,
              responses=ApiResponseHandlerV1.listErrors([400, 500]))
-def add_model(request: Request, model: RankingModel):
-    response_handler = ApiResponseHandlerV1(request, body_data=model)
+async def add_model(request: Request, model: RankingModel):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
         query = {"model_file_hash": model.model_file_hash}
         item = request.app.models_collection.find_one(query)
@@ -606,6 +607,7 @@ def get_model_id(request: Request, model_hash: str):
 
 @router.get("/static/models/get-latest-graph",
             description="Get the latest graph",
+            tags=["models"],
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([400, 404, 500]))
 async def get_latest_graph(request: Request, dataset: str = Query(...), model_type: str = Query(...)):
@@ -637,11 +639,13 @@ async def get_latest_graph(request: Request, dataset: str = Query(...), model_ty
             http_status_code=500,
         )
 
-@router.get("/models/list-model-types",
+@router.get("/models/list-model-types-v1",
             description="List model types",
+            response_model=StandardSuccessResponseV1[ModelTypeResponse],
+            tags=["models"],
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([400, 500]))
-async def list_model_types(request: Request, dataset: str):
+async def list_model_types_v1(request: Request, dataset: str):
     response_handler = ApiResponseHandlerV1(request)
     bucket_name = "datasets"
     base_path = f"{dataset}/output/scores-graph"
@@ -672,6 +676,7 @@ async def list_model_types(request: Request, dataset: str):
 
 @router.get("/static/models/get-model-card/{file_path:path}",
             description="Get model card",
+            tags=["models"],
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 def get_model_card(request: Request, file_path: str):
@@ -705,6 +710,7 @@ def get_model_card(request: Request, file_path: str):
 
 @router.get("/static/models/get-graph/{file_path:path}",
             description="Get graph",
+            tags=["models"],
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 def get_graph(request: Request, file_path: str):
@@ -733,6 +739,7 @@ def get_graph(request: Request, file_path: str):
 
 @router.get("/static/models/get-report/{file_path:path}",
             description="Get report",
+            tags=["models"],
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 def get_report(request: Request, file_path: str):
@@ -757,4 +764,65 @@ def get_report(request: Request, file_path: str):
             error_code=ErrorCode.OTHER_ERROR,
             error_string=str(e),
             http_status_code=500,
+        )
+    
+CACHE = {}
+CACHE_EXPIRATION_DELTA = timedelta(hours=12)  
+
+@router.get("/models/list-model-types-and-scores", 
+         response_model=StandardSuccessResponseV1[ModelsAndScoresResponse],
+         tags = ['models'],
+         responses=ApiResponseHandlerV1.listErrors([404, 500]),
+         description="List unique score types from task_attributes_dict")
+def list_task_attributes_v1(request: Request, dataset: str = Query(..., description="Dataset to filter tasks")):
+    api_handler = ApiResponseHandlerV1(request)
+    try:
+        # Check if data is in cache and not expired
+        cache_key = f"task_attributes_{dataset}"
+        if cache_key in CACHE and datetime.now() - CACHE[cache_key]['timestamp'] < CACHE_EXPIRATION_DELTA:
+            return api_handler.create_success_response_v1(response_data=CACHE[cache_key]['data'], http_status_code=200)
+
+        # Fetch data from the database for the specified dataset
+        tasks_cursor = request.app.completed_jobs_collection.find(
+            {"task_input_dict.dataset": dataset, "task_attributes_dict": {"$exists": True, "$ne": {}}},
+            {'task_attributes_dict': 1}
+        )
+
+        # Use a set for score field names and a list for model names
+        score_fields = set()
+        model_names = []
+
+        # Iterate through cursor and add unique score field names and model names
+        for task in tasks_cursor:
+            task_attr_dict = task.get('task_attributes_dict', {})
+            if isinstance(task_attr_dict, dict):  # Check if task_attr_dict is a dictionary
+                for model, scores in task_attr_dict.items():
+                    if model not in model_names:
+                        model_names.append(model)
+                    score_fields.update(scores.keys())
+
+        # Convert set to a list to make it JSON serializable
+        score_fields_list = list(score_fields)
+
+        # Store data in cache with timestamp
+        CACHE[cache_key] = {
+            'timestamp': datetime.now(),
+            'data': {
+                "Models": model_names,
+                "Scores": score_fields_list
+            }
+        }
+
+        # Return success response
+        return api_handler.create_success_response_v1(response_data={
+            "Models": model_names,
+            "Scores": score_fields_list
+        }, http_status_code=200)
+
+    except Exception as exc:
+        print(f"Exception occurred: {exc}")
+        return api_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string="Internal Server Error",
+            http_status_code=500
         )

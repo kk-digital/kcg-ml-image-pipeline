@@ -25,8 +25,9 @@ def set_image_rank_score(request: Request, ranking_score: RankingScore):
              tags=["score"],  
              response_model=StandardSuccessResponseV1[RankingScore],
              responses=ApiResponseHandlerV1.listErrors([400, 422]))  # Added 409 for conflict
-def set_image_rank_score(request: Request, ranking_score: RankingScore):
-    api_response_handler = ApiResponseHandlerV1(request, body_data=ranking_score)
+async def set_image_rank_score(request: Request, ranking_score: RankingScore):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+   
     
     # check if exists
     query = {"image_hash": ranking_score.image_hash,

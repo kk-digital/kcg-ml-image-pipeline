@@ -24,8 +24,8 @@ def set_image_rank_residual(request: Request, ranking_residual: RankingResidual)
              description="Set image rank residual",
              response_model=StandardSuccessResponseV1[RankingResidual],
              responses=ApiResponseHandlerV1.listErrors([400, 422]))
-def set_image_rank_residual(request: Request, ranking_residual: RankingResidual):
-    api_response_handler = ApiResponseHandlerV1(request, body_data=ranking_residual)
+async def set_image_rank_residual(request: Request, ranking_residual: RankingResidual):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     query = {"image_hash": ranking_residual.image_hash, "model_id": ranking_residual.model_id}
     count = request.app.image_residuals_collection.count_documents(query)
     
