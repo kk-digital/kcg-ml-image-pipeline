@@ -1117,26 +1117,33 @@ def get_task_times(request: Request):
 async def get_dataset_image_clip_h_sigma_score_count(request: Request):
     task_type = "img2img_generation_kandinsky"
 
+    # Define the aggregation pipeline
     aggregation_pipeline = [
         {
+            # Filter by task_type and check that the specific nested field exists
             "$match": {
-                "task_type": task_type
+                "task_type": task_type,
+                "task_attributes_dict.elm-v1.image_clip_h_sigma_score": {"$exists": True}
             }
         },
         {
+            # Group by dataset and count occurrences
             "$group": {
-                "_id": "$task_input_dict.dataset",
-                "count": {"$sum": 1}
+                "_id": "$task_input_dict.dataset",  # Grouping by dataset
+                "count": {"$sum": 1}  # Counting the documents that match the criteria
             }
         },
         {
+            # Optionally, sort the results by dataset name
             "$sort": {"_id": 1}
         }
     ]
 
+    # Execute the aggregation pipeline
     cursor = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
-    results = list(cursor) 
+    results = await cursor.to_list(length=None)  # Make sure to adjust this line based on your setup (async/sync)
 
+    # Transform the results to be more readable
     formatted_results = [{"dataset": result["_id"], "count": result["count"]} for result in results]
 
     return formatted_results
