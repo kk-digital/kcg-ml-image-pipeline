@@ -12,8 +12,6 @@ import torch
 import msgpack
 import torch.optim as optim
 
-from utility.path import separate_bucket_and_file_path
-
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
@@ -23,6 +21,7 @@ from training_worker.scoring.models.scoring_fc import ScoringFCNetwork
 from utility.minio import cmd
 from utility.http import request
 from data_loader.utils import get_object
+from utility.path import separate_bucket_and_file_path
 
 def parse_args():
         parser = argparse.ArgumentParser()
