@@ -29,7 +29,7 @@ def parse_args():
     return parser.parse_args()
 
 def get_job_list(dataset):
-    response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset?dataset={dataset}&limit=4000000')
+    response = requests.get(f'{API_URL}/queue/image-generation/list-by-dataset?dataset={dataset}&size=4000000&min_clip_sigma_score=1')
         
     jobs = json.loads(response.content)
 
