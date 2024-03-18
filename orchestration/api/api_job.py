@@ -1083,3 +1083,32 @@ async def get_pending_job_count_task_type(request: Request):
     formatted_results = [{"task_type": result["task_type"], "count": result["count"]} for result in results]
     
     return formatted_results
+
+
+@router.get("/queue/tasks/times", response_class =PrettyJSONResponse)
+def get_task_times(request: Request):
+    task_type = "img2img_generation_kandinsky"
+    
+    # Query for the first 5 documents
+    first_five = request.app.pending_jobs_collection.find(
+        {"task_type": task_type},
+        {"task_creation_time": 1, "_id": 0}  # Project only the task_creation_time field
+    ).sort("task_creation_time", 1).limit(5)  # Sort ascending
+
+    # Query for the last 5 documents
+    last_five = request.app.pending_jobs_collection.find(
+        {"task_type": task_type},
+        {"task_creation_time": 1, "_id": 0}  # Project only the task_creation_time field
+    ).sort("task_creation_time", -1).limit(5)  # Sort descending
+    
+    # Convert cursor to list using the list() function
+    first_five_results = list(first_five)
+    last_five_results = list(last_five)
+
+    # Reverse the order of last_five_results to display them from earliest to latest
+    last_five_results.reverse()
+
+    return {
+        "first_five": first_five_results,
+        "last_five": last_five_results
+    } 
