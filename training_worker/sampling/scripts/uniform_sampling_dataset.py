@@ -142,23 +142,29 @@ class UniformSphereGenerator:
         return inputs, outputs 
 
     def plot(self, sphere_data, points_per_sphere, n_spheres, scores):
-        fig, axs = plt.subplots(1, 2, figsize=(16, 8))
+        fig, axs = plt.subplots(1, 3, figsize=(24, 8))  # Adjust for three subplots
         
-        # Preparing data for plots
+        # Calculate mean scores as before
         mean_scores = [np.mean([scores[j] for j in sphere_data[i]['points']]) if sphere_data[i] else 0 for i in range(n_spheres)]
+        sphere_radii= [data['radius'] for data in sphere_data]
         
-        # Histogram of Points per Cluster
-        axs[0].bar(range(n_spheres), points_per_sphere, color='skyblue')
-        axs[0].set_xlabel('Sphere ID')
-        axs[0].set_ylabel('Number of Points')
-        axs[0].set_title('Number of Points per Sphere')
+        # Histogram of Points per Sphere
+        axs[0].hist(points_per_sphere, color='skyblue', bins=np.arange(min(points_per_sphere), max(points_per_sphere) + 1, 1))
+        axs[0].set_xlabel('Number of Points')
+        axs[0].set_ylabel('Frequency')
+        axs[0].set_title('Distribution of Points per Sphere')
         
-        # Scatter Plot of Cluster Density vs. Mean Score
-        axs[1].scatter(points_per_sphere, mean_scores, c='blue', marker='o')
-        axs[1].set_xlabel('Sphere Density (Number of Points)')
-        axs[1].set_ylabel('Mean Score')
-        axs[1].set_title('Sphere Density vs. Mean Score')
-        axs[1].grid(True)
+        # Histogram of Mean Scores
+        axs[1].hist(mean_scores, color='lightgreen', bins=20)  # Adjust bins as needed
+        axs[1].set_xlabel('Mean Score')
+        axs[1].set_ylabel('Frequency')
+        axs[1].set_title('Distribution of Mean Scores')
+
+        # Histogram of Sphere Radii
+        axs[2].hist(sphere_radii, color='lightcoral', bins=20)  # Adjust bins as needed
+        axs[2].set_xlabel('Sphere Radii')
+        axs[2].set_ylabel('Frequency')
+        axs[2].set_title('Distribution of Sphere Radii')
         
         plt.tight_layout()
 
@@ -167,10 +173,11 @@ class UniformSphereGenerator:
         plt.savefig(buf, format='png')
         buf.seek(0)
 
-        # upload the graph report
+        # Upload the graph report
+        # Ensure cmd.upload_data(...) is appropriately defined to handle your MinIO upload.
         cmd.upload_data(self.minio_client, 'datasets', "environmental/output/sphere_dataset/graphs.png", buf)  
 
-        # Clear the current figure
+        # Clear the current figure to prevent overlap with future plots
         plt.clf()
 
 def main():
