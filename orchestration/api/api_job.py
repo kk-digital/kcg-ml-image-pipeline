@@ -1116,7 +1116,7 @@ def get_task_times(request: Request):
 @router.get("/completed-jobs/kandinsky/dataset-score-count")
 async def get_dataset_image_clip_h_sigma_score_count(request: Request):
     task_type = "img2img_generation_kandinsky"
-    field_path = "task_attributes_dict.elm-v1.image_clip_h_sigma_score"
+    field_path = "task_attributes_dict.image_clip_h_sigma_score"
 
     aggregation_pipeline = [
         {
