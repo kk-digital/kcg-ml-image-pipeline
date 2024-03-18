@@ -1118,14 +1118,16 @@ async def get_dataset_image_clip_h_sigma_score_count(request: Request):
     task_type = "img2img_generation_kandinsky"
     field_path = "task_attributes_dict.elm-v1.image_clip_h_sigma_score"
 
+    # Construct the $match stage using dynamic field paths
+    match_stage = {
+        "$match": {
+            "task_type": task_type,
+            **{field_path: {"$exists": True}}  # Dynamically include the field path in the query
+        }
+    }
+
     aggregation_pipeline = [
-        {
-            # Filter by task_type and check that the specific field exists
-            "$match": {
-                "task_type": task_type,
-                field_path: {"$exists": True}
-            }
-        },
+        match_stage,
         {
             # Group by dataset and count occurrences
             "$group": {
@@ -1145,4 +1147,4 @@ async def get_dataset_image_clip_h_sigma_score_count(request: Request):
     # Transform the results to be more readable
     formatted_results = [{"dataset": result["_id"], "count": result["count"]} for result in results]
 
-    return formatted_results    
+    return formatted_results  
