@@ -1141,7 +1141,7 @@ async def get_dataset_image_clip_h_sigma_score_count(request: Request):
 
     # Execute the aggregation pipeline
     cursor = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
-    results = await cursor.to_list(length=None)  # Make sure to adjust this line based on your setup (async/sync)
+    results = list(cursor)
 
     # Transform the results to be more readable
     formatted_results = [{"dataset": result["_id"], "count": result["count"]} for result in results]
