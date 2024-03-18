@@ -169,7 +169,7 @@ class KandinskyImageGenerator:
 
                 features_data = get_object(self.minio_client, features_vector_path)
                 features = msgpack.unpackb(features_data)["clip-feature-vector"]
-                features = torch.tensor(features)
+                features = torch.tensor(features).to(self.device)
                 clip_vectors.append(features)
             except Exception as e:
                 # Handle the specific exception (e.g., FileNotFoundError, ConnectionError) or a general exception.
