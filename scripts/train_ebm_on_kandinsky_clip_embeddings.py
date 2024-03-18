@@ -1219,90 +1219,90 @@ class EBM_Single_Class_Trainer:
 # ---------------------------------------------------------------------------------------------------------------------
  
 
-# new_combined_paths =  get_tag_jobs(21)
+new_combined_paths =  get_tag_jobs(34)
 
-# # Create dataloader of occult
-# train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(new_combined_paths,1)
+# Create dataloader of occult
+train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(new_combined_paths,1)
 
-# # Get adversarial dataset
-# train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,35,40,20,22],0)
+# Get adversarial dataset
+train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,35,40,20,21,22],0)
 
-# # init the loader
-# train_loader = train_loader_automated
-# val_loader = val_loader_automated
-# adv_loader = train_loader_clip_ood
-
-
-
-# # Train
-
-# new_aquatic_model = train_model(train_loader,val_loader, adv_loader, img_shape=(1,1280),
-#                     batch_size=train_loader.batch_size,
-#                     lr=0.001,
-#                     beta1=0.0)
-# save_model_to_minio(new_aquatic_model,'aquatic','temp_model.safetensors')
+# init the loader
+train_loader = train_loader_automated
+val_loader = val_loader_automated
+adv_loader = train_loader_clip_ood
 
 
-# # # up loader graphs
 
-# # # # Plot
+# Train
 
-# # ############### Plot graph
-# epochs = range(1, len(total_losses) + 1)  
-
-# # Create subplots grid (3 rows, 1 column)
-# fig, axes = plt.subplots(4, 1, figsize=(10, 24))
-
-# # Plot each loss on its own subplot
-# axes[0].plot(epochs, total_losses, label='Total Loss')
-# axes[0].set_xlabel('Steps')
-# axes[0].set_ylabel('Loss')
-# axes[0].set_title('Total Loss')
-# axes[0].legend()
-# axes[0].grid(True)
-
-# axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
-# axes[1].set_xlabel('Steps')
-# axes[1].set_ylabel('Loss')
-# axes[1].set_title('Contrastive Divergence Loss')
-# axes[1].legend()
-# axes[1].grid(True)
+new_mountain_model = train_model(train_loader,val_loader, adv_loader, img_shape=(1,1280),
+                    batch_size=train_loader.batch_size,
+                    lr=0.001,
+                    beta1=0.0)
+save_model_to_minio(new_mountain_model,'mountain','temp_model.safetensors')
 
 
-# axes[2].plot(epochs, reg_losses , label='Regression Loss')
-# axes[2].set_xlabel('Steps')
-# axes[2].set_ylabel('Loss')
-# axes[2].set_title('Regression Loss')
-# axes[2].legend()
-# axes[2].grid(True)
+# # up loader graphs
 
-# # Plot real and fake scores on the fourth subplot
-# axes[3].plot(epochs, real_scores_s, label='Real Scores')
-# axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
-# axes[3].set_xlabel('Steps')
-# axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
-# axes[3].set_title('Real vs. Fake Scores')
-# axes[3].legend()
-# axes[3].grid(True)
+# # # Plot
 
-# # Adjust spacing between subplots for better visualization
-# plt.tight_layout()
+# ############### Plot graph
+epochs = range(1, len(total_losses) + 1)  
 
-# plt.savefig("output/loss_tracking_per_step.png")
+# Create subplots grid (3 rows, 1 column)
+fig, axes = plt.subplots(4, 1, figsize=(10, 24))
 
-# # Save the figure to a file
-# buf = io.BytesIO()
-# plt.savefig(buf, format='png')
-# buf.seek(0)
+# Plot each loss on its own subplot
+axes[0].plot(epochs, total_losses, label='Total Loss')
+axes[0].set_xlabel('Steps')
+axes[0].set_ylabel('Loss')
+axes[0].set_title('Total Loss')
+axes[0].legend()
+axes[0].grid(True)
 
-# # upload the graph report
-# minio_path="environmental/output/my_tests"
-# minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_isometric_training" +date_now+".png"
-# cmd.upload_data(minio_client, 'datasets', minio_path, buf)
-# # Remove the temporary file
-# os.remove("output/loss_tracking_per_step.png")
-# # Clear the current figure
-# plt.clf()
+axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
+axes[1].set_xlabel('Steps')
+axes[1].set_ylabel('Loss')
+axes[1].set_title('Contrastive Divergence Loss')
+axes[1].legend()
+axes[1].grid(True)
+
+
+axes[2].plot(epochs, reg_losses , label='Regression Loss')
+axes[2].set_xlabel('Steps')
+axes[2].set_ylabel('Loss')
+axes[2].set_title('Regression Loss')
+axes[2].legend()
+axes[2].grid(True)
+
+# Plot real and fake scores on the fourth subplot
+axes[3].plot(epochs, real_scores_s, label='Real Scores')
+axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
+axes[3].set_xlabel('Steps')
+axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
+axes[3].set_title('Real vs. Fake Scores')
+axes[3].legend()
+axes[3].grid(True)
+
+# Adjust spacing between subplots for better visualization
+plt.tight_layout()
+
+plt.savefig("output/loss_tracking_per_step.png")
+
+# Save the figure to a file
+buf = io.BytesIO()
+plt.savefig(buf, format='png')
+buf.seek(0)
+
+# upload the graph report
+minio_path="environmental/output/my_tests"
+minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_mountain_training" +date_now+".png"
+cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+# Remove the temporary file
+os.remove("output/loss_tracking_per_step.png")
+# Clear the current figure
+plt.clf()
 
 
 
@@ -1315,7 +1315,7 @@ class EBM_Single_Class_Trainer:
 # Create a new Model    
 new_aquatic_model_st = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
-load_model_to_minio(new_aquatic_model_st,'aquatic')
+load_model_to_minio(new_aquatic_model_st,'mountain')
 
 
 # Load the environmental dataset     
@@ -1326,14 +1326,14 @@ images_paths_ood = get_file_paths("environmental",30000)
 new_sorted_images = process_and_sort_dataset(images_paths_ood, new_aquatic_model_st)
 
 
-get_structure_csv_content(new_sorted_images,"aquatic_on_env_30000_sample")
+get_structure_csv_content(new_sorted_images,"mountain_on_env_30000_sample")
 selected_structure_first_52 = new_sorted_images[:52]
 selected_structure_second_52 = new_sorted_images[52:103]
 selected_structure_third_52 = new_sorted_images[103:154]
 
-plot_images_with_scores(selected_structure_first_52,"aquatic_env_30000_tier_1")
-plot_images_with_scores(selected_structure_second_52,"aquatic_env_30000_tier_2")
-plot_images_with_scores(selected_structure_third_52,"aquatic_env_30000_tier_3")
+plot_images_with_scores(selected_structure_first_52,"mountain_env_30000_tier_1")
+plot_images_with_scores(selected_structure_second_52,"mountainenv_30000_tier_2")
+plot_images_with_scores(selected_structure_third_52,"mountain_env_30000_tier_3")
     
 
 # ---------------------------------------------------------------------------------------------------------------------
