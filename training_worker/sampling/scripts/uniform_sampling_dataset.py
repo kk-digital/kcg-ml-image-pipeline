@@ -118,6 +118,9 @@ class UniformSphereGenerator:
         points_per_sphere = [len(sphere['points']) for sphere in sphere_data]
         avg_points_per_sphere = np.mean(points_per_sphere) if points_per_sphere else 0
 
+        # graph stats
+        self.plot(sphere_data, points_per_sphere, n_spheres, scores)
+
         print(f"total datapoints: {len(total_covered_points)}")
         print(f"average points per sphere: {avg_points_per_sphere}")
         
