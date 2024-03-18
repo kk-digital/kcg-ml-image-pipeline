@@ -1113,7 +1113,7 @@ def get_task_times(request: Request):
         "last_five": last_five_results
     } 
 
-@router.get("/completed-jobs/kandinsky/dataset-score-count", response_class=P)
+@router.get("/completed-jobs/kandinsky/dataset-score-count", response_class=PrettyJSONResponse)
 async def get_dataset_image_clip_h_sigma_score_count(request: Request):
     task_type = "img2img_generation_kandinsky"
 
