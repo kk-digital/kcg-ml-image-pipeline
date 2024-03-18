@@ -38,7 +38,7 @@ def parse_args():
         parser.add_argument('--send-job', action='store_true', default=False)
         parser.add_argument('--save-csv', action='store_true', default=False)
         parser.add_argument('--generation-policy', type=str, help='generation policy', default="proportional_sampling")
-        parser.add_argument('--sampling-policy', type=str, help='sampling policy random, or existing', default="random")
+        parser.add_argument('--sampling-policy', type=str, help='sampling policy random, or existing', default="existing")
 
         return parser.parse_args()
 
@@ -245,8 +245,11 @@ class KandinskyImageGenerator:
         return optimized_embeddings_list
 
     def sample_embeddings(self, num_samples):
-        sampled_embeddings = torch.normal(mean=self.clip_mean.repeat(num_samples, 1),
-                                        std=self.clip_std.repeat(num_samples, 1))
+        if(self.sampling_policy == "random"):
+            sampled_embeddings = torch.normal(mean=self.clip_mean.repeat(num_samples, 1),
+                                            std=self.clip_std.repeat(num_samples, 1))
+        elif(self.sampling_policy == "existing"):
+            sampled_embeddings = self.sampling_from_dataset(num_samples=num_samples)
 
         # Score each sampled embedding
         scores=[]
