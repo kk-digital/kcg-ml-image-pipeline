@@ -249,7 +249,8 @@ class KandinskyImageGenerator:
             sampled_embeddings = torch.normal(mean=self.clip_mean.repeat(num_samples, 1),
                                             std=self.clip_std.repeat(num_samples, 1))
         elif(self.sampling_policy == "existing"):
-            sampled_embeddings = torch.tensor(self.sampling_from_dataset(num_samples=num_samples))
+            sampled_embeddings = self.sampling_from_dataset(num_samples=num_samples)
+            sampled_embeddings = torch.stack(sampled_embeddings).squeeze(1)
 
         # Score each sampled embedding
         scores=[]
