@@ -189,7 +189,7 @@ def get_file_paths(dataset,num_samples):
         response = requests.get(f'{API_URL}/queue/image-generation/list-by-dataset?dataset={dataset}&size={num_samples}')
         
         jobs = json.loads(response.content)
-        print(jobs)
+        
         file_paths=[job['file_path'] for job in jobs]
         #image_hashes=[job['image_hash'] for job in jobs]
         
