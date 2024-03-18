@@ -195,7 +195,8 @@ def main():
     generator= UniformSphereGenerator(minio_client=minio_client,
                                     dataset=args.dataset)
     
-    inputs, outputs = generator.load_sphere_dataset(
+    inputs, outputs = generator.load_sphere_dataset(num_bins= args.num_bins,
+                                                    bin_size= args.bin_size,
                                                     n_spheres=args.n_spheres,
                                                     target_avg_points= args.target_avg_points)
     
