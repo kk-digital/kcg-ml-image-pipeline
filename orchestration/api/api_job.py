@@ -1115,35 +1115,32 @@ def get_task_times(request: Request):
 
 @router.get("/completed-jobs/kandinsky/dataset-score-count", response_class=PrettyJSONResponse)
 async def get_dataset_image_clip_h_sigma_score_count(request: Request):
-    task_type = "img2img_generation_kandinsky"
+    all_datasets_list = ["waifu","propaganda-poster",
+                         "character", "environmental", "external-images",
+                           "icons", "mech", "test-generations", "variants" ]  # This needs to be defined, either from a query or a predefined list
 
-    # Define the aggregation pipeline
     aggregation_pipeline = [
         {
-            # Filter by task_type and check that the specific nested field exists
             "$match": {
-                "task_type": task_type,
+                "task_type": "img2img_generation_kandinsky",
                 "task_attributes_dict.elm-v1.image_clip_h_sigma_score": {"$exists": True}
             }
         },
         {
-            # Group by dataset and count occurrences
             "$group": {
-                "_id": "$task_input_dict.dataset",  # Grouping by dataset
-                "count": {"$sum": 1}  # Counting the documents that match the criteria
+                "_id": "$task_input_dict.dataset",
+                "count": {"$sum": 1}
             }
-        },
-        {
-            # Optionally, sort the results by dataset name
-            "$sort": {"_id": 1}
         }
     ]
 
-    # Execute the aggregation pipeline
     cursor = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
     results = list(cursor)
 
-    # Transform the results to be more readable
-    formatted_results = [{"dataset": result["_id"], "count": result["count"]} for result in results]
+    # Convert aggregation results into a dictionary for easy lookup
+    results_dict = {result["_id"]: result["count"] for result in results}
+
+    # Prepare final results, ensuring all datasets are included with a default count of 0
+    formatted_results = [{"dataset": dataset, "count": results_dict.get(dataset, 0)} for dataset in all_datasets_list]
 
     return formatted_results
