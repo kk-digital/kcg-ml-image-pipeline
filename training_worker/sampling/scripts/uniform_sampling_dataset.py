@@ -24,6 +24,8 @@ def parse_args():
     parser.add_argument('--target-avg-points', type=int, help='Target average of datapoints per sphere', 
                         default=5)
     parser.add_argument('--n-spheres', type=int, help='Number of spheres', default=100000)
+    parser.add_argument('--num-bins', type=int, help='Number of score bins', default=8)
+    parser.add_argument('--bin-size', type=int, help='Range of each bin', default=1)
 
     return parser.parse_args()
 
@@ -71,7 +73,7 @@ class UniformSphereGenerator:
 
         # The radius of each sphere is the distance to the k-th nearest neighbor
         radii = distances[:, -1]
-        
+
         # Determine which spheres to keep based on the discard threshold
         if discard_threshold is not None:
             valid_mask = radii < discard_threshold
@@ -82,36 +84,36 @@ class UniformSphereGenerator:
             valid_centers = sphere_centers
             valid_radii = radii
 
-        print("Calculating points assigned to each sphere-------------")
+        print("Processing sphere data-------------")
         # Prepare to collect sphere data and statistics
         sphere_data = []
         total_covered_points = set()
-        
-        # Perform a range search for each valid sphere to find points within its radius
-        for center, radius in tqdm(zip(valid_centers, valid_radii)):
-            # Convert center to a query matrix of shape (1, d) for FAISS
-            query_matrix = center.reshape(1, d).astype('float32')
-            
-            # Perform the range search
-            lims, D, I = index.range_search(query_matrix, radius)
-            
-            # Extract indices of points within the radius
-            point_indices = I[lims[0]:lims[1]]
 
-            # calculate score distribution
-            score_distribution=np.zeros(len(bins))
+        # Assuming 'scores' contains the scores for all points and 'bins' defines the score bins
+        for center, radius, sphere_indices in zip(valid_centers, valid_radii, indices):
+            # Extract indices of points within the sphere
+            point_indices = sphere_indices
+
+            # Calculate score distribution for the sphere
+            score_distribution = np.zeros(len(bins))
             for idx in point_indices:
-                score= scores[idx]
-                for i in range(len(bins)):
-                    if score < bins[i]:
-                        score_distribution[i]+=1
+                score = scores[idx]
+                for i, bin_edge in enumerate(bins):
+                    if score < bin_edge:
+                        score_distribution[i] += 1
                         break
-            
-            score_distribution= score_distribution / len(point_indices)
+
+            # Normalize the score distribution by the number of points in the sphere
+            if len(point_indices) > 0:
+                score_distribution = score_distribution / len(point_indices)
             
             # Update sphere data and covered points
-            sphere_data.append({'center': center, 'radius': math.sqrt(radius), 'points': point_indices, 
-                                "score_distribution": score_distribution})
+            sphere_data.append({
+                'center': center, 
+                'radius': math.sqrt(radius),  # Assuming radius needs to be sqrt to represent actual distance
+                'points': point_indices, 
+                "score_distribution": score_distribution
+            })
             total_covered_points.update(point_indices)
         
         # Calculate statistics
@@ -142,23 +144,29 @@ class UniformSphereGenerator:
         return inputs, outputs 
 
     def plot(self, sphere_data, points_per_sphere, n_spheres, scores):
-        fig, axs = plt.subplots(1, 2, figsize=(16, 8))
+        fig, axs = plt.subplots(1, 3, figsize=(24, 8))  # Adjust for three subplots
         
-        # Preparing data for plots
+        # Calculate mean scores as before
         mean_scores = [np.mean([scores[j] for j in sphere_data[i]['points']]) if sphere_data[i] else 0 for i in range(n_spheres)]
+        sphere_radii= [data['radius'] for data in sphere_data]
         
-        # Histogram of Points per Cluster
-        axs[0].bar(range(n_spheres), points_per_sphere, color='skyblue')
-        axs[0].set_xlabel('Sphere ID')
-        axs[0].set_ylabel('Number of Points')
-        axs[0].set_title('Number of Points per Sphere')
+        # Histogram of Points per Sphere
+        axs[0].hist(points_per_sphere, color='skyblue', bins=np.arange(min(points_per_sphere), max(points_per_sphere) + 1, 1))
+        axs[0].set_xlabel('Number of Points')
+        axs[0].set_ylabel('Frequency')
+        axs[0].set_title('Distribution of Points per Sphere')
         
-        # Scatter Plot of Cluster Density vs. Mean Score
-        axs[1].scatter(points_per_sphere, mean_scores, c='blue', marker='o')
-        axs[1].set_xlabel('Sphere Density (Number of Points)')
-        axs[1].set_ylabel('Mean Score')
-        axs[1].set_title('Sphere Density vs. Mean Score')
-        axs[1].grid(True)
+        # Histogram of Mean Scores
+        axs[1].hist(mean_scores, color='lightgreen', bins=20)  # Adjust bins as needed
+        axs[1].set_xlabel('Mean Score')
+        axs[1].set_ylabel('Frequency')
+        axs[1].set_title('Distribution of Mean Scores')
+
+        # Histogram of Sphere Radii
+        axs[2].hist(sphere_radii, color='lightcoral', bins=20)  # Adjust bins as needed
+        axs[2].set_xlabel('Sphere Radii')
+        axs[2].set_ylabel('Frequency')
+        axs[2].set_title('Distribution of Sphere Radii')
         
         plt.tight_layout()
 
@@ -167,10 +175,11 @@ class UniformSphereGenerator:
         plt.savefig(buf, format='png')
         buf.seek(0)
 
-        # upload the graph report
+        # Upload the graph report
+        # Ensure cmd.upload_data(...) is appropriately defined to handle your MinIO upload.
         cmd.upload_data(self.minio_client, 'datasets', "environmental/output/sphere_dataset/graphs.png", buf)  
 
-        # Clear the current figure
+        # Clear the current figure to prevent overlap with future plots
         plt.clf()
 
 def main():
@@ -183,8 +192,10 @@ def main():
     generator= UniformSphereGenerator(minio_client=minio_client,
                                     dataset=args.dataset)
     
-    inputs, outputs = generator.load_sphere_dataset(n_spheres=args.n_spheres,
-                                                       target_avg_points= args.target_avg_points)
+    inputs, outputs = generator.load_sphere_dataset(num_bins= args.num_bins,
+                                                    bin_size= args.bin_size,
+                                                    n_spheres=args.n_spheres,
+                                                    target_avg_points= args.target_avg_points)
     
     
 if __name__ == "__main__":
