@@ -1116,27 +1116,20 @@ def get_task_times(request: Request):
 @router.get("/completed-jobs/kandinsky/dataset-score-count", response_class=PrettyJSONResponse)
 async def get_dataset_image_clip_h_sigma_score_count(request: Request):
     task_type = "img2img_generation_kandinsky"
-    field_path = "task_attributes_dict.elm-v1.image_clip_h_sigma_score"
-
-    # Construct the $match stage using dynamic field paths
-    match_stage = {
-        "$match": {
-            "task_type": task_type,
-            **{field_path: {"$exists": True}}  # Dynamically include the field path in the query
-        }
-    }
 
     aggregation_pipeline = [
-        match_stage,
         {
-            # Group by dataset and count occurrences
+            "$match": {
+                "task_type": task_type
+            }
+        },
+        {
             "$group": {
-                "_id": "$task_input_dict.dataset",  # Assuming the dataset field is under task_input_dict
+                "_id": "$task_input_dict.dataset",
                 "count": {"$sum": 1}
             }
         },
         {
-            # Optionally, sort the results by dataset name
             "$sort": {"_id": 1}
         }
     ]
@@ -1144,7 +1137,6 @@ async def get_dataset_image_clip_h_sigma_score_count(request: Request):
     cursor = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
     results = list(cursor) 
 
-    # Transform the results to be more readable
     formatted_results = [{"dataset": result["_id"], "count": result["count"]} for result in results]
 
-    return formatted_results  
+    return formatted_results
