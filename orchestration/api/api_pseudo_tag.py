@@ -1,7 +1,7 @@
 from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
-from orchestration.api.mongo_schema.pseudo_tag_schemas import PseudoTagDefinition, ImagePseudoTag, PseudoTagCategory, NewPseudoTagRequest, NewPseudoTagCategory
+from orchestration.api.mongo_schema.pseudo_tag_schemas import PseudoTagDefinition, ImagePseudoTag, PseudoTagCategory, NewPseudoTagRequest, NewPseudoTagCategory, PseudoTagScore
 from typing import Union
 from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, WasPresentResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagResponse, PseudoTagIdResponse
 import traceback
@@ -61,10 +61,10 @@ async def add_new_pseudo_tag_definition(request: Request, tag_data: NewPseudoTag
         # Create the new tag object with only the specified fields
         new_tag = {
             "pseudo_tag_id": new_tag_id,
-            "pseudo_tag_string": tag_data.tag_string,
-            "pseudo_tag_category_id": tag_data.tag_category_id,
-            "pseudo_tag_description": tag_data.tag_description,
-            "pseudo_tag_vector_index": tag_data.tag_vector_index if tag_data.tag_vector_index is not None else -1,
+            "pseudo_tag_string": tag_data.pseudo_tag_string,
+            "pseudo_tag_category_id": tag_data.pseudo_tag_category_id,
+            "pseudo_tag_description": tag_data.pseudo_tag_description,
+            "pseudo_tag_vector_index": tag_data.pseudo_tag_vector_index if tag_data.pseudo_tag_vector_index is not None else -1,
             "deprecated": tag_data.deprecated,
             "user_who_created": tag_data.user_who_created,
             "creation_time": datetime.utcnow().isoformat()
@@ -914,3 +914,102 @@ def remove_tag_category_deprecated(request: Request, pseudo_tag_category_id: int
         response_data=updated_tag_category, 
         http_status_code=200,
         )
+
+
+
+# new apis for pseudo tag scores
+
+@router.post("/pseudo-tag/add-classifier-score-image", 
+             status_code=201,
+             tags=["pseudo_tags"],
+             description="Adds a new pseudo tag score to image",
+             response_model=StandardSuccessResponseV1[PseudoTagScore],
+             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def add_new_pseudo_tag_score(request: Request, tag_score_data: PseudoTagScore):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    
+    # Check if uuid exists and get file_path in completed_jobs_collection
+    job_data = request.app.completed_jobs_collection.find_one(
+        {"uuid": tag_score_data.uuid}
+    )
+    
+    if not job_data:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.INVALID_PARAMS,
+            error_string=f"UUID {tag_score_data.uuid} not found or file path missing in completed jobs.",
+            http_status_code=400
+        )
+    
+
+    # Check if pseudo_tag_id exists in pseudo_tag_definitions_collection
+    if not request.app.pseudo_tag_definitions_collection.find_one({"pseudo_tag_id": tag_score_data.tag_id}):
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.INVALID_PARAMS,
+            error_string=f"Pseudo tag ID {tag_score_data.tag_id} not found in definitions.",
+            http_status_code=400
+        )
+
+    try:
+        # Prepare tag score data for insertion with current datetime and obtained file_path
+        new_tag_score = tag_score_data.to_dict()
+        new_tag_score.update({
+            "creation_time": datetime.utcnow().isoformat()
+        })
+
+        # Insert new tag score into the pseudo_tag_scores_collection
+        inserted_id = request.app.pseudo_tag_scores_collection.insert_one(new_tag_score).inserted_id
+        new_tag_score_inserted = request.app.pseudo_tag_scores_collection.find_one({"_id": inserted_id})
+
+        if not new_tag_score_inserted:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.OTHER_ERROR,
+                error_string="Failed to insert new pseudo tag score.",
+                http_status_code=500
+            )
+
+        new_tag_score_inserted.pop('_id')  # Remove MongoDB's default _id from the response
+
+        return response_handler.create_success_response_v1(
+            response_data=new_tag_score_inserted,
+            http_status_code=201
+        )
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f"Internal server error: {e}",
+            http_status_code=500
+        )
+
+@router.get("/pseudotags/list-pseudo-tag-classifier-scores", 
+            response_model=StandardSuccessResponseV1[List[PseudoTagScore]],
+            description="list pseudo tag scores",
+            tags=["pseudo_tags"],
+            status_code=200,
+            responses=ApiResponseHandlerV1.listErrors([500]))
+async def list_pseudo_tag_definitions(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        tags_cursor = request.app.pseudo_tag_scores_collection.find({})
+        tags_scores = list(tags_cursor)
+
+        # Directly prepare each document for the response
+        # Assuming all relevant fields including file_path are directly available in the documents
+        result = []
+        for tag_score in tags_scores:
+            # Convert MongoDB's ObjectId to string if needed, otherwise prepare as is
+            tag_score['_id'] = str(tag_score['_id'])
+            result.append(tag_score)
+
+        return response_handler.create_success_response_v1(response_data=result, http_status_code=200)
+
+    except Exception as e:
+        # Implement appropriate error handling
+        print(f"Error: {str(e)}")
+        return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
+
+    
+@router.delete("/pseudo-tag/delete-all-scores", status_code=204, tags=["pseudo_tags"], description="Deletes all pseudo tag scores")
+async def delete_all_pseudo_tag_scores(request: Request):
+    request.app.pseudo_tag_scores_collection.delete_many({})
+    return {"message": "All pseudo tag scores have been successfully deleted."}    

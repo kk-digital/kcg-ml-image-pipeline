@@ -183,6 +183,10 @@ def startup_db_client():
     app.pseudo_image_tags_collection = app.mongodb_db["pseudo_image_tags"]
     app.pseudo_tag_categories_collection = app.mongodb_db["pseudo_tag_categories"]
     app.uuid_pseudo_tag_count_collection = app.mongodb_db["pseudo_tag_count"]
+    app.pseudo_tag_scores_collection = app.mongodb_db["pseudo_tag_scores"]
+
+    #classifier
+    app.classifier_models_collection = app.mongodb_db["classifier_models"]
 
     # delta score
     app.datapoints_delta_score_collection = app.mongodb_db["datapoints_delta_score"]

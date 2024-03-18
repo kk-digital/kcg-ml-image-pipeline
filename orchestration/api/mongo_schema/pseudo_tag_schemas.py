@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, constr, validator
 from typing import List, Union, Optional
 import re
+from datetime import datetime
 
 class PseudoTagDefinition(BaseModel):
     pseudo_tag_id: Optional[int] = None
@@ -96,3 +97,20 @@ class ImagePseudoTag(BaseModel):
             "user_who_created": self.user_who_created,
             "creation_time": self.creation_time
         }
+    
+class PseudoTagScore(BaseModel):
+    uuid: str
+    tag_id: int
+    score: float
+    classifier_name: str
+
+    def to_dict(self):
+        return {
+            "uuid": self.uuid,
+            "tag_id": self.tag_id,
+            "classifier": self.classifier_name,
+            "score": self.score,
+            "creation_time": datetime.utcnow().isoformat()  # Handle inside API
+        }
+
+    

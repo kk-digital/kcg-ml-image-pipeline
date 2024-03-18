@@ -1052,3 +1052,33 @@ def get_image_score_counts(request: Request):
     
     # Return the counts
     return {'counts': counts}
+
+
+@router.get("/queue/image-generation/pending-count-task-type", response_class=PrettyJSONResponse)
+async def get_pending_job_count_task_type(request: Request):
+    # MongoDB aggregation pipeline to group by `task_type` and count occurrences
+    aggregation_pipeline = [
+        {
+            "$group": {
+                "_id": "$task_type",  # Group by the `task_type`
+                "count": {"$sum": 1}  # Count the documents in each group
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,  # Exclude the _id field from the results
+                "task_type": "$_id",  # Assign the grouped task_type to a new field
+                "count": 1  # Include the count in the results
+            }
+        },
+        {
+            "$sort": {"task_type": 1}  # Sort by task_type alphabetically
+        }
+    ]
+    
+    # Execute the aggregation pipeline
+    cursor = request.app.pending_jobs_collection.aggregate(aggregation_pipeline)
+    results = await cursor.to_list(length=None)
+    
+    # Directly return the results which are now in the desired format
+    return results    
