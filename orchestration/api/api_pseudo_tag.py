@@ -309,7 +309,7 @@ def get_pseudo_tag_vector_index(request: Request, pseudo_tag_id: int):
              tags=["pseudo_tags"], 
              response_model=StandardSuccessResponseV1[ImagePseudoTag], 
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-def add_pseudo_tag_to_image(request: Request, pseudo_tag_id: int, file_hash: str, pseudo_tag_type: int, user_who_created: str):
+def add_pseudo_tag_to_image(request: Request, pseudo_tag_id: int, file_hash: str, user_who_created: str):
     response_handler = ApiResponseHandlerV1(request)
     try:
         date_now = datetime.now().isoformat()
@@ -335,14 +335,13 @@ def add_pseudo_tag_to_image(request: Request, pseudo_tag_id: int, file_hash: str
             "pseudo_tag_id": pseudo_tag_id,
             "file_path": file_path,  
             "image_hash": file_hash,
-            "pseudo_tag_type": pseudo_tag_type,
             "user_who_created": user_who_created,
             "creation_time": date_now,
             "tag_count": 1  # Since this is a new tag for this image, set count to 1
         }
         request.app.pseudo_image_tags_collection.insert_one(image_pseudo_tag_data)
 
-        return response_handler.create_success_response_v1(response_data={"pseudo_tag_id": pseudo_tag_id, "file_path": file_path, "image_hash": file_hash, "pseudo_tag_type": pseudo_tag_type, "tag_count": 1, "user_who_created": user_who_created, "creation_time": date_now}, http_status_code=200)
+        return response_handler.create_success_response_v1(response_data={"pseudo_tag_id": pseudo_tag_id, "file_path": file_path, "image_hash": file_hash, "tag_count": 1, "user_who_created": user_who_created, "creation_time": date_now}, http_status_code=200)
 
     except Exception as e:
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
@@ -410,7 +409,7 @@ def get_pseudo_tag_list_for_image(request: Request, file_hash: str):
 
 
 
-@router.get("/pseudotags/get-images-by-tag", 
+@router.get("/pseudotags/get-images-by-pseudo-tag", 
             tags=["pseudo_tags"], 
             status_code=200,
             description="Get images by pseudo_tag_id",
@@ -462,7 +461,6 @@ def get_pseudo_tagged_images(
                     pseudo_tag_id=int(tag_data["pseudo_tag_id"]),
                     file_path=tag_data["file_path"], 
                     image_hash=str(tag_data["image_hash"]),
-                    pseudo_tag_type=int(tag_data["pseudo_tag_type"]),
                     user_who_created=tag_data["user_who_created"],
                     creation_time=tag_data.get("creation_time", None)
                 )
@@ -499,7 +497,6 @@ def get_all_pseudo_tagged_images(request: Request):
                     pseudo_tag_id=int(tag_data["pseudo_tag_id"]),
                     file_path=tag_data["file_path"], 
                     image_hash=str(tag_data["image_hash"]),
-                    pseudo_tag_type=int(tag_data["pseudo_tag_type"]),
                     user_who_created=tag_data["user_who_created"],
                     creation_time=tag_data.get("creation_time", None)
                 )
