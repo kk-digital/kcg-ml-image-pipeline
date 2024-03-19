@@ -27,6 +27,12 @@ router = APIRouter()
 
 # -------------------- Get -------------------------
 
+def convert_objectid_to_str(doc):
+    # Convert ObjectId fields to strings for JSON serialization
+    if "_id" in doc:
+        doc["_id"] = str(doc["_id"])
+    return doc
+
 @router.get("/queue/image-generation/get-job")
 def get_job(request: Request, task_type=None, model_type="sd_1_5"):
     query = {}
@@ -38,24 +44,22 @@ def get_job(request: Request, task_type=None, model_type="sd_1_5"):
     if model_type:    
         query["task_type"] = {"$regex": model_type}  # Assuming model_type is a separate field
 
-    # Query to find the first element based on the task_creation_time
     job = request.app.pending_jobs_collection.find_one(query, sort=[("task_creation_time", pymongo.ASCENDING)])
 
     if job is None:
         raise HTTPException(status_code=204)
 
-    # delete from pending
     request.app.pending_jobs_collection.delete_one({"uuid": job["uuid"]})
 
-
-    # Remove the auto-generated '_id' field before inserting into in_progress_jobs_collection
+    # Remove the auto-generated '_id' field
     job.pop('_id', None)
 
-    # Update the task_start_time field to the current datetime before moving to in-progress
     job["task_start_time"] = datetime.now().isoformat()
 
-    # Add to in-progress_jobs_collection
     request.app.in_progress_jobs_collection.insert_one(job)
+
+    # Convert the job document to be JSON serializable
+    job = convert_objectid_to_str(job)
 
     return job
 
