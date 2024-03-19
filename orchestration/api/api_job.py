@@ -27,30 +27,65 @@ router = APIRouter()
 
 # -------------------- Get -------------------------
 
+def convert_objectid_to_str(doc):
+    # Convert ObjectId fields to strings for JSON serialization
+    if "_id" in doc:
+        doc["_id"] = str(doc["_id"])
+    return doc
+
 @router.get("/queue/image-generation/get-job")
-def get_job(request: Request, task_type= None, model_type="sd_1_5"):
-    query = {}
+def get_job(request: Request, task_type=None, model_type="sd_1_5"):
+    query = []
 
+    # Setup initial match conditions
+    match_conditions = {}
     if task_type:
-        query["task_type"] = task_type
-
+        match_conditions["task_type"] = task_type
     if model_type:    
-        query["task_type"] = {"$regex": model_type}
+        match_conditions["task_type"] = {"$regex": model_type}  # Assuming this should be a different field
 
-    # Query to find the n newest elements based on the task_completion_time
-    job = request.app.pending_jobs_collection.find_one(query, sort=[("task_creation_time", pymongo.ASCENDING)])
+    # Add match stage to the pipeline
+    if match_conditions:
+        query.append({"$match": match_conditions})
+
+    # Add fields to indicate priority
+    query.append({
+        "$addFields": {
+            "priority": {
+                "$cond": {
+                    "if": {"$eq": ["$prompt_generation_data.prompt_generation_policy", "variant_generation"]},
+                    "then": 1,
+                    "else": 0
+                }
+            }
+        }
+    })
+
+    # Sort by priority, then by task_creation_time
+    query.append({"$sort": {"priority": -1, "task_creation_time": 1}})
+
+    # Limit to get only one document
+    query.append({"$limit": 1})
+
+    cursor = request.app.pending_jobs_collection.aggregate(query)
+    job = next(cursor, None)
 
     if job is None:
         raise HTTPException(status_code=204)
 
-    # delete from pending
+    # Delete from pending
     request.app.pending_jobs_collection.delete_one({"uuid": job["uuid"]})
-    # add to in progress
-    request.app.in_progress_jobs_collection.insert_one(job)
 
-    # remove the auto generated field
+    # Prepare the job for in-progress
     job.pop('_id', None)
+    job["task_start_time"] = datetime.now().isoformat()
 
+    # Convert ObjectId to str if needed
+    job = convert_objectid_to_str(job)
+
+    # Add to in-progress
+    request.app.in_progress_jobs_collection.insert_one(job)
+    
     return job
 
 
@@ -306,6 +341,15 @@ def clear_all_pending_jobs(request: Request):
     request.app.pending_jobs_collection.delete_many({})
 
     return True
+
+@router.delete("/queue/image-generation/clear-pending", status_code=200)
+def clear_pending_jobs_by_task_type(task_type: str, request: Request) -> Dict[str, str]:
+    # Perform deletion of pending jobs by the specified task_type
+    deletion_result = request.app.pending_jobs_collection.delete_many({"task_type": task_type})
+
+    # Return a response indicating how many documents were deleted
+    return {"message": f"Deleted {deletion_result.deleted_count} pending jobs with task_type '{task_type}'."}
+
 
 @router.delete("/queue/image-generation/all-pending",
                description="remove all pending jobs",
@@ -1052,3 +1096,95 @@ def get_image_score_counts(request: Request):
     
     # Return the counts
     return {'counts': counts}
+
+
+@router.get("/queue/image-generation/pending-count-task-type", response_class=PrettyJSONResponse)
+async def get_pending_job_count_task_type(request: Request):
+    # MongoDB aggregation pipeline to group by `task_type` and count occurrences
+    aggregation_pipeline = [
+        {
+            "$group": {
+                "_id": "$task_type",
+                "count": {"$sum": 1}
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "task_type": "$_id",
+                "count": 1
+            }
+        },
+        {
+            "$sort": {"task_type": 1}
+        }
+    ]
+    
+    cursor = request.app.pending_jobs_collection.aggregate(aggregation_pipeline)
+    results = list(cursor)
+    
+    # Transform the results to match the expected output
+    formatted_results = [{"task_type": result["task_type"], "count": result["count"]} for result in results]
+    
+    return formatted_results
+
+
+@router.get("/queue/tasks/times", response_class =PrettyJSONResponse)
+def get_task_times(request: Request):
+    task_type = "img2img_generation_kandinsky"
+    
+    # Query for the first 5 documents
+    first_five = request.app.pending_jobs_collection.find(
+        {"task_type": task_type},
+        {"task_creation_time": 1, "_id": 0}  # Project only the task_creation_time field
+    ).sort("task_creation_time", 1).limit(5)  # Sort ascending
+
+    # Query for the last 5 documents
+    last_five = request.app.pending_jobs_collection.find(
+        {"task_type": task_type},
+        {"task_creation_time": 1, "_id": 0}  # Project only the task_creation_time field
+    ).sort("task_creation_time", -1).limit(5)  # Sort descending
+    
+    # Convert cursor to list using the list() function
+    first_five_results = list(first_five)
+    last_five_results = list(last_five)
+
+    # Reverse the order of last_five_results to display them from earliest to latest
+    last_five_results.reverse()
+
+    return {
+        "first_five": first_five_results,
+        "last_five": last_five_results
+    } 
+
+@router.get("/completed-jobs/kandinsky/dataset-score-count", response_class=PrettyJSONResponse)
+async def get_dataset_image_clip_h_sigma_score_count(request: Request):
+    all_datasets_list = ["waifu","propaganda-poster",
+                         "character", "environmental", "external-images",
+                           "icons", "mech", "test-generations", "variants" ]  # This needs to be defined, either from a query or a predefined list
+
+    aggregation_pipeline = [
+        {
+            "$match": {
+                "task_type": "img2img_generation_kandinsky",
+                "task_attributes_dict.elm-v1.image_clip_h_sigma_score": {"$exists": True}
+            }
+        },
+        {
+            "$group": {
+                "_id": "$task_input_dict.dataset",
+                "count": {"$sum": 1}
+            }
+        }
+    ]
+
+    cursor = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
+    results = list(cursor)
+
+    # Convert aggregation results into a dictionary for easy lookup
+    results_dict = {result["_id"]: result["count"] for result in results}
+
+    # Prepare final results, ensuring all datasets are included with a default count of 0
+    formatted_results = [{"dataset": dataset, "count": results_dict.get(dataset, 0)} for dataset in all_datasets_list]
+
+    return formatted_results
