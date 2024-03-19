@@ -307,6 +307,15 @@ def clear_all_pending_jobs(request: Request):
 
     return True
 
+@router.delete("/queue/image-generation/clear-pending", status_code=200)
+def clear_pending_jobs_by_task_type(task_type: str, request: Request):
+    # Perform deletion of pending jobs by the specified task_type
+    deletion_result = request.app.pending_jobs_collection.delete_many({"task_type": task_type})
+
+    # Return a response indicating how many documents were deleted
+    return {"message": f"Deleted {deletion_result.deleted_count} pending jobs with task_type '{task_type}'."}
+
+
 @router.delete("/queue/image-generation/all-pending",
                description="remove all pending jobs",
                response_model=StandardSuccessResponse[WasPresentResponse],
