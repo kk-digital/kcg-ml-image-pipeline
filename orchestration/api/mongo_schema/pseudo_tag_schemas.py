@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field, constr, validator
 from typing import List, Union, Optional
 import re
-from datetime import datetime
 
 class PseudoTagDefinition(BaseModel):
     pseudo_tag_id: Optional[int] = None
@@ -78,32 +77,22 @@ class ImagePseudoTag(BaseModel):
     pseudo_tag_id: Optional[int] = None
     file_path: str
     image_hash: str
+    pseudo_tag_type: int = Field(..., description="1 for positive, 0 for negative")
     user_who_created: str = Field(..., description="User who created the pseudo_tag")
     creation_time: Union[str, None] = None 
     
+    @validator("pseudo_tag_type")
+    def validate_tag_type(cls, value):
+        if value not in [0, 1]:
+            raise ValueError("pseudo_tag_type should be either 0 or 1.")
+        return value
 
     def to_dict(self):
         return {
             "pseudo_tag_id": self.pseudo_tag_id,
             "file_path": self.file_path,
             "image_hash": self.image_hash,
+            "pseudo_tag_type": self.pseudo_tag_type,
             "user_who_created": self.user_who_created,
             "creation_time": self.creation_time
         }
-    
-class PseudoTagScore(BaseModel):
-    uuid: str
-    tag_id: int
-    score: float
-    classifier_name: str
-
-    def to_dict(self):
-        return {
-            "uuid": self.uuid,
-            "tag_id": self.tag_id,
-            "classifier": self.classifier_name,
-            "score": self.score,
-            "creation_time": datetime.utcnow().isoformat()  # Handle inside API
-        }
-
-    
