@@ -27,6 +27,12 @@ router = APIRouter()
 
 # -------------------- Get -------------------------
 
+def convert_objectid_to_str(doc):
+    # Convert ObjectId fields to strings for JSON serialization
+    if "_id" in doc:
+        doc["_id"] = str(doc["_id"])
+    return doc
+
 @router.get("/queue/image-generation/get-job")
 def get_job(request: Request, task_type=None, model_type="sd_1_5"):
     query = {}
@@ -36,7 +42,7 @@ def get_job(request: Request, task_type=None, model_type="sd_1_5"):
 
     
     if model_type:    
-        query["task_type"] = {"$regex": model_type}  # Assuming model_type is a separate field
+        query["task_type"] = {"$regex": model_type}  
 
     # Query to find the first element based on the task_creation_time
     job = request.app.pending_jobs_collection.find_one(query, sort=[("task_creation_time", pymongo.ASCENDING)])
@@ -57,6 +63,8 @@ def get_job(request: Request, task_type=None, model_type="sd_1_5"):
     # Add to in-progress_jobs_collection
     request.app.in_progress_jobs_collection.insert_one(job)
 
+    job = convert_objectid_to_str(job)
+    
     return job
 
 
