@@ -42,7 +42,7 @@ def get_job(request: Request, task_type=None, model_type="sd_1_5"):
 
     
     if model_type:    
-        query["task_type"] = {"$regex": model_type}  # Assuming model_type is a separate field
+        query["task_type"] = {"$regex": model_type} 
 
     job = request.app.pending_jobs_collection.find_one(query, sort=[("task_creation_time", pymongo.ASCENDING)])
 
