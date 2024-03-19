@@ -701,10 +701,10 @@ def process_and_sort_dataset_with_hashes(images_paths, hashes, model):
 
     return sorted_structure
 
-
+# /pseudotags/add-pseudo-tag-to-image
 
 def tag_image(file_hash,tag_id,user):
-    response = requests.post(f'{API_URL}/pseudotags/add-pseudo-tag-to-image?pseudo-tag={tag_id}&file_hash={file_hash}&user_who_created={user}')
+    response = requests.post(f'{API_URL}/pseudotags/add-pseudo-tag-to-image?pseudo_tag_id={tag_id}&file_hash={file_hash}&user_who_created={user}')
     # Check if the response is successful (status code 200)
     if response.status_code == 200:
         print(f"All Good {response.status_code}")
