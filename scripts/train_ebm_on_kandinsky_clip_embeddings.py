@@ -1094,7 +1094,7 @@ adv_loader = train_loader_clip_ood
 # Train new model with the new combined dataset
 
 # Train
-retrained_model = train_model(img_shape=(1,1280),
+retrained_model = train_model(train_loader,val_loader, adv_loader,img_shape=(1,1280),
                     batch_size=train_loader.batch_size,
                     lr=0.001,
                     beta1=0.0)
