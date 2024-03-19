@@ -5,17 +5,12 @@ import os
 import json
 from io import BytesIO
 from orchestration.api.mongo_schema.selection_schemas import Selection, RelevanceSelection
-from .mongo_schemas import FlaggedDataUpdate
 from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, ApiResponseHandler, TagCountResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, RankCountResponse, CountResponse
 import random
 from collections import OrderedDict
 from bson import ObjectId
-from pymongo import ReturnDocument
 from typing import Optional, List
 import time
-import io
-
-
 
 
 
@@ -1257,112 +1252,3 @@ def add_selected_residual_pair(
             error_string=str(e),
             http_status_code=500,
         )
-
-@router.get("/rank/read",tags = ['ranking'], response_class=PrettyJSONResponse)
-def read_ranking_file(request: Request, dataset: str,
-                      filename: str = Query(..., description="Filename of the JSON to read")):
-    # Construct the object name for ranking
-    object_name = f"{dataset}/data/ranking/aggregate/{filename}"
-
-    # Fetch the content of the specified JSON file
-    data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
-
-    if data is None:
-        raise HTTPException(status_code=410, detail=f"File {filename} not found.")
-
-    file_content = ""
-    for chunk in data.stream(32 * 1024):
-        file_content += chunk.decode('utf-8')
-
-    # Return the content of the JSON file
-    return json.loads(file_content)
-
-@router.get("/relevancy/read", tags = ['ranking'], response_class=PrettyJSONResponse)
-def read_relevancy_file(request: Request, dataset: str,
-                        filename: str = Query(..., description="Filename of the JSON to read")):
-    # Construct the object name for relevancy
-    object_name = f"{dataset}/data/relevancy/aggregate/{filename}"
-
-    # Fetch the content of the specified JSON file
-    data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
-
-    if data is None:
-        raise HTTPException(status_code=410, detail=f"File {filename} not found.")
-
-    file_content = ""
-    for chunk in data.stream(32 * 1024):
-        file_content += chunk.decode('utf-8')
-
-    # Return the content of the JSON file
-    return json.loads(file_content)
-
-@router.put("/rank/update_datapoint_v1", 
-            tags=['ranking'], 
-            response_model=StandardSuccessResponseV1[Selection],
-            responses=ApiResponseHandlerV1.listErrors([404, 422]))
-async def update_ranking_file(request: Request, dataset: str, filename: str, update_data: FlaggedDataUpdate):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-
-    # Construct the object name based on the dataset
-    object_name = f"{dataset}/data/ranking/aggregate/{filename}"
-
-    # Fetch the content of the specified JSON file from MinIO
-    try:
-        data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
-    except Exception as e:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.ELEMENT_NOT_FOUND,
-            error_string=f"Error fetching file {filename}: {str(e)}",
-            http_status_code=404,
-        )
-
-    if data is None:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.ELEMENT_NOT_FOUND,
-            error_string=f"File {filename} not found.",
-            http_status_code=404,
-        )
-
-    file_content = ""
-    for chunk in data.stream(32 * 1024):
-        file_content += chunk.decode('utf-8')
-
-    try:
-        # Load the existing content and update it
-        content_dict = json.loads(file_content)
-        content_dict["flagged"] = update_data.flagged
-        content_dict["flagged_by_user"] = update_data.flagged_by_user
-        content_dict["flagged_time"] = update_data.flagged_time if update_data.flagged_time else datetime.now().isoformat()
-
-        # Save the modified file back to MinIO
-        updated_content = json.dumps(content_dict, indent=2)
-        updated_data = io.BytesIO(updated_content.encode('utf-8'))
-        request.app.minio_client.put_object("datasets", object_name, updated_data, len(updated_content))
-    except Exception as e:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=f"Failed to update file {filename}: {str(e)}",
-            http_status_code=500,
-        )
-
-    # Update the document in MongoDB
-    query = {"file_name": filename}
-    update = {"$set": {
-        "flagged": update_data.flagged,
-        "flagged_by_user": update_data.flagged_by_user,
-        "flagged_time": update_data.flagged_time if update_data.flagged_time else datetime.now().isoformat()
-    }}
-    updated_document = request.app.image_pair_ranking_collection.find_one_and_update(
-        query, update, return_document=ReturnDocument.AFTER
-    )
-
-    if updated_document is None:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.ELEMENT_NOT_FOUND,
-            error_string=f"Document with filename {filename} not found in MongoDB.",
-            http_status_code=404,
-        )
-    return response_handler.create_success_response_v1(
-        response_data=updated_document,
-        http_status_code=200,
-    )
