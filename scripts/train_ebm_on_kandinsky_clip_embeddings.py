@@ -202,7 +202,7 @@ def get_file_paths_and_hashes(dataset,num_samples):
         response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset?dataset={dataset}&limit={num_samples}')
         
         jobs = json.loads(response.content)
-        print(jobs)
+        #print(jobs)
         file_paths=[job['image_path'] for job in jobs]
         hashes=[job['image_hash'] for job in jobs]
         #image_hashes=[job['image_hash'] for job in jobs]
