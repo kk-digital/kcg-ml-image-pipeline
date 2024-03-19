@@ -1252,7 +1252,7 @@ sorted_images_and_hashes = process_and_sort_dataset_with_hashes(images_paths_ood
 
 
 for i in range(len(sorted_images_and_hashes)):
-    print("Path: ", sorted_images_and_hashes[i][0], " Hash : ",sorted_images_and_hashes[i][3])
+    print("Path 2 : ", sorted_images_and_hashes[i][0], " Hash 2 : ",sorted_images_and_hashes[i][3])
 
 
 # selected_structure_first_50 = sorted_images_and_hashes[:52] 
