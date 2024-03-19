@@ -703,7 +703,9 @@ def process_and_sort_dataset_with_hashes(images_paths, hashes, model):
 
 # /pseudotags/add-pseudo-tag-to-image
 # (f'{API_URL}/pseudotags/add-pseudo-tag-to-image?pseudo_tag_id={tag_id}&file_hash={file_hash}&user_who_created={user}')
+#/pseudotags/add-pseudo-tag-to-image
 def tag_image(file_hash,tag_id,user):
+    print("tag: ",tag_id, " hash : ",file_hash, " user : ",user)
     response = requests.post(f'{API_URL}/pseudotags/add-pseudo-tag-to-image?pseudo_tag_id={tag_id}&file_hash={file_hash}&user_who_created={user}')
     # Check if the response is successful (status code 200)
     if response.status_code == 200:
@@ -1249,7 +1251,7 @@ selected_structure_first_50 = sorted_images_and_hashes[:52]
 
 for image in selected_structure_first_50:
     tag_image(image[3],0,'amine')
-
+    
 
 #######################
 
