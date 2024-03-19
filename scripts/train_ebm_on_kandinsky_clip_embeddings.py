@@ -1251,15 +1251,15 @@ sorted_images_and_hashes = process_and_sort_dataset_with_hashes(images_paths_ood
 
 
 
-for i in range(len(sorted_images_and_hashes)):
-    print("Path 2 : ", sorted_images_and_hashes[i][0], " Hash 2 : ",sorted_images_and_hashes[i][4])
+# for i in range(len(sorted_images_and_hashes)):
+#     print("Path 2 : ", sorted_images_and_hashes[i][0], " Hash 2 : ",sorted_images_and_hashes[i][4])
 
 
-# selected_structure_first_50 = sorted_images_and_hashes[:52] 
-# #tag_image(file_hash,tag_id,user)
+selected_structure_first_50 = sorted_images_and_hashes[:52] 
+#tag_image(file_hash,tag_id,user)
 
-# for image in selected_structure_first_50:
-#     tag_image(image[4],0,'amine')
+for image in selected_structure_first_50:
+    tag_image(image[4],0,'amine')
     
 
 #######################
