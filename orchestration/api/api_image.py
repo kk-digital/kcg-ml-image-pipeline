@@ -432,8 +432,8 @@ def list_prompt_generation_policies():
             "proportional-sampling-top-k", 
             "independent_approx_v1", 
             "independent-approx-v1-top-k",
-            "independent-approx-substitution-search-v1"]
-
+            "independent-approx-substitution-search-v1",
+            "proportional_sampling"]
 
 
 
