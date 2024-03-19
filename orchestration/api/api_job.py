@@ -28,7 +28,7 @@ router = APIRouter()
 # -------------------- Get -------------------------
 
 @router.get("/queue/image-generation/get-job")
-def get_job(request: Request, task_type= None, model_type="sd_1_5"):
+def get_job(request: Request, task_type= "image_generation_sd_1_5_test", model_type="sd_1_5"):
     query = {}
 
     if task_type:
