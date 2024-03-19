@@ -28,28 +28,33 @@ router = APIRouter()
 # -------------------- Get -------------------------
 
 @router.get("/queue/image-generation/get-job")
-def get_job(request: Request, task_type= None, model_type="sd_1_5"):
+def get_job(request: Request, task_type=None, model_type="sd_1_5"):
     query = {}
 
     if task_type:
         query["task_type"] = task_type
 
-    if model_type:
-        query["task_type"] = {"$regex": model_type}
+    # This should be adjusted based on whether you meant to filter by model_type as well, not overwrite task_type
+    if model_type:    
+        query["model_type"] = {"$regex": model_type}  # Assuming model_type is a separate field
 
-    # Query to find the n newest elements based on the task_completion_time
+    # Query to find the first element based on the task_creation_time
     job = request.app.pending_jobs_collection.find_one(query, sort=[("task_creation_time", pymongo.ASCENDING)])
 
     if job is None:
         raise HTTPException(status_code=204)
 
-    # delete from pending
+    # Delete from pending
     request.app.pending_jobs_collection.delete_one({"uuid": job["uuid"]})
+
 
     # Remove the auto-generated '_id' field before inserting into in_progress_jobs_collection
     job.pop('_id', None)
 
-    # Add to in_progress_jobs_collection
+    # Update the task_start_time field to the current datetime before moving to in-progress
+    job["task_start_time"] = datetime.now().isoformat()
+
+    # Add to in-progress_jobs_collection
     request.app.in_progress_jobs_collection.insert_one(job)
 
     return job
