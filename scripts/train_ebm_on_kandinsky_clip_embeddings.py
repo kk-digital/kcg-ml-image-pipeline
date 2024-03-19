@@ -202,7 +202,7 @@ def get_file_paths_and_hashes(dataset,num_samples):
         response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset?dataset={dataset}&limit={num_samples}')
         
         jobs = json.loads(response.content)
-        
+        print(jobs)
         file_paths=[job['file_path'] for job in jobs]
         hashes=[job['file_hash'] for job in jobs]
         #image_hashes=[job['image_hash'] for job in jobs]
@@ -1231,7 +1231,7 @@ def main():
 # Let's tag some images
 
 # get the paths and hashes
-images_paths_ood, images_hashes_ood = get_file_paths_and_hashes("environmental",30000)
+images_paths_ood, images_hashes_ood = get_file_paths_and_hashes("environmental",50)
 
 # load the model
 # Create a new Model    
