@@ -7,6 +7,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import faiss
 from tqdm import tqdm
+from sklearn.metrics.pairwise import euclidean_distances
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -61,6 +62,7 @@ class UniformSphereGenerator:
         print("generating the initial spheres-------------")
         # Generate random values between 0 and 1, then scale and shift them into the [min, max] range for each feature
         sphere_centers = np.random.rand(n_spheres, len(max_vector)) * (max_vector - min_vector) + min_vector
+        sigma = (max_vector - min_vector) / 6
         # Convert sphere_centers to float32
         sphere_centers = sphere_centers.astype('float32')
 
@@ -76,14 +78,19 @@ class UniformSphereGenerator:
         radii = distances[:, -1]
 
         # Determine which spheres to keep based on the discard threshold
-        if discard_threshold is not None:
-            valid_mask = radii < discard_threshold
-            valid_centers = sphere_centers[valid_mask]
-            valid_radii = radii[valid_mask]
-            indices = indices[valid_mask]
-        else:
-            valid_centers = sphere_centers
-            valid_radii = radii
+        # if discard_threshold is not None:
+        #     valid_mask = radii < discard_threshold
+        #     valid_centers = sphere_centers[valid_mask]
+        #     valid_radii = radii[valid_mask]
+        #     indices = indices[valid_mask]
+        # else:
+        #     valid_centers = sphere_centers
+        #     valid_radii = radii
+        valid_mask = radii < 3 * sigma
+        valid_centers = sphere_centers[valid_mask]
+        valid_radii = radii[valid_mask]
+        indices = indices[valid_mask]
+
 
         print("Processing sphere data-------------")
         # Prepare to collect sphere data and statistics
@@ -97,16 +104,19 @@ class UniformSphereGenerator:
 
             # Calculate score distribution for the sphere
             score_distribution = np.zeros(len(bins))
+            sum_weights = 0
             for idx in point_indices:
                 score = scores[idx]
                 for i, bin_edge in enumerate(bins):
                     if score < bin_edge:
-                        score_distribution[i] += 1
+                        weight = 1 * (1 / ((2 * np.pi * sigma) ** (len(max_vector) / 2))) * np.exp(-(distances ** 2) / (2 * sigma))
+                        sum_weights += weight
+                        score_distribution[i] += weight
                         break
 
             # Normalize the score distribution by the number of points in the sphere
             if len(point_indices) > 0:
-                score_distribution = score_distribution / len(point_indices)
+                score_distribution = score_distribution / sum_weights
             
             # Update sphere data and covered points
             sphere_data.append({
@@ -124,6 +134,8 @@ class UniformSphereGenerator:
         print(f"total datapoints: {len(total_covered_points)}")
         print(f"average points per sphere: {avg_points_per_sphere}")
         
+        self.plot(sphere_data, points_per_sphere, n_spheres, scores)
+
         return sphere_data, avg_points_per_sphere, len(total_covered_points)
 
 
