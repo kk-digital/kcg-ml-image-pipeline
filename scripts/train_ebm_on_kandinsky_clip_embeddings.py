@@ -203,8 +203,8 @@ def get_file_paths_and_hashes(dataset,num_samples):
         
         jobs = json.loads(response.content)
         print(jobs)
-        file_paths=[job['file_path'] for job in jobs]
-        hashes=[job['file_hash'] for job in jobs]
+        file_paths=[job['image_path'] for job in jobs]
+        hashes=[job['image_hash'] for job in jobs]
         #image_hashes=[job['image_hash'] for job in jobs]
         
         return file_paths, hashes
