@@ -2,6 +2,7 @@ from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
 from orchestration.api.mongo_schema.tag_schemas import TagDefinition, ImageTag, TagCategory, NewTagRequest, NewTagCategory
+from .mongo_schemas import Classifier
 from typing import Union
 from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, TagsListResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagResponse, TagCountResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, TagIdResponse, ListImageTag, TagListForImages
 import traceback
@@ -203,7 +204,7 @@ def update_tag_definition(request: Request, tag_id: int, update_data: NewTagRequ
 
 
 
-@router.delete("/tags/remove_tag")
+@router.delete("/tags/remove_tag", tags = ['deprecated'])
 def remove_test_tag(request: Request, tag_id: int):
     # Check if the tag exists
     tag_query = {"tag_id": tag_id}
@@ -260,7 +261,7 @@ def remove_tag(request: Request, tag_id: int):
     return response_handler.create_success_delete_response({"wasPresent": True})
 
 
-@router.put("/tags/set_tag_vector_index")
+@router.put("/tags/set_tag_vector_index", tags = ['deprecated'])
 def set_tag_vector_index(request: Request, tag_id: int, vector_index: int):
     # Find the tag definition using the provided tag_id
     query = {"tag_id": tag_id}
@@ -317,7 +318,7 @@ def set_tag_vector_index(request: Request, tag_id: int, update_data: VectorIndex
     )
 
 
-@router.get("/tags/get_tag_vector_index")
+@router.get("/tags/get_tag_vector_index", tags= ["deprecated"])
 def get_tag_vector_index(request: Request, tag_id: int):
     # Find the tag definition using the provided tag_id
     query = {"tag_id": tag_id}
@@ -400,7 +401,7 @@ def add_tag_to_image(request: Request, tag_id: int, file_hash: str, tag_type: in
 
 
 
-@router.delete("/tags/remove_tag_from_image")
+@router.delete("/tags/remove_tag_from_image", tags = ['deprecated'])
 def remove_image_tag(
     request: Request,
     image_hash: str,  
@@ -482,7 +483,7 @@ def remove_all_tagged_images(request: Request):
 
 
 
-@router.get("/tags/get_tag_list_for_image")
+@router.get("/tags/get_tag_list_for_image", tags = ["deprecated"])
 def get_tag_list_for_image(request: Request, file_hash: str):
     # Fetch image tags based on image_hash
     image_tags_cursor = request.app.image_tags_collection.find({"image_hash": file_hash})
@@ -519,7 +520,7 @@ def get_tag_list_for_image(request: Request, file_hash: str):
 
 
 
-@router.get("/tags/get_images_by_tag", response_model=List[ImageTag], response_class=PrettyJSONResponse)
+@router.get("/tags/get_images_by_tag", tags = ['deprecated'], response_model=List[ImageTag], response_class=PrettyJSONResponse)
 def get_tagged_images(
     request: Request, 
     tag_id: int,
@@ -745,7 +746,7 @@ def get_image_count_by_tag(
     return response_handler.create_success_response({"tag_id": tag_id, "count": count}, 200)
 
 
-@router.delete("/tags/remove_tag_category", response_class=PrettyJSONResponse)
+@router.delete("/tags/remove_tag_category", tags = ['deprecated'], response_class=PrettyJSONResponse)
 def remove_tag_category(request: Request, tag_category_id: int):
     response_handler = ApiResponseHandler(request)
     try:
@@ -1488,3 +1489,201 @@ def delete_tag_category(request: Request, tag_category_id: int):
                                                        )
 
 
+
+@router.put("/tags/update-deprecated-status", 
+            tags=["deprecated"],
+            status_code=200,
+            description="Update the 'deprecated' status of a tag definition.",
+            response_model=StandardSuccessResponseV1[TagDefinition],
+            responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
+def update_tag_deprecated_status(request: Request, tag_id: int, deprecated: bool):
+    response_handler = ApiResponseHandlerV1(request)
+
+    query = {"tag_id": tag_id}
+    existing_tag = request.app.tag_definitions_collection.find_one(query)
+
+    if existing_tag is None:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+            error_string="Tag not found.", 
+            http_status_code=404,
+        )
+
+    if existing_tag.get("deprecated", False) == deprecated:
+        # If the existing 'deprecated' status matches the input, return a message indicating no change
+        message = "The 'deprecated' status for tag_id {} is already set to {}.".format(tag_id, deprecated)
+        return response_handler.create_success_response_v1(
+            response_data={"message": message}, 
+            http_status_code=200,
+        )
+
+    # Update the 'deprecated' status of the tag
+    request.app.tag_definitions_collection.update_one(query, {"$set": {"deprecated": deprecated}})
+
+    # Retrieve the updated tag to confirm the change
+    updated_tag = request.app.tag_definitions_collection.find_one(query)
+
+    # Serialize ObjectId to string if necessary and prepare the response
+    updated_tag = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_tag.items()}
+
+    # Return the updated tag object with a success message
+    return response_handler.create_success_response_v1(
+        response_data= updated_tag,
+        http_status_code=200,
+    )
+
+@router.put("/tag-categories/update-deprecated-status",  
+            tags=["deprecated"],
+            status_code=200,
+            description="Set the 'deprecated' status of a tag category.",
+            response_model=StandardSuccessResponseV1[TagCategory],
+            responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
+def update_tag_category_deprecated_status(request: Request, tag_category_id: int, deprecated: bool):
+    response_handler = ApiResponseHandlerV1(request)
+
+    query = {"tag_category_id": tag_category_id}
+    existing_tag_category = request.app.tag_categories_collection.find_one(query)
+
+    if existing_tag_category is None:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+            error_string="Tag category not found.", 
+            http_status_code=404,
+        )
+
+    if existing_tag_category.get("deprecated", False) == deprecated:
+        # If the existing 'deprecated' status matches the input, return a message indicating no change
+        message = "The 'deprecated' status for tag_category_id {} is already set to {}.".format(tag_category_id, deprecated)
+        return response_handler.create_success_response_v1(
+            response_data={"message": message}, 
+            http_status_code=200,
+        )
+
+    # Update the 'deprecated' status of the tag category
+    request.app.tag_categories_collection.update_one(query, {"$set": {"deprecated": deprecated}})
+
+    # Retrieve the updated tag category to confirm the change
+    updated_tag_category = request.app.tag_categories_collection.find_one(query)
+
+    # Serialize ObjectId to string if necessary and prepare the response
+    updated_tag_category = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_tag_category.items()}
+
+    # Return the updated tag category object with a success message
+    return response_handler.create_success_response_v1(
+        response_data= updated_tag_category, 
+        http_status_code=200,
+    )
+
+
+# new apis for classifier 
+
+@router.post("/classifier/register-tag-classifier", 
+             tags=["classifier"],
+             description="Adds or updates a classifier model",
+             responses=ApiResponseHandlerV1.listErrors([400, 500]))
+async def add_update_classifier(request: Request, classifier_data: Classifier):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+
+        # Check if the tag_id exists in tag_definitions_collection
+        tag_definition_exists = request.app.tag_definitions_collection.find_one({"tag_id": classifier_data.tag_id})
+        if not tag_definition_exists:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS, 
+                error_string=f"Tag ID {classifier_data.tag_id} not found in tag definitions.",
+                http_status_code=400
+            )
+
+        existing_classifier = request.app.classifier_models_collection.find_one(
+            {"classifier_id": classifier_data.classifier_id}
+        )
+        
+        if existing_classifier:
+            new_seq_number = existing_classifier.get("model_sequence_number", 0) + 1
+            update_result = request.app.classifier_models_collection.update_one(
+                {"classifier_id": classifier_data.classifier_id},
+                {"$set": {
+                    "classifier_id": classifier_data.classifier_id,
+                    "classifier_name": classifier_data.classifier_name,
+                    "tag_id": classifier_data.tag_id,
+                    "model_sequence_number": new_seq_number,
+                    "latest_model": classifier_data.latest_model,
+                    "model_path": classifier_data.model_path
+                }}
+            )
+            if update_result.modified_count == 0:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS, 
+                    error_string="Classifier update failed.",
+                    http_status_code=500
+                )
+            return response_handler.create_success_response_v1(
+                response_data={"message": "Classifier updated successfully.", "classifier_id": classifier_data.classifier_id, "new_model_sequence_number": new_seq_number},
+                http_status_code=200
+            )
+        else:
+            classifier_data.model_sequence_number = 0
+            request.app.classifier_models_collection.insert_one(classifier_data.dict())
+            return response_handler.create_success_response_v1(
+                response_data={"message": "New classifier added successfully.", "classifier_id": classifier_data.classifier_id, "model_sequence_number": 1},
+                http_status_code=201
+            )
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=f"Failed to add/update classifier: {str(e)}",
+            http_status_code=500
+        )
+    
+    
+@router.get("/classifier/list-classifiers", 
+            response_model=StandardSuccessResponseV1[List[Classifier]],
+            description="list Classifiers",
+            tags=["classifier"],
+            status_code=200,
+            responses=ApiResponseHandlerV1.listErrors([500]))
+async def list_classifiers(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        classifier_cursor = request.app.classifier_models_collection.find({})
+        classifier_list = list(classifier_cursor)
+
+        result = []
+        for classifier in classifier_list:
+            # Convert MongoDB's ObjectId to string if needed, otherwise prepare as is
+            classifier['_id'] = str(classifier['_id'])
+            result.append(classifier)
+
+        return response_handler.create_success_response_v1(response_data=result, http_status_code=200)
+
+    except Exception as e:
+        # Implement appropriate error handling
+        print(f"Error: {str(e)}")
+        return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
+
+@router.delete("/classifier/remove-classifier-with-id", 
+               tags=["classifier"],
+               description="Deletes a classifier model by its classifier_id",
+               responses=ApiResponseHandlerV1.listErrors([400, 404, 500]))
+async def delete_classifier(request: Request, classifier_id: int ):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    # Attempt to delete the classifier with the specified classifier_id
+    delete_result = request.app.classifier_models_collection.delete_one({"classifier_id": classifier_id})
+
+    # Check if a document was deleted
+    if delete_result.deleted_count == 0:
+        # No document was found with the provided classifier_id, so nothing was deleted
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
+            error_string=f"No classifier found with classifier_id {classifier_id}.",
+            http_status_code=404
+        )
+
+    # If a document was successfully deleted
+    return response_handler.create_success_response_v1(
+        response_data={"message": f"Classifier with classifier_id {classifier_id} was successfully deleted."},
+        http_status_code=200
+    )
