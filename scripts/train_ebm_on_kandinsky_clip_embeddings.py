@@ -195,6 +195,22 @@ def get_file_paths(dataset,num_samples):
         
         return file_paths
 
+
+
+def get_file_paths_and_hashes(dataset,num_samples):
+        print('Loading image file paths')
+        response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset?dataset={dataset}&limit={num_samples}')
+        
+        jobs = json.loads(response.content)
+        
+        file_paths=[job['file_path'] for job in jobs]
+        hashes=[job['file_hash'] for job in jobs]
+        #image_hashes=[job['image_hash'] for job in jobs]
+        
+        return file_paths, hashes
+
+
+
 # Get latent
 
 # From multiples image paths
@@ -663,6 +679,38 @@ def process_and_sort_dataset(images_paths, model):
     return sorted_structure
 
 
+def process_and_sort_dataset_with_hashes(images_paths, hashes, model):
+    # Initialize an empty list to hold the structure for each image
+    structure = []
+
+    # Process each image path
+    for i in range(len(images_paths)):
+        # Extract embedding and image tensor from the image path
+        image, embedding = get_clip_and_image_from_path(images_paths[i])
+        
+        # Compute the score by passing the image tensor through the model
+        # Ensure the tensor is in the correct shape, device, etc.
+        score = model.cnn(embedding.unsqueeze(0).to(model.device)).cpu()
+        
+        # Append the path, embedding, and score as a tuple to the structure list
+        structure.append((images_paths[i], embedding, score.item(),image,hashes[i]))  # Assuming score is a tensor, use .item() to get the value
+
+    # Sort the structure list by the score in descending order (for ascending, remove 'reverse=True')
+    # The lambda function specifies that the sorting is based on the third element of each tuple (index 2)
+    sorted_structure = sorted(structure, key=lambda x: x[2], reverse=True)
+
+    return sorted_structure
+
+
+
+def tag_image(file_hash,tag_id,user):
+    response = requests.post(f'{API_URL}/pseaudotags/add-pseudo-tag-to-image?pseudo-tag={tag_id}&file_hash={file_hash}&user_who_created={user}')
+    # Check if the response is successful (status code 200)
+    if response.status_code == 200:
+        print(f"All Good {response.status_code}")
+    else:
+        print(f"Error: HTTP request failed with status code {response.status_code}")
+
 
 
 def process_and_sort_dataset_combined(images_paths, model1,model2):
@@ -1052,136 +1100,155 @@ def main():
 
 
 
+# # Create a new Model    
+# new_text_model_st = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# # Load the last occult trained model
+# load_model_to_minio(new_text_model_st,'content-has-text')
+
+
+# # Load the environmental dataset     
+# images_paths_ood = get_file_paths("environmental",30000)
+
+
+
+# # Get sort the images by energy (from best to worst)
+# sorted_images_for_original_model = process_and_sort_dataset(images_paths_ood, new_text_model_st)
+
+# # Save the list on csv file
+# get_structure_csv_content(sorted_images_for_original_model,"content-has-text_on_env_30000_sample")
+
+# # Get top 50 images
+# selected_best_50_for_original_model = sorted_images_for_original_model[:50]
+
+# # Only keep the paths
+# selected_best_50_for_original_model_paths = [item[0] for item in selected_best_50_for_original_model]
+
+# # Concat the paths of the best 50 with the tagged images
+# new_combined_paths = selected_best_50_for_original_model_paths + get_tag_jobs(22)
+
+# # Create dataloader of occult
+# train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(new_combined_paths,1)
+
+# # Get adversarial dataset
+# train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([7,8,9,15,20,21,35],0)
+
+# # init the loader
+# train_loader = train_loader_automated
+# val_loader = val_loader_automated
+# adv_loader = train_loader_clip_ood
+
+
+
+# # Train new model with the new combined dataset
+
+# # Train
+# retrained_model = train_model(train_loader,val_loader, adv_loader,img_shape=(1,1280),
+#                     batch_size=train_loader.batch_size,
+#                     lr=0.001,
+#                     beta1=0.0)
+# save_model_to_minio(retrained_model,'content-has-text','temp_model.pth')
+
+
+# # Plot
+
+# ############### Plot graph
+# epochs = range(1, len(total_losses) + 1)  
+
+# # Create subplots grid (3 rows, 1 column)
+# fig, axes = plt.subplots(4, 1, figsize=(10, 24))
+
+# # Plot each loss on its own subplot
+# axes[0].plot(epochs, total_losses, label='Total Loss')
+# axes[0].set_xlabel('Steps')
+# axes[0].set_ylabel('Loss')
+# axes[0].set_title('Total Loss')
+# axes[0].legend()
+# axes[0].grid(True)
+
+# axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
+# axes[1].set_xlabel('Steps')
+# axes[1].set_ylabel('Loss')
+# axes[1].set_title('Contrastive Divergence Loss')
+# axes[1].legend()
+# axes[1].grid(True)
+
+
+# axes[2].plot(epochs, reg_losses , label='Regression Loss')
+# axes[2].set_xlabel('Steps')
+# axes[2].set_ylabel('Loss')
+# axes[2].set_title('Regression Loss')
+# axes[2].legend()
+# axes[2].grid(True)
+
+# # Plot real and fake scores on the fourth subplot
+# axes[3].plot(epochs, real_scores_s, label='Real Scores')
+# axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
+# axes[3].set_xlabel('Steps')
+# axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
+# axes[3].set_title('Real vs. Fake Scores')
+# axes[3].legend()
+# axes[3].grid(True)
+
+# # Adjust spacing between subplots for better visualization
+# plt.tight_layout()
+
+# plt.savefig("output/loss_tracking_per_step.png")
+
+# # Save the figure to a file
+# buf = io.BytesIO()
+# plt.savefig(buf, format='png')
+# buf.seek(0)
+
+# # upload the graph report
+# minio_path="environmental/output/my_tests"
+# minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_content-has-text_training" +date_now+".png"
+# cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+# # Remove the temporary file
+# os.remove("output/loss_tracking_per_step.png")
+# # Clear the current figure
+# plt.clf()
+
+
+
+# # Evaluate new model
+# #automated model
+# #toodoo
+# #go create something
+# print("yep it's here")
+# new_sorted_images = process_and_sort_dataset(images_paths_ood, retrained_model)
+
+
+# get_structure_csv_content(new_sorted_images,"retrained_on_text_defect_on_env_30000_sample")
+# selected_structure_first_52 = new_sorted_images[:52]
+# selected_structure_second_52 = new_sorted_images[52:103]
+# selected_structure_third_52 = new_sorted_images[103:154]
+
+# plot_images_with_scores(selected_structure_first_52,"Top_first_52_occult_env_added_50")
+# plot_images_with_scores(selected_structure_second_52,"Top_second_52_occult_env_added_50")
+# plot_images_with_scores(selected_structure_third_52,"Top_third_52_occult_env_added_50")
+
+
+# Let's tag some images
+
+# get the paths and hashes
+images_paths_ood, images_hashes_ood = get_file_paths_and_hashes("environmental",30000)
+
+# load the model
 # Create a new Model    
-new_text_model_st = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+aquatic_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
-load_model_to_minio(new_text_model_st,'content-has-text')
+load_model_to_minio(aquatic_model,'aquatic')
+
+# Process the images
+sorted_images_and_hashes = process_and_sort_dataset_with_hashes(images_paths_ood, images_hashes_ood, aquatic_model) 
+# Tag the images
 
 
-# Load the environmental dataset     
-images_paths_ood = get_file_paths("environmental",30000)
+selected_structure_first_50 = sorted_images_and_hashes[:52] 
+#tag_image(file_hash,tag_id,user)
 
-
-
-# Get sort the images by energy (from best to worst)
-sorted_images_for_original_model = process_and_sort_dataset(images_paths_ood, new_text_model_st)
-
-# Save the list on csv file
-get_structure_csv_content(sorted_images_for_original_model,"content-has-text_on_env_30000_sample")
-
-# Get top 50 images
-selected_best_50_for_original_model = sorted_images_for_original_model[:50]
-
-# Only keep the paths
-selected_best_50_for_original_model_paths = [item[0] for item in selected_best_50_for_original_model]
-
-# Concat the paths of the best 50 with the tagged images
-new_combined_paths = selected_best_50_for_original_model_paths + get_tag_jobs(22)
-
-# Create dataloader of occult
-train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(new_combined_paths,1)
-
-# Get adversarial dataset
-train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([7,8,9,15,20,21,35],0)
-
-# init the loader
-train_loader = train_loader_automated
-val_loader = val_loader_automated
-adv_loader = train_loader_clip_ood
-
-
-
-# Train new model with the new combined dataset
-
-# Train
-retrained_model = train_model(train_loader,val_loader, adv_loader,img_shape=(1,1280),
-                    batch_size=train_loader.batch_size,
-                    lr=0.001,
-                    beta1=0.0)
-save_model_to_minio(retrained_model,'content-has-text','temp_model.pth')
-
-
-# Plot
-
-############### Plot graph
-epochs = range(1, len(total_losses) + 1)  
-
-# Create subplots grid (3 rows, 1 column)
-fig, axes = plt.subplots(4, 1, figsize=(10, 24))
-
-# Plot each loss on its own subplot
-axes[0].plot(epochs, total_losses, label='Total Loss')
-axes[0].set_xlabel('Steps')
-axes[0].set_ylabel('Loss')
-axes[0].set_title('Total Loss')
-axes[0].legend()
-axes[0].grid(True)
-
-axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
-axes[1].set_xlabel('Steps')
-axes[1].set_ylabel('Loss')
-axes[1].set_title('Contrastive Divergence Loss')
-axes[1].legend()
-axes[1].grid(True)
-
-
-axes[2].plot(epochs, reg_losses , label='Regression Loss')
-axes[2].set_xlabel('Steps')
-axes[2].set_ylabel('Loss')
-axes[2].set_title('Regression Loss')
-axes[2].legend()
-axes[2].grid(True)
-
-# Plot real and fake scores on the fourth subplot
-axes[3].plot(epochs, real_scores_s, label='Real Scores')
-axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
-axes[3].set_xlabel('Steps')
-axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
-axes[3].set_title('Real vs. Fake Scores')
-axes[3].legend()
-axes[3].grid(True)
-
-# Adjust spacing between subplots for better visualization
-plt.tight_layout()
-
-plt.savefig("output/loss_tracking_per_step.png")
-
-# Save the figure to a file
-buf = io.BytesIO()
-plt.savefig(buf, format='png')
-buf.seek(0)
-
-# upload the graph report
-minio_path="environmental/output/my_tests"
-minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_content-has-text_training" +date_now+".png"
-cmd.upload_data(minio_client, 'datasets', minio_path, buf)
-# Remove the temporary file
-os.remove("output/loss_tracking_per_step.png")
-# Clear the current figure
-plt.clf()
-
-
-
-# Evaluate new model
-#automated model
-#toodoo
-#go create something
-print("yep it's here")
-new_sorted_images = process_and_sort_dataset(images_paths_ood, retrained_model)
-
-
-get_structure_csv_content(new_sorted_images,"retrained_on_text_defect_on_env_30000_sample")
-selected_structure_first_52 = new_sorted_images[:52]
-selected_structure_second_52 = new_sorted_images[52:103]
-selected_structure_third_52 = new_sorted_images[103:154]
-
-plot_images_with_scores(selected_structure_first_52,"Top_first_52_occult_env_added_50")
-plot_images_with_scores(selected_structure_second_52,"Top_second_52_occult_env_added_50")
-plot_images_with_scores(selected_structure_third_52,"Top_third_52_occult_env_added_50")
-
-
-
-
+for image in selected_structure_first_50:
+    tag_image(image[0],image[3],'amine')
 
 
 #######################
