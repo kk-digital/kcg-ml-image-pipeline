@@ -27,43 +27,71 @@ router = APIRouter()
 
 # -------------------- Get -------------------------
 
-def convert_objectid_to_str(doc):
-    # Convert ObjectId fields to strings for JSON serialization
-    if "_id" in doc:
-        doc["_id"] = str(doc["_id"])
-    return doc
+def convert_objectid_to_str(item):
+    if isinstance(item, dict):
+        for key, value in item.items():
+            if isinstance(value, ObjectId):
+                item[key] = str(value)
+            elif isinstance(value, dict) or isinstance(value, list):
+                item[key] = convert_objectid_to_str(value)
+    elif isinstance(item, list):
+        item = [convert_objectid_to_str(elem) for elem in item]
+    return item
 
 @router.get("/queue/image-generation/get-job")
 def get_job(request: Request, task_type=None, model_type="sd_1_5"):
-    # Define the base query
-    base_query = {}
+    # Initial match stage based on task_type and model_type
+    match_stage = {
+        "$match": {}
+    }
     if task_type:
-        base_query["task_type"] = task_type
+        match_stage["$match"]["task_type"] = task_type
     if model_type:
-        base_query["model_type"] = {"$regex": model_type}  # Assuming you meant model_type here, not task_type again
+        match_stage["$match"]["model_type"] = {"$regex": model_type}
     
-    # Prioritize jobs where task_input_dict.dataset is "variants"
-    priority_query = base_query.copy()
-    priority_query["task_input_dict.dataset"] = "variants"
+    # Add fields stage to assign priority
+    add_fields_stage = {
+        "$addFields": {
+            "priority": {
+                "$cond": {
+                    "if": {"$eq": ["$task_input_dict.dataset", "variants"]},
+                    "then": 1,
+                    "else": 0
+                }
+            }
+        }
+    }
     
-    job = request.app.pending_jobs_collection.find_one(priority_query, sort=[("task_creation_time", pymongo.ASCENDING)])
+    # Sort by priority and task_creation_time
+    sort_stage = {
+        "$sort": {"priority": -1, "task_creation_time": 1}
+    }
     
-    # If no priority job is found, fallback to the base query
-    if job is None:
-        job = request.app.pending_jobs_collection.find_one(base_query, sort=[("task_creation_time", pymongo.ASCENDING)])
-
+    # Limit to the first document
+    limit_stage = {"$limit": 1}
+    
+    # Aggregate query
+    pipeline = [match_stage, add_fields_stage, sort_stage, limit_stage]
+    cursor = request.app.pending_jobs_collection.aggregate(pipeline)
+    job = next(cursor, None)
+    
     if job is None:
         raise HTTPException(status_code=204)
 
-    # Proceed with the rest of the endpoint as before
-    request.app.pending_jobs_collection.delete_one({"uuid": job["uuid"]})
-    job.pop('_id', None)
+    # Delete from pending_jobs_collection
+    request.app.pending_jobs_collection.delete_one({"_id": job["_id"]})
+    
+    # Prepare job for in_progress_jobs_collection
+    job.pop('_id', None)  # Store _id if needed before removing
     job["task_start_time"] = datetime.now().isoformat()
+    
+    # Insert into in_progress_jobs_collection
     request.app.in_progress_jobs_collection.insert_one(job)
+    
+    # Since _id was removed and potentially other ObjectId fields, ensure they are converted to string
     job = convert_objectid_to_str(job)
     
     return job
-
 
 @router.get("/queue/image-generation/job",
             status_code=200,
