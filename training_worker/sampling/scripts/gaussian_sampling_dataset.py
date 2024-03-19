@@ -63,7 +63,7 @@ class UniformSphereGenerator:
         # Generate random values between 0 and 1, then scale and shift them into the [min, max] range for each feature
         sphere_centers = np.random.rand(n_spheres, len(max_vector)) * (max_vector - min_vector) + min_vector
         # sigma for spherical gaussian distribution
-        sigma = euclidean_distances(max_vector, min_vector) / 6
+        sigma = euclidean_distances(max_vector.reshape(1, -1), min_vector.reshape(-1, 1)) / 6
         # Convert sphere_centers to float32
         sphere_centers = sphere_centers.astype('float32')
 
