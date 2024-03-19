@@ -150,6 +150,11 @@ def startup_db_client():
     ]
     create_index_if_not_exists(app.completed_jobs_collection ,completed_jobs_compound_index, 'completed_jobs_compound_index')
 
+    pending_jobs_task_type_index=[
+    ('task_type', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.pending_jobs_collection ,pending_jobs_task_type_index, 'pending_jobs_task_type_index')
+
     app.failed_jobs_collection = app.mongodb_db["failed-jobs"]
 
     #inpainting jobs
