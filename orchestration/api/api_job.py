@@ -34,9 +34,9 @@ def get_job(request: Request, task_type=None, model_type="sd_1_5"):
     if task_type:
         query["task_type"] = task_type
 
-    # This should be adjusted based on whether you meant to filter by model_type as well, not overwrite task_type
+    
     if model_type:    
-        query["model_type"] = {"$regex": model_type}  # Assuming model_type is a separate field
+        query["task_type"] = {"$regex": model_type}  # Assuming model_type is a separate field
 
     # Query to find the first element based on the task_creation_time
     job = request.app.pending_jobs_collection.find_one(query, sort=[("task_creation_time", pymongo.ASCENDING)])
@@ -44,7 +44,7 @@ def get_job(request: Request, task_type=None, model_type="sd_1_5"):
     if job is None:
         raise HTTPException(status_code=204)
 
-    # Delete from pending
+    # delete from pending
     request.app.pending_jobs_collection.delete_one({"uuid": job["uuid"]})
 
 

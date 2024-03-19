@@ -436,28 +436,6 @@ def list_prompt_generation_policies():
             "proportional_sampling"]
 
 
-@router.get("/list-unique", response_class=PrettyJSONResponse)
-def list_unique_prompt_policies(request: Request):
-    # MongoDB aggregation pipeline to find unique prompt_generation_policy values
-    aggregation_pipeline = [
-        {
-            "$group": {
-                "_id": "$prompt_generation_data.prompt_generation_policy"
-            }
-        },
-        {
-            "$sort": {"_id": 1}  # Optional: Sort the results alphabetically
-        }
-    ]
-    
-    cursor = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
-    results = list(cursor)
-    
-    # Extract the unique prompt_generation_policy values from the aggregation results
-    unique_policies = [result["_id"] for result in results if result["_id"] is not None]  # Exclude None if present
-
-    return unique_policies
-
 
 
 #new apis
