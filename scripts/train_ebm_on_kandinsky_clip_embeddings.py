@@ -1248,7 +1248,7 @@ selected_structure_first_50 = sorted_images_and_hashes[:52]
 #tag_image(file_hash,tag_id,user)
 
 for image in selected_structure_first_50:
-    tag_image(image[0],image[3],'amine')
+    tag_image(image[3],0,'amine')
 
 
 #######################
