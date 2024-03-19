@@ -1239,15 +1239,20 @@ images_paths_ood, images_hashes_ood = get_file_paths_and_hashes("environmental",
 for i in range(len(images_paths_ood)):
     print("Path: ", images_paths_ood[i], " Hash : ",images_hashes_ood[i])
 
-# # load the model
-# # Create a new Model    
-# aquatic_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-# # Load the last occult trained model
-# load_model_to_minio(aquatic_model,'aquatic')
+# load the model
+# Create a new Model    
+aquatic_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# Load the last occult trained model
+load_model_to_minio(aquatic_model,'aquatic')
 
-# # Process the images
-# sorted_images_and_hashes = process_and_sort_dataset_with_hashes(images_paths_ood, images_hashes_ood, aquatic_model) 
-# # Tag the images
+# Process the images
+sorted_images_and_hashes = process_and_sort_dataset_with_hashes(images_paths_ood, images_hashes_ood, aquatic_model) 
+# Tag the images
+
+
+
+for i in range(len(sorted_images_and_hashes)):
+    print("Path: ", sorted_images_and_hashes[0], " Hash : ",sorted_images_and_hashes[3])
 
 
 # selected_structure_first_50 = sorted_images_and_hashes[:52] 
