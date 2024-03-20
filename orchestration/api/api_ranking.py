@@ -66,7 +66,7 @@ def add_selection_datapoint(
     return True
 
 
-@router.post("/rank/update-image-rank-use-count", description="Update image rank use count")
+@router.post("/rank/update-image-rank-use-count",tags = ["deprecated2"], description="Update image rank use count")
 def update_image_rank_use_count(request: Request, image_hash):
     counter = request.app.image_rank_use_count_collection.find_one({"image_hash": image_hash})
 
@@ -126,7 +126,7 @@ def get_image_rank_use_count(request: Request, image_hash: str):
     return item["count"]
 
 
-@router.post("/ranking/submit-relevance-data")
+@router.post("/ranking/submit-relevance-data", tags= ["deprecated"])
 def add_relevancy_selection_datapoint(request: Request, relevance_selection: RelevanceSelection, dataset: str = Query(...)):
     time = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     relevance_selection.datetime = time
@@ -247,7 +247,7 @@ def add_selection_datapoint(request: Request, selection: Selection):
         )
 
 
-@router.get("/rank/list-ranking-data", response_class=PrettyJSONResponse)
+@router.get("/rank/list-ranking-data", tags = ["deprecated"], response_class=PrettyJSONResponse)
 def list_ranking_data(
     request: Request,
     start_date: str = Query(None),
@@ -330,7 +330,7 @@ def list_ranking_data(
 
     return ranking_data
 
-@router.get("/rank/sort-ranking-data-by-date", response_class=PrettyJSONResponse)
+@router.get("/rank/sort-ranking-data-by-date", tags = ["deprecated"], response_class=PrettyJSONResponse)
 def list_ranking_data(
     request: Request,
     model_type: str = Query(..., description="Model type to filter by, e.g., 'linear' or 'elm-v1'"),
@@ -941,7 +941,7 @@ async def add_relevancy_selection_datapoint_v1(request: Request, relevance_selec
 
 @router.get("/rank/list-ranking-data-v1", 
             status_code=200,
-            tags=["ranking"],
+            tags=["deprecated2"],
             response_model=StandardSuccessResponseV1[Selection],  
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def list_ranking_data_v1(
@@ -1050,7 +1050,7 @@ def list_ranking_data_by_residual(
 
 @router.get("/rank/sort-ranking-data-by-date-v1", 
             description="list ranking data by date",
-            tags=["ranking"],
+            tags=["deprecated2"],
             response_model=StandardSuccessResponseV1[List[Selection]],  
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def list_ranking_data_by_date(

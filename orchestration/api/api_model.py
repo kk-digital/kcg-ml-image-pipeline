@@ -642,7 +642,7 @@ async def get_latest_graph(request: Request, dataset: str = Query(...), model_ty
 @router.get("/models/list-model-types-v1",
             description="List model types",
             response_model=StandardSuccessResponseV1[ModelTypeResponse],
-            tags=["models"],
+            tags=["deprecated2"],
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([400, 500]))
 async def list_model_types_v1(request: Request, dataset: str):

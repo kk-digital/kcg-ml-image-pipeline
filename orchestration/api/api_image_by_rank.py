@@ -12,6 +12,7 @@ CACHE = {}
 CACHE_EXPIRATION_DELTA = timedelta(hours=12)
 
 @router.get("/tasks/attributes", 
+         tags = ["deprecated2"],
          responses=ApiResponseHandler.listErrors([404, 500]),
          description="List unique score types from task_attributes_dict")
 def list_task_attributes(request: Request, dataset: str = Query(..., description="Dataset to filter tasks")):
@@ -445,6 +446,7 @@ def image_list_sorted_by_residual(
 # new apis
 
 @router.get("/tasks/attributes-v1", 
+         tags = ["deprecated2"],
          response_model=StandardSuccessResponseV1[ModelsAndScoresResponse],
          responses=ApiResponseHandlerV1.listErrors([404, 500]),
          description="List unique score types from task_attributes_dict")
