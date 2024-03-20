@@ -11,10 +11,10 @@ def run_command(command):
 
 def main():
     # Clone the Faiss repository
-    if not os.path.exists("faiss"):
+    if not os.path.exists("input/faiss"):
         run_command("git clone https://github.com/facebookresearch/faiss.git input/faiss")
     
-    os.chdir("faiss")
+    os.chdir("input/faiss")
     
     # Create a build directory
     if not os.path.exists("build"):
