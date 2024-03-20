@@ -11,6 +11,7 @@ import random
 from collections import OrderedDict
 from bson import ObjectId
 from pymongo import ReturnDocument
+import pymongo
 from typing import Optional, List
 import time
 import io
@@ -1046,7 +1047,60 @@ def list_ranking_data_by_residual(
             error_string=str(e),
             http_status_code=500,
         )    
-    
+
+@router.get("/rank/sort-ranking-data-by-date-v2", 
+            description="Sort rank data by date",
+            tags=["ranking"],
+            response_model=StandardSuccessResponseV1[Selection],  # Ensure this is the correct response model
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def sort_ranking_data_by_date_v2(
+    request: Request,
+    dataset: str = Query(..., description="Dataset to filter by"),
+    start_date: Optional[str] = Query(None, description="Start date (inclusive) in YYYY-MM-DD format"),
+    end_date: Optional[str] = Query(None, description="End date (inclusive) in YYYY-MM-DD format"),
+    skip: int = Query(0, alias="offset"),
+    limit: int = Query(10, alias="limit"),
+    order: str = Query("desc", regex="^(desc|asc)$")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Convert start_date and end_date strings to datetime objects, if provided
+        start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else None
+        end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
+
+        # Build the query filter based on dataset and optional dates
+        query_filter = {"dataset": dataset}
+        if start_date_obj or end_date_obj:
+            date_filter = {}
+            if start_date_obj:
+                date_filter["$gte"] = start_date_obj
+            if end_date_obj:
+                date_filter["$lte"] = end_date_obj
+            query_filter["datetime"] = date_filter 
+
+        # Determine the sort order
+        sort_order = pymongo.DESCENDING if order == "desc" else pymongo.ASCENDING
+
+        # Fetch and sort data from MongoDB with pagination
+        cursor = request.app.image_pair_ranking_collection.find(query_filter).sort(
+            "datetime", sort_order  
+        ).skip(skip).limit(limit)
+
+        # Convert cursor to list of dictionaries
+        ranking_data = [doc for doc in cursor]
+        for doc in ranking_data:
+            doc['_id'] = str(doc['_id'])  # Convert ObjectId to string for JSON serialization
+        
+        return response_handler.create_success_response_v1(
+            response_data=ranking_data, 
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f"Internal Server Error: {str(e)}",
+            http_status_code=500
+        )    
 
 @router.get("/rank/sort-ranking-data-by-date-v1", 
             description="list ranking data by date",
