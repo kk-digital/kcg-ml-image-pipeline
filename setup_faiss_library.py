@@ -13,12 +13,10 @@ def run_command(command):
         print(f"Error executing command: {command}\nExit code: {e.returncode}\nOutput: {e.output.decode()}")
 
 def main(): 
-    # Change directory to input
-    os.chdir("input")
 
-    # Clone the Faiss repository
+    # Check if Faiss repository is downloaded
     if not os.path.exists("faiss"):
-        run_command("proxychains git clone https://github.com/facebookresearch/faiss.git")
+        Exception('Faiss is not installed, clone faiss repo first, with "proxychains git clone https://github.com/facebookresearch/faiss.git" ')
     
     os.chdir("faiss")
     
