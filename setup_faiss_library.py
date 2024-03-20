@@ -2,9 +2,12 @@ import subprocess
 import os
 
 def run_command(command):
-    """Run a shell command."""
+    """Run a shell command with the current environment variables."""
+    # Copy the current environment variables
+    env = os.environ.copy()
+
     try:
-        output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
+        output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, env=env)
         print(output.decode())
     except subprocess.CalledProcessError as e:
         print(f"Error executing command: {command}\nExit code: {e.returncode}\nOutput: {e.output.decode()}")
