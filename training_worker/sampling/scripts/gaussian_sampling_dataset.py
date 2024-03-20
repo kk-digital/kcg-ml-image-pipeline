@@ -124,7 +124,7 @@ class UniformSphereGenerator:
             # Update sphere data and covered points
             sphere_data.append({
                 'center': center, 
-                'variance': variance,  # Assuming radius needs to be sqrt to represent actual distance
+                'variance': variance,  # Assuming variance needs to be sqrt to represent actual distance
                 'points': point_indices, 
                 "score_distribution": score_distribution
             })
@@ -155,7 +155,7 @@ class UniformSphereGenerator:
         outputs=[]
         for sphere in sphere_data:
             # get input vectors
-            inputs.append(np.concatenate([sphere['center'], [sphere['radius']]]))
+            inputs.append(np.concatenate([sphere['center'], [sphere['variance']]]))
             # get score distribution
             outputs.append(sphere['score_distribution'])
 
@@ -166,7 +166,7 @@ class UniformSphereGenerator:
         
         # Calculate mean scores as before
         mean_scores = [np.mean([scores[j] for j in sphere_data[i]['points']]) if sphere_data[i] else 0 for i in range(n_spheres)]
-        sphere_radii= [data['radius'] for data in sphere_data]
+        sphere_variance= [data['variance'] for data in sphere_data]
         
         # Histogram of Points per Sphere
         axs[0].hist(points_per_sphere, color='skyblue', bins=np.arange(min(points_per_sphere), max(points_per_sphere) + 1, 1))
@@ -180,11 +180,11 @@ class UniformSphereGenerator:
         axs[1].set_ylabel('Frequency')
         axs[1].set_title('Distribution of Mean Scores')
 
-        # Histogram of Sphere Radii
-        axs[2].hist(sphere_radii, color='lightcoral', bins=20)  # Adjust bins as needed
-        axs[2].set_xlabel('Sphere Radii')
+        # Histogram of Sphere Variance
+        axs[2].hist(sphere_variance, color='lightcoral', bins=20)  # Adjust bins as needed
+        axs[2].set_xlabel('Sphere Variance')
         axs[2].set_ylabel('Frequency')
-        axs[2].set_title('Distribution of Sphere Radii')
+        axs[2].set_title('Distribution of Sphere variance')
         
         plt.tight_layout()
 
