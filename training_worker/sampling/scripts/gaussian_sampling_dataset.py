@@ -106,7 +106,7 @@ class UniformSphereGenerator:
             score_distribution = np.zeros(len(bins))
             sum_weights = .0
 
-            for idx, i in enumerate(point_indices, 0):
+            for i, idx in enumerate(point_indices, 0):
                 score = scores[idx]
                 
                 weight = gaussian_pdf(distance_vector[i])
