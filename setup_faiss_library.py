@@ -15,7 +15,7 @@ def main():
 
     # Clone the Faiss repository
     if not os.path.exists("faiss"):
-        run_command("git clone https://github.com/facebookresearch/faiss.git")
+        run_command("proxychains git clone https://github.com/facebookresearch/faiss.git")
     
     os.chdir("faiss")
     
