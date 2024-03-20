@@ -16,7 +16,7 @@ def main():
 
     # Check if Faiss repository is downloaded
     if not os.path.exists("faiss"):
-        Exception('Faiss is not installed, clone faiss repo first, with "proxychains git clone https://github.com/facebookresearch/faiss.git" ')
+        raise Exception('Faiss is not installed, clone faiss repo first, with "proxychains git clone https://github.com/facebookresearch/faiss.git" ')
     
     os.chdir("faiss")
     
