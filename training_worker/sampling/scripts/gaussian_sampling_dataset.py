@@ -5,7 +5,9 @@ import os
 import sys
 from matplotlib import pyplot as plt
 import numpy as np
+import torch
 import faiss
+import faiss.contrib.torch_utils
 from tqdm import tqdm
 from sklearn.mixture import GaussianMixture
 from datetime import datetime
@@ -69,7 +71,17 @@ class UniformSphereGenerator:
         sphere_centers = sphere_centers.astype('float32')
 
         d = feature_vectors.shape[1]
+        nlist = 50  # how many cells
+        quantizer = faiss.IndexFlatL2(d)
+        cpu_index = faiss.IndexIVFFlat(quantizer, d, nlist)
+
         index = faiss.IndexFlatL2(d)
+        
+        if torch.cuda.is_available():
+            res = faiss.StandardGpuResources()
+            index = faiss.index_cpu_to_gpu(res, 0, cpu_index)
+        
+        index.train(feature_vectors)
         index.add(feature_vectors)
         
         print("Searching for k nearest neighbors for each sphere center-------------")
@@ -95,7 +107,7 @@ class UniformSphereGenerator:
         total_covered_points = set()
 
         # Assuming 'scores' contains the scores for all points and 'bins' defines the score bins
-        for center, distance_vector, sphere_indices in zip(valid_centers, valid_distances, indices):
+        for center, distance_vector, sphere_indices in tqdm(zip(valid_centers, valid_distances, indices), total=len(valid_centers)):
             # Extract indices of points within the sphere
             point_indices = sphere_indices
             
@@ -169,7 +181,7 @@ class UniformSphereGenerator:
         sphere_variance= [data['variance'] for data in sphere_data]
         
         # Histogram of Points per Sphere
-        axs[0].hist(points_per_sphere, color='skyblue', bins=np.arange(min(points_per_sphere), max(points_per_sphere) + 1, 1))
+        axs[0].hist(points_per_sphere, color='skyblue', bins=np.arange(min(points_per_sphere)-1, max(points_per_sphere) + 1, 1))
         axs[0].set_xlabel('Number of Points')
         axs[0].set_ylabel('Frequency')
         axs[0].set_title('Distribution of Points per Sphere')
@@ -196,7 +208,7 @@ class UniformSphereGenerator:
         # Upload the graph report
         # Ensure cmd.upload_data(...) is appropriately defined to handle your MinIO upload.
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
-        cmd.upload_data(self.minio_client, 'datasets', f"environmental/output/sphere_dataset/{current_time}_graphs_percentile_{percentile}\%_std_{std}.png", buf)  
+        cmd.upload_data(self.minio_client, 'datasets', f"environmental/output/sphere_dataset/{current_time}_graphs_percentile_{percentile}%_std_{std}.png", buf)  
 
         # Clear the current figure to prevent overlap with future plots
         plt.clf()
