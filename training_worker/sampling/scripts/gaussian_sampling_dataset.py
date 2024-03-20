@@ -109,7 +109,7 @@ class UniformSphereGenerator:
             for i, idx in enumerate(point_indices, 0):
                 score = scores[idx]
                 
-                weight = gaussian_pdf(distance_vector[i])
+                weight = gaussian_pdf(distance_vector[i], variance)
                 sum_weights += weight
 
                 for i, bin_edge in enumerate(bins):
@@ -201,7 +201,7 @@ class UniformSphereGenerator:
         # Clear the current figure to prevent overlap with future plots
         plt.clf()
 
-def gaussian_pdf(distance, mean, variance):
+def gaussian_pdf(distance, variance):
     denom = (2*np.pi*variance)**.5
     num = np.exp(-float(distance)**2/(2*variance))
     return num/denom
