@@ -9,11 +9,7 @@ def run_command(command):
     except subprocess.CalledProcessError as e:
         print(f"Error executing command: {command}\nExit code: {e.returncode}\nOutput: {e.output.decode()}")
 
-def main():
-    # Ensure the input/faiss directory structure exists
-    faiss_dir_path = "input/faiss"
-    os.makedirs(faiss_dir_path, exist_ok=True)
-    
+def main(): 
     # Change directory to input
     os.chdir("input")
 
