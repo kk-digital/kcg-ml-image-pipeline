@@ -8,6 +8,7 @@ import numpy as np
 import faiss
 from tqdm import tqdm
 from sklearn.mixture import GaussianMixture
+from datetime import datetime
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -194,7 +195,7 @@ class UniformSphereGenerator:
 
         # Upload the graph report
         # Ensure cmd.upload_data(...) is appropriately defined to handle your MinIO upload.
-        cmd.upload_data(self.minio_client, 'datasets', f"environmental/output/sphere_dataset/graphs_.png", buf)  
+        cmd.upload_data(self.minio_client, 'datasets', f"environmental/output/sphere_dataset/{datetime.now().strftime("%Y-%m-%d %H:%M")}_graphs_percentile_{percentile}%_std_{std}.png", buf)  
 
         # Clear the current figure to prevent overlap with future plots
         plt.clf()
