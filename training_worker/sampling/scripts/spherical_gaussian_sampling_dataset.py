@@ -149,7 +149,7 @@ class UniformSphereGenerator:
         print(f"total datapoints: {len(total_covered_points)}")
         print(f"average points per sphere: {avg_points_per_sphere}")
         
-        self.plot(sphere_data, points_per_sphere, n_spheres, scores, percentile, std)
+        self.plot(sphere_data, points_per_sphere, n_spheres, scores, percentile, std, target_avg_points, num_bins, bin_size)
 
         return sphere_data, avg_points_per_sphere, len(total_covered_points)
 
@@ -173,13 +173,31 @@ class UniformSphereGenerator:
 
         return inputs, outputs 
 
-    def plot(self, sphere_data, points_per_sphere, n_spheres, scores, percentile, std):
+    def plot(self, sphere_data, points_per_sphere, n_spheres, scores, percentile, std, target_avg_points, num_bins, bin_size):
         fig, axs = plt.subplots(1, 3, figsize=(24, 8))  # Adjust for three subplots
         
         # Calculate mean scores as before
         mean_scores = [np.mean([scores[j] for j in sphere_data[i]['points']]) if sphere_data[i] else 0 for i in range(n_spheres)]
         sphere_variance= [data['variance'] for data in sphere_data]
         
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+        # info text about the model
+        plt.figtext(0.02, 0.7, "Date = {}"
+                                "\nNumber of Spheres = {}"
+                                "\nNumber of Points = {}"
+                                "\nPercentile = {}"
+                                "\std = {}"
+                                "\target average points = {}"
+                                "\nnumber of bins = {}"
+                                "\nsize of bin = {}".format(current_time,
+                                                n_spheres,
+                                                len(scores),
+                                                percentile,
+                                                std,
+                                                target_avg_points,
+                                                num_bins,
+                                                bin_size))
+
         # Histogram of Points per Sphere
         axs[0].hist(points_per_sphere, color='skyblue', bins=np.arange(min(points_per_sphere)-1, max(points_per_sphere) + 1, 1))
         axs[0].set_xlabel('Number of Points')
@@ -207,7 +225,7 @@ class UniformSphereGenerator:
 
         # Upload the graph report
         # Ensure cmd.upload_data(...) is appropriately defined to handle your MinIO upload.
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+        
         cmd.upload_data(self.minio_client, 'datasets', f"environmental/output/sphere_dataset/{current_time}_graphs_percentile_{percentile}%_std_{std}.png", buf)  
 
         # Clear the current figure to prevent overlap with future plots
