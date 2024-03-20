@@ -18,7 +18,8 @@ from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 
-API_URL="http://192.168.3.1:8111"
+API_URL="http://123.176.98.90:8764"
+# API_URL="http://192.168.3.1:8111"
 
 def parse_args():
         parser = argparse.ArgumentParser()
@@ -96,7 +97,7 @@ class KandinskyDatasetLoader:
         jobs= self.load_kandinsky_jobs()
         feature_vectors=[]
         scores=[]
-        
+        jobs = jobs[:1000]
         print("Loading input clip vectors and sigma scores for each job")
         for job in tqdm(jobs):
             try:

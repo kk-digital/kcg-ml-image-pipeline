@@ -195,7 +195,8 @@ class UniformSphereGenerator:
 
         # Upload the graph report
         # Ensure cmd.upload_data(...) is appropriately defined to handle your MinIO upload.
-        cmd.upload_data(self.minio_client, 'datasets', f"environmental/output/sphere_dataset/{datetime.now().strftime("%Y-%m-%d %H:%M")}_graphs_percentile_{percentile}%_std_{std}.png", buf)  
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+        cmd.upload_data(self.minio_client, 'datasets', f"environmental/output/sphere_dataset/{current_time}_graphs_percentile_{percentile}%_std_{std}.png", buf)  
 
         # Clear the current figure to prevent overlap with future plots
         plt.clf()
