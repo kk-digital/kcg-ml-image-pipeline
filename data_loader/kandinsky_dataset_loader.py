@@ -96,6 +96,8 @@ class KandinskyDatasetLoader:
         jobs= self.load_kandinsky_jobs()
         feature_vectors=[]
         scores=[]
+
+        index=0
         
         print("Loading input clip vectors and sigma scores for each job")
         for job in tqdm(jobs):
@@ -120,6 +122,11 @@ class KandinskyDatasetLoader:
 
                 feature_vectors.append(input_clip_vector)
                 scores.append(image_clip_sigma_score)
+
+                index+=1
+
+                if index==50:
+                    break
 
             except:
                 print("An error occured")
