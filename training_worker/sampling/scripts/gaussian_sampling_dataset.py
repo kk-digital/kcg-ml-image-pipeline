@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import faiss
 from tqdm import tqdm
-from sklearn.metrics.pairwise import euclidean_distances
+from sklearn.mixture import GaussianMixture
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -25,6 +25,8 @@ def parse_args():
     parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
     parser.add_argument('--target-avg-points', type=int, help='Target average of datapoints per sphere', 
                         default=5)
+    parser.add_argument('--percentile', type=int, help='Percentile', default=75)
+    parser.add_argument('--std', type=float, help='Standard deviation', default=1)
     parser.add_argument('--n-spheres', type=int, help='Number of spheres', default=100000)
     parser.add_argument('--num-bins', type=int, help='Number of score bins', default=8)
     parser.add_argument('--bin-size', type=int, help='Range of each bin', default=1)
@@ -42,7 +44,7 @@ class UniformSphereGenerator:
         self.minio_client= minio_client
         self.dataset= dataset
 
-    def generate_spheres(self, n_spheres, target_avg_points, num_bins, bin_size, discard_threshold=None):
+    def generate_spheres(self, n_spheres, target_avg_points, num_bins, bin_size, percentile, std, discard_threshold=None):
         
         bins=[]
         for i in range(num_bins-1):
@@ -62,8 +64,6 @@ class UniformSphereGenerator:
         print("generating the initial spheres-------------")
         # Generate random values between 0 and 1, then scale and shift them into the [min, max] range for each feature
         sphere_centers = np.random.rand(n_spheres, len(max_vector)) * (max_vector - min_vector) + min_vector
-        # sigma for spherical gaussian distribution
-        sigma = euclidean_distances(max_vector.reshape(1, -1), min_vector.reshape(1, -1)) / 6
         # Convert sphere_centers to float32
         sphere_centers = sphere_centers.astype('float32')
 
@@ -77,22 +77,16 @@ class UniformSphereGenerator:
 
         # The radius of each sphere is the distance to the k-th nearest neighbor
         radii = distances[:, -1]
-
+        
         # Determine which spheres to keep based on the discard threshold
-        # if discard_threshold is not None:
-        #     valid_mask = radii < discard_threshold
-        #     valid_centers = sphere_centers[valid_mask]
-        #     valid_radii = radii[valid_mask]
-        #     indices = indices[valid_mask]
-        # else:
-        #     valid_centers = sphere_centers
-        #     valid_radii = radii
-        # cut off by 3 sigma
-        valid_mask = radii[radii > sigma*3]
-        valid_centers = sphere_centers[valid_mask]
-        valid_radii = radii[valid_mask]
-        indices = indices[valid_mask]
-
+        if discard_threshold is not None:
+            valid_mask = radii < discard_threshold
+            valid_centers = sphere_centers[valid_mask]
+            valid_distances = distances[valid_mask]
+            indices = indices[valid_mask]
+        else:
+            valid_distances = distances
+            valid_centers = sphere_centers
 
         print("Processing sphere data-------------")
         # Prepare to collect sphere data and statistics
@@ -100,19 +94,25 @@ class UniformSphereGenerator:
         total_covered_points = set()
 
         # Assuming 'scores' contains the scores for all points and 'bins' defines the score bins
-        for center, radius, sphere_indices in zip(valid_centers, valid_radii, indices):
+        for center, distance_vector, sphere_indices in zip(valid_centers, valid_distances, indices):
             # Extract indices of points within the sphere
             point_indices = sphere_indices
+            
+            d = np.percentile(distance_vector, percentile)
+            variance = (d / std) ** 2
 
             # Calculate score distribution for the sphere
             score_distribution = np.zeros(len(bins))
-            sum_weights = 0
-            for idx in point_indices:
+            sum_weights = .0
+
+            for idx, i in enumerate(point_indices):
                 score = scores[idx]
+                
+                weight = gaussian_pdf(distance_vector[i])
+                sum_weights += weight
+
                 for i, bin_edge in enumerate(bins):
                     if score < bin_edge:
-                        weight = 1 * (1 / ((2 * np.pi * sigma) ** (len(max_vector) / 2))) * np.exp(-(distances ** 2) / (2 * sigma))
-                        sum_weights += weight
                         score_distribution[i] += weight
                         break
 
@@ -123,7 +123,7 @@ class UniformSphereGenerator:
             # Update sphere data and covered points
             sphere_data.append({
                 'center': center, 
-                'radius': math.sqrt(radius),  # Assuming radius needs to be sqrt to represent actual distance
+                'variance': variance,  # Assuming radius needs to be sqrt to represent actual distance
                 'points': point_indices, 
                 "score_distribution": score_distribution
             })
@@ -136,17 +136,19 @@ class UniformSphereGenerator:
         print(f"total datapoints: {len(total_covered_points)}")
         print(f"average points per sphere: {avg_points_per_sphere}")
         
-        self.plot(sphere_data, points_per_sphere, n_spheres, scores)
+        self.plot(sphere_data, points_per_sphere, n_spheres, scores, percentile, std)
 
         return sphere_data, avg_points_per_sphere, len(total_covered_points)
 
 
-    def load_sphere_dataset(self, n_spheres, target_avg_points, num_bins, bin_size):
+    def load_sphere_dataset(self, n_spheres, target_avg_points, num_bins, bin_size, percentile, std):
         # generating spheres
         sphere_data, avg_points_per_sphere, total_covered_points= self.generate_spheres(n_spheres=n_spheres,
                                                        target_avg_points=target_avg_points,
                                                        num_bins=num_bins,
-                                                       bin_size=bin_size)
+                                                       bin_size=bin_size,
+                                                       percentile=percentile,
+                                                       std=std)
         
         inputs=[]
         outputs=[]
@@ -158,7 +160,7 @@ class UniformSphereGenerator:
 
         return inputs, outputs 
 
-    def plot(self, sphere_data, points_per_sphere, n_spheres, scores):
+    def plot(self, sphere_data, points_per_sphere, n_spheres, scores, percentile, std):
         fig, axs = plt.subplots(1, 3, figsize=(24, 8))  # Adjust for three subplots
         
         # Calculate mean scores as before
@@ -192,10 +194,15 @@ class UniformSphereGenerator:
 
         # Upload the graph report
         # Ensure cmd.upload_data(...) is appropriately defined to handle your MinIO upload.
-        cmd.upload_data(self.minio_client, 'datasets', "environmental/output/sphere_dataset/graphs.png", buf)  
+        cmd.upload_data(self.minio_client, 'datasets', f"environmental/output/sphere_dataset/graphs_.png", buf)  
 
         # Clear the current figure to prevent overlap with future plots
         plt.clf()
+
+def gaussian_pdf(distance, mean, variance):
+    denom = (2*np.pi*variance)**.5
+    num = np.exp(-float(distance)**2/(2*variance))
+    return num/denom
 
 def main():
     args= parse_args()
@@ -211,7 +218,9 @@ def main():
     inputs, outputs = generator.load_sphere_dataset(num_bins= args.num_bins,
                                                     bin_size= args.bin_size,
                                                     n_spheres=args.n_spheres,
-                                                    target_avg_points= args.target_avg_points)
+                                                    target_avg_points= args.target_avg_points,
+                                                    percentile=args.percentile,
+                                                    std = args.std)
     
     
 if __name__ == "__main__":
