@@ -7,16 +7,16 @@ from fastapi.encoders import jsonable_encoder
 router = APIRouter()
 
 
-@router.get("/classifier-score/get-image-classifier-scores-by-tag",
+@router.get("/classifier-score/get-image-classifier-scores-by-pseudo-tag",
             description="Get the images scores by tag",
             status_code=200,
             tags=["classifier-score"],
             response_model=StandardSuccessResponseV1[ClassifierScore],
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
-def get_image_classifier_scores_by_tag(request: Request, tag_id: str, sort: int):
+def get_image_classifier_scores_by_pseudo_tag_id(request: Request, pseudo_tag_id: str, sort: int):
     api_response_handler = ApiResponseHandlerV1(request)
 
-    query = {"tag_id": tag_id}
+    query = {"pseudo_id": pseudo_tag_id}
     items = request.app.image_classifier_scores_collection.find(query).sort("score", sort)
 
     if not items:
@@ -41,16 +41,16 @@ def get_image_classifier_scores_by_tag(request: Request, tag_id: str, sort: int)
 
 
 @router.get("/classifier-score/get-image-classifier-score-by-hash", 
-            description="Get image classifier score by tag_id and image_hash",
+            description="Get image classifier score by classifier_id, pseudo_tag_id and image_hash",
             status_code=200,
             tags=["score"],  
             response_model=StandardSuccessResponseV1[ClassifierScore],  # Specify the expected response model, adjust as needed
             responses=ApiResponseHandlerV1.listErrors([400,422]))
-def get_image_classifier_score_by_hash(request: Request, image_hash: str, tag_id: str):
+def get_image_classifier_score_by_hash(request: Request, image_hash: str, pseudo_tag_id: int, classifier_id: int):
     api_response_handler = ApiResponseHandlerV1(request)
 
     # check if exists
-    query = {"image_hash": image_hash, "tag_id": tag_id}
+    query = {"image_hash": image_hash, "pseudo_tag_id": pseudo_tag_id, "classifier_id": classifier_id}
 
     item = request.app.image_classifier_scores_collection.find_one(query)
 
@@ -83,7 +83,9 @@ def update_image_classifier_score_by_hash(request: Request, classifier_score: Cl
     api_response_handler = ApiResponseHandlerV1(request, body_data=classifier_score.to_dict())
 
     # check if exists
-    query = {"image_hash": classifier_score.image_hash, "tag_id": classifier_score.tag_id}
+    query = {"classifier_id": classifier_score.classifier_id, 
+             "pseudo_tag_id": classifier_score.tag_id, 
+             "image_hash": classifier_score.image_hash}
 
     item = request.app.image_classifier_scores_collection.find_one(query)
 
@@ -91,7 +93,7 @@ def update_image_classifier_score_by_hash(request: Request, classifier_score: Cl
         # Return a standardized error response if not found
         return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.INVALID_PARAMS,
-            error_string="Score for specified tag_id and image_hash does not exist.",
+            error_string="Score for specified classifier_id, pseudo_tag_id and image_hash does not exist.",
             http_status_code=404
         )
 
@@ -125,15 +127,16 @@ def set_image_classifier_score(request: Request, classifier_score: ClassifierSco
 
     api_response_handler = ApiResponseHandlerV1(request, body_data=classifier_score.to_dict())
     # check if exists
-    query = {"image_hash": classifier_score.image_hash,
-             "tag_id": classifier_score.tag_id}
+    query = {"classifier_id": classifier_score.classifier_id,
+             "image_hash": classifier_score.image_hash,
+             "pseudo_tag_id": classifier_score.pseudo_tag_id}
     
     count = request.app.image_classifier_scores_collection.count_documents(query)
     if count > 0:
         # Using ApiResponseHandler for standardized error response
         return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.INVALID_PARAMS,
-            error_string="Score for specific tag_id and image_hash already exists.",
+            error_string="Score for specific classifier_id, pseudo_tag_id and image_hash already exists.",
             http_status_code=400
         )
 
@@ -152,11 +155,17 @@ def set_image_classifier_score(request: Request, classifier_score: ClassifierSco
                status_code=200,
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([422]))
-def delete_image_classifier_score_by_hash(request: Request, image_hash: str, tag_id: str):
+def delete_image_classifier_score_by_hash(
+    request: Request,
+    classifier_id: int,
+    image_hash: str, 
+    pseudo_tag_id: int):
 
     api_response_handler = ApiResponseHandlerV1(request)
     
-    query = {"image_hash": image_hash, "tag_id": tag_id}
+    query = {"classifier_id": classifier_id,
+             "image_hash": image_hash,
+             "pseudo_tag_id": pseudo_tag_id}
     res = request.app.image_classifier_scores_collection.delete_one(query)
     
     was_present = res.deleted_count > 0
