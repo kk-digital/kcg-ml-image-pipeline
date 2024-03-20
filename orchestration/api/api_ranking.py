@@ -6,7 +6,7 @@ import json
 from io import BytesIO
 from orchestration.api.mongo_schema.selection_schemas import Selection, RelevanceSelection
 from .mongo_schemas import FlaggedDataUpdate
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, ApiResponseHandler, TagCountResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, RankCountResponse, CountResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, ApiResponseHandler, TagCountResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, RankCountResponse, CountResponse, JsonContentResponse
 import random
 from collections import OrderedDict
 from bson import ObjectId
@@ -1258,7 +1258,7 @@ def add_selected_residual_pair(
             http_status_code=500,
         )
 
-@router.get("/rank/read",tags = ['ranking'], response_class=PrettyJSONResponse)
+@router.get("/rank/read",tags = ['deprecated'], response_class=PrettyJSONResponse)
 def read_ranking_file(request: Request, dataset: str,
                       filename: str = Query(..., description="Filename of the JSON to read")):
     # Construct the object name for ranking
@@ -1277,7 +1277,47 @@ def read_ranking_file(request: Request, dataset: str,
     # Return the content of the JSON file
     return json.loads(file_content)
 
-@router.get("/relevancy/read", tags = ['ranking'], response_class=PrettyJSONResponse)
+@router.get("/rank/read-ranking-datapoint", 
+            tags=['ranking'], 
+            description = "read ranking datapoints",
+            response_model=StandardSuccessResponseV1[JsonContentResponse], 
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def read_ranking_file(request: Request, dataset: str, filename: str = Query(..., description="Filename of the JSON to read")):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Construct the object name for ranking
+        object_name = f"{dataset}/data/ranking/aggregate/{filename}"
+
+        # Fetch the content of the specified JSON file
+        data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
+
+        if data is None:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"File {filename} not found.",
+                http_status_code=404,
+            )
+
+        file_content = ""
+        for chunk in data.stream(32 * 1024):
+            file_content += chunk.decode('utf-8')
+
+        # Successfully return the content of the JSON file
+        return response_handler.create_success_response_v1(
+            response_data={"json_content":json.loads(file_content)},
+            http_status_code=200
+        )
+    except Exception as e:
+        # Handle exceptions and return an error response
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string="Internal Server Error",
+            http_status_code=500,
+        )
+
+
+
+@router.get("/relevancy/read", tags = ['deprecated'], response_class=PrettyJSONResponse)
 def read_relevancy_file(request: Request, dataset: str,
                         filename: str = Query(..., description="Filename of the JSON to read")):
     # Construct the object name for relevancy
@@ -1295,6 +1335,45 @@ def read_relevancy_file(request: Request, dataset: str,
 
     # Return the content of the JSON file
     return json.loads(file_content)
+
+@router.get("/rank/read-relevance-datapoint", 
+            tags=['ranking'],
+            description = "read relevancy datapoints",
+            response_model=StandardSuccessResponseV1[JsonContentResponse], 
+            responses=ApiResponseHandlerV1.listErrors([404, 422, 500]))
+async def read_relevancy_file(request: Request, dataset: str, filename: str = Query(..., description="Filename of the JSON to read")):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Construct the object name for relevancy
+        object_name = f"{dataset}/data/relevancy/aggregate/{filename}"
+
+        # Fetch the content of the specified JSON file
+        data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
+
+        if data is None:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"File {filename} not found.",
+                http_status_code=410,
+            )
+
+        file_content = ""
+        for chunk in data.stream(32 * 1024):
+            file_content += chunk.decode('utf-8')
+
+        # Successfully return the content of the JSON file
+        return response_handler.create_success_response_v1(
+            response_data={"json_content":json.loads(file_content)},
+            http_status_code=200
+        )
+    except Exception as e:
+        # Handle exceptions and return an error response
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )
+
 
 @router.put("/rank/update_datapoint_v1", 
             tags=['ranking'], 
@@ -1362,6 +1441,10 @@ async def update_ranking_file(request: Request, dataset: str, filename: str, upd
             error_string=f"Document with filename {filename} not found in MongoDB.",
             http_status_code=404,
         )
+    
+    if '_id' in updated_document:
+        updated_document['_id'] = str(updated_document['_id'])
+
     return response_handler.create_success_response_v1(
         response_data=updated_document,
         http_status_code=200,

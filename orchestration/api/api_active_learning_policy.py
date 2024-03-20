@@ -4,7 +4,7 @@ import math
 import random
 import pymongo
 from utility.minio import cmd
-from orchestration.api.mongo_schema.active_learning_schemas import  ActiveLearningPolicy, RequestActiveLearningPolicy
+from orchestration.api.mongo_schema.active_learning_schemas import  ActiveLearningPolicy, RequestActiveLearningPolicy, ListActiveLearningPolicy
 from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, WasPresentResponse, ApiResponseHandlerV1, StandardSuccessResponseV1
 import os
 from datetime import datetime, timezone
@@ -425,7 +425,7 @@ async def update_policy(request: Request, policy_id: int, policy_update: Request
 
 
 @router.get("/active-learning-queue/list-active-learning-policies",
-            response_model=StandardSuccessResponseV1[List[ActiveLearningPolicy]],  
+            response_model=StandardSuccessResponseV1[ListActiveLearningPolicy],  
             tags=["active learning policy"],
             description="List active learning policies",
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
@@ -442,7 +442,7 @@ def list_active_learning_policies(request: Request):
         if not policies_list:
             return api_response_handler.create_success_response([], 200)
 
-        return api_response_handler.create_success_response_v1(response_data=policies_list, http_status_code=200)
+        return api_response_handler.create_success_response_v1(response_data={"policies":policies_list}, http_status_code=200)
     except Exception as e:
         return api_response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string=str(e), http_status_code=500)
     

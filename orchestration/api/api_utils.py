@@ -32,6 +32,9 @@ class SingleModelResponse(BaseModel):
     validation_loss: str
     graph_report: str
 
+class JsonContentResponse(BaseModel):
+    json_content: dict
+
 class ModelResponse(BaseModel):
     models: List[SingleModelResponse]
 
