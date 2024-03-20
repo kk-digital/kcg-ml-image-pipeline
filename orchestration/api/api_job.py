@@ -40,7 +40,7 @@ def get_job(request: Request, task_type=None, model_type="sd_1_5"):
     if task_type:
         base_query["task_type"] = task_type
     if model_type:
-        base_query["model_type"] = {"$regex": model_type} 
+        base_query["task_type"] = {"$regex": model_type} 
     
     # Prioritize jobs where task_input_dict.dataset is "variants"
     priority_query = base_query.copy()
