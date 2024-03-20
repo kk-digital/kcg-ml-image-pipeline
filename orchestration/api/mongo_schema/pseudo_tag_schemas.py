@@ -28,6 +28,9 @@ class PseudoTagDefinition(BaseModel):
 
 NonEmptyString = constr(strict=True, min_length=1)
 
+class PseudoTagListForImages(BaseModel):
+    pseudotags: List [PseudoTagDefinition]
+
 class NewPseudoTagRequest(BaseModel):
     pseudo_tag_string: str = Field(..., description="Name of the tag. Should only contain letters, numbers, hyphens, and underscores.")
     pseudo_tag_category_id: Optional[int] = Field(None, description="ID of the tag category")
@@ -106,4 +109,5 @@ class PseudoTagScore(BaseModel):
             "creation_time": datetime.utcnow().isoformat()  # Handle inside API
         }
 
-    
+class ListImagePseudoTag(BaseModel):
+     images: List[ImagePseudoTag]
