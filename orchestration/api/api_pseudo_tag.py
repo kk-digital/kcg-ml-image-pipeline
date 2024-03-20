@@ -1,9 +1,9 @@
 from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
-from orchestration.api.mongo_schema.pseudo_tag_schemas import PseudoTagDefinition, ImagePseudoTag, PseudoTagCategory, NewPseudoTagRequest, NewPseudoTagCategory, PseudoTagScore
+from orchestration.api.mongo_schema.pseudo_tag_schemas import PseudoTagDefinition, ImagePseudoTag, PseudoTagCategory, NewPseudoTagRequest, NewPseudoTagCategory, PseudoTagScore, PseudoTagListForImages, ListImagePseudoTag
 from typing import Union
-from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, WasPresentResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagResponse, PseudoTagIdResponse
+from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, WasPresentResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagResponse, PseudoTagIdResponse, PseudoTagCountResponse, ListImageTag
 import traceback
 from bson import ObjectId
 
@@ -11,7 +11,7 @@ from bson import ObjectId
 router = APIRouter()
 
 
-@router.post("/pseudo-tag/add-new-pseudotag", 
+@router.post("/pseudotag/add-new-pseudotag", 
              status_code=201,
              tags=["pseudo_tags"],
              description="Adds a new tag",
@@ -88,7 +88,7 @@ async def add_new_pseudo_tag_definition(request: Request, tag_data: NewPseudoTag
                                                          http_status_code=500)
     
 
-@router.get("/pseudo-tag/get-id-by-pseudotag-name", 
+@router.get("/pseudotag/get-id-by-pseudotag-name", 
              status_code=200,
              tags=["pseudo_tags"],
              response_model=StandardSuccessResponseV1[PseudoTagIdResponse],
@@ -203,7 +203,7 @@ def remove_pseudo_tag(request: Request, pseudo_tag_id: int):
 
     # Check if the tag is used in any images
     image_query = {"pseudo_tag_id": pseudo_tag_id}
-    image_with_tag = request.app.pseudo_image_tags_collection.find_one(image_query)
+    image_with_tag = request.app.pseudo_tag_images_collection.find_one(image_query)
 
     if image_with_tag is not None:
         # Since it's used in images, do not delete but notify the client
@@ -244,6 +244,194 @@ def list_pseudo_tag_definitions(request: Request):
         traceback_str = traceback.format_exc()
         print(f"Exception Traceback:\n{traceback_str}")
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error",http_status_code=500)
+
+
+@router.get("/pseudotag/get-images-count-by-pseudo-tag-id", 
+            status_code=200,
+            tags=["pseudo_tags"], 
+            description="Get count of images with a specific pseudo tag",
+            response_model=StandardSuccessResponseV1[PseudoTagCountResponse],
+            responses=ApiResponseHandlerV1.listErrors([400, 422]))
+def get_image_count_by_tag(
+    request: Request,
+    pseudo_tag_id: int
+):
+    response_handler = ApiResponseHandlerV1(request)
+
+    # Assuming each image document has an 'tags' array field
+    query = {"pseudo_tag_id": pseudo_tag_id}
+    count = request.app.pseudo_tag_images_collection.count_documents(query)
+    
+    if count == 0:
+        # If no images found with the tag, consider how you want to handle this. 
+        # For example, you might still want to return a success response with a count of 0.
+        return response_handler.create_success_response_v1(
+                                                           response_data={"pseudo_tag_id": pseudo_tag_id, "count": 0}, 
+                                                           http_status_code=200,
+                                                           )
+
+    # Return standard success response with the count
+    return response_handler.create_success_response_v1(
+                                                       response_data={"pseudo_tag_id": pseudo_tag_id, "count": count}, 
+                                                       http_status_code=200,
+                                                       )
+
+
+@router.get("/pseudotag/get-pseudo-tag-list-for-image", 
+            response_model=StandardSuccessResponseV1[PseudoTagListForImages], 
+            description="Get tag list for image",
+            tags=["pseudo_tags"],
+            status_code=200,
+            responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
+def get_pseudo_tag_list_for_image(request: Request, file_hash: str):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        # Fetch image tags based on image_hash
+        image_tags_cursor = request.app.pseudo_tag_images_collection.find({"image_hash": file_hash})
+        
+        # Process the results
+        pseudo_tags_list = []
+        for tag_data in image_tags_cursor:
+            # Find the tag definition
+            pseudo_tag_definition = request.app.pseudo_tag_definitions_collection.find_one({"pseudo_tag_id": tag_data["pseudo_tag_id"]})
+            if pseudo_tag_definition:
+                # Find the tag category and determine if it's deprecated
+                category = request.app.pseudo_tag_categories_collection.find_one({"pseudo_tag_category_id": pseudo_tag_definition.get("pseudo_tag_category_id")})
+                deprecated_tag_category = category['deprecated'] if category else False
+                
+                # Create a dictionary representing TagDefinition with tag_type and deprecated_tag_category
+                pseudo_tag_definition_dict = {
+                    "pseudo_tag_id": pseudo_tag_definition["pseudo_tag_id"],
+                    "pseudo_tag_string": pseudo_tag_definition["pseudo_tag_string"],
+                    "pseudo_tag_category_id": pseudo_tag_definition.get("pseudo_tag_category_id"),
+                    "pseudo_tag_description": pseudo_tag_definition["pseudo_tag_description"],
+                    "pseudo_tag_vector_index": pseudo_tag_definition.get("pseudo_tag_vector_index", -1),
+                    "deprecated": pseudo_tag_definition.get("deprecated", False),
+                    "deprecated_tag_category": deprecated_tag_category,
+                    "user_who_created": pseudo_tag_definition["user_who_created"],
+                    "creation_time": pseudo_tag_definition.get("creation_time", None)
+                }
+
+                pseudo_tags_list.append(pseudo_tag_definition_dict)
+        
+        # Return the list of tags including 'deprecated_tag_category'
+        return response_handler.create_success_response_v1(
+            response_data={"pseudo_tags": pseudo_tags_list},
+            http_status_code=200,
+        )
+    except Exception as e:
+        # Optional: Log the exception details here
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )
+
+
+@router.get("/pseudotag/get-images-by-pseudo-tag-id", 
+            tags=["pseudo_tags"], 
+            status_code=200,
+            description="Get images by pseudo_tag_id",
+            response_model=StandardSuccessResponseV1[ListImagePseudoTag], 
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+def get_tagged_images(
+    request: Request, 
+    pseudo_tag_id: int,
+    start_date: str = None,
+    end_date: str = None,
+    order: str = Query("desc", description="Order in which the data should be returned. 'asc' for oldest first, 'desc' for newest first")
+):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        # Validate start_date and end_date
+        if start_date:
+            validated_start_date = validate_date_format(start_date)
+            if validated_start_date is None:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS, 
+                    error_string="Invalid start_date format. Expected format: YYYY-MM-DDTHH:MM:SS", 
+                    http_status_code=400,
+                    
+                )
+        if end_date:
+            validated_end_date = validate_date_format(end_date)
+            if validated_end_date is None:
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS, 
+                    error_string="Invalid end_date format. Expected format: YYYY-MM-DDTHH:MM:SS",
+                    http_status_code=400,
+                    
+                )
+
+        # Build the query
+        query = {"pseudo_tag_id": pseudo_tag_id}
+        if start_date and end_date:
+            query["creation_time"] = {"$gte": validated_start_date, "$lte": validated_end_date}
+        elif start_date:
+            query["creation_time"] = {"$gte": validated_start_date}
+        elif end_date:
+            query["creation_time"] = {"$lte": validated_end_date}
+
+        # Decide the sort order
+        sort_order = -1 if order == "desc" else 1
+
+        # Execute the query
+        image_tags_cursor = request.app.pseudo_tag_images_collection.find(query).sort("creation_time", sort_order)
+
+        # Process the results
+        image_info_list = []
+        for tag_data in image_tags_cursor:
+            if "image_hash" in tag_data and "user_who_created" in tag_data and "file_path" in tag_data:
+                image_tag = ImagePseudoTag(
+                    pseudo_tag_id=int(tag_data["pseudo_tag_id"]),
+                    file_path=tag_data["file_path"], 
+                    image_hash=str(tag_data["image_hash"]),
+                    user_who_created=tag_data["user_who_created"],
+                    creation_time=tag_data.get("creation_time", None)
+                )
+                image_info_list.append(image_tag.model_dump())  # Convert to dictionary
+
+        # Return the list of images in a standard success response
+        return response_handler.create_success_response_v1(
+                                                           response_data={"images": image_info_list}, 
+                                                           http_status_code=200,
+                                                           )
+
+    except Exception as e:
+        # Log the exception details here, if necessary
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, error_string="Internal Server Error", http_status_code=500
+        )
+
+
+@router.delete("/pseudotag/remove-pseudo-tag-from-image/{pseudo_tag_id}", 
+               status_code=200,
+               tags=["pseudo_tag"], 
+               description="Remove image pseudotag",
+               response_model=StandardSuccessResponseV1[WasPresentResponse],
+               responses=ApiResponseHandlerV1.listErrors([400, 422]))
+def remove_image_tag(
+    request: Request,
+    image_hash: str,  
+    pseudo_tag_id: int 
+):
+    response_handler = ApiResponseHandlerV1(request)
+
+    # The query now checks for the specific tag_id within the array of tags
+    query = {"image_hash": image_hash, "pseudo_tag_id": pseudo_tag_id}
+    result = request.app.pseudo_tag_images_collection.delete_one(query)
+    
+    # If no document was found and deleted, use response_handler to raise an HTTPException
+    if result.deleted_count == 0:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+            error_string="Tag or image hash not found",
+            http_status_code=404
+        )
+
+    # Return standard success response with wasPresent: true using response_handler
+    return response_handler.create_success_response_v1(response_data={"wasPresent": True}, http_status_code=200)
+
 
 @router.put("/pseudotags/set-vector-index", 
             tags=["pseudo_tags"], 
@@ -325,7 +513,7 @@ def add_pseudo_tag_to_image(request: Request, pseudo_tag_id: int, file_hash: str
         file_path = image.get("task_output_file_dict", {}).get("output_file_path", "")
         
         # Check if the tag is already associated with the image
-        existing_image_tag = request.app.pseudo_image_tags_collection.find_one({"pseudo_tag_id": pseudo_tag_id, "image_hash": file_hash})
+        existing_image_tag = request.app.pseudo_tag_images_collection.find_one({"pseudo_tag_id": pseudo_tag_id, "image_hash": file_hash})
         if existing_image_tag:
             # Return an error response indicating that the tag has already been added to the image
             return response_handler.create_error_response_v1(error_code=ErrorCode.INVALID_PARAMS, error_string="This tag has already been added to the image", http_status_code=400)
@@ -339,7 +527,7 @@ def add_pseudo_tag_to_image(request: Request, pseudo_tag_id: int, file_hash: str
             "creation_time": date_now,
             "tag_count": 1  # Since this is a new tag for this image, set count to 1
         }
-        request.app.pseudo_image_tags_collection.insert_one(image_pseudo_tag_data)
+        request.app.pseudo_tag_images_collection.insert_one(image_pseudo_tag_data)
 
         return response_handler.create_success_response_v1(response_data={"pseudo_tag_id": pseudo_tag_id, "file_path": file_path, "image_hash": file_hash, "tag_count": 1, "user_who_created": user_who_created, "creation_time": date_now}, http_status_code=200)
 
@@ -347,7 +535,7 @@ def add_pseudo_tag_to_image(request: Request, pseudo_tag_id: int, file_hash: str
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
 
 
-@router.delete("/pseudo-tag/remove_pseudo_tag_from_image", status_code=200,
+@router.delete("/pseudotag/remove_pseudo_tag_from_image", status_code=200,
                 tags=["pseudo_tags"], 
                description="Remove pseudo tag from image",
                response_model=StandardSuccessResponseV1[WasPresentResponse],
@@ -355,7 +543,7 @@ def add_pseudo_tag_to_image(request: Request, pseudo_tag_id: int, file_hash: str
 def remove_image_pseudo_tag(request: Request, image_hash: str, pseudo_tag_id: int):
     response_handler = ApiResponseHandlerV1(request)
     try:
-        existing_image_tag = request.app.pseudo_image_tags_collection.find_one({
+        existing_image_tag = request.app.pseudo_tag_images_collection.find_one({
             "pseudo_tag_id": pseudo_tag_id, 
             "image_hash": image_hash
         })
@@ -366,7 +554,7 @@ def remove_image_pseudo_tag(request: Request, image_hash: str, pseudo_tag_id: in
                 return response_handler.create_error_response_v1(error_code=ErrorCode.ELEMENT_NOT_FOUND, error_string="This image is not tagged with the given tag", http_status_code=404)
 
             # Directly delete the tag association
-            request.app.pseudo_image_tags_collection.delete_one({"_id": existing_image_tag["_id"]})
+            request.app.pseudo_tag_images_collection.delete_one({"_id": existing_image_tag["_id"]})
             return response_handler.create_success_response_v1(response_data={"wasPresent": True}, http_status_code=200)
         else:
             return response_handler.create_success_response_v1(response_data={"wasPresent": False}, http_status_code=200)
@@ -384,7 +572,7 @@ def remove_image_pseudo_tag(request: Request, image_hash: str, pseudo_tag_id: in
 def get_pseudo_tag_list_for_image(request: Request, file_hash: str):
     response_handler = ApiResponseHandlerV1(request) 
     try:
-        image_tags_cursor = request.app.pseudo_image_tags_collection.find({"image_hash": file_hash})
+        image_tags_cursor = request.app.pseudo_tag_images_collection.find({"image_hash": file_hash})
         
         pseudo_tags_list = []
         for tag_data in image_tags_cursor:
@@ -451,7 +639,7 @@ def get_pseudo_tagged_images(
         sort_order = -1 if order == "desc" else 1
 
         # Execute the query
-        image_tags_cursor = request.app.pseudo_image_tags_collection.find(query).sort("creation_time", sort_order)
+        image_tags_cursor = request.app.pseudo_tag_images_collection.find(query).sort("creation_time", sort_order)
 
         # Process the results
         image_info_list = []
@@ -487,7 +675,7 @@ def get_all_pseudo_tagged_images(request: Request):
 
     try:
         # Execute the query to get all tagged images
-        image_tags_cursor = request.app.pseudo_image_tags_collection.find({})
+        image_tags_cursor = request.app.pseudo_tag_images_collection.find({})
 
         # Process the results
         image_info_list = []
@@ -913,100 +1101,3 @@ def remove_tag_category_deprecated(request: Request, pseudo_tag_category_id: int
         )
 
 
-
-# new apis for pseudo tag scores
-
-@router.post("/pseudo-tag/add-classifier-score-image", 
-             status_code=201,
-             tags=["pseudo_tags"],
-             description="Adds a new pseudo tag score to image",
-             response_model=StandardSuccessResponseV1[PseudoTagScore],
-             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-async def add_new_pseudo_tag_score(request: Request, tag_score_data: PseudoTagScore):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-    
-    # Check if uuid exists and get file_path in completed_jobs_collection
-    job_data = request.app.completed_jobs_collection.find_one(
-        {"uuid": tag_score_data.uuid}
-    )
-    
-    if not job_data:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.INVALID_PARAMS,
-            error_string=f"UUID {tag_score_data.uuid} not found or file path missing in completed jobs.",
-            http_status_code=400
-        )
-    
-
-    # Check if pseudo_tag_id exists in pseudo_tag_definitions_collection
-    if not request.app.pseudo_tag_definitions_collection.find_one({"pseudo_tag_id": tag_score_data.tag_id}):
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.INVALID_PARAMS,
-            error_string=f"Pseudo tag ID {tag_score_data.tag_id} not found in definitions.",
-            http_status_code=400
-        )
-
-    try:
-        # Prepare tag score data for insertion with current datetime and obtained file_path
-        new_tag_score = tag_score_data.to_dict()
-        new_tag_score.update({
-            "creation_time": datetime.utcnow().isoformat()
-        })
-
-        # Insert new tag score into the pseudo_tag_scores_collection
-        inserted_id = request.app.pseudo_tag_scores_collection.insert_one(new_tag_score).inserted_id
-        new_tag_score_inserted = request.app.pseudo_tag_scores_collection.find_one({"_id": inserted_id})
-
-        if not new_tag_score_inserted:
-            return response_handler.create_error_response_v1(
-                error_code=ErrorCode.OTHER_ERROR,
-                error_string="Failed to insert new pseudo tag score.",
-                http_status_code=500
-            )
-
-        new_tag_score_inserted.pop('_id')  # Remove MongoDB's default _id from the response
-
-        return response_handler.create_success_response_v1(
-            response_data=new_tag_score_inserted,
-            http_status_code=201
-        )
-
-    except Exception as e:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=f"Internal server error: {e}",
-            http_status_code=500
-        )
-
-@router.get("/pseudotags/list-pseudo-tag-classifier-scores", 
-            response_model=StandardSuccessResponseV1[List[PseudoTagScore]],
-            description="list pseudo tag scores",
-            tags=["pseudo_tags"],
-            status_code=200,
-            responses=ApiResponseHandlerV1.listErrors([500]))
-async def list_pseudo_tag_definitions(request: Request):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-    try:
-        tags_cursor = request.app.pseudo_tag_scores_collection.find({})
-        tags_scores = list(tags_cursor)
-
-        # Directly prepare each document for the response
-        # Assuming all relevant fields including file_path are directly available in the documents
-        result = []
-        for tag_score in tags_scores:
-            # Convert MongoDB's ObjectId to string if needed, otherwise prepare as is
-            tag_score['_id'] = str(tag_score['_id'])
-            result.append(tag_score)
-
-        return response_handler.create_success_response_v1(response_data=result, http_status_code=200)
-
-    except Exception as e:
-        # Implement appropriate error handling
-        print(f"Error: {str(e)}")
-        return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
-
-    
-@router.delete("/pseudo-tag/delete-all-scores", status_code=204, tags=["pseudo_tags"], description="Deletes all pseudo tag scores")
-async def delete_all_pseudo_tag_scores(request: Request):
-    request.app.pseudo_tag_scores_collection.delete_many({})
-    return {"message": "All pseudo tag scores have been successfully deleted."}    
