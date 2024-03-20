@@ -13,7 +13,7 @@ from fastapi.encoders import jsonable_encoder
 
 router = APIRouter()
 
-@router.post("/classifier/register-pseudo-tag-classifier", 
+@router.post("/classifier/register-classifier", 
              tags=["classifier"],
              description="Adds or updates a classifier model",
              responses=ApiResponseHandlerV1.listErrors([400, 500]))
