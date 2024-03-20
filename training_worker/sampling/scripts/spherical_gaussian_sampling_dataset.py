@@ -183,13 +183,13 @@ class UniformSphereGenerator:
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
         # info text about the model
         plt.figtext(0.02, 0.7, "Date = {}"
-                                "\nNumber of Spheres = {}"
-                                "\nNumber of Points = {}"
-                                "\nPercentile = {}"
-                                "\std = {}"
-                                "\target average points = {}"
-                                "\nnumber of bins = {}"
-                                "\nsize of bin = {}".format(current_time,
+                                "\n Number of Spheres = {}"
+                                "\n Number of Points = {}"
+                                "\n Percentile = {}"
+                                "\n std = {}"
+                                "\n target average points = {}"
+                                "\n number of bins = {}"
+                                "\n size of bin = {}".format(current_time,
                                                 n_spheres,
                                                 len(scores),
                                                 percentile,
@@ -216,7 +216,9 @@ class UniformSphereGenerator:
         axs[2].set_ylabel('Frequency')
         axs[2].set_title('Distribution of Sphere variance')
         
-        plt.tight_layout()
+        # Adjust spacing between subplots
+        plt.subplots_adjust(hspace=0.7, wspace=0.3, left=0.3)
+        
 
         # Save the figure to a file
         buf = BytesIO()
