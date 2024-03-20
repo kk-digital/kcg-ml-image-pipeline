@@ -1233,7 +1233,7 @@ def main():
 # Let's tag some images
 
 # get the paths and hashes
-images_paths_ood, images_hashes_ood = get_file_paths_and_hashes("environmental",5)
+images_paths_ood, images_hashes_ood = get_file_paths_and_hashes("environmental",30000)
 
 
 # for i in range(len(images_paths_ood)):
