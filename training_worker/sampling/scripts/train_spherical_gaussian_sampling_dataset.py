@@ -40,7 +40,7 @@ def main():
                                               dataset=args.dataset,
                                               output_size= args.output_size,
                                               bin_size= args.bin_size,
-                                              type=SamplingType.UNIFORM_SAMPLING)
+                                              type=SamplingType.SPHERICAL_GAUSSIAN_SAMPLING)
     
     gaussian_sampling_model.set_config(sampling_parameter={"percentile": args.percentile, "std": args.std})
 
