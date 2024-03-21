@@ -1232,6 +1232,12 @@ def main():
 
 # Let's tag some images
 
+
+
+###################################################################################################################
+    
+
+
 # get the paths and hashes
 images_paths_ood, images_hashes_ood = get_file_paths_and_hashes("environmental",40000)
 
@@ -1275,7 +1281,35 @@ sorted_images_and_hashes = process_and_sort_dataset_with_hashes(images_paths_ood
 # plot_images_with_scores(selected_structure_second_50,plot_name2)
 # plot_images_with_scores(selected_structure_third_50,plot_name3)
 
+##########################################################################################################
+images_paths_ood, images_hashes_ood = get_file_paths_and_hashes("environmental",30000)
 
+
+# for i in range(len(images_paths_ood)):
+#     print("Path: ", images_paths_ood[i], " Hash : ",images_hashes_ood[i])
+
+# load the model
+# Create a new Model    
+aquatic_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# Load the last occult trained model
+load_model_to_minio(aquatic_model,'aquatic')
+
+# Process the images
+sorted_images_and_hashes = process_and_sort_dataset_with_hashes(images_paths_ood, images_hashes_ood, aquatic_model) 
+# Tag the images
+
+
+
+# for i in range(len(sorted_images_and_hashes)):
+#     print("Path 2 : ", sorted_images_and_hashes[i][0], " Hash 2 : ",sorted_images_and_hashes[i][4])
+
+
+selected_structure_first_50 = sorted_images_and_hashes[:52] 
+#tag_image(file_hash,tag_id,user)
+
+for image in selected_structure_first_50:
+    tag_image(image[4],0,'amine')
+    
 
 #######################
 
