@@ -916,7 +916,7 @@ def getAccuracy_v2(cyber_sample_loader, model1, model2):
     
 
 def get_tag_id_by_name(tag_name):
-    response = requests.get(f'{API_URL}/pseudo-tag/get-id-by-pseudotag-name?pseudo_tag_string=t{tag_name}')
+    response = requests.get(f'{API_URL}/pseudo-tag/get-id-by-pseudotag-name?pseudo_tag_string={tag_name}')
     
         # Check if the response is successful (status code 200)
     # Check if the request was successful (status code 200)
