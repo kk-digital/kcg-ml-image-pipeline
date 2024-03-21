@@ -1208,13 +1208,13 @@ original_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_load
 load_model_to_minio(original_model,'concept-cybernetic')
 
 
-# Load the environmental dataset     
-images_paths_ood = get_file_paths("environmental",30000)
+
 
 
 
 # Get sort the images by energy (from best to worst)
-sorted_images_for_original_model = process_and_sort_dataset_with_hashes(images_paths_ood, original_model)
+images_paths_ood, images_hashes_ood = get_file_paths_and_hashes("environmental",30000)
+sorted_images_for_original_model = process_and_sort_dataset_with_hashes(images_paths_ood, images_hashes_ood,original_model)
 
 # # Save the list on csv file
 # get_structure_csv_content(sorted_images_for_original_model,"content-has-text_on_env_30000_sample")
@@ -1317,7 +1317,9 @@ plt.clf()
 #toodoo
 #go create something
 print("yep it's here")
-new_sorted_images = process_and_sort_dataset_with_hashes(images_paths_ood, retrained_model)
+
+
+new_sorted_images = process_and_sort_dataset_with_hashes(images_paths_ood,images_hashes_ood, retrained_model)
 
 
 get_structure_csv_content(new_sorted_images,"retrained_on_text_defect_on_env_30000_sample")
