@@ -35,59 +35,34 @@ def convert_objectid_to_str(doc):
 
 @router.get("/queue/image-generation/get-job")
 def get_job(request: Request, task_type=None, model_type="sd_1_5"):
-    query = []
-
-    # Setup initial match conditions
-    match_conditions = {}
+    # Define the base query
+    base_query = {}
     if task_type:
-        match_conditions["task_type"] = task_type
-    if model_type:    
-        match_conditions["task_type"] = {"$regex": model_type}  # Assuming this should be a different field
-
-    # Add match stage to the pipeline
-    if match_conditions:
-        query.append({"$match": match_conditions})
-
-    # Add fields to indicate priority
-    query.append({
-        "$addFields": {
-            "priority": {
-                "$cond": {
-                    "if": {"$eq": ["$prompt_generation_data.prompt_generation_policy", "variant_generation"]},
-                    "then": 1,
-                    "else": 0
-                }
-            }
-        }
-    })
-
-    # Sort by priority, then by task_creation_time
-    query.append({"$sort": {"priority": -1, "task_creation_time": 1}})
-
-    # Limit to get only one document
-    query.append({"$limit": 1})
-
-    cursor = request.app.pending_jobs_collection.aggregate(query)
-    job = next(cursor, None)
+        base_query["task_type"] = task_type
+    if model_type:
+        base_query["task_type"] = {"$regex": model_type} 
+    
+    # Prioritize jobs where task_input_dict.dataset is "variants"
+    priority_query = base_query.copy()
+    priority_query["task_input_dict.dataset"] = "variants"
+    
+    job = request.app.pending_jobs_collection.find_one(priority_query, sort=[("task_creation_time", pymongo.ASCENDING)])
+    
+    # If no priority job is found, fallback to the base query
+    if job is None:
+        job = request.app.pending_jobs_collection.find_one(base_query, sort=[("task_creation_time", pymongo.ASCENDING)])
 
     if job is None:
         raise HTTPException(status_code=204)
 
-    # Delete from pending
+    # Proceed with the rest of the endpoint as before
     request.app.pending_jobs_collection.delete_one({"uuid": job["uuid"]})
-
-    # Prepare the job for in-progress
     job.pop('_id', None)
     job["task_start_time"] = datetime.now().isoformat()
-
-    # Convert ObjectId to str if needed
-    job = convert_objectid_to_str(job)
-
-    # Add to in-progress
     request.app.in_progress_jobs_collection.insert_one(job)
+    job = convert_objectid_to_str(job)
     
     return job
-
 
 @router.get("/queue/image-generation/job",
             status_code=200,
