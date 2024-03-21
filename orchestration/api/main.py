@@ -228,20 +228,20 @@ def startup_db_client():
     ]
     create_index_if_not_exists(app.image_scores_collection ,hash_index, 'score_hash_index')
 
-    # classifier scores hash index
-    classifier_hash_index=[
+    # classifier scores classifier_id, pseudo_tag_id, image_hash
+    classifier_image_hash_index=[
     ('image_hash', pymongo.ASCENDING),
-    ('tag_id', pymongo.ASCENDING)
+    ('classifier_id', pymongo.ASCENDING),
+    ('pseudo_tag_id', pymongo.ASCENDING)
     ]
-    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_hash_index, 'classifier_hash_index')
+    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_hash_index, 'classifier_image_hash_index')
 
-    
-    # classifier scores tag index
-    classifier_tag_index=[
-    ('tag_id', pymongo.ASCENDING)
+    # classifier scores classifier_id, pseudo_tag_id
+    classifier_image_classifier_index=[
+    ('classifier_id', pymongo.ASCENDING),
+    ('pseudo_tag_id', pymongo.ASCENDING)
     ]
-    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_tag_index, 'classifier_hash_index')
-
+    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_classifier_index, 'classifier_image_classifier_index')
 
 
     # sigma scores
