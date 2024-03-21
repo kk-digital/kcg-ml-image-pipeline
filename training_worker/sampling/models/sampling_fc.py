@@ -85,12 +85,17 @@ class SamplingFCNetwork(nn.Module):
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path=self.get_model_path()
         self.class_labels= self.get_class_labels()
-
+        
+        # set type of sampling
+        self.type = type
         # sphere dataloader
-        if type == SamplingType.UNIFORM_SAMPLING:
+        if self.type == SamplingType.UNIFORM_SAMPLING:
             self.dataloader= UniformSphereGenerator(minio_client, dataset)
-        elif type == SamplingType.SPHEARICAL_GAUSSIAN_SAMPLING:
+        elif self.type == SamplingType.SPHEARICAL_GAUSSIAN_SAMPLING:
             self.dataloader = SphericalGaussianGenerator(minio_client, dataset)
+
+    def set_config(self, sampling_parameter= None):
+        self.sampling_parameter = sampling_parameter
 
     def get_model_path(self):
         local_path=f"output/{self.output_type}_fc_{self.input_type}.pth"
@@ -120,9 +125,14 @@ class SamplingFCNetwork(nn.Module):
         return class_labels 
 
     def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256):
-        # load the dataset
-        inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_size, self.bin_size)
-
+        # load the dataset depends on sampling type
+        if self.type == SamplingType.UNIFORM_SAMPLING:
+            inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_size, self.bin_size)
+        elif self.type == SamplingType.SPHERICAL_GAUSSIAN_SAMPLING:
+            inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_size, self.bin_size, self.sampling_parameter["percentile"], self.sampling_parameter["std"])
+        else:
+            return None
+        
         dataset= DatasetLoader(features=inputs, labels=outputs)
         # Split dataset into training and validation
         val_size = int(len(dataset) * validation_split)
@@ -248,6 +258,7 @@ class SamplingFCNetwork(nn.Module):
 
         report_text = (
             "================ Model Report ==================\n"
+            f"Sampling Type: {self.type} \n"
             f"Number of training datapoints: {num_training} \n"
             f"Number of validation datapoints: {num_validation} \n"
             f"Total training Time: {training_time:.2f} seconds\n"
@@ -294,6 +305,7 @@ class SamplingFCNetwork(nn.Module):
         plt.figtext(0.02, 0.7, "Date = {}\n"
                             "Dataset = {}\n"
                             "Model type = {}\n"
+                            "Sampling type = {}\n"
                             "Input type = {}\n"
                             "Input shape = {}\n"
                             "Output type= {}\n\n"
@@ -304,6 +316,7 @@ class SamplingFCNetwork(nn.Module):
                             "Validation loss = {:.4f}\n".format(self.date,
                                                             self.dataset,
                                                             'Fc_Network',
+                                                            self.type,
                                                             self.input_type,
                                                             self.input_size,
                                                             self.output_type,

@@ -13,10 +13,12 @@ def parse_args():
 
     parser.add_argument('--minio-access-key', type=str, help='Minio access key')
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
-    parser.add_argument('--minio-addr', type=str, help="Minio Address")
+    parser.add_argument('--minio-addr', type=None, help="Minio Address")
     parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
     parser.add_argument('--target-avg-points', type=int, help='Target average of datapoints per sphere', 
-                        default=5)
+                        default=15)
+    parser.add_argument('--percentile', type=int, default=75, help='Percentile for spherical gaussian')
+    parser.add_argument('--std', type=float, default=1.0, help='Standard deviation for spherical gaussian')
     parser.add_argument('--n-spheres', type=int, help='Number of spheres', default=100000)
     parser.add_argument('--training-batch-size', type=int, default=64)
     parser.add_argument('--epochs', type=int, default=10)
@@ -39,6 +41,8 @@ def main():
                                               output_size= args.output_size,
                                               bin_size= args.bin_size,
                                               type=SamplingType.UNIFORM_SAMPLING)
+    
+    gaussian_sampling_model.set_config(sampling_parameter={"percentile": args.percentile, "std": args.std})
 
     gaussian_sampling_model.train(num_epochs=args.epochs,
                                  batch_size=args.training_batch_size,
