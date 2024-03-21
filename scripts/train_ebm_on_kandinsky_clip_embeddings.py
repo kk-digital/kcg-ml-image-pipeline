@@ -1273,7 +1273,7 @@ plot_name3  = target_class + "_tier3"
 
 plot_images_with_scores(selected_structure_first_50,plot_name1)
 plot_images_with_scores(selected_structure_second_50,plot_name2)
-plot_images_with_scores(selected_structure_third_50,plot_name3")
+plot_images_with_scores(selected_structure_third_50,plot_name3)
 
 
 
