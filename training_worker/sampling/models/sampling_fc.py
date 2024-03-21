@@ -276,7 +276,7 @@ class SamplingFCNetwork(nn.Module):
 
         # Add Sampling Method Report
         report_text += (
-            f"================ Classification Report ==================\n"
+            f"================ Sampling Policy Report ==================\n"
         )
         for key, value in zip(self.sampling_parameter.keys(), self.sampling_parameter.values()):
             report_text += (
@@ -310,30 +310,39 @@ class SamplingFCNetwork(nn.Module):
         fig, axs = plt.subplots(3, 1, figsize=(12, 10))
         
         #info text about the model
-        plt.figtext(0.02, 0.7, "Date = {}\n"
-                            "Dataset = {}\n"
-                            "Model type = {}\n"
-                            "Sampling type = {}\n"
-                            "Input type = {}\n"
-                            "Input shape = {}\n"
-                            "Output type= {}\n\n"
-                            ""
-                            "Training size = {}\n"
-                            "Validation size = {}\n"
-                            "Training loss = {:.4f}\n"
-                            "Validation loss = {:.4f}\n".format(self.date,
-                                                            self.dataset,
-                                                            'Fc_Network',
-                                                            self.type,
-                                                            self.input_type,
-                                                            self.input_size,
-                                                            self.output_type,
-                                                            training_size,
-                                                            validation_size,
-                                                            best_train_loss,
-                                                            best_val_loss,
-                                                            ))
+        fig_report_text = (
+            "Date = {}\n"
+            "Dataset = {}\n"
+            "Model type = {}\n"
+            "Input type = {}\n"
+            "Input shape = {}\n"
+            "Output type= {}\n\n"
+            ""
+            "Training size = {}\n"
+            "Validation size = {}\n"
+            "Training loss = {:.4f}\n"
+            "Validation loss = {:.4f}\n"
+            "\n".format(self.date,
+                                            self.dataset,
+                                            'Fc_Network',
+                                            self.input_type,
+                                            self.input_size,
+                                            self.output_type,
+                                            training_size,
+                                            validation_size,
+                                            best_train_loss,
+                                            best_val_loss
+        ))
 
+        fig_report_text += (
+            "Sampling Policy: {}\n".format(self.type)
+        )
+        for key, value in zip(self.sampling_parameter.keys(), self.sampling_parameter.values()):
+            fig_report_text += (
+                f"{key}: {value}\n"
+            )
+        plt.figtext(0.02, 0.7, fig_report_text)
+        
         # Plot validation and training Rmse vs. Rounds
         axs[0].plot(range(1, len(train_loss_per_round) + 1), train_loss_per_round,'b', label='Training loss')
         axs[0].plot(range(1, len(val_loss_per_round) + 1), val_loss_per_round,'r', label='Validation loss')
