@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, constr, validator, model_validator
 from typing import List, Union, Optional
 import json
 import re
+from typing import Union
 
 class Task(BaseModel):
     task_type: str
@@ -209,15 +210,19 @@ class RankingScore(BaseModel):
     
 
 class ClassifierScore(BaseModel):
-    model_id: int
-    tag_id: str
+    uuid: Union[str, None]
+    classifier_id: int
+    classifier_name: str
+    pseudo_tag_id: int
     image_hash: str
     score: float
 
     def to_dict(self):
         return {
-            "model_id": self.model_id,
-            "tag_id": self.tag_id,
+            "uuid": self.uuid,
+            "classifier_id": self.classifier_id,
+            "classifier_name": self.classifier_name,
+            "pseudo_tag_id": self.pseudo_tag_id,
             "image_hash": self.image_hash,
             "score": self.score,
         }
