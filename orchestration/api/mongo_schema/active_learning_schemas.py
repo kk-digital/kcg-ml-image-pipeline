@@ -16,6 +16,9 @@ class ActiveLearningPolicy(BaseModel):
             "creation_time": self.creation_time
         }
 
+class ListActiveLearningPolicy(BaseModel):
+    policies: List[ActiveLearningPolicy]
+
 class RequestActiveLearningPolicy(BaseModel):
     active_learning_policy: str
     active_learning_policy_description: str

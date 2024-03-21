@@ -106,10 +106,31 @@ class ELMRegression():
     def classify(self, dataset_feature_vector):
         print("Classifying...")
 
+        dataset_feature_vector = dataset_feature_vector.to(self._device)
         h = self._activation(torch.add(dataset_feature_vector.mm(self._weight), self._bias))
         out = h.mm(self._beta)
 
         return out
+    
+    def classify_pooled_embeddings(self, positive_embedding_array, negative_embedding_array):
+        # Average pooling
+        embedding_array = torch.cat((positive_embedding_array, negative_embedding_array), dim=-1)
+        avg_pool = torch.nn.AvgPool2d(kernel_size=(77, 1))
+
+        embedding_array = avg_pool(embedding_array)
+        embedding_array = embedding_array.squeeze().unsqueeze(0)
+
+        return self.classify(embedding_array)
+    
+    def predict_positive_or_negative_only_pooled(self, embedding_array):
+        # Average pooling
+
+        avg_pool = torch.nn.AvgPool2d(kernel_size=(77, 1))
+
+        embedding_array = avg_pool(embedding_array)
+        embedding_array = embedding_array.squeeze().unsqueeze(0)
+
+        return self.classify(embedding_array)
 
     def evaluate(self, validation_feature_vector, validation_targets, threshold=0.5):
         print("Evaluating...")
@@ -223,6 +244,9 @@ class ELMRegression():
         model_file = model_files[0]
         print(f"Loading model: {model_file}")
 
+        return self.load_model_with_filename(minio_client, model_file, tag_name)
+    
+    def load_model_with_filename(self, minio_client, model_file, tag_name):
         model_data = minio_client.get_object('datasets', model_file)
         
         clip_model = ELMRegression(device=self._device)
