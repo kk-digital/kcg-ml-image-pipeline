@@ -32,5 +32,5 @@ scikit-learn
 xgboost
 clip-interrogator
 omegaconf
-faiss-cpu
 seaborn
+https://github.com/kyamagu/faiss-wheels/releases/download/v1.7.3/faiss_gpu-1.7.3-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
