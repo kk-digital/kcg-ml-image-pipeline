@@ -1171,14 +1171,14 @@ def main():
     # do self training
     training_pipeline.train()
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
 
             
 
 
 
-# plot_samples(dataset_name = "environmental", number_of_samples = 30000,model_name ="concept-occult")
+plot_samples(dataset_name = "environmental", number_of_samples = 30000,model_name ="concept-occult")
 
 #print(get_tag_id_by_name("topic-forest"))
 
