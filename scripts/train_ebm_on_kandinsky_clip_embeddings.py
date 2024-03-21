@@ -1155,7 +1155,7 @@ def main():
 
 
 
-tag_images(dataset_name = "environmental", number_of_samples = 500,model_name= "mountain" ,tag_name ="topic-mountain ",tagger_name = "amine",plot_a_sample = True)
+tag_images(dataset_name = "environmental", number_of_samples = 300,model_name= "mountain" ,tag_name ="topic-mountain ",tagger_name = "amine",plot_a_sample = True)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
