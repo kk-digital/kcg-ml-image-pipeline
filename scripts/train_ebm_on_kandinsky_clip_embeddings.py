@@ -973,33 +973,6 @@ def tag_images(dataset_name, number_of_samples,model_name,tag_name,tagger_name,p
 
 
 
-def plot_samples(dataset_name, number_of_samples,model_name):
-
-
-    # get the paths and hashes
-    images_paths_ood, images_hashes_ood = get_file_paths_and_hashes(dataset_name,number_of_samples)
-    loaded_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-    # Load the last trained model
-    load_model_to_minio(loaded_model,model_name)
-
-    # Process the images
-    sorted_images_and_hashes = process_and_sort_dataset_with_hashes(images_paths_ood, images_hashes_ood, loaded_model) 
-
-    # Tag the images
-
-    selected_structure_first_50 = sorted_images_and_hashes[:52] 
-    selected_structure_second_50 = sorted_images_and_hashes[52:103]
-    selected_structure_third_50 = sorted_images_and_hashes[103:154]
-    #tag_image(file_hash,tag_id,user)
-
-    
-    plot_name1 = model_name + "_tier1"
-    plot_name2 = model_name + "_tier2"
-    plot_name3  = model_name + "_tier3"
-
-    plot_images_with_scores(selected_structure_first_50,plot_name1)
-    plot_images_with_scores(selected_structure_second_50,plot_name2)
-    plot_images_with_scores(selected_structure_third_50,plot_name3)
 
 # ---------------------------------------------------------------------------------------------------------------------
 # -------------------------------------------------------- Define the main function -----------------------------------
@@ -1073,7 +1046,7 @@ class EBM_Single_Class_Trainer:
         train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(get_tag_jobs(self.class_id),1)
 
         # Create dataloader of adversarial classes
-        train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,20,21,34,35],0)
+        train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,20,21,34,39],0)
         # init the loader
         train_loader = train_loader_automated
         val_loader = val_loader_automated
@@ -1171,18 +1144,18 @@ def main():
     # do self training
     training_pipeline.train()
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()
 
             
 
 
 
-plot_samples(dataset_name = "environmental", number_of_samples = 5000 ,model_name ="aquatic")
+
 
 #print(get_tag_id_by_name("topic-forest"))
 
-#tag_images(dataset_name = "environmental", number_of_samples = 40000,model_name= "mountain" ,tag_name ="topic-mountain",tagger_name = "amine",plot_a_sample = True)
+tag_images(dataset_name = "environmental", number_of_samples = 5000 ,model_name= "aquatic" ,tag_name ="topic-aquatic",tagger_name = "amine",plot_a_sample = True)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1199,25 +1172,22 @@ plot_samples(dataset_name = "environmental", number_of_samples = 5000 ,model_nam
 
 
 
-
-# model_name = 'concept-cybernetic'
-
 # # Create a new Model    
-# original_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# new_text_model_st = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # # Load the last occult trained model
-# load_model_to_minio(original_model,'concept-cybernetic')
+# load_model_to_minio(new_text_model_st,'content-has-text')
 
 
-
+# # Load the environmental dataset     
+# images_paths_ood = get_file_paths("environmental",30000)
 
 
 
 # # Get sort the images by energy (from best to worst)
-# images_paths_ood, images_hashes_ood = get_file_paths_and_hashes("environmental",30000)
-# sorted_images_for_original_model = process_and_sort_dataset_with_hashes(images_paths_ood, images_hashes_ood,original_model)
+# sorted_images_for_original_model = process_and_sort_dataset(images_paths_ood, new_text_model_st)
 
-# # # Save the list on csv file
-# # get_structure_csv_content(sorted_images_for_original_model,"content-has-text_on_env_30000_sample")
+# # Save the list on csv file
+# get_structure_csv_content(sorted_images_for_original_model,"content-has-text_on_env_30000_sample")
 
 # # Get top 50 images
 # selected_best_50_for_original_model = sorted_images_for_original_model[:50]
@@ -1232,7 +1202,7 @@ plot_samples(dataset_name = "environmental", number_of_samples = 5000 ,model_nam
 # train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(new_combined_paths,1)
 
 # # Get adversarial dataset
-# train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([4,5,6,7,8,9,15,20,21,34,36],0)
+# train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([7,8,9,15,20,21,35],0)
 
 # # init the loader
 # train_loader = train_loader_automated
@@ -1317,26 +1287,20 @@ plot_samples(dataset_name = "environmental", number_of_samples = 5000 ,model_nam
 # #toodoo
 # #go create something
 # print("yep it's here")
-
-
-# new_sorted_images = process_and_sort_dataset_with_hashes(images_paths_ood,images_hashes_ood, retrained_model)
+# new_sorted_images = process_and_sort_dataset(images_paths_ood, retrained_model)
 
 
 # get_structure_csv_content(new_sorted_images,"retrained_on_text_defect_on_env_30000_sample")
-# selected_structure_first_50 = new_sorted_images[:52]
-# selected_structure_second_50 = new_sorted_images[52:103]
-# selected_structure_third_50 = new_sorted_images[103:154]
+# selected_structure_first_52 = new_sorted_images[:52]
+# selected_structure_second_52 = new_sorted_images[52:103]
+# selected_structure_third_52 = new_sorted_images[103:154]
+
+# plot_images_with_scores(selected_structure_first_52,"Top_first_52_occult_env_added_50")
+# plot_images_with_scores(selected_structure_second_52,"Top_second_52_occult_env_added_50")
+# plot_images_with_scores(selected_structure_third_52,"Top_third_52_occult_env_added_50")
 
 
-# plot_name1 = model_name + "_tier1"
-# plot_name2 = model_name + "_tier2"
-# plot_name3  = model_name + "_tier3"
-
-# plot_images_with_scores(selected_structure_first_50,plot_name1)
-# plot_images_with_scores(selected_structure_second_50,plot_name2)
-# plot_images_with_scores(selected_structure_third_50,plot_name3)
-
-#Let's tag some images
+# Let's tag some images
 
 
 
@@ -1523,13 +1487,13 @@ plot_samples(dataset_name = "environmental", number_of_samples = 5000 ,model_nam
 
 
 
-# new_combined_paths =  get_tag_jobs(35)
+# new_combined_paths =  get_tag_jobs(18)
 
 # # Create dataloader of occult
 # train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(new_combined_paths,1)
 
 # # Get adversarial dataset
-# train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,40,20,22],0)
+# train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,35,40,20,22],0)
 
 # # init the loader
 # train_loader = train_loader_automated
@@ -1539,12 +1503,12 @@ plot_samples(dataset_name = "environmental", number_of_samples = 5000 ,model_nam
 
 
 # # Train
-# model_name = 'concept-cybernetic'
-# new_model = train_model(train_loader,val_loader, adv_loader, img_shape=(1,1280),
+
+# new_forest_model = train_model(train_loader,val_loader, adv_loader, img_shape=(1,1280),
 #                     batch_size=train_loader.batch_size,
 #                     lr=0.001,
 #                     beta1=0.0)
-# save_model_to_minio(new_model,model_name,'temp_model.safetensors')
+# save_model_to_minio(new_forest_model,'forest','temp_model.safetensors')
 
 
 # # # up loader graphs
@@ -1617,35 +1581,27 @@ plot_samples(dataset_name = "environmental", number_of_samples = 5000 ,model_nam
 
 
 # # Create a new Model    
-# reloaded_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# new_text_model_st = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # # Load the last occult trained model
-# load_model_to_minio(reloaded_model,model_name)
+# load_model_to_minio(new_text_model_st,'content-has-text')
 
 
-# # Load the environmental dataset     tooodoooo
-# images_paths_ood, hashes = get_file_paths_and_hashes("environmental",5)
+# # Load the environmental dataset     
+# images_paths_ood = get_file_paths("environmental",30000)
 
 # # #go create something
 # # print("yep it's here")
+# new_sorted_images = process_and_sort_dataset(images_paths_ood, new_text_model_st)
 
-# new_sorted_images = process_and_sort_dataset_with_hashes(images_paths_ood, hashes, reloaded_model)
 
-
-# #get_structure_csv_content(new_sorted_images,"text_on_env_30000_sample")
+# get_structure_csv_content(new_sorted_images,"text_on_env_30000_sample")
 # selected_structure_first_52 = new_sorted_images[:52]
 # selected_structure_second_52 = new_sorted_images[52:103]
 # selected_structure_third_52 = new_sorted_images[103:154]
 
-
-# plot_name1 = model_name + "_tier1"
-# plot_name2 = model_name + "_tier2"
-# plot_name3  = model_name + "_tier3"
-
-
-
-# plot_images_with_scores(selected_structure_first_52,plot_name1)
-# plot_images_with_scores(selected_structure_second_52,plot_name2)
-# plot_images_with_scores(selected_structure_third_52,plot_name3)
+# plot_images_with_scores(selected_structure_first_52,"text_env_30000_tier_1")
+# plot_images_with_scores(selected_structure_second_52,"text_env_30000_tier_2")
+# plot_images_with_scores(selected_structure_third_52,"text_env_30000_tier_3")
     
 
 # ---------------------------------------------------------------------------------------------------------------------
