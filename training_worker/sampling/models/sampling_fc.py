@@ -91,7 +91,7 @@ class SamplingFCNetwork(nn.Module):
         # sphere dataloader
         if self.type == SamplingType.UNIFORM_SAMPLING:
             self.dataloader= UniformSphereGenerator(minio_client, dataset)
-        elif self.type == SamplingType.SPHEARICAL_GAUSSIAN_SAMPLING:
+        elif self.type == SamplingType.SPHERICAL_GAUSSIAN_SAMPLING:
             self.dataloader = SphericalGaussianGenerator(minio_client, dataset)
 
     def set_config(self, sampling_parameter= None):
