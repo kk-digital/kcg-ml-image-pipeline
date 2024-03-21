@@ -35,6 +35,7 @@ from orchestration.api.api_worker import router as worker_router
 from orchestration.api.api_inpainting_job import router as inpainting_job_router
 from orchestration.api.api_server_utility import router as server_utility_router
 from orchestration.api.api_classifier_score import router as classifier_score_router
+from orchestration.api.api_classifier import router as classifier_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -74,6 +75,7 @@ app.include_router(worker_router)
 app.include_router(inpainting_job_router)
 app.include_router(server_utility_router)
 app.include_router(classifier_score_router)
+app.include_router(classifier_router)
 
 
 
@@ -178,6 +180,12 @@ def startup_db_client():
     # dataset rate
     app.dataset_config_collection = app.mongodb_db["dataset_config"]
 
+    # ab ranking
+    app.rank_definitions_collection = app.mongodb_db["rank_definitions"]
+    app.image_ranks_collection = app.mongodb_db["image_ranks"]
+    app.rank_categories_collection = app.mongodb_db["rank_categories"]
+
+
     # tags
     app.tag_definitions_collection = app.mongodb_db["tag_definitions"]
     app.image_tags_collection = app.mongodb_db["image_tags"]
@@ -185,10 +193,9 @@ def startup_db_client():
 
     # pseudo tags
     app.pseudo_tag_definitions_collection = app.mongodb_db["pseudo_tag_definitions"]
-    app.pseudo_image_tags_collection = app.mongodb_db["pseudo_image_tags"]
+    app.pseudo_tag_images_collection = app.mongodb_db["pseudo_tag_images"]
     app.pseudo_tag_categories_collection = app.mongodb_db["pseudo_tag_categories"]
     app.uuid_pseudo_tag_count_collection = app.mongodb_db["pseudo_tag_count"]
-    app.pseudo_tag_scores_collection = app.mongodb_db["pseudo_tag_scores"]
 
     #classifier
     app.classifier_models_collection = app.mongodb_db["classifier_models"]
@@ -228,22 +235,20 @@ def startup_db_client():
     ]
     create_index_if_not_exists(app.image_scores_collection ,hash_index, 'score_hash_index')
 
-    # classifier scores hash index
-    classifier_hash_index=[
-    ('model_id', pymongo.ASCENDING), 
+    # classifier scores classifier_id, pseudo_tag_id, image_hash
+    classifier_image_hash_index=[
     ('image_hash', pymongo.ASCENDING),
-    ('tag_id', pymongo.ASCENDING)
+    ('classifier_id', pymongo.ASCENDING),
+    ('pseudo_tag_id', pymongo.ASCENDING)
     ]
-    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_hash_index, 'classifier_hash_index')
+    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_hash_index, 'classifier_image_hash_index')
 
-    
-    # classifier scores tag index
-    classifier_tag_index=[
-    ('model_id', pymongo.ASCENDING), 
-    ('tag_id', pymongo.ASCENDING)
+    # classifier scores classifier_id, pseudo_tag_id
+    classifier_image_classifier_index=[
+    ('classifier_id', pymongo.ASCENDING),
+    ('pseudo_tag_id', pymongo.ASCENDING)
     ]
-    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_tag_index, 'classifier_hash_index')
-
+    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_classifier_index, 'classifier_image_classifier_index')
 
 
     # sigma scores
@@ -299,8 +304,3 @@ def startup_db_client():
 @app.on_event("shutdown")
 def shutdown_db_client():
     app.mongodb_client.close()
-
-
-
-
-
