@@ -908,6 +908,74 @@ def getAccuracy_v2(cyber_sample_loader, model1, model2):
 
 
 
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# -------------------------------------------------------- tag images ---------------------------------------
+# ---------------------------------------------------------------------------------------------------------------------
+    
+
+def get_tag_id_by_name(tag_name):
+    response = requests.get(f'{API_URL}/pseudo-tag/get-id-by-pseudotag-name?pseudo_tag_string=t{tag_name}')
+    
+        # Check if the response is successful (status code 200)
+    # Check if the request was successful (status code 200)
+    if response.status_code == 200:
+        # Parse the JSON response
+        json_data = response.json()
+
+        # Get the value of "response" from the JSON data
+        response_value = json_data.get('response')
+
+        # Print or use the response value
+        print("Response:", response_value)
+        return response_value
+    else:
+        print("Error:", response.status_code)
+
+
+
+    #http://103.20.60.90:8764/pseudo-tag/get-id-by-pseudotag-name?pseudo_tag_string=topic-aquatic
+
+def tag_images(dataset_name, number_of_samples,tag_name,tagger_name):
+
+
+    # get the paths and hashes
+    images_paths_ood, images_hashes_ood = get_file_paths_and_hashes(dataset_name,number_of_samples)
+
+    target_class = tag_name
+    loaded_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+    # Load the last occult trained model
+    load_model_to_minio(loaded_model,target_class)
+
+    # Process the images
+    sorted_images_and_hashes = process_and_sort_dataset_with_hashes(images_paths_ood, images_hashes_ood, loaded_model) 
+    # Tag the images
+
+    # for i in range(len(sorted_images_and_hashes)):
+    #     print("Path 2 : ", sorted_images_and_hashes[i][0], " Hash 2 : ",sorted_images_and_hashes[i][4])
+
+    selected_structure_first_50 = sorted_images_and_hashes[:52] 
+    selected_structure_second_50 = sorted_images_and_hashes[52:103]
+    selected_structure_third_50 = sorted_images_and_hashes[103:154]
+    #tag_image(file_hash,tag_id,user)
+
+    for image in selected_structure_first_50:
+        tag_image(image[4],0,tagger_name)
+        
+
+    plot_name1 = target_class + "_tier1"
+    plot_name2 = target_class + "_tier2"
+    plot_name3  = target_class + "_tier3"
+
+    plot_images_with_scores(selected_structure_first_50,plot_name1)
+    plot_images_with_scores(selected_structure_second_50,plot_name2)
+    plot_images_with_scores(selected_structure_third_50,plot_name3)
+
+
+
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 # -------------------------------------------------------- Define the main function -----------------------------------
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1086,6 +1154,8 @@ def main():
 
 
 
+print("tag is :",get_tag_id_by_name("topic-aquatic"))
+
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1232,51 +1302,7 @@ def main():
 
 # Let's tag some images
 
-# get the paths and hashes
-images_paths_ood, images_hashes_ood = get_file_paths_and_hashes("environmental",40000)
 
-
-# for i in range(len(images_paths_ood)):
-#     print("Path: ", images_paths_ood[i], " Hash : ",images_hashes_ood[i])
-
-# load the model
-# Create a new Model    
-
-target_class = "aquatic"
-
-
-
-loaded_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-# Load the last occult trained model
-load_model_to_minio(loaded_model,target_class)
-
-# Process the images
-sorted_images_and_hashes = process_and_sort_dataset_with_hashes(images_paths_ood, images_hashes_ood, loaded_model) 
-# Tag the images
-
-
-
-# for i in range(len(sorted_images_and_hashes)):
-#     print("Path 2 : ", sorted_images_and_hashes[i][0], " Hash 2 : ",sorted_images_and_hashes[i][4])
-
-
-selected_structure_first_50 = sorted_images_and_hashes[:52] 
-selected_structure_second_50 = sorted_images_and_hashes[52:103]
-selected_structure_third_50 = sorted_images_and_hashes[103:154]
-#tag_image(file_hash,tag_id,user)
-
-for image in selected_structure_first_50:
-    tag_image(image[4],0,'amine')
-    
-
-
-plot_name1 = target_class + "_tier1"
-plot_name2 = target_class + "_tier2"
-plot_name3  = target_class + "_tier3"
-
-plot_images_with_scores(selected_structure_first_50,plot_name1)
-plot_images_with_scores(selected_structure_second_50,plot_name2)
-plot_images_with_scores(selected_structure_third_50,plot_name3)
 
 
 
