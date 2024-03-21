@@ -706,6 +706,7 @@ def process_and_sort_dataset_with_hashes(images_paths, hashes, model):
 #/pseudotags/add-pseudo-tag-to-image
 def tag_image(file_hash,tag_id,user):
     #print("tag: ",tag_id, " hash : ",file_hash, " user : ",user)
+    print(f'{API_URL}/pseudotags/add-pseudo-tag-to-image?pseudo_tag_id={tag_id}&file_hash={file_hash}&user_who_created={user}')
     response = requests.post(f'{API_URL}/pseudotags/add-pseudo-tag-to-image?pseudo_tag_id={tag_id}&file_hash={file_hash}&user_who_created={user}')
     # Check if the response is successful (status code 200)
     if response.status_code == 200:
@@ -960,7 +961,6 @@ def tag_images(dataset_name, number_of_samples,model_name,tag_name,tagger_name,p
     for image in selected_structure_first_50:
         tag_image(image[4],get_tag_id_by_name(tag_name),tagger_name)
         
-
     if plot_a_sample == True:
         plot_name1 = target_class + "_tier1"
         plot_name2 = target_class + "_tier2"
