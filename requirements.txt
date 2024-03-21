@@ -32,5 +32,4 @@ scikit-learn
 xgboost
 clip-interrogator
 omegaconf
-faiss-cpu
 seaborn
