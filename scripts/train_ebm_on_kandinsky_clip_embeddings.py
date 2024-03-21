@@ -788,7 +788,7 @@ def plot_images_with_scores(sorted_dataset,name):
     axes = axes.flatten()
 
     # Loop over sorted dataset and plot each image with its score
-    for i, (image_path, _, score, image_tensor) in enumerate(sorted_dataset):
+    for i, (image_path, _, score, image_tensor,hash) in enumerate(sorted_dataset):
         # Check if image_tensor is a PIL Image; no need to convert if already a numpy array
         if not isinstance(image_tensor, np.ndarray):
             # Convert PIL Image to a format suitable for matplotlib
@@ -1243,6 +1243,9 @@ images_paths_ood, images_hashes_ood = get_file_paths_and_hashes("environmental",
 # Create a new Model    
 
 target_class = "aquatic"
+
+
+
 loaded_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
 load_model_to_minio(loaded_model,target_class)
