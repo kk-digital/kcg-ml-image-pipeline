@@ -1046,7 +1046,7 @@ class EBM_Single_Class_Trainer:
         train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(get_tag_jobs(self.class_id),1)
 
         # Create dataloader of adversarial classes
-        train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,20,21,35,39],0)
+        train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,20,21,34,39],0)
         # init the loader
         train_loader = train_loader_automated
         val_loader = val_loader_automated
@@ -1144,8 +1144,8 @@ def main():
     # do self training
     training_pipeline.train()
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()
 
             
 
@@ -1155,7 +1155,7 @@ def main():
 
 #print(get_tag_id_by_name("topic-forest"))
 
-tag_images(dataset_name = "environmental", number_of_samples = 40000,model_name= "mountain" ,tag_name ="topic-mountain",tagger_name = "amine",plot_a_sample = True)
+#tag_images(dataset_name = "environmental", number_of_samples = 40000,model_name= "mountain" ,tag_name ="topic-mountain",tagger_name = "amine",plot_a_sample = True)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
