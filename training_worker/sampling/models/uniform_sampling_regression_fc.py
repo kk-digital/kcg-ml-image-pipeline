@@ -119,10 +119,13 @@ class SamplingFCRegressionNetwork(nn.Module):
             
             with torch.no_grad():
                 for inputs, targets in val_loader:
+                    print(inputs, inputs.shape)
+                    print(targets, targets.shape)
                     inputs=inputs.to(self._device)
                     targets=targets.to(self._device)
 
                     outputs = self.model(inputs)
+                    print(outputs, outputs.shape)
                     loss = criterion(outputs, targets)
 
                     total_val_loss += loss.item() * inputs.size(0)
