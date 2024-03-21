@@ -705,7 +705,7 @@ def process_and_sort_dataset_with_hashes(images_paths, hashes, model):
 # (f'{API_URL}/pseudotags/add-pseudo-tag-to-image?pseudo_tag_id={tag_id}&file_hash={file_hash}&user_who_created={user}')
 #/pseudotags/add-pseudo-tag-to-image
 def tag_image(file_hash,tag_id,user):
-    print("tag: ",tag_id, " hash : ",file_hash, " user : ",user)
+    #print("tag: ",tag_id, " hash : ",file_hash, " user : ",user)
     response = requests.post(f'{API_URL}/pseudotags/add-pseudo-tag-to-image?pseudo_tag_id={tag_id}&file_hash={file_hash}&user_who_created={user}')
     # Check if the response is successful (status code 200)
     if response.status_code == 200:
@@ -928,7 +928,7 @@ def get_tag_id_by_name(tag_name):
         response_value = json_data.get('response')
 
         # Print or use the response value
-        print("Response:", response_value)
+        print("The tag id is:", response_value)
         return response_value
     else:
         print("Error:", response.status_code)
@@ -1155,7 +1155,7 @@ def main():
 
 
 
-tag_images(dataset_name = "environmental", number_of_samples = 300,model_name= "mountain" ,tag_name ="topic-mountain ",tagger_name = "amine",plot_a_sample = True)
+tag_images(dataset_name = "environmental", number_of_samples = 300,model_name= "forest" ,tag_name ="topic-forest ",tagger_name = "amine",plot_a_sample = True)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
