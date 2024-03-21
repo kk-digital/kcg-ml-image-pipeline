@@ -941,7 +941,7 @@ def tag_images(dataset_name, number_of_samples,model_name,tag_name,tagger_name,p
 
 
     # get the paths and hashes
-    images_paths_ood, images_hashes_ood = get_file_paths_and_hashes("environmental",number_of_samples)
+    images_paths_ood, images_hashes_ood = get_file_paths_and_hashes("environmental",500)
     target_class = tag_name
     loaded_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
     # Load the last trained model
