@@ -1250,30 +1250,30 @@ load_model_to_minio(loaded_model,target_class)
 
 # Process the images
 sorted_images_and_hashes = process_and_sort_dataset_with_hashes(images_paths_ood, images_hashes_ood, loaded_model) 
-# Tag the images
+# # Tag the images
 
 
-# for i in range(len(sorted_images_and_hashes)):
-#     print("Path 2 : ", sorted_images_and_hashes[i][0], " Hash 2 : ",sorted_images_and_hashes[i][4])
+# # for i in range(len(sorted_images_and_hashes)):
+# #     print("Path 2 : ", sorted_images_and_hashes[i][0], " Hash 2 : ",sorted_images_and_hashes[i][4])
 
 
-selected_structure_first_50 = sorted_images_and_hashes[:52] 
-selected_structure_second_50 = sorted_images_and_hashes[52:103]
-selected_structure_third_50 = sorted_images_and_hashes[103:154]
-#tag_image(file_hash,tag_id,user)
+# selected_structure_first_50 = sorted_images_and_hashes[:52] 
+# selected_structure_second_50 = sorted_images_and_hashes[52:103]
+# selected_structure_third_50 = sorted_images_and_hashes[103:154]
+# #tag_image(file_hash,tag_id,user)
 
-for image in selected_structure_first_50:
-    tag_image(image[4],0,'amine')
+# for image in selected_structure_first_50:
+#     tag_image(image[4],0,'amine')
     
 
 
-plot_name1 = target_class + "_tier1"
-plot_name2 = target_class + "_tier2"
-plot_name3  = target_class + "_tier3"
+# plot_name1 = target_class + "_tier1"
+# plot_name2 = target_class + "_tier2"
+# plot_name3  = target_class + "_tier3"
 
-plot_images_with_scores(selected_structure_first_50,plot_name1)
-plot_images_with_scores(selected_structure_second_50,plot_name2)
-plot_images_with_scores(selected_structure_third_50,plot_name3)
+# plot_images_with_scores(selected_structure_first_50,plot_name1)
+# plot_images_with_scores(selected_structure_second_50,plot_name2)
+# plot_images_with_scores(selected_structure_third_50,plot_name3)
 
 
 
