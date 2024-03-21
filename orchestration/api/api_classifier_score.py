@@ -1,8 +1,9 @@
-from fastapi import Request, APIRouter
+from fastapi import Request, APIRouter, Query
 from .api_utils import ErrorCode, WasPresentResponse, ApiResponseHandlerV1, StandardSuccessResponseV1
-from orchestration.api.mongo_schemas import ClassifierScore
+from orchestration.api.mongo_schemas import ClassifierScore, ListClassifierScore
 from fastapi.encoders import jsonable_encoder
 import uuid
+from typing import Optional
 
 router = APIRouter()
 
@@ -283,5 +284,43 @@ def delete_image_classifier_score_by_hash(
     # Use ApiResponseHandler to return the standardized response
     return api_response_handler.create_success_response_v1(
         response_data={"wasPresent": was_present},
+        http_status_code=200
+    )
+
+@router.get("/classifier-score/list-by-scores", 
+            description="List images by classifier scores",
+            tags=["score"],  
+            response_model=StandardSuccessResponseV1[ListClassifierScore],  # Adjust the response model as needed
+            responses=ApiResponseHandlerV1.listErrors([400, 422]))
+async def list_images_by_classifier_scores(
+    request: Request,
+    classifier_id: Optional[int] = Query(None, description="Filter by classifier ID"),
+    min_score: Optional[float] = Query(None, description="Minimum score"),
+    max_score: Optional[float] = Query(None, description="Maximum score"),
+    limit: int = Query(10, alias="limit")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    # Build the query based on provided filters
+    query = {}
+    if classifier_id is not None:
+        query["classifier_id"] = classifier_id
+    if min_score is not None and max_score is not None:
+        query["score"] = {"$gte": min_score, "$lte": max_score}
+    elif min_score is not None:
+        query["score"] = {"$gte": min_score}
+    elif max_score is not None:
+        query["score"] = {"$lte": max_score}
+
+    # Fetch data from MongoDB with a limit
+    cursor = request.app.image_classifier_scores_collection.find(query).limit(limit)
+    scores_data = list(cursor)
+
+    # Prepare the data for the response
+    images_data = [ListClassifierScore(**doc).dict() for doc in scores_data]
+
+    # Return the fetched data with a success response
+    return response_handler.create_success_response_v1(
+        response_data={"images":images_data}, 
         http_status_code=200
     )

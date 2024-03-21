@@ -180,6 +180,12 @@ def startup_db_client():
     # dataset rate
     app.dataset_config_collection = app.mongodb_db["dataset_config"]
 
+    # ab ranking
+    app.rank_definitions_collection = app.mongodb_db["rank_definitions"]
+    app.image_ranks_collection = app.mongodb_db["image_ranks"]
+    app.rank_categories_collection = app.mongodb_db["rank_categories"]
+
+
     # tags
     app.tag_definitions_collection = app.mongodb_db["tag_definitions"]
     app.image_tags_collection = app.mongodb_db["image_tags"]
