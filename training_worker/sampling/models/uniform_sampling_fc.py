@@ -50,7 +50,7 @@ class DatasetLoader(Dataset):
 
 
 class SamplingFCNetwork(nn.Module):
-    def __init__(self, minio_client, input_size=1281, hidden_sizes=[512, 256], input_type="input_clip" , output_size=8, 
+    def __init__(self, minio_client, input_size=1281, hidden_sizes=[512, 256], input_type="uniform_sphere" , output_size=8, 
                  bin_size=1, output_type="score_distribution", dataset="environmental"):
         
         super(SamplingFCNetwork, self).__init__()
@@ -222,10 +222,10 @@ class SamplingFCNetwork(nn.Module):
                               val_loss, 
                               inference_speed,
                               learning_rate):
-        if self.input_type=="output_clip":
-            input_type="[output_image_clip_vector[1280]]"
-        elif self.input_type=="input_clip":
-            input_type="[input_clip_vector[1280]]"
+        if self.input_type=="uniform_sphere":
+            input_type="[input_clip_vector[1280], radius(float)]"
+        elif self.input_type=="gaussian_sphere":
+            input_type="[input_clip_vector[1280], variance(float)]"
 
         report_text = (
             "================ Model Report ==================\n"
