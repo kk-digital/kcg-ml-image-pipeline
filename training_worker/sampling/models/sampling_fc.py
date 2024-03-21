@@ -24,7 +24,7 @@ from training_worker.sampling.scripts.uniform_sampling_dataset import UniformSph
 from training_worker.sampling.scripts.spherical_gaussian_sampling_dataset import SphericalGaussianGenerator
 from utility.minio import cmd
 
-SamplingType = Enum('UNIFORM_SAMPLING', 'SPHEARICAL_GAUSSIAN_SAMPLING')
+SamplingType = Enum('SamplingType', ['UNIFORM_SAMPLING', 'SPHERICAL_GAUSSIAN_SAMPLING'])
 
 class DatasetLoader(Dataset):
     def __init__(self, features, labels):
@@ -55,8 +55,7 @@ class DatasetLoader(Dataset):
 
 class SamplingFCNetwork(nn.Module):
     def __init__(self, minio_client, input_size=1281, hidden_sizes=[512, 256], input_type="input_clip" , output_size=8, 
-                 bin_size=1, output_type="score_distribution", dataset="environmental", type=SamplingType.UNIFORM):
-        print(type)
+                 bin_size=1, output_type="score_distribution", dataset="environmental", type=SamplingType.UNIFORM_SAMPLING):
         super(SamplingFCNetwork, self).__init__()
         # set device
         if torch.cuda.is_available():

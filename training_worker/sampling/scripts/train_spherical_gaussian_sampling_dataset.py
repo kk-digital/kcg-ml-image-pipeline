@@ -13,6 +13,7 @@ def parse_args():
 
     parser.add_argument('--minio-access-key', type=str, help='Minio access key')
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
+    parser.add_argument('--minio-addr', type=str, help="Minio Address")
     parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
     parser.add_argument('--target-avg-points', type=int, help='Target average of datapoints per sphere', 
                         default=5)
@@ -30,21 +31,22 @@ def main():
 
     # get minio client
     minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key,
-                                        minio_secret_key=args.minio_secret_key)
+                                        minio_secret_key=args.minio_secret_key,
+                                        minio_ip_addr=args.minio_addr)
 
-    uniform_sampling_model= SamplingFCNetwork(minio_client=minio_client, 
+    gaussian_sampling_model= SamplingFCNetwork(minio_client=minio_client, 
                                               dataset=args.dataset,
                                               output_size= args.output_size,
                                               bin_size= args.bin_size,
-                                              type=SamplingType.SPHEARICAL_GAUSSIAN)
+                                              type=SamplingType.UNIFORM_SAMPLING)
 
-    uniform_sampling_model.train(num_epochs=args.epochs,
+    gaussian_sampling_model.train(num_epochs=args.epochs,
                                  batch_size=args.training_batch_size,
                                  learning_rate= args.learning_rate,
                                  n_spheres=args.n_spheres, 
                                  target_avg_points=args.target_avg_points)
     
-    uniform_sampling_model.save_model()
+    gaussian_sampling_model.save_model()
     
 if __name__ == "__main__":
     main()
