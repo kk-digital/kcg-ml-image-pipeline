@@ -1178,7 +1178,7 @@ def main():
 
 
 
-plot_samples(dataset_name = "environmental", number_of_samples = 30000,model_name ="concept-occult")
+#plot_samples(dataset_name = "environmental", number_of_samples = 30000,model_name ="concept-occult")
 
 #print(get_tag_id_by_name("topic-forest"))
 
@@ -1623,7 +1623,7 @@ load_model_to_minio(reloaded_model,model_name)
 
 
 # Load the environmental dataset     tooodoooo
-images_paths_ood, hashes = get_file_paths_and_hashes("environmental",30000)
+images_paths_ood, hashes = get_file_paths_and_hashes("environmental",5000)
 
 # #go create something
 # print("yep it's here")
