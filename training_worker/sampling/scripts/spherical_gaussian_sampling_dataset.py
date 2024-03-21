@@ -36,7 +36,7 @@ def parse_args():
 
     return parser.parse_args()
 
-class UniformSphereGenerator:
+class SphericalGaussianGenerator:
     def __init__(self,
                  minio_client,
                  dataset):
@@ -246,7 +246,7 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
 
-    generator= UniformSphereGenerator(minio_client=minio_client,
+    generator= SphericalGaussianGenerator(minio_client=minio_client,
                                     dataset=args.dataset)
     
     inputs, outputs = generator.load_sphere_dataset(num_bins= args.num_bins,
