@@ -35,6 +35,7 @@ from orchestration.api.api_worker import router as worker_router
 from orchestration.api.api_inpainting_job import router as inpainting_job_router
 from orchestration.api.api_server_utility import router as server_utility_router
 from orchestration.api.api_classifier_score import router as classifier_score_router
+from orchestration.api.api_classifier import router as classifier_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -74,6 +75,7 @@ app.include_router(worker_router)
 app.include_router(inpainting_job_router)
 app.include_router(server_utility_router)
 app.include_router(classifier_score_router)
+app.include_router(classifier_router)
 
 
 
@@ -185,10 +187,9 @@ def startup_db_client():
 
     # pseudo tags
     app.pseudo_tag_definitions_collection = app.mongodb_db["pseudo_tag_definitions"]
-    app.pseudo_image_tags_collection = app.mongodb_db["pseudo_image_tags"]
+    app.pseudo_tag_images_collection = app.mongodb_db["pseudo_tag_images"]
     app.pseudo_tag_categories_collection = app.mongodb_db["pseudo_tag_categories"]
     app.uuid_pseudo_tag_count_collection = app.mongodb_db["pseudo_tag_count"]
-    app.pseudo_tag_scores_collection = app.mongodb_db["pseudo_tag_scores"]
 
     #classifier
     app.classifier_models_collection = app.mongodb_db["classifier_models"]

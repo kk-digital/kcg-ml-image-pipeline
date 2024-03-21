@@ -32,6 +32,9 @@ class SingleModelResponse(BaseModel):
     validation_loss: str
     graph_report: str
 
+class JsonContentResponse(BaseModel):
+    json_content: dict
+
 class ModelResponse(BaseModel):
     models: List[SingleModelResponse]
 
@@ -44,6 +47,7 @@ class ModelTypeResponse(BaseModel):
 class ModelsAndScoresResponse(BaseModel):
     models: List[str]
     scores: List[str]
+
 class ListImageTag(BaseModel):
      images: List[ImageTag]
 
@@ -71,6 +75,10 @@ class TagsListResponse(BaseModel):
 
 class TagCountResponse(BaseModel):
     tag_id: int
+    count: int
+
+class PseudoTagCountResponse(BaseModel):
+    pseudo_tag_id: int
     count: int
 
 class ModelIdResponse(BaseModel):

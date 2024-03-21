@@ -53,7 +53,7 @@ def get_tag_id_by_name(request: Request, tag_string: str = Query(..., descriptio
 
 
 @router.put("/tags/set-deprecated", 
-              tags=["tags"],
+              tags=["deprecated2"],
               status_code=200,
               description="Set the 'deprecated' status of a tag definition to True",
               response_model=StandardSuccessResponseV1[TagDefinition],  
@@ -98,7 +98,7 @@ def set_tag_deprecated(request: Request, tag_id: int):
         )
 
 @router.put("/tags/remove-deprecated", 
-            tags=["tags"],
+            tags=["deprecated2"],
             status_code=200,
             description="Set the 'deprecated' status of a tag definition to False",
             response_model=StandardSuccessResponseV1[TagDefinition],  
@@ -629,7 +629,7 @@ def get_tagged_images(
 
 
 @router.put("/tag-categories/set-deprecated", 
-              tags=["tag-categories"],
+              tags=["deprecated2"],
               status_code=200,
               description="Set the 'deprecated' status of a tag category to True",
               response_model=StandardSuccessResponseV1[TagCategory], 
@@ -675,7 +675,7 @@ def set_tag_category_deprecated(request: Request, tag_category_id: int):
         )
 
 @router.put("/tag-categories/remove-deprecated", 
-              tags=["tag-categories"],
+              tags=["deprecated2"],
               status_code=200,
               description="Set the 'deprecated' status of a tag category to False",
               response_model=StandardSuccessResponseV1[TagCategory], 
@@ -1491,7 +1491,7 @@ def delete_tag_category(request: Request, tag_category_id: int):
 
 
 @router.put("/tags/update-deprecated-status", 
-            tags=["deprecated"],
+            tags=["tags"],
             status_code=200,
             description="Update the 'deprecated' status of a tag definition.",
             response_model=StandardSuccessResponseV1[TagDefinition],
@@ -1533,7 +1533,7 @@ def update_tag_deprecated_status(request: Request, tag_id: int, deprecated: bool
     )
 
 @router.put("/tag-categories/update-deprecated-status",  
-            tags=["deprecated"],
+            tags=["tag-categories"],
             status_code=200,
             description="Set the 'deprecated' status of a tag category.",
             response_model=StandardSuccessResponseV1[TagCategory],
