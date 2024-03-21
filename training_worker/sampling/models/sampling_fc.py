@@ -278,11 +278,11 @@ class SamplingFCNetwork(nn.Module):
         report_text += (
             f"================ Classification Report ==================\n"
         )
-        for key, value in zip(self.sampling_parameters.keys(), self.sampling_parameters.values()):
+        for key, value in zip(self.sampling_parameter.keys(), self.sampling_parameter.values()):
             report_text += (
                 f"{key}: {value}\n"
             )
-            
+
         # Define the local file path for the report
         local_report_path = 'output/model_report.txt'
 
