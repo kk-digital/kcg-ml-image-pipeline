@@ -686,6 +686,7 @@ def process_and_sort_dataset_with_hashes(images_paths, hashes, model):
     # Process each image path
     for i in range(len(images_paths)):
         # Extract embedding and image tensor from the image path
+        print(images_paths[i])
         image, embedding = get_clip_and_image_from_path(images_paths[i])
         
         # Compute the score by passing the image tensor through the model
