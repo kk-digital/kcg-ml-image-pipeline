@@ -4,7 +4,6 @@ import os
 import sys
 import tempfile
 from matplotlib import pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 import torch
 import time
@@ -13,9 +12,6 @@ import torch.optim as optim
 from torch.utils.data import Dataset
 from torch.utils.data import random_split
 from torch.utils.data.dataloader import DataLoader
-from sklearn.metrics import confusion_matrix
-import seaborn as sb
-from sklearn.metrics import classification_report
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -49,11 +45,11 @@ class DatasetLoader(Dataset):
         return sample_features, sample_label
 
 
-class SamplingFCNetwork(nn.Module):
-    def __init__(self, minio_client, input_size=1281, hidden_sizes=[512, 256], input_type="input_clip" , output_size=8, 
-                 bin_size=1, output_type="score_distribution", dataset="environmental"):
+class SamplingFCRegressionNetwork(nn.Module):
+    def __init__(self, minio_client, input_size=1281, hidden_sizes=[512, 256], input_type="uniform_sphere",output_size=1, 
+                 output_type="mean_sigma_score", dataset="environmental"):
         
-        super(SamplingFCNetwork, self).__init__()
+        super(SamplingFCRegressionNetwork, self).__init__()
         # set device
         if torch.cuda.is_available():
             device = 'cuda'
@@ -67,21 +63,19 @@ class SamplingFCNetwork(nn.Module):
             layers.append(nn.ReLU())
             layers.append(nn.Linear(hidden_sizes[i], hidden_sizes[i+1]))
         
-        # Adjusting the last layer to use LogSoftmax for KLDivLoss compatibility
-        layers += [nn.Linear(hidden_sizes[-1], output_size), nn.LogSoftmax(dim=1)]
+        # Adding the final layer (without an activation function for linear output)
+        layers.append(nn.ReLU())
+        layers.append(nn.Linear(hidden_sizes[-1], output_size))
 
         # Combine all layers into a sequential model
         self.model = nn.Sequential(*layers).to(self._device)
         self.input_size= input_size
-        self.output_size= output_size
-        self.bin_size= bin_size
         self.minio_client= minio_client
         self.input_type= input_type
         self.output_type= output_type
         self.dataset=dataset
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path=self.get_model_path()
-        self.class_labels= self.get_class_labels()
 
         # sphere dataloader
         self.dataloader= UniformSphereGenerator(minio_client, dataset)
@@ -92,31 +86,11 @@ class SamplingFCNetwork(nn.Module):
 
         return local_path, minio_path
 
-    def get_class_labels(self):
-        output_size= self.output_size
-        bin_size= self.bin_size
-
-        class_labels=[]
-        for i in range(0, output_size):
-            # calculate min and max for bin
-            min_score_value= int((i-(output_size/2)) * bin_size)
-            max_score_value= int(min_score_value + bin_size)
-            # get label str values
-            if i==0:
-                class_label= f"<{max_score_value}"
-            elif i == output_size-1:
-                class_label= f">{min_score_value}"
-            else:
-                class_label= f"[{min_score_value},{max_score_value}]"
-
-            class_labels.append(class_label)
-
-        return class_labels 
-
     def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256):
         # load the dataset
-        inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_size, self.bin_size)
+        inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres, target_avg_points, self.output_type)
 
+        # load the dataset
         dataset= DatasetLoader(features=inputs, labels=outputs)
         # Split dataset into training and validation
         val_size = int(len(dataset) * validation_split)
@@ -127,7 +101,7 @@ class SamplingFCNetwork(nn.Module):
         train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
         val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
-        criterion = nn.KLDivLoss(reduction='batchmean')  # Using KLDivLoss
+        criterion = nn.L1Loss()  # Define the loss function
         optimizer = optim.Adam(self.parameters(), lr=learning_rate)  # Define the optimizer
 
         # save loss for each epoch and features
@@ -165,7 +139,6 @@ class SamplingFCNetwork(nn.Module):
                 optimizer.zero_grad()
                 outputs = self.model(inputs)
                 loss = criterion(outputs, targets)
-                
                 loss.backward()
                 optimizer.step()
 
@@ -185,31 +158,46 @@ class SamplingFCNetwork(nn.Module):
 
             print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss}, Val Loss: {avg_val_loss}')
         
+
         # save the model at the best epoch
         self.model= best_model_state
-        
+
         end = time.time()
         training_time= end - start
 
         start = time.time()
-        # Classifying all validation datapoints
-        val_preds, val_true, val_residuals = self.classify(val_dataset, batch_size)
-        _, _, train_residuals = self.classify(train_dataset, batch_size)
-
+        # Inference and calculate residuals on the training and validation set
+        val_preds = self.inference(val_dataset, batch_size)
+        train_preds = self.inference(train_dataset, batch_size)
+        
         end = time.time()
-        inference_speed=(val_size + train_size)/(end - start)
-        print(f'Time taken for inference of {(val_size + train_size)} data points is: {end - start:.2f} seconds')
+        inference_speed=(train_size + val_size)/(end - start)
+        print(f'Time taken for inference of {(train_size + val_size)} data points is: {end - start:.2f} seconds')
+
+        # Extract the true values from the datasets
+        y_train = torch.cat([y.unsqueeze(0) for _, y in train_dataset]).to(self._device)
+        y_val = torch.cat([y.unsqueeze(0) for _, y in val_dataset]).to(self._device)
+
+        # Calculate residuals
+        val_residuals = y_val - val_preds
+        train_residuals = y_train - train_preds
+
+        val_preds= val_preds.cpu().numpy()
+        y_val= y_val.cpu().numpy()
+        val_residuals= val_residuals.cpu().numpy()
+        train_residuals= train_residuals.cpu().numpy()
         
         self.save_graph_report(train_loss, val_loss,
-                               best_train_loss, best_val_loss,
-                               val_residuals, train_residuals,
+                               best_train_loss, best_val_loss, 
+                               val_residuals, train_residuals, 
+                               val_preds, y_val,
                                train_size, val_size)
         
         self.save_model_report(num_training=train_size,
                               num_validation=val_size,
-                              training_time=training_time,
+                              training_time=training_time, 
                               train_loss=best_train_loss, 
-                              val_loss=best_val_loss, 
+                              val_loss=best_val_loss,  
                               inference_speed= inference_speed,
                               learning_rate=learning_rate)
         
@@ -217,15 +205,15 @@ class SamplingFCNetwork(nn.Module):
         
     def save_model_report(self,num_training,
                               num_validation,
-                              training_time,
+                              training_time, 
                               train_loss, 
                               val_loss, 
                               inference_speed,
                               learning_rate):
-        if self.input_type=="output_clip":
-            input_type="[output_image_clip_vector[1280]]"
-        elif self.input_type=="input_clip":
-            input_type="[input_clip_vector[1280]]"
+        if self.input_type=="uniform_sphere":
+            input_type="[input_clip_vector[1280], radius(float)]"
+        elif self.input_type=="gaussian_sphere":
+            input_type="[input_clip_vector[1280], variance(float)]"
 
         report_text = (
             "================ Model Report ==================\n"
@@ -263,11 +251,12 @@ class SamplingFCNetwork(nn.Module):
         # Remove the temporary file
         os.remove(local_report_path)
 
-    def save_graph_report(self, train_loss_per_round, val_loss_per_round,
-                          best_train_loss, best_val_loss, 
-                          val_residuals, train_residuals,
+    def save_graph_report(self, train_mae_per_round, val_mae_per_round, 
+                          best_train_loss, best_val_loss,  
+                          val_residuals, train_residuals, 
+                          predicted_values, actual_values,
                           training_size, validation_size):
-        fig, axs = plt.subplots(3, 1, figsize=(12, 10))
+        fig, axs = plt.subplots(3, 2, figsize=(12, 10))
         
         #info text about the model
         plt.figtext(0.02, 0.7, "Date = {}\n"
@@ -293,24 +282,42 @@ class SamplingFCNetwork(nn.Module):
                                                             ))
 
         # Plot validation and training Rmse vs. Rounds
-        axs[0].plot(range(1, len(train_loss_per_round) + 1), train_loss_per_round,'b', label='Training loss')
-        axs[0].plot(range(1, len(val_loss_per_round) + 1), val_loss_per_round,'r', label='Validation loss')
-        axs[0].set_title('KL loss per Round')
-        axs[0].set_ylabel('Loss')
-        axs[0].set_xlabel('Epochs')
-        axs[0].legend(['Training loss', 'Validation loss'])
+        axs[0][0].plot(range(1, len(train_mae_per_round) + 1), train_mae_per_round,'b', label='Training loss')
+        axs[0][0].plot(range(1, len(val_mae_per_round) + 1), val_mae_per_round,'r', label='Validation loss')
+        axs[0][0].set_title('MAE per Round')
+        axs[0][0].set_ylabel('Loss')
+        axs[0][0].set_xlabel('Rounds')
+        axs[0][0].legend(['Training loss', 'Validation loss'])
+
+        # Scatter Plot of actual values vs predicted values
+        axs[0][1].scatter(predicted_values, actual_values, color='green', alpha=0.5)
+        axs[0][1].set_title('Predicted values vs actual values')
+        axs[0][1].set_ylabel('True')
+        axs[0][1].set_xlabel('Predicted')
 
         # plot histogram of training residuals
-        axs[1].hist(train_residuals, bins=30, color='blue', alpha=0.7)
-        axs[1].set_xlabel('Residuals')
-        axs[1].set_ylabel('Frequency')
-        axs[1].set_title('Training Residual Histogram')
+        axs[1][0].hist(train_residuals, bins=30, color='blue', alpha=0.7)
+        axs[1][0].set_xlabel('Residuals')
+        axs[1][0].set_ylabel('Frequency')
+        axs[1][0].set_title('Training Residual Histogram')
 
         # plot histogram of validation residuals
-        axs[2].hist(val_residuals, bins=30, color='blue', alpha=0.7)
-        axs[2].set_xlabel('Residuals')
-        axs[2].set_ylabel('Frequency')
-        axs[2].set_title('Validation Residual Histogram')
+        axs[1][1].hist(val_residuals, bins=30, color='blue', alpha=0.7)
+        axs[1][1].set_xlabel('Residuals')
+        axs[1][1].set_ylabel('Frequency')
+        axs[1][1].set_title('Validation Residual Histogram')
+        
+        # plot histogram of predicted values
+        axs[2][0].hist(predicted_values, bins=30, color='blue', alpha=0.7)
+        axs[2][0].set_xlabel('Predicted Values')
+        axs[2][0].set_ylabel('Frequency')
+        axs[2][0].set_title('Validation Predicted Values Histogram')
+        
+        # plot histogram of true values
+        axs[2][1].hist(actual_values, bins=30, color='blue', alpha=0.7)
+        axs[2][1].set_xlabel('Actual values')
+        axs[2][1].set_ylabel('Frequency')
+        axs[2][1].set_title('Validation True Values Histogram')
 
         # Adjust spacing between subplots
         plt.subplots_adjust(hspace=0.7, wspace=0.3, left=0.3)
@@ -343,43 +350,23 @@ class SamplingFCNetwork(nn.Module):
             for i in range(0, len(features_tensor), batch_size):
                 batch = features_tensor[i:i + batch_size]  # Extract a batch
                 outputs = self.model(batch)  # Get predictions for this batch
-                predictions.append(torch.exp(outputs))
+                predictions.append(outputs)
 
         # Concatenate all predictions and convert to a NumPy array
         predictions = torch.cat(predictions, dim=0).cpu().numpy()
 
         return predictions         
 
-    def classify(self, dataset, batch_size=64):
+    def inference(self, dataset, batch_size=64):
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
         self.model.eval()  # Set the model to evaluation mode
         predictions = []
-        true_values = []
         with torch.no_grad():
-            for inputs, targets in loader:
+            for inputs, _ in loader:
                 inputs= inputs.to(self._device)
                 outputs = self.model(inputs)
-                true_values.append(targets)
-                predictions.append(torch.exp(outputs))
-        
-        # Concatenate all predictions and convert to a NumPy array
-        predictions = torch.cat(predictions, dim=0).cpu().numpy()
-        true_values = torch.cat(true_values, dim=0).cpu().numpy()
-
-        pred_labels=[]
-        true_labels=[]
-
-        residuals=[]
-        for pred_probs, true_probs in zip(predictions, true_values):
-            pred_label= np.argmax(pred_probs)
-            true_label= np.argmax(true_probs)
-            pred_labels.append(self.class_labels[pred_label])
-            true_labels.append(self.class_labels[true_label])
-            
-            residual= np.mean(np.abs(pred_probs - true_probs))
-            residuals.append(residual)
-
-        return pred_labels, true_labels, residuals
+                predictions.append(outputs)
+        return torch.cat(predictions).squeeze()
 
     def load_model(self):
         # get model file data from MinIO

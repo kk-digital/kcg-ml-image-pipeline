@@ -102,8 +102,10 @@ class UniformSphereGenerator:
 
             # Calculate score distribution for the sphere
             score_distribution = np.zeros(len(bins))
+            sphere_scores=[]
             for idx in point_indices:
                 score = scores[idx]
+                sphere_scores.append(score)
                 for i, bin_edge in enumerate(bins):
                     if score < bin_edge:
                         score_distribution[i] += 1
@@ -117,7 +119,9 @@ class UniformSphereGenerator:
             sphere_data.append({
                 'center': center, 
                 'radius': math.sqrt(radius),  # Assuming radius needs to be sqrt to represent actual distance
-                'points': point_indices, 
+                'points': point_indices,
+                'mean_sigma_score': np.mean(sphere_scores), 
+                'variance': np.var(sphere_scores), 
                 "score_distribution": score_distribution
             })
             total_covered_points.update(point_indices)
@@ -132,7 +136,7 @@ class UniformSphereGenerator:
         return sphere_data, avg_points_per_sphere, len(total_covered_points)
 
 
-    def load_sphere_dataset(self, n_spheres, target_avg_points, num_bins, bin_size):
+    def load_sphere_dataset(self, n_spheres, target_avg_points, output_type, num_bins=8, bin_size=1):
         # generating spheres
         sphere_data, avg_points_per_sphere, total_covered_points= self.generate_spheres(n_spheres=n_spheres,
                                                        target_avg_points=target_avg_points,
@@ -145,7 +149,7 @@ class UniformSphereGenerator:
             # get input vectors
             inputs.append(np.concatenate([sphere['center'], [sphere['radius']]]))
             # get score distribution
-            outputs.append(sphere['score_distribution'])
+            outputs.append(sphere[output_type])
 
         return inputs, outputs 
 
