@@ -937,23 +937,20 @@ def get_tag_id_by_name(tag_name):
 
     #http://103.20.60.90:8764/pseudo-tag/get-id-by-pseudotag-name?pseudo_tag_string=topic-aquatic
 
-def tag_images(dataset_name, number_of_samples,tag_name,tagger_name):
+def tag_images(dataset_name, number_of_samples,tag_name,tagger_name,plot_a_sample = False):
 
 
     # get the paths and hashes
     images_paths_ood, images_hashes_ood = get_file_paths_and_hashes(dataset_name,number_of_samples)
-
     target_class = tag_name
     loaded_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-    # Load the last occult trained model
+    # Load the last trained model
     load_model_to_minio(loaded_model,target_class)
 
     # Process the images
     sorted_images_and_hashes = process_and_sort_dataset_with_hashes(images_paths_ood, images_hashes_ood, loaded_model) 
-    # Tag the images
 
-    # for i in range(len(sorted_images_and_hashes)):
-    #     print("Path 2 : ", sorted_images_and_hashes[i][0], " Hash 2 : ",sorted_images_and_hashes[i][4])
+    # Tag the images
 
     selected_structure_first_50 = sorted_images_and_hashes[:52] 
     selected_structure_second_50 = sorted_images_and_hashes[52:103]
@@ -961,16 +958,17 @@ def tag_images(dataset_name, number_of_samples,tag_name,tagger_name):
     #tag_image(file_hash,tag_id,user)
 
     for image in selected_structure_first_50:
-        tag_image(image[4],0,tagger_name)
+        tag_image(image[4],get_tag_id_by_name(tag_name),tagger_name)
         
 
-    plot_name1 = target_class + "_tier1"
-    plot_name2 = target_class + "_tier2"
-    plot_name3  = target_class + "_tier3"
+    if plot_a_sample == True:
+        plot_name1 = target_class + "_tier1"
+        plot_name2 = target_class + "_tier2"
+        plot_name3  = target_class + "_tier3"
 
-    plot_images_with_scores(selected_structure_first_50,plot_name1)
-    plot_images_with_scores(selected_structure_second_50,plot_name2)
-    plot_images_with_scores(selected_structure_third_50,plot_name3)
+        plot_images_with_scores(selected_structure_first_50,plot_name1)
+        plot_images_with_scores(selected_structure_second_50,plot_name2)
+        plot_images_with_scores(selected_structure_third_50,plot_name3)
 
 
 
@@ -1154,8 +1152,10 @@ def main():
 
 
 
-print("tag is :",get_tag_id_by_name("topic-aquatic"))
 
+
+
+tag_images(dataset_name = "environmental", number_of_samples = 500,tag_name ="topic-mountain ",tagger_name = "amine",plot_a_sample = True)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
