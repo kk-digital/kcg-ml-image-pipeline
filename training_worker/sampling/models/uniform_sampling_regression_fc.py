@@ -90,6 +90,8 @@ class SamplingFCRegressionNetwork(nn.Module):
         # load the dataset
         inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres, target_avg_points, self.output_type)
 
+        print(inputs[0] ,outputs[0])
+
         # load the dataset
         dataset= DatasetLoader(features=inputs, labels=outputs)
         # Split dataset into training and validation
@@ -119,13 +121,13 @@ class SamplingFCRegressionNetwork(nn.Module):
             
             with torch.no_grad():
                 for inputs, targets in val_loader:
-                    print(inputs, inputs.shape)
-                    print(targets, targets.shape)
+                    print(inputs[0], inputs.shape)
+                    print(targets[0], targets.shape)
                     inputs=inputs.to(self._device)
                     targets=targets.to(self._device)
 
                     outputs = self.model(inputs)
-                    print(outputs, outputs.shape)
+                    print(outputs[0], outputs.shape)
                     loss = criterion(outputs, targets)
 
                     total_val_loss += loss.item() * inputs.size(0)
