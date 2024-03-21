@@ -43,11 +43,13 @@ if __name__ == '__main__':
         # train for all
         tags = http_get_tag_list()
         tag_string_list = []
+        tag_id_list = []
         for tag in tags:
             tag_string_list.append(tag["tag_string"])
+            tag_id_list.append(tag["tag_id"])
 
         print("tags found = ", tag_string_list)
-        for tag_name in tag_string_list:
+        for tag_id, tag_name in zip(tag_id_list,tag_string_list):
             try:
                 print("Training model for tag: {}".format(tag_name))
                 train_classifier(minio_ip_addr=None,
@@ -55,6 +57,7 @@ if __name__ == '__main__':
                                  minio_secret_key=args.minio_secret_key,
                                  input_type=args.input_type,
                                  tag_name=tag_name,
+                                 tag_id=tag_id,
                                  hidden_layer_neuron_count=args.hidden_layer_neuron_count,
                                  pooling_strategy=args.pooling_strategy,
                                  train_percent=args.train_percent)
