@@ -1603,17 +1603,17 @@ async def add_update_classifier(request: Request, classifier_data: Classifier):
 
     try:
         # Check if the tag_id exists in tag_definitions_collection
-        tag_definition_exists = request.app.tag_definitions_collection.find_one({"pseudo_tag_id": classifier_data.pseudo_tag_id})
+        tag_definition_exists = request.app.tag_definitions_collection.find_one({"tag_id": classifier_data.tag_id})
         if not tag_definition_exists:
             return response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS, 
-                error_string=f"Tag ID {classifier_data.pseudo_tag_id} not found in tag definitions.",
+                error_string=f"Tag ID {classifier_data.tag_id} not found in tag definitions.",
                 http_status_code=400
             )
 
         # Check if an existing classifier can be updated
         existing_classifier = request.app.classifier_models_collection.find_one(
-            {"pseudo_tag_id": classifier_data.pseudo_tag_id, "classifier_name": classifier_data.classifier_name}
+            {"tag_id": classifier_data.tag_id, "classifier_name": classifier_data.classifier_name}
         )
         
         if existing_classifier:
@@ -1624,7 +1624,7 @@ async def add_update_classifier(request: Request, classifier_data: Classifier):
                 {"$set": {
                     "classifier_id": classifier_id,
                     "classifier_name": classifier_data.classifier_name,
-                    "tag_id": classifier_data.pseudo_tag_id,
+                    "tag_id": classifier_data.tag_id,
                     "model_sequence_number": new_seq_number,
                     "latest_model": classifier_data.latest_model,
                     "model_path": classifier_data.model_path
