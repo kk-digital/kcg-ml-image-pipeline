@@ -1623,7 +1623,7 @@ load_model_to_minio(reloaded_model,model_name)
 
 
 # Load the environmental dataset     tooodoooo
-images_paths_ood, hashes = get_file_paths_and_hashes("environmental",5000)
+images_paths_ood, hashes = get_file_paths_and_hashes("environmental",30000)
 
 # #go create something
 # print("yep it's here")
