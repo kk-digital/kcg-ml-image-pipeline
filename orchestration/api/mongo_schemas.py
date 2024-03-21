@@ -227,6 +227,8 @@ class ClassifierScore(BaseModel):
             "score": self.score,
         }
 
+class ListClassifierScore(BaseModel):
+    images: List[ClassifierScore]
 
 class RankingSigmaScore(BaseModel):
     model_id: int
@@ -307,7 +309,7 @@ class Classifier(BaseModel):
         latest_model: str
         model_path: str
         creation_time: str
-        
+
         def to_dict(self):
             return{
                 "classifier_id": self.classifier_id,
