@@ -1242,7 +1242,7 @@ images_paths_ood, images_hashes_ood = get_file_paths_and_hashes("environmental",
 # load the model
 # Create a new Model    
 
-target_class = "occult"
+target_class = "mountain"
 loaded_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
 load_model_to_minio(loaded_model,target_class)
