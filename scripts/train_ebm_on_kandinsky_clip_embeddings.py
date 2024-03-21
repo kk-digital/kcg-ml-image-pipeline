@@ -937,7 +937,7 @@ def get_tag_id_by_name(tag_name):
 
     #http://103.20.60.90:8764/pseudo-tag/get-id-by-pseudotag-name?pseudo_tag_string=topic-aquatic
 
-def tag_images(dataset_name, number_of_samples,tag_name,tagger_name,plot_a_sample = False):
+def tag_images(dataset_name, number_of_samples,model_name,tag_name,tagger_name,plot_a_sample = False):
 
 
     # get the paths and hashes
@@ -945,7 +945,7 @@ def tag_images(dataset_name, number_of_samples,tag_name,tagger_name,plot_a_sampl
     target_class = tag_name
     loaded_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
     # Load the last trained model
-    load_model_to_minio(loaded_model,target_class)
+    load_model_to_minio(loaded_model,model_name)
 
     # Process the images
     sorted_images_and_hashes = process_and_sort_dataset_with_hashes(images_paths_ood, images_hashes_ood, loaded_model) 
@@ -1155,7 +1155,7 @@ def main():
 
 
 
-tag_images(dataset_name = "environmental", number_of_samples = 500,tag_name ="topic-mountain ",tagger_name = "amine",plot_a_sample = True)
+tag_images(dataset_name = "environmental", number_of_samples = 500,model_name= "mountain" ,tag_name ="topic-mountain ",tagger_name = "amine",plot_a_sample = True)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
