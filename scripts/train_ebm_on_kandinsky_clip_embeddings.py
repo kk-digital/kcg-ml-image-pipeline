@@ -1233,7 +1233,7 @@ def main():
 # Let's tag some images
 
 # get the paths and hashes
-images_paths_ood, images_hashes_ood = get_file_paths_and_hashes("environmental",30000)
+images_paths_ood, images_hashes_ood = get_file_paths_and_hashes("environmental",40000)
 
 
 # for i in range(len(images_paths_ood)):
@@ -1241,12 +1241,12 @@ images_paths_ood, images_hashes_ood = get_file_paths_and_hashes("environmental",
 
 # load the model
 # Create a new Model    
-aquatic_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+occult_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
-load_model_to_minio(aquatic_model,'aquatic')
+load_model_to_minio(occult_model,'occult')
 
 # Process the images
-sorted_images_and_hashes = process_and_sort_dataset_with_hashes(images_paths_ood, images_hashes_ood, aquatic_model) 
+sorted_images_and_hashes = process_and_sort_dataset_with_hashes(images_paths_ood, images_hashes_ood, occult_model) 
 # Tag the images
 
 
@@ -1256,11 +1256,20 @@ sorted_images_and_hashes = process_and_sort_dataset_with_hashes(images_paths_ood
 
 
 selected_structure_first_50 = sorted_images_and_hashes[:52] 
+selected_structure_second_50 = sorted_images_and_hashes[52:103]
+selected_structure_third_50 = sorted_images_and_hashes[103:154]
 #tag_image(file_hash,tag_id,user)
 
 for image in selected_structure_first_50:
-    tag_image(image[4],0,'amine')
+    tag_image(image[4],2,'amine')
     
+
+
+plot_images_with_scores(selected_structure_first_50,"Occult_tier1")
+plot_images_with_scores(selected_structure_second_50,"Occult_tier2")
+plot_images_with_scores(selected_structure_third_50,"Occult_tier3")
+
+
 
 #######################
 
