@@ -136,7 +136,7 @@ class UniformSphereGenerator:
         return sphere_data, avg_points_per_sphere, len(total_covered_points)
 
 
-    def load_sphere_dataset(self, n_spheres, target_avg_points, output_type, num_bins=8, bin_size=1):
+    def load_sphere_dataset(self, n_spheres, target_avg_points, output_type="score_distribution", num_bins=8, bin_size=1):
         # generating spheres
         sphere_data, avg_points_per_sphere, total_covered_points= self.generate_spheres(n_spheres=n_spheres,
                                                        target_avg_points=target_avg_points,
