@@ -1263,7 +1263,7 @@ selected_structure_third_50 = sorted_images_and_hashes[103:154]
 #tag_image(file_hash,tag_id,user)
 
 for image in selected_structure_first_50:
-    tag_image(image[4],2,'amine')
+    tag_image(image[4],0,'amine')
     
 
 
