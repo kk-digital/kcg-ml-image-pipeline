@@ -1073,7 +1073,7 @@ class EBM_Single_Class_Trainer:
         train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(get_tag_jobs(self.class_id),1)
 
         # Create dataloader of adversarial classes
-        train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,20,21,34,39],0)
+        train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,20,21,34,35],0)
         # init the loader
         train_loader = train_loader_automated
         val_loader = val_loader_automated
@@ -1171,8 +1171,8 @@ def main():
     # do self training
     training_pipeline.train()
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()
 
             
 
@@ -1200,141 +1200,141 @@ def main():
 
 
 
-model_name = 'concept-cybernetic'
+# model_name = 'concept-cybernetic'
 
-# Create a new Model    
-original_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-# Load the last occult trained model
-load_model_to_minio(original_model,'concept-cybernetic')
-
-
+# # Create a new Model    
+# original_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# # Load the last occult trained model
+# load_model_to_minio(original_model,'concept-cybernetic')
 
 
 
 
-# Get sort the images by energy (from best to worst)
-images_paths_ood, images_hashes_ood = get_file_paths_and_hashes("environmental",30000)
-sorted_images_for_original_model = process_and_sort_dataset_with_hashes(images_paths_ood, images_hashes_ood,original_model)
-
-# # Save the list on csv file
-# get_structure_csv_content(sorted_images_for_original_model,"content-has-text_on_env_30000_sample")
-
-# Get top 50 images
-selected_best_50_for_original_model = sorted_images_for_original_model[:50]
-
-# Only keep the paths
-selected_best_50_for_original_model_paths = [item[0] for item in selected_best_50_for_original_model]
-
-# Concat the paths of the best 50 with the tagged images
-new_combined_paths = selected_best_50_for_original_model_paths + get_tag_jobs(22)
-
-# Create dataloader of occult
-train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(new_combined_paths,1)
-
-# Get adversarial dataset
-train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([4,5,6,7,8,9,15,20,21,34,36],0)
-
-# init the loader
-train_loader = train_loader_automated
-val_loader = val_loader_automated
-adv_loader = train_loader_clip_ood
 
 
+# # Get sort the images by energy (from best to worst)
+# images_paths_ood, images_hashes_ood = get_file_paths_and_hashes("environmental",30000)
+# sorted_images_for_original_model = process_and_sort_dataset_with_hashes(images_paths_ood, images_hashes_ood,original_model)
 
-# Train new model with the new combined dataset
+# # # Save the list on csv file
+# # get_structure_csv_content(sorted_images_for_original_model,"content-has-text_on_env_30000_sample")
 
-# Train
-retrained_model = train_model(train_loader,val_loader, adv_loader,img_shape=(1,1280),
-                    batch_size=train_loader.batch_size,
-                    lr=0.001,
-                    beta1=0.0)
-save_model_to_minio(retrained_model,'content-has-text','temp_model.pth')
+# # Get top 50 images
+# selected_best_50_for_original_model = sorted_images_for_original_model[:50]
 
+# # Only keep the paths
+# selected_best_50_for_original_model_paths = [item[0] for item in selected_best_50_for_original_model]
 
-# Plot
+# # Concat the paths of the best 50 with the tagged images
+# new_combined_paths = selected_best_50_for_original_model_paths + get_tag_jobs(22)
 
-############### Plot graph
-epochs = range(1, len(total_losses) + 1)  
+# # Create dataloader of occult
+# train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(new_combined_paths,1)
 
-# Create subplots grid (3 rows, 1 column)
-fig, axes = plt.subplots(4, 1, figsize=(10, 24))
+# # Get adversarial dataset
+# train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([4,5,6,7,8,9,15,20,21,34,36],0)
 
-# Plot each loss on its own subplot
-axes[0].plot(epochs, total_losses, label='Total Loss')
-axes[0].set_xlabel('Steps')
-axes[0].set_ylabel('Loss')
-axes[0].set_title('Total Loss')
-axes[0].legend()
-axes[0].grid(True)
-
-axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
-axes[1].set_xlabel('Steps')
-axes[1].set_ylabel('Loss')
-axes[1].set_title('Contrastive Divergence Loss')
-axes[1].legend()
-axes[1].grid(True)
-
-
-axes[2].plot(epochs, reg_losses , label='Regression Loss')
-axes[2].set_xlabel('Steps')
-axes[2].set_ylabel('Loss')
-axes[2].set_title('Regression Loss')
-axes[2].legend()
-axes[2].grid(True)
-
-# Plot real and fake scores on the fourth subplot
-axes[3].plot(epochs, real_scores_s, label='Real Scores')
-axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
-axes[3].set_xlabel('Steps')
-axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
-axes[3].set_title('Real vs. Fake Scores')
-axes[3].legend()
-axes[3].grid(True)
-
-# Adjust spacing between subplots for better visualization
-plt.tight_layout()
-
-plt.savefig("output/loss_tracking_per_step.png")
-
-# Save the figure to a file
-buf = io.BytesIO()
-plt.savefig(buf, format='png')
-buf.seek(0)
-
-# upload the graph report
-minio_path="environmental/output/my_tests"
-minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_content-has-text_training" +date_now+".png"
-cmd.upload_data(minio_client, 'datasets', minio_path, buf)
-# Remove the temporary file
-os.remove("output/loss_tracking_per_step.png")
-# Clear the current figure
-plt.clf()
+# # init the loader
+# train_loader = train_loader_automated
+# val_loader = val_loader_automated
+# adv_loader = train_loader_clip_ood
 
 
 
-# Evaluate new model
-#automated model
-#toodoo
-#go create something
-print("yep it's here")
+# # Train new model with the new combined dataset
+
+# # Train
+# retrained_model = train_model(train_loader,val_loader, adv_loader,img_shape=(1,1280),
+#                     batch_size=train_loader.batch_size,
+#                     lr=0.001,
+#                     beta1=0.0)
+# save_model_to_minio(retrained_model,'content-has-text','temp_model.pth')
 
 
-new_sorted_images = process_and_sort_dataset_with_hashes(images_paths_ood,images_hashes_ood, retrained_model)
+# # Plot
+
+# ############### Plot graph
+# epochs = range(1, len(total_losses) + 1)  
+
+# # Create subplots grid (3 rows, 1 column)
+# fig, axes = plt.subplots(4, 1, figsize=(10, 24))
+
+# # Plot each loss on its own subplot
+# axes[0].plot(epochs, total_losses, label='Total Loss')
+# axes[0].set_xlabel('Steps')
+# axes[0].set_ylabel('Loss')
+# axes[0].set_title('Total Loss')
+# axes[0].legend()
+# axes[0].grid(True)
+
+# axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
+# axes[1].set_xlabel('Steps')
+# axes[1].set_ylabel('Loss')
+# axes[1].set_title('Contrastive Divergence Loss')
+# axes[1].legend()
+# axes[1].grid(True)
 
 
-get_structure_csv_content(new_sorted_images,"retrained_on_text_defect_on_env_30000_sample")
-selected_structure_first_50 = new_sorted_images[:52]
-selected_structure_second_50 = new_sorted_images[52:103]
-selected_structure_third_50 = new_sorted_images[103:154]
+# axes[2].plot(epochs, reg_losses , label='Regression Loss')
+# axes[2].set_xlabel('Steps')
+# axes[2].set_ylabel('Loss')
+# axes[2].set_title('Regression Loss')
+# axes[2].legend()
+# axes[2].grid(True)
+
+# # Plot real and fake scores on the fourth subplot
+# axes[3].plot(epochs, real_scores_s, label='Real Scores')
+# axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
+# axes[3].set_xlabel('Steps')
+# axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
+# axes[3].set_title('Real vs. Fake Scores')
+# axes[3].legend()
+# axes[3].grid(True)
+
+# # Adjust spacing between subplots for better visualization
+# plt.tight_layout()
+
+# plt.savefig("output/loss_tracking_per_step.png")
+
+# # Save the figure to a file
+# buf = io.BytesIO()
+# plt.savefig(buf, format='png')
+# buf.seek(0)
+
+# # upload the graph report
+# minio_path="environmental/output/my_tests"
+# minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_content-has-text_training" +date_now+".png"
+# cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+# # Remove the temporary file
+# os.remove("output/loss_tracking_per_step.png")
+# # Clear the current figure
+# plt.clf()
 
 
-plot_name1 = model_name + "_tier1"
-plot_name2 = model_name + "_tier2"
-plot_name3  = model_name + "_tier3"
 
-plot_images_with_scores(selected_structure_first_50,plot_name1)
-plot_images_with_scores(selected_structure_second_50,plot_name2)
-plot_images_with_scores(selected_structure_third_50,plot_name3)
+# # Evaluate new model
+# #automated model
+# #toodoo
+# #go create something
+# print("yep it's here")
+
+
+# new_sorted_images = process_and_sort_dataset_with_hashes(images_paths_ood,images_hashes_ood, retrained_model)
+
+
+# get_structure_csv_content(new_sorted_images,"retrained_on_text_defect_on_env_30000_sample")
+# selected_structure_first_50 = new_sorted_images[:52]
+# selected_structure_second_50 = new_sorted_images[52:103]
+# selected_structure_third_50 = new_sorted_images[103:154]
+
+
+# plot_name1 = model_name + "_tier1"
+# plot_name2 = model_name + "_tier2"
+# plot_name3  = model_name + "_tier3"
+
+# plot_images_with_scores(selected_structure_first_50,plot_name1)
+# plot_images_with_scores(selected_structure_second_50,plot_name2)
+# plot_images_with_scores(selected_structure_third_50,plot_name3)
 
 #Let's tag some images
 
