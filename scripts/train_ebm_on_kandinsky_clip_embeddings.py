@@ -1144,8 +1144,8 @@ def main():
     # do self training
     training_pipeline.train()
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
 
             
 
