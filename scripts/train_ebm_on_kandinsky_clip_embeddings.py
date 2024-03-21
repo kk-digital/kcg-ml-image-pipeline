@@ -1241,12 +1241,14 @@ images_paths_ood, images_hashes_ood = get_file_paths_and_hashes("environmental",
 
 # load the model
 # Create a new Model    
-occult_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+
+target_class = "occult"
+loaded_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
-load_model_to_minio(occult_model,'occult')
+load_model_to_minio(loaded_model,target_class)
 
 # Process the images
-sorted_images_and_hashes = process_and_sort_dataset_with_hashes(images_paths_ood, images_hashes_ood, occult_model) 
+sorted_images_and_hashes = process_and_sort_dataset_with_hashes(images_paths_ood, images_hashes_ood, loaded_model) 
 # Tag the images
 
 
@@ -1265,9 +1267,13 @@ for image in selected_structure_first_50:
     
 
 
-plot_images_with_scores(selected_structure_first_50,"Occult_tier1")
-plot_images_with_scores(selected_structure_second_50,"Occult_tier2")
-plot_images_with_scores(selected_structure_third_50,"Occult_tier3")
+plot_name1 = target_class + "_tier1"
+plot_name2 = target_class + "_tier2"
+plot_name3  = target_class + "_tier3"
+
+plot_images_with_scores(selected_structure_first_50,plot_name1)
+plot_images_with_scores(selected_structure_second_50,plot_name2)
+plot_images_with_scores(selected_structure_third_50,plot_name3")
 
 
 
