@@ -300,12 +300,12 @@ class DatapointDeltaScore(BaseModel):
             "file_name": self.file_name,
             "delta_score": self.delta_score
         }    
-    
+
 class Classifier(BaseModel):
-        classifier_id: int
+        classifier_id: Union[int, None] = None
         classifier_name: str
-        pseudo_tag_id: int
-        model_sequence_number: int
+        tag_id: int
+        model_sequence_number: Union[int, None] = None
         latest_model: str
         model_path: str
         creation_time: str
@@ -314,7 +314,7 @@ class Classifier(BaseModel):
             return{
                 "classifier_id": self.classifier_id,
                 "classifier_name": self.classifier_name,
-                "pseudo_tag_id": self.pseudo_tag_id,
+                "tag_id": self.tag_id,
                 "model_sequence_number": self.model_sequence_number,
                 "latest_model": self.latest_model,
                 "model_path": self.model_path,
