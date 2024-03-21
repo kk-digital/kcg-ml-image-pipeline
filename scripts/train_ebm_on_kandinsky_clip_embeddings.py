@@ -1179,7 +1179,7 @@ def main():
 
 
 
-plot_samples(dataset_name = "environmental", number_of_samples = 3000,model_name ="aquatic")
+# plot_samples(dataset_name = "environmental", number_of_samples = 3000,model_name ="aquatic")
 
 #print(get_tag_id_by_name("topic-forest"))
 
@@ -1524,129 +1524,129 @@ plot_samples(dataset_name = "environmental", number_of_samples = 3000,model_name
 
 
 
-# new_combined_paths =  get_tag_jobs(35)
+new_combined_paths =  get_tag_jobs(35)
 
-# # Create dataloader of occult
-# train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(new_combined_paths,1)
+# Create dataloader of occult
+train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(new_combined_paths,1)
 
-# # Get adversarial dataset
-# train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,40,20,22],0)
+# Get adversarial dataset
+train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,40,20,22],0)
 
-# # init the loader
-# train_loader = train_loader_automated
-# val_loader = val_loader_automated
-# adv_loader = train_loader_clip_ood
-
-
-
-# # Train
-# model_name = 'concept-cybernetic'
-# new_model = train_model(train_loader,val_loader, adv_loader, img_shape=(1,1280),
-#                     batch_size=train_loader.batch_size,
-#                     lr=0.001,
-#                     beta1=0.0)
-# save_model_to_minio(new_model,model_name,'temp_model.safetensors')
-
-
-# # # up loader graphs
-
-# # # # Plot
-
-# # ############### Plot graph
-# epochs = range(1, len(total_losses) + 1)  
-
-# # Create subplots grid (3 rows, 1 column)
-# fig, axes = plt.subplots(4, 1, figsize=(10, 24))
-
-# # Plot each loss on its own subplot
-# axes[0].plot(epochs, total_losses, label='Total Loss')
-# axes[0].set_xlabel('Steps')
-# axes[0].set_ylabel('Loss')
-# axes[0].set_title('Total Loss')
-# axes[0].legend()
-# axes[0].grid(True)
-
-# axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
-# axes[1].set_xlabel('Steps')
-# axes[1].set_ylabel('Loss')
-# axes[1].set_title('Contrastive Divergence Loss')
-# axes[1].legend()
-# axes[1].grid(True)
-
-
-# axes[2].plot(epochs, reg_losses , label='Regression Loss')
-# axes[2].set_xlabel('Steps')
-# axes[2].set_ylabel('Loss')
-# axes[2].set_title('Regression Loss')
-# axes[2].legend()
-# axes[2].grid(True)
-
-# # Plot real and fake scores on the fourth subplot
-# axes[3].plot(epochs, real_scores_s, label='Real Scores')
-# axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
-# axes[3].set_xlabel('Steps')
-# axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
-# axes[3].set_title('Real vs. Fake Scores')
-# axes[3].legend()
-# axes[3].grid(True)
-
-# # Adjust spacing between subplots for better visualization
-# plt.tight_layout()
-
-# plt.savefig("output/loss_tracking_per_step.png")
-
-# # Save the figure to a file
-# buf = io.BytesIO()
-# plt.savefig(buf, format='png')
-# buf.seek(0)
-
-# # upload the graph report
-# minio_path="environmental/output/my_tests"
-# minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_isometric_training" +date_now+".png"
-# cmd.upload_data(minio_client, 'datasets', minio_path, buf)
-# # Remove the temporary file
-# os.remove("output/loss_tracking_per_step.png")
-# # Clear the current figure
-# plt.clf()
+# init the loader
+train_loader = train_loader_automated
+val_loader = val_loader_automated
+adv_loader = train_loader_clip_ood
 
 
 
-
-# # Evaluate new model
-# #automated model
-# #toodoo
-
-
-# # Create a new Model    
-# reloaded_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-# # Load the last occult trained model
-# load_model_to_minio(reloaded_model,model_name)
+# Train
+model_name = 'concept-cybernetic'
+new_model = train_model(train_loader,val_loader, adv_loader, img_shape=(1,1280),
+                    batch_size=train_loader.batch_size,
+                    lr=0.001,
+                    beta1=0.0)
+save_model_to_minio(new_model,model_name,'temp_model.safetensors')
 
 
-# # Load the environmental dataset     tooodoooo
-# images_paths_ood, hashes = get_file_paths_and_hashes("environmental",5)
+# # up loader graphs
 
-# # #go create something
-# # print("yep it's here")
+# # # Plot
 
-# new_sorted_images = process_and_sort_dataset_with_hashes(images_paths_ood, hashes, reloaded_model)
+# ############### Plot graph
+epochs = range(1, len(total_losses) + 1)  
+
+# Create subplots grid (3 rows, 1 column)
+fig, axes = plt.subplots(4, 1, figsize=(10, 24))
+
+# Plot each loss on its own subplot
+axes[0].plot(epochs, total_losses, label='Total Loss')
+axes[0].set_xlabel('Steps')
+axes[0].set_ylabel('Loss')
+axes[0].set_title('Total Loss')
+axes[0].legend()
+axes[0].grid(True)
+
+axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
+axes[1].set_xlabel('Steps')
+axes[1].set_ylabel('Loss')
+axes[1].set_title('Contrastive Divergence Loss')
+axes[1].legend()
+axes[1].grid(True)
 
 
-# #get_structure_csv_content(new_sorted_images,"text_on_env_30000_sample")
-# selected_structure_first_52 = new_sorted_images[:52]
-# selected_structure_second_52 = new_sorted_images[52:103]
-# selected_structure_third_52 = new_sorted_images[103:154]
+axes[2].plot(epochs, reg_losses , label='Regression Loss')
+axes[2].set_xlabel('Steps')
+axes[2].set_ylabel('Loss')
+axes[2].set_title('Regression Loss')
+axes[2].legend()
+axes[2].grid(True)
+
+# Plot real and fake scores on the fourth subplot
+axes[3].plot(epochs, real_scores_s, label='Real Scores')
+axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
+axes[3].set_xlabel('Steps')
+axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
+axes[3].set_title('Real vs. Fake Scores')
+axes[3].legend()
+axes[3].grid(True)
+
+# Adjust spacing between subplots for better visualization
+plt.tight_layout()
+
+plt.savefig("output/loss_tracking_per_step.png")
+
+# Save the figure to a file
+buf = io.BytesIO()
+plt.savefig(buf, format='png')
+buf.seek(0)
+
+# upload the graph report
+minio_path="environmental/output/my_tests"
+minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_isometric_training" +date_now+".png"
+cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+# Remove the temporary file
+os.remove("output/loss_tracking_per_step.png")
+# Clear the current figure
+plt.clf()
 
 
-# plot_name1 = model_name + "_tier1"
-# plot_name2 = model_name + "_tier2"
-# plot_name3  = model_name + "_tier3"
+
+
+# Evaluate new model
+#automated model
+#toodoo
+
+
+# Create a new Model    
+reloaded_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# Load the last occult trained model
+load_model_to_minio(reloaded_model,model_name)
+
+
+# Load the environmental dataset     tooodoooo
+images_paths_ood, hashes = get_file_paths_and_hashes("environmental",5000)
+
+# #go create something
+# print("yep it's here")
+
+new_sorted_images = process_and_sort_dataset_with_hashes(images_paths_ood, hashes, reloaded_model)
+
+
+#get_structure_csv_content(new_sorted_images,"text_on_env_30000_sample")
+selected_structure_first_52 = new_sorted_images[:52]
+selected_structure_second_52 = new_sorted_images[52:103]
+selected_structure_third_52 = new_sorted_images[103:154]
+
+
+plot_name1 = model_name + "_tier1"
+plot_name2 = model_name + "_tier2"
+plot_name3  = model_name + "_tier3"
 
 
 
-# plot_images_with_scores(selected_structure_first_52,plot_name1)
-# plot_images_with_scores(selected_structure_second_52,plot_name2)
-# plot_images_with_scores(selected_structure_third_52,plot_name3)
+plot_images_with_scores(selected_structure_first_52,plot_name1)
+plot_images_with_scores(selected_structure_second_52,plot_name2)
+plot_images_with_scores(selected_structure_third_52,plot_name3)
     
 
 # ---------------------------------------------------------------------------------------------------------------------
