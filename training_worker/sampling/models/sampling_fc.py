@@ -258,7 +258,6 @@ class SamplingFCNetwork(nn.Module):
 
         report_text = (
             "================ Model Report ==================\n"
-            f"Sampling Type: {self.type} \n"
             f"Number of training datapoints: {num_training} \n"
             f"Number of validation datapoints: {num_validation} \n"
             f"Total training Time: {training_time:.2f} seconds\n"
@@ -275,6 +274,15 @@ class SamplingFCNetwork(nn.Module):
             f"{class_report}\n"
         )
 
+        # Add Sampling Method Report
+        report_text += (
+            f"================ Classification Report ==================\n"
+        )
+        for key, value in zip(self.sampling_parameters.keys(), self.sampling_parameters.values()):
+            report_text += (
+                f"{key}: {value}\n"
+            )
+            
         # Define the local file path for the report
         local_report_path = 'output/model_report.txt'
 
