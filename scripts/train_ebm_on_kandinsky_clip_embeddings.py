@@ -973,6 +973,33 @@ def tag_images(dataset_name, number_of_samples,model_name,tag_name,tagger_name,p
 
 
 
+def plot_samples(dataset_name, number_of_samples,model_name):
+
+
+    # get the paths and hashes
+    images_paths_ood, images_hashes_ood = get_file_paths_and_hashes(dataset_name,number_of_samples)
+    loaded_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+    # Load the last trained model
+    load_model_to_minio(loaded_model,model_name)
+
+    # Process the images
+    sorted_images_and_hashes = process_and_sort_dataset_with_hashes(images_paths_ood, images_hashes_ood, loaded_model) 
+
+    # Tag the images
+
+    selected_structure_first_50 = sorted_images_and_hashes[:52] 
+    selected_structure_second_50 = sorted_images_and_hashes[52:103]
+    selected_structure_third_50 = sorted_images_and_hashes[103:154]
+    #tag_image(file_hash,tag_id,user)
+
+    
+    plot_name1 = model_name + "_tier1"
+    plot_name2 = model_name + "_tier2"
+    plot_name3  = model_name + "_tier3"
+
+    plot_images_with_scores(selected_structure_first_50,plot_name1)
+    plot_images_with_scores(selected_structure_second_50,plot_name2)
+    plot_images_with_scores(selected_structure_third_50,plot_name3)
 
 # ---------------------------------------------------------------------------------------------------------------------
 # -------------------------------------------------------- Define the main function -----------------------------------
@@ -1144,14 +1171,14 @@ def main():
     # do self training
     training_pipeline.train()
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
 
             
 
 
 
-
+plot_samples(dataset_name = "environmental", number_of_samples = 30000,model_name ="concept-occult")
 
 #print(get_tag_id_by_name("topic-forest"))
 
