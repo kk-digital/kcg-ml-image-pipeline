@@ -1155,7 +1155,7 @@ def main():
 
 #print(get_tag_id_by_name("topic-forest"))
 
-tag_images(dataset_name = "environmental", number_of_samples = 40000,model_name= "montain" ,tag_name ="topic-montain",tagger_name = "amine",plot_a_sample = True)
+tag_images(dataset_name = "environmental", number_of_samples = 40000,model_name= "mountain" ,tag_name ="topic-mountain",tagger_name = "amine",plot_a_sample = True)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
