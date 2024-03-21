@@ -2,11 +2,10 @@
 import argparse
 import sys
 
-from training_worker.sampling.models.uniform_sampling_regression_fc import SamplingFCRegressionNetwork
-
 base_directory = "./"
 sys.path.insert(0, base_directory)
 from training_worker.sampling.models.uniform_sampling_fc import SamplingFCNetwork
+from training_worker.sampling.models.uniform_sampling_regression_fc import SamplingFCRegressionNetwork
 from utility.minio import cmd
 
 
