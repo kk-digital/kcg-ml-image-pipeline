@@ -43,7 +43,6 @@ def main():
     elif args.output_type in ["variance", "mean_sigma_score"]:
         uniform_sampling_model= SamplingFCRegressionNetwork(minio_client=minio_client, 
                                                 dataset=args.dataset,
-                                                output_size= args.output_size,
                                                 output_type= args.output_type)
         
     uniform_sampling_model.train(num_epochs=args.epochs,
