@@ -1014,8 +1014,10 @@ def tag_images(dataset_name, number_of_samples,model_name,tag_name,tagger_name,p
     selected_structure_third_50 = sorted_images_and_hashes[103:154]
     #tag_image(file_hash,tag_id,user)
 
+    tag_id = get_tag_id_by_name(tag_name)
+    print("Tag id = ",tag_id)
     for image in selected_structure_first_50:
-        tag_image(image[4],get_tag_id_by_name(tag_name),tagger_name)
+        tag_image(image[4],tag_id,tagger_name)
         
     if plot_a_sample == True:
         plot_name1 = target_class + "_tier1"
@@ -1058,9 +1060,9 @@ def plot_samples(dataset_name, number_of_samples,model_name):
     plot_name2 = model_name + "_tier2"
     plot_name3  = model_name + "_tier3"
 
-    # plot_images_with_scores(selected_structure_first_50,plot_name1)
-    # plot_images_with_scores(selected_structure_second_50,plot_name2)
-    # plot_images_with_scores(selected_structure_third_50,plot_name3)
+    plot_images_with_scores(selected_structure_first_50,plot_name1)
+    plot_images_with_scores(selected_structure_second_50,plot_name2)
+    plot_images_with_scores(selected_structure_third_50,plot_name3)
 
 
 
@@ -1093,9 +1095,9 @@ def plot_samples_hashless(dataset_name, number_of_samples,model_name):
     plot_name2 = model_name + "_tier2_hs"
     plot_name3  = model_name + "_tier3_hs"
 
-    # plot_images_with_scores_hasheless(selected_structure_first_50,plot_name1)
-    # plot_images_with_scores_hasheless(selected_structure_second_50,plot_name2)
-    # plot_images_with_scores_hasheless(selected_structure_third_50,plot_name3)
+    plot_images_with_scores_hasheless(selected_structure_first_50,plot_name1)
+    plot_images_with_scores_hasheless(selected_structure_second_50,plot_name2)
+    plot_images_with_scores_hasheless(selected_structure_third_50,plot_name3)
 
 # ---------------------------------------------------------------------------------------------------------------------
 # -------------------------------------------------------- Define the main function -----------------------------------
@@ -1272,13 +1274,13 @@ def main():
 
             
 
-#plot_samples(dataset_name = "environmental", number_of_samples = 50,model_name ="concept-cybernetic")
+plot_samples(dataset_name = "environmental", number_of_samples = 50,model_name ="concept-cybernetic")
 plot_samples_hashless(dataset_name = "environmental", number_of_samples = 50,model_name ="concept-cybernetic")
 
 #plot_samples_hashless(dataset_name = "environmental", number_of_samples = 40000,model_name ="content-has-text")
 #print(get_tag_id_by_name("topic-forest"))
 
-#tag_images(dataset_name = "environmental", number_of_samples = 40000,model_name= "mountain" ,tag_name ="topic-mountain",tagger_name = "amine",plot_a_sample = True)
+tag_images(dataset_name = "environmental", number_of_samples = 20000,model_name= "concept-cybernetic" ,tag_name ="concept-cybernetic",tagger_name = "amine",plot_a_sample = True)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
