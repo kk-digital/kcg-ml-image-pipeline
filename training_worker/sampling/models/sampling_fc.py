@@ -54,8 +54,8 @@ class DatasetLoader(Dataset):
 
 
 class SamplingFCNetwork(nn.Module):
-    def __init__(self, minio_client, input_size=1281, hidden_sizes=[512, 256], input_type="input_clip" , output_size=8, 
-                 bin_size=1, output_type="score_distribution", dataset="environmental", type=SamplingType.UNIFORM_SAMPLING):
+    def __init__(self, minio_client, input_size=1281, hidden_sizes=[512, 256], input_type="uniform_sphere" , output_size=8, 
+                 bin_size=1, output_type="score_distribution", dataset="environmental"):
         super(SamplingFCNetwork, self).__init__()
         # set device
         if torch.cuda.is_available():
@@ -87,11 +87,10 @@ class SamplingFCNetwork(nn.Module):
         self.class_labels= self.get_class_labels()
         
         # set type of sampling
-        self.type = type
         # sphere dataloader
-        if self.type == SamplingType.UNIFORM_SAMPLING:
+        if self.input_type == "uniform_sphere":
             self.dataloader= UniformSphereGenerator(minio_client, dataset)
-        elif self.type == SamplingType.SPHERICAL_GAUSSIAN_SAMPLING:
+        elif self.input_type == "gaussian_sphere":
             self.dataloader = SphericalGaussianGenerator(minio_client, dataset)
 
     def set_config(self, sampling_parameter= None):
@@ -126,9 +125,9 @@ class SamplingFCNetwork(nn.Module):
 
     def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256):
         # load the dataset depends on sampling type
-        if self.type == SamplingType.UNIFORM_SAMPLING:
+        if self.input_type == "uniform_sphere":
             inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_size, self.bin_size)
-        elif self.type == SamplingType.SPHERICAL_GAUSSIAN_SAMPLING:
+        elif self.input_type == "gaussian_sphere":
             inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_size, self.bin_size, self.sampling_parameter["percentile"], self.sampling_parameter["std"])
         else:
             return None
@@ -254,7 +253,6 @@ class SamplingFCNetwork(nn.Module):
 
         # Identify all unique labels present in the data
         labels = np.unique(np.hstack([y_true, y_pred]))
-        class_report = classification_report(y_true, y_pred, target_names=labels, zero_division=0)
 
         report_text = (
             "================ Model Report ==================\n"
@@ -270,18 +268,20 @@ class SamplingFCNetwork(nn.Module):
             f"Input: {input_type} \n"
             f"Input Size: {self.input_size} \n" 
             f"Output: {self.output_type} \n\n"
-            "================ Classification Report ==================\n"
-            f"{class_report}\n"
         )
 
-        # Add Sampling Method Report
+        # Add Sampling Method Parameter
         report_text += (
-            f"================ Sampling Policy Report ==================\n"
+            f"================ Sampling Policy  ==================\n"
+            f"type: {self.input_type}"
         )
-        for key, value in zip(self.sampling_parameter.keys(), self.sampling_parameter.values()):
-            report_text += (
-                f"{key}: {value}\n"
-            )
+        if self.sampling_parameter is not None:
+            for key, value in zip(self.sampling_parameter.keys(), self.sampling_parameter.values()):
+                report_text += (
+                    f"{key}: {value}\n"
+                )
+        else:
+            report_text += "No Sampling Parameter"
 
         # Define the local file path for the report
         local_report_path = 'output/model_report.txt'
@@ -335,12 +335,16 @@ class SamplingFCNetwork(nn.Module):
         ))
 
         fig_report_text += (
-            "Sampling Policy: {}\n".format(self.type)
+            "Sampling Policy: {}\n".format(self.input_type)
         )
-        for key, value in zip(self.sampling_parameter.keys(), self.sampling_parameter.values()):
-            fig_report_text += (
-                f"{key}: {value}\n"
-            )
+        if self.sampling_parameter is not None:
+            for key, value in zip(self.sampling_parameter.keys(), self.sampling_parameter.values()):
+                fig_report_text += (
+                    f"{key}: {value}\n"
+                )
+        else:
+            fig_report_text += "No Sampling Parameter"
+
         plt.figtext(0.02, 0.7, fig_report_text)
         
         # Plot validation and training Rmse vs. Rounds
@@ -378,34 +382,7 @@ class SamplingFCNetwork(nn.Module):
 
         # Clear the current figure
         plt.clf()
-    
-    def save_confusion_matrix(self, y_true, y_pred):
-        #confusion matrix
-        # Generate a custom colormap representing brightness
-        colors = [(1, 1, 1), (1, 0, 0)]  # White to Red
-        custom_cmap = LinearSegmentedColormap.from_list('custom_colormap', colors, N=256)
- 
-        cm = confusion_matrix(y_true, y_pred, labels=self.class_labels)
-        sb.heatmap(cm ,cbar=True, annot=True, cmap=custom_cmap, 
-                   yticklabels=self.class_labels, xticklabels=self.class_labels, fmt='g')
-        plt.title('Confusion Matrix')
-        plt.xlabel('Predicted Labels')
-        plt.ylabel('True Labels')
-        plt.gca().invert_yaxis()
 
-        # Save the figure to a local file
-        plt.savefig(self.local_path.replace('.pth', '_confusion_matrix.png'))
-
-        # Save the figure to a buffer for uploading
-        buf = BytesIO()
-        plt.savefig(buf, format='png')
-        buf.seek(0)
-
-        # Upload the graph report
-        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.pth', '_confusion_matrix.png'), buf)  
-
-        # Clear the figure to free up memory
-        plt.close()
 
     def predict(self, data, batch_size=64):
         # Convert the features array into a PyTorch Tensor
@@ -422,12 +399,13 @@ class SamplingFCNetwork(nn.Module):
             for i in range(0, len(features_tensor), batch_size):
                 batch = features_tensor[i:i + batch_size]  # Extract a batch
                 outputs = self.model(batch)  # Get predictions for this batch
-                predictions.append(outputs)
+                predictions.append(torch.exp(outputs))
 
         # Concatenate all predictions and convert to a NumPy array
         predictions = torch.cat(predictions, dim=0).cpu().numpy()
 
         return predictions         
+
 
     def classify(self, dataset, batch_size=64):
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
@@ -460,23 +438,6 @@ class SamplingFCNetwork(nn.Module):
 
         return pred_labels, true_labels, residuals
 
-    def calculate_mean_score(self, score_distribution):
-        mean_score=0
-        output_size= self.output_size
-        bin_size= self.bin_size
-        for i, prob in enumerate(score_distribution):
-            if prob == 0:
-                continue
-            # calculate min and max for bin
-            min_score_value= int((i-(output_size/2)) * bin_size)
-            max_score_value= int(min_score_value + bin_size)
-            bin_median= (min_score_value + max_score_value)/2
-            # add score
-            mean_score+= prob * bin_median
-        
-        mean_score= mean_score / output_size
-
-        return mean_score
 
     def load_model(self):
         # get model file data from MinIO
