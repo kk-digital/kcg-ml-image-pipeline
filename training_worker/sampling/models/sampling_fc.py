@@ -125,9 +125,9 @@ class SamplingFCNetwork(nn.Module):
     def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256):
         # load the dataset depends on sampling type
         if self.input_type == "uniform_sphere":
-            inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_size, self.bin_size)
+            inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_type, self.output_size, self.bin_size,)
         elif self.input_type == "gaussian_sphere":
-            inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_size, self.bin_size, self.sampling_parameter["percentile"], self.sampling_parameter["std"])
+            inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_size, self.bin_size, self.sampling_parameter["percentile"], self.sampling_parameter["std"], self.output_type)
         else:
             return None
         
