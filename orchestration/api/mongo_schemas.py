@@ -213,7 +213,7 @@ class ClassifierScore(BaseModel):
     uuid: Union[str, None]
     classifier_id: int
     classifier_name: str
-    pseudo_tag_id: int
+    tag_id: int
     image_hash: str
     score: float
 
@@ -222,7 +222,7 @@ class ClassifierScore(BaseModel):
             "uuid": self.uuid,
             "classifier_id": self.classifier_id,
             "classifier_name": self.classifier_name,
-            "pseudo_tag_id": self.pseudo_tag_id,
+            "tag_id": self.tag_id,
             "image_hash": self.image_hash,
             "score": self.score,
         }
@@ -320,3 +320,24 @@ class Classifier(BaseModel):
                 "model_path": self.model_path,
                 "creation_time": self.creation_time
             }
+        
+class Worker(BaseModel):
+    last_seen: Union[str, None] = None
+    worker_id: str
+    worker_type: str
+    worker_address: Optional[str] = None
+    worker_computer_id: str
+    worker_ip: Optional[str] = None
+
+    def to_dict(self):
+        return{
+            "last_seen": self.last_seen,
+            "worker_id": self.worker_id,
+            "worker_type": self.worker_type,
+            "worker_address": self.worker_address,
+            "worker_computer_id": self.worker_computer_id,
+            "worker_ip": self.worker_ip
+        }   
+    
+class ListWorker(BaseModel):
+    worker: List[Worker]    
