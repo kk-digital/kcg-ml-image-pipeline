@@ -96,9 +96,9 @@ class SamplingFCRegressionNetwork(nn.Module):
     def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256):
         # load the dataset depends on sampling type
         if self.input_type == "uniform_sphere":
-            inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points)
+            inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_type)
         elif self.input_type == "gaussian_sphere":
-            inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres=n_spheres,target_avg_points=target_avg_points, percentile=self.sampling_parameter["percentile"], std=self.sampling_parameter["std"])
+            inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres=n_spheres,target_avg_points=target_avg_points, output_type=self.output_type, percentile=self.sampling_parameter["percentile"], std=self.sampling_parameter["std"])
         else:
             return None
 
