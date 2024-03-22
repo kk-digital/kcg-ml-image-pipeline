@@ -1209,6 +1209,6 @@ async def find_duplicate_uuids(request: Request):
         cursor = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
         task_type_summary = list(cursor)
 
-        return JSONResponse(content={"data": task_type_summary})
+        return  task_type_summary
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
