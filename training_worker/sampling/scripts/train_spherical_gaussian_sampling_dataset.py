@@ -4,7 +4,8 @@ import sys
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
-from training_worker.sampling.models.sampling_fc import SamplingFCNetwork, SamplingType
+from training_worker.sampling.models.sampling_fc import SamplingFCNetwork
+from training_worker.sampling.models.sampling_regression_fc import SamplingFCRegressionNetwork
 from utility.minio import cmd
 
 
@@ -24,6 +25,7 @@ def parse_args():
     parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--learning-rate', type=float, default=0.001)
     parser.add_argument('--output-size', type=int, default=8)
+    parser.add_argument('--output-type', type=str, default="score_distribution", help="variance, mean_sigma_score or score_distribution")
     parser.add_argument('--bin-size', type=int, default=1)
 
     return parser.parse_args()
@@ -36,12 +38,21 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
 
-    gaussian_sampling_model= SamplingFCNetwork(minio_client=minio_client, 
+
+    if args.output_type in ["score_distribution"]:
+
+        gaussian_sampling_model= SamplingFCNetwork(minio_client=minio_client, 
                                               dataset=args.dataset,
                                               output_size= args.output_size,
+                                              output_type=args.output_type,
                                               bin_size= args.bin_size,
-                                              type=SamplingType.SPHERICAL_GAUSSIAN_SAMPLING)
-    
+                                              input_type="gaussian_sphere")
+    elif args.output_type in ["variance", "mean_sigma_score"]:
+        gaussian_sampling_model= SamplingFCRegressionNetwork(minio_client=minio_client, 
+                                                dataset=args.dataset,
+                                                input_type="gaussian_sphere",
+                                                output_type= args.output_type)
+                                                   
     gaussian_sampling_model.set_config(sampling_parameter={"percentile": args.percentile, "std": args.std})
 
     gaussian_sampling_model.train(num_epochs=args.epochs,
