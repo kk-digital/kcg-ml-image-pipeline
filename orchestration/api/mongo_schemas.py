@@ -221,9 +221,7 @@ class ClassifierScore(BaseModel):
         return {
             "uuid": self.uuid,
             "classifier_id": self.classifier_id,
-            "classifier_name": self.classifier_name,
             "tag_id": self.tag_id,
-            "image_hash": self.image_hash,
             "score": self.score,
         }
 

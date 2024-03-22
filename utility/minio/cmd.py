@@ -7,7 +7,7 @@ from utility.utils_logger import logger
 # TODO: remove hardcode in the future
 #  use config file
 
-MINIO_ADDRESS = "192.168.3.5:9000"
+MINIO_ADDRESS = "123.176.98.90:9000"
 
 
 def get_minio_client(minio_access_key, minio_secret_key, minio_ip_addr=None):
@@ -77,22 +77,6 @@ def download_folder_from_minio(client, bucket_name, folder_name, output_folder):
         else:
             logger.info(f"{object_name} already exists.")
 
-
-def download_dataset_from_minio(client, bucket_name, folder_name):
-       
-    # List all objects in the Minio folder
-    objects = client.list_objects(bucket_name, prefix=folder_name, recursive=True)
-
-    # list of the data which is downloaded
-    data = []
-    for obj in objects:
-        object_name = obj.object_name
-        
-        # Download the object
-        data.append[client.get_object(bucket_name, object_name, progress=Progress())]
-        
-    return data
-        
 
 def get_file_from_minio(client, bucket_name, file_name):
     try:
