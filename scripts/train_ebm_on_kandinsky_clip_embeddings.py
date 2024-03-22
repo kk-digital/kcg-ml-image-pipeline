@@ -185,7 +185,7 @@ def get_tag_jobs(tag_id):
 
 
 def get_file_paths(dataset,num_samples):
-        print('Loading image file paths')
+        
         response = requests.get(f'{API_URL}/queue/image-generation/list-by-dataset?dataset={dataset}&size={num_samples}')
         
         jobs = json.loads(response.content)
