@@ -104,7 +104,7 @@ class ImageRank(BaseModel):
             "creation_time": self.creation_time
         }
     
-class ListImageRank:
+class ListImageRank(BaseModel):
     images: List[ImageRank]
 
 class RankCountResponse(BaseModel):
