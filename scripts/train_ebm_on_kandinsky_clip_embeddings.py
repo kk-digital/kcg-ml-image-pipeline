@@ -1044,7 +1044,7 @@ def plot_samples(dataset_name, number_of_samples,model_name):
     #((images_paths[i], embedding, score.item(),image,hashes[i])) 
     for image in sorted_images_and_hashes:
         #
-        print("Rank : ", rank, " Path : " image[0], " Score : ",image[2])
+        print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2])
 
     # Tag the images
 
