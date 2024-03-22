@@ -1040,6 +1040,11 @@ def plot_samples(dataset_name, number_of_samples,model_name):
 
     # Process the images
     sorted_images_and_hashes = process_and_sort_dataset_with_hashes(images_paths_ood, images_hashes_ood, loaded_model) 
+    rank = 1
+    #((images_paths[i], embedding, score.item(),image,hashes[i])) 
+    for image in sorted_images_and_hashes:
+        #
+        print("Rank : ", rank, " Path : " image[0], " Score : ",image[2])
 
     # Tag the images
 
@@ -1264,8 +1269,8 @@ def main():
 
 
 
-#♣plot_samples(dataset_name = "environmental", number_of_samples = 30000,model_name ="content-has-text")
-plot_samples_hashless(dataset_name = "environmental", number_of_samples = 40000,model_name ="content-has-text")
+plot_samples(dataset_name = "environmental", number_of_samples = 50,model_name ="content-has-text")
+#plot_samples_hashless(dataset_name = "environmental", number_of_samples = 40000,model_name ="content-has-text")
 #print(get_tag_id_by_name("topic-forest"))
 
 #tag_images(dataset_name = "environmental", number_of_samples = 40000,model_name= "mountain" ,tag_name ="topic-mountain",tagger_name = "amine",plot_a_sample = True)
