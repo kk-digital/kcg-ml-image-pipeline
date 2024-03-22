@@ -151,6 +151,7 @@ class SamplingFCNetwork(nn.Module):
         best_val_loss = float('inf')  # Initialize best validation loss as infinity
         best_train_loss = float('inf')  # Initialize best training loss as infinity
         start = time.time()
+        best_model_state = self.model
         # Training and Validation Loop
         for epoch in range(num_epochs):
             self.model.eval()
