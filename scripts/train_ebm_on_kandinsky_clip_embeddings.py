@@ -1044,7 +1044,7 @@ def plot_samples(dataset_name, number_of_samples,model_name):
     #((images_paths[i], embedding, score.item(),image,hashes[i])) 
     for image in sorted_images_and_hashes:
         #
-        print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2])
+        print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2], " Hash : ",image[4])
 
     # Tag the images
 
@@ -1272,7 +1272,7 @@ def main():
 
             
 
-plot_samples(dataset_name = "environmental", number_of_samples = 50,model_name ="concept-cybernetic")
+plot_samples(dataset_name = "environmental", number_of_samples = 100,model_name ="concept-cybernetic")
 #plot_samples_hashless(dataset_name = "environmental", number_of_samples = 50,model_name ="content-has-text")
 
 #plot_samples_hashless(dataset_name = "environmental", number_of_samples = 40000,model_name ="content-has-text")
