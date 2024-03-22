@@ -214,9 +214,7 @@ class RankingScore(BaseModel):
 class ClassifierScore(BaseModel):
     uuid: Union[str, None]
     classifier_id: int
-    classifier_name: str
     tag_id: int
-    image_hash: str
     score: float
 
     def to_dict(self):

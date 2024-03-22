@@ -382,7 +382,6 @@ def get_rank_vector_index(request: Request, rank_id: int):
             tags=["ab-rank"], 
             status_code=200,
             description="Get images by rank_id",
-            response_model=StandardSuccessResponseV1[ListImageRank], 
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 def get_ranked_images(
     request: Request, 
@@ -542,7 +541,6 @@ async def add_new_rank_category(request: Request, rank_category_data: RankCatego
         )
 
 @router.get("/ab-rank-categories/list-rank-categories", 
-            response_model=StandardSuccessResponseV1[RankCategoryListResponse],
             description="list rank categories",
             tags=["ab-rank-categories"],
             status_code=200,
