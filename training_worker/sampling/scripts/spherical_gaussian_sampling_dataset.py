@@ -117,10 +117,10 @@ class SphericalGaussianGenerator:
             # Calculate score distribution for the sphere
             score_distribution = np.zeros(len(bins))
             sum_weights = .0
-
+            sphere_scores=[]
             for i, idx in enumerate(point_indices, 0):
                 score = scores[idx]
-                
+                sphere_scores.append(score)
                 weight = gaussian_pdf(distance_vector[i], variance)
                 sum_weights += weight
 
@@ -136,7 +136,9 @@ class SphericalGaussianGenerator:
             # Update sphere data and covered points
             sphere_data.append({
                 'center': center, 
-                'variance': variance,  # Assuming variance needs to be sqrt to represent actual distance
+                'sphere_variance': variance,
+                'mean_sigma_score': np.mean(sphere_scores), 
+                'variance': np.var(sphere_scores), 
                 'points': point_indices, 
                 "score_distribution": score_distribution
             })
@@ -167,7 +169,7 @@ class SphericalGaussianGenerator:
         outputs=[]
         for sphere in sphere_data:
             # get input vectors
-            inputs.append(np.concatenate([sphere['center'], [sphere['variance']]]))
+            inputs.append(np.concatenate([sphere['center'], [sphere['sphere_variance']]]))
             # get score distribution
             outputs.append(sphere['score_distribution'])
 
