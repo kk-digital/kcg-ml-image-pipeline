@@ -616,6 +616,7 @@ def get_list_completed_jobs_by_dataset(
     datasets = []
     for job in jobs:
         job_uuid = job.get("uuid")
+        file_hash = job.get('task_output_file_dict', {}).get('output_file_hash'),
         file_path = job.get("task_output_file_dict", {}).get("output_file_path")
         clip_sigma_score = job.get("task_attributes_dict",{}).get(model_type, {}).get("image_clip_sigma_score")
 
@@ -624,6 +625,7 @@ def get_list_completed_jobs_by_dataset(
 
         job_info = {
             "job_uuid": job_uuid,
+            "image_hash": file_hash,
             "file_path": file_path, 
             "clip_sigma_score": clip_sigma_score
         }
