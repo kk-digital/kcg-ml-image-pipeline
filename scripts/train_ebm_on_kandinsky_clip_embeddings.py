@@ -1080,7 +1080,7 @@ def plot_samples_hashless(dataset_name, number_of_samples,model_name):
     for image in sorted_images_and_hashes:
         #
         print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2])
-        rank += rank
+        rank += 0
     # Tag the images
 
     selected_structure_first_50 = sorted_images_and_hashes[:52] 
