@@ -1167,42 +1167,51 @@ async def get_dataset_image_clip_h_sigma_score_count(request: Request):
     return formatted_results
 
 
-@router.get("/completed-jobs/find-duplicates")
+@router.get("/completed-jobs/find-duplicates", response_class=PrettyJSONResponse)
 async def find_duplicate_uuids(request: Request):
     try:
         aggregation_pipeline = [
             {
+                # Stage 1: Group by uuid and task_type, count occurrences
                 "$group": {
-                    "_id": "$uuid",
-                    "count": {"$sum": 1},
-                    "task_types": {"$addToSet": "$task_type"}  # Collect unique task_types associated with each uuid
+                    "_id": {
+                        "uuid": "$uuid",
+                        "task_type": "$task_type"
+                    },
+                    "count": {"$sum": 1}
                 }
             },
             {
+                # Stage 2: Filter groups that have more than one occurrence
                 "$match": {
-                    "count": {"$gt": 1}  # Filter for uuids with more than one occurrence
+                    "count": {"$gt": 1}
                 }
             },
             {
+                # Stage 3: Group by uuid to aggregate counts per task_type
+                "$group": {
+                    "_id": "$_id.uuid",
+                    "duplicates": {
+                        "$push": {
+                            "task_type": "$_id.task_type",
+                            "count": "$count"
+                        }
+                    }
+                }
+            },
+            {
+                # Stage 4: Project the final structure
                 "$project": {
                     "uuid": "$_id",
                     "_id": 0,
-                    "count": 1,
-                    "task_types": 1  # Include the list of task_types in the projection
+                    "duplicates": 1
                 }
             }
         ]
 
         cursor = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
-        duplicates = list(cursor)
+        duplicates_summary = list(cursor)
 
-        # Format each document in the cursor as a dict, removing the need for UUIDDuplicate
-        duplicates_data = [{
-            "uuid": doc['uuid'],
-            "count": doc['count'],
-            "task_types": doc['task_types']
-        } for doc in duplicates]
-
-        return {"data": duplicates_data}  # Return the list of duplicates directly
+        return {"data": duplicates_summary}  # Return the summary of duplicates directly
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
