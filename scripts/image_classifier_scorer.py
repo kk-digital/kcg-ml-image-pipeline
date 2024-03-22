@@ -47,6 +47,8 @@ class ImageScorer:
 
         self.image_paths_cache = {}
         self.image_all_feature_pairs_cache = {}
+        
+        self.classifier_id_list = request.http_get_classifier_model_list()
 
         if torch.cuda.is_available():
             device = 'cuda'
@@ -352,16 +354,25 @@ class ImageScorer:
             futures = []
             for pair in hash_score_pairs:
                 # upload score
+                classifier_id, classifier_name = self.get_classifier_id_and_name(self.model.model_file_path)
                 score_data = {
+                    "classifier_id": classifier_id,
+                    "classifier_name": classifier_name,
                     "image_hash": pair[0],
                     "score": pair[1],
-                    "tag_id": tag_id
+                    "pseudo_tag_id": tag_id
                 }
                 futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data))
 
             for _ in tqdm(as_completed(futures), total=len(hash_score_pairs)):
                 continue
 
+    def get_classifier_id_and_name(self, classifier_file_path):
+        for classifier in self.classifier_id_list:
+            if classifier["model_path"] == classifier_file_path:
+                return classifier["classifier_id"], classifier["classifier_name"]
+        return -1, ""
+    
     def upload_sigma_scores(self, hash_sigma_score_dict):
         print("Uploading sigma scores to mongodb...")
         with ThreadPoolExecutor(max_workers=50) as executor:
