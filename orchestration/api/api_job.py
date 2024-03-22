@@ -1172,13 +1172,11 @@ async def find_duplicate_uuids(request: Request):
     try:
         aggregation_pipeline = [
             {
-                # Stage 1: Group by uuid and task_type, count occurrences
+                # Stage 1: Group by uuid to count occurrences
                 "$group": {
-                    "_id": {
-                        "uuid": "$uuid",
-                        "task_type": "$task_type"
-                    },
-                    "count": {"$sum": 1}
+                    "_id": "$uuid",
+                    "count": {"$sum": 1},
+                    "task_types": {"$addToSet": "$task_type"}  # Collect all task_types associated with each uuid
                 }
             },
             {
@@ -1188,30 +1186,29 @@ async def find_duplicate_uuids(request: Request):
                 }
             },
             {
-                # Stage 3: Group by uuid to aggregate counts per task_type
+                # Stage 3: Unwind the task_types array to treat each task_type as a separate document
+                "$unwind": "$task_types"
+            },
+            {
+                # Stage 4: Group by task_type to count total duplicated uuids per task_type
                 "$group": {
-                    "_id": "$_id.uuid",
-                    "duplicates": {
-                        "$push": {
-                            "task_type": "$_id.task_type",
-                            "count": "$count"
-                        }
-                    }
+                    "_id": "$task_types",
+                    "totalDuplicatedUuids": {"$sum": 1}
                 }
             },
             {
-                # Stage 4: Project the final structure
+                # Stage 5: Project the final structure
                 "$project": {
-                    "uuid": "$_id",
+                    "task_type": "$_id",
                     "_id": 0,
-                    "duplicates": 1
+                    "totalDuplicatedUuids": 1
                 }
             }
         ]
 
         cursor = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
-        duplicates_summary = list(cursor)
+        task_type_summary = list(cursor)
 
-        return {"data": duplicates_summary}  # Return the summary of duplicates directly
+        return JSONResponse(content={"data": task_type_summary})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
