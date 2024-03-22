@@ -856,9 +856,9 @@ def get_images_metadata(
             if not prompt_generation_policy or image_meta_data['prompt_generation_policy'] == prompt_generation_policy:
                 images_metadata.append(image_meta_data)
 
-            return response_handler.create_success_response_v1(
-                response_data=images_metadata,
-                http_status_code=200,
+        return response_handler.create_success_response_v1(
+            response_data=images_metadata,
+            http_status_code=200,
             )
     except Exception as e:
         return response_handler.create_error_response_v1(
