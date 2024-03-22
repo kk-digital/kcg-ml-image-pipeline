@@ -108,39 +108,19 @@ def http_add_classifier_model(model_card):
 
     return None
 
-def http_get_model_id(model_hash):
-    url = SERVER_ADDRESS + "/models/get-id?model_hash={}".format(model_hash)
-    response = None
-
-    try:
-        response = requests.get(url)
-
-        if response.status_code != 200:
-            print(f"request failed with status code: {response.status_code}")
-
-        return int(response.content)
-    except Exception as e:
-        print('request exception ', e)
-
-    finally:
-        if response:
-            response.close()
-
-    return None
-
-def http_get_model_id_v1(model_hash):
-    url = SERVER_ADDRESS + "/models/get-id-v1?model_hash={}".format(model_hash)
+def http_get_classifier_model_list():
+    url = SERVER_ADDRESS + "/classifier/list-classifiers"
     response = None
     try:
         response = requests.get(url)
 
         if response.status_code != 200:
             print(f"request failed with status code: {response.status_code}")
-            return -1
-        return response.json()["response"]["model_id"]
+            return []
+        return response.json()["response"]
     except Exception as e:
         print('request exception ', e)
-
+        
     finally:
         if response:
             response.close()
