@@ -1165,3 +1165,44 @@ async def get_dataset_image_clip_h_sigma_score_count(request: Request):
     formatted_results = [{"dataset": dataset, "count": results_dict.get(dataset, 0)} for dataset in all_datasets_list]
 
     return formatted_results
+
+
+@router.get("/completed-jobs/find-duplicates")
+async def find_duplicate_uuids(request: Request):
+    try:
+        aggregation_pipeline = [
+            {
+                "$group": {
+                    "_id": "$uuid",
+                    "count": {"$sum": 1},
+                    "task_types": {"$addToSet": "$task_type"}  # Collect unique task_types associated with each uuid
+                }
+            },
+            {
+                "$match": {
+                    "count": {"$gt": 1}  # Filter for uuids with more than one occurrence
+                }
+            },
+            {
+                "$project": {
+                    "uuid": "$_id",
+                    "_id": 0,
+                    "count": 1,
+                    "task_types": 1  # Include the list of task_types in the projection
+                }
+            }
+        ]
+
+        cursor = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
+        duplicates = list(cursor)
+
+        # Format each document in the cursor as a dict, removing the need for UUIDDuplicate
+        duplicates_data = [{
+            "uuid": doc['uuid'],
+            "count": doc['count'],
+            "task_types": doc['task_types']
+        } for doc in duplicates]
+
+        return {"data": duplicates_data}  # Return the list of duplicates directly
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
