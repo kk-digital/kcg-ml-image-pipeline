@@ -87,6 +87,26 @@ def http_add_model(model_card):
 
     return None
 
+def http_add_classifier_model(model_card):
+    url = SERVER_ADDRESS + "/classifier/register-tag-classifier"
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+    response = None
+
+    try:
+        response = requests.post(url, data=model_card, headers=headers)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}")
+        print("classifier data=", response.content)
+        return response.content
+    except Exception as e:
+        print('request exception ', e)
+
+    finally:
+        if response:
+            response.close()
+
+    return None
 
 def http_get_model_id(model_hash):
     url = SERVER_ADDRESS + "/models/get-id?model_hash={}".format(model_hash)
