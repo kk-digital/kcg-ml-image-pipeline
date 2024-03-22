@@ -210,6 +210,24 @@ def get_file_paths_and_hashes(dataset,num_samples):
         return file_paths, hashes
 
 
+def get_file_paths_and_hashes_uuid(dataset,num_samples):
+        print('Loading image file paths')
+        response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset?dataset={dataset}&limit={num_samples}')
+        
+        jobs = json.loads(response.content)
+        #print(jobs)
+        file_paths=[job['image_path'] for job in jobs]
+        hashes=[job['image_hash'] for job in jobs]
+        uuid =[job['job_uuid'] for job in jobs] 
+        #image_hashes=[job['image_hash'] for job in jobs]
+        structure = []
+        for i in  range(len(file_paths)):
+            print("Path : ", file_paths[i], " Hash : ", hashes[i], " UUID : ",uuid[i])
+        
+
+
+
+
 
 # Get latent
 
@@ -1280,8 +1298,11 @@ def main():
 #plot_samples_hashless(dataset_name = "environmental", number_of_samples = 40000,model_name ="content-has-text")
 #print(get_tag_id_by_name("topic-forest"))
 
-tag_images(dataset_name = "environmental", number_of_samples = 20000,model_name= "concept-cybernetic" ,tag_name ="concept-cybernetic",tagger_name = "amine",plot_a_sample = True)
+# tag_images(dataset_name = "environmental", number_of_samples = 20000,model_name= "concept-cybernetic" ,tag_name ="concept-cybernetic",tagger_name = "amine",plot_a_sample = True)
 
+
+
+get_file_paths_and_hashes_uuid("environmental",50)
 
 # ---------------------------------------------------------------------------------------------------------------------
 # -------------------------------------------------------- Let's run some tests here ----------------------------------
