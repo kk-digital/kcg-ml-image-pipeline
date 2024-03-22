@@ -203,6 +203,9 @@ def startup_db_client():
     # delta score
     app.datapoints_delta_score_collection = app.mongodb_db["datapoints_delta_score"]
 
+    # workers
+    app.workers_collection = app.mongodb_db["workers"]
+
     # models
     app.models_collection = app.mongodb_db["models"]
 

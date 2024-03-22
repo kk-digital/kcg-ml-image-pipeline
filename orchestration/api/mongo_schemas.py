@@ -320,3 +320,24 @@ class Classifier(BaseModel):
                 "model_path": self.model_path,
                 "creation_time": self.creation_time
             }
+        
+class Worker(BaseModel):
+    last_seen: Union[str, None] = None
+    worker_id: str
+    worker_type: str
+    worker_address: Optional[str] = None
+    worker_computer_id: str
+    worker_ip: Optional[str] = None
+
+    def to_dict(self):
+        return{
+            "last_seen": self.last_seen,
+            "worker_id": self.worker_id,
+            "worker_type": self.worker_type,
+            "worker_address": self.worker_address,
+            "worker_computer_id": self.worker_computer_id,
+            "worker_ip": self.worker_ip
+        }   
+    
+class ListWorker(BaseModel):
+    worker: List[Worker]    
