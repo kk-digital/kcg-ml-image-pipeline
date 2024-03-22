@@ -246,10 +246,10 @@ class SamplingFCNetwork(nn.Module):
                               val_loss, 
                               inference_speed,
                               learning_rate):
-        if self.input_type=="output_clip":
-            input_type="[output_image_clip_vector[1280]]"
-        elif self.input_type=="input_clip":
-            input_type="[input_clip_vector[1280]]"
+        if self.input_type=="uniform_sphere":
+            input_type="[input_clip_vector[1280], radius(float)]"
+        elif self.input_type=="gaussian_sphere":
+            input_type="[input_clip_vector[1280], variance(float)]"
 
         # Identify all unique labels present in the data
         labels = np.unique(np.hstack([y_true, y_pred]))
