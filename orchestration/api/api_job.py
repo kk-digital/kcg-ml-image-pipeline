@@ -1167,37 +1167,42 @@ async def get_dataset_image_clip_h_sigma_score_count(request: Request):
     return formatted_results
 
 
-@router.get("/completed-jobs/duplicated-jobs-count-by-task-type", response_class=PrettyJSONResponse)
+@router.get("/completed-jobs/duplicated-jobs-count-by-task-type")
 async def duplicated_jobs_count_by_task_type(request: Request):
     try:
-        # Aggregation pipeline to calculate all jobs and unique jobs per task_type
         aggregation_pipeline = [
             {
-                # Stage 1: Count occurrences of each uuid within each task type
+                # Stage 1: Group by task_type and uuid to identify unique jobs
                 "$group": {
                     "_id": {
                         "task_type": "$task_type",
                         "uuid": "$uuid"
                     },
-                    "count": {"$sum": 1}
+                    "doc_count": {"$sum": 1}  # Count occurrences of each uuid within each task type
                 }
             },
             {
-                # Stage 2: Group by task_type to get total and unique job counts
+                # Stage 2: Transform structure, counting total and unique jobs per task_type
                 "$group": {
                     "_id": "$_id.task_type",
-                    "total_jobs": {"$sum": 1},
-                    "unique_jobs": {"$addToSet": "$_id.uuid"}
+                    "total_jobs": {"$sum": 1},  # Count all occurrences, which includes duplicates
+                    "unique_jobs": {
+                        "$sum": {
+                            "$cond": [{"$eq": ["$doc_count", 1]}, 1, 0]  # Count as unique if only appeared once
+                        }
+                    }
                 }
             },
             {
-                # Stage 3: Calculate duplicated job counts
+                # Stage 3: Calculate the number of duplicated jobs per task_type
                 "$project": {
                     "task_type": "$_id",
                     "_id": 0,
                     "total_jobs": 1,
-                    "unique_jobs_count": {"$size": "$unique_jobs"},
-                    "duplicated_jobs_count": {"$subtract": ["$total_jobs", {"$size": "$unique_jobs"}]}
+                    "unique_jobs_count": "$unique_jobs",
+                    "duplicated_jobs_count": {
+                        "$subtract": ["$total_jobs", "$unique_jobs"]
+                    }
                 }
             }
         ]
@@ -1205,17 +1210,14 @@ async def duplicated_jobs_count_by_task_type(request: Request):
         cursor = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
         results = list(cursor)
 
-        # Prepare the response
-        response = [
-            {
-                "task_type": result["task_type"],
-                "total_jobs": result["total_jobs"],
-                "unique_jobs_count": result["unique_jobs_count"],
-                "duplicated_jobs_count": result["duplicated_jobs_count"]
-            }
-            for result in results
-        ]
+        # Format the response to include task_type and counts
+        formatted_results = [{
+            "task_type": result["task_type"],
+            "total_jobs": result["total_jobs"],
+            "unique_jobs_count": result["unique_jobs_count"],
+            "duplicated_jobs_count": result["duplicated_jobs_count"]
+        } for result in results]
 
-        return response
+        return formatted_results
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
