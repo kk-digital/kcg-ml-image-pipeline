@@ -1167,42 +1167,57 @@ async def get_dataset_image_clip_h_sigma_score_count(request: Request):
     return formatted_results
 
 
-@router.get("/completed-jobs/find-duplicates")
-async def find_duplicate_uuids(request: Request):
+@router.get("/completed-jobs/duplicated-jobs-count-by-task-type", response_class=PrettyJSONResponse)
+async def duplicated_jobs_count_by_task_type(request: Request):
     try:
         aggregation_pipeline = [
             {
+                # Stage 1: Group by task_type and uuid to identify unique jobs
                 "$group": {
-                    "_id": "$uuid",
-                    "count": {"$sum": 1},
-                    "task_types": {"$addToSet": "$task_type"}  # Collect unique task_types associated with each uuid
+                    "_id": {
+                        "task_type": "$task_type",
+                        "uuid": "$uuid"
+                    },
+                    "doc_count": {"$sum": 1}  # Count occurrences of each uuid within each task type
                 }
             },
             {
-                "$match": {
-                    "count": {"$gt": 1}  # Filter for uuids with more than one occurrence
+                # Stage 2: Transform structure, counting total and unique jobs per task_type
+                "$group": {
+                    "_id": "$_id.task_type",
+                    "total_jobs": {"$sum": 1},  # Count all occurrences, which includes duplicates
+                    "unique_jobs": {
+                        "$sum": {
+                            "$cond": [{"$eq": ["$doc_count", 1]}, 1, 0]  # Count as unique if only appeared once
+                        }
+                    }
                 }
             },
             {
+                # Stage 3: Calculate the number of duplicated jobs per task_type
                 "$project": {
-                    "uuid": "$_id",
+                    "task_type": "$_id",
                     "_id": 0,
-                    "count": 1,
-                    "task_types": 1  # Include the list of task_types in the projection
+                    "total_jobs": 1,
+                    "unique_jobs_count": "$unique_jobs",
+                    "duplicated_jobs_count": {
+                        "$subtract": ["$total_jobs", "$unique_jobs"]
+                    }
                 }
             }
         ]
 
         cursor = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
-        duplicates = list(cursor)
+        results = list(cursor)
 
-        # Format each document in the cursor as a dict, removing the need for UUIDDuplicate
-        duplicates_data = [{
-            "uuid": doc['uuid'],
-            "count": doc['count'],
-            "task_types": doc['task_types']
-        } for doc in duplicates]
+        # Format the response to include task_type and counts
+        formatted_results = [{
+            "task_type": result["task_type"],
+            "total_jobs": result["total_jobs"],
+            "unique_jobs_count": result["unique_jobs_count"],
+            "duplicated_jobs_count": result["duplicated_jobs_count"]
+        } for result in results]
 
-        return {"data": duplicates_data}  # Return the list of duplicates directly
+        return formatted_results
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
