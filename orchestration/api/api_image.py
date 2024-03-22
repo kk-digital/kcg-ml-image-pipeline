@@ -242,7 +242,7 @@ def get_image_data_by_filepath_2(request: Request, file_path: str):
 
     return response
   
-@router.get("/image/list-image-metadata-by-dataset", response_class=PrettyJSONResponse)
+@router.get("/image/list-image-metadata-by-dataset", tags = ["deprecated"], response_class=PrettyJSONResponse)
 def get_images_metadata(
     request: Request,
     dataset: str = None,
@@ -774,7 +774,7 @@ def get_random_image_with_time_v1(
             http_status_code=500,
         )
 
-@router.get("/image/list-image-metadata-by-dataset",
+@router.get("/image/list-image-metadata-by-dataset-v1",
             response_model=StandardSuccessResponseV1[List[ImageMetadata]], 
             description="List image metadata by dataset with optional filtering",
             status_code=200,
@@ -845,6 +845,7 @@ def get_images_metadata(
         images_metadata = []
         for job in jobs:
             image_meta_data = {
+                'uuid': job.get('uuid'),
                 'dataset': job['task_input_dict'].get('dataset'),
                 'task_type': job.get('task_type'),
                 'image_path': job['task_output_file_dict'].get('output_file_path'),

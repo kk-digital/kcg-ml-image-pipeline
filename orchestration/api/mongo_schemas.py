@@ -84,6 +84,7 @@ class SequentialID:
 
 
 class ImageMetadata(BaseModel):
+    uuid: str
     file_name: str
     file_hash: Union[str, None] = None
     file_path: Union[str, None] = None
@@ -97,6 +98,7 @@ class ImageMetadata(BaseModel):
 
     def to_dict(self):
         return {
+            "uuid": self.uuid,
             "file_name": self.file_name,
             "file_hash": self.file_hash,
             "file_path": self.file_path,
