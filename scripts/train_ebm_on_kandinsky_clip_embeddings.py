@@ -1524,7 +1524,7 @@ def main():
 
 
 
-new_combined_paths =  get_tag_jobs(19)
+new_combined_paths =  get_tag_jobs(39)
 
 # Create dataloader of occult
 train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(new_combined_paths,1)
@@ -1540,7 +1540,7 @@ adv_loader = train_loader_clip_ood
 
 
 # Train
-model_name = 'topic-space'
+model_name = 'concept-occult'
 new_model = train_model(train_loader,val_loader, adv_loader, img_shape=(1,1280),
                     batch_size=train_loader.batch_size,
                     lr=0.001,
@@ -1624,7 +1624,7 @@ load_model_to_minio(reloaded_model,model_name)
 
 
 # Load the environmental dataset     tooodoooo
-images_paths_ood, hashes = get_file_paths_and_hashes("environmental",40000)
+images_paths_ood, hashes = get_file_paths_and_hashes("environmental",50000)
 
 # #go create something
 # print("yep it's here")
