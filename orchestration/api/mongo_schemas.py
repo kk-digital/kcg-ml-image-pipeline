@@ -213,7 +213,7 @@ class ClassifierScore(BaseModel):
     uuid: Union[str, None]
     classifier_id: int
     classifier_name: str
-    pseudo_tag_id: int
+    tag_id: int
     image_hash: str
     score: float
 
@@ -222,7 +222,7 @@ class ClassifierScore(BaseModel):
             "uuid": self.uuid,
             "classifier_id": self.classifier_id,
             "classifier_name": self.classifier_name,
-            "pseudo_tag_id": self.pseudo_tag_id,
+            "tag_id": self.tag_id,
             "image_hash": self.image_hash,
             "score": self.score,
         }
