@@ -1167,7 +1167,7 @@ async def get_dataset_image_clip_h_sigma_score_count(request: Request):
     return formatted_results
 
 
-@router.get("/completed-jobs/duplicated-jobs-count-by-task-type")
+@router.get("/completed-jobs/duplicated-jobs-count-by-task-type", response_class=PrettyJSONResponse)
 async def duplicated_jobs_count_by_task_type(request: Request):
     try:
         aggregation_pipeline = [
