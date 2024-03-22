@@ -1524,13 +1524,13 @@ def main():
 
 
 
-new_combined_paths =  get_tag_jobs(35)
+new_combined_paths =  get_tag_jobs(19)
 
 # Create dataloader of occult
 train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(new_combined_paths,1)
 
 # Get adversarial dataset
-train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,40,20,22],0)
+train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([1,2,3,4,5,6,7,8,9,10,11,12,15,40,20,22],0)
 
 # init the loader
 train_loader = train_loader_automated
@@ -1540,7 +1540,7 @@ adv_loader = train_loader_clip_ood
 
 
 # Train
-model_name = 'concept-cybernetic'
+model_name = 'topic-space'
 new_model = train_model(train_loader,val_loader, adv_loader, img_shape=(1,1280),
                     batch_size=train_loader.batch_size,
                     lr=0.001,
