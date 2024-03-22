@@ -1058,9 +1058,9 @@ def plot_samples(dataset_name, number_of_samples,model_name):
     plot_name2 = model_name + "_tier2"
     plot_name3  = model_name + "_tier3"
 
-    # plot_images_with_scores(selected_structure_first_50,plot_name1)
-    # plot_images_with_scores(selected_structure_second_50,plot_name2)
-    # plot_images_with_scores(selected_structure_third_50,plot_name3)
+    plot_images_with_scores(selected_structure_first_50,plot_name1)
+    plot_images_with_scores(selected_structure_second_50,plot_name2)
+    plot_images_with_scores(selected_structure_third_50,plot_name3)
 
 
 
@@ -1076,6 +1076,11 @@ def plot_samples_hashless(dataset_name, number_of_samples,model_name):
     # Process the images
     sorted_images_and_hashes = process_and_sort_dataset(images_paths_ood, loaded_model) 
 
+    rank = 1
+    for image in sorted_images_and_hashes:
+        #
+        print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2])
+        rank += rank
     # Tag the images
 
     selected_structure_first_50 = sorted_images_and_hashes[:52] 
@@ -1267,8 +1272,8 @@ def main():
 
             
 
-plot_samples(dataset_name = "environmental", number_of_samples = 50,model_name ="content-has-text")
-#plot_samples_hashless(dataset_name = "environmental", number_of_samples = 50,model_name ="content-has-text")
+#plot_samples(dataset_name = "environmental", number_of_samples = 50,model_name ="content-has-text")
+plot_samples_hashless(dataset_name = "environmental", number_of_samples = 50,model_name ="content-has-text")
 
 #plot_samples_hashless(dataset_name = "environmental", number_of_samples = 40000,model_name ="content-has-text")
 #print(get_tag_id_by_name("topic-forest"))
