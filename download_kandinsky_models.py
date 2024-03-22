@@ -46,7 +46,7 @@ def download_file(url, file_path, description, update_interval=500, chunk_size=4
             else:
                 print(f'Downloading {file_path}.', flush=True)
                 downloaded, total_length = 0, int(total_length)
-                total_size = memory2str( )
+                total_size = memory2str(total_size)
                 bar_format = '{percentage:3.0f}%|{bar:20}| {desc} [{elapsed}<{remaining}' \
                              '{postfix}]'
                 if update_interval * chunk_size * 100 >= total_length:
