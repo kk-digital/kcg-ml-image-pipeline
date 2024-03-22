@@ -16,6 +16,7 @@ from torch.utils.data.dataloader import DataLoader
 base_directory = "./"
 sys.path.insert(0, base_directory)
 from training_worker.sampling.scripts.uniform_sampling_dataset import UniformSphereGenerator
+from training_worker.sampling.scripts.spherical_gaussian_sampling_dataset import SphericalGaussianGenerator
 from utility.minio import cmd
 
 class DatasetLoader(Dataset):
@@ -78,11 +79,13 @@ class SamplingFCRegressionNetwork(nn.Module):
         self.local_path, self.minio_path=self.get_model_path()
 
         # sphere dataloader
-        self.dataloader= UniformSphereGenerator(minio_client, dataset)
+        if self.input_type == "uniform_sphere":
+            self.dataloader= UniformSphereGenerator(minio_client, dataset)
+        elif self.input_type == "gaussian_sphere":
+            self.dataloader = SphericalGaussianGenerator(minio_client, dataset)
 
     def set_config(self, sampling_parameter= None):
         self.sampling_parameter = sampling_parameter
-
 
     def get_model_path(self):
         local_path=f"output/{self.output_type}_fc_{self.input_type}.pth"
@@ -91,8 +94,13 @@ class SamplingFCRegressionNetwork(nn.Module):
         return local_path, minio_path
 
     def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256):
-        # load the dataset
-        inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres, target_avg_points, self.output_type)
+        # load the dataset depends on sampling type
+        if self.input_type == "uniform_sphere":
+            inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_size, self.bin_size)
+        elif self.input_type == "gaussian_sphere":
+            inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_size, self.bin_size, self.sampling_parameter["percentile"], self.sampling_parameter["std"])
+        else:
+            return None
 
         print(inputs[0] ,outputs[0])
 
@@ -237,6 +245,19 @@ class SamplingFCRegressionNetwork(nn.Module):
             f"Output: {self.output_type} \n\n"
         )
 
+        # Add Sampling Method Parameter
+        report_text += (
+            f"================ Sampling Policy  ==================\n"
+            f"type: {self.input_type}"
+        )
+        if self.sampling_parameter is not None:
+            for key, value in zip(self.sampling_parameter.keys(), self.sampling_parameter.values()):
+                report_text += (
+                    f"{key}: {value}\n"
+                )
+        else:
+            report_text += "No Sampling Parameter"
+
         # Define the local file path for the report
         local_report_path = 'output/model_report.txt'
 
@@ -286,7 +307,18 @@ class SamplingFCRegressionNetwork(nn.Module):
                                                             best_train_loss,
                                                             best_val_loss,
                                                             ))
-
+        
+        fig_report_text += (
+            "Sampling Policy: {}\n".format(self.input_type)
+        )
+        if self.sampling_parameter is not None:
+            for key, value in zip(self.sampling_parameter.keys(), self.sampling_parameter.values()):
+                fig_report_text += (
+                    f"{key}: {value}\n"
+                )
+        else:
+            fig_report_text += "No Sampling Parameter"
+            
         # Plot validation and training Rmse vs. Rounds
         axs[0][0].plot(range(1, len(train_mae_per_round) + 1), train_mae_per_round,'b', label='Training loss')
         axs[0][0].plot(range(1, len(val_mae_per_round) + 1), val_mae_per_round,'r', label='Validation loss')

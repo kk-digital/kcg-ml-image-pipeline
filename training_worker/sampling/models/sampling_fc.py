@@ -86,7 +86,6 @@ class SamplingFCNetwork(nn.Module):
         self.local_path, self.minio_path=self.get_model_path()
         self.class_labels= self.get_class_labels()
         
-        # set type of sampling
         # sphere dataloader
         if self.input_type == "uniform_sphere":
             self.dataloader= UniformSphereGenerator(minio_client, dataset)
