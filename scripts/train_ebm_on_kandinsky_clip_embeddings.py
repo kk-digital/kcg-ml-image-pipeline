@@ -1093,9 +1093,9 @@ def plot_samples_hashless(dataset_name, number_of_samples,model_name):
     plot_name2 = model_name + "_tier2_hs"
     plot_name3  = model_name + "_tier3_hs"
 
-    plot_images_with_scores_hasheless(selected_structure_first_50,plot_name1)
-    plot_images_with_scores_hasheless(selected_structure_second_50,plot_name2)
-    plot_images_with_scores_hasheless(selected_structure_third_50,plot_name3)
+    # plot_images_with_scores_hasheless(selected_structure_first_50,plot_name1)
+    # plot_images_with_scores_hasheless(selected_structure_second_50,plot_name2)
+    # plot_images_with_scores_hasheless(selected_structure_third_50,plot_name3)
 
 # ---------------------------------------------------------------------------------------------------------------------
 # -------------------------------------------------------- Define the main function -----------------------------------
