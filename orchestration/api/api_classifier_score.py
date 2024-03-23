@@ -11,7 +11,7 @@ router = APIRouter()
 @router.get("/classifier-score/get-scores-by-classifier-id-and-tag-id",
             description="Get the images scores by tag",
             status_code=200,
-            tags=["classifier-score"],
+            tags=["classifier score"],  
             response_model=StandardSuccessResponseV1[ClassifierScore],
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 def get_scores_by_classifier_id_and_tag_id(request: Request, 
@@ -48,7 +48,7 @@ def get_scores_by_classifier_id_and_tag_id(request: Request,
 @router.get("/classifier-score/get-image-classifier-score-by-hash", 
             description="Get image classifier score by classifier_id, tag_id and image_hash",
             status_code=200,
-            tags=["score"],  
+            tags=["classifier score"], 
             response_model=StandardSuccessResponseV1[ClassifierScore],  # Specify the expected response model, adjust as needed
             responses=ApiResponseHandlerV1.listErrors([400,422]))
 def get_image_classifier_score_by_hash(request: Request, image_hash: str, tag_id: int, classifier_id: int):
@@ -81,7 +81,7 @@ def get_image_classifier_score_by_hash(request: Request, image_hash: str, tag_id
 @router.get("/classifier-score/get-image-classifier-score-by-uuid", 
             description="Get image classifier score by uuid",
             status_code=200,
-            tags=["score"],  
+            tags=["classifier score"],  
             response_model=StandardSuccessResponseV1[ClassifierScore],  # Specify the expected response model, adjust as needed
             responses=ApiResponseHandlerV1.listErrors([400,422]))
 def get_image_classifier_score_by_uuid(request: Request, classifier_score_uuid: str):
@@ -113,7 +113,7 @@ def get_image_classifier_score_by_uuid(request: Request, classifier_score_uuid: 
 @router.put("/classifier-score/update-image-classifier-score-by-uuid",
             description="update image-classfier-score by uuid",
             status_code=200,
-            tags=["put_score_by_hash"],
+           tags=["classifier score"],  
             response_model=StandardSuccessResponseV1[ClassifierScore],  # Specify the expected response model, adjust as needed
             responses=ApiResponseHandlerV1.listErrors([400,422]))
 async def update_image_classifier_score_by_uuid(request: Request, classifier_score: ClassifierScore):
@@ -160,7 +160,7 @@ async def update_image_classifier_score_by_uuid(request: Request, classifier_sco
 @router.post("/classifier-score/set-image-classifier-score", 
              status_code=200,
              description="Set classifier image score",
-             tags=["score"],  
+             tags=["classifier score"],  
              )
 async def set_image_classifier_score(request: Request, classifier_score: ClassifierScore):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -201,6 +201,7 @@ async def set_image_classifier_score(request: Request, classifier_score: Classif
 
 @router.delete("/classifier-score/delete-image-classifier-score-by-uuid", 
                description="Delete image classifier score by specific uuid.",
+               tags=["classifier score"],  
                status_code=200,
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([422]))
@@ -224,8 +225,8 @@ def delete_image_classifier_score_by_uuid(
 
 @router.get("/classifier-score/list-by-scores", 
             description="List images by classifier scores",
-            tags=["score"],  
-            response_model=StandardSuccessResponseV1[ListClassifierScore],  # Adjust the response model as needed
+            tags=["classifier score"],  
+            response_model=StandardSuccessResponseV1[ListClassifierScore], 
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 async def list_images_by_classifier_scores(
     request: Request,
@@ -250,9 +251,9 @@ async def list_images_by_classifier_scores(
     # Fetch data from MongoDB with a limit
     cursor = request.app.image_classifier_scores_collection.find(query).limit(limit)
     scores_data = list(cursor)
-
-    # Prepare the data for the response
-    images_data = [ListClassifierScore(**doc).dict() for doc in scores_data]
+    
+    # Drop the '_id' field from each document and convert to ClassifierScore
+    images_data = [ClassifierScore(**{k: v for k, v in doc.items() if k != '_id'}).dict() for doc in scores_data]
 
     # Return the fetched data with a success response
     return response_handler.create_success_response_v1(
