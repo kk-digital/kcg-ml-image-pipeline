@@ -38,10 +38,7 @@ class ImageScorer:
         self.model = None
         self.model_dataset = model_dataset
         self.dataset = dataset_name
-        self.generation_policy = generation_policy
         self.model_name = None
-        self.model_name_list = ["elm", "linear", "logistic"]
-        self.not_include = not_include
         self.model_input_type = None
         self.model_input_type_list = ["clip", "embedding", "embedding-negative", "embedding-positive"]
 
@@ -57,26 +54,36 @@ class ImageScorer:
         self.device = torch.device(device)
 
         print("Dataset=", self.dataset)
-        print("Model=", self.model_name)
         print("device=", self.device)
 
-    def load_model(self, tag_name):
-        model_filename = self.get_latest_classifier_model(tag_name)
+    def load_model(self, classifier_model_info):
+        self.tag_id = classifier_model_info["tag_id"]
+        self.classifier_id = classifier_model_info["classifier_id"]
+        self.model_name = classifier_model_info["classifier_name"]
 
-        if self.model_name == "elm":
+        if classifier_model_info["classifier_name"] == "elm":
             elm_model = ELMRegression(device=self.device)
-            loaded_model, model_file_name = elm_model.load_model_with_filename(self.minio_client, model_filename, tag_name)
+            loaded_model, model_file_name = elm_model.load_model_with_filename(
+                self.minio_client, 
+                classifier_model_info["classifier_path"], 
+                classifier_model_info["classifier_name"])
             self.model = loaded_model
-        elif self.model_name == 'linear':
+        elif classifier_model_info["classifier_name"] == 'linear':
             linear_model = LinearRegression(device=self.device)
-            loaded_model, model_file_name = linear_model.load_model_with_filename(self.minio_client, model_filename, tag_name)
+            loaded_model, model_file_name = linear_model.load_model_with_filename(
+                self.minio_client, 
+                classifier_model_info["classifier_path"], 
+                classifier_model_info["classifier_name"])
             self.model = loaded_model
-        elif self.model_name == "logistic":
+        elif classifier_model_info["classifier_name"] == "logistic":
             logistic_model = LogisticRegression(device=self.device)
-            loaded_model, model_file_name = logistic_model.load_model_with_filename(self.minio_client, model_filename, tag_name)
+            loaded_model, model_file_name = logistic_model.load_model_with_filename(
+                self.minio_client, 
+                classifier_model_info["classifier_path"], 
+                classifier_model_info["classifier_name"])
             self.model = loaded_model
         else:
-            print(f"Not support classifier model: {self.model_name}")
+            print(f"Not support classifier model: {classifier_model_info["classifier_name"]}")
 
         if not loaded_model:
             return False
@@ -348,19 +355,18 @@ class ImageScorer:
 
         return csv_data
 
-    def upload_scores(self, hash_score_pairs, tag_id):
+    def upload_scores(self, hash_score_pairs):
         print("Uploading scores to mongodb...")
         with ThreadPoolExecutor(max_workers=50) as executor:
             futures = []
             for pair in hash_score_pairs:
                 # upload score
-                classifier_id, classifier_name = self.get_classifier_id_and_name(self.model.model_file_path)
                 score_data = {
-                    "classifier_id": classifier_id,
-                    "classifier_name": classifier_name,
+                    "classifier_id": self.classifier_id,
+                    "classifier_name": self.classifier_name,
                     "image_hash": pair[0],
                     "score": pair[1],
-                    "pseudo_tag_id": tag_id
+                    "tag_id": self.tag_id
                 }
                 futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data))
 
@@ -571,28 +577,6 @@ class ImageScorer:
                 tag_name = parts[3]  # Assumes tag_name is the fourth element in the path
                 tag_names.add(tag_name)
         return list(tag_names)
-    
-    def get_latest_classifier_model(self, tag_name): 
-        input_path = f"{self.model_dataset}/models/classifiers/{tag_name}"
-        file_suffix = ".safetensors"
-
-        # Use the MinIO client's list_objects method directly with recursive=True
-        model_files = [obj.object_name for obj in self.minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix) and self.not_include not in obj.object_name ]
-        
-        if not model_files:
-            print(f"No .safetensors models found in dataset-{self.model_dataset}")
-            return None
-        
-        # Assuming there's only one model per tag or choosing the first one
-        model_files.sort(reverse=True)
-        model_file = model_files[0]
-        print(f"Loading model: {model_file}")
-
-        self.model_input_type = next((model_input_type for model_input_type in self.model_input_type_list if model_input_type + "." in model_file), None)
-        self.model_name = next((model_name for model_name in self.model_name_list if model_name in model_file), None)
-        # remove
-        print(self.model_input_type, self.model_name)
-        return model_file
 
 
 def parse_args():
@@ -623,17 +607,15 @@ def run_image_scorer(minio_client,
                          model_dataset=model_dataset,
                          not_include=not_include,
                          generation_policy=generation_policy)
-    tag_list = request.http_get_tag_list()
-    print(tag_list)
 
-    if not tag_list:
-        return
+
+    classifier_model_list = request.http_get_classifier_model_list()
     
-    for tag in tag_list:
+    for classifier_model in classifier_model_list:
         try:
-            is_loaded = scorer.load_model(tag_name=tag["tag_string"])
+            is_loaded = scorer.load_model(classifier_model_info=classifier_model)
         except Exception as e:
-            print("Failed loading model, tag_name:", tag["tag_string"], e)
+            print("Failed loading model, {}".format(classifier_model["model_path"]), e)
             continue
         if not is_loaded:
             continue
@@ -644,7 +626,7 @@ def run_image_scorer(minio_client,
         
         hash_score_pairs, image_paths, job_uuids_hash_dict = scorer.get_scores(features_data, image_paths)
         print("Successfully calculated")
-        scorer.upload_scores(hash_score_pairs, tag["tag_id"])
+        scorer.upload_scores(hash_score_pairs)
 
     time_elapsed = time.time() - start_time
     print("Dataset: {}: Total Time elapsed: {}s".format(dataset_name, format(time_elapsed, ".2f")))   
