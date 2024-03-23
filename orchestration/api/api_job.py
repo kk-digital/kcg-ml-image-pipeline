@@ -1241,7 +1241,7 @@ async def find_first_duplicate_uuid(request: Request):
             "$match": {"count": {"$gt": 1}}
         },
         {
-            "$sort": {"first_creation_time": ASCENDING}
+            "$sort": {"task_start_time": ASCENDING}
         },
         {
             "$limit": 1
@@ -1250,7 +1250,7 @@ async def find_first_duplicate_uuid(request: Request):
             "$project": {
                 "uuid": "$_id",
                 "_id": 0,
-                "first_creation_time": 1
+                "task_start_time": 1
             }
         }
     ]
