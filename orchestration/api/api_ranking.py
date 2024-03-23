@@ -127,7 +127,7 @@ def get_image_rank_use_count(request: Request, image_hash: str):
     return item["count"]
 
 
-@router.post("/ranking/submit-relevance-data", tags= ["deprecated"])
+@router.post("/ranking/submit-relevance-data", tags= ["deprecated2"])
 def add_relevancy_selection_datapoint(request: Request, relevance_selection: RelevanceSelection, dataset: str = Query(...)):
     time = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     relevance_selection.datetime = time
@@ -248,7 +248,7 @@ def add_selection_datapoint(request: Request, selection: Selection):
         )
 
 
-@router.get("/rank/list-ranking-data", tags = ["deprecated"], response_class=PrettyJSONResponse)
+@router.get("/rank/list-ranking-data", tags = ["deprecated2"], response_class=PrettyJSONResponse)
 def list_ranking_data(
     request: Request,
     start_date: str = Query(None),
@@ -331,7 +331,7 @@ def list_ranking_data(
 
     return ranking_data
 
-@router.get("/rank/sort-ranking-data-by-date", tags = ["deprecated"], response_class=PrettyJSONResponse)
+@router.get("/rank/sort-ranking-data-by-date", tags = ["deprecated2"], response_class=PrettyJSONResponse)
 def list_ranking_data(
     request: Request,
     model_type: str = Query(..., description="Model type to filter by, e.g., 'linear' or 'elm-v1'"),
@@ -1312,7 +1312,7 @@ def add_selected_residual_pair(
             http_status_code=500,
         )
 
-@router.get("/rank/read",tags = ['deprecated'], response_class=PrettyJSONResponse)
+@router.get("/rank/read",tags = ['deprecated2'], response_class=PrettyJSONResponse)
 def read_ranking_file(request: Request, dataset: str,
                       filename: str = Query(..., description="Filename of the JSON to read")):
     # Construct the object name for ranking
@@ -1371,7 +1371,7 @@ async def read_ranking_file(request: Request, dataset: str, filename: str = Quer
 
 
 
-@router.get("/relevancy/read", tags = ['deprecated'], response_class=PrettyJSONResponse)
+@router.get("/relevancy/read", tags = ['deprecated2'], response_class=PrettyJSONResponse)
 def read_relevancy_file(request: Request, dataset: str,
                         filename: str = Query(..., description="Filename of the JSON to read")):
     # Construct the object name for relevancy

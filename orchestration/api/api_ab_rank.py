@@ -700,7 +700,7 @@ def delete_rank_category(request: Request, rank_category_id: int):
             description="Update the 'deprecated' status of a rank model.",
             response_model=StandardSuccessResponseV1[Rankmodel],
             responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
-def update_tag_deprecated_status(request: Request, rank_id: int, deprecated: bool):
+def update_rank_deprecated_status(request: Request, rank_id: int, deprecated: bool):
     response_handler = ApiResponseHandlerV1(request)
 
     query = {"rank_id": rank_id}
@@ -742,7 +742,7 @@ def update_tag_deprecated_status(request: Request, rank_id: int, deprecated: boo
             description="Set the 'deprecated' status of a rank category.",
             response_model=StandardSuccessResponseV1[RankCategory],
             responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
-def update_tag_category_deprecated_status(request: Request, rank_category_id: int, deprecated: bool):
+def update_rank_category_deprecated_status(request: Request, rank_category_id: int, deprecated: bool):
     response_handler = ApiResponseHandlerV1(request)
 
     query = {"rank_category_id": rank_category_id}
