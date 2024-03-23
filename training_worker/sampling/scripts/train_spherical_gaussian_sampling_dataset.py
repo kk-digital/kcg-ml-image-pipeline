@@ -26,6 +26,7 @@ def parse_args():
     parser.add_argument('--learning-rate', type=float, default=0.001)
     parser.add_argument('--output-size', type=int, default=8)
     parser.add_argument('--output-type', type=str, default="score_distribution", help="variance, mean_sigma_score or score_distribution")
+    parser.add_argument('--input-type', type=str, default="uniform_sphere", help="Input type - unifor_sphere, gaussian_sphere_variance, gaussian_sphere_sigma, gaussian_sphere_fall_off")
     parser.add_argument('--bin-size', type=int, default=1)
 
     return parser.parse_args()
@@ -46,11 +47,11 @@ def main():
                                               output_size= args.output_size,
                                               output_type=args.output_type,
                                               bin_size= args.bin_size,
-                                              input_type="gaussian_sphere")
+                                              input_type=args.input_type,)
     elif args.output_type in ["variance", "mean_sigma_score"]:
         gaussian_sampling_model= SamplingFCRegressionNetwork(minio_client=minio_client, 
                                                 dataset=args.dataset,
-                                                input_type="gaussian_sphere",
+                                                input_type=args.input_type,
                                                 output_type= args.output_type)
                                                    
     gaussian_sampling_model.set_config(sampling_parameter={"percentile": args.percentile, "std": args.std})
