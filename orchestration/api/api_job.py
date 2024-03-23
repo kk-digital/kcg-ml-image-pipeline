@@ -1234,7 +1234,7 @@ async def find_first_duplicate_uuid(request: Request):
             "$group": {
                 "_id": "$uuid",
                 "count": {"$sum": 1},
-                "first_creation_time": {"$first": "$task_creation_time"}
+                "task_start_time": {"$first": "$task_start_time"}
             }
         },
         {
