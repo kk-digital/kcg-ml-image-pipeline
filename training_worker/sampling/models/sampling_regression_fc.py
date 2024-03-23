@@ -285,8 +285,7 @@ class SamplingFCRegressionNetwork(nn.Module):
                           training_size, validation_size):
         fig, axs = plt.subplots(3, 2, figsize=(12, 10))
         
-        #info text about the model
-        plt.figtext(0.02, 0.7, "Date = {}\n"
+        fig_report_text = ("Date = {}\n"
                             "Dataset = {}\n"
                             "Model type = {}\n"
                             "Input type = {}\n"
@@ -307,7 +306,7 @@ class SamplingFCRegressionNetwork(nn.Module):
                                                             best_train_loss,
                                                             best_val_loss,
                                                             ))
-        
+
         fig_report_text += (
             "Sampling Policy: {}\n".format(self.input_type)
         )
@@ -318,6 +317,9 @@ class SamplingFCRegressionNetwork(nn.Module):
                 )
         else:
             fig_report_text += "No Sampling Parameter"
+
+        #info text about the model
+        plt.figtext(0.02, 0.7, fig_report_text)
             
         # Plot validation and training Rmse vs. Rounds
         axs[0][0].plot(range(1, len(train_mae_per_round) + 1), train_mae_per_round,'b', label='Training loss')

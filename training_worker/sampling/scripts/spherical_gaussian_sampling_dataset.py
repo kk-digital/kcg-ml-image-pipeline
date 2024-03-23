@@ -101,6 +101,8 @@ class SphericalGaussianGenerator:
             valid_distances = distances
             valid_centers = sphere_centers
 
+        valid_distances = valid_distances ** 0.5
+        
         print("Processing sphere data-------------")
         # Prepare to collect sphere data and statistics
         sphere_data = []
