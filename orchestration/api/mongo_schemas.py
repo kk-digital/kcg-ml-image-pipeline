@@ -82,8 +82,7 @@ class SequentialID:
             "file_count": self.file_count
         }
 
-
-class ImageMetadata(BaseModel):
+class UUIDImageMetadata(BaseModel):
     uuid: str
     file_name: str
     file_hash: Union[str, None] = None
@@ -99,6 +98,32 @@ class ImageMetadata(BaseModel):
     def to_dict(self):
         return {
             "uuid": self.uuid,
+            "file_name": self.file_name,
+            "file_hash": self.file_hash,
+            "file_path": self.file_path,
+            "image_type": self.image_type,
+            "image_width": self.image_width,
+            "image_height": self.image_height,
+            "image_size": self.image_size,
+            "features_type": self.features_type,
+            "features_model": self.features_model,
+            "features_vector": self.features_vector,
+        }
+
+class ImageMetadata(BaseModel):
+    file_name: str
+    file_hash: Union[str, None] = None
+    file_path: Union[str, None] = None
+    image_type: Union[str, None] = None
+    image_width: Union[str, None] = None
+    image_height: Union[str, None] = None
+    image_size: Union[str, None] = None
+    features_type: Union[str, None] = None
+    features_model: Union[str, None] = None
+    features_vector: Union[list, None] = None
+
+    def to_dict(self):
+        return {
             "file_name": self.file_name,
             "file_hash": self.file_hash,
             "file_path": self.file_path,
@@ -214,18 +239,14 @@ class RankingScore(BaseModel):
 class ClassifierScore(BaseModel):
     uuid: Union[str, None]
     classifier_id: int
-    classifier_name: str
     tag_id: int
-    image_hash: str
     score: float
 
     def to_dict(self):
         return {
             "uuid": self.uuid,
             "classifier_id": self.classifier_id,
-            "classifier_name": self.classifier_name,
             "tag_id": self.tag_id,
-            "image_hash": self.image_hash,
             "score": self.score,
         }
 

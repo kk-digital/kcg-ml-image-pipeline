@@ -18,7 +18,7 @@ import paramiko
 from typing import Optional, Dict
 import csv
 from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, AddJob, WasPresentResponse
-from pymongo import UpdateMany
+from pymongo import UpdateMany, ASCENDING, DESCENDING
 from bson import ObjectId
 
 
@@ -1165,3 +1165,100 @@ async def get_dataset_image_clip_h_sigma_score_count(request: Request):
     formatted_results = [{"dataset": dataset, "count": results_dict.get(dataset, 0)} for dataset in all_datasets_list]
 
     return formatted_results
+
+
+@router.get("/completed-jobs/duplicated-jobs-count-by-task-type", response_class=PrettyJSONResponse)
+async def duplicated_jobs_count_by_task_type(request: Request):
+    try:
+        aggregation_pipeline = [
+            {
+                # Stage 1: Group by task_type and uuid to identify unique jobs
+                "$group": {
+                    "_id": {
+                        "task_type": "$task_type",
+                        "uuid": "$uuid"
+                    },
+                    "doc_count": {"$sum": 1}  # Count occurrences of each uuid within each task type
+                }
+            },
+            {
+                # Stage 2: Transform structure, counting total and unique jobs per task_type
+                "$group": {
+                    "_id": "$_id.task_type",
+                    "total_jobs": {"$sum": 1},  # Count all occurrences, which includes duplicates
+                    "unique_jobs": {
+                        "$sum": {
+                            "$cond": [{"$eq": ["$doc_count", 1]}, 1, 0]  # Count as unique if only appeared once
+                        }
+                    }
+                }
+            },
+            {
+                # Stage 3: Calculate the number of duplicated jobs per task_type
+                "$project": {
+                    "task_type": "$_id",
+                    "_id": 0,
+                    "total_jobs": 1,
+                    "unique_jobs_count": "$unique_jobs",
+                    "duplicated_jobs_count": {
+                        "$subtract": ["$total_jobs", "$unique_jobs"]
+                    }
+                }
+            }
+        ]
+
+        cursor = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
+        results = list(cursor)
+
+        # Format the response to include task_type and counts
+        formatted_results = [{
+            "task_type": result["task_type"],
+            "total_jobs": result["total_jobs"],
+            "unique_jobs_count": result["unique_jobs_count"],
+            "duplicated_jobs_count": result["duplicated_jobs_count"]
+        } for result in results]
+
+        return formatted_results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@router.get("/jobs/find-last-duplicate-uuid")
+async def find_last_duplicate_uuid(request: Request):
+    task_type = "clip_calculation_task_kandinsky"
+    aggregation_pipeline = [
+        {
+            "$match": {"task_type": task_type}
+        },
+        {
+            "$group": {
+                "_id": "$uuid",
+                "count": {"$sum": 1},
+                "task_creation_time": {"$last": "$task_creation_time"}  # Change $first to $last
+            }
+        },
+        {
+            "$match": {"count": {"$gt": 1}}
+        },
+        {
+            "$sort": {"task_creation_time": DESCENDING}  # Change ASCENDING to DESCENDING
+        },
+        {
+            "$limit": 1
+        },
+        {
+            "$project": {
+                "uuid": "$_id",
+                "_id": 0,
+                "task_creation_time": 1
+            }
+        }
+    ]
+
+    cursor = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
+    duplicated_job = next(cursor, None)
+
+    if not duplicated_job:
+        raise HTTPException(status_code=404, detail="No duplicated UUID found for the specified task type.")
+
+    return duplicated_job

@@ -36,6 +36,7 @@ from orchestration.api.api_inpainting_job import router as inpainting_job_router
 from orchestration.api.api_server_utility import router as server_utility_router
 from orchestration.api.api_classifier_score import router as classifier_score_router
 from orchestration.api.api_classifier import router as classifier_router
+from orchestration.api.api_ab_rank import router as ab_rank_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -76,6 +77,7 @@ app.include_router(inpainting_job_router)
 app.include_router(server_utility_router)
 app.include_router(classifier_score_router)
 app.include_router(classifier_router)
+app.include_router(ab_rank_router)
 
 
 

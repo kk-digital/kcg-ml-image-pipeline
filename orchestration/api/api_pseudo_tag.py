@@ -1,9 +1,9 @@
 from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
-from orchestration.api.mongo_schema.pseudo_tag_schemas import PseudoTagDefinition, ImagePseudoTag, PseudoTagCategory, NewPseudoTagRequest, NewPseudoTagCategory, PseudoTagScore, PseudoTagListForImages, ListImagePseudoTag
+from orchestration.api.mongo_schema.pseudo_tag_schemas import PseudoTagDefinition, ImagePseudoTag, NewPseudoTagRequest, PseudoTagListForImages, ListImagePseudoTag
 from typing import Union
-from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, WasPresentResponse, VectorIndexUpdateRequest, TagsCategoryListResponse, TagResponse, PseudoTagIdResponse, PseudoTagCountResponse, ListImageTag
+from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, WasPresentResponse, VectorIndexUpdateRequest, PseudoTagIdResponse, PseudoTagCountResponse, ListImageTag
 import traceback
 from bson import ObjectId
 
@@ -21,17 +21,6 @@ async def add_new_pseudo_tag_definition(request: Request, tag_data: NewPseudoTag
     response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
-        # Check for existing tag_category_id
-        if tag_data.pseudo_tag_category_id is not None:
-            existing_category = request.app.pseudo_tag_categories_collection.find_one(
-                {"pseudo_tag_category_id": tag_data.pseudo_tag_category_id}
-            )
-            if not existing_category:
-                return response_handler.create_error_response_v1(
-                    error_code=ErrorCode.INVALID_PARAMS,
-                    error_string="Pseudo Tag category not found",
-                    http_status_code=400
-                )
 
         # Check for existing tag_vector_index
         if tag_data.pseudo_tag_vector_index is not None:
@@ -495,14 +484,13 @@ def get_pseudo_tag_vector_index(request: Request, pseudo_tag_id: int):
 
 @router.post("/pseudotags/add-pseudo-tag-to-image", 
              tags=["pseudo_tags"], 
-             response_model=StandardSuccessResponseV1[ImagePseudoTag], 
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-def add_pseudo_tag_to_image(request: Request, pseudo_tag_id: int, file_hash: str, user_who_created: str):
+def add_pseudo_tag_to_image(request: Request, tag_id: int, file_hash: str):
     response_handler = ApiResponseHandlerV1(request)
     try:
         date_now = datetime.now().isoformat()
     
-        existing_tag = request.app.pseudo_tag_definitions_collection.find_one({"pseudo_tag_id": pseudo_tag_id})
+        existing_tag = request.app.tag_definitions_collection.find_one({"tag_id": tag_id})
         if not existing_tag:
             return response_handler.create_error_response_v1(error_code=ErrorCode.ELEMENT_NOT_FOUND, error_string="Tag does not exist!", http_status_code=400)
 
@@ -513,23 +501,21 @@ def add_pseudo_tag_to_image(request: Request, pseudo_tag_id: int, file_hash: str
         file_path = image.get("task_output_file_dict", {}).get("output_file_path", "")
         
         # Check if the tag is already associated with the image
-        existing_image_tag = request.app.pseudo_tag_images_collection.find_one({"pseudo_tag_id": pseudo_tag_id, "image_hash": file_hash})
+        existing_image_tag = request.app.pseudo_tag_images_collection.find_one({"tag_id": tag_id, "image_hash": file_hash})
         if existing_image_tag:
             # Return an error response indicating that the tag has already been added to the image
             return response_handler.create_error_response_v1(error_code=ErrorCode.INVALID_PARAMS, error_string="This tag has already been added to the image", http_status_code=400)
 
         # Add new tag to image
         image_pseudo_tag_data = {
-            "pseudo_tag_id": pseudo_tag_id,
+            "tag_id": tag_id,
             "file_path": file_path,  
             "image_hash": file_hash,
-            "user_who_created": user_who_created,
             "creation_time": date_now,
-            "tag_count": 1  # Since this is a new tag for this image, set count to 1
         }
         request.app.pseudo_tag_images_collection.insert_one(image_pseudo_tag_data)
 
-        return response_handler.create_success_response_v1(response_data={"pseudo_tag_id": pseudo_tag_id, "file_path": file_path, "image_hash": file_hash, "tag_count": 1, "user_who_created": user_who_created, "creation_time": date_now}, http_status_code=200)
+        return response_handler.create_success_response_v1(response_data={"tag_id": tag_id, "file_path": file_path, "image_hash": file_hash, "creation_time": date_now}, http_status_code=200)
 
     except Exception as e:
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
@@ -700,147 +686,13 @@ def get_all_pseudo_tagged_images(request: Request):
         )
 
 
-@router.post("/pseudotag-categories/add-pseudo-tag-category",
-             status_code=201, 
-             tags=["pseudotag-categories"], 
-             description="Add pseudo Tag Category",
-             response_model=StandardSuccessResponseV1[PseudoTagCategory],
-             responses=ApiResponseHandlerV1.listErrors([422, 500]))
-async def add_pseudo_tag_category(request: Request, tag_category_data: NewPseudoTagCategory):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-   
-    try:
-        # Assign new tag_category_id
-        last_entry = request.app.pseudo_tag_categories_collection.find_one({}, sort=[("pseudo_tag_category_id", -1)])
-        new_pseudo_tag_category_id = last_entry["pseudo_tag_category_id"] + 1 if last_entry else 0
-
-        # Prepare tag category document
-        pseudo_tag_category_document = tag_category_data.dict()
-        pseudo_tag_category_document["pseudo_tag_category_id"] = new_pseudo_tag_category_id
-        pseudo_tag_category_document["creation_time"] = datetime.utcnow().isoformat()
-
-        # Insert new tag category
-        inserted_id = request.app.pseudo_tag_categories_collection.insert_one(pseudo_tag_category_document).inserted_id
-
-        # Retrieve and serialize the new tag category object
-        new_pseudo_tag_category = request.app.pseudo_tag_categories_collection.find_one({"_id": inserted_id})
-        serialized_tag_category = {k: str(v) if isinstance(v, ObjectId) else v for k, v in new_pseudo_tag_category.items()}
-
-        # Adjust order of the keys
-        ordered_response = {
-            "_id": serialized_tag_category.pop("_id"),
-            "pseudo_tag_category_id": serialized_tag_category.pop("pseudo_tag_category_id"),
-            **serialized_tag_category
-        }
-
-        # Return the ordered tag category in a standard success response
-        return response_handler.create_success_response_v1(response_data=ordered_response, http_status_code=201)
-
-    except Exception as e:
-        return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
 
 
 
-@router.patch("/pseudotag-categories/update-pseudo-tag-category", 
-              tags=["pseudotag-categories"],
-              status_code=200,
-              description="Update pseudo tag category",
-              response_model=StandardSuccessResponseV1[PseudoTagCategory],
-              responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
-async def update_pseudo_tag_category(
-    request: Request, 
-    pseudo_tag_category_id: int,
-    update_data: NewPseudoTagCategory
-):
-   
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-
-    query = {"pseudo_tag_category_id": pseudo_tag_category_id}
-    existing_category = request.app.pseudo_tag_categories_collection.find_one(query)
-
-    if existing_category is None:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.ELEMENT_NOT_FOUND, error_string="Tag category not found.", http_status_code=404
-        )
-
-    update_fields = {k: v for k, v in update_data.dict(exclude_unset=True).items() if v is not None}
-
-    if not update_fields:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.INVALID_PARAMS, error_string="No fields to update.", http_status_code=400
-        )
-
-    request.app.pseudo_tag_categories_collection.update_one(query, {"$set": update_fields})
-
-    updated_category = request.app.pseudo_tag_categories_collection.find_one(query)
-    updated_category = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_category.items()}
-
-    # Adjust order of the keys
-    ordered_response = {
-        "_id": updated_category.pop("_id"),
-        "pseudo_tag_category_id": updated_category.pop("pseudo_tag_category_id"),
-        **updated_category
-    }
-
-    return response_handler.create_success_response_v1(response_data=ordered_response, http_status_code=200)
 
 
-@router.delete("/pseudotag-categories/remove-pseudo-tag-category/{pseudo_tag_category_id}", 
-               tags=["pseudotag-categories"], 
-               description="Remove pseudo tag category with tag_category_id", 
-               status_code=200,
-               response_model=StandardSuccessResponseV1[WasPresentResponse],
-               responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-def delete_pseudo_tag_category(request: Request, pseudo_tag_category_id: int):
-    response_handler = ApiResponseHandlerV1(request)
-
-    # Check if the tag category exists
-    category_query = {"pseudo_tag_category_id": pseudo_tag_category_id}
-    category = request.app.pseudo_tag_categories_collection.find_one(category_query)
-
-    if category is None:
-        # Return standard response with wasPresent: false
-        return response_handler.create_success_delete_response({"wasPresent": False})
-
-    # Check if the tag category is used in any tags
-    tag_query = {"pseudo_tag_category_id": pseudo_tag_category_id}
-    tag_with_category = request.app.pseudo_tag_definitions_collection.find_one(tag_query)
-
-    if tag_with_category is not None:
-        # Since it's used in tags, do not delete but notify the client
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.INVALID_PARAMS,
-            error_string="Cannot remove tag category, it is already used in tags.",
-            http_status_code=400
-        )
-
-    # Remove the tag category
-    request.app.pseudo_tag_categories_collection.delete_one(category_query)
-
-    # Return standard response with wasPresent: true
-    return response_handler.create_success_delete_response({"wasPresent": True})
 
 
-@router.get("/pseudotag-categories/list-pseudotag-categories/", 
-            tags=["pseudotag-categories"], 
-            description="List pseudo tag categories",
-            status_code=200,
-            response_model=StandardSuccessResponseV1[List[PseudoTagCategory]],
-            responses=ApiResponseHandlerV1.listErrors([500]))
-def list_pseudo_tag_categories(request: Request):
-    response_handler = ApiResponseHandlerV1(request)
-    try:
-        # Query all the tag categories
-        categories_cursor = request.app.pseudo_tag_categories_collection.find({})
-
-        # Convert each tag category document to a dictionary
-        result = [{k: str(v) if isinstance(v, ObjectId) else v for k, v in category.items()} for category in categories_cursor]
-
-        return response_handler.create_success_response_v1(response_data={"categories": result}, http_status_code=200)
-
-    except Exception as e:
-        traceback_str = traceback.format_exc()
-        return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
 
 
 @router.patch("/pseudotags/set-deprecated", 
@@ -926,87 +778,7 @@ def set_tag_deprecated_v1(request: Request, pseudo_tag_id: int):
         http_status_code=200,
         )
 
-@router.patch("/pseudotag-categories/set-deprecated", 
-              tags=["deprecated"],
-              status_code=200,
-              description="Set the 'deprecated' status of a tag category to True",
-              response_model=StandardSuccessResponseV1[PseudoTagCategory], 
-              responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
-def set_tag_category_deprecated(request: Request, pseudo_tag_category_id: int):
-    response_handler = ApiResponseHandlerV1(request)
 
-    query = {"pseudo_tag_category_id": pseudo_tag_category_id}
-    existing_tag_category = request.app.pseudo_tag_categories_collection.find_one(query)
-
-    if existing_tag_category is None:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.ELEMENT_NOT_FOUND, error_string="Tag category not found.", http_status_code=404
-        )
-
-    # Check if the tag category is already deprecated
-    if existing_tag_category.get("deprecated", False):
-        # Return a specific message indicating the tag category is already deprecated
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.INVALID_PARAMS, error_string="This tag category is already deprecated.", http_status_code=400
-        )
-
-    # Set the 'deprecated' status to True since it's not already deprecated
-    request.app.pseudo_tag_categories_collection.update_one(query, {"$set": {"deprecated": True}})
-
-    # Retrieve the updated tag category to confirm the change
-    updated_tag_category = request.app.pseudo_tag_categories_collection.find_one(query)
-
-    # Serialize ObjectId to string if necessary
-    updated_tag_category = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_tag_category.items()}
-
-    # Return the updated tag category object indicating the deprecation was successful
-    return response_handler.create_success_response_v1(response_data=updated_tag_category, http_status_code=200)
-
-@router.put("/pseudotag-categories/set-deprecated-v1", 
-              tags=["pseudotag-categories"],
-              status_code=200,
-              description="Set the 'deprecated' status of a tag category to True",
-              response_model=StandardSuccessResponseV1[PseudoTagCategory], 
-              responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
-def set_tag_category_deprecated_v1(request: Request, pseudo_tag_category_id: int):
-    response_handler = ApiResponseHandlerV1(request)
-
-    query = {"pseudo_tag_category_id": pseudo_tag_category_id}
-    existing_tag_category = request.app.pseudo_tag_categories_collection.find_one(query)
-    existing_tag_category = {k: str(v) if isinstance(v, ObjectId) else v for k, v in existing_tag_category.items()}
-
-    if existing_tag_category is None:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
-            error_string="Tag category not found.", 
-            http_status_code=404,
-            
-        )
-
-    # Check if the tag category is already deprecated
-    if existing_tag_category.get("deprecated", False):
-        # Return a specific message indicating the tag category is already deprecated
-        return response_handler.create_success_response_v1(
-            response_data=existing_tag_category, 
-            http_status_code=200,
-            
-        )
-
-
-    # Set the 'deprecated' status to True since it's not already deprecated
-    request.app.pseudo_tag_categories_collection.update_one(query, {"$set": {"deprecated": True}})
-
-    # Retrieve the updated tag category to confirm the change
-    updated_pseudo_tag_category = request.app.pseudo_tag_categories_collection.find_one(query)
-
-    # Serialize ObjectId to string if necessary
-    updated_pseudo_tag_category = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_pseudo_tag_category.items()}
-
-    # Return the updated tag category object indicating the deprecation was successful
-    return response_handler.create_success_response_v1(
-        response_data=updated_pseudo_tag_category, 
-        http_status_code=200,
-        )
 
 
 @router.put("/pseudotags/remove-deprecated", 
@@ -1051,52 +823,6 @@ def remove_tag_deprecated(request: Request, pseudo_tag_id: int):
     # Return the updated tag category object indicating the deprecation was successful
     return response_handler.create_success_response_v1(
         response_data=updated_tag, 
-        http_status_code=200,
-        )
-
-@router.put("/pseudotag-categories/remove-deprecated", 
-              tags=["pseudotag-categories"],
-              status_code=200,
-              description="Set the 'deprecated' status of a pseudo tag category to False",
-              response_model=StandardSuccessResponseV1[PseudoTagCategory], 
-              responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
-def remove_tag_category_deprecated(request: Request, pseudo_tag_category_id: int):
-    response_handler = ApiResponseHandlerV1(request)
-
-    query = {"pseudo_tag_category_id": pseudo_tag_category_id}
-    existing_tag_category = request.app.pseudo_tag_categories_collection.find_one(query)
-
-    if existing_tag_category is None:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
-            error_string="Tag category not found.", 
-            http_status_code=404,
-            
-        )
-    existing_tag_category = {k: str(v) if isinstance(v, ObjectId) else v for k, v in existing_tag_category.items()}
-
-
-    # Check if the tag category is not already deprecated
-    if not existing_tag_category.get("deprecated", False):
-        # Return a specific message indicating the tag category is already deprecated
-        return response_handler.create_success_response_v1(
-            response_data=existing_tag_category, 
-            http_status_code=200,
-            
-        )
-    
-    # Set the 'deprecated' status to False since it's not already deprecated
-    request.app.pseudo_tag_categories_collection.update_one(query, {"$set": {"deprecated": False}})
-
-    # Retrieve the updated tag category to confirm the change
-    updated_tag_category = request.app.pseudo_tag_categories_collection.find_one(query)
-
-    # Serialize ObjectId to string if necessary
-    updated_tag_category = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_tag_category.items()}
-
-    # Return the updated tag category object indicating the deprecation was successful
-    return response_handler.create_success_response_v1(
-        response_data=updated_tag_category, 
         http_status_code=200,
         )
 
