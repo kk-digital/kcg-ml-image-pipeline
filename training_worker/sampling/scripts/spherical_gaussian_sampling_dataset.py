@@ -115,6 +115,8 @@ class SphericalGaussianGenerator:
             
             d = np.percentile(distance_vector, percentile)
             variance = (d / std) ** 2
+            sigma = d / std
+            fall_off = 2 * np.sqrt(2 * np.log(2)) * sigma
 
             # Calculate score distribution for the sphere
             score_distribution = np.zeros(len(bins))
@@ -138,9 +140,11 @@ class SphericalGaussianGenerator:
             # Update sphere data and covered points
             sphere_data.append({
                 'center': center, 
-                'sphere_variance': variance,
+                'gaussian_sphere_variance': variance,
+                'gaussian_sphere_sigma': sigma,
+                'gaussian_sphere_fall_off': fall_off,
                 'mean_sigma_score': np.mean(sphere_scores), 
-                'variance': np.var(sphere_scores), 
+                'variance': np.var(sphere_scores),
                 'points': point_indices, 
                 "score_distribution": score_distribution
             })
@@ -158,7 +162,7 @@ class SphericalGaussianGenerator:
         return sphere_data, avg_points_per_sphere, len(total_covered_points)
 
 
-    def load_sphere_dataset(self, n_spheres, target_avg_points, num_bins=8, bin_size=1, percentile=75, std=1, output_type="score_distribution"):
+    def load_sphere_dataset(self, n_spheres, target_avg_points, num_bins=8, bin_size=1, percentile=75, std=1, output_type="score_distribution", input_type="guassian_sphere_variance"):
         # generating spheres
         sphere_data, avg_points_per_sphere, total_covered_points= self.generate_spheres(n_spheres=n_spheres,
                                                        target_avg_points=target_avg_points,
@@ -171,7 +175,8 @@ class SphericalGaussianGenerator:
         outputs=[]
         for sphere in sphere_data:
             # get input vectors
-            inputs.append(np.concatenate([sphere['center'], [sphere['sphere_variance']]]))
+            
+            inputs.append(np.concatenate([sphere['center'], [sphere[input_type]]]))
             # get score distribution
             outputs.append(sphere[output_type])
 

@@ -89,7 +89,7 @@ class SamplingFCNetwork(nn.Module):
         # sphere dataloader
         if self.input_type == "uniform_sphere":
             self.dataloader= UniformSphereGenerator(minio_client, dataset)
-        elif self.input_type == "gaussian_sphere":
+        elif "gaussian_sphere" in self.input_type:
             self.dataloader = SphericalGaussianGenerator(minio_client, dataset)
 
     def set_config(self, sampling_parameter= None):
@@ -126,8 +126,8 @@ class SamplingFCNetwork(nn.Module):
         # load the dataset depends on sampling type
         if self.input_type == "uniform_sphere":
             inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_type, self.output_size, self.bin_size,)
-        elif self.input_type == "gaussian_sphere":
-            inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_size, self.bin_size, self.sampling_parameter["percentile"], self.sampling_parameter["std"], self.output_type)
+        elif "gaussian_sphere" in self.input_type:
+            inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_size, self.bin_size, self.sampling_parameter["percentile"], self.sampling_parameter["std"], self.output_type, self.input_type)
         else:
             return None
         
@@ -248,8 +248,8 @@ class SamplingFCNetwork(nn.Module):
                               learning_rate):
         if self.input_type=="uniform_sphere":
             input_type="[input_clip_vector[1280], radius(float)]"
-        elif self.input_type=="gaussian_sphere":
-            input_type="[input_clip_vector[1280], variance(float)]"
+        elif "gaussian_sphere" in self.input_type:
+            input_type="[input_clip_vector[1280], {}(float)]".format(self.input_type)
 
         # Identify all unique labels present in the data
         labels = np.unique(np.hstack([y_true, y_pred]))
