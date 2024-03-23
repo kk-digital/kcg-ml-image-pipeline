@@ -18,7 +18,7 @@ import paramiko
 from typing import Optional, Dict
 import csv
 from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, AddJob, WasPresentResponse
-from pymongo import UpdateMany
+from pymongo import UpdateMany, ASCENDING
 from bson import ObjectId
 
 
@@ -1221,3 +1221,44 @@ async def duplicated_jobs_count_by_task_type(request: Request):
         return formatted_results
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@router.get("/jobs/find-first-duplicate-uuid")
+async def find_first_duplicate_uuid(request: Request):
+    task_type = "clip_calculation_task_kandinsky"
+    aggregation_pipeline = [
+        {
+            "$match": {"task_type": task_type}
+        },
+        {
+            "$group": {
+                "_id": "$uuid",
+                "count": {"$sum": 1},
+                "first_creation_time": {"$first": "$task_creation_time"}
+            }
+        },
+        {
+            "$match": {"count": {"$gt": 1}}
+        },
+        {
+            "$sort": {"first_creation_time": ASCENDING}
+        },
+        {
+            "$limit": 1
+        },
+        {
+            "$project": {
+                "uuid": "$_id",
+                "_id": 0,
+                "first_creation_time": 1
+            }
+        }
+    ]
+
+    cursor = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
+    duplicated_job = next(cursor, None)
+
+    if not duplicated_job:
+        raise HTTPException(status_code=404, detail="No duplicated UUID found for the specified task type.")
+
+    return duplicated_job
