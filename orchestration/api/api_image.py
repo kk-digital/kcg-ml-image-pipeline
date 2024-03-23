@@ -4,7 +4,7 @@ from typing import Optional
 import pymongo
 from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
-from .mongo_schemas import Task, ImageMetadata
+from .mongo_schemas import Task, ImageMetadata, UUIDImageMetadata
 from .api_utils import PrettyJSONResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, UrlResponse, ErrorCode
 from .api_ranking import get_image_rank_use_count
 import os
@@ -775,7 +775,7 @@ def get_random_image_with_time_v1(
         )
 
 @router.get("/image/list-image-metadata-by-dataset-v1",
-            response_model=StandardSuccessResponseV1[List[ImageMetadata]], 
+            response_model=StandardSuccessResponseV1[List[UUIDImageMetadata]], 
             description="List image metadata by dataset with optional filtering",
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([400, 404, 500]))
