@@ -18,7 +18,7 @@ import paramiko
 from typing import Optional, Dict
 import csv
 from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, AddJob, WasPresentResponse
-from pymongo import UpdateMany, ASCENDING
+from pymongo import UpdateMany, ASCENDING, DESCENDING
 from bson import ObjectId
 
 
@@ -1223,8 +1223,8 @@ async def duplicated_jobs_count_by_task_type(request: Request):
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
-@router.get("/jobs/find-first-duplicate-uuid")
-async def find_first_duplicate_uuid(request: Request):
+@router.get("/jobs/find-last-duplicate-uuid")
+async def find_last_duplicate_uuid(request: Request):
     task_type = "clip_calculation_task_kandinsky"
     aggregation_pipeline = [
         {
@@ -1234,14 +1234,14 @@ async def find_first_duplicate_uuid(request: Request):
             "$group": {
                 "_id": "$uuid",
                 "count": {"$sum": 1},
-                "task_completion_time": {"$first": "$task_completion_time"}
+                "task_creation_time": {"$last": "$task_creation_time"}  # Change $first to $last
             }
         },
         {
             "$match": {"count": {"$gt": 1}}
         },
         {
-            "$sort": {"task_completion_time": ASCENDING}
+            "$sort": {"task_creation_time": DESCENDING}  # Change ASCENDING to DESCENDING
         },
         {
             "$limit": 1
@@ -1250,7 +1250,7 @@ async def find_first_duplicate_uuid(request: Request):
             "$project": {
                 "uuid": "$_id",
                 "_id": 0,
-                "task_completion_time": 1
+                "task_creation_time": 1
             }
         }
     ]
