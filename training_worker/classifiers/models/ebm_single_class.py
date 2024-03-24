@@ -165,7 +165,7 @@ class EBM_Single_Class_Trainer:
                             val_loader = val_loader,
                             adv_loader =adv_loader )
         
-        self.save_model_to_minio(self,model,self.save_name,'temp_model.safetensors')
+        self.save_model_to_minio(self.save_name,'temp_model.safetensors')
 
 
         # up loader graphs
@@ -294,9 +294,9 @@ class EBM_Single_Class_Trainer:
 
     # ------------------------------------------------- Save Model --------------------------------------------------
 
-    def save_model_to_minio(model,name,local_path):
+    def save_model_to_minio(self,name,local_path):
             # Save the model locally pth
-            save_model(model, local_path)
+            save_model(self.model, local_path)
             
             #Read the contents of the saved model file
             with open(local_path, "rb") as model_file:
