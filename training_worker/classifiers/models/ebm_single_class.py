@@ -136,7 +136,10 @@ class EBM_Single_Class_Trainer:
     def train(self):
         
         all_tags = list(range(1, 51))
-        target_paths, adv_paths = self.get_all_tag_jobs(self.class_id,all_tags)
+        print("all tag : ",all_tags)
+        class_tag = self.class_id
+        print("class tag : ",  class_tag)
+        target_paths, adv_paths = self.get_all_tag_jobs(class_tag,all_tags)
         # Create dataloader of target class
         train_loader_automated, val_loader_automated = self.get_clip_embeddings_by_path(target_paths,1)
 
