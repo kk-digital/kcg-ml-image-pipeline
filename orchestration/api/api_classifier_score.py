@@ -182,15 +182,18 @@ async def set_image_classifier_score(request: Request, classifier_score: Classif
     
     count = request.app.image_classifier_scores_collection.count_documents(query)
     if count > 0:
-        # Using ApiResponseHandler for standardized error response
-        return api_response_handler.create_error_response_v1(
-            error_code=ErrorCode.INVALID_PARAMS,
-            error_string="Score for specific classifier_id, tag_id and image_hash already exists.",
-            http_status_code=400
+        item = request.app.image_classifier_scores_collection.update_one(
+        query,
+        {
+            "$set": {
+                "score": classifier_score.score,
+                "image_hash": classifier_score.image_hash
+            },
+        }
         )
-    
-    # Insert the new ranking score
-    request.app.image_classifier_scores_collection.insert_one(classifier_score.to_dict())
+    else:
+        # Insert the new ranking score
+        request.app.image_classifier_scores_collection.insert_one(classifier_score.to_dict())
 
     # Using ApiResponseHandler for standardized success response
     return api_response_handler.create_success_response_v1(

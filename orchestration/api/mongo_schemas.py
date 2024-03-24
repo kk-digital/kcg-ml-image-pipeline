@@ -239,6 +239,7 @@ class RankingScore(BaseModel):
 class ClassifierScore(BaseModel):
     uuid: Union[str, None]
     classifier_id: int
+    image_hash: str
     tag_id: int
     score: float
 
@@ -246,6 +247,7 @@ class ClassifierScore(BaseModel):
         return {
             "uuid": self.uuid,
             "classifier_id": self.classifier_id,
+            "image_hash": self.image_hash,
             "tag_id": self.tag_id,
             "score": self.score,
         }
