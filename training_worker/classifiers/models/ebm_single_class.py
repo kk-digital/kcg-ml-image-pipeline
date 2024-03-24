@@ -105,7 +105,7 @@ class EBM_Single_Class_Trainer:
                 save_name,
                 dataset,
                 class_id,
-                training_batch_size=64,
+                training_batch_size=16,
                 num_samples=30000,
                 learning_rate = 0.001,
                 epochs=25):
