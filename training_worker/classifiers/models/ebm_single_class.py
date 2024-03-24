@@ -165,7 +165,7 @@ class EBM_Single_Class_Trainer:
                             val_loader = val_loader,
                             adv_loader =adv_loader )
         
-        self.save_model_to_minio(model,self.save_name,'temp_model.safetensors')
+        self.save_model_to_minio(self,model,self.save_name,'temp_model.safetensors')
 
 
         # up loader graphs
