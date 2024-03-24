@@ -225,7 +225,7 @@ class EBM_Single_Class_Trainer:
 
 
 
-    def get_all_tag_jobs(class_ids,target_id):
+    def get_all_tag_jobs(self,class_ids,target_id):
         all_data = {}  # Dictionary to store data for all class IDs
         
         for class_id in class_ids:
