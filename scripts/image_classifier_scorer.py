@@ -6,7 +6,6 @@ import argparse
 import numpy as np
 import torch
 import time
-import sched
 import msgpack
 from io import BytesIO
 import matplotlib.pyplot as plt
@@ -24,8 +23,6 @@ from training_worker.classifiers.models.logistic_regression import LogisticRegre
 from utility.http import model_training_request
 from utility.http import request
 from utility.minio import cmd
-
-scheduler = sched.scheduler(time.time, time.sleep)
 
 class ImageScorer:
     def __init__(self,
@@ -617,8 +614,7 @@ def run_image_scorer(minio_client,
     print("Dataset: {}: Total Time elapsed: {}s".format(dataset_name, format(time_elapsed, ".2f")))   
 
 
-
-def run_every_day():
+def main():
     args = parse_args()
 
     dataset_name = args.dataset_name
@@ -627,21 +623,8 @@ def run_every_day():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
 
-    now = datetime.now()
-    # Calculate the number of seconds until 12:00 PM
-    future_time = datetime(now.year, now.month, now.day, 12, 0)
-
-    if now > future_time:
-        future_time = future_time.replace(day=future_time.day + 1)
-
-    time_diff = (future_time - now).total_seconds()
-
     if dataset_name != "all":
-        scheduler.enter(time_diff, 
-                        1, 
-                        run_image_scorer, 
-                        [minio_client,
-                         args.dataset_name])
+        run_image_scorer(minio_client, dataset_name)
     else:
         # if all, train models for all existing datasets
         # get dataset name list
@@ -649,23 +632,9 @@ def run_every_day():
         print("dataset names=", dataset_names)
         for dataset in dataset_names:
             try:
-                scheduler.enter(time_diff, 
-                                1,
-                                run_image_scorer,
-                                [minio_client,
-                                args.dataset_name])
+                run_image_scorer(minio_client, dataset)
             except Exception as e:
                 print("Error running image scorer for {}: {}".format(dataset, e))
-    
-    scheduler.enter(time_diff, 2, run_every_day, ())
-    print(f"Completed scoring images : {datetime.now()}")
-    print(f"Next time to run image scorer : {future_time}")
-
-
-def main():
-
-    run_every_day()
-    scheduler.run()
 
 
 if __name__ == "__main__":
