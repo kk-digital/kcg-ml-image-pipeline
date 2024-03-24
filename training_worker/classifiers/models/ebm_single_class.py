@@ -264,7 +264,8 @@ class EBM_Single_Class_Trainer:
 
         # Separate data for a specific class ID (e.g., class_id = X) from all the rest
         target_class_data = all_data.get(target_id, [])
-        rest_of_data = {class_id: all_data[class_id] for class_id in all_data if class_id != target_id}
+        rest_of_data = [path for class_id, paths in all_data.items() if class_id != target_id for path in paths]
+
         return target_class_data, rest_of_data
 
 
