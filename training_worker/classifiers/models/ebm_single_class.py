@@ -470,12 +470,12 @@ class DeepEnergyModel(pl.LightningModule):
 
 
 
-def train_model(train_loader,val_loader, adv_loader, **kwargs):
+def train_model(self,train_loader,val_loader, adv_loader, **kwargs):
 
 
     # Create a PyTorch Lightning trainer with the generation callback
     trainer = pl.Trainer(
-                         accelerator="gpu" if str(device).startswith("cuda") else "cpu",
+                         accelerator="gpu" if str(self.device).startswith("cuda") else "cpu",
                          devices=1,
                          max_epochs=20,
                          gradient_clip_val=0.1,
