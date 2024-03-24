@@ -195,11 +195,11 @@ async def set_image_classifier_score(request: Request, classifier_score: Classif
         # Insert the new ranking score
         request.app.image_classifier_scores_collection.insert_one(classifier_score.to_dict())
 
-        # Using ApiResponseHandler for standardized success response
-        return api_response_handler.create_success_response_v1(
-            response_data=classifier_score.to_dict(),
-            http_status_code=200  
-        )
+    # Using ApiResponseHandler for standardized success response
+    return api_response_handler.create_success_response_v1(
+        response_data=classifier_score.to_dict(),
+        http_status_code=200  
+    )
 
 
 @router.delete("/classifier-score/delete-image-classifier-score-by-uuid", 
