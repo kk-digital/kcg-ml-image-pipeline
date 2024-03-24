@@ -146,88 +146,88 @@ class EBM_Single_Class_Trainer:
         print("adv_paths lenght : ", len(adv_paths))
         for path in adv_paths:
             print(" Path adv :", path)
-        # Create dataloader of target class
-        # train_loader_automated, val_loader_automated = self.get_clip_embeddings_by_path(target_paths,1)
+        #Create dataloader of target class
+        train_loader_automated, val_loader_automated = self.get_clip_embeddings_by_path(target_paths,1)
 
-        # # Create dataloader of adversarial classes
-        # train_loader_clip_ood, val_loader_clip_ood = self.get_clip_embeddings_by_path(adv_paths,0)
-        # # init the loader
-        # train_loader = train_loader_automated
-        # val_loader = val_loader_automated
-        # adv_loader = train_loader_clip_ood
+        # Create dataloader of adversarial classes
+        train_loader_clip_ood, val_loader_clip_ood = self.get_clip_embeddings_by_path(adv_paths,0)
+        # init the loader
+        train_loader = train_loader_automated
+        val_loader = val_loader_automated
+        adv_loader = train_loader_clip_ood
 
-        # # Train
-        # model = train_model(img_shape=(1,1280),
-        #                     batch_size=self.training_batch_size,
-        #                     lr=self.learning_rate,
-        #                     beta1=0.0,
-        #                     train_loader = train_loader,
-        #                     val_loader = val_loader,
-        #                     adv_loader =adv_loader )
+        # Train
+        model = train_model(img_shape=(1,1280),
+                            batch_size=self.training_batch_size,
+                            lr=self.learning_rate,
+                            beta1=0.0,
+                            train_loader = train_loader,
+                            val_loader = val_loader,
+                            adv_loader =adv_loader )
         
-        # self.save_model_to_minio(model,self.save_name,'temp_model.safetensors')
+        self.save_model_to_minio(model,self.save_name,'temp_model.safetensors')
 
 
-        # # up loader graphs
+        # up loader graphs
 
-        # # # Plot
+        # # Plot
 
-        # # ############### Plot graph
-        # epochs = range(1, len(self.model.total_losses) + 1)  
+        # ############### Plot graph
+        epochs = range(1, len(self.model.total_losses) + 1)  
 
-        # # Create subplots grid (3 rows, 1 column)
-        # fig, axes = plt.subplots(4, 1, figsize=(10, 24))
+        # Create subplots grid (3 rows, 1 column)
+        fig, axes = plt.subplots(4, 1, figsize=(10, 24))
 
-        # # Plot each loss on its own subplot
-        # axes[0].plot(epochs, self.model.total_losses, label='Total Loss')
-        # axes[0].set_xlabel('Steps')
-        # axes[0].set_ylabel('Loss')
-        # axes[0].set_title('Total Loss')
-        # axes[0].legend()
-        # axes[0].grid(True)
+        # Plot each loss on its own subplot
+        axes[0].plot(epochs, self.model.total_losses, label='Total Loss')
+        axes[0].set_xlabel('Steps')
+        axes[0].set_ylabel('Loss')
+        axes[0].set_title('Total Loss')
+        axes[0].legend()
+        axes[0].grid(True)
 
-        # axes[1].plot(epochs, self.model.cdiv_losses, label='Contrastive Divergence Loss')
-        # axes[1].set_xlabel('Steps')
-        # axes[1].set_ylabel('Loss')
-        # axes[1].set_title('Contrastive Divergence Loss')
-        # axes[1].legend()
-        # axes[1].grid(True)
+        axes[1].plot(epochs, self.model.cdiv_losses, label='Contrastive Divergence Loss')
+        axes[1].set_xlabel('Steps')
+        axes[1].set_ylabel('Loss')
+        axes[1].set_title('Contrastive Divergence Loss')
+        axes[1].legend()
+        axes[1].grid(True)
 
 
-        # axes[2].plot(epochs, self.model.reg_losses , label='Regression Loss')
-        # axes[2].set_xlabel('Steps')
-        # axes[2].set_ylabel('Loss')
-        # axes[2].set_title('Regression Loss')
-        # axes[2].legend()
-        # axes[2].grid(True)
+        axes[2].plot(epochs, self.model.reg_losses , label='Regression Loss')
+        axes[2].set_xlabel('Steps')
+        axes[2].set_ylabel('Loss')
+        axes[2].set_title('Regression Loss')
+        axes[2].legend()
+        axes[2].grid(True)
 
-        # # Plot real and fake scores on the fourth subplot
-        # axes[3].plot(epochs, self.model.real_scores_s, label='Real Scores')
-        # axes[3].plot(epochs, self.model.fake_scores_s, label='Fake Scores')
-        # axes[3].set_xlabel('Steps')
-        # axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
-        # axes[3].set_title('Real vs. Fake Scores')
-        # axes[3].legend()
-        # axes[3].grid(True)
+        # Plot real and fake scores on the fourth subplot
+        axes[3].plot(epochs, self.model.real_scores_s, label='Real Scores')
+        axes[3].plot(epochs, self.model.fake_scores_s, label='Fake Scores')
+        axes[3].set_xlabel('Steps')
+        axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
+        axes[3].set_title('Real vs. Fake Scores')
+        axes[3].legend()
+        axes[3].grid(True)
 
-        # # Adjust spacing between subplots for better visualization
-        # plt.tight_layout()
+        # Adjust spacing between subplots for better visualization
+        plt.tight_layout()
 
-        # plt.savefig("output/loss_tracking_per_step.png")
+        plt.savefig("output/loss_tracking_per_step.png")
 
-        # # Save the figure to a file
-        # buf = io.BytesIO()
-        # plt.savefig(buf, format='png')
-        # buf.seek(0)
+        # Save the figure to a file
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
 
-        # # upload the graph report
-        # minio_path="environmental/output/my_tests"
-        # minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_isometric_training" +date_now+".png"
-        # cmd.upload_data(minio_client, 'datasets', minio_path, buf)
-        # # Remove the temporary file
-        # os.remove("output/loss_tracking_per_step.png")
-        # # Clear the current figure
-        # plt.clf()
+        # upload the graph report
+        minio_path="environmental/output/my_tests"
+        minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_isometric_training" +date_now+".png"
+        cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+        # Remove the temporary file
+        os.remove("output/loss_tracking_per_step.png")
+        # Clear the current figure
+        plt.clf()
 
 
 
