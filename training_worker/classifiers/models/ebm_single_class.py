@@ -256,10 +256,18 @@ class EBM_Single_Class_Trainer:
                 print(f"Error: HTTP request failed with status code {response.status_code} for class ID {class_id}")
         
 
+        # # Separate data for a specific class ID (e.g., class_id = X) from all the rest
+        # target_class_data = all_data.get(target_id, [])
+        # rest_of_data = {class_id: data for class_id, data in all_data.items() if class_id != target_id}
+        # #return target_class_data , rest_of_data
+    
+
         # Separate data for a specific class ID (e.g., class_id = X) from all the rest
         target_class_data = all_data.get(target_id, [])
-        rest_of_data = {class_id: data for class_id, data in all_data.items() if class_id != target_id}
-        return target_class_data , rest_of_data
+        rest_of_data = {class_id: all_data[class_id] for class_id in all_data if class_id != target_id}
+        return target_class_data, rest_of_data
+
+
 
     def get_clip_embeddings_by_path(self,images_paths,label_value):
         ocult_clips = []
