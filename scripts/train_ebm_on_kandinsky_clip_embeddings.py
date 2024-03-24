@@ -333,8 +333,6 @@ def get_clip_embeddings_by_path(images_paths,label_value):
 
 
 
-
-
 # ------------------------------------------------- DATA AUGMENTATION -------------------------------------------------
 def data_augmentation(images_tensor, num_of_passes):
     # Define probabilities for each transformation
@@ -390,7 +388,6 @@ def data_augmentation(images_tensor, num_of_passes):
     combined_images = images_tensor + list(augmented_images_tensor)
 
     return combined_images
-
 
 
 # ------------------------------------------------- GET DATASET  -------------------------------------------------
