@@ -1292,7 +1292,7 @@ def main():
 # plot_samples(dataset_name = "environmental", number_of_samples = 50,model_name ="concept-cybernetic")
 # plot_samples_hashless(dataset_name = "environmental", number_of_samples = 50,model_name ="concept-cybernetic")
 
-plot_samples_hashless(dataset_name = "environmental", number_of_samples = 3000,model_name ="concept-occult")
+plot_samples_hashless(dataset_name = "environmental", number_of_samples = 100000,model_name ="concept-occult")
 #print(get_tag_id_by_name("topic-forest"))
 
 # tag_images(dataset_name = "environmental", number_of_samples = 20000,model_name= "concept-cybernetic" ,tag_name ="concept-cybernetic",tagger_name = "amine",plot_a_sample = True)
