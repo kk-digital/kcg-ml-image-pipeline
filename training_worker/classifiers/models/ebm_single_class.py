@@ -157,7 +157,7 @@ class EBM_Single_Class_Trainer:
         adv_loader = train_loader_clip_ood
 
         # Train
-        model = train_model(img_shape=(1,1280),
+        model = train_model(self,img_shape=(1,1280),
                             batch_size=self.training_batch_size,
                             lr=self.learning_rate,
                             beta1=0.0,
