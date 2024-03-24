@@ -400,12 +400,6 @@ class DeepEnergyModel(pl.LightningModule):
         # We add minimal noise to the original images to prevent the model from focusing on purely "clean" inputs
         # get device
     
-        if torch.cuda.is_available():
-            device_name = 'cuda'
-        else:
-            device_name = 'cpu'
-            device = torch.device(device_name)
-
         real_imgs, _ = batch
         #print("the _ is ",_)
         small_noise = torch.randn_like(real_imgs) * 0.005
@@ -413,10 +407,10 @@ class DeepEnergyModel(pl.LightningModule):
 
         # Obtain samples #Give more steps later
         fake_imgs, fake_labels = next(iter(self.adv_loader))
-        fake_imgs = fake_imgs.to(device)
-        fake_labels = fake_labels.to(device)
+        fake_imgs = fake_imgs.to(self.device)
+        fake_labels = fake_labels.to(self.device)
 
-        _.to(device)
+        _.to(self.device)
         all_imgs = torch.cat([real_imgs, fake_imgs], dim=0)
         all_scores = self.cnn(all_imgs)
 
