@@ -100,6 +100,8 @@ class SphereSamplingGenerator:
                 "sphere_center": sphere_center,
                 "radius": radius
              })
+        
+        print(spheres[0])
 
         return spheres
     
@@ -137,12 +139,20 @@ class SphereSamplingGenerator:
                 # Generate a random direction vector
                 direction = np.random.randn(dim)
                 direction /= np.linalg.norm(direction)  # Normalize to unit vector
+
+                print(f"direction {direction}")
                 
                 # Randomly choose a magnitude within the radius
                 magnitude = np.random.rand()**0.5 * radius  # Square root for uniform sampling in volume
+
+                print(f"magnitude {magnitude}")
                 
                 # Compute the point
                 point = center + direction * magnitude
+                distance= np.linalg.norm(center - point)
+
+                print(f"distance {distance}")
+
                 point = torch.tensor(point)
 
                 # Store in the all_points array
