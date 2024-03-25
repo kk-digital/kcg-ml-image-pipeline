@@ -118,7 +118,6 @@ class SphereSamplingGenerator:
                 scores.extend(batch_scores)
                 batch=[]
           
-        print(len(scores), scores[0])
         sorted_indexes= np.flip(np.argsort(scores))[:self.selected_spheres]
         top_spheres=[generated_spheres[i] for i in sorted_indexes]
 
@@ -161,7 +160,7 @@ class SphereSamplingGenerator:
                     response= generate_img2img_generation_jobs_with_kandinsky(
                         image_embedding=clip_vector,
                         negative_image_embedding=None,
-                        dataset_name=self.dataset,
+                        dataset_name="test-generations",
                         prompt_generation_policy=self.sampling_policy,
                         self_training=True
                     )
