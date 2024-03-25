@@ -78,10 +78,10 @@ class SphereSamplingGenerator:
         data = get_object(self.minio_client, f"{self.dataset}/output/stats/clip_stats.msgpack")
         data_dict = msgpack.unpackb(data)
 
-        mean_vector = torch.tensor(data_dict["mean"]).to(device=self.device, dtype=torch.float32)
-        std_vector = torch.tensor(data_dict["std"]).to(device=self.device, dtype=torch.float32)
-        max_vector = torch.tensor(data_dict["max"]).to(device=self.device, dtype=torch.float32)
-        min_vector = torch.tensor(data_dict["min"]).to(device=self.device, dtype=torch.float32)
+        mean_vector = data_dict["mean"]
+        std_vector = data_dict["std"]
+        max_vector = data_dict["max"]
+        min_vector = data_dict["min"]
 
         return mean_vector, std_vector, max_vector, min_vector
 
