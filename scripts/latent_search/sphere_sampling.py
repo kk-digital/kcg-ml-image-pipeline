@@ -123,11 +123,11 @@ class SphereSamplingGenerator:
 
         return top_spheres
     
-    def sample_clip_vectors(self, num_generations):
+    def sample_clip_vectors(self, num_samples):
         # get spheres
         spheres= self.rank_and_select_spheres()
         dim = len(spheres[0]['sphere_center'])
-        points_per_sphere = num_generations // self.selected_spheres  # Ensure equal distribution of points
+        points_per_sphere = num_samples // self.selected_spheres  # Ensure equal distribution of points
 
         clip_vectors=[]
         for i, sphere in enumerate(spheres):
