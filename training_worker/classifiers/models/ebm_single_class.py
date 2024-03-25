@@ -307,7 +307,7 @@ class EBM_Single_Class_Trainer:
             network_type = "energy-based-model"
             output_type = "energy"
             input_type = '1280 kandansky vector'
-            dataset_name = 'enviromental'
+            dataset_name = 'environmental'
             tag_name = self.classe_name
 
             output_path = "{}/models/classifiers/{}".format(dataset_name, tag_name)
