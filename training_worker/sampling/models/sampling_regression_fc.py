@@ -169,13 +169,13 @@ class SamplingFCRegressionNetwork(nn.Module):
                 best_val_loss = val_loss[-1]
                 best_train_loss = train_loss[-1]
                 best_model_state = self.model
-
+                best_model_epoch = epoch
             print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss}, Val Loss: {avg_val_loss}')
         
 
         # save the model at the best epoch
         self.model= best_model_state
-
+        
         end = time.time()
         training_time= end - start
 
@@ -205,7 +205,7 @@ class SamplingFCRegressionNetwork(nn.Module):
                                best_train_loss, best_val_loss, 
                                val_residuals, train_residuals, 
                                val_preds, y_val,
-                               train_size, val_size)
+                               train_size, val_size, best_model_epoch)
         
         self.save_model_report(num_training=train_size,
                               num_validation=val_size,
@@ -213,7 +213,7 @@ class SamplingFCRegressionNetwork(nn.Module):
                               train_loss=best_train_loss, 
                               val_loss=best_val_loss,  
                               inference_speed= inference_speed,
-                              learning_rate=learning_rate)
+                              learning_rate=learning_rate, best_model_epoch=best_model_epoch)
         
         return best_val_loss
         
@@ -223,7 +223,8 @@ class SamplingFCRegressionNetwork(nn.Module):
                               train_loss, 
                               val_loss, 
                               inference_speed,
-                              learning_rate):
+                              learning_rate,
+                              best_model_epoch):
         if self.input_type=="uniform_sphere":
             input_type="[input_clip_vector[1280], radius(float)]"
         elif "gaussian_sphere" in self.input_type:
@@ -235,6 +236,7 @@ class SamplingFCRegressionNetwork(nn.Module):
             f"Number of validation datapoints: {num_validation} \n"
             f"Total training Time: {training_time:.2f} seconds\n"
             "Loss Function: L1 \n"
+            f"Epoch of best model: {best_model_epoch} \n"
             f"Learning Rate: {learning_rate} \n"
             f"Training Loss: {train_loss} \n"
             f"Validation Loss: {val_loss} \n"
@@ -282,7 +284,7 @@ class SamplingFCRegressionNetwork(nn.Module):
                           best_train_loss, best_val_loss,  
                           val_residuals, train_residuals, 
                           predicted_values, actual_values,
-                          training_size, validation_size):
+                          training_size, validation_size, best_model_epoch):
         fig, axs = plt.subplots(3, 2, figsize=(12, 10))
         
         fig_report_text = ("Date = {}\n"
@@ -295,7 +297,8 @@ class SamplingFCRegressionNetwork(nn.Module):
                             "Training size = {}\n"
                             "Validation size = {}\n"
                             "Training loss = {:.4f}\n"
-                            "Validation loss = {:.4f}\n".format(self.date,
+                            "Validation loss = {:.4f}\n"
+                            "Epoch of Best model = {}\n".format(self.date,
                                                             self.dataset,
                                                             'Fc_Network',
                                                             self.input_type,
@@ -305,6 +308,7 @@ class SamplingFCRegressionNetwork(nn.Module):
                                                             validation_size,
                                                             best_train_loss,
                                                             best_val_loss,
+                                                            best_model_epoch
                                                             ))
 
         fig_report_text += (

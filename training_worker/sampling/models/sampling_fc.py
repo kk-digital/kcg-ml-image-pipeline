@@ -197,6 +197,7 @@ class SamplingFCNetwork(nn.Module):
                 best_val_loss = val_loss[-1]
                 best_train_loss = train_loss[-1]
                 best_model_state = self.model
+                best_model_epoch = epoch
 
             print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss}, Val Loss: {avg_val_loss}')
         
@@ -221,7 +222,7 @@ class SamplingFCNetwork(nn.Module):
         self.save_graph_report(train_loss, val_loss,
                                best_train_loss, best_val_loss,
                                val_residuals, train_residuals,
-                               train_size, val_size)
+                               train_size, val_size, best_model_epoch)
         
         # self.save_confusion_matrix(val_true, val_preds)
         
@@ -233,7 +234,7 @@ class SamplingFCNetwork(nn.Module):
                               train_loss=best_train_loss, 
                               val_loss=best_val_loss, 
                               inference_speed= inference_speed,
-                              learning_rate=learning_rate)
+                              learning_rate=learning_rate, best_model_epoch=best_model_epoch)
         
         return best_val_loss
         
@@ -245,7 +246,8 @@ class SamplingFCNetwork(nn.Module):
                               train_loss, 
                               val_loss, 
                               inference_speed,
-                              learning_rate):
+                              learning_rate,
+                              best_model_epoch):
         if self.input_type=="uniform_sphere":
             input_type="[input_clip_vector[1280], radius(float)]"
         elif "gaussian_sphere" in self.input_type:
@@ -260,6 +262,7 @@ class SamplingFCNetwork(nn.Module):
             f"Number of validation datapoints: {num_validation} \n"
             f"Total training Time: {training_time:.2f} seconds\n"
             "Loss Function: L1 \n"
+            f"Epoch of best model: {best_model_epoch} \n"
             f"Learning Rate: {learning_rate} \n"
             f"Training Loss: {train_loss} \n"
             f"Validation Loss: {val_loss} \n"
@@ -306,7 +309,7 @@ class SamplingFCNetwork(nn.Module):
     def save_graph_report(self, train_loss_per_round, val_loss_per_round,
                           best_train_loss, best_val_loss, 
                           val_residuals, train_residuals,
-                          training_size, validation_size):
+                          training_size, validation_size, best_model_epoch):
         fig, axs = plt.subplots(3, 1, figsize=(12, 10))
         
         #info text about the model
@@ -322,6 +325,7 @@ class SamplingFCNetwork(nn.Module):
             "Validation size = {}\n"
             "Training loss = {:.4f}\n"
             "Validation loss = {:.4f}\n"
+            "Epoch of Best model = {}\n"
             "\n".format(self.date,
                                             self.dataset,
                                             'Fc_Network',
@@ -331,7 +335,8 @@ class SamplingFCNetwork(nn.Module):
                                             training_size,
                                             validation_size,
                                             best_train_loss,
-                                            best_val_loss
+                                            best_val_loss,
+                                            best_model_epoch
         ))
 
         fig_report_text += (
