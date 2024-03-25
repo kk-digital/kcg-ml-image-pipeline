@@ -6,7 +6,6 @@ import argparse
 import numpy as np
 import torch
 import time
-import sched
 import msgpack
 from io import BytesIO
 import matplotlib.pyplot as plt
@@ -25,28 +24,21 @@ from utility.http import model_training_request
 from utility.http import request
 from utility.minio import cmd
 
-scheduler = sched.scheduler(time.time, time.sleep)
-
 class ImageScorer:
     def __init__(self,
                  minio_client,
-                 dataset_name="characters",
-                 model_dataset = "environmental",
-                 not_include="kandinsky",
-                 generation_policy="all"):
+                 dataset_name="characters"):
         self.minio_client = minio_client
         self.model = None
-        self.model_dataset = model_dataset
         self.dataset = dataset_name
-        self.generation_policy = generation_policy
         self.model_name = None
-        self.model_name_list = ["elm", "linear", "logistic"]
-        self.not_include = not_include
         self.model_input_type = None
-        self.model_input_type_list = ["clip", "embedding", "embedding-negative", "embedding-positive"]
+        self.model_input_type_list = ["embedding-negative", "embedding-positive", "embedding", "clip"]
 
         self.image_paths_cache = {}
         self.image_all_feature_pairs_cache = {}
+        
+        self.classifier_id_list = request.http_get_classifier_model_list()
 
         if torch.cuda.is_available():
             device = 'cuda'
@@ -55,26 +47,46 @@ class ImageScorer:
         self.device = torch.device(device)
 
         print("Dataset=", self.dataset)
-        print("Model=", self.model_name)
         print("device=", self.device)
 
-    def load_model(self, tag_name):
-        model_filename = self.get_latest_classifier_model(tag_name)
+    def load_model(self, classifier_model_info):
+        self.tag_id = classifier_model_info["tag_id"]
+        self.classifier_id = classifier_model_info["classifier_id"]
+        self.model_name = classifier_model_info["classifier_name"]
 
-        if self.model_name == "elm":
+        self.model_input_type = None
+
+        for input_type in self.model_input_type_list:
+            if input_type in classifier_model_info["classifier_name"]:
+                self.model_input_type = input_type
+                break
+        if self.model_input_type == None:
+            print("Not support classifier model: {}".format(classifier_model_info["classifier_name"]))
+            return False
+
+        if "elm" in classifier_model_info["classifier_name"]:
             elm_model = ELMRegression(device=self.device)
-            loaded_model, model_file_name = elm_model.load_model_with_filename(self.minio_client, model_filename, tag_name)
+            loaded_model, model_file_name = elm_model.load_model_with_filename(
+                self.minio_client, 
+                classifier_model_info["model_path"], 
+                classifier_model_info["classifier_name"])
             self.model = loaded_model
-        elif self.model_name == 'linear':
+        elif "linear" in classifier_model_info["classifier_name"]:
             linear_model = LinearRegression(device=self.device)
-            loaded_model, model_file_name = linear_model.load_model_with_filename(self.minio_client, model_filename, tag_name)
+            loaded_model, model_file_name = linear_model.load_model_with_filename(
+                self.minio_client, 
+                classifier_model_info["model_path"], 
+                classifier_model_info["classifier_name"])
             self.model = loaded_model
-        elif self.model_name == "logistic":
+        elif "logistic" in classifier_model_info["classifier_name"]:
             logistic_model = LogisticRegression(device=self.device)
-            loaded_model, model_file_name = logistic_model.load_model_with_filename(self.minio_client, model_filename, tag_name)
+            loaded_model, model_file_name = logistic_model.load_model_with_filename(
+                self.minio_client, 
+                classifier_model_info["model_path"], 
+                classifier_model_info["classifier_name"])
             self.model = loaded_model
         else:
-            print(f"Not support classifier model: {self.model_name}")
+            print("Not support classifier model: {}".format(classifier_model_info["classifier_name"]))
 
         if not loaded_model:
             return False
@@ -346,22 +358,31 @@ class ImageScorer:
 
         return csv_data
 
-    def upload_scores(self, hash_score_pairs, tag_id):
+    def upload_scores(self, hash_score_pairs, job_uuids_hash_dict):
         print("Uploading scores to mongodb...")
         with ThreadPoolExecutor(max_workers=50) as executor:
             futures = []
             for pair in hash_score_pairs:
                 # upload score
                 score_data = {
+                    "uuid": job_uuids_hash_dict[pair[0]],
+                    "classifier_id": self.classifier_id,
+                    "classifier_name": self.model_name,
                     "image_hash": pair[0],
                     "score": pair[1],
-                    "tag_id": tag_id
+                    "tag_id": self.tag_id
                 }
                 futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data))
 
             for _ in tqdm(as_completed(futures), total=len(hash_score_pairs)):
                 continue
 
+    def get_classifier_id_and_name(self, classifier_file_path):
+        for classifier in self.classifier_id_list:
+            if classifier["model_path"] == classifier_file_path:
+                return classifier["classifier_id"], classifier["classifier_name"]
+        return -1, ""
+    
     def upload_sigma_scores(self, hash_sigma_score_dict):
         print("Uploading sigma scores to mongodb...")
         with ThreadPoolExecutor(max_workers=50) as executor:
@@ -549,80 +570,34 @@ class ImageScorer:
         graph_output = os.path.join(self.dataset, "output/scores-graph", graph_name)
         cmd.upload_data(self.minio_client, 'datasets', graph_output, buf)
 
-    
-    def get_unique_tag_names(self):
-        prefix = f"{self.model_dataset}/models/classifiers/"
-        objects = self.minio_client.list_objects(bucket_name='datasets', prefix=prefix, recursive=False)
-        tag_names = set()  # Use a set to avoid duplicates
-        for obj in objects:
-            parts = obj.object_name.split('/')
-            if len(parts) > 3:  # Ensures that the path is deep enough to include a tag_name
-                tag_name = parts[3]  # Assumes tag_name is the fourth element in the path
-                tag_names.add(tag_name)
-        return list(tag_names)
-    
-    def get_latest_classifier_model(self, tag_name): 
-        input_path = f"{self.model_dataset}/models/classifiers/{tag_name}"
-        file_suffix = ".safetensors"
-
-        # Use the MinIO client's list_objects method directly with recursive=True
-        model_files = [obj.object_name for obj in self.minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix) and self.not_include not in obj.object_name ]
-        
-        if not model_files:
-            print(f"No .safetensors models found in dataset-{self.model_dataset}")
-            return None
-        
-        # Assuming there's only one model per tag or choosing the first one
-        model_files.sort(reverse=True)
-        model_file = model_files[0]
-        print(f"Loading model: {model_file}")
-
-        self.model_input_type = next((model_input_type for model_input_type in self.model_input_type_list if model_input_type + "." in model_file), None)
-        self.model_name = next((model_name for model_name in self.model_name_list if model_name in model_file), None)
-        # remove
-        print(self.model_input_type, self.model_name)
-        return model_file
-
-
 def parse_args():
     parser = argparse.ArgumentParser(description="Embedding Scorer")
     parser.add_argument('--minio-addr', required=False, help='Minio server address', default="192.168.3.5:9000")
     parser.add_argument('--minio-access-key', required=False, help='Minio access key')
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
     parser.add_argument('--dataset-name', required=True, help='Name of the dataset for embeddings')
-    parser.add_argument('--generation-policy', required=False, default="all", help='Name of generation policy to get, default is all')
-    parser.add_argument('--model-dataset', required=False, help="dataset included classifier, ex, environmental", default="environmental")
-    parser.add_argument('--not-include', required=False, help="string for helping to indentify model", default="kandinsky")
 
     args = parser.parse_args()
     return args
 
 
 def run_image_scorer(minio_client,
-                     dataset_name,
-                     model_dataset,
-                     not_include,
-                     generation_policy):
+                     dataset_name):
     start_time = time.time()
     # remove
     print("run_image_scorer")
 
     scorer = ImageScorer(minio_client=minio_client,
-                         dataset_name=dataset_name,
-                         model_dataset=model_dataset,
-                         not_include=not_include,
-                         generation_policy=generation_policy)
-    tag_list = request.http_get_tag_list()
-    print(tag_list)
+                         dataset_name=dataset_name)
 
-    if not tag_list:
-        return
+
+    classifier_model_list = request.http_get_classifier_model_list()
     
-    for tag in tag_list:
+    for classifier_model in classifier_model_list:
         try:
-            is_loaded = scorer.load_model(tag_name=tag["tag_string"])
+            is_loaded = scorer.load_model(classifier_model_info=classifier_model)
         except Exception as e:
-            print("Failed loading model, tag_name:", tag["tag_string"], e)
+            print("Failed loading model, {}".format(classifier_model["model_path"]), e)
             continue
         if not is_loaded:
             continue
@@ -633,14 +608,13 @@ def run_image_scorer(minio_client,
         
         hash_score_pairs, image_paths, job_uuids_hash_dict = scorer.get_scores(features_data, image_paths)
         print("Successfully calculated")
-        scorer.upload_scores(hash_score_pairs, tag["tag_id"])
+        scorer.upload_scores(hash_score_pairs, job_uuids_hash_dict)
 
     time_elapsed = time.time() - start_time
     print("Dataset: {}: Total Time elapsed: {}s".format(dataset_name, format(time_elapsed, ".2f")))   
 
 
-
-def run_every_day():
+def main():
     args = parse_args()
 
     dataset_name = args.dataset_name
@@ -649,25 +623,8 @@ def run_every_day():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
 
-    now = datetime.now()
-    # Calculate the number of seconds until 12:00 PM
-    future_time = datetime(now.year, now.month, now.day, 12, 0)
-
-    if now > future_time:
-        future_time = future_time.replace(day=future_time.day + 1)
-
-    time_diff = (future_time - now).total_seconds()
-
     if dataset_name != "all":
-        scheduler.enter(time_diff, 
-                        1, 
-                        run_image_scorer, 
-                        [minio_client,
-                         args.dataset_name, 
-                         args.model_dataset,
-                         args.not_include,
-                         args.generation_policy
-                         ])
+        run_image_scorer(minio_client, dataset_name)
     else:
         # if all, train models for all existing datasets
         # get dataset name list
@@ -675,27 +632,9 @@ def run_every_day():
         print("dataset names=", dataset_names)
         for dataset in dataset_names:
             try:
-                scheduler.enter(time_diff, 
-                                1,
-                                run_image_scorer,
-                                [minio_client,
-                                args.dataset_name, 
-                                 args.model_dataset,
-                                 args.not_include,
-                                args.generation_policy
-                                ])
+                run_image_scorer(minio_client, dataset)
             except Exception as e:
                 print("Error running image scorer for {}: {}".format(dataset, e))
-    
-    scheduler.enter(time_diff, 2, run_every_day, ())
-    print(f"Completed scoring images : {datetime.now()}")
-    print(f"Next time to run image scorer : {future_time}")
-
-
-def main():
-
-    run_every_day()
-    scheduler.run()
 
 
 if __name__ == "__main__":

@@ -232,7 +232,7 @@ class LogisticRegression:
         return self.load_model_with_filename(minio_client, model_file, tag_name)
 
 
-    def load_model_with_filename(self, minio_client, model_file, tag_name):
+    def load_model_with_filename(self, minio_client, model_file, model_info):
 
         model_data = minio_client.get_object('datasets', model_file)
         
@@ -242,7 +242,7 @@ class LogisticRegression:
         byte_buffer = BytesIO(model_data.data)
         logistic_model.load_safetensors(byte_buffer)
 
-        print(f"Model loaded for tag: {tag_name}")
+        print(f"Model loaded for tag: {model_info}")
         
         return logistic_model, basename(model_file)
     

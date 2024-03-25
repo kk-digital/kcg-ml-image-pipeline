@@ -246,7 +246,7 @@ class ELMRegression():
 
         return self.load_model_with_filename(minio_client, model_file, tag_name)
     
-    def load_model_with_filename(self, minio_client, model_file, tag_name):
+    def load_model_with_filename(self, minio_client, model_file, model_info=None):
         model_data = minio_client.get_object('datasets', model_file)
         
         clip_model = ELMRegression(device=self._device)
@@ -255,7 +255,7 @@ class ELMRegression():
         byte_buffer = BytesIO(model_data.data)
         clip_model.load_safetensors(byte_buffer)
 
-        print(f"Model loaded for tag: {tag_name}")
+        print(f"Model loaded for tag: {model_info}")
         
         return clip_model, basename(model_file)
 
