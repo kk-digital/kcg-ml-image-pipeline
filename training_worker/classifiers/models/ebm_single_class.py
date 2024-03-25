@@ -311,7 +311,19 @@ class EBM_Single_Class_Trainer:
             tag_name = self.classe_name
 
             output_path = "{}/models/classifiers/{}".format(dataset_name, tag_name)
-            filename = "{}-{:02}-{}-{}-{}-{}".format(date_now, 0, self.classe_name, output_type, network_type, input_type)
+            sequence = 0
+            filename = "{}-{:02}-{}-{}-{}-{}".format(date_now, sequence, tag_name, output_type, network_type, input_type)
+
+            # if exist, increment sequence
+            while True:
+                filename = "{}-{:02}-{}-{}-{}-{}".format(date_now, sequence, tag_name, output_type, network_type, input_type)
+                exists = cmd.is_object_exists(minio_client, bucket_name,
+                                            os.path.join(output_path, filename + ".safetensors"))
+                if not exists:
+                    break
+
+                sequence += 1
+
             model_name = "{}.safetensors".format(filename)
             model_output_path = os.path.join(output_path, model_name)
 
