@@ -131,7 +131,7 @@ class EBM_Single_Class_Trainer:
         self.load_model_to_minio(self.model,self.classe_name)
 
     def train(self):
-        
+        print("class name ", self.classe_name)
         all_tags = list(range(1, 51))
         print("all tag : ",all_tags)
         class_tag = get_tag_id_by_name(self.classe_name)
@@ -141,8 +141,8 @@ class EBM_Single_Class_Trainer:
         for path in target_paths:
             print(" Path t :", path)
         print("adv_paths lenght : ", len(adv_paths))
-        for path in adv_paths:
-            print(" Path adv :", path)
+        # for path in adv_paths:
+        #     print(" Path adv :", path)
         #Create dataloader of target class
         train_loader_automated, val_loader_automated = self.get_clip_embeddings_by_path(target_paths,1)
 
