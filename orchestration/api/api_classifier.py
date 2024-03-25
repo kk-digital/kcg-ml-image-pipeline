@@ -13,7 +13,7 @@ from fastapi.encoders import jsonable_encoder
 
 router = APIRouter()
 
-@router.post("/classifier/register-classifier", 
+@router.post("/classifier/register-tag-classifier", 
              tags=["classifier"],
              description="Adds or updates a classifier model",
              responses=ApiResponseHandlerV1.listErrors([400, 500]))
@@ -21,7 +21,6 @@ async def add_update_classifier(request: Request, classifier_data: Classifier):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
-
         # Check if the tag_id exists in tag_definitions_collection
         tag_definition_exists = request.app.tag_definitions_collection.find_one({"tag_id": classifier_data.tag_id})
         if not tag_definition_exists:
@@ -31,16 +30,18 @@ async def add_update_classifier(request: Request, classifier_data: Classifier):
                 http_status_code=400
             )
 
+        # Check if an existing classifier can be updated
         existing_classifier = request.app.classifier_models_collection.find_one(
-            {"classifier_id": classifier_data.classifier_id}
+            {"tag_id": classifier_data.tag_id, "classifier_name": classifier_data.classifier_name}
         )
         
         if existing_classifier:
             new_seq_number = existing_classifier.get("model_sequence_number", 0) + 1
+            classifier_id = existing_classifier.get("classifier_id")
             update_result = request.app.classifier_models_collection.update_one(
-                {"classifier_id": classifier_data.classifier_id},
+                {"classifier_id": classifier_id},
                 {"$set": {
-                    "classifier_id": classifier_data.classifier_id,
+                    "classifier_id": classifier_id,
                     "classifier_name": classifier_data.classifier_name,
                     "tag_id": classifier_data.tag_id,
                     "model_sequence_number": new_seq_number,
@@ -55,12 +56,13 @@ async def add_update_classifier(request: Request, classifier_data: Classifier):
                     http_status_code=500
                 )
             return response_handler.create_success_response_v1(
-                response_data={"message": "Classifier updated successfully.", "classifier_id": classifier_data.classifier_id, "new_model_sequence_number": new_seq_number},
+                response_data={"message": "Classifier updated successfully.", "classifier_id": classifier_id, "new_model_sequence_number": new_seq_number},
                 http_status_code=200
             )
         else:
-            classifier_data.model_sequence_number = 0
-            request.app.classifier_models_collection.insert_one(classifier_data.dict())
+            classifier_data.model_sequence_number = 1
+            classifier_data.classifier_id= get_next_classifier_id_sequence(request)
+            request.app.classifier_models_collection.insert_one(classifier_data.to_dict())
             return response_handler.create_success_response_v1(
                 response_data={"message": "New classifier added successfully.", "classifier_id": classifier_data.classifier_id, "model_sequence_number": 1},
                 http_status_code=201
