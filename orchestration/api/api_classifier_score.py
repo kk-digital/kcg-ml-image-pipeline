@@ -252,11 +252,16 @@ async def list_images_by_classifier_scores(
     cursor = request.app.image_classifier_scores_collection.find(query).limit(limit)
     scores_data = list(cursor)
     
-    # Drop the '_id' field from each document and convert to ClassifierScore
-    images_data = [ClassifierScore(**{k: v for k, v in doc.items() if k != '_id'}).dict() for doc in scores_data]
+    # Remove _id in response data
+    for score in scores_data:
+        score.pop('_id', None)
+
+    # Prepare the data for the response
+    images_data = ListClassifierScore(images=[ClassifierScore(**doc).to_dict() for doc in scores_data]).dict()
+
 
     # Return the fetched data with a success response
     return response_handler.create_success_response_v1(
-        response_data={"images":images_data}, 
+        response_data=images_data, 
         http_status_code=200
     )
