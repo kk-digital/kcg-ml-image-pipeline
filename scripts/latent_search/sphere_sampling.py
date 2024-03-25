@@ -72,6 +72,8 @@ class SphereSamplingGenerator:
             self.min_radius= self.scoring_model.min_radius
             self.max_radius= self.scoring_model.max_radius
 
+            print(self.min_radius, self.max_radius)
+
             self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
     
     def get_clip_distribution(self):
