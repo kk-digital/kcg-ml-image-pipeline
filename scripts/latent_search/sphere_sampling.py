@@ -69,10 +69,8 @@ class SphereSamplingGenerator:
             self.scoring_model= SamplingFCRegressionNetwork(minio_client=self.minio_client, dataset=dataset)
             self.scoring_model.load_model()
             # get min and max radius values
-            self.min_radius= self.scoring_model.min_radius
-            self.max_radius= self.scoring_model.max_radius
-
-            print(self.min_radius, self.max_radius)
+            self.min_radius= self.scoring_model.min_radius.item()
+            self.max_radius= self.scoring_model.max_radius.item()
 
             self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
     
