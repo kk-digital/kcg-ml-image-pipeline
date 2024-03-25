@@ -502,8 +502,8 @@ def get_tag_id_by_name(tag_name):
         response_value = json_data.get('response')
         tag_id = response_value.get('tag_id')
         # Print or use the response value
-        print("The tag id is:", response_value, " the tag id is : ",tag_id )
-        return response_value
+        #print("The tag id is:", response_value, " the tag id is : ",tag_id )
+        return tag_id
     else:
         print("Error:", response.status_code)
 
