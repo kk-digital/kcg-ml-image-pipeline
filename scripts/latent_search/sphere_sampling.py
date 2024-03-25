@@ -120,7 +120,7 @@ class SphereSamplingGenerator:
           
         print(len(scores), scores[0])
         sorted_indexes= np.flip(np.argsort(scores))[:self.selected_spheres]
-        print(len(sorted_indexes), sorted_indexes[0])
+        print(sorted_indexes)
         top_spheres=[generated_spheres[i] for i in sorted_indexes]
 
         return top_spheres
