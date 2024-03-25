@@ -335,7 +335,7 @@ class EBM_Single_Class_Trainer:
             # upload model
             cmd.upload_data(minio_client, bucket_name, filename, BytesIO(model_bytes))
             # get model card and upload
-            classifier_name="{}-{}-{}-{}".format(self.class_id, output_type, network_type, input_type)
+            classifier_name="{}-{}-{}-{}".format(self.classe_name, output_type, network_type, input_type)
             model_card_name = "{}.json".format(filename)
             model_card_name_output_path = os.path.join(output_path, model_card_name)
             model_card_buf, model_card = get_model_card_buf(classifier_name= classifier_name,
