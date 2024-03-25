@@ -156,6 +156,7 @@ class SphereSamplingGenerator:
 
         for clip_vector in clip_vectors:
             if self.send_job:
+                print(clip_vector)
                 try:
                     response= generate_img2img_generation_jobs_with_kandinsky(
                         image_embedding=clip_vector,
