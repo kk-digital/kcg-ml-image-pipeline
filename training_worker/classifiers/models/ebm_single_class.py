@@ -331,7 +331,7 @@ class EBM_Single_Class_Trainer:
             
             minio_model_path = output_path + filename +".safetensors"
             print("minio model path ",minio_model_path)
-            cmd.upload_data(minio_client, 'bucket_name', minio_model_path, BytesIO(model_bytes))
+            cmd.upload_data(minio_client, bucket_name, minio_model_path, BytesIO(model_bytes))
             # Upload the model to MinIO
 
             cmd.is_object_exists(minio_client, bucket_name,
