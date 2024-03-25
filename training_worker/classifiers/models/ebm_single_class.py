@@ -326,14 +326,15 @@ class EBM_Single_Class_Trainer:
 
             model_name = "{}.safetensors".format(filename)
             model_output_path = os.path.join(output_path, model_name)
+            # upload model
+            cmd.upload_data(minio_client, bucket_name, filename, BytesIO(model_bytes))
 
             # Upload the model to MinIO
 
             cmd.is_object_exists(minio_client, bucket_name,
                                       os.path.join(output_path, filename + ".safetensors"))
             
-            # upload model
-            cmd.upload_data(minio_client, bucket_name, filename, BytesIO(model_bytes))
+          
             # get model card and upload
             classifier_name="{}-{}-{}-{}".format(self.classe_name, output_type, network_type, input_type)
             model_card_name = "{}.json".format(filename)
