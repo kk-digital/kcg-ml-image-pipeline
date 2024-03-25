@@ -306,7 +306,7 @@ class EBM_Single_Class_Trainer:
             bucket_name = "datasets"
             network_type = "energy-based-model"
             output_type = "energy"
-            input_type = '1280-kandansky-vector'
+            input_type = 'clip-h'
             dataset_name = 'environmental'
             tag_name = self.classe_name
 
@@ -327,16 +327,13 @@ class EBM_Single_Class_Trainer:
             model_name = "{}.safetensors".format(filename)
             model_output_path = os.path.join(output_path, model_name)
 
-
-            
-
             # Upload the model to MinIO
 
             cmd.is_object_exists(minio_client, bucket_name,
                                       os.path.join(output_path, filename + ".safetensors"))
             
             # upload model
-            cmd.upload_data(minio_client, bucket_name, filename, BytesIO(model_bytes))
+            #cmd.upload_data(minio_client, bucket_name, filename, BytesIO(model_bytes))
             # get model card and upload
             classifier_name="{}-{}-{}-{}".format(self.class_id, output_type, network_type, input_type)
             model_card_name = "{}.json".format(filename)
