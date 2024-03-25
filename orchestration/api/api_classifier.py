@@ -13,6 +13,25 @@ from fastapi.encoders import jsonable_encoder
 
 router = APIRouter()
 
+def get_next_classifier_id_sequence(request: Request):
+    # get classifier counter
+    counter = request.app.counters_collection.find_one({"_id": "classifiers"})
+    # create counter if it doesn't exist already
+    if counter is None:
+        request.app.counters_collection.insert_one({"_id": "classifiers", "seq":0})
+    print("counter=",counter)
+    counter_seq = counter["seq"] if counter else 0 
+    counter_seq += 1
+
+    try:
+        ret = request.app.counters_collection.update_one(
+            {"_id": "classifiers"},
+            {"$set": {"seq": counter_seq}})
+    except Exception as e:
+        raise Exception("Updating of classifier counter failed: {}".format(e))
+
+    return counter_seq
+
 @router.post("/classifier/register-tag-classifier", 
              tags=["classifier"],
              description="Adds or updates a classifier model",
