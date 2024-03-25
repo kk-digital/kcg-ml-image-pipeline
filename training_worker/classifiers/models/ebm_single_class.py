@@ -328,7 +328,7 @@ class EBM_Single_Class_Trainer:
             model_output_path = os.path.join(output_path, model_name)
             print("file path : ",filename)
             # upload model
-            cmd.upload_data(minio_client, bucket_name, filename, BytesIO(model_bytes))
+            cmd.upload_data(minio_client, bucket_name, filename+ ".safetensors", BytesIO(model_bytes))
 
             # Upload the model to MinIO
 
