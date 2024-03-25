@@ -311,7 +311,7 @@ class EBM_Single_Class_Trainer:
             tag_name = self.classe_name
 
             output_path = "{}/models/classifiers/{}".format(dataset_name, tag_name)
-            filename = "{}-{:02}-{}-{}-{}-{}".format(date_now, 0, self.tag, output_type, network_type, input_type)
+            filename = "{}-{:02}-{}-{}-{}-{}".format(date_now, 0, self.classe_name, output_type, network_type, input_type)
             model_name = "{}.safetensors".format(filename)
             model_output_path = os.path.join(output_path, model_name)
 
