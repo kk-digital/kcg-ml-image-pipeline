@@ -306,7 +306,7 @@ class EBM_Single_Class_Trainer:
             bucket_name = "datasets"
             network_type = "energy-based-model"
             output_type = "energy"
-            input_type = '1280 kandansky vector'
+            input_type = '1280-kandansky-vector'
             dataset_name = 'environmental'
             tag_name = self.classe_name
 
