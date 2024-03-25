@@ -134,7 +134,7 @@ class EBM_Single_Class_Trainer:
         
         all_tags = list(range(1, 51))
         print("all tag : ",all_tags)
-        class_tag = self.class_id
+        class_tag = get_tag_id_by_name(self.classe_name)
         print("class tag : ",  class_tag)
         target_paths, adv_paths = self.get_all_tag_jobs(class_ids = all_tags, target_id =class_tag)
         print("target_paths lenght : ", len(target_paths))
