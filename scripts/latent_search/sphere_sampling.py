@@ -110,7 +110,7 @@ class SphereSamplingGenerator:
         batch=[]
         scores=[]
         for sphere in generated_spheres:
-            sphere_vector= np.concatenate([sphere['sphere_center']], [sphere['radius']])
+            sphere_vector= np.concatenate([sphere['sphere_center'], [sphere['radius']]])
             batch.append(sphere_vector)
 
             if len(batch)==self.batch_size:
