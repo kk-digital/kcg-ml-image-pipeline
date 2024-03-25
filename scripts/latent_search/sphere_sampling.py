@@ -135,6 +135,7 @@ class SphereSamplingGenerator:
         for i, sphere in enumerate(spheres):
             center= sphere['sphere_center']
             radius= sphere['radius']
+
             for j in range(points_per_sphere):
                 # Generate a random direction vector
                 direction = np.random.randn(dim)
@@ -152,6 +153,8 @@ class SphereSamplingGenerator:
                 distance= np.linalg.norm(center - point)
 
                 print(f"distance {distance}")
+                print(f"sphere center: {center}")
+                print(f"point: {point}")
 
                 point = torch.tensor(point)
 
