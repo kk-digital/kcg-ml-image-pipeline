@@ -33,14 +33,10 @@ except ModuleNotFoundError: # Google Colab does not have PyTorch Lightning insta
     import pytorch_lightning as pl
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 
-
-
 # ADDED BY ME
 from datetime import datetime
 from pytz import timezone
 from torch.utils.data import DataLoader
-from torchvision.datasets import CIFAR10
-from torchvision.datasets import SVHN
 import torchvision.transforms as transforms
 from io import BytesIO
 import io
@@ -53,7 +49,6 @@ from utility.minio import cmd
 from utility.clip.clip_text_embedder import tensor_attention_pooling
 import urllib.request
 from urllib.error import HTTPError
-from torchvision.datasets import SVHN
 from torch.utils.data import random_split, DataLoader
 from PIL import Image
 import requests
@@ -65,6 +60,7 @@ import pandas as pd
 from torch.utils.data import ConcatDataset
 import argparse
 from safetensors.torch import load_model, save_model
+from training_worker.classifiers.models.reports.get_model_card import get_model_card_buf
 
 # ------------------------------------------------- Parameters BIS -------------------------------------------------
 base_directory = "./"
@@ -72,6 +68,7 @@ sys.path.insert(0, base_directory)
 
 from utility.path import separate_bucket_and_file_path
 from data_loader.utils import get_object
+from utility.http import request
 
 API_URL = "http://192.168.3.1:8111"
 minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",None)
@@ -302,13 +299,43 @@ class EBM_Single_Class_Trainer:
             with open(local_path, "rb") as model_file:
                 model_bytes = model_file.read()
 
+            # init config
+                
+            date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
+            print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
+            bucket_name = "datasets"
+            network_type = "energy-based-model"
+            output_type = "energy"
+            input_type = '1280 kandansky vector'
+            dataset_name = 'enviromental'
+            tag_name = self.classe_name
+
+            output_path = "{}/models/classifiers/{}".format(dataset_name, tag_name)
+            filename = "{}-{:02}-{}-{}-{}-{}".format(date_now, 0, self.tag, output_type, network_type, input_type)
+            model_name = "{}.safetensors".format(filename)
+            model_output_path = os.path.join(output_path, model_name)
+
+
+            
+
             # Upload the model to MinIO
-            minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",None)
-            minio_path="environmental/output/my_tests"
-            date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
-            minio_path= minio_path + "/model-"+name+'_'+date_now+".safetensors"
-            cmd.upload_data(minio_client, 'datasets', minio_path, BytesIO(model_bytes))
-            print(f'Model saved to {minio_path}')
+
+            cmd.is_object_exists(minio_client, bucket_name,
+                                      os.path.join(output_path, filename + ".safetensors"))
+            
+            # get model card and upload
+            classifier_name="{}-{}-{}-{}".format(self.class_id, output_type, network_type, input_type)
+            model_card_name = "{}.json".format(filename)
+            model_card_name_output_path = os.path.join(output_path, model_card_name)
+            model_card_buf, model_card = get_model_card_buf(classifier_name= classifier_name,
+                                                            tag_id= self.class_id,
+                                                            latest_model= filename,
+                                                            model_path= model_output_path,
+                                                            creation_time=date_now)
+            cmd.upload_data(minio_client, bucket_name, model_card_name_output_path, model_card_buf)
+
+            # add model card
+            request.http_add_classifier_model(model_card)      
 
 
     # ------------------------------------------------- Load Model--------------------------------------------------
@@ -462,6 +489,24 @@ class DeepEnergyModel(pl.LightningModule):
 
 
 
+def get_tag_id_by_name(tag_name):
+    response = requests.get(f'{API_URL}/tags/get-tag-id-by-tag-name?tag_string={tag_name}')
+    
+        # Check if the response is successful (status code 200)
+    # Check if the request was successful (status code 200)
+    if response.status_code == 200:
+        # Parse the JSON response
+        json_data = response.json()
+
+        # Get the value of "response" from the JSON data
+        response_value = json_data.get('response')
+
+        # Print or use the response value
+        print("The tag id is:", response_value)
+        return response_value
+    else:
+        print("Error:", response.status_code)
+
 
 
 def train_model(self,train_loader,val_loader, adv_loader, **kwargs):
@@ -520,7 +565,7 @@ def main():
                                 class_name= args.class_name,
                                 model = None,
                                 save_name = args.save_name,
-                                class_id = args.class_id,
+                                class_id = get_tag_id_by_name(args.class_name),
                                 training_batch_size=args.training_batch_size,
                                 num_samples= args.num_samples,
                                 epochs= args.epochs,
