@@ -5,13 +5,12 @@ import msgpack
 import numpy as np
 import torch
 
-from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
-
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 from data_loader.utils import get_object
 from training_worker.sampling.models.uniform_sampling_regression_fc import SamplingFCRegressionNetwork
+from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 from utility.minio import cmd
 
 def parse_args():
