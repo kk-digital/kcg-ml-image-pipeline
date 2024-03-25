@@ -260,6 +260,8 @@ async def list_images_by_classifier_scores(
     images_data = ListClassifierScore(images=[ClassifierScore(**doc).to_dict() for doc in scores_data]).dict()
 
 
+
+
     # Return the fetched data with a success response
     return response_handler.create_success_response_v1(
         response_data=images_data, 
