@@ -117,8 +117,10 @@ class SphereSamplingGenerator:
                 batch_scores= self.scoring_model.predict(batch, batch_size= self.batch_size).tolist()
                 scores.extend(batch_scores)
                 batch=[]
-
+          
+        print(len(scores), scores[0])
         sorted_indexes= np.flip(np.argsort(scores))[:self.selected_spheres]
+        print(len(sorted_indexes), sorted_indexes[0])
         top_spheres=[generated_spheres[i] for i in sorted_indexes]
 
         return top_spheres
