@@ -151,9 +151,13 @@ class SphereSamplingGenerator:
                 # Compute the point
                 point = center + direction * magnitude
 
+                print("before clipping:",point.shape)
+
                 # Clamp the point between the min and max vectors
                 point = np.clip(point, self.clip_min, self.clip_max)
                 distance= np.linalg.norm(center - point)
+
+                print("after clipping:", point.shape)
 
                 print(f"distance {distance}")
                 print(f"sphere center: {center}")
