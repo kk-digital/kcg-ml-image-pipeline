@@ -88,8 +88,11 @@ class SphereSamplingGenerator:
     def generate_spheres(self):
         num_spheres= self.total_spheres
 
-        # Generate random values between 0 and 1, then scale and shift them into the [min, max] range for each feature
-        sphere_centers = np.random.rand(num_spheres, len(self.clip_max)) * (self.clip_max - self.clip_min) + self.clip_min
+        # Generate sphere centers
+        sphere_centers = np.random.normal(loc=self.clip_mean, scale=self.clip_std, size=(num_spheres, len(self.clip_mean)))
+        
+        # Optionally, you may want to clip the generated centers to ensure they fall within expected min/max bounds
+        sphere_centers = np.clip(sphere_centers, self.clip_min, self.clip_max)
 
         # choose random radius for the spheres
         radii= np.random.rand(num_spheres) * (self.max_radius - self.min_radius) + self.min_radius
@@ -100,8 +103,6 @@ class SphereSamplingGenerator:
                 "sphere_center": sphere_center,
                 "radius": radius
              })
-        
-        print(spheres[0])
 
         return spheres
     
@@ -121,7 +122,6 @@ class SphereSamplingGenerator:
                 batch=[]
           
         sorted_indexes= np.flip(np.argsort(scores))[:self.selected_spheres]
-        print(f"top score: {scores[sorted_indexes[0]]}")
         top_spheres=[generated_spheres[i] for i in sorted_indexes]
 
         return top_spheres
@@ -143,17 +143,13 @@ class SphereSamplingGenerator:
                 direction /= np.linalg.norm(direction)  # Normalize to unit vector
                 
                 # Randomly choose a magnitude within the radius
-                magnitude = np.random.rand()**(1/3) * radius  # Square root for uniform sampling in volume
+                magnitude = np.random.rand()**(1/dim) * radius  # Square root for uniform sampling in volume
                 
                 # Compute the point
                 point = center + direction * magnitude
 
                 # Clamp the point between the min and max vectors
                 point = np.clip(point, self.clip_min, self.clip_max)
-                distance= np.linalg.norm(center - point)
-
-                print(f"distance {distance}")
-                print(f"point: {point}")
 
                 point = torch.tensor(point)
 
