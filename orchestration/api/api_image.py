@@ -4,7 +4,7 @@ from typing import Optional
 import pymongo
 from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
-from .mongo_schemas import Task, ImageMetadata
+from .mongo_schemas import Task, ImageMetadata, UUIDImageMetadata
 from .api_utils import PrettyJSONResponse, StandardSuccessResponseV1, ApiResponseHandlerV1, UrlResponse, ErrorCode
 from .api_ranking import get_image_rank_use_count
 import os
@@ -242,7 +242,7 @@ def get_image_data_by_filepath_2(request: Request, file_path: str):
 
     return response
   
-@router.get("/image/list-image-metadata-by-dataset", response_class=PrettyJSONResponse)
+@router.get("/image/list-image-metadata-by-dataset", tags = ["deprecated"], response_class=PrettyJSONResponse)
 def get_images_metadata(
     request: Request,
     dataset: str = None,
@@ -774,8 +774,8 @@ def get_random_image_with_time_v1(
             http_status_code=500,
         )
 
-@router.get("/image/list-image-metadata-by-dataset",
-            response_model=StandardSuccessResponseV1[List[ImageMetadata]], 
+@router.get("/image/list-image-metadata-by-dataset-v1",
+            response_model=StandardSuccessResponseV1[List[UUIDImageMetadata]], 
             description="List image metadata by dataset with optional filtering",
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([400, 404, 500]))
@@ -845,6 +845,7 @@ def get_images_metadata(
         images_metadata = []
         for job in jobs:
             image_meta_data = {
+                'uuid': job.get('uuid'),
                 'dataset': job['task_input_dict'].get('dataset'),
                 'task_type': job.get('task_type'),
                 'image_path': job['task_output_file_dict'].get('output_file_path'),
@@ -855,9 +856,9 @@ def get_images_metadata(
             if not prompt_generation_policy or image_meta_data['prompt_generation_policy'] == prompt_generation_policy:
                 images_metadata.append(image_meta_data)
 
-            return response_handler.create_success_response_v1(
-                response_data=images_metadata,
-                http_status_code=200,
+        return response_handler.create_success_response_v1(
+            response_data=images_metadata,
+            http_status_code=200,
             )
     except Exception as e:
         return response_handler.create_error_response_v1(

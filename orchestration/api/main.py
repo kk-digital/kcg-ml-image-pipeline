@@ -36,6 +36,7 @@ from orchestration.api.api_inpainting_job import router as inpainting_job_router
 from orchestration.api.api_server_utility import router as server_utility_router
 from orchestration.api.api_classifier_score import router as classifier_score_router
 from orchestration.api.api_classifier import router as classifier_router
+from orchestration.api.api_ab_rank import router as ab_rank_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -76,6 +77,7 @@ app.include_router(inpainting_job_router)
 app.include_router(server_utility_router)
 app.include_router(classifier_score_router)
 app.include_router(classifier_router)
+app.include_router(ab_rank_router)
 
 
 
@@ -203,6 +205,9 @@ def startup_db_client():
     # delta score
     app.datapoints_delta_score_collection = app.mongodb_db["datapoints_delta_score"]
 
+    # workers
+    app.workers_collection = app.mongodb_db["workers"]
+
     # models
     app.models_collection = app.mongodb_db["models"]
 
@@ -235,18 +240,18 @@ def startup_db_client():
     ]
     create_index_if_not_exists(app.image_scores_collection ,hash_index, 'score_hash_index')
 
-    # classifier scores classifier_id, pseudo_tag_id, image_hash
+    # classifier scores classifier_id, tag_id, image_hash
     classifier_image_hash_index=[
     ('image_hash', pymongo.ASCENDING),
     ('classifier_id', pymongo.ASCENDING),
-    ('pseudo_tag_id', pymongo.ASCENDING)
+    ('tag_id', pymongo.ASCENDING)
     ]
     create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_hash_index, 'classifier_image_hash_index')
 
-    # classifier scores classifier_id, pseudo_tag_id
+    # classifier scores classifier_id, tag_id
     classifier_image_classifier_index=[
     ('classifier_id', pymongo.ASCENDING),
-    ('pseudo_tag_id', pymongo.ASCENDING)
+    ('tag_id', pymongo.ASCENDING)
     ]
     create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_classifier_index, 'classifier_image_classifier_index')
 
