@@ -140,18 +140,18 @@ class SphereSamplingGenerator:
 
             for j in range(points_per_sphere):
                 # Calculate z-scores for each feature
-                # z_scores = (center - self.clip_mean) / self.clip_std
+                z_scores = (center - self.clip_mean) / self.clip_std
 
-                # # Calculate proportional direction adjustments based on z-scores
-                # adjustment_factor = np.clip(np.abs(z_scores), 0, 1)  # This caps the maximum adjustment
-                # direction_adjustment = np.sign(z_scores) * adjustment_factor
+                # Calculate proportional direction adjustments based on z-scores
+                adjustment_factor = np.clip(np.abs(z_scores), 0, 1)  # This caps the maximum adjustment
+                direction = np.sign(z_scores) * adjustment_factor
 
                 # Ensure the adjustment direction is normalized
-                direction= np.random.rand(dim)
+                # direction= np.random.rand(dim)
                 direction /= np.linalg.norm(direction)
                 
                 # Randomly choose a magnitude within the radius
-                magnitude = np.random.rand() * radius  # Square root for uniform sampling in volume
+                magnitude = np.random.rand() * radius**2  # Square root for uniform sampling in volume
 
                 # Compute the point
                 point = center + (direction * magnitude)
