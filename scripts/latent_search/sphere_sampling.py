@@ -123,6 +123,8 @@ class SphereSamplingGenerator:
         sorted_indexes= np.flip(np.argsort(scores))[:self.selected_spheres]
         top_spheres=[generated_spheres[i] for i in sorted_indexes]
 
+        print(f"scores: {scores}")
+
         return top_spheres
     
     def sample_clip_vectors(self, num_samples):
@@ -140,27 +142,18 @@ class SphereSamplingGenerator:
                 # Generate a random direction vector
                 direction = np.random.randn(dim)
                 direction /= np.linalg.norm(direction)  # Normalize to unit vector
-
-                print(f"direction {direction}")
                 
                 # Randomly choose a magnitude within the radius
-                magnitude = np.random.rand()**0.5 * radius  # Square root for uniform sampling in volume
-
-                print(f"magnitude {magnitude}")
+                magnitude = np.random.rand()**(1/3) * radius  # Square root for uniform sampling in volume
                 
                 # Compute the point
                 point = center + direction * magnitude
-
-                print("before clipping:",point.shape)
 
                 # Clamp the point between the min and max vectors
                 point = np.clip(point, self.clip_min, self.clip_max)
                 distance= np.linalg.norm(center - point)
 
-                print("after clipping:", point.shape)
-
                 print(f"distance {distance}")
-                print(f"sphere center: {center}")
                 print(f"point: {point}")
 
                 point = torch.tensor(point)
@@ -175,7 +168,6 @@ class SphereSamplingGenerator:
         clip_vectors= self.sample_clip_vectors(num_samples=num_images)
 
         for clip_vector in clip_vectors:
-            print(clip_vector.shape)
             if self.send_job:
                 try:
                     response= generate_img2img_generation_jobs_with_kandinsky(
