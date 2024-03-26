@@ -121,9 +121,8 @@ class SphereSamplingGenerator:
                 batch=[]
           
         sorted_indexes= np.flip(np.argsort(scores))[:self.selected_spheres]
+        print(f"top score: {scores[sorted_indexes[0]]}")
         top_spheres=[generated_spheres[i] for i in sorted_indexes]
-
-        print(f"scores: {scores}")
 
         return top_spheres
     
