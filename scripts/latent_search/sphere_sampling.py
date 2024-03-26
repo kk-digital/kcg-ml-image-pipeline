@@ -73,6 +73,9 @@ class SphereSamplingGenerator:
             self.max_radius= self.scoring_model.max_radius.item()
 
             self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
+
+            print(f"max vector:{self.clip_max}")
+            print(f"min vector:{self.clip_min}")
     
     def get_clip_distribution(self):
         data = get_object(self.minio_client, f"{self.dataset}/output/stats/clip_stats.msgpack")
