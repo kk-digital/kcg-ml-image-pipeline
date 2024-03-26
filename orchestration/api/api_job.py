@@ -44,7 +44,7 @@ def get_job(request: Request, task_type=None, model_type="sd_1_5"):
     
     # Prioritize jobs where task_input_dict.dataset is "variants"
     priority_query = base_query.copy()
-    priority_query["task_input_dict.dataset"] = "variants"
+    priority_query["task_input_dict.dataset"] = {"$in": ["variants", "test-generations"]}
     
     job = request.app.pending_jobs_collection.find_one(priority_query, sort=[("task_creation_time", pymongo.ASCENDING)])
     
