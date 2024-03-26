@@ -160,8 +160,9 @@ class SphereSamplingGenerator:
                 # calculate distance
                 distance= np.linalg.norm(center - point)
 
-                print(f"distance: {distance}")
+                print(f"direction: {direction_adjustment}")
                 print(f"magnitutde: {magnitude}")
+                print(f"distance: {distance}")
                 print(f"point: {point}")
 
                 point = torch.tensor(point)
