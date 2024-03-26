@@ -212,7 +212,7 @@ def main():
                                         send_job= args.send_job,
                                         save_csv= args.save_csv)
 
-    generator.generate_images(num_images=args.num_images)
+    #generator.generate_images(num_images=args.num_images)
 
 if __name__ == "__main__":
     main()
