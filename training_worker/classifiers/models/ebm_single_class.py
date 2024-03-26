@@ -102,10 +102,10 @@ class EBM_Single_Class_Trainer:
                 save_name,
                 dataset,
                 class_id,
-                training_batch_size=16,
+                training_batch_size=64,
                 num_samples=30000,
                 learning_rate = 0.001,
-                epochs=25):
+                epochs=20):
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
                                             minio_secret_key=minio_secret_key)
@@ -154,7 +154,7 @@ class EBM_Single_Class_Trainer:
         adv_loader = train_loader_clip_ood
 
         # Train
-        self.model = train_model(self,img_shape=(1,1280),
+        self.model = self.train_model(self,img_shape=(1,1280),
                             batch_size=self.training_batch_size,
                             lr=self.learning_rate,
                             beta1=0.0,
@@ -226,6 +226,25 @@ class EBM_Single_Class_Trainer:
         # Clear the current figure
         plt.clf()
 
+
+    def train_model(self,train_loader,val_loader, adv_loader, **kwargs):
+
+
+        # Create a PyTorch Lightning trainer with the generation callback
+        trainer = pl.Trainer(
+                            accelerator="gpu" if str(self.device).startswith("cuda") else "cpu",
+                            devices=1,
+                            max_epochs=self.epochs,
+                            gradient_clip_val=0.1,
+                            callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
+                                        LearningRateMonitor("epoch")
+                                    ])
+
+        pl.seed_everything(42)
+        model = DeepEnergyModel(adv_loader =adv_loader ,**kwargs)
+        trainer.fit(model, train_loader, val_loader)
+
+        return model
 
 
     def get_all_tag_jobs(self,class_ids,target_id):
@@ -504,6 +523,9 @@ class DeepEnergyModel(pl.LightningModule):
 
 
 
+
+
+
 def get_tag_id_by_name(tag_name):
     response = requests.get(f'{API_URL}/tags/get-tag-id-by-tag-name?tag_string={tag_name}')
     
@@ -524,24 +546,7 @@ def get_tag_id_by_name(tag_name):
 
 
 
-def train_model(self,train_loader,val_loader, adv_loader, **kwargs):
 
-
-    # Create a PyTorch Lightning trainer with the generation callback
-    trainer = pl.Trainer(
-                         accelerator="gpu" if str(self.device).startswith("cuda") else "cpu",
-                         devices=1,
-                         max_epochs=20,
-                         gradient_clip_val=0.1,
-                         callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
-                                    LearningRateMonitor("epoch")
-                                   ])
-
-    pl.seed_everything(42)
-    model = DeepEnergyModel(adv_loader =adv_loader ,**kwargs)
-    trainer.fit(model, train_loader, val_loader)
-
-    return model
 
 
 
