@@ -1,4 +1,5 @@
 import argparse
+import math
 import os
 import sys
 import msgpack
@@ -69,8 +70,8 @@ class SphereSamplingGenerator:
             self.scoring_model= SamplingFCRegressionNetwork(minio_client=self.minio_client, dataset=dataset)
             self.scoring_model.load_model()
             # get min and max radius values
-            self.min_radius= self.scoring_model.min_radius.item()
-            self.max_radius= self.scoring_model.max_radius.item()
+            self.min_radius= math.sqrt(self.scoring_model.min_radius.item())
+            self.max_radius= math.sqrt(self.scoring_model.max_radius.item())
 
             self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
     
@@ -139,29 +140,29 @@ class SphereSamplingGenerator:
 
             for j in range(points_per_sphere):
                 # Calculate z-scores for each feature
-                z_scores = (center - self.clip_mean) / self.clip_std
+                # z_scores = (center - self.clip_mean) / self.clip_std
 
-                # Calculate proportional direction adjustments based on z-scores
-                adjustment_factor = np.clip(np.abs(z_scores), 0, 1)  # This caps the maximum adjustment
-                direction_adjustment = np.sign(z_scores) * adjustment_factor
+                # # Calculate proportional direction adjustments based on z-scores
+                # adjustment_factor = np.clip(np.abs(z_scores), 0, 1)  # This caps the maximum adjustment
+                # direction_adjustment = np.sign(z_scores) * adjustment_factor
 
                 # Ensure the adjustment direction is normalized
-                direction_adjustment /= np.linalg.norm(direction_adjustment)
+                direction= np.random.rand(dim)
+                direction /= np.linalg.norm(direction)
                 
                 # Randomly choose a magnitude within the radius
                 magnitude = np.random.rand() * radius  # Square root for uniform sampling in volume
 
                 # Compute the point
-                point = center + (direction_adjustment * magnitude)
+                point = center + (direction * magnitude)
 
                 # Clamp the point between the min and max vectors
                 point = np.clip(point, self.clip_min, self.clip_max)
 
                 # calculate distance
                 distance= np.linalg.norm(center - point)
-
                 
-                print(f"direction: {direction_adjustment}")
+                print(f"direction: {direction}")
                 print(f"magnitutde: {magnitude}")
                 print(f"distance: {distance}")
                 print(f"center: {center}")
