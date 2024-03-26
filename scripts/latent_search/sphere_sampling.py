@@ -103,8 +103,6 @@ class SphereSamplingGenerator:
                 "sphere_center": sphere_center,
                 "radius": radius
              })
-        
-        print(spheres[0])
 
         return spheres
     
@@ -159,7 +157,12 @@ class SphereSamplingGenerator:
                 # Clamp the point between the min and max vectors
                 point = np.clip(point, self.clip_min, self.clip_max)
 
-                print(f"point:{point}")
+                # calculate distance
+                distance= np.linalg.norm(center - point)
+
+                print(f"distance: {distance}")
+                print(f"magnitutde: {magnitude}")
+                print(f"point: {point}")
 
                 point = torch.tensor(point)
 
