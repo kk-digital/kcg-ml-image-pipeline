@@ -81,6 +81,7 @@ class SphereSamplingGenerator:
         data = get_object(self.minio_client, f"{self.dataset}/output/stats/clip_stats.msgpack")
         data_dict = msgpack.unpackb(data)
 
+        print(data_dict["mean"]) 
         mean_vector = np.array(data_dict["mean"])
         std_vector = np.array(data_dict["std"])
         max_vector = np.array(data_dict["max"])
