@@ -103,6 +103,8 @@ class SphereSamplingGenerator:
                 "sphere_center": sphere_center,
                 "radius": radius
              })
+        
+        print(spheres[0])
 
         return spheres
     
@@ -138,18 +140,26 @@ class SphereSamplingGenerator:
             radius= sphere['radius']
 
             for j in range(points_per_sphere):
-                # Generate a random direction vector
-                direction = np.random.randn(dim)
-                direction /= np.linalg.norm(direction)  # Normalize to unit vector
+                # Calculate z-scores for each feature
+                z_scores = (center - self.clip_mean) / self.clip_std
+
+                # Calculate proportional direction adjustments based on z-scores
+                adjustment_factor = np.clip(np.abs(z_scores), 0, 1)  # This caps the maximum adjustment
+                direction_adjustment = np.sign(z_scores) * adjustment_factor
+
+                # Ensure the adjustment direction is normalized
+                direction_adjustment /= np.linalg.norm(direction_adjustment)
                 
                 # Randomly choose a magnitude within the radius
                 magnitude = np.random.rand()**(1/dim) * radius  # Square root for uniform sampling in volume
                 
                 # Compute the point
-                point = center + direction * magnitude
+                point = center + (direction_adjustment * magnitude)
 
                 # Clamp the point between the min and max vectors
                 point = np.clip(point, self.clip_min, self.clip_max)
+
+                print(f"point:{point}")
 
                 point = torch.tensor(point)
 
