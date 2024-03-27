@@ -606,6 +606,42 @@ def load_model_to_minio(model,type):
         # Remove the temporary file
         os.remove(temp_file.name)
 
+def load_model_to_minio_v3(model,type, bucket_name , tag_name, value,  model_type):
+        # get model file data from MinIO
+        #datasets/environmental/models/classifiers/concept-cybernetic
+        prefix= "environmental/models/classifiers/"
+
+        suffix= ".safetensors"
+        minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",None)
+        model_files=cmd.get_list_of_objects_with_prefix(minio_client, 'datasets', prefix)
+        most_recent_model = None
+
+        for model_file in model_files:
+            print("model path : ",model_file)
+            if tag_name in model_file and model_type in model_file:
+                print("yep found one",model_file)
+                most_recent_model = model_file
+
+        if most_recent_model:
+            model_file_data =cmd.get_file_from_minio(minio_client, 'datasets', most_recent_model)
+            print("yep save : ",model_file)
+        else:
+            print("No .safetensors files found in the list.")
+            return None
+        
+        print(most_recent_model)
+
+        # Create a temporary file and write the downloaded content into it
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            for data in model_file_data.stream(amt=8192):
+                temp_file.write(data)
+
+        # Load the model from the downloaded bytes
+        #model.load_state_dict(torch.load(temp_file.name))
+        load_model(model, temp_file.name)
+        # Remove the temporary file
+        os.remove(temp_file.name)
+
 def load_model_to_minio_v2(model,type, bucket_name , tag_name, value,  model_type):
         # get model file data from MinIO
         #prefix= "environmental/output/my_tests/model-"+type
@@ -1189,7 +1225,7 @@ def plot_samples_hashless(dataset_name, number_of_samples,tag_name):
     loaded_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
     # Load the last trained model
     #load_model_to_minio_v2(loaded_model,model_name)
-    load_model_to_minio_v2(loaded_model,type, 'dataset' , tag_name = tag_name, value='energy',  model_type = "energy-based-model") 
+    load_model_to_minio_v3(loaded_model,type, 'dataset' , tag_name = tag_name, value='energy',  model_type = "energy-based-model") 
     # Process the images
     sorted_images_and_hashes = process_and_sort_dataset(images_paths_ood, loaded_model) 
 
