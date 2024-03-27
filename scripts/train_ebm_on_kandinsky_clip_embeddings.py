@@ -612,12 +612,12 @@ def load_model_to_minio_v2(model,type, bucket_name , tag_name, value,  model_typ
         suffix= ".safetensors"
         minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",None)
         prefix  = f"{tag_name}-{value}-{model_type}"
-        model_files=cmd.get_list_of_objects_with_prefix(minio_client, 'datasets', prefix)
+        model_files=cmd.get_list_of_objects(minio_client, 'datasets')
         most_recent_model = None
         print("number of files : ", len(model_files) )
         for model_file in model_files:
             print("file name: ", model_file)
-            if model_file.endswith(suffix):
+            if tag_name in model_file and model_type in model_file:
                 print("yep found one",model_file)
                 most_recent_model = model_file
 
@@ -640,6 +640,19 @@ def load_model_to_minio_v2(model,type, bucket_name , tag_name, value,  model_typ
         load_model(model, temp_file.name)
         # Remove the temporary file
         os.remove(temp_file.name)
+
+
+def filter_and_get_most_recent_object(object_names, theme, model_type):
+    prefix = f"{theme}-{model_type}"
+    filtered_objects = [obj for obj in object_names if prefix in obj]
+    
+    if filtered_objects:
+        # Sort filtered objects based on timestamp (assuming timestamp is in the object name)
+        filtered_objects.sort(reverse=True)  # Sort in descending order (most recent first)
+        most_recent_object = filtered_objects[0]
+        return most_recent_object
+    else:
+        return None
 
 
 def get_list_of_objects_with_prefix_v2(client, bucket_name, tag_name, value,  model_type):
