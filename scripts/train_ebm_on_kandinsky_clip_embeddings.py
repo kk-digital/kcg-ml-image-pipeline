@@ -612,7 +612,8 @@ def load_model_to_minio_v2(model,type, bucket_name , tag_name, value,  model_typ
         suffix= ".safetensors"
         minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",None)
         prefix  = f"{tag_name}-{value}-{model_type}"
-        model_files=cmd.get_list_of_objects(minio_client, 'datasets')
+        true_path  = "{}/{}/models/classifiers/{}".format('datasets',bucket_name, tag_name) #"datasets/environmental/models/classifiers/concept-cybernetic"
+        model_files=cmd.get_list_of_objects(minio_client, true_path)
         most_recent_model = None
         print("number of files : ", len(model_files) )
         for model_file in model_files:
