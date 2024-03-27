@@ -1173,7 +1173,7 @@ def plot_samples_hashless(dataset_name, number_of_samples,tag_name):
     loaded_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
     # Load the last trained model
     #load_model_to_minio_v2(loaded_model,model_name)
-    load_model_to_minio_v2(loaded_model,type, 'dataset' , tag_name = tag_name, value='energy',  model_type = "energy-based-modle") 
+    load_model_to_minio_v2(loaded_model,type, 'dataset' , tag_name = tag_name, value='energy',  model_type = "energy-based-model") 
     # Process the images
     sorted_images_and_hashes = process_and_sort_dataset(images_paths_ood, loaded_model) 
 
