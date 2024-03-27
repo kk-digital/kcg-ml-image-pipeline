@@ -130,7 +130,7 @@ class SphereSamplingGenerator:
                 batch=[]
           
         sorted_indexes= np.flip(np.argsort(scores))[:self.selected_spheres]
-        print("top score: ",scores[sorted_indexes[0]])
+        print("top sphere score: ",scores[sorted_indexes[0]])
         top_spheres=[generated_spheres[i] for i in sorted_indexes]
 
         return top_spheres
@@ -164,25 +164,20 @@ class SphereSamplingGenerator:
 
                 # calculate distance
                 distance= np.linalg.norm(center - point)
-                
-                print(f"direction: {direction}")
-                print(f"magnitutde: {magnitude}")
-                print(f"distance: {distance}")
-                print(f"center: {center}")
-                print(f"point: {point}")
 
                 point = torch.tensor(point).unsqueeze(0)
 
                 # get score
                 score= self.scoring_model.predict(point).item()
 
-                print(f"score: {score}")
-
                 scores.append(score)
                 clip_vectors.append(point)
         
         sorted_indexes= np.flip(np.argsort(scores))[:num_samples]
         clip_vectors= [clip_vectors[index] for index in sorted_indexes]
+        mean_scores= np.mean([scores[index] for index in sorted_indexes])
+
+        print(f"average score: {mean_scores}")
 
         return clip_vectors
     
