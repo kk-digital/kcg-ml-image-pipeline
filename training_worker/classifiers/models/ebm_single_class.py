@@ -61,7 +61,7 @@ from torch.utils.data import ConcatDataset
 import argparse
 from safetensors.torch import load_model, save_model
 from training_worker.classifiers.models.reports.get_model_card import get_model_card_buf
-
+from os.path import basename
 # ------------------------------------------------- Parameters BIS -------------------------------------------------
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -416,6 +416,19 @@ class EBM_Single_Class_Trainer:
 
 
 
+    def load_model_with_filename(self, minio_client, model_file, model_info=None):
+        model_data = minio_client.get_object('datasets', model_file)
+        
+        clip_model = DeepEnergyModel(adv_loader=None, img_shape=(1280,))
+        
+        # Create a BytesIO object from the model data
+        byte_buffer = BytesIO(model_data.data)
+        clip_model.load_safetensors(byte_buffer)
+
+        print(f"Model loaded for tag: {model_info}")
+        
+        return clip_model, basename(model_file)
+
 # ------------------------------------------------- Neural Net Architecutre --------------------------------------------------
 
 
@@ -613,7 +626,7 @@ def main():
     # # do self training
     # training_pipeline.train()
     #(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
-    training_pipeline.load_model_v2(minio_client = minio_client, model_dataset='environmental',  tag_name ='concept-occult')
+    training_pipeline = training_pipeline.load_model_v2(minio_client = minio_client, model_dataset='environmental',  tag_name ='concept-occult')
     
 
 if __name__ == "__main__":
