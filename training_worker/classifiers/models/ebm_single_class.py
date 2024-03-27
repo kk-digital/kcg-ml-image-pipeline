@@ -435,7 +435,8 @@ class EBM_Single_Class_Trainer:
 
         # Use the MinIO client's list_objects method directly with recursive=True
         model_files = [obj.object_name for obj in minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix)  ]
-        
+        print(model_files)
+
         if not model_files:
             print(f"No .safetensors models found for tag: {tag_name}")
             return None
@@ -659,8 +660,8 @@ def main():
     # # do self training
     # training_pipeline.train()
     #(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
-    #training_pipeline = training_pipeline.load_model_v2(minio_client = minio_client, model_dataset='environmental',  tag_name ='concept-occult')
-    training_pipeline.load_model_from_minio(model_dataset='environmental' ,tag_name ='concept-occult',bucket_name = 'datasets')    
+    training_pipeline = training_pipeline.load_model_v2(minio_client = minio_client, model_dataset='environmental',  tag_name ='concept-occult')
+    #training_pipeline.load_model_from_minio(model_dataset='environmental' ,tag_name ='concept-occult',bucket_name = 'datasets')    
 
 if __name__ == "__main__":
     main()
