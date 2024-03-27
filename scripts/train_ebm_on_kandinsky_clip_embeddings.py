@@ -605,6 +605,89 @@ def load_model_to_minio(model,type):
         load_model(model, temp_file.name)
         # Remove the temporary file
         os.remove(temp_file.name)
+
+def load_model_to_minio_v2(model,type):
+        # get model file data from MinIO
+        prefix= "environmental/output/my_tests/model-"+type
+        suffix= ".safetensors"
+        minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",None)
+        model_files=cmd.get_list_of_objects_with_prefix_v2(minio_client, 'datasets', prefix)
+        most_recent_model = None
+
+        for model_file in model_files:
+            print(model_file)
+            if model_file.endswith(suffix):
+                print("yep found one",model_file)
+                most_recent_model = model_file
+
+        if most_recent_model:
+            model_file_data =cmd.get_file_from_minio(minio_client, 'datasets', most_recent_model)
+            print("yep save : ",model_file)
+        else:
+            print("No .safetensors files found in the list.")
+            return None
+        
+        print(most_recent_model)
+
+        # Create a temporary file and write the downloaded content into it
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            for data in model_file_data.stream(amt=8192):
+                temp_file.write(data)
+
+        # Load the model from the downloaded bytes
+        #model.load_state_dict(torch.load(temp_file.name))
+        load_model(model, temp_file.name)
+        # Remove the temporary file
+        os.remove(temp_file.name)
+
+
+def get_list_of_objects_with_prefix_v2(client, bucket_name, tag_name, value,  model_type):
+    object_names = []
+    prefix = f"{tag_name}-{value}-{model_type}"
+    objects = client.list_objects(bucket_name, prefix=prefix, recursive=True)
+
+    for obj in objects:
+        object_names.append(obj.object_name)
+
+    return object_names
+
+def load_model_from_minio_v2(model,bucket = "environmental", tag_name="concept-cybernetic", value="energy", model_type = "energy-based-model"):
+        # get model file data from MinIO
+        model_path = "{}/models/classifiers/{}".format(bucket, tag_name)
+        #prefix= "environmental/output/my_tests/model-"+type
+        suffix= ".safetensors"
+        minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",None)
+        model_files=cmd.get_list_of_objects_with_prefix_v2(minio_client, 'datasets', model_path,value=value,model_type=model_type,tag_name = tag_name)
+        most_recent_model = None
+
+        for model_file in model_files:
+            print(model_file)
+            if model_file.endswith(suffix):
+                print("yep found one",model_file)
+                most_recent_model = model_file
+
+        if most_recent_model:
+            model_file_data =cmd.get_file_from_minio(minio_client, 'datasets', most_recent_model)
+            print("yep save : ",model_file)
+        else:
+            print("No .safetensors files found in the list.")
+            return None
+        
+        print(most_recent_model)
+
+        # Create a temporary file and write the downloaded content into it
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            for data in model_file_data.stream(amt=8192):
+                temp_file.write(data)
+
+        # Load the model from the downloaded bytes
+        #model.load_state_dict(torch.load(temp_file.name))
+        load_model(model, temp_file.name)
+        # Remove the temporary file
+        os.remove(temp_file.name)
+       
+
+
        
 
 
@@ -1088,7 +1171,7 @@ def plot_samples_hashless(dataset_name, number_of_samples,model_name):
     images_paths_ood = get_file_paths(dataset_name,number_of_samples)
     loaded_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
     # Load the last trained model
-    load_model_to_minio(loaded_model,model_name)
+    load_model_to_minio_v2(loaded_model,model_name)
 
     # Process the images
     sorted_images_and_hashes = process_and_sort_dataset(images_paths_ood, loaded_model) 
