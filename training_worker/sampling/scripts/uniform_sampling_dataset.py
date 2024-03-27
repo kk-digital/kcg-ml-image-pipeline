@@ -58,9 +58,6 @@ class UniformSphereGenerator:
         max_vector = np.max(feature_vectors, axis=0)
         min_vector = np.min(feature_vectors, axis=0)
 
-        print(feature_vectors.shape, max_vector.shape)
-        print(min_vector, max_vector)
-
         print("generating the initial spheres-------------")
         # Generate random values between 0 and 1, then scale and shift them into the [min, max] range for each feature
         sphere_centers = np.random.rand(n_spheres, len(max_vector)) * (max_vector - min_vector) + min_vector
@@ -103,16 +100,14 @@ class UniformSphereGenerator:
 
         # Assuming 'scores' contains the scores for all points and 'bins' defines the score bins
         for center, radius, sphere_indices in zip(valid_centers, valid_radii, indices):
-            # Extract indices of points within the sphere
+            # Extract indices and scores of points within the sphere
             point_indices = sphere_indices
+            sphere_scores=[scores[idx] for idx in point_indices]
 
             if output_type=="score_distribution":            
                 # Calculate score distribution for the sphere
                 score_distribution = np.zeros(len(bins))
-                sphere_scores=[]
-                for idx in point_indices:
-                    score = scores[idx]
-                    sphere_scores.append(score)
+                for score in sphere_scores:
                     for i, bin_edge in enumerate(bins):
                         if score < bin_edge:
                             score_distribution[i] += 1

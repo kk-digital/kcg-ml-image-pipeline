@@ -109,6 +109,7 @@ class SamplingFCRegressionNetwork(nn.Module):
 
         best_val_loss = float('inf')  # Initialize best validation loss as infinity
         best_train_loss = float('inf')  # Initialize best training loss as infinity
+        best_epoch= 0
         start = time.time()
         # Training and Validation Loop
         for epoch in range(num_epochs):
@@ -164,6 +165,7 @@ class SamplingFCRegressionNetwork(nn.Module):
                 best_val_loss = val_loss[-1]
                 best_train_loss = train_loss[-1]
                 best_model_state = self.model
+                best_epoch= epoch + 1
 
             print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss}, Val Loss: {avg_val_loss}')
         
@@ -196,7 +198,7 @@ class SamplingFCRegressionNetwork(nn.Module):
         val_residuals= val_residuals.cpu().numpy()
         train_residuals= train_residuals.cpu().numpy()
         
-        self.save_graph_report(train_loss, val_loss,
+        self.save_graph_report(train_loss, val_loss, best_epoch,
                                best_train_loss, best_val_loss, 
                                val_residuals, train_residuals, 
                                val_preds, y_val,
@@ -297,7 +299,8 @@ class SamplingFCRegressionNetwork(nn.Module):
         # Remove the temporary file
         os.remove(local_report_path)
 
-    def save_graph_report(self, train_mae_per_round, val_mae_per_round, 
+    def save_graph_report(self, train_mae_per_round, val_mae_per_round,
+                          saved_at_epoch,
                           best_train_loss, best_val_loss,  
                           val_residuals, train_residuals, 
                           predicted_values, actual_values,
@@ -315,7 +318,8 @@ class SamplingFCRegressionNetwork(nn.Module):
                             "Training size = {}\n"
                             "Validation size = {}\n"
                             "Training loss = {:.4f}\n"
-                            "Validation loss = {:.4f}\n".format(self.date,
+                            "Validation loss = {:.4f}\n"
+                            "Saved at epoch = {:.4f}\n".format(self.date,
                                                             self.dataset,
                                                             'Fc_Network',
                                                             self.input_type,
@@ -325,6 +329,7 @@ class SamplingFCRegressionNetwork(nn.Module):
                                                             validation_size,
                                                             best_train_loss,
                                                             best_val_loss,
+                                                            saved_at_epoch
                                                             ))
 
         # Plot validation and training Rmse vs. Rounds
