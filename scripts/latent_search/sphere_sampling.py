@@ -154,7 +154,7 @@ class SphereSamplingGenerator:
                 direction /= np.linalg.norm(direction)
                 
                 # Randomly choose a magnitude within the radius
-                magnitude = (np.random.rand()) * radius # Square root for uniform sampling in volume
+                magnitude = (np.random.rand()**(1/2)) * math.sqrt(radius) # Square root for uniform sampling in volume
 
                 # Compute the point
                 point = center + (direction * magnitude)
