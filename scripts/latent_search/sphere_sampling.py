@@ -76,8 +76,8 @@ class SphereSamplingGenerator:
             self.sphere_scoring_model.load_model()
 
             # get min and max radius values
-            self.min_radius= math.sqrt(self.sphere_scoring_model.min_radius.item())
-            self.max_radius= math.sqrt(self.sphere_scoring_model.max_radius.item())
+            self.min_radius= self.sphere_scoring_model.min_radius.item()
+            self.max_radius= self.sphere_scoring_model.max_radius.item()
 
             # get distribution of clip vectors for the dataset
             self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
@@ -154,7 +154,7 @@ class SphereSamplingGenerator:
                 direction /= np.linalg.norm(direction)
                 
                 # Randomly choose a magnitude within the radius
-                magnitude = (np.random.rand()**(1/2)) * radius # Square root for uniform sampling in volume
+                magnitude = (np.random.rand()) * radius # Square root for uniform sampling in volume
 
                 # Compute the point
                 point = center + (direction * magnitude)
