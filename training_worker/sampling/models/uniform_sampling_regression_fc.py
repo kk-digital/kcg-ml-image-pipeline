@@ -92,20 +92,13 @@ class SamplingFCRegressionNetwork(nn.Module):
 
         return local_path, minio_path
 
-    def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256):
-        # load inputs and targets
-        inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres, target_avg_points, self.output_type)
-
-        # load the dataset
-        dataset= DatasetLoader(features=inputs, labels=outputs)
-        # Split dataset into training and validation
-        val_size = int(len(dataset) * validation_split)
-        train_size = len(dataset) - val_size
-        train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
-
-        # Create data loaders
-        train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
-        val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+    def train(self, n_spheres, 
+              target_avg_points, 
+              learning_rate=0.001, 
+              validation_split=0.2, 
+              num_epochs=100, 
+              batch_size=256,
+              generate_every_epoch=False):
 
         criterion = nn.L1Loss()  # Define the loss function
         optimizer = optim.Adam(self.parameters(), lr=learning_rate)  # Define the optimizer
@@ -119,6 +112,16 @@ class SamplingFCRegressionNetwork(nn.Module):
         start = time.time()
         # Training and Validation Loop
         for epoch in range(num_epochs):
+
+            if(epoch==0 or generate_every_epoch):
+                # generate dataset once or every epoch
+                val_loader, train_loader, \
+                val_size, train_size, \
+                val_dataset, train_dataset= self.get_validation_and_training_features(validation_split,
+                                                                                    batch_size,
+                                                                                    n_spheres,
+                                                                                    target_avg_points)
+
             self.model.eval()
             total_val_loss = 0
             total_val_samples = 0
@@ -210,6 +213,23 @@ class SamplingFCRegressionNetwork(nn.Module):
         self.save_metadata(inputs, target_avg_points, learning_rate, num_epochs, batch_size)
         
         return best_val_loss
+    
+    def get_validation_and_training_features(self, validation_split, batch_size, n_spheres, target_avg_points):
+        # load inputs and targets
+        inputs, outputs = self.dataloader.generate_spheres(n_spheres, target_avg_points, self.output_type)
+
+        # load the dataset
+        dataset= DatasetLoader(features=inputs, labels=outputs)
+        # Split dataset into training and validation
+        val_size = int(len(dataset) * validation_split)
+        train_size = len(dataset) - val_size
+        train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+
+        # Create data loaders
+        train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+        val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+
+        return val_loader, train_loader, val_size, train_size, val_dataset, train_dataset
     
     def save_metadata(self, spheres, points_per_sphere, learning_rate, num_epochs, training_batch_size):
         # get min and max of spheres
