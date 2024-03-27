@@ -606,12 +606,12 @@ def load_model_to_minio(model,type):
         # Remove the temporary file
         os.remove(temp_file.name)
 
-def load_model_to_minio_v2(model,type):
+def load_model_to_minio_v2(model,type, bucket_name , tag_name, value,  model_type):
         # get model file data from MinIO
         prefix= "environmental/output/my_tests/model-"+type
         suffix= ".safetensors"
         minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",None)
-        model_files=get_list_of_objects_with_prefix_v2(minio_client, 'datasets', prefix)
+        model_files=get_list_of_objects_with_prefix_v2(minio_client,bucket_name='datasets' ,tag_name = tag_name,value=value,model_type=model_type )
         most_recent_model = None
 
         for model_file in model_files:
@@ -1164,15 +1164,15 @@ def plot_samples(dataset_name, number_of_samples,model_name):
 
 
 
-def plot_samples_hashless(dataset_name, number_of_samples,model_name):
+def plot_samples_hashless(dataset_name, number_of_samples,tag_name):
 
 
     # get the paths and hashes
     images_paths_ood = get_file_paths(dataset_name,number_of_samples)
     loaded_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
     # Load the last trained model
-    load_model_to_minio_v2(loaded_model,model_name)
-
+    #load_model_to_minio_v2(loaded_model,model_name)
+    load_model_to_minio_v2(loaded_model,type, 'dataset' , tag_name = tag_name, value='energy',  model_type = "energy-based-modle") 
     # Process the images
     sorted_images_and_hashes = process_and_sort_dataset(images_paths_ood, loaded_model) 
 
