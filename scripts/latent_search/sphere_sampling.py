@@ -170,7 +170,7 @@ class SphereSamplingGenerator:
                 point = np.clip(point, self.clip_min, self.clip_max)
                 point = torch.tensor(point).unsqueeze(0).to(self.device)
                 # get score
-                with torch.no_grad:
+                with torch.no_grad():
                     score= self.scoring_model.model(point)
 
                 scores.append(score)
