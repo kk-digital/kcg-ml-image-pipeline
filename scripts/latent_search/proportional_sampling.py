@@ -282,7 +282,7 @@ class KandinskyImageGenerator:
                     response= generate_img2img_generation_jobs_with_kandinsky(
                         image_embedding=clip_vector,
                         negative_image_embedding=None,
-                        dataset_name=self.dataset,
+                        dataset_name="test-generations",
                         prompt_generation_policy=self.generation_policy,
                         self_training=True
                     )
