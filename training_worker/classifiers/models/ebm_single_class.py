@@ -396,12 +396,12 @@ class EBM_Single_Class_Trainer:
 
 # NEW
 
-    def load_model_v2(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
+    def load_model_v2(self, minio_client, model_dataset, tag_name):
         input_path = f"{model_dataset}/models/classifiers/{tag_name}/"
         file_suffix = ".safetensors"
 
         # Use the MinIO client's list_objects method directly with recursive=True
-        model_files = [obj.object_name for obj in minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix) and model_type in obj.object_name and scoring_model in obj.object_name and not_include not in obj.object_name ]
+        model_files = [obj.object_name for obj in minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix)  ]
         
         if not model_files:
             print(f"No .safetensors models found for tag: {tag_name}")
