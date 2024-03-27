@@ -61,7 +61,7 @@ from torch.utils.data import ConcatDataset
 import argparse
 from safetensors.torch import load_model, save_model
 from training_worker.classifiers.models.reports.get_model_card import get_model_card_buf
-from os.path import basename
+
 # ------------------------------------------------- Parameters BIS -------------------------------------------------
 base_directory = "./"
 sys.path.insert(0, base_directory)
@@ -392,59 +392,29 @@ class EBM_Single_Class_Trainer:
             load_model(model, temp_file.name)
             # Remove the temporary file
             os.remove(temp_file.name)
-
-    def load_model_from_minio(self,model_dataset,tag_name,bucket_name = 'datasets'):
-            # get model file data from MinIO
-            prefix=  f"{model_dataset}/models/classifiers/{tag_name}/"
-            suffix= ".safetensors"
-            model_files=cmd.get_list_of_objects_with_prefix(minio_client, bucket_name, prefix)
-            most_recent_model = None
-
-            for model_file in model_files:
-                print(model_file)
-                if model_file.endswith(suffix):
-                    print("yep found one",model_file)
-                    most_recent_model = model_file
-
-            if most_recent_model:
-                model_file_data =cmd.get_file_from_minio(minio_client, 'datasets', most_recent_model)
-                print("yep save : ",model_file)
-            else:
-                print("No .safetensors files found in the list.")
-                return None
-            
-            print(most_recent_model)
-
-            # Create a temporary file and write the downloaded content into it
-            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                for data in model_file_data.stream(amt=8192):
-                    temp_file.write(data)
-
-            # Load the model from the downloaded bytes
-            #model.load_state_dict(torch.load(temp_file.name))
-            load_model(self.model, temp_file.name)
-            # Remove the temporary file
-            os.remove(temp_file.name)
         
 
 # NEW
 
+    def load_model_v2(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
+        input_path = f"{model_dataset}/models/classifiers/{tag_name}/"
+        file_suffix = ".safetensors"
 
-    def load_model_with_filename(self, minio_client, model_file, model_info=None):
-        model_data = minio_client.get_object('datasets', model_file)
+        # Use the MinIO client's list_objects method directly with recursive=True
+        model_files = [obj.object_name for obj in minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix) and model_type in obj.object_name and scoring_model in obj.object_name and not_include not in obj.object_name ]
         
-        clip_model = DeepEnergyModel(adv_loader=None, img_shape=(1280,))
-        
-        # Create a BytesIO object from the model data
-        byte_buffer = BytesIO(model_data.data)
+        if not model_files:
+            print(f"No .safetensors models found for tag: {tag_name}")
+            return None
+
+        # Assuming there's only one model per tag or choosing the first one
+        model_files.sort(reverse=True)
+        model_file = model_files[0]
+        print(f"Loading model: {model_file}")
+
+        return self.load_model_with_filename(minio_client, model_file, tag_name)
 
 
-        
-        clip_model.load_safetensors(byte_buffer)
-
-        print(f"Model loaded for tag: {model_info}")
-        
-        return clip_model, basename(model_file)
 
 # ------------------------------------------------- Neural Net Architecutre --------------------------------------------------
 
@@ -578,56 +548,6 @@ def get_tag_id_by_name(tag_name):
 
 
 
-
-def load_model_v2(self, minio_client, model_dataset, tag_name):
-    input_path = f"{model_dataset}/models/classifiers/{tag_name}/"
-    file_suffix = ".safetensors"
-
-    # Use the MinIO client's list_objects method directly with recursive=True
-    model_files = [obj.object_name for obj in minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix)  ]
-    print("file name : ", model_files)
-
-    if not model_files:
-        print(f"No .safetensors models found for tag: {tag_name}")
-        return None
-
-    # Assuming there's only one model per tag or choosing the first one
-    model_files.sort(reverse=True)
-    model_file = model_files[0]
-    print(f"Loading model: {model_file}")
-
-    #return self.load_model_with_filename(minio_client, model_file, tag_name)
-    most_recent_model = None
-
-    for model_file in model_files:
-        print(model_file)
-        if model_file.endswith(file_suffix):
-            print("yep found one",model_file)
-            most_recent_model = model_file
-
-    if most_recent_model:
-        model_file_data =cmd.get_file_from_minio(minio_client, 'datasets', most_recent_model)
-        print("yep save : ",model_file)
-    else:
-        print("No .safetensors files found in the list.")
-        return None
-    
-    print(most_recent_model)
-
-    # Create a temporary file and write the downloaded content into it
-    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-        for data in model_file_data.stream(amt=8192):
-            temp_file.write(data)
-
-    new_model =EBM_Single_Class_Trainer()
-            
-    # Load the model from the downloaded bytes
-    #model.load_state_dict(torch.load(temp_file.name))
-    load_model(new_model.model, temp_file.name)
-    # Remove the temporary file
-    os.remove(temp_file.name)
-    return new_model
-
 def train_model(self,train_loader,val_loader, adv_loader, **kwargs):
 
 
@@ -678,23 +598,21 @@ def get_clip_vectors(file_paths):
 def main():
     args = parse_args()
 
-    # training_pipeline=EBM_Single_Class_Trainer(minio_access_key=args.minio_access_key,
-    #                             minio_secret_key=args.minio_secret_key,
-    #                             dataset= args.dataset,
-    #                             class_name= args.class_name,
-    #                             model = None,
-    #                             save_name = args.save_name,
-    #                             class_id = get_tag_id_by_name(args.class_name),
-    #                             training_batch_size=args.training_batch_size,
-    #                             num_samples= args.num_samples,
-    #                             epochs= args.epochs,
-    #                             learning_rate= args.learning_rate)
+    training_pipeline=EBM_Single_Class_Trainer(minio_access_key=args.minio_access_key,
+                                minio_secret_key=args.minio_secret_key,
+                                dataset= args.dataset,
+                                class_name= args.class_name,
+                                model = None,
+                                save_name = args.save_name,
+                                class_id = get_tag_id_by_name(args.class_name),
+                                training_batch_size=args.training_batch_size,
+                                num_samples= args.num_samples,
+                                epochs= args.epochs,
+                                learning_rate= args.learning_rate)
 
-    # # do self training
-    # training_pipeline.train()
-    #(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
-    new_model = load_model_v2(minio_client = minio_client, model_dataset='environmental',  tag_name ='concept-occult')
-    #training_pipeline.load_model_from_minio(model_dataset='environmental' ,tag_name ='concept-occult',bucket_name = 'datasets')    
+    # do self training
+    training_pipeline.train()
+    
 
 if __name__ == "__main__":
     main()
