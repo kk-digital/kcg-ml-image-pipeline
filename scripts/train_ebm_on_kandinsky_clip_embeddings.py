@@ -644,6 +644,7 @@ def load_model_to_minio_v2(model,type, bucket_name , tag_name, value,  model_typ
 def get_list_of_objects_with_prefix_v2(client, bucket_name, tag_name, value,  model_type):
     object_names = []
     prefix = f"{tag_name}-{value}-{model_type}"
+    print("prefix : ",prefix)
     objects = client.list_objects(bucket_name, prefix=prefix, recursive=True)
 
     for obj in objects:
