@@ -1189,9 +1189,9 @@ def plot_samples_hashless(dataset_name, number_of_samples,tag_name):
     #tag_image(file_hash,tag_id,user)
 
     
-    plot_name1 = model_name + "_tier1_hs"
-    plot_name2 = model_name + "_tier2_hs"
-    plot_name3  = model_name + "_tier3_hs"
+    plot_name1 = tag_name + "_tier1_hs"
+    plot_name2 = tag_name + "_tier2_hs"
+    plot_name3  = tag_name + "_tier3_hs"
 
     plot_images_with_scores_hasheless(selected_structure_first_50,plot_name1)
     plot_images_with_scores_hasheless(selected_structure_second_50,plot_name2)
