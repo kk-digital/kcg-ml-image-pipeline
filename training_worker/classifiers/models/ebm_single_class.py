@@ -392,6 +392,39 @@ class EBM_Single_Class_Trainer:
             load_model(model, temp_file.name)
             # Remove the temporary file
             os.remove(temp_file.name)
+
+    def load_model_from_minio(self,model_dataset,tag_name,bucket_name = 'datasets'):
+            # get model file data from MinIO
+            prefix=  f"{model_dataset}/models/classifiers/{tag_name}/"
+            suffix= ".safetensors"
+            model_files=cmd.get_list_of_objects_with_prefix(minio_client, bucket_name, prefix)
+            most_recent_model = None
+
+            for model_file in model_files:
+                print(model_file)
+                if model_file.endswith(suffix):
+                    print("yep found one",model_file)
+                    most_recent_model = model_file
+
+            if most_recent_model:
+                model_file_data =cmd.get_file_from_minio(minio_client, 'datasets', most_recent_model)
+                print("yep save : ",model_file)
+            else:
+                print("No .safetensors files found in the list.")
+                return None
+            
+            print(most_recent_model)
+
+            # Create a temporary file and write the downloaded content into it
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                for data in model_file_data.stream(amt=8192):
+                    temp_file.write(data)
+
+            # Load the model from the downloaded bytes
+            #model.load_state_dict(torch.load(temp_file.name))
+            load_model(self.model, temp_file.name)
+            # Remove the temporary file
+            os.remove(temp_file.name)
         
 
 # NEW
@@ -626,8 +659,8 @@ def main():
     # # do self training
     # training_pipeline.train()
     #(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
-    training_pipeline = training_pipeline.load_model_v2(minio_client = minio_client, model_dataset='environmental',  tag_name ='concept-occult')
-    
+    #training_pipeline = training_pipeline.load_model_v2(minio_client = minio_client, model_dataset='environmental',  tag_name ='concept-occult')
+    training_pipeline.load_model_from_minio(model_dataset='environmental' ,tag_name ='concept-occult',bucket_name = 'datasets')    
 
 if __name__ == "__main__":
     main()
