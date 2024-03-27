@@ -613,7 +613,7 @@ def load_model_to_minio_v2(model,type, bucket_name , tag_name, value,  model_typ
         minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",None)
         model_files=get_list_of_objects_with_prefix_v2(minio_client,bucket_name='datasets' ,tag_name = tag_name,value=value,model_type=model_type )
         most_recent_model = None
-
+        print("number of files : ", len(model_files) )
         for model_file in model_files:
             print("file name: ", model_file)
             if model_file.endswith(suffix):
@@ -648,6 +648,7 @@ def get_list_of_objects_with_prefix_v2(client, bucket_name, tag_name, value,  mo
     objects = client.list_objects(bucket_name, prefix=prefix, recursive=True)
 
     for obj in objects:
+        print("object : ",obj.object_name)
         object_names.append(obj.object_name)
 
     return object_names
