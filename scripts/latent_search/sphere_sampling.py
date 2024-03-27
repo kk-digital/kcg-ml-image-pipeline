@@ -149,7 +149,7 @@ class SphereSamplingGenerator:
 
             for j in range(points_per_sphere):
                 # Ensure the adjustment direction is normalized
-                direction= np.random.rand(dim)
+                direction= np.random.randn(dim)
                 direction /= np.linalg.norm(direction)
                 
                 # Randomly choose a magnitude within the radius
