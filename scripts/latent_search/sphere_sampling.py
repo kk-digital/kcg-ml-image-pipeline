@@ -168,10 +168,10 @@ class SphereSamplingGenerator:
 
                 # Clamp the point between the min and max vectors
                 point = np.clip(point, self.clip_min, self.clip_max)
-                point = torch.tensor(point).unsqueeze(0).to(self.device)
+                point = torch.tensor(point).unsqueeze(0).to(device= self.device, dtype=torch.float16)
                 # get score
                 with torch.no_grad():
-                    score= self.scoring_model.model(point)
+                    score= self.scoring_model.model(point).item()
 
                 scores.append(score)
                 clip_vectors.append(point)
