@@ -611,7 +611,7 @@ def load_model_to_minio_v2(model,type):
         prefix= "environmental/output/my_tests/model-"+type
         suffix= ".safetensors"
         minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",None)
-        model_files=cmd.get_list_of_objects_with_prefix_v2(minio_client, 'datasets', prefix)
+        model_files=get_list_of_objects_with_prefix_v2(minio_client, 'datasets', prefix)
         most_recent_model = None
 
         for model_file in model_files:
