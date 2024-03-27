@@ -6,6 +6,8 @@ import msgpack
 import numpy as np
 import torch
 
+from training_worker.scoring.models.scoring_fc import ScoringFCNetwork
+
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
@@ -66,13 +68,19 @@ class SphereSamplingGenerator:
                 device = 'cpu'
             self.device = torch.device(device)
             
-
-            self.scoring_model= SamplingFCRegressionNetwork(minio_client=self.minio_client, dataset=dataset)
+            # get the signle point scoring model
+            self.scoring_model= ScoringFCNetwork(minio_client=self.minio_client, dataset=dataset)
             self.scoring_model.load_model()
-            # get min and max radius values
-            self.min_radius= math.sqrt(self.scoring_model.min_radius.item())
-            self.max_radius= math.sqrt(self.scoring_model.max_radius.item())
 
+            # get the sphere average score model
+            self.sphere_scoring_model= SamplingFCRegressionNetwork(minio_client=self.minio_client, dataset=dataset)
+            self.sphere_scoring_model.load_model()
+
+            # get min and max radius values
+            self.min_radius= math.sqrt(self.sphere_scoring_model.min_radius.item())
+            self.max_radius= math.sqrt(self.sphere_scoring_model.max_radius.item())
+
+            # get distribution of clip vectors for the dataset
             self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
     
     def get_clip_distribution(self):
@@ -118,11 +126,12 @@ class SphereSamplingGenerator:
             batch.append(sphere_vector)
 
             if len(batch)==self.batch_size:
-                batch_scores= self.scoring_model.predict(batch, batch_size= self.batch_size).tolist()
+                batch_scores= self.sphere_scoring_model.predict(batch, batch_size= self.batch_size).tolist()
                 scores.extend(batch_scores)
                 batch=[]
           
         sorted_indexes= np.flip(np.argsort(scores))[:self.selected_spheres]
+        print("top score: ",scores[sorted_indexes[0]])
         top_spheres=[generated_spheres[i] for i in sorted_indexes]
 
         return top_spheres
@@ -131,23 +140,18 @@ class SphereSamplingGenerator:
         # get spheres
         spheres= self.rank_and_select_spheres()
         dim = len(spheres[0]['sphere_center'])
-        points_per_sphere = num_samples // self.selected_spheres  # Ensure equal distribution of points
+        num_generated_samples= max(int(num_samples / self.top_k), 1000)
+        points_per_sphere = num_generated_samples // self.selected_spheres 
 
         clip_vectors=[]
+        scores= []
         for i, sphere in enumerate(spheres):
             center= sphere['sphere_center']
             radius= sphere['radius']
 
             for j in range(points_per_sphere):
-                # Calculate z-scores for each feature
-                z_scores = (center - self.clip_mean) / self.clip_std
-
-                # Calculate proportional direction adjustments based on z-scores
-                adjustment_factor = np.clip(np.abs(z_scores), 0, 1)  # This caps the maximum adjustment
-                direction = np.sign(z_scores) * adjustment_factor
-
                 # Ensure the adjustment direction is normalized
-                # direction= np.random.rand(dim)
+                direction= np.random.rand(dim)
                 direction /= np.linalg.norm(direction)
                 
                 # Randomly choose a magnitude within the radius
@@ -168,10 +172,18 @@ class SphereSamplingGenerator:
                 print(f"center: {center}")
                 print(f"point: {point}")
 
-                point = torch.tensor(point)
+                point = torch.tensor(point).unsqueeze(0)
 
-                # Store in the all_points array
+                # get score
+                score= self.scoring_model.predict(point)
+
+                print(f"score: {score}")
+
+                scores.append(score)
                 clip_vectors.append(point)
+        
+        sorted_indexes= np.flip(np.argsort(scores))[:num_samples]
+        clip_vectors= [clip_vectors[index] for index in sorted_indexes]
 
         return clip_vectors
     
@@ -183,7 +195,7 @@ class SphereSamplingGenerator:
             if self.send_job:
                 try:
                     response= generate_img2img_generation_jobs_with_kandinsky(
-                        image_embedding=clip_vector.unsqueeze(0),
+                        image_embedding=clip_vector,
                         negative_image_embedding=None,
                         dataset_name="test-generations",
                         prompt_generation_policy=self.sampling_policy,
