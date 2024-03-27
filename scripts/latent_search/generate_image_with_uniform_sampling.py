@@ -65,7 +65,8 @@ def main():
     print("successfully loaded model")
     # get distribution information of given dataset
     mean_vector, std_vector, max_vector, min_vector = get_distribution_info(minio_client, args.dataset, device)
-
+    max_vector= np.array(max_vector, dtype='float32')
+    min_vector= np.array(min_vector, dtype='float32')
     # Generate random values between 0 and 1, then scale and shift them into the [min, max] range for each feature
     print("generating the initial spheres-------------")
     
