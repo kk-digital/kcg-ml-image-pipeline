@@ -5,6 +5,7 @@ import sys
 import msgpack
 import numpy as np
 import torch
+import torch.optim as optim
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -180,15 +181,60 @@ class SphereSamplingGenerator:
         clip_vectors= [clip_vectors[index] for index in sorted_indexes]
         mean_scores= np.mean([scores[index] for index in sorted_indexes])
 
-        print(f"average score: {mean_scores}")
+        print(f"initial average score: {mean_scores}")
 
         return clip_vectors
+    
+    def gradient_descent_optimization(self, clip_vectors):
+
+        # Convert list of embeddings to a tensor
+        all_embeddings = torch.stack(clip_vectors).detach()
+
+        # Calculate the total number of batches
+        num_batches = len(all_embeddings) // self.batch_size + (0 if len(all_embeddings) % self.batch_size == 0 else 1)
+        
+        optimized_embeddings_list = []
+
+        for batch_idx in range(num_batches):
+            # Select a batch of embeddings
+            start_idx = batch_idx * self.batch_size
+            end_idx = min((batch_idx + 1) * self.batch_size, len(all_embeddings))
+            batch_embeddings = all_embeddings[start_idx:end_idx].clone().detach().requires_grad_(True)
+            
+            # Setup the optimizer for the current batch
+            optimizer = optim.Adam([batch_embeddings], lr=0.001)
+            
+            for step in range(200):
+                optimizer.zero_grad()
+
+                # Compute scores for the current batch of embeddings
+                scores = self.scoring_model.model(batch_embeddings)
+
+                # Calculate the loss for each embedding in the batch
+                score_losses = -scores.squeeze()
+
+                # Calculate the total loss for the batch
+                total_loss = score_losses.mean()
+
+                # Backpropagate
+                total_loss.backward()
+
+                optimizer.step()
+
+                print(f"Batch: {batch_idx + 1}/{num_batches}, Step: {step}, Mean Score: {scores.mean().item()}, Loss: {total_loss.item()}")
+
+            # After optimization, detach and add the optimized batch embeddings to the list
+            optimized_batch_embeddings = batch_embeddings.detach()
+            optimized_embeddings_list.extend([emb for emb in optimized_batch_embeddings])
+
+        return optimized_embeddings_list
     
     def generate_images(self, num_images):
         # generate clip vectors
         clip_vectors= self.sample_clip_vectors(num_samples=num_images)
+        optimized_vectors= self.gradient_descent_optimization(clip_vectors)
 
-        for clip_vector in clip_vectors:
+        for clip_vector in optimized_vectors:
             if self.send_job:
                 try:
                     response= generate_img2img_generation_jobs_with_kandinsky(
