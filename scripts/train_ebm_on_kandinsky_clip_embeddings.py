@@ -615,7 +615,7 @@ def load_model_to_minio_v2(model,type, bucket_name , tag_name, value,  model_typ
         most_recent_model = None
 
         for model_file in model_files:
-            print(model_file)
+            print("file name: ", model_file)
             if model_file.endswith(suffix):
                 print("yep found one",model_file)
                 most_recent_model = model_file
