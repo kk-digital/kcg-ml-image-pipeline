@@ -69,11 +69,17 @@ class SamplingFCRegressionNetwork(nn.Module):
 
         # Combine all layers into a sequential model
         self.model = nn.Sequential(*layers).to(self._device)
+        # model metadata
+        self.metadata=None
+
         self.input_size= input_size
         self.minio_client= minio_client
         self.input_type= input_type
         self.output_type= output_type
         self.dataset=dataset
+        self.min_radius=0
+        self.max_radius=0
+
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path=self.get_model_path()
 
@@ -87,10 +93,8 @@ class SamplingFCRegressionNetwork(nn.Module):
         return local_path, minio_path
 
     def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256):
-        # load the dataset
+        # load inputs and targets
         inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres, target_avg_points, self.output_type)
-
-        print(inputs[0] ,outputs[0])
 
         # load the dataset
         dataset= DatasetLoader(features=inputs, labels=outputs)
@@ -203,7 +207,27 @@ class SamplingFCRegressionNetwork(nn.Module):
                               inference_speed= inference_speed,
                               learning_rate=learning_rate)
         
+        self.save_metadata(inputs, target_avg_points, learning_rate, num_epochs, batch_size)
+        
         return best_val_loss
+    
+    def save_metadata(self, spheres, points_per_sphere, learning_rate, num_epochs, training_batch_size):
+        # get min and max of spheres
+        radii=[sphere[-1] for sphere in spheres]
+
+        self.min_radius=min(radii)
+        self.max_radius=max(radii)
+
+        # Metadata
+        self.metadata = {
+            'points_per_sphere': points_per_sphere,
+            'num_epochs': num_epochs,
+            'learning_rate': learning_rate,
+            'training_batch_size': training_batch_size,
+            'model_state': self.model.state_dict(),
+            'min_radius': self.min_radius,
+            'max_radius': self.max_radius
+        }
         
     def save_model_report(self,num_training,
                               num_validation,
@@ -352,7 +376,7 @@ class SamplingFCRegressionNetwork(nn.Module):
             for i in range(0, len(features_tensor), batch_size):
                 batch = features_tensor[i:i + batch_size]  # Extract a batch
                 outputs = self.model(batch)  # Get predictions for this batch
-                predictions.append(outputs)
+                predictions.append(outputs.squeeze())
 
         # Concatenate all predictions and convert to a NumPy array
         predictions = torch.cat(predictions, dim=0).cpu().numpy()
@@ -395,14 +419,21 @@ class SamplingFCRegressionNetwork(nn.Module):
                 temp_file.write(data)
 
         # Load the model from the downloaded bytes
-        self.model.load_state_dict(torch.load(temp_file.name))
+        self.metadata= torch.load(temp_file.name)
+        self.min_radius= self.metadata["min_radius"]
+        self.max_radius= self.metadata["max_radius"]
+        
+        self.model.load_state_dict(self.metadata["model_state"])
         
         # Remove the temporary file
         os.remove(temp_file.name)
 
     def save_model(self):
+        if self.metadata is None:
+            raise Exception("you have to train the model first before saving.")
+        
          # Save the model locally
-        torch.save(self.model.state_dict(), self.local_path)
+        torch.save(self.metadata, self.local_path)
         
         #Read the contents of the saved model file
         with open(self.local_path, "rb") as model_file:
