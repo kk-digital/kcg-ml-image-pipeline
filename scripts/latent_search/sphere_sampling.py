@@ -148,14 +148,14 @@ class SphereSamplingGenerator:
             center= sphere['sphere_center']
             radius= sphere['radius']
 
+            # Calculate z-scores for each feature
+            z_scores = (center - self.clip_mean) / self.clip_std
+
+            # Calculate proportional direction adjustments based on z-scores
+            adjustment_factor = np.clip(np.abs(z_scores), 0, 1)  # This caps the maximum adjustment
+            direction_adjustment = -np.sign(z_scores) * adjustment_factor
+
             for j in range(points_per_sphere):
-                # Calculate z-scores for each feature
-                z_scores = (center - self.clip_mean) / self.clip_std
-
-                # Calculate proportional direction adjustments based on z-scores
-                adjustment_factor = np.clip(np.abs(z_scores), 0, 1)  # This caps the maximum adjustment
-                direction_adjustment = -np.sign(z_scores) * adjustment_factor
-
                 random_direction= np.random.randn(dim)
                 direction = direction_adjustment + random_direction
                 direction /= np.linalg.norm(direction)
@@ -168,11 +168,10 @@ class SphereSamplingGenerator:
 
                 # Clamp the point between the min and max vectors
                 point = np.clip(point, self.clip_min, self.clip_max)
-
-                point = torch.tensor(point).unsqueeze(0).to(self.device)
-
                 # get score
                 score= self.scoring_model.predict(point).item()
+
+                point = torch.tensor(point).unsqueeze(0).to(self.device)
 
                 scores.append(score)
                 clip_vectors.append(point)
