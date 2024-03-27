@@ -174,7 +174,7 @@ class SphereSamplingGenerator:
                 point = torch.tensor(point).unsqueeze(0)
 
                 # get score
-                score= self.scoring_model.predict(point)
+                score= self.scoring_model.predict(point).item()
 
                 print(f"score: {score}")
 
