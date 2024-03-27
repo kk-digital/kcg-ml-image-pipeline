@@ -56,13 +56,15 @@ def main():
 
     minio_client = cmd.get_minio_client(args.minio_access_key, args.minio_secret_key, args.minio_addr)
     print("before model loading...")
+    # get device
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     # load model
     model = SamplingFCRegressionNetwork(minio_client)
     model.load_model()
 
     print("successfully loaded model")
     # get distribution information of given dataset
-    mean_vector, std_vector, max_vector, min_vector = get_distribution_info(minio_client, args.dataset, )
+    mean_vector, std_vector, max_vector, min_vector = get_distribution_info(minio_client, args.dataset, device)
 
     # Generate random values between 0 and 1, then scale and shift them into the [min, max] range for each feature
     print("generating the initial spheres-------------")
