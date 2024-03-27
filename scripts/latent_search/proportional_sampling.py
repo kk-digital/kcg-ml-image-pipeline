@@ -188,7 +188,7 @@ class KandinskyImageGenerator:
     
     def top_k_sampling(self, num_samples):
         # Generate a large batch of embeddings
-        num_generated_samples= max(int(num_samples / self.top_k), 10000)
+        num_generated_samples= max(int(num_samples / self.top_k), 1000)
         embeddings, scores = self.sample_embeddings(num_generated_samples)
 
         indexes= np.flip(np.argsort(scores))[:num_samples]
