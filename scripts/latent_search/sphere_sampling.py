@@ -139,8 +139,7 @@ class SphereSamplingGenerator:
         # get spheres
         spheres= self.rank_and_select_spheres()
         dim = len(spheres[0]['sphere_center'])
-        num_generated_samples= max(int(num_samples / self.top_k), 1000)
-        points_per_sphere = num_generated_samples // self.selected_spheres 
+        points_per_sphere = max(int(num_samples / self.top_k), 1000)
 
         clip_vectors=[]
         scores= []
@@ -154,16 +153,13 @@ class SphereSamplingGenerator:
                 direction /= np.linalg.norm(direction)
                 
                 # Randomly choose a magnitude within the radius
-                magnitude = (np.random.rand()**(1/2)) * math.sqrt(radius) # Square root for uniform sampling in volume
+                magnitude = (np.random.rand()) * radius # Square root for uniform sampling in volume
 
                 # Compute the point
                 point = center + (direction * magnitude)
 
                 # Clamp the point between the min and max vectors
                 point = np.clip(point, self.clip_min, self.clip_max)
-
-                # calculate distance
-                distance= np.linalg.norm(center - point)
 
                 point = torch.tensor(point).unsqueeze(0)
 
