@@ -75,7 +75,7 @@ def main():
     # List datasets
     datasets = list_datasets(minio_client, bucket_name)
 
-    mongo_client = MongoClient('mongodb://localhost:27017/')
+    mongo_client = MongoClient('mongodb://192.168.3.1:32017/')
     db = mongo_client['orchestration-job-db']
     image_pair_ranking_collection = db['image_pair_ranking']
 
