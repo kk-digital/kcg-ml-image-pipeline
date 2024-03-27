@@ -18,7 +18,7 @@ def parse_args():
     parser.add_argument('--target-avg-points', type=int, help='Target average of datapoints per sphere', 
                         default=16)
     parser.add_argument('--n-spheres', type=int, help='Number of spheres', default=100000)
-    parser.add_argument('--generate-each-epoch', action="store_true", help='Generate spheres each epoch', default=False)
+    parser.add_argument('--generate-every-epoch', action="store_true", help='Generate spheres each epoch', default=False)
     parser.add_argument('--training-batch-size', type=int, default=64)
     parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--learning-rate', type=float, default=0.001)
