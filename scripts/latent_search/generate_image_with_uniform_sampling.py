@@ -21,6 +21,8 @@ def parse_args():
     parser.add_argument('--n-spheres', type=int, help='number of spheres')
     parser.add_argument('--dataset', type=str, default='', help='Dataset used to generate images')
 
+    return parser.parse_args()
+
 
 def get_top_k(features, centers, k, d, nlist = 1):
     quantizer = faiss.IndexFlatL2(nlist)
@@ -53,8 +55,7 @@ def main():
     args = parse_args()
 
     minio_client = cmd.get_minio_client(args.minio_access_key, args.minio_secret_key, args.minio_addr)
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
+    print("before model loading...")
     # load model
     model = SamplingFCRegressionNetwork(minio_client)
     model.load_model()
