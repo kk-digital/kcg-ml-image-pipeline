@@ -148,8 +148,15 @@ class SphereSamplingGenerator:
             radius= sphere['radius']
 
             for j in range(points_per_sphere):
-                # Ensure the adjustment direction is normalized
-                direction= np.random.randn(dim)
+                # Calculate z-scores for each feature
+                z_scores = (center - self.clip_mean) / self.clip_std
+
+                # Calculate proportional direction adjustments based on z-scores
+                adjustment_factor = np.clip(np.abs(z_scores), 0, 1)  # This caps the maximum adjustment
+                direction_adjustment = -np.sign(z_scores) * adjustment_factor
+
+                random_direction= np.random.randn(dim)
+                direction = direction_adjustment + random_direction
                 direction /= np.linalg.norm(direction)
                 
                 # Randomly choose a magnitude within the radius
