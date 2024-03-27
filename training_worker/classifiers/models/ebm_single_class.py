@@ -102,10 +102,10 @@ class EBM_Single_Class_Trainer:
                 save_name,
                 dataset,
                 class_id,
-                training_batch_size=64,
+                training_batch_size=16,
                 num_samples=30000,
                 learning_rate = 0.001,
-                epochs=20):
+                epochs=25):
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
                                             minio_secret_key=minio_secret_key)
@@ -154,7 +154,7 @@ class EBM_Single_Class_Trainer:
         adv_loader = train_loader_clip_ood
 
         # Train
-        self.model = self.train_model(self,img_shape=(1,1280),
+        self.model = train_model(self,img_shape=(1,1280),
                             batch_size=self.training_batch_size,
                             lr=self.learning_rate,
                             beta1=0.0,
@@ -226,25 +226,13 @@ class EBM_Single_Class_Trainer:
         # Clear the current figure
         plt.clf()
 
+    # Via clip-H
+    def evalute_energy(self, dataset_feature_vector):
+        print("Evaluate energy...")
 
-    def train_model(self,train_loader,val_loader, adv_loader, **kwargs):
-
-
-        # Create a PyTorch Lightning trainer with the generation callback
-        trainer = pl.Trainer(
-                            accelerator="gpu" if str(self.device).startswith("cuda") else "cpu",
-                            devices=1,
-                            max_epochs=self.epochs,
-                            gradient_clip_val=0.1,
-                            callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
-                                        LearningRateMonitor("epoch")
-                                    ])
-
-        pl.seed_everything(42)
-        model = DeepEnergyModel(adv_loader =adv_loader ,**kwargs)
-        trainer.fit(model, train_loader, val_loader)
-
-        return model
+        dataset_feature_vector = dataset_feature_vector.to(self._device)
+        energy = self.model.cnn(dataset_feature_vector)
+        return energy
 
 
     def get_all_tag_jobs(self,class_ids,target_id):
@@ -305,8 +293,6 @@ class EBM_Single_Class_Trainer:
         val_loader_clip = data.DataLoader(val_set, batch_size=self.training_batch_size, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
         return train_loader_clip, val_loader_clip
-
-
 
     # ------------------------------------------------- Save Model --------------------------------------------------
 
@@ -408,6 +394,25 @@ class EBM_Single_Class_Trainer:
             os.remove(temp_file.name)
         
 
+# NEW
+
+    def load_model_v2(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
+        input_path = f"{model_dataset}/models/classifiers/{tag_name}/"
+        file_suffix = ".safetensors"
+
+        # Use the MinIO client's list_objects method directly with recursive=True
+        model_files = [obj.object_name for obj in minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix) and model_type in obj.object_name and scoring_model in obj.object_name and not_include not in obj.object_name ]
+        
+        if not model_files:
+            print(f"No .safetensors models found for tag: {tag_name}")
+            return None
+
+        # Assuming there's only one model per tag or choosing the first one
+        model_files.sort(reverse=True)
+        model_file = model_files[0]
+        print(f"Loading model: {model_file}")
+
+        return self.load_model_with_filename(minio_client, model_file, tag_name)
 
 
 
@@ -523,9 +528,6 @@ class DeepEnergyModel(pl.LightningModule):
 
 
 
-
-
-
 def get_tag_id_by_name(tag_name):
     response = requests.get(f'{API_URL}/tags/get-tag-id-by-tag-name?tag_string={tag_name}')
     
@@ -546,7 +548,24 @@ def get_tag_id_by_name(tag_name):
 
 
 
+def train_model(self,train_loader,val_loader, adv_loader, **kwargs):
 
+
+    # Create a PyTorch Lightning trainer with the generation callback
+    trainer = pl.Trainer(
+                         accelerator="gpu" if str(self.device).startswith("cuda") else "cpu",
+                         devices=1,
+                         max_epochs=20,
+                         gradient_clip_val=0.1,
+                         callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
+                                    LearningRateMonitor("epoch")
+                                   ])
+
+    pl.seed_everything(42)
+    model = DeepEnergyModel(adv_loader =adv_loader ,**kwargs)
+    trainer.fit(model, train_loader, val_loader)
+
+    return model
 
 
 
@@ -591,8 +610,10 @@ def main():
                                 epochs= args.epochs,
                                 learning_rate= args.learning_rate)
 
-    # do self training
-    training_pipeline.train()
+    # # do self training
+    # training_pipeline.train()
+    #(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
+    training_pipeline.load_model_v2(minio_client = minio_client, model_dataset='environmental',  tag_name ='concept-occult')
     
 
 if __name__ == "__main__":
