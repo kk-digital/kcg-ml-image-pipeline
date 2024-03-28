@@ -382,7 +382,7 @@ class SamplingFCRegressionNetwork(nn.Module):
             for i in range(0, len(features_tensor), batch_size):
                 batch = features_tensor[i:i + batch_size]  # Extract a batch
                 outputs = self.model(batch)  # Get predictions for this batch
-                predictions.append(outputs)
+                predictions.append(outputs.squeeze())
 
         # Concatenate all predictions and convert to a NumPy array
         predictions = torch.cat(predictions, dim=0).cpu().numpy()
