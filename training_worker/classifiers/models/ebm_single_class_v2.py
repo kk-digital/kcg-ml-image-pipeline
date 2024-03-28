@@ -608,14 +608,19 @@ def main():
 
     # do self training
     #training_pipeline.train()
-    training_pipeline.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="concept-occult" , model_type = "energy-based-model")
+    training_pipeline.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="concept-cybernetic" , model_type = "energy-based-model")
     #datasets/test-generations/0024/023128.jpg
-    print("true occult image 1 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/test-generations/0024/023128.jpg')).item())
-    print("true occult image 2 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0124/123017.jpg')).item())
-    print("true occult image 3 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0367/366210.jpg')).item())
-    print("random image 1 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0300/299693.jpg')).item())
-    print("random image 2  : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0042/041848.jpg')).item())
-    print("random image 3  : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0277/276058.jpg')).item())
+    print("occult image 1 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/test-generations/0024/023123.jpg')).item())
+    print("occult image 2 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0208/207925.jpg')).item())
+    print("occult image 3 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0330/329625.jpg')).item())
+
+    print("occult image 1 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/test-generations/0024/023128.jpg')).item())
+    print("occult image 2 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0124/123017.jpg')).item())
+    print("occult image 3 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0367/366210.jpg')).item())
+
+    print("Aquatic image 1 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0300/299693.jpg')).item())
+    print("Aquatic image 2  : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0042/041848.jpg')).item())
+    print("Aquatic image 3  : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0277/276058.jpg')).item())
 
 if __name__ == "__main__":
     main()
