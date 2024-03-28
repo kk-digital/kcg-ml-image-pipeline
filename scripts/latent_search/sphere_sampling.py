@@ -129,9 +129,9 @@ class SphereSamplingGenerator:
         # Optimization step
         if(self.optimize_spheres):
             top_spheres = self.optimize_datapoints(top_spheres, self.sphere_scoring_model)
-            top_spheres= torch.stack(top_spheres).squeeze(1)
+            top_spheres= torch.stack(top_spheres)
 
-        return top_spheres
+        return top_spheres.squeeze(1)
     
     def sample_clip_vectors(self, num_samples):
         spheres = self.rank_and_optimize_spheres()  
@@ -143,10 +143,8 @@ class SphereSamplingGenerator:
         clip_vectors = torch.empty((0, dim), device=self.device)  # Initialize an empty tensor for all clip vectors
         scores = []
         for sphere in spheres:
+            print(sphere)
             center, radius = sphere[:-1], sphere[-1]
-            print(dim)
-            print(center)
-            print(radius)
 
             # Direction adjustment based on z-scores
             z_scores = (center - self.clip_mean) / self.clip_std
