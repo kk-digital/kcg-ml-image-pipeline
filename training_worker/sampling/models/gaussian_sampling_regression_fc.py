@@ -204,6 +204,8 @@ class SamplingFCRegressionNetwork(nn.Module):
                               inference_speed= inference_speed,
                               learning_rate=learning_rate, best_model_epoch=best_model_epoch)
         
+        self.save_metadata(inputs, target_avg_points, learning_rate, num_epochs, batch_size)
+
         return best_val_loss
         
     def save_model_report(self,num_training,
