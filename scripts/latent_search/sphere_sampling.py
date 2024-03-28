@@ -124,6 +124,7 @@ class SphereSamplingGenerator:
     
     def sample_clip_vectors(self, num_samples):
         spheres = self.rank_and_optimize_spheres()  
+        spheres= torch.stack(spheres)
         dim = spheres.size(1) - 1  # Exclude radius from dimensions
         
         # Determine points to generate per sphere
