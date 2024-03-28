@@ -304,33 +304,33 @@ class EBM_Single_Class:
 
 
         ##################### Standard method ##########################
-        # print("class name ", self.classe_name)
-        # all_tags = list(range(1, 51))
-        # print("all tag : ",all_tags)
-        # class_tag = get_tag_id_by_name(self.classe_name)
-        # print("class tag : ",  class_tag)
-        # target_paths, adv_paths = get_all_tag_jobs(class_ids = all_tags, target_id =class_tag)
-        # print("target_paths lenght : ", len(target_paths))
-        # print("adv_paths lenght : ", len(adv_paths))
+        print("class name ", self.classe_name)
+        all_tags = list(range(1, 51))
+        print("all tag : ",all_tags)
+        class_tag = get_tag_id_by_name(self.classe_name)
+        print("class tag : ",  class_tag)
+        target_paths, adv_paths = get_all_tag_jobs(class_ids = all_tags, target_id =class_tag)
+        print("target_paths lenght : ", len(target_paths))
+        print("adv_paths lenght : ", len(adv_paths))
         
-        # for path in target_paths:
-        #     print(" Path t :", path)
-        # # for path in adv_paths:
-        # #     print(" Path adv :", path)
-        # #Create dataloader of target class
-        # train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(target_paths,1)
+        for path in target_paths:
+            print(" Path t :", path)
+        # for path in adv_paths:
+        #     print(" Path adv :", path)
+        #Create dataloader of target class
+        train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(target_paths,1)
 
-        # # Create dataloader of adversarial classes
-        # train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_path(adv_paths,0)
+        # Create dataloader of adversarial classes
+        train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_path(adv_paths,0)
         ##################### Standard method ##########################
 
 
         ##################### OLD method ##########################
-        # Create dataloader of target class
-        train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(get_tag_jobs(get_tag_id_by_name(self.classe_name)),1)
+        # # Create dataloader of target class
+        # train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(get_tag_jobs(get_tag_id_by_name(self.classe_name)),1)
 
-        # Create dataloader of adversarial classes
-        train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,20,21,34,39],0)
+        # # Create dataloader of adversarial classes
+        # train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,20,21,34,39],0)
         ##################### OLD method ##########################
 
 
