@@ -555,6 +555,9 @@ class DeepEnergyModel(pl.LightningModule):
         self.log('metrics_avg_fake', 0)
 
 
+        print("total loss : ", total_loss.item())
+        print("cdiv loos: ", cdiv_loss.item())
+        print("reg loss : ", reg_loss.item())
         self.total_losses.append(total_loss.item())
         self.cdiv_losses.append(cdiv_loss.item())
         self.reg_losses.append(reg_loss.item())
