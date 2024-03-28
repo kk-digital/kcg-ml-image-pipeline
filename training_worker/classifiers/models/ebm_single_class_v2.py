@@ -678,7 +678,7 @@ def main():
 
     # do self training
     training_pipeline.train()
-    training_pipeline.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="topic-aquatic" , model_type = "energy-based-model")
+    training_pipeline.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="concept-occult" , model_type = "energy-based-model")
     #datasets/test-generations/0024/023128.jpg
     print("Cyber image 1 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/test-generations/0024/023123.jpg')).item())
     print("Cyber image 2 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0208/207925.jpg')).item())
