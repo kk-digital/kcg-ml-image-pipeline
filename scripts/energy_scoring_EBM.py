@@ -75,6 +75,11 @@ minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6D
 
 date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
 
+# ------------------------------------------------- Kandinsky Clip Manager -------------------------------------------------
+image_embedder= KandinskyCLIPImageEncoder(device="cuda")
+image_embedder.load_submodels()
+
+
 
 # ------------------------------------------------- Import function from EBM  -------------------------------------------------
 from training_worker.classifiers.models import ebm_single_class
@@ -112,9 +117,9 @@ def get_all_non_tagged_jobs(class_ids,dataset_name):
 
 
 
-def get_file_paths_and_hashes_uuid(dataset,num_samples):
+def get_file_paths_and_hashes_uuid(dataset_name,num_samples):
         print('Loading image file paths')
-        response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset-v1?dataset={dataset}&limit={num_samples}')
+        response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset-v1?dataset={dataset_name}&limit={num_samples}')
 
         if response.status_code == 200:
             try:
@@ -125,40 +130,48 @@ def get_file_paths_and_hashes_uuid(dataset,num_samples):
                 #print(jobs)
                 file_paths=[job['image_path'] for job in jobs['response']]
                 hashes=[job['image_hash'] for job in jobs['response']]
-                uuid =[job['uuid'] for job in jobs['response']]
+                uuids =[job['uuid'] for job in jobs['response']]
                 #image_hashes=[job['image_hash'] for job in jobs]
 
                 for i in  range(len(file_paths)):
-                    print("Path : ", file_paths[i], " Hash : ", hashes[i], " UUID : ",uuid[i])
+                    print("Path : ", file_paths[i], " Hash : ", hashes[i], " UUID : ",uuids[i])
               
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON  {e}")
         else:
             print(f"Error: HTTP request failed with status code {response.status_code} ")
+        return file_paths, hashes,uuids
     
 
 
+def process_and_sort_dataset_with_hashes_and_uuid(images_paths, hashes,uuids, model):
+    # Initialize an empty list to hold the structure for each image
+    structure = []
 
-# def get_file_paths_and_hashes_uuid_v2(dataset,num_samples):
-#         print('Loading image file paths')
-#         response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset-v1?dataset={dataset}&limit={num_samples}')
+    # Process each image path
+    for i in range(len(images_paths)):
+        # Extract embedding and image tensor from the image path
+        print(images_paths[i])
+        image, embedding = get_clip_and_image_from_path(images_paths[i])
+        
+        # Compute the score by passing the image tensor through the model
+        # Ensure the tensor is in the correct shape, device, etc.
+        score = model.cnn(embedding.unsqueeze(0).to(model.device)).cpu()
+        
+        # Append the path, embedding, and score as a tuple to the structure list
+        structure.append((images_paths[i], embedding, score.item(),image,hashes[i],uuids[i]))  # Assuming score is a tensor, use .item() to get the value
 
-#         if response.status_code == 200:
-#             try:
-#                 # Parse the JSON response
-#                 #response_data = json.loads(response.content)
-#                 if 'images' in response.get('response', {}):
-#                 jobs = json.loads(response.content)
-#                 for job in jobs:
-#                     print(job)
+    # Sort the structure list by the score in descending order (for ascending, remove 'reverse=True')
+    # The lambda function specifies that the sorting is based on the third element of each tuple (index 2)
+    sorted_structure = sorted(structure, key=lambda x: x[2], reverse=True)
 
+    return sorted_structure
 
-#             except json.JSONDecodeError as e:
-#                 print(f"Error decoding JSON  {e}")
-#         else:
-#             print(f"Error: HTTP request failed with status code {response.status_code} ")
-    
-
+def get_clip_and_image_from_path(image_path):
+    image=get_image(image_path)
+    clip_embedding =  image_embedder.get_image_features(image)
+    #clip_embedding = torch.tensor(clip_embedding)
+    return image,clip_embedding.float()
 
 
 # /classifier-scores/set-image-classifier-score
@@ -170,13 +183,33 @@ def get_file_paths_and_hashes_uuid(dataset,num_samples):
 #   "score": 0
 # }
 
-def score_images_based_on_energy():
+
+def get_image(file_path: str):
+    # get image from minio server
+    bucket_name, file_path = separate_bucket_and_file_path(file_path)
+    try:
+        response = minio_client.get_object(bucket_name, file_path)
+        image_data = BytesIO(response.data)
+        img = Image.open(image_data)
+        img = img.convert("RGB")
+    except Exception as e:
+        raise e
+    finally:
+        response.close()
+        response.release_conn()
+
+    return img
+
+
+def score_images_based_on_energy(dataset_name,num_samples,class_id):
+    
     # load data
-
+    file_paths, hashes,uuids = get_file_paths_and_hashes_uuid(dataset_name,num_samples)
     # load model
-
+    
     # score each image
-    return True
+    x = process_and_sort_dataset_with_hashes_and_uuid((file_paths, hashes,uuids, model))
+    
 
 
 
