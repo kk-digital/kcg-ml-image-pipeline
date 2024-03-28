@@ -29,6 +29,8 @@ class Selection(BaseModel):
             "active_learning_policy": self.active_learning_policy,
         }
 
+class ListSelection(BaseModel):
+    ranking_data: List[Selection]
 
 
 class RelevanceSelection(BaseModel):

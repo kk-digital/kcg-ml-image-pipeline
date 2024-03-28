@@ -345,7 +345,26 @@ class Classifier(BaseModel):
                 "model_path": self.model_path,
                 "creation_time": self.creation_time
             }
+
+class ListClassifier(BaseModel):
+    classifiers : List[Classifier]    
+
+class RequestClassifier(BaseModel):
         
+        classifier_name: str
+        tag_id: int
+        latest_model: str
+        model_path: str
+
+        def to_dict(self):
+            return{
+                "classifier_name": self.classifier_name,
+                "tag_id": self.tag_id,
+                "latest_model": self.latest_model,
+                "model_path": self.model_path,
+            }    
+
+
 class Worker(BaseModel):
     last_seen: Union[str, None] = None
     worker_id: str

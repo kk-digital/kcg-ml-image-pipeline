@@ -183,9 +183,9 @@ def startup_db_client():
     app.dataset_config_collection = app.mongodb_db["dataset_config"]
 
     # ab ranking
-    app.rank_definitions_collection = app.mongodb_db["rank_definitions"]
+    app.rank_model_models_collection = app.mongodb_db["rank_definitions"]
     app.image_ranks_collection = app.mongodb_db["image_ranks"]
-    app.rank_categories_collection = app.mongodb_db["rank_categories"]
+    app.rank_model_categories_collection = app.mongodb_db["rank_categories"]
 
 
     # tags
