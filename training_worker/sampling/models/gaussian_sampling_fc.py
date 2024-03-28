@@ -82,6 +82,7 @@ class SamplingFCNetwork(nn.Module):
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path=self.get_model_path()
         self.class_labels= self.get_class_labels()
+        self.metadata = None
         
         self.dataloader = SphericalGaussianGenerator(minio_client, dataset)
 
@@ -223,6 +224,8 @@ class SamplingFCNetwork(nn.Module):
                               val_loss=best_val_loss, 
                               inference_speed= inference_speed,
                               learning_rate=learning_rate, best_model_epoch=best_model_epoch)
+        
+        self.save_metadata(inputs, target_avg_points, learning_rate, num_epochs, batch_size)
         
         return best_val_loss
         
@@ -451,17 +454,41 @@ class SamplingFCNetwork(nn.Module):
                 temp_file.write(data)
 
         # Load the model from the downloaded bytes
-        self.model.load_state_dict(torch.load(temp_file.name))
-        
+        self.metadata = torch.load(temp_file.name)
+        self.feature_max_value = self.metadata["feature_max_value"]
+        self.feature_min_value = self.metadata["feature_min_value"]
+
+        self.model.load_state_dict(self.metadata["model_state"])
         # Remove the temporary file
         os.remove(temp_file.name)
 
+
+    def save_metadata(self, inputs, points_per_sphere, learning_rate, num_epochs, training_batch_size):
+        feature_input_vector = [input[-1] for input in inputs]
+
+        self.feature_min_value = min(feature_input_vector)
+        self.feature_max_value = max(feature_input_vector)
+
+        self.metadata = {
+            'points_per_sphere': points_per_sphere,
+            'num_epochs': num_epochs,
+            'learning_rate': learning_rate,
+            'training_batch_size': training_batch_size,
+            'model_state': self.model.state_dict(),
+            'feature_min_value': self.feature_min_value,
+            'feature_max_value': self.feature_max_value
+        }
+
+
     def save_model(self):
-         # Save the model locally
-        torch.save(self.model.state_dict(), self.local_path)
+        if self.metadata is None:
+            raise Exception("you have to train the model before saving.")
         
-        #Read the contents of the saved model file
-        with open(self.local_path, "rb") as model_file:
+        # Save the model locally
+        torch.save(self.metadata, self.local_path)
+
+        # Read the contents of the saved model file
+        with open(self.local_path, 'rb') as model_file:
             model_bytes = model_file.read()
 
         # Upload the model to MinIO
