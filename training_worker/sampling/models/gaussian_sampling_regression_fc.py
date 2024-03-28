@@ -89,7 +89,7 @@ class SamplingFCRegressionNetwork(nn.Module):
 
         return local_path, minio_path
 
-    def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256):
+    def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256, is_per_epoch=False):
 
         # load the dataset depends on sampling type
         self.dataloader.load_dataset()
@@ -112,9 +112,10 @@ class SamplingFCRegressionNetwork(nn.Module):
             total_val_loss = 0
             total_val_samples = 0
             
-            train_dataset, val_dataset, \
-                train_loader, val_loader, \
-                    train_size, val_size = self.get_data_for_training(n_spheres, target_avg_points, validation_split, batch_size)
+            if epoch > 0 and is_per_epoch:
+                train_dataset, val_dataset, \
+                    train_loader, val_loader, \
+                        train_size, val_size = self.get_data_for_training(n_spheres, target_avg_points, validation_split, batch_size)
 
             with torch.no_grad():
                 for inputs, targets in val_loader:
