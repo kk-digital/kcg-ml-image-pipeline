@@ -606,6 +606,25 @@ def get_clip_embeddings_by_tag(id_classes,label_value):
 
     return train_loader_clip, val_loader_clip
 
+def train_model(self,train_loader,val_loader, adv_loader, **kwargs):
+    CHECKPOINT_PATH = "../savedmodels"
+
+    # Create a PyTorch Lightning trainer with the generation callback
+    trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
+                         accelerator="gpu" if str(self.device).startswith("cuda") else "cpu",
+                         devices=1,
+                         max_epochs=20,
+                         gradient_clip_val=0.1,
+                         callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
+                                    LearningRateMonitor("epoch")
+                                   ])
+
+    pl.seed_everything(42)
+    model = DeepEnergyModel(adv_loader =adv_loader ,**kwargs)
+    trainer.fit(model, train_loader, val_loader)
+
+    return model
+
 
 def get_tag_id_by_name(tag_name):
     response = requests.get(f'{API_URL}/tags/get-tag-id-by-tag-name?tag_string={tag_name}')
@@ -625,25 +644,6 @@ def get_tag_id_by_name(tag_name):
         print("Error:", response.status_code)
 
 
-
-def train_model(self,train_loader,val_loader, adv_loader, **kwargs):
-    CHECKPOINT_PATH = "../savedmodels"
-
-    # Create a PyTorch Lightning trainer with the generation callback
-    trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
-                         accelerator="gpu" if str(self.device).startswith("cuda") else "cpu",
-                         devices=1,
-                         max_epochs=20,
-                         gradient_clip_val=0.1,
-                         callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
-                                    LearningRateMonitor("epoch")
-                                   ])
-
-    pl.seed_everything(42)
-    model = DeepEnergyModel(adv_loader =adv_loader ,**kwargs)
-    trainer.fit(model, train_loader, val_loader)
-
-    return model
 
 
 # From multiples image paths
