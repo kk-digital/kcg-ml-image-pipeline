@@ -528,7 +528,7 @@ def main():
                                 class_name= args.class_name,
                                 model = None,
                                 save_name = args.save_name,
-                                class_id = args.class_id,
+                                class_id =  get_tag_id_by_name(args.class_name),
                                 training_batch_size=args.training_batch_size,
                                 num_samples= args.num_samples,
                                 epochs= args.epochs,

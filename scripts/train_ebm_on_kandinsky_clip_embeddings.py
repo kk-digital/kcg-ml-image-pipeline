@@ -1480,7 +1480,7 @@ class EBM_Single_Class_Trainer:
 
         # upload the graph report
         minio_path="environmental/output/my_tests"
-        minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_isometric_training" +date_now+".png"
+        minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_"+ self.classe_name + "_" +date_now+".png"
         cmd.upload_data(minio_client, 'datasets', minio_path, buf)
         # Remove the temporary file
         os.remove("output/loss_tracking_per_step.png")
