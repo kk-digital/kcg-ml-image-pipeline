@@ -94,8 +94,6 @@ class KandinskyDatasetLoader:
     
     def load_clip_vector_data(self):
         jobs= self.load_kandinsky_jobs()
-        # remove
-        jobs= jobs[:50]
         feature_vectors=[]
         scores=[]
         print("Loading input clip vectors and sigma scores for each job")
