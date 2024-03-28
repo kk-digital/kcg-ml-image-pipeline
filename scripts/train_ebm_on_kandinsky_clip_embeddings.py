@@ -1506,15 +1506,15 @@ def main():
     # do self training
     training_pipeline.train()
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
 
             
 
 # plot_samples(dataset_name = "environmental", number_of_samples = 50,model_name ="concept-cybernetic")
 # plot_samples_hashless(dataset_name = "environmental", number_of_samples = 50,model_name ="concept-cybernetic")
 
-#plot_samples_hashless(dataset_name = "environmental", number_of_samples = 20000,tag_name ="concept-cybernetic")
+plot_samples_hashless(dataset_name = "environmental", number_of_samples = 10000,tag_name ="concept-cybernetic")
 #plot_samples(dataset_name = "environmental", number_of_samples = 20000,tag_name ="concept-cybernetic")
 
 
