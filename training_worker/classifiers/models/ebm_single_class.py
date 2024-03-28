@@ -446,6 +446,7 @@ class EBM_Single_Class_Trainer:
 
             # Load the model from the downloaded bytes
             #model.load_state_dict(torch.load(temp_file.name))
+            self.model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
             load_model(self.model, temp_file.name)
             # Remove the temporary file
             os.remove(temp_file.name)
