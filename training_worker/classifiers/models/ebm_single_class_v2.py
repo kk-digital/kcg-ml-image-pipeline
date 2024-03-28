@@ -571,7 +571,7 @@ def get_clip_from_path(image_path):
     image=get_image(image_path)
     clip_embedding =  image_embedder.get_image_features(image)
     #clip_embedding = torch.tensor(clip_embedding)
-    return image,clip_embedding.float()
+    return clip_embedding.float()
 
 def get_image(file_path: str):
     # get image from minio server
