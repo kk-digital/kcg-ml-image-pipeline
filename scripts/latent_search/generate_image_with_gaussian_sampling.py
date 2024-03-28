@@ -5,12 +5,12 @@ import sys
 import msgpack
 import numpy as np
 import torch
-
+from scipy.stats import norm
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 from data_loader.utils import get_object
-from training_worker.sampling.models.uniform_sampling_regression_fc import SamplingFCRegressionNetwork
+from training_worker.sampling.models.gaussian_sampling_regression_fc import SamplingFCRegressionNetwork
 from training_worker.scoring.models.scoring_fc import ScoringFCNetwork
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 from utility.minio import cmd
@@ -23,8 +23,8 @@ def parse_args():
         parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
         parser.add_argument('--num-images', type=int, help='Number of images to generate', default=1000)
         parser.add_argument('--top-k', type=float, help='Portion of spheres to select from', default=0.1)
-        parser.add_argument('--total-spheres', type=float, help='Number of random spheres to rank', default=500000)
-        parser.add_argument('--selected-spheres', type=float, help='Number of spheres to sample from', default=10)
+        parser.add_argument('--total-spheres', type=int, help='Number of random spheres to rank', default=500000)
+        parser.add_argument('--selected-spheres', type=int, help='Number of spheres to sample from', default=10)
         parser.add_argument('--batch-size', type=int, help='Inference batch size used by the scoring model', default=256)
         parser.add_argument('--send-job', action='store_true', default=False)
         parser.add_argument('--save-csv', action='store_true', default=False)
@@ -76,8 +76,8 @@ class SphereSamplingGenerator:
             self.sphere_scoring_model.load_model()
 
             # get min and max radius values
-            self.min_radius= self.sphere_scoring_model.min_radius.item()
-            self.max_radius= self.sphere_scoring_model.max_radius.item()
+            self.feature_max_value= self.sphere_scoring_model.feature_max_value.item()
+            self.feature_min_value= self.sphere_scoring_model.feature_min_value.item()
 
             # get distribution of clip vectors for the dataset
             self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
@@ -102,14 +102,14 @@ class SphereSamplingGenerator:
         # Optionally, you may want to clip the generated centers to ensure they fall within expected min/max bounds
         sphere_centers = np.clip(sphere_centers, self.clip_min, self.clip_max)
 
-        # choose random radius for the spheres
-        radii= np.random.rand(num_spheres) * (self.max_radius - self.min_radius) + self.min_radius
+        # choose random feature for the spheres
+        gaussian_features= np.random.rand(num_spheres) * (self.feature_max_value - self.feature_max_value) + self.feature_min_value
 
         spheres=[]
-        for radius, sphere_center in zip(radii, sphere_centers):
+        for feature, sphere_center in zip(gaussian_features, sphere_centers):
              spheres.append({
                 "sphere_center": sphere_center,
-                "radius": radius
+                "feature": feature
              })
 
         return spheres
@@ -121,7 +121,7 @@ class SphereSamplingGenerator:
         batch=[]
         scores=[]
         for sphere in generated_spheres:
-            sphere_vector= np.concatenate([sphere['sphere_center'], [sphere['radius']]])
+            sphere_vector= np.concatenate([sphere['sphere_center'], [sphere['feature']]])
             batch.append(sphere_vector)
 
             if len(batch)==self.batch_size:
@@ -146,15 +146,22 @@ class SphereSamplingGenerator:
         scores= []
         for i, sphere in enumerate(spheres):
             center= sphere['sphere_center']
-            radius= sphere['radius']
+            # Parameter for the gaussian distribution
+            feature= sphere['feature']
 
-            for j in range(points_per_sphere):
+            # Generate uniform random numbers between 0 and 1
+            num_samples = points_per_sphere
+            uniform_samples = np.random.rand(num_samples)
+
+            # Apply the inverse transform sampling for the exponential distribution
+            random_radii = norm.ppf(uniform_samples, scale=feature)
+            for radius in random_radii:
                 # Ensure the adjustment direction is normalized
                 direction= np.random.rand(dim)
                 direction /= np.linalg.norm(direction)
                 
-                # Randomly choose a magnitude within the radius
-                magnitude = (np.random.rand()) * radius # Square root for uniform sampling in volume
+                # Randomly choose a magnitude on gaussian distribution
+                magnitude = radius
 
                 # Compute the point
                 point = center + (direction * magnitude)
