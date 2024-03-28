@@ -76,7 +76,7 @@ class SamplingFCRegressionNetwork(nn.Module):
         self.dataset=dataset
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path=self.get_model_path()
-
+        self.metadata = None
         # sphere dataloader
         self.dataloader = SphericalGaussianGenerator(minio_client, dataset)
 
