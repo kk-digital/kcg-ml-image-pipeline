@@ -144,6 +144,9 @@ class SphereSamplingGenerator:
         scores = []
         for sphere in spheres:
             center, radius = sphere[:-1], sphere[-1]
+            print(dim)
+            print(center)
+            print(radius)
 
             # Direction adjustment based on z-scores
             z_scores = (center - self.clip_mean) / self.clip_std
@@ -239,7 +242,6 @@ class SphereSamplingGenerator:
                     print("An error occured.")
                     task_uuid = -1
                     task_time = -1         
-                print("Jobs were sent for generation.")
 
             if self.save_csv:
                 df_data.append({
@@ -250,6 +252,8 @@ class SphereSamplingGenerator:
 
         if self.save_csv:
             self.store_uuids_in_csv_file(df_data)
+        
+        print("Jobs were sent for generation.")
 
     # store list of initial prompts in a csv to use for prompt mutation
     def store_uuids_in_csv_file(self, data):
