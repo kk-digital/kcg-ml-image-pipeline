@@ -123,7 +123,7 @@ class SphereSamplingGenerator:
         scores = torch.tensor(batch_scores, device=self.device, dtype=torch.float32)
 
         # Sort scores and select top spheres
-        sorted_indexes = torch.argsort(scores, descending=True)[:self.selected_spheres]
+        sorted_indexes = torch.argsort(scores.squeeze(), descending=True)[:self.selected_spheres]
         print(scores[sorted_indexes])
         top_spheres = generated_spheres[sorted_indexes]
 
@@ -172,7 +172,6 @@ class SphereSamplingGenerator:
         # get top scoring datapoints
         _, sorted_indices = torch.sort(scores.squeeze(), descending=True)
         clip_vectors = clip_vectors[sorted_indices[:num_samples]]
-        print(scores[sorted_indices[:num_samples]])
 
         # Optimization step
         if(self.optimize_samples):
