@@ -148,7 +148,7 @@ def get_file_paths_and_hashes_uuid_v2(dataset,num_samples):
                 # Parse the JSON response
                 #response_data = json.loads(response.content)
         
-                jobs = json.loads(response.content)
+                jobs = json.loads(response.content.response)
                 for job in jobs:
                     print(job)
 
