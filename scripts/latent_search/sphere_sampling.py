@@ -84,11 +84,14 @@ class SphereSamplingGenerator:
             self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
     
     def get_clip_distribution(self):
+        data = get_object(self.minio_client, f"{self.dataset}/output/stats/clip_stats.msgpack")
+        data_dict = msgpack.unpackb(data)
+
         # Convert to PyTorch tensors
-        mean_vector = torch.tensor(mean_vector, device=self.device, dtype=torch.float32)
-        std_vector = torch.tensor(std_vector, device=self.device, dtype=torch.float32)
-        max_vector = torch.tensor(max_vector, device=self.device, dtype=torch.float32)
-        min_vector = torch.tensor(min_vector, device=self.device, dtype=torch.float32)
+        mean_vector = torch.tensor(data_dict["mean"][0], device=self.device, dtype=torch.float32)
+        std_vector = torch.tensor(data_dict["std"][0], device=self.device, dtype=torch.float32)
+        max_vector = torch.tensor(data_dict["max"][0], device=self.device, dtype=torch.float32)
+        min_vector = torch.tensor(data_dict["min"][0], device=self.device, dtype=torch.float32)
 
         return mean_vector, std_vector, max_vector, min_vector
 
