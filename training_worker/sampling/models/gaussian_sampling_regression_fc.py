@@ -154,8 +154,8 @@ class SamplingFCRegressionNetwork(nn.Module):
                 best_state = {
                     "model": self.model,
                     "epoch": epoch,
-                    "train_dataset": train_dataset.detach(),
-                    "val_dataset": val_dataset.detach(),
+                    "train_dataset": train_dataset,
+                    "val_dataset": val_dataset,
                     "train_size": train_size,
                     "val_size": val_size,
                     "train_loss": train_loss[-1],
