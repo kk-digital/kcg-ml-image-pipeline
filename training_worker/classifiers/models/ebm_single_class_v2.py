@@ -306,7 +306,7 @@ class EBM_Single_Class:
 
         ##################### Standard method ##########################
         print("class name ", self.classe_name)
-        all_tags = list(range(1, 51))
+        all_tags = get_unique_tag_ids()
         print("all tag : ",all_tags)
         class_tag = get_tag_id_by_name(self.classe_name)
         print("class tag : ",  class_tag)
@@ -659,47 +659,6 @@ def get_image(file_path: str):
 
     return img
 
-###################### main
-
-def main():
-    args = parse_args()
-
-    training_pipeline=EBM_Single_Class(minio_access_key=args.minio_access_key,
-                                minio_secret_key=args.minio_secret_key,
-                                dataset= args.dataset,
-                                class_name= args.class_name,
-                                model = None,
-                                save_name = args.save_name,
-                                class_id =  get_tag_id_by_name(args.class_name),
-                                training_batch_size=args.training_batch_size,
-                                num_samples= args.num_samples,
-                                epochs= args.epochs,
-                                learning_rate= args.learning_rate)
-
-    # do self training
-    training_pipeline.train()
-    training_pipeline.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="topic-space" , model_type = "energy-based-model")
-    #datasets/test-generations/0024/023128.jpg
-    print("Cyber image 1 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/test-generations/0024/023123.jpg')).item())
-    print("Cyber image 2 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0208/207925.jpg')).item())
-    print("Cyber image 3 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0330/329625.jpg')).item())
-
-    print("occult image 1 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/test-generations/0024/023128.jpg')).item())
-    print("occult image 2 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0124/123017.jpg')).item())
-    print("occult image 3 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0367/366210.jpg')).item())
-
-    print("Aquatic image 1 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0300/299693.jpg')).item())
-    print("Aquatic image 2  : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0042/041848.jpg')).item())
-    print("Aquatic image 3  : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0277/276058.jpg')).item())
-
-# if __name__ == "__main__":
-#     main()
-
-
-
-# Get all the tags from all the classes:
-    
-
 
 def get_unique_tag_ids():
     response = requests.get(f'{API_URL}/tags/list-tag-definitions')
@@ -720,6 +679,52 @@ def get_unique_tag_ids():
     else:
         print(f"Error: HTTP request failed with status code {response.status_code}")
 
-# Example usage
-tag_ids_list = get_unique_tag_ids()
-print(tag_ids_list)
+
+###################### main
+
+def main():
+    args = parse_args()
+
+    training_pipeline=EBM_Single_Class(minio_access_key=args.minio_access_key,
+                                minio_secret_key=args.minio_secret_key,
+                                dataset= args.dataset,
+                                class_name= args.class_name,
+                                model = None,
+                                save_name = args.save_name,
+                                class_id =  get_tag_id_by_name(args.class_name),
+                                training_batch_size=args.training_batch_size,
+                                num_samples= args.num_samples,
+                                epochs= args.epochs,
+                                learning_rate= args.learning_rate)
+
+    # do self training
+    training_pipeline.train()
+    training_pipeline.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="defect-split-pane-image" , model_type = "energy-based-model")
+    #datasets/test-generations/0024/023128.jpg
+
+    print("defect-split-pane-image 1 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0241/240499.jpg')).item())
+    print("defect-split-pane-image 2: , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0188/187132.jpg')).item())
+    print("defect-split-pane-image 3: , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0058/057942.jpg')).item())
+
+
+    print("Cyber image 1 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/test-generations/0024/023123.jpg')).item())
+    print("Cyber image 2 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0208/207925.jpg')).item())
+    print("Cyber image 3 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0330/329625.jpg')).item())
+
+    print("occult image 1 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/test-generations/0024/023128.jpg')).item())
+    print("occult image 2 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0124/123017.jpg')).item())
+    print("occult image 3 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0367/366210.jpg')).item())
+
+    print("Aquatic image 1 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0300/299693.jpg')).item())
+    print("Aquatic image 2  : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0042/041848.jpg')).item())
+    print("Aquatic image 3  : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0277/276058.jpg')).item())
+
+if __name__ == "__main__":
+    main()
+
+
+
+# Get all the tags from all the classes:
+    
+
+
