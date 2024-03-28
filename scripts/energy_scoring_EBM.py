@@ -137,6 +137,27 @@ def get_file_paths_and_hashes_uuid(dataset,num_samples):
             print(f"Error: HTTP request failed with status code {response.status_code} ")
     
 
+def get_file_paths_and_hashes_uuid_v2(dataset, num_samples):
+    print('Loading image file paths')
+    response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset-v1?dataset={dataset}&limit={num_samples}')
+
+    if response.status_code == 200:
+        try:
+            # Parse the JSON response
+            jobs = response.json()
+            if isinstance(jobs, list):
+                file_paths = [job.get('image_path') for job in jobs]
+                hashes = [job.get('image_hash') for job in jobs]
+                uuids = [job.get('uuid') for job in jobs]
+                # Print or use the file paths, hashes, and uuids
+                for path, hash_val, uuid_val in zip(file_paths, hashes, uuids):
+                    print("Path:", path, "Hash:", hash_val, "UUID:", uuid_val)
+            else:
+                print("Error: JSON response is not a list of dictionaries")
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON: {e}")
+    else:
+        print(f"Error: HTTP request failed with status code {response.status_code}")
 
 
 
@@ -164,4 +185,4 @@ def score_images_based_on_energy():
 
 
 
-get_file_paths_and_hashes_uuid("environmental",100)
+get_file_paths_and_hashes_uuid_v2("environmental",100)
