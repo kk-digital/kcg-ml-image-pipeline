@@ -140,7 +140,7 @@ class SphereSamplingGenerator:
         
         # Determine points to generate per sphere
         num_generated_samples = int(num_samples/self.top_k)
-        points_per_sphere = max(int(num_generated_samples/self.selected_spheres), 1000)
+        points_per_sphere = max(int(num_generated_samples/self.selected_spheres), 100)
         
         clip_vectors = torch.empty((0, dim), device=self.device)  # Initialize an empty tensor for all clip vectors
         scores = []
@@ -159,7 +159,7 @@ class SphereSamplingGenerator:
                 direction /= torch.norm(direction)
 
                 # Magnitude for uniform sampling within volume
-                magnitude = torch.rand(1, device=self.device) * radius
+                magnitude = torch.rand(1, device=self.device).pow(1/3) * radius
 
                 point = center + direction * magnitude
                 point = torch.clamp(point, self.clip_min, self.clip_max)
