@@ -556,8 +556,8 @@ class DeepEnergyModel(pl.LightningModule):
       # Pass through model to get scores and probabilities
       all_scores = self.cnn(real_imgs)
 
-      # Calculate CD loss (optional, adjust if needed)
-      cdiv = all_scores.mean()  # Modify based on scores or probabilities
+      # Calculate CD loss (
+      cdiv = all_scores.mean() 
 
       # Log metrics
       self.log('val_contrastive_divergence', cdiv)
@@ -568,7 +568,6 @@ class DeepEnergyModel(pl.LightningModule):
 def get_tag_id_by_name(tag_name):
     response = requests.get(f'{API_URL}/tags/get-tag-id-by-tag-name?tag_string={tag_name}')
     
-        # Check if the response is successful (status code 200)
     # Check if the request was successful (status code 200)
     if response.status_code == 200:
         # Parse the JSON response
@@ -586,7 +585,6 @@ def get_tag_id_by_name(tag_name):
 
 
 def train_model(self,train_loader,val_loader, adv_loader, **kwargs):
-
 
     # Create a PyTorch Lightning trainer with the generation callback
     trainer = pl.Trainer(
