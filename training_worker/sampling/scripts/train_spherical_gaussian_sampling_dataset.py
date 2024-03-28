@@ -61,8 +61,8 @@ def main():
                                  learning_rate= args.learning_rate,
                                  n_spheres=args.n_spheres, 
                                  target_avg_points=args.target_avg_points)
-    
-    gaussian_sampling_model.save_model()
+    # todo remove for test - uncomment
+    # gaussian_sampling_model.save_model()
     
 if __name__ == "__main__":
     main()
