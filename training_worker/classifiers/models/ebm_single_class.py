@@ -149,10 +149,20 @@ class EBM_Single_Class_Trainer:
         # for path in adv_paths:
         #     print(" Path adv :", path)
         #Create dataloader of target class
-        train_loader_automated, val_loader_automated = self.get_clip_embeddings_by_path(target_paths,1)
+
+        # # True data
+        # train_loader_automated, val_loader_automated = self.get_clip_embeddings_by_path(target_paths,1)
+
+        # # Create dataloader of adversarial classes
+        # train_loader_clip_ood, val_loader_clip_ood = self.get_clip_embeddings_by_path(adv_paths,0)
+
+        # Create dataloader of target class
+        train_loader_automated, val_loader_automated = self.get_clip_embeddings_by_path(get_tag_jobs(self.class_id),1)
 
         # Create dataloader of adversarial classes
-        train_loader_clip_ood, val_loader_clip_ood = self.get_clip_embeddings_by_path(adv_paths,0)
+        train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,20,21,34,40],0)
+
+
         # init the loader
         train_loader = train_loader_automated
         val_loader = val_loader_automated
@@ -251,7 +261,7 @@ class EBM_Single_Class_Trainer:
                 try:
                     # Parse the JSON response
                     response_data = json.loads(response.content)
-                    print("reponse data lenght : ", len(response_data.get('response', {})))
+                    
                     # Check if 'images' key is present in the JSON response
                     if 'images' in response_data.get('response', {}):
                         # Extract file paths from the 'images' key
@@ -568,6 +578,32 @@ class DeepEnergyModel(pl.LightningModule):
       self.log('val_contrastive_divergence', cdiv)
 
 
+def get_clip_embeddings_by_tag(id_classes,label_value):
+    images_paths = get_tag_jobs(id_classes[0])
+    i = 1
+    for i in range(1,len(id_classes)):
+        images_paths = images_paths + get_tag_jobs(id_classes[i])
+       
+ 
+    
+    ocult_clips = get_clip_vectors(images_paths)
+
+
+    # Create labels
+    data_occcult_clips = [(clip, label_value) for clip in ocult_clips]
+    print("Clip embeddings array lenght : ",len(data_occcult_clips))
+
+    # Split
+
+    num_samples = len(data_occcult_clips)
+    train_size = int(0.8 * num_samples)
+    val_size = num_samples - train_size
+    train_set, val_set = random_split(data_occcult_clips, [train_size, val_size])
+
+    train_loader_clip = data.DataLoader(train_set, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+    val_loader_clip = data.DataLoader(val_set, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+
+    return train_loader_clip, val_loader_clip
 
 
 def get_tag_id_by_name(tag_name):
@@ -633,6 +669,29 @@ def get_clip_vectors(file_paths):
 
     return clip_vectors
 
+def get_tag_jobs(tag_id):
+    response = requests.get(f'{API_URL}/tags/get-images-by-tag-id/?tag_id={tag_id}')
+    
+    # Check if the response is successful (status code 200)
+    if response.status_code == 200:
+        try:
+            # Parse the JSON response
+            response_data = json.loads(response.content)
+
+            # Check if 'images' key is present in the JSON response
+            if 'images' in response_data.get('response', {}):
+                # Extract file paths from the 'images' key
+                file_paths = [job['file_path'] for job in response_data['response']['images']]
+                return file_paths
+            else:
+                print("Error: 'images' key not found in the JSON response.")
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON: {e}")
+    else:
+        print(f"Error: HTTP request failed with status code {response.status_code}")
+
+    # Return an empty list or appropriate value to indicate an error
+    return []
 
 
 def main():
