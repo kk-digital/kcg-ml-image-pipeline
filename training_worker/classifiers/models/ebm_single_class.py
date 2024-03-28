@@ -135,8 +135,11 @@ class EBM_Single_Class_Trainer:
 
         all_tags = list(range(1, 51))
         print("all tag : ",all_tags)
+
         class_tag = get_tag_id_by_name(self.classe_name)
         print("class tag : ",  class_tag)
+
+
         target_paths, adv_paths = self.get_all_tag_jobs(class_ids = all_tags, target_id =class_tag)
         print("target_paths lenght : ", len(target_paths))
         
@@ -248,7 +251,7 @@ class EBM_Single_Class_Trainer:
                 try:
                     # Parse the JSON response
                     response_data = json.loads(response.content)
-
+                    print("reponse data lenght : ", len(response_data))
                     # Check if 'images' key is present in the JSON response
                     if 'images' in response_data.get('response', {}):
                         # Extract file paths from the 'images' key
