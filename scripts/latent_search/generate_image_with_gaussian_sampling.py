@@ -151,8 +151,7 @@ class SphereSamplingGenerator:
             feature= sphere['feature']
 
             # Generate uniform random numbers between 0 and 1
-            num_samples = points_per_sphere
-            uniform_samples = np.random.rand(num_samples)
+            uniform_samples = np.random.rand(points_per_sphere)
 
             # Apply the inverse transform sampling for the exponential distribution
             random_radii = norm.ppf(uniform_samples, scale=feature)
