@@ -446,7 +446,8 @@ class EBM_Single_Class:
     # Via clip-H
     def evalute_energy(self, dataset_feature_vector):
         print("Evaluate energy...")
-        dataset_feature_vector = dataset_feature_vector.to(self._device)
+        print("da vector ", dataset_feature_vector)
+        #dataset_feature_vector = dataset_feature_vector.to(self._device)
         energy = self.model.cnn(dataset_feature_vector)
         return energy
     
