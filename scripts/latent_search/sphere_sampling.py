@@ -34,7 +34,7 @@ def parse_args():
         parser.add_argument('--save-csv', action='store_true', default=False)
         parser.add_argument('--sampling-policy', type=str, default="top-k-sphere-sampling")
         parser.add_argument('--optimize-spheres', action='store_true', default=False)
-        parser.add_argument('--optimize-vectors', action='store_true', default=False)
+        parser.add_argument('--optimize-samples', action='store_true', default=False)
 
         return parser.parse_args()
 
@@ -51,7 +51,7 @@ class SphereSamplingGenerator:
                 send_job=False,
                 save_csv=False,
                 optimize_spheres=False,
-                optimize_vectors=False,
+                optimize_samples=False,
                 ):
             
             self.dataset= dataset
@@ -64,7 +64,7 @@ class SphereSamplingGenerator:
             self.batch_size= batch_size
             self.sampling_policy= sampling_policy
             self.optimize_spheres= optimize_spheres
-            self.optimize_vectors= optimize_vectors
+            self.optimize_samples= optimize_samples
 
             # get minio client
             self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
@@ -172,7 +172,7 @@ class SphereSamplingGenerator:
         clip_vectors = clip_vectors[sorted_indices[:num_samples]]
 
         # Optimization step
-        if(self.optimize_vectors):
+        if(self.optimize_samples):
             clip_vectors = self.optimize_datapoints(clip_vectors, self.scoring_model)
 
         return clip_vectors
@@ -286,7 +286,7 @@ def main():
                                         send_job= args.send_job,
                                         save_csv= args.save_csv,
                                         optimize_spheres= args.optimize_spheres,
-                                        optimize_vectors= args.optimize_vectors)
+                                        optimize_samples= args.optimize_samples)
 
     generator.generate_images(num_images=args.num_images)
 
