@@ -139,24 +139,24 @@ def get_file_paths_and_hashes_uuid(dataset,num_samples):
 
 
 
-def get_file_paths_and_hashes_uuid_v2(dataset,num_samples):
-        print('Loading image file paths')
-        response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset-v1?dataset={dataset}&limit={num_samples}')
+# def get_file_paths_and_hashes_uuid_v2(dataset,num_samples):
+#         print('Loading image file paths')
+#         response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset-v1?dataset={dataset}&limit={num_samples}')
 
-        if response.status_code == 200:
-            try:
-                # Parse the JSON response
-                #response_data = json.loads(response.content)
-                if 'images' in response.get('response', {}):
-                jobs = json.loads(response.content)
-                for job in jobs:
-                    print(job)
+#         if response.status_code == 200:
+#             try:
+#                 # Parse the JSON response
+#                 #response_data = json.loads(response.content)
+#                 if 'images' in response.get('response', {}):
+#                 jobs = json.loads(response.content)
+#                 for job in jobs:
+#                     print(job)
 
 
-            except json.JSONDecodeError as e:
-                print(f"Error decoding JSON  {e}")
-        else:
-            print(f"Error: HTTP request failed with status code {response.status_code} ")
+#             except json.JSONDecodeError as e:
+#                 print(f"Error decoding JSON  {e}")
+#         else:
+#             print(f"Error: HTTP request failed with status code {response.status_code} ")
     
 
 
