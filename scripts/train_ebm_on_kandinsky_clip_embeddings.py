@@ -625,7 +625,7 @@ def load_model_to_minio_v3(model,type, bucket_name , tag_name, value,  model_typ
         print("most recent model is : ",  most_recent_model)
         if most_recent_model:
             model_file_data =cmd.get_file_from_minio(minio_client, 'datasets', most_recent_model)
-            print("yep save : ",model_file)
+            print("yep save : ",most_recent_model)
         else:
             print("No .safetensors files found in the list.")
             return None
