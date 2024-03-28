@@ -393,9 +393,31 @@ class SamplingFCRegressionNetwork(nn.Module):
         # Clear the current figure
         plt.clf()
 
+    # def predict(self, data, batch_size=64):
+    #     # Convert the features array into a PyTorch Tensor
+    #     features_tensor = torch.Tensor(np.array(data)).to(self._device)
+
+    #     # Ensure the model is in evaluation mode
+    #     self.model.eval()
+
+    #     # List to hold all predictions
+    #     predictions = []
+
+    #     # Perform prediction in batches
+    #     with torch.no_grad():
+    #         for i in range(0, len(features_tensor), batch_size):
+    #             batch = features_tensor[i:i + batch_size]  # Extract a batch
+    #             outputs = self.model(batch)  # Get predictions for this batch
+    #             predictions.append(outputs.squeeze())
+
+    #     # Concatenate all predictions and convert to a NumPy array
+    #     predictions = torch.cat(predictions, dim=0).cpu().numpy()
+
+    #     return predictions
+
     def predict(self, data, batch_size=64):
-        # Convert the features array into a PyTorch Tensor
-        features_tensor = torch.Tensor(np.array(data)).to(self._device)
+        # Ensure the data tensor is on the correct device
+        data = data.to(self._device)
 
         # Ensure the model is in evaluation mode
         self.model.eval()
@@ -405,15 +427,15 @@ class SamplingFCRegressionNetwork(nn.Module):
 
         # Perform prediction in batches
         with torch.no_grad():
-            for i in range(0, len(features_tensor), batch_size):
-                batch = features_tensor[i:i + batch_size]  # Extract a batch
+            for i in range(0, data.size(0), batch_size):
+                batch = data[i:i+batch_size]  # Extract a batch
                 outputs = self.model(batch)  # Get predictions for this batch
-                predictions.append(outputs.squeeze())
+                predictions.append(outputs)
 
-        # Concatenate all predictions and convert to a NumPy array
-        predictions = torch.cat(predictions, dim=0).cpu().numpy()
+        # Concatenate all predictions
+        predictions = torch.cat(predictions, dim=0)
 
-        return predictions         
+        return predictions        
 
     def inference(self, dataset, batch_size=64):
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
