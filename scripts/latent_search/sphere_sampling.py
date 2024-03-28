@@ -147,7 +147,7 @@ class SphereSamplingGenerator:
                 direction /= torch.norm(direction)
 
                 # Magnitude for uniform sampling within volume
-                magnitude = torch.rand(1, device=self.device).pow(1/3) * radius
+                magnitude = torch.rand(1, device=self.device) * radius
 
                 point = center + direction * magnitude
                 point = torch.clamp(point, self.clip_min, self.clip_max)
@@ -209,6 +209,8 @@ class SphereSamplingGenerator:
     def generate_images(self, num_images):
         # generate clip vectors
         clip_vectors= self.sample_clip_vectors(num_samples=num_images)
+
+        print(clip_vectors)
 
         for clip_vector in clip_vectors:
             if self.send_job:
