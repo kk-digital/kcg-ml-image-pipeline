@@ -180,8 +180,8 @@ class SamplingFCNetwork(nn.Module):
 
         start = time.time()
         # Classifying all validation datapoints
-        val_preds, val_true, val_residuals = self.classify(val_dataset, batch_size)
-        _, _, train_residuals = self.classify(train_dataset, batch_size)
+        val_residuals = self.get_residuals(val_dataset, batch_size)
+        train_residuals = self.get_residuals(train_dataset, batch_size)
 
         end = time.time()
         inference_speed=(val_size + train_size)/(end - start)
@@ -361,7 +361,7 @@ class SamplingFCNetwork(nn.Module):
 
         return predictions         
 
-    def classify(self, dataset, batch_size=64):
+    def get_residuals(self, dataset, batch_size=64):
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
         self.model.eval()  # Set the model to evaluation mode
         predictions = []
@@ -377,20 +377,12 @@ class SamplingFCNetwork(nn.Module):
         predictions = torch.cat(predictions, dim=0).cpu().numpy()
         true_values = torch.cat(true_values, dim=0).cpu().numpy()
 
-        pred_labels=[]
-        true_labels=[]
-
         residuals=[]
         for pred_probs, true_probs in zip(predictions, true_values):
-            pred_label= np.argmax(pred_probs)
-            true_label= np.argmax(true_probs)
-            pred_labels.append(self.class_labels[pred_label])
-            true_labels.append(self.class_labels[true_label])
-            
             residual= np.mean(np.abs(pred_probs - true_probs))
             residuals.append(residual)
 
-        return pred_labels, true_labels, residuals
+        return residuals
 
     def load_model(self):
         # get model file data from MinIO
