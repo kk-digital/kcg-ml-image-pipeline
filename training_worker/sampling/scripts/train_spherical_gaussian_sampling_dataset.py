@@ -28,7 +28,7 @@ def parse_args():
     parser.add_argument('--output-type', type=str, default="score_distribution", help="variance, mean_sigma_score or score_distribution")
     parser.add_argument('--input-type', type=str, default="gaussian_sphere_variance", help="Input type - gaussian_sphere_variance, gaussian_sphere_sigma, gaussian_sphere_fall_off")
     parser.add_argument('--bin-size', type=int, default=1)
-    parser.add_argument('--per-epoch', action="stored_true", default=False, help="Generate the random spheres per epoch")
+    parser.add_argument('--per-epoch', action="store_true", default=False, help="Generate the random spheres per epoch")
 
     return parser.parse_args()
 
