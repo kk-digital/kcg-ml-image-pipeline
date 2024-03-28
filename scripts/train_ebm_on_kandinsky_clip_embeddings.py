@@ -64,6 +64,10 @@ import csv
 import pandas as pd
 from torch.utils.data import ConcatDataset
 import argparse
+from training_worker.classifiers.models.reports.get_model_card import get_model_card_buf
+from utility.path import separate_bucket_and_file_path
+from data_loader.utils import get_object
+from utility.http import request
 
 # ------------------------------------------------- Parameters -------------------------------------------------
 matplotlib.rcParams['lines.linewidth'] = 2.0
@@ -571,6 +575,68 @@ def save_model_to_minio(model,name,local_path):
         print(f'Model saved to {minio_path}')
 
 
+# proper saving
+def save_model_to_minio_v2(model,classe_name,local_path):
+        # Save the model locally pth
+        save_model(model, local_path)
+        
+        #Read the contents of the saved model file
+        with open(local_path, "rb") as model_file:
+            model_bytes = model_file.read()
+
+        # init config
+            
+        date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
+        print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
+        bucket_name = "datasets"
+        network_type = "energy-based-model"
+        output_type = "energy"
+        input_type = 'clip-h'
+        dataset_name = 'environmental'
+        tag_name = classe_name
+
+        output_path = "{}/models/classifiers/{}".format(dataset_name, tag_name)
+        sequence = 0
+        filename = "{}-{:02}-{}-{}-{}-{}".format(date_now, sequence, tag_name, output_type, network_type, input_type)
+
+        # if exist, increment sequence
+        while True:
+            filename = "{}-{:02}-{}-{}-{}-{}".format(date_now, sequence, tag_name, output_type, network_type, input_type)
+            exists = cmd.is_object_exists(minio_client, bucket_name,
+                                        os.path.join(output_path, filename + ".safetensors"))
+            if not exists:
+                break
+
+            sequence += 1
+
+        model_name = "{}.safetensors".format(filename)
+        model_output_path = os.path.join(output_path, model_name)
+        print("file path : ",filename)
+        # upload model
+        
+        minio_model_path = output_path + '/' + filename +".safetensors"
+        print("minio model path ",minio_model_path)
+        cmd.upload_data(minio_client, bucket_name, minio_model_path, BytesIO(model_bytes))
+        # Upload the model to MinIO
+
+        cmd.is_object_exists(minio_client, bucket_name,
+                                    os.path.join(output_path, filename + ".safetensors"))
+        
+        
+        # get model card and upload
+        classifier_name="{}-{}-{}-{}".format(classe_name, output_type, network_type, input_type)
+        model_card_name = "{}.json".format(filename)
+        model_card_name_output_path = os.path.join(output_path, model_card_name)
+        model_card_buf, model_card = get_model_card_buf(classifier_name= classifier_name,
+                                                        tag_id= get_tag_id_by_name(classe_name),
+                                                        latest_model= filename,
+                                                        model_path= model_output_path,
+                                                        creation_time=date_now)
+        cmd.upload_data(minio_client, bucket_name, model_card_name_output_path, model_card_buf)
+
+        # add model card
+        request.http_add_classifier_model(model_card)      
+
 
 # ------------------------------------------------- Load Model--------------------------------------------------
 def load_model_to_minio(model,type):
@@ -680,6 +746,24 @@ def load_model_to_minio_v2(model,type, bucket_name , tag_name, value,  model_typ
         # Remove the temporary file
         os.remove(temp_file.name)
 
+
+
+def get_tag_id_by_name(tag_name):
+    response = requests.get(f'{API_URL}/tags/get-tag-id-by-tag-name?tag_string={tag_name}')
+    
+    # Check if the request was successful (status code 200)
+    if response.status_code == 200:
+        # Parse the JSON response
+        json_data = response.json()
+
+        # Get the value of "response" from the JSON data
+        response_value = json_data.get('response')
+        tag_id = response_value.get('tag_id')
+        # Print or use the response value
+        #print("The tag id is:", response_value, " the tag id is : ",tag_id )
+        return tag_id
+    else:
+        print("Error:", response.status_code)
 
 def filter_and_get_most_recent_object(object_names, theme, model_type):
     prefix = f"{theme}-{model_type}"
@@ -1339,7 +1423,7 @@ class EBM_Single_Class_Trainer:
                             val_loader = val_loader,
                             adv_loader =adv_loader )
         
-        save_model_to_minio(model,self.save_name,'temp_model.safetensors')
+        save_model_to_minio_v2(model,self.save_name,'temp_model.safetensors')
 
 
         # up loader graphs
