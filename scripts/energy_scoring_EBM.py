@@ -180,4 +180,4 @@ def score_images_based_on_energy():
 
 
 
-get_file_paths_and_hashes_uuid("environmental",100)
+get_file_paths_and_hashes_uuid_v2("environmental",100)
