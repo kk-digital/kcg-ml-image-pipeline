@@ -116,19 +116,10 @@ class SamplingFCNetwork(nn.Module):
 
         return class_labels 
 
-    def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256):
-        # load the dataset depends on sampling type
-        inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_size, self.bin_size, self.sampling_parameter["percentile"], self.sampling_parameter["std"], self.output_type, self.input_type)
-        
-        dataset= DatasetLoader(features=inputs, labels=outputs)
-        # Split dataset into training and validation
-        val_size = int(len(dataset) * validation_split)
-        train_size = len(dataset) - val_size
-        train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+    def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256, is_per_epoch=False):
 
-        # Create data loaders
-        train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
-        val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+        # load the dataset depends on sampling type
+        self.dataloader.load_dataset()
 
         criterion = nn.KLDivLoss(reduction='batchmean')  # Using KLDivLoss
         optimizer = optim.Adam(self.parameters(), lr=learning_rate)  # Define the optimizer
@@ -137,8 +128,11 @@ class SamplingFCNetwork(nn.Module):
         train_loss=[]
         val_loss=[]
 
-        best_val_loss = float('inf')  # Initialize best validation loss as infinity
-        best_train_loss = float('inf')  # Initialize best training loss as infinity
+        best_state = {
+            "val_loss": float('inf'), # Initialize best validation loss as infinity
+            "train_loss": float('inf') # Initialize best training loss as infinity
+        }
+
         start = time.time()
         best_model_state = self.model
         # Training and Validation Loop
@@ -147,6 +141,11 @@ class SamplingFCNetwork(nn.Module):
             total_val_loss = 0
             total_val_samples = 0
             
+            if epoch == 0 or is_per_epoch:
+                train_dataset, val_dataset, \
+                    train_loader, val_loader, \
+                        train_size, val_size = self.get_data_for_training(n_spheres, target_avg_points, validation_split, batch_size)
+
             with torch.no_grad():
                 for inputs, targets in val_loader:
                     inputs=inputs.to(self._device)
@@ -182,36 +181,40 @@ class SamplingFCNetwork(nn.Module):
             val_loss.append(avg_val_loss)
 
             # Update best model if current epoch's validation loss is the best
-            if val_loss[-1] < best_val_loss:
-                best_val_loss = val_loss[-1]
-                best_train_loss = train_loss[-1]
-                best_model_state = self.model
-                best_model_epoch = epoch
-
+            if val_loss[-1] < best_state["val_loss"]:
+                best_state = {
+                    "model": self.model,
+                    "epoch": epoch,
+                    "train_dataset": train_dataset,
+                    "val_dataset": val_dataset,
+                    "train_size": train_size,
+                    "val_size": val_size,
+                    "train_loss": train_loss[-1],
+                    "val_loss": val_loss[-1],
+                }
             print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss}, Val Loss: {avg_val_loss}')
         
-        # save the model at the best epoch
-        self.model= best_model_state
+        self.model= best_state["model"]
         
         end = time.time()
         training_time= end - start
 
         start = time.time()
         # Classifying all validation datapoints
-        val_preds, val_true, val_residuals = self.classify(val_dataset, batch_size)
-        _, _, train_residuals = self.classify(train_dataset, batch_size)
+        val_preds, val_true, val_residuals = self.classify(best_state["val_dataset"], batch_size)
+        _, _, train_residuals = self.classify(best_state["train_dataset"], batch_size)
 
         end = time.time()
-        inference_speed=(val_size + train_size)/(end - start)
-        print(f'Time taken for inference of {(val_size + train_size)} data points is: {end - start:.2f} seconds')
+        inference_speed=(best_state["train_size"] + best_state["val_size"])/(end - start)
+        print(f'Time taken for inference of {best_state["train_size"] + best_state["val_size"]} data points is: {end - start:.2f} seconds')
 
         # val_residuals = np.array(true_val_avg_scores) - np.array(pred_val_avg_scores)
         # train_residuals = np.array(true_train_avg_scores) - np.array(pred_train_avg_scores)
         
         self.save_graph_report(train_loss, val_loss,
-                               best_train_loss, best_val_loss,
+                               best_state["train_loss"], best_state["val_loss"], 
                                val_residuals, train_residuals,
-                               train_size, val_size, best_model_epoch)
+                               train_size, val_size, best_state["epoch"])
         
         # self.save_confusion_matrix(val_true, val_preds)
         
@@ -220,15 +223,34 @@ class SamplingFCNetwork(nn.Module):
                               training_time=training_time,
                               y_pred=val_preds, 
                               y_true=val_true,
-                              train_loss=best_train_loss, 
-                              val_loss=best_val_loss, 
+                              train_loss=best_state["train_loss"], 
+                              val_loss=best_state["val_loss"], 
                               inference_speed= inference_speed,
-                              learning_rate=learning_rate, best_model_epoch=best_model_epoch)
+                              learning_rate=learning_rate, best_model_epoch=best_state["epoch"])
         
         self.save_metadata(inputs, target_avg_points, learning_rate, num_epochs, batch_size)
         
-        return best_val_loss
+        return best_state["val_loss"]
         
+
+    def get_data_for_training(self, n_spheres, target_avg_points, validation_split, batch_size):
+        
+        # load the dataset depends on sampling type
+        inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_size, self.bin_size, self.sampling_parameter["percentile"], self.sampling_parameter["std"], self.output_type, self.input_type)
+        
+        dataset= DatasetLoader(features=inputs, labels=outputs)
+        # Split dataset into training and validation
+        val_size = int(len(dataset) * validation_split)
+        train_size = len(dataset) - val_size
+        train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+
+        # Create data loaders
+        train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+        val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+
+        return train_dataset, val_dataset, train_loader, val_loader, val_size, train_size
+    
+
     def save_model_report(self,num_training,
                               num_validation,
                               training_time,
