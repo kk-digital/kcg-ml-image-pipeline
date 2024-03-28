@@ -251,7 +251,7 @@ class EBM_Single_Class_Trainer:
                 try:
                     # Parse the JSON response
                     response_data = json.loads(response.content)
-                    print("reponse data lenght : ", len(response_data))
+                    print("reponse data lenght : ", len(response_data.get('response', {})))
                     # Check if 'images' key is present in the JSON response
                     if 'images' in response_data.get('response', {}):
                         # Extract file paths from the 'images' key
