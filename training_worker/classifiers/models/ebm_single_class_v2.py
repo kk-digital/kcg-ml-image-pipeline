@@ -73,7 +73,7 @@ minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
 
 from utility.path import separate_bucket_and_file_path
 from data_loader.utils import get_object
-
+from utility.http import request
 
 def parse_args():
     parser = argparse.ArgumentParser()
