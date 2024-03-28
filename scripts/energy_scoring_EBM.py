@@ -123,9 +123,9 @@ def get_file_paths_and_hashes_uuid(dataset,num_samples):
         
                 jobs = json.loads(response.content)
                 #print(jobs)
-                file_paths=[job['image_path'] for job in jobs]
-                hashes=[job['image_hash'] for job in jobs]
-                uuid =[job['uuid'] for job in jobs] 
+                file_paths=[job['image_path'] for job in jobs['response']]
+                hashes=[job['image_hash'] for job in jobs['response']]
+                uuid =[job['uuid'] for job in jobs['response']]
                 #image_hashes=[job['image_hash'] for job in jobs]
 
                 for i in  range(len(file_paths)):
@@ -147,8 +147,8 @@ def get_file_paths_and_hashes_uuid_v2(dataset,num_samples):
             try:
                 # Parse the JSON response
                 #response_data = json.loads(response.content)
-        
-                jobs = json.loads(response.content.response)
+                if 'images' in response.get('response', {}):
+                jobs = json.loads(response.content)
                 for job in jobs:
                     print(job)
 
@@ -180,4 +180,4 @@ def score_images_based_on_energy():
 
 
 
-get_file_paths_and_hashes_uuid_v2("environmental",100)
+get_file_paths_and_hashes_uuid("environmental",100)
