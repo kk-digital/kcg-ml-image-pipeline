@@ -92,6 +92,8 @@ def parse_args():
 
     return parser.parse_args()
 
+image_embedder= KandinskyCLIPImageEncoder(device="cuda")
+image_embedder.load_submodels()
 # ------------------------------------------------- Neural Net Architecutre --------------------------------------------------
 
 
@@ -556,6 +558,36 @@ def get_clip_vectors(file_paths):
             # You might want to log the error for further analysis or take alternative actions.
 
     return clip_vectors
+
+
+def get_clip_and_image_from_path(image_path):
+    image=get_image(image_path)
+    clip_embedding =  image_embedder.get_image_features(image)
+    #clip_embedding = torch.tensor(clip_embedding)
+    return image,clip_embedding.float()
+
+def get_clip_from_path(image_path):
+    image=get_image(image_path)
+    clip_embedding =  image_embedder.get_image_features(image)
+    #clip_embedding = torch.tensor(clip_embedding)
+    return image,clip_embedding.float()
+
+def get_image(file_path: str):
+    # get image from minio server
+    bucket_name, file_path = separate_bucket_and_file_path(file_path)
+    try:
+        response = minio_client.get_object(bucket_name, file_path)
+        image_data = BytesIO(response.data)
+        img = Image.open(image_data)
+        img = img.convert("RGB")
+    except Exception as e:
+        raise e
+    finally:
+        response.close()
+        response.release_conn()
+
+    return img
+
 ###################### main
 
 def main():
@@ -577,12 +609,12 @@ def main():
     #training_pipeline.train()
     training_pipeline.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="concept-occult" , model_type = "energy-based-model")
     #datasets/test-generations/0024/023128.jpg
-    print("true occult image 1 : , ",training_pipeline.evalute_energy(get_clip_vectors('datasets/test-generations/0024/023128.jpg')))
-    print("true occult image 2 : , ",training_pipeline.evalute_energy(get_clip_vectors('datasets/environmental/0124/123017.jpg')))
-    print("true occult image 3 : , ",training_pipeline.evalute_energy(get_clip_vectors('datasets/environmental/0367/366210.jpg')))
-    print("random image 1 : , ",training_pipeline.evalute_energy(get_clip_vectors('datasets/environmental/0300/299693.jpg')))
-    print("random image 2  : , ",training_pipeline.evalute_energy(get_clip_vectors('datasets/environmental/0042/041848.jpg')))
-    print("random image 3  : , ",training_pipeline.evalute_energy(get_clip_vectors('datasets/environmental/0277/276058.jpg')))
+    print("true occult image 1 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/test-generations/0024/023128.jpg')))
+    print("true occult image 2 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0124/123017.jpg')))
+    print("true occult image 3 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0367/366210.jpg')))
+    print("random image 1 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0300/299693.jpg')))
+    print("random image 2  : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0042/041848.jpg')))
+    print("random image 3  : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0277/276058.jpg')))
 
 if __name__ == "__main__":
     main()
