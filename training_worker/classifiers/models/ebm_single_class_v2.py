@@ -340,6 +340,66 @@ class EBM_Single_Class:
         os.remove("output/loss_tracking_per_step.png")
         # Clear the current figure
         plt.clf()
+    def save_model_to_minio(self,name,local_path):
+            # Save the model locally pth
+            save_model(self.model, local_path)
+            
+            #Read the contents of the saved model file
+            with open(local_path, "rb") as model_file:
+                model_bytes = model_file.read()
+
+            # init config
+                
+            date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
+            print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
+            bucket_name = "datasets"
+            network_type = "energy-based-model"
+            output_type = "energy"
+            input_type = 'clip-h'
+            dataset_name = 'environmental'
+            tag_name = self.classe_name
+
+            output_path = "{}/models/classifiers/{}".format(dataset_name, tag_name)
+            sequence = 0
+            filename = "{}-{:02}-{}-{}-{}-{}".format(date_now, sequence, tag_name, output_type, network_type, input_type)
+
+            # if exist, increment sequence
+            while True:
+                filename = "{}-{:02}-{}-{}-{}-{}".format(date_now, sequence, tag_name, output_type, network_type, input_type)
+                exists = cmd.is_object_exists(minio_client, bucket_name,
+                                            os.path.join(output_path, filename + ".safetensors"))
+                if not exists:
+                    break
+
+                sequence += 1
+
+            model_name = "{}.safetensors".format(filename)
+            model_output_path = os.path.join(output_path, model_name)
+            print("file path : ",filename)
+            # upload model
+            
+            minio_model_path = output_path + '/' + filename +".safetensors"
+            print("minio model path ",minio_model_path)
+            cmd.upload_data(minio_client, bucket_name, minio_model_path, BytesIO(model_bytes))
+            # Upload the model to MinIO
+
+            cmd.is_object_exists(minio_client, bucket_name,
+                                      os.path.join(output_path, filename + ".safetensors"))
+            
+          
+            # get model card and upload
+            classifier_name="{}-{}-{}-{}".format(self.classe_name, output_type, network_type, input_type)
+            model_card_name = "{}.json".format(filename)
+            model_card_name_output_path = os.path.join(output_path, model_card_name)
+            model_card_buf, model_card = get_model_card_buf(classifier_name= classifier_name,
+                                                            tag_id= self.class_id,
+                                                            latest_model= filename,
+                                                            model_path= model_output_path,
+                                                            creation_time=date_now)
+            cmd.upload_data(minio_client, bucket_name, model_card_name_output_path, model_card_buf)
+
+            # add model card
+            request.http_add_classifier_model(model_card)      
 
     # Via clip-H
     def evalute_energy(self, dataset_feature_vector):
