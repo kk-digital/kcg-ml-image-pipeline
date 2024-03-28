@@ -90,20 +90,10 @@ class SamplingFCRegressionNetwork(nn.Module):
         return local_path, minio_path
 
     def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256):
+
         # load the dataset depends on sampling type
-        inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres=n_spheres,target_avg_points=target_avg_points, output_type=self.output_type, percentile=self.sampling_parameter["percentile"], std=self.sampling_parameter["std"], input_type=self.input_type)
+        self.dataloader.load_dataset()
         
-        # load the dataset
-        dataset= DatasetLoader(features=inputs, labels=outputs)
-        # Split dataset into training and validation
-        val_size = int(len(dataset) * validation_split)
-        train_size = len(dataset) - val_size
-        train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
-
-        # Create data loaders
-        train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
-        val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
-
         criterion = nn.L1Loss()  # Define the loss function
         optimizer = optim.Adam(self.parameters(), lr=learning_rate)  # Define the optimizer
 
@@ -120,6 +110,10 @@ class SamplingFCRegressionNetwork(nn.Module):
             total_val_loss = 0
             total_val_samples = 0
             
+            train_dataset, val_dataset, \
+                train_loader, val_loader, \
+                    train_size, val_size = self.get_data_for_training(n_spheres, target_avg_points, validation_split, batch_size)
+
             with torch.no_grad():
                 for inputs, targets in val_loader:
                     inputs=inputs.to(self._device)
@@ -154,32 +148,38 @@ class SamplingFCRegressionNetwork(nn.Module):
             val_loss.append(avg_val_loss)
 
             # Update best model if current epoch's validation loss is the best
-            if val_loss[-1] < best_val_loss:
-                best_val_loss = val_loss[-1]
-                best_train_loss = train_loss[-1]
-                best_model_state = self.model
-                best_model_epoch = epoch
+            if val_loss[-1] < best_state["val_loss"]:
+                best_state = {
+                    "model": self.model,
+                    "epoch": epoch,
+                    "train_dataset": train_dataset.detach(),
+                    "val_dataset": val_dataset.detach(),
+                    "train_size": train_size,
+                    "val_size": val_size,
+                    "train_loss": train_loss[-1],
+                    "val_loss": val_loss[-1],
+                }
             print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss}, Val Loss: {avg_val_loss}')
         
 
         # save the model at the best epoch
-        self.model= best_model_state
+        self.model= best_state["model"]
         
         end = time.time()
         training_time= end - start
 
         start = time.time()
         # Inference and calculate residuals on the training and validation set
-        val_preds = self.inference(val_dataset, batch_size)
-        train_preds = self.inference(train_dataset, batch_size)
+        val_preds = self.inference(best_state["val_dataset"], batch_size)
+        train_preds = self.inference(best_state["train_dataset"], batch_size)
         
         end = time.time()
-        inference_speed=(train_size + val_size)/(end - start)
-        print(f'Time taken for inference of {(train_size + val_size)} data points is: {end - start:.2f} seconds')
+        inference_speed=(best_state["train_size"] + best_state["val_size"])/(end - start)
+        print(f'Time taken for inference of {best_state["train_size"] + best_state["val_size"]} data points is: {end - start:.2f} seconds')
 
         # Extract the true values from the datasets
-        y_train = torch.cat([y.unsqueeze(0) for _, y in train_dataset]).to(self._device)
-        y_val = torch.cat([y.unsqueeze(0) for _, y in val_dataset]).to(self._device)
+        y_train = torch.cat([y.unsqueeze(0) for _, y in best_state["train_dataset"]]).to(self._device)
+        y_val = torch.cat([y.unsqueeze(0) for _, y in best_state["val_dataset"]]).to(self._device)
 
         # Calculate residuals
         val_residuals = y_val - val_preds
@@ -194,7 +194,7 @@ class SamplingFCRegressionNetwork(nn.Module):
                                best_train_loss, best_val_loss, 
                                val_residuals, train_residuals, 
                                val_preds, y_val,
-                               train_size, val_size, best_model_epoch)
+                               train_size, val_size, best_state["epoch"])
         
         self.save_model_report(num_training=train_size,
                               num_validation=val_size,
@@ -202,11 +202,29 @@ class SamplingFCRegressionNetwork(nn.Module):
                               train_loss=best_train_loss, 
                               val_loss=best_val_loss,  
                               inference_speed= inference_speed,
-                              learning_rate=learning_rate, best_model_epoch=best_model_epoch)
+                              learning_rate=learning_rate, best_model_epoch=best_state["epoch"])
         
         self.save_metadata(inputs, target_avg_points, learning_rate, num_epochs, batch_size)
 
         return best_val_loss
+    
+
+    def get_data_for_training(self, n_spheres, target_avg_points, validation_split, batch_size):
+
+        inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres=n_spheres,target_avg_points=target_avg_points, output_type=self.output_type, percentile=self.sampling_parameter["percentile"], std=self.sampling_parameter["std"], input_type=self.input_type)
+        
+        # load the dataset
+        dataset= DatasetLoader(features=inputs, labels=outputs)
+        # Split dataset into training and validation
+        val_size = int(len(dataset) * validation_split)
+        train_size = len(dataset) - val_size
+        train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+
+        # Create data loaders
+        train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+        val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+
+        return train_dataset, val_dataset, train_loader, val_loader, val_size, train_size
         
     def save_model_report(self,num_training,
                               num_validation,

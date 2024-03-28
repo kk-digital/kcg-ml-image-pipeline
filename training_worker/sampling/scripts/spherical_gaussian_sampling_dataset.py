@@ -47,8 +47,18 @@ class SphericalGaussianGenerator:
         self.minio_client= minio_client
         self.dataset= dataset
 
+    def load_dataset(self):
+
+        # load data from mongodb
+        self.feature_vectors, self.scores= self.dataloader.load_clip_vector_data()
+        self.feature_vectors= np.array(self.feature_vectors, dtype='float32')
+
     def generate_spheres(self, n_spheres, target_avg_points, num_bins, bin_size, percentile, std, discard_threshold=None):
-        
+     
+        # Calculate max and min vectors
+        max_vector = np.max(self.feature_vectors, axis=0)
+        min_vector = np.min(self.feature_vectors, axis=0)
+
         bins=[]
         for i in range(num_bins-1):
             max_score= int((i+1-(num_bins/2)) * bin_size)
@@ -56,21 +66,13 @@ class SphericalGaussianGenerator:
         
         bins.append(np.inf)
 
-        # load data from mongodb
-        feature_vectors, scores= self.dataloader.load_clip_vector_data()
-        feature_vectors= np.array(feature_vectors, dtype='float32')
-     
-        # Calculate max and min vectors
-        max_vector = np.max(feature_vectors, axis=0)
-        min_vector = np.min(feature_vectors, axis=0)
-
         print("generating the initial spheres-------------")
         # Generate random values between 0 and 1, then scale and shift them into the [min, max] range for each feature
         sphere_centers = np.random.rand(n_spheres, len(max_vector)) * (max_vector - min_vector) + min_vector
         # Convert sphere_centers to float32
         sphere_centers = sphere_centers.astype('float32')
 
-        d = feature_vectors.shape[1]
+        d = self.feature_vectors.shape[1]
         # remove
         # nlist = 50  # how many cells
         # quantizer = faiss.IndexFlatL2(d)
@@ -82,8 +84,8 @@ class SphericalGaussianGenerator:
             res = faiss.StandardGpuResources()
             index = faiss.index_cpu_to_gpu(res, 0, cpu_index)
         
-        index.train(feature_vectors)
-        index.add(feature_vectors)
+        index.train(self.feature_vectors)
+        index.add(self.feature_vectors)
         
         print("Searching for k nearest neighbors for each sphere center-------------")
         # Search for the k nearest neighbors of each sphere center in the dataset
@@ -124,7 +126,7 @@ class SphericalGaussianGenerator:
             sum_weights = .0
             sphere_scores=[]
             for i, idx in enumerate(point_indices, 0):
-                score = scores[idx]
+                score = self.scores[idx]
                 sphere_scores.append(score)
                 weight = gaussian_pdf(distance_vector[i], variance)
                 sum_weights += weight
@@ -158,7 +160,7 @@ class SphericalGaussianGenerator:
         print(f"total datapoints: {len(total_covered_points)}")
         print(f"average points per sphere: {avg_points_per_sphere}")
         
-        self.plot(sphere_data, points_per_sphere, n_spheres, scores, percentile, std, target_avg_points, num_bins, bin_size)
+        self.plot(sphere_data, points_per_sphere, n_spheres, self.scores, percentile, std, target_avg_points, num_bins, bin_size)
 
         return sphere_data, avg_points_per_sphere, len(total_covered_points)
 
