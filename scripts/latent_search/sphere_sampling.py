@@ -269,7 +269,7 @@ class SphereSamplingGenerator:
         cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
         # Remove the temporary file
         os.remove(local_path)
-        
+
 def main():
     args= parse_args()
 
@@ -283,7 +283,9 @@ def main():
                                         batch_size= args.batch_size,
                                         sampling_policy= args.sampling_policy,
                                         send_job= args.send_job,
-                                        save_csv= args.save_csv)
+                                        save_csv= args.save_csv,
+                                        optimize_spheres= args.optimize_spheres,
+                                        optimize_vectors= args.optimize_vectors)
 
     generator.generate_images(num_images=args.num_images)
 
