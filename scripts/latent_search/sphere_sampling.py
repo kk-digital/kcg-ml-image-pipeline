@@ -138,7 +138,8 @@ class SphereSamplingGenerator:
         dim = spheres.size(1) - 1  # Exclude radius from dimensions
         
         # Determine points to generate per sphere
-        points_per_sphere = max(int(num_samples/self.top_k), 1000)
+        num_generated_samples = int(num_samples/self.top_k)
+        points_per_sphere = max(int(num_generated_samples/self.selected_spheres), 1000)
         
         clip_vectors = torch.empty((0, dim), device=self.device)  # Initialize an empty tensor for all clip vectors
         scores = []
