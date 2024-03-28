@@ -629,6 +629,7 @@ def get_tag_id_by_name(tag_name):
 
 
 def train_model(self,train_loader,val_loader, adv_loader, **kwargs):
+    CHECKPOINT_PATH = "../savedmodels"
 
     # Create a PyTorch Lightning trainer with the generation callback
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),

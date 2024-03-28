@@ -535,6 +535,8 @@ class DeepEnergyModel(pl.LightningModule):
 
 def train_model(train_loader,val_loader, adv_loader, **kwargs):
     # Create a PyTorch Lightning trainer with the generation callback
+    CHECKPOINT_PATH = "../savedmodels"
+
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(device).startswith("cuda") else "cpu",
                          devices=1,
