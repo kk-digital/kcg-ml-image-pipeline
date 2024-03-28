@@ -36,43 +36,44 @@ class UniformSphereGenerator:
         
         self.dataloader= KandinskyDatasetLoader(minio_client=minio_client,
                                                 dataset=dataset)
+        self.scores=[]
+        self.feature_vectors=[]
+        self.max_vector=None
+        self.min_vector=None
         
         self.minio_client= minio_client
         self.dataset= dataset
 
-    def generate_spheres(self, n_spheres, target_avg_points, output_type="score_distribution", num_bins=8, bin_size=1, discard_threshold=None):
-        
-        if output_type =="score_distribution":
-            bins=[]
-            for i in range(num_bins-1):
-                max_score= int((i+1-(num_bins/2)) * bin_size)
-                bins.append(max_score)
-            
-            bins.append(np.inf)
-
+    def load_data(self):
         # load data from mongodb
         feature_vectors, scores= self.dataloader.load_clip_vector_data()
-        feature_vectors= np.array(feature_vectors, dtype='float32')
-     
-        # Calculate max and min vectors
-        max_vector = np.max(feature_vectors, axis=0)
-        min_vector = np.min(feature_vectors, axis=0)
+        # set features vectors and scores
+        self.feature_vectors= np.array(feature_vectors, dtype='float32')
+        self.scores = scores
+        # set min and max vectors
+        self.max_vector = np.max(feature_vectors, axis=0)
+        self.min_vector = np.min(feature_vectors, axis=0)
 
+    def generate_spheres(self, n_spheres, target_avg_points, output_type="score_distribution", num_bins=8, bin_size=1, discard_threshold=None):
+        # checking if data has been loaded
+        if len(self.feature_vectors)==0:
+            raise Exception("You must load datapoints first before generating spheres.")
+        
         print("generating the initial spheres-------------")
         # Generate random values between 0 and 1, then scale and shift them into the [min, max] range for each feature
-        sphere_centers = np.random.rand(n_spheres, len(max_vector)) * (max_vector - min_vector) + min_vector
+        sphere_centers = np.random.rand(n_spheres, len(self.max_vector)) * (self.max_vector - self.min_vector) + self.min_vector
         # Convert sphere_centers to float32
         sphere_centers = sphere_centers.astype('float32')
 
         res = faiss.StandardGpuResources()
 
-        d = feature_vectors.shape[1]
+        d = self.feature_vectors.shape[1]
         # build a flat (CPU) index
         index_flat = faiss.IndexFlatL2(d)
         # make it into a gpu index
         index = faiss.index_cpu_to_gpu(res, 0, index_flat)
 
-        index.add(feature_vectors)
+        index.add(self.feature_vectors)
         
         print("Searching for k nearest neighbors for each sphere center-------------")
         # Search for the k nearest neighbors of each sphere center in the dataset
@@ -97,12 +98,21 @@ class UniformSphereGenerator:
         total_covered_points = set()
         inputs=[]
         targets=[]
+        
+        # prepare array for score bins
+        if output_type =="score_distribution":
+            bins=[]
+            for i in range(num_bins-1):
+                max_score= int((i+1-(num_bins/2)) * bin_size)
+                bins.append(max_score)
+            
+            bins.append(np.inf)
 
         # Assuming 'scores' contains the scores for all points and 'bins' defines the score bins
         for center, radius, sphere_indices in zip(valid_centers, valid_radii, indices):
             # Extract indices and scores of points within the sphere
             point_indices = sphere_indices
-            sphere_scores=[scores[idx] for idx in point_indices]
+            sphere_scores=[self.scores[idx] for idx in point_indices]
 
             if output_type=="score_distribution":            
                 # Calculate score distribution for the sphere

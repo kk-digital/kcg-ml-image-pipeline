@@ -100,8 +100,12 @@ class SamplingFCRegressionNetwork(nn.Module):
               batch_size=256,
               generate_every_epoch=False):
 
-        criterion = nn.L1Loss()  # Define the loss function
-        optimizer = optim.Adam(self.parameters(), lr=learning_rate)  # Define the optimizer
+        # load datapoints from minio
+        self.dataloader.load_data()
+
+        # Define the loss function and optimizer
+        criterion = nn.L1Loss()  
+        optimizer = optim.Adam(self.parameters(), lr=learning_rate)
 
         # save loss for each epoch and features
         train_loss=[]

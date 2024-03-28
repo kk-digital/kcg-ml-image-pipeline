@@ -81,7 +81,6 @@ class SamplingFCNetwork(nn.Module):
         self.dataset=dataset
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path=self.get_model_path()
-        self.class_labels= self.get_class_labels()
 
         # sphere dataloader
         self.dataloader= UniformSphereGenerator(minio_client, dataset)
@@ -92,27 +91,6 @@ class SamplingFCNetwork(nn.Module):
 
         return local_path, minio_path
 
-    def get_class_labels(self):
-        output_size= self.output_size
-        bin_size= self.bin_size
-
-        class_labels=[]
-        for i in range(0, output_size):
-            # calculate min and max for bin
-            min_score_value= int((i-(output_size/2)) * bin_size)
-            max_score_value= int(min_score_value + bin_size)
-            # get label str values
-            if i==0:
-                class_label= f"<{max_score_value}"
-            elif i == output_size-1:
-                class_label= f">{min_score_value}"
-            else:
-                class_label= f"[{min_score_value},{max_score_value}]"
-
-            class_labels.append(class_label)
-
-        return class_labels 
-
     def train(self, n_spheres, 
               target_avg_points, 
               learning_rate=0.001, 
@@ -121,6 +99,10 @@ class SamplingFCNetwork(nn.Module):
               batch_size=256,
               generate_every_epoch=False):
        
+        # load datapoints from minio
+        self.dataloader.load_data()
+
+        # Define the loss function and optimizer 
         criterion = nn.KLDivLoss(reduction='batchmean')  # Using KLDivLoss
         optimizer = optim.Adam(self.parameters(), lr=learning_rate)  # Define the optimizer
 
@@ -222,7 +204,8 @@ class SamplingFCNetwork(nn.Module):
     
     def get_validation_and_training_features(self, validation_split, batch_size, n_spheres, target_avg_points):
         # load inputs and targets
-        inputs, outputs = self.dataloader.generate_spheres(n_spheres, target_avg_points, self.output_type)
+        inputs, outputs = self.dataloader.generate_spheres(n_spheres, target_avg_points, self.output_type,
+                                                           self.output_size, self.bin_size)
 
         # load the dataset
         dataset= DatasetLoader(features=inputs, labels=outputs)
