@@ -223,7 +223,8 @@ class DeepEnergyModel(pl.LightningModule):
         cdiv_loss = fake_scores.mean() - real_scores.mean()
 
         # regression loss
-        reg_loss =(real_scores ** 2 - fake_scores ** 2).mean()
+        #reg_loss =(real_scores ** 2 + fake_scores ** 2).mean()
+        reg_loss =((real_scores + fake_scores )** 2) .mean()
 
         # Combine losses and backpropagate
         alphaW = 1  # Adjust weight for cdiv_loss
