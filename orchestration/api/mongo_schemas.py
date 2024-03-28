@@ -252,8 +252,34 @@ class ClassifierScore(BaseModel):
             "score": self.score,
         }
 
+class ClassifierScoreV1(BaseModel):
+    uuid: Union[str, None]
+    classifier_id: int
+    image_hash: str
+    tag_id: int
+    score: float
+    creation_time: Union[str, None] = None
+
+    def to_dict(self):
+        return {
+            "uuid": self.uuid,
+            "classifier_id": self.classifier_id,
+            "image_hash": self.image_hash,
+            "tag_id": self.tag_id,
+            "score": self.score,
+            "creation_time" : self.creation_time
+        }
+    
 class ListClassifierScore(BaseModel):
     images: List[ClassifierScore]
+
+class ListClassifierScore1(BaseModel):
+    images: List[ClassifierScoreV1]
+
+class ClassifierScoreRequest(BaseModel):
+    job_uuid: Union[str, None]
+    classifier_id: int
+    score: float
 
 class RankingSigmaScore(BaseModel):
     model_id: int

@@ -270,11 +270,10 @@ def get_rank_model_list_for_image(request: Request, file_hash: str):
                 category = request.app.rank_model_categories_collection.find_one({"rank_model_category_id": rank_model_model.get("rank_model_category_id")})
                 deprecated_rank_model_category = category['deprecated'] if category else False
                 
-                # Create a dictionary representing rankmodel with rank_model_type and deprecated_rank_model_category
+                # Create a dictionary representing rankmodel with  deprecated_rank_model_category
                 rank_model_model_dict = {
                     "rank_model_id": rank_model_model["rank_model_id"],
                     "rank_model_string": rank_model_model["rank_model_string"],
-                    "rank_model_type": rank_model_data.get("rank_model_type"),
                     "rank_model_category_id": rank_model_model.get("rank_model_category_id"),
                     "rank_model_description": rank_model_model["rank_model_description"],
                     "rank_model_vector_index": rank_model_model.get("rank_model_vector_index", -1),
@@ -436,7 +435,6 @@ def get_ranked_images(
                     rank_model_id=int(rank_model_data["rank_model_id"]),
                     file_path=rank_model_data["file_path"], 
                     image_hash=str(rank_model_data["image_hash"]),
-                    rank_model_type=int(rank_model_data["rank_model_type"]),
                     user_who_created=rank_model_data["user_who_created"],
                     creation_time=rank_model_data.get("creation_time", None)
                 )
@@ -476,7 +474,6 @@ async def get_all_rank_model_images(request: Request):
                     rank_model_id=int(rank_model_data["rank_model_id"]),
                     file_path=rank_model_data["file_path"], 
                     image_hash=str(rank_model_data["image_hash"]),
-                    rank_model_type=int(rank_model_data["rank_model_type"]),
                     user_who_created=rank_model_data["user_who_created"],
                     creation_time=rank_model_data.get("creation_time", None)
                 )
