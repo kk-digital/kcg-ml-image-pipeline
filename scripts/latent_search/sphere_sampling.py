@@ -172,6 +172,7 @@ class SphereSamplingGenerator:
         # get top scoring datapoints
         _, sorted_indices = torch.sort(scores.squeeze(), descending=True)
         clip_vectors = clip_vectors[sorted_indices[:num_samples]]
+        print(scores[sorted_indices[:num_samples]])
 
         # Optimization step
         if(self.optimize_samples):
