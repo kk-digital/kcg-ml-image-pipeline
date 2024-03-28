@@ -134,6 +134,7 @@ class SphereSamplingGenerator:
         scores = []
         for sphere in spheres:
             print(dim)
+            print(sphere)
             center, radius = sphere[:dim-1], sphere[-1]
 
             # Direction adjustment based on z-scores
