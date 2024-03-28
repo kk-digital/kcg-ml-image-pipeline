@@ -101,8 +101,10 @@ class SamplingFCRegressionNetwork(nn.Module):
         train_loss=[]
         val_loss=[]
 
-        best_val_loss = float('inf')  # Initialize best validation loss as infinity
-        best_train_loss = float('inf')  # Initialize best training loss as infinity
+        best_state = {
+            "val_loss": float('inf'), # Initialize best validation loss as infinity
+            "train_loss": float('inf') # Initialize best training loss as infinity
+        }
         start = time.time()
         # Training and Validation Loop
         for epoch in range(num_epochs):
@@ -191,7 +193,7 @@ class SamplingFCRegressionNetwork(nn.Module):
         train_residuals= train_residuals.cpu().numpy()
         
         self.save_graph_report(train_loss, val_loss,
-                               best_train_loss, best_val_loss, 
+                               best_state["train_loss"], best_state["val_loss"], 
                                val_residuals, train_residuals, 
                                val_preds, y_val,
                                train_size, val_size, best_state["epoch"])
@@ -199,14 +201,14 @@ class SamplingFCRegressionNetwork(nn.Module):
         self.save_model_report(num_training=train_size,
                               num_validation=val_size,
                               training_time=training_time, 
-                              train_loss=best_train_loss, 
-                              val_loss=best_val_loss,  
+                              train_loss=best_state["train_loss"], 
+                              val_loss=best_state["val_loss"],  
                               inference_speed= inference_speed,
                               learning_rate=learning_rate, best_model_epoch=best_state["epoch"])
         
         self.save_metadata(inputs, target_avg_points, learning_rate, num_epochs, batch_size)
 
-        return best_val_loss
+        return best_state["val_loss"]
     
 
     def get_data_for_training(self, n_spheres, target_avg_points, validation_split, batch_size):
