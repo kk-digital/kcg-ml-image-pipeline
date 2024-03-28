@@ -338,7 +338,7 @@ class EBM_Single_Class:
 
         # upload the graph report
         minio_path="environmental/output/my_tests"
-        minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_isometric_training" +date_now+".png"
+        minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_"+ self.classe_name + "_" +date_now+".png"
         cmd.upload_data(minio_client, 'datasets', minio_path, buf)
         # Remove the temporary file
         os.remove("output/loss_tracking_per_step.png")
@@ -404,6 +404,42 @@ class EBM_Single_Class:
 
             # add model card
             request.http_add_classifier_model(model_card)      
+    def load_model_from_minio(self, minio_client, dataset_name, tag_name, model_type):
+            # get model file data from MinIO
+            #datasets/environmental/models/classifiers/concept-cybernetic
+            prefix= f"{dataset_name}/models/classifiers/"
+            suffix= ".safetensors"
+
+            model_files=cmd.get_list_of_objects_with_prefix(minio_client, 'datasets', prefix)
+            most_recent_model = None
+
+            for model_file in model_files:
+                #print("model path : ",model_file)
+                if tag_name in model_file and model_type in model_file and model_file.endswith(suffix):
+                    print("yep found one",model_file)
+                    most_recent_model = model_file
+
+            print("most recent model is : ",  most_recent_model)
+            if most_recent_model:
+                model_file_data =cmd.get_file_from_minio(minio_client, 'datasets', most_recent_model)
+                print("yep save : ",model_file)
+            else:
+                print("No .safetensors files found in the list.")
+                return None
+            
+            print(most_recent_model)
+
+            # Create a temporary file and write the downloaded content into it
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                for data in model_file_data.stream(amt=8192):
+                    temp_file.write(data)
+
+            # Load the model from the downloaded bytes
+            #model.load_state_dict(torch.load(temp_file.name))
+            self.model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+            load_model(self.model, temp_file.name)
+            # Remove the temporary file
+            os.remove(temp_file.name)
 
     # Via clip-H
     def evalute_energy(self, dataset_feature_vector):
@@ -538,7 +574,14 @@ def main():
                                 learning_rate= args.learning_rate)
 
     # do self training
-    training_pipeline.train()
+    #training_pipeline.train()
+    training_pipeline.load_model_to_minio_v3(minio_client, dataset_name = "environmental", tag_name ="concept-occult" , model_type = "energy-based-model")
+    print("true occult image 1 : , ",training_pipeline.evalute_energy(get_clip_vectors()))
+    print("true occult image 2 : , ",training_pipeline.evalute_energy(get_clip_vectors()))
+    print("true occult image 3 : , ",training_pipeline.evalute_energy(get_clip_vectors()))
+    print("random image 1 : , ",training_pipeline.evalute_energy(get_clip_vectors()))
+    print("random image 2  : , ",training_pipeline.evalute_energy(get_clip_vectors()))
+    print("random image 3  : , ",training_pipeline.evalute_energy(get_clip_vectors()))
 
 if __name__ == "__main__":
     main()
