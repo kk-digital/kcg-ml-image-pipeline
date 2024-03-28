@@ -128,10 +128,10 @@ class SphereSamplingGenerator:
 
         # Optimization step
         if(self.optimize_spheres):
-            optimized_spheres = self.optimize_datapoints(top_spheres, self.sphere_scoring_model)
-            optimized_spheres= torch.stack(optimized_spheres).squeeze(1)
+            top_spheres = self.optimize_datapoints(top_spheres, self.sphere_scoring_model)
+            top_spheres= torch.stack(top_spheres).squeeze(1)
 
-        return optimized_spheres
+        return top_spheres
     
     def sample_clip_vectors(self, num_samples):
         spheres = self.rank_and_optimize_spheres()  
@@ -173,9 +173,9 @@ class SphereSamplingGenerator:
 
         # Optimization step
         if(self.optimize_vectors):
-            optimized_vectors = self.optimize_datapoints(clip_vectors, self.scoring_model)
+            clip_vectors = self.optimize_datapoints(clip_vectors, self.scoring_model)
 
-        return optimized_vectors
+        return clip_vectors
     
     def optimize_datapoints(self, clip_vectors, scoring_model):
         # Calculate the total number of batches
