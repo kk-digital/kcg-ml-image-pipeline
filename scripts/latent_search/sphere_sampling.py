@@ -1,9 +1,12 @@
 import argparse
+from datetime import datetime
+import io
 import math
 import os
 import sys
 import msgpack
 import numpy as np
+import pandas as pd
 import torch
 import torch.optim as optim
 
@@ -30,6 +33,8 @@ def parse_args():
         parser.add_argument('--send-job', action='store_true', default=False)
         parser.add_argument('--save-csv', action='store_true', default=False)
         parser.add_argument('--sampling-policy', type=str, default="top-k-sphere-sampling")
+        parser.add_argument('--optimize-spheres', action='store_true', default=False)
+        parser.add_argument('--optimize-vectors', action='store_true', default=False)
 
         return parser.parse_args()
 
@@ -44,7 +49,9 @@ class SphereSamplingGenerator:
                 batch_size,
                 sampling_policy,
                 send_job=False,
-                save_csv=False
+                save_csv=False,
+                optimize_spheres=False,
+                optimize_vectors=False,
                 ):
             
             self.dataset= dataset
@@ -56,6 +63,8 @@ class SphereSamplingGenerator:
             self.selected_spheres= selected_spheres
             self.batch_size= batch_size
             self.sampling_policy= sampling_policy
+            self.optimize_spheres= optimize_spheres
+            self.optimize_vectors= optimize_vectors
 
             # get minio client
             self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
@@ -118,13 +127,14 @@ class SphereSamplingGenerator:
         top_spheres = generated_spheres[sorted_indexes]
 
         # Optimization step
-        optimized_spheres = self.optimize_datapoints(top_spheres, self.sphere_scoring_model)
+        if(self.optimize_spheres):
+            optimized_spheres = self.optimize_datapoints(top_spheres, self.sphere_scoring_model)
+            optimized_spheres= torch.stack(optimized_spheres).squeeze(1)
 
         return optimized_spheres
     
     def sample_clip_vectors(self, num_samples):
         spheres = self.rank_and_optimize_spheres()  
-        spheres= torch.stack(spheres).squeeze(1)
         dim = spheres.size(1) - 1  # Exclude radius from dimensions
         
         # Determine points to generate per sphere
@@ -162,7 +172,8 @@ class SphereSamplingGenerator:
         clip_vectors = clip_vectors[sorted_indices[:num_samples]]
 
         # Optimization step
-        optimized_vectors = self.optimize_datapoints(clip_vectors, self.scoring_model)
+        if(self.optimize_vectors):
+            optimized_vectors = self.optimize_datapoints(clip_vectors, self.scoring_model)
 
         return optimized_vectors
     
@@ -209,6 +220,7 @@ class SphereSamplingGenerator:
     def generate_images(self, num_images):
         # generate clip vectors
         clip_vectors= self.sample_clip_vectors(num_samples=num_images)
+        df_data=[]
 
         for clip_vector in clip_vectors:
             if self.send_job:
@@ -226,10 +238,38 @@ class SphereSamplingGenerator:
                 except:
                     print("An error occured.")
                     task_uuid = -1
-                    task_time = -1
-        
-        print("Jobs were sent for generation.")
+                    task_time = -1         
+                print("Jobs were sent for generation.")
 
+            if self.save_csv:
+                df_data.append({
+                    'task_uuid': task_uuid,
+                    'generation_policy_string': self.sampling_policy,
+                    'time': task_time
+                })
+
+        if self.save_csv:
+            self.store_uuids_in_csv_file(df_data)
+
+    # store list of initial prompts in a csv to use for prompt mutation
+    def store_uuids_in_csv_file(self, data):
+        minio_path=f"{self.dataset}/output/generated-images-csv"
+        local_path="output/generated_images.csv"
+        pd.DataFrame(data).to_csv(local_path, index=False)
+        # Read the contents of the CSV file
+        with open(local_path, 'rb') as file:
+            csv_content = file.read()
+
+        #Upload the CSV file to Minio
+        buffer = io.BytesIO(csv_content)
+        buffer.seek(0)
+
+        current_date=datetime.now().strftime("%Y-%m-%d-%H:%M")
+        minio_path= minio_path + f"/{current_date}-{self.sampling_policy}-{self.dataset}.csv"
+        cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
+        # Remove the temporary file
+        os.remove(local_path)
+        
 def main():
     args= parse_args()
 
