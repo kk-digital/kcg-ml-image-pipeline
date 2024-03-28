@@ -210,13 +210,11 @@ class SphereSamplingGenerator:
         # generate clip vectors
         clip_vectors= self.sample_clip_vectors(num_samples=num_images)
 
-        print(clip_vectors)
-
         for clip_vector in clip_vectors:
             if self.send_job:
                 try:
                     response= generate_img2img_generation_jobs_with_kandinsky(
-                        image_embedding=clip_vector,
+                        image_embedding=clip_vector.unsqueeze(0),
                         negative_image_embedding=None,
                         dataset_name="test-generations",
                         prompt_generation_policy=self.sampling_policy,
