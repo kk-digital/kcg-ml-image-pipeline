@@ -120,7 +120,7 @@ def get_file_paths_and_hashes_uuid(dataset,num_samples):
         #print(jobs)
         file_paths=[job['image_path'] for job in jobs]
         hashes=[job['image_hash'] for job in jobs]
-        uuid =[job['job_uuid'] for job in jobs] 
+        uuid =[job['uuid'] for job in jobs] 
         #image_hashes=[job['image_hash'] for job in jobs]
 
         for i in  range(len(file_paths)):
