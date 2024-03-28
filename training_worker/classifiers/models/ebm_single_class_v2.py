@@ -94,6 +94,61 @@ def parse_args():
 
 image_embedder= KandinskyCLIPImageEncoder(device="cuda")
 image_embedder.load_submodels()
+
+
+
+def get_tag_jobs(tag_id):
+    response = requests.get(f'{API_URL}/tags/get-images-by-tag-id/?tag_id={tag_id}')
+    
+    # Check if the response is successful (status code 200)
+    if response.status_code == 200:
+        try:
+            # Parse the JSON response
+            response_data = json.loads(response.content)
+
+            # Check if 'images' key is present in the JSON response
+            if 'images' in response_data.get('response', {}):
+                # Extract file paths from the 'images' key
+                file_paths = [job['file_path'] for job in response_data['response']['images']]
+                return file_paths
+            else:
+                print("Error: 'images' key not found in the JSON response.")
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON: {e}")
+    else:
+        print(f"Error: HTTP request failed with status code {response.status_code}")
+
+    # Return an empty list or appropriate value to indicate an error
+    return []
+
+def get_clip_embeddings_by_tag(id_classes,label_value):
+    images_paths = get_tag_jobs(id_classes[0])
+    i = 1
+    for i in range(1,len(id_classes)):
+        images_paths = images_paths + get_tag_jobs(id_classes[i])
+       
+ 
+    
+    ocult_clips = get_clip_vectors(images_paths)
+
+
+    # Create labels
+    data_occcult_clips = [(clip, label_value) for clip in ocult_clips]
+    print("Clip embeddings array lenght : ",len(data_occcult_clips))
+
+    # Split
+
+    num_samples = len(data_occcult_clips)
+    train_size = int(0.8 * num_samples)
+    val_size = num_samples - train_size
+    train_set, val_set = random_split(data_occcult_clips, [train_size, val_size])
+
+    train_loader_clip = data.DataLoader(train_set, batch_size=batchsize_x, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+    val_loader_clip = data.DataLoader(val_set, batch_size=batchsize_x, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+
+    return train_loader_clip, val_loader_clip
+
+
 # ------------------------------------------------- Neural Net Architecutre --------------------------------------------------
 
 
@@ -246,15 +301,28 @@ class EBM_Single_Class:
         self.model = model
 
     def train(self,**kwargs):
-        print("class name ", self.classe_name)
-        all_tags = list(range(1, 51))
-        print("all tag : ",all_tags)
-        class_tag = get_tag_id_by_name(self.classe_name)
-        print("class tag : ",  class_tag)
-        target_paths, adv_paths = get_all_tag_jobs(class_ids = all_tags, target_id =class_tag)
-        print("target_paths lenght : ", len(target_paths))
 
-        print("adv_paths lenght : ", len(adv_paths))
+
+        ##################### Standard method ##########################
+        # print("class name ", self.classe_name)
+        # all_tags = list(range(1, 51))
+        # print("all tag : ",all_tags)
+        # class_tag = get_tag_id_by_name(self.classe_name)
+        # print("class tag : ",  class_tag)
+        # target_paths, adv_paths = get_all_tag_jobs(class_ids = all_tags, target_id =class_tag)
+        # print("target_paths lenght : ", len(target_paths))
+        # print("adv_paths lenght : ", len(adv_paths))
+        ##################### Standard method ##########################
+
+
+        ##################### OLD method ##########################
+        # Create dataloader of target class
+        train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(get_tag_jobs(get_tag_id_by_name(self.classe_name)),1)
+
+        # Create dataloader of adversarial classes
+        train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,20,21,34,39],0)
+        ##################### OLD method ##########################
+
 
 
         for path in target_paths:
@@ -607,12 +675,12 @@ def main():
                                 learning_rate= args.learning_rate)
 
     # do self training
-    #training_pipeline.train()
+    training_pipeline.train()
     training_pipeline.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="concept-cybernetic" , model_type = "energy-based-model")
     #datasets/test-generations/0024/023128.jpg
-    print("occult image 1 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/test-generations/0024/023123.jpg')).item())
-    print("occult image 2 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0208/207925.jpg')).item())
-    print("occult image 3 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0330/329625.jpg')).item())
+    print("Cyber image 1 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/test-generations/0024/023123.jpg')).item())
+    print("Cyber image 2 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0208/207925.jpg')).item())
+    print("Cyber image 3 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0330/329625.jpg')).item())
 
     print("occult image 1 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/test-generations/0024/023128.jpg')).item())
     print("occult image 2 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0124/123017.jpg')).item())
