@@ -71,6 +71,9 @@ minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
             "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
             None)
 
+from utility.path import separate_bucket_and_file_path
+from data_loader.utils import get_object
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -253,10 +256,10 @@ class EBM_Single_Class:
         # for path in adv_paths:
         #     print(" Path adv :", path)
         #Create dataloader of target class
-        train_loader_automated, val_loader_automated = self.get_clip_embeddings_by_path(target_paths,1)
+        train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(target_paths,1)
 
         # Create dataloader of adversarial classes
-        train_loader_clip_ood, val_loader_clip_ood = self.get_clip_embeddings_by_path(adv_paths,0)
+        train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_path(adv_paths,0)
         # init the loader
         train_loader = train_loader_automated
         val_loader = val_loader_automated
@@ -407,6 +410,52 @@ def get_all_tag_jobs(class_ids,target_id):
     return target_class_data, rest_of_data
 
 
+
+
+# Get train and validation loader from images paths and the label value
+def get_clip_embeddings_by_path(images_paths,label_value):
+    ocult_clips = []
+    ocult_clips = get_clip_vectors(images_paths)
+
+
+    # Create labels
+    data_occcult_clips = [(clip, label_value) for clip in ocult_clips]
+    print("Clip embeddings array lenght : ",len(data_occcult_clips))
+
+    # Split
+
+    num_samples = len(data_occcult_clips)
+    train_size = int(0.8 * num_samples)
+    val_size = num_samples - train_size
+    train_set, val_set = random_split(data_occcult_clips, [train_size, val_size])
+
+    train_loader_clip = data.DataLoader(train_set, batch_size=64, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+    val_loader_clip = data.DataLoader(val_set, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+
+    return train_loader_clip, val_loader_clip
+
+# From multiples image paths
+def get_clip_vectors(file_paths):
+    clip_vectors = []
+
+    for path in file_paths:
+
+        try:
+            print("path : " , path)
+            clip_path = path.replace(".jpg", "_clip_kandinsky.msgpack")
+            bucket, features_vector_path = separate_bucket_and_file_path(clip_path)
+
+            features_data = get_object(minio_client, features_vector_path)
+            features = msgpack.unpackb(features_data)["clip-feature-vector"]
+            features = torch.tensor(features)
+            clip_vectors.append(features)
+        except Exception as e:
+            # Handle the specific exception (e.g., FileNotFoundError, ConnectionError) or a general exception.
+            print(f"Error processing clip at path {path}: {e}")
+            # You might want to log the error for further analysis or take alternative actions.
+
+    return clip_vectors
+###################### main
 
 def main():
     args = parse_args()
