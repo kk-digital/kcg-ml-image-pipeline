@@ -631,7 +631,7 @@ def get_tag_id_by_name(tag_name):
 def train_model(self,train_loader,val_loader, adv_loader, **kwargs):
 
     # Create a PyTorch Lightning trainer with the generation callback
-    trainer = pl.Trainer(
+    trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "MNIST"),
                          accelerator="gpu" if str(self.device).startswith("cuda") else "cpu",
                          devices=1,
                          max_epochs=20,
