@@ -115,7 +115,7 @@ class SphereSamplingGenerator:
 
         return spheres
     
-    def rank_and_select_spheres(self):
+    def rank_and_optimize_spheres(self):
         # generate initial spheres
         generated_spheres= self.generate_spheres() 
 
@@ -130,15 +130,16 @@ class SphereSamplingGenerator:
                 scores.extend(batch_scores)
                 batch=[]
           
-        print("scores: ",scores)  
         sorted_indexes= np.flip(np.argsort(scores))[:self.selected_spheres]
         top_spheres=[generated_spheres[i] for i in sorted_indexes]
 
-        return top_spheres
+        optimized_spheres= self.optimize_datapoints(top_spheres, self.sphere_scoring_model)
+
+        return optimized_spheres
     
     def sample_clip_vectors(self, num_samples):
         # get spheres
-        spheres= self.rank_and_select_spheres()
+        spheres= self.rank_and_optimize_spheres()
         dim = len(spheres[0]['sphere_center'])
         points_per_sphere = max(int(num_samples / self.top_k), 1000)
 
@@ -182,9 +183,11 @@ class SphereSamplingGenerator:
 
         print(f"initial average score: {mean_scores}")
 
-        return clip_vectors
+        optimized_vectors= self.optimize_datapoints(clip_vectors, self.scoring_model) 
+
+        return optimized_vectors
     
-    def gradient_descent_optimization(self, clip_vectors):
+    def optimize_datapoints(self, clip_vectors, scoring_model):
 
         # Convert list of embeddings to a tensor
         all_embeddings = torch.stack(clip_vectors).detach()
@@ -207,7 +210,7 @@ class SphereSamplingGenerator:
                 optimizer.zero_grad()
 
                 # Compute scores for the current batch of embeddings
-                scores = self.scoring_model.model(batch_embeddings)
+                scores = scoring_model.model(batch_embeddings)
 
                 # Calculate the loss for each embedding in the batch
                 score_losses = -scores.squeeze()
@@ -231,9 +234,8 @@ class SphereSamplingGenerator:
     def generate_images(self, num_images):
         # generate clip vectors
         clip_vectors= self.sample_clip_vectors(num_samples=num_images)
-        optimized_vectors= self.gradient_descent_optimization(clip_vectors)
 
-        for clip_vector in optimized_vectors:
+        for clip_vector in clip_vectors:
             if self.send_job:
                 try:
                     response= generate_img2img_generation_jobs_with_kandinsky(
