@@ -70,7 +70,7 @@ from utility.path import separate_bucket_and_file_path
 from data_loader.utils import get_object
 from utility.http import request
 
-API_URL = "http://192.168.3.1:8111"
+API_URL = "http://103.20.60.90:8764"
 minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM", "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",None)
 
 date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
