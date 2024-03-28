@@ -98,7 +98,8 @@ class SphereSamplingGenerator:
     def generate_spheres(self):
         num_spheres = self.total_spheres
 
-        sphere_centers = torch.normal(mean=self.clip_mean, std=self.clip_std, size=(num_spheres, len(self.clip_mean)))
+        sphere_centers = torch.normal(mean=self.clip_mean.repeat(num_spheres, 1), 
+                                      std=self.clip_std.repeat(num_spheres, 1))
         sphere_centers = torch.clip(sphere_centers, self.clip_min, self.clip_max)
         radii = torch.rand(num_spheres, device=self.device) * (self.max_radius - self.min_radius) + self.min_radius
         spheres = torch.cat([sphere_centers, radii.unsqueeze(1)], dim=1)
