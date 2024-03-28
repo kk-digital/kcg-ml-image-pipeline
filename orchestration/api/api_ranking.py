@@ -12,9 +12,8 @@ from collections import OrderedDict
 from bson import ObjectId
 from pymongo import ReturnDocument
 import pymongo
-from typing import Optional, List, Dict
+from typing import Optional, List
 import time
-from minio import Minio
 import io
 
 
@@ -1569,34 +1568,3 @@ async def update_ranking_file(request: Request, dataset: str, filename: str, upd
         http_status_code=200,
     )
 
-MINIO_IP_ADDR = '192.168.3.5:9000'
-ACCESS_KEY = 'v048BpXpWrsVIHUfdAix'
-SECRET_KEY = '4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu'
-BUCKET_NAME = 'datasets'
-
-@router.get("/count-json-files-per-dataset/")
-async def count_json_files_per_dataset():
-    try:
-        minio_client = Minio(MINIO_IP_ADDR, access_key=ACCESS_KEY, secret_key=SECRET_KEY, secure=False)
-        datasets = set()
-
-        # Listing only the top-level directories in the bucket to identify datasets
-        objects = minio_client.list_objects(BUCKET_NAME, recursive=False)
-        for obj in objects:
-            if obj.is_dir:
-                dataset_name = obj.object_name.strip('/').split('/')[0]
-                datasets.add(dataset_name)
-
-        json_file_counts: Dict[str, int] = {}
-        for dataset in datasets:
-            count = 0
-            # Adjust path according to your structure if needed
-            objects = minio_client.list_objects(BUCKET_NAME, prefix=f'{dataset}/data/ranking/aggregate/', recursive=True)
-            for obj in objects:
-                if obj.object_name.endswith('.json'):
-                    count += 1
-            json_file_counts[dataset] = count
-
-        return json_file_counts
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to count JSON files per dataset: {str(e)}")
