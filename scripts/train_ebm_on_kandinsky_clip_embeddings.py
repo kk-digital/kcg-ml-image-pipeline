@@ -1183,15 +1183,15 @@ def tag_images(dataset_name, number_of_samples,model_name,tag_name,tagger_name,p
 
 
 
-def plot_samples(dataset_name, number_of_samples,model_name):
+def plot_samples(dataset_name, number_of_samples,model_name,tag_name):
 
 
     # get the paths and hashes
     images_paths_ood, images_hashes_ood = get_file_paths_and_hashes(dataset_name,number_of_samples)
     loaded_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
     # Load the last trained model
-    load_model_to_minio(loaded_model,model_name)
-
+    #load_model_to_minio(loaded_model,model_name)
+    load_model_to_minio_v3(loaded_model,type, 'dataset' , tag_name = tag_name, value='energy',  model_type = "energy-based-model") 
     # Process the images
     sorted_images_and_hashes = process_and_sort_dataset_with_hashes(images_paths_ood, images_hashes_ood, loaded_model) 
     rank = 1
@@ -1430,6 +1430,10 @@ def main():
 # plot_samples_hashless(dataset_name = "environmental", number_of_samples = 50,model_name ="concept-cybernetic")
 
 plot_samples_hashless(dataset_name = "environmental", number_of_samples = 20000,tag_name ="concept-cybernetic")
+plot_samples(dataset_name = "environmental", number_of_samples = 20000,tag_name ="concept-cybernetic")
+
+
+
 #print(get_tag_id_by_name("topic-forest"))
 
 # tag_images(dataset_name = "environmental", number_of_samples = 20000,model_name= "concept-cybernetic" ,tag_name ="concept-cybernetic",tagger_name = "amine",plot_a_sample = True)

@@ -132,6 +132,7 @@ class EBM_Single_Class_Trainer:
 
     def train(self):
         print("class name ", self.classe_name)
+
         all_tags = list(range(1, 51))
         print("all tag : ",all_tags)
         class_tag = get_tag_id_by_name(self.classe_name)
@@ -646,8 +647,8 @@ def main():
                                 learning_rate= args.learning_rate)
 
     # do self training
-    #training_pipeline.train()
-    training_pipeline.load_model_to_minio_v3(minio_client, dataset_name = "environmental", tag_name ="concept-cybernetic" , model_type = "energy-based-model")
+    training_pipeline.train()
+    #training_pipeline.load_model_to_minio_v3(minio_client, dataset_name = "environmental", tag_name ="concept-cybernetic" , model_type = "energy-based-model")
     
 if __name__ == "__main__":
     main()
