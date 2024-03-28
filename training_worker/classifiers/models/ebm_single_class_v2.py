@@ -692,5 +692,34 @@ def main():
     print("Aquatic image 2  : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0042/041848.jpg')).item())
     print("Aquatic image 3  : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0277/276058.jpg')).item())
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
+
+
+
+# Get all the tags from all the classes:
+    
+
+
+def get_unique_tag_ids():
+    response = requests.get(f'{API_URL}/tags/list-tag-definitions')
+    if response.status_code == 200:
+        try:
+            json_data = response.json()
+            tags = json_data.get('response', {}).get('tags', [])
+
+            # Extract unique tag IDs
+            unique_tag_ids = set(tag.get('tag_id') for tag in tags)
+            
+            # Convert the set of unique tag IDs to a list
+            unique_tag_ids_list = list(unique_tag_ids)
+            
+            return unique_tag_ids_list
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON: {e}")
+    else:
+        print(f"Error: HTTP request failed with status code {response.status_code}")
+
+# Example usage
+tag_ids_list = get_unique_tag_ids()
+print(tag_ids_list)
