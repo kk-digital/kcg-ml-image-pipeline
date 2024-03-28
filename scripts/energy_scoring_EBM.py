@@ -150,7 +150,7 @@ def get_file_paths_and_hashes_uuid_v2(dataset,num_samples):
         
                 jobs = json.loads(response.content)
                 for job in jobs:
-                    print("job")
+                    print(job)
 
 
             except json.JSONDecodeError as e:
