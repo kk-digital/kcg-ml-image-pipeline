@@ -275,7 +275,7 @@ class EBM_Single_Class:
                                     ])
 
         pl.seed_everything(42)
-        self.model = DeepEnergyModel(adv_loader =adv_loader ,**kwargs)
+        self.model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
         trainer.fit(self.model , train_loader, val_loader)        
         self.save_model_to_minio(self.save_name,'temp_model.safetensors')
 
