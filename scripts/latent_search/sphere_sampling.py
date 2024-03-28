@@ -121,8 +121,10 @@ class SphereSamplingGenerator:
 
         batch=[]
         scores=[]
+        sphere_data=[]
         for sphere in generated_spheres:
-            sphere_vector= np.concatenate([sphere['sphere_center'], [sphere['radius']]])
+            sphere_vector= np.append(sphere['sphere_center'], sphere['radius'])
+            sphere_data.append(sphere_vector)
             batch.append(sphere_vector)
 
             if len(batch)==self.batch_size:
@@ -131,7 +133,7 @@ class SphereSamplingGenerator:
                 batch=[]
           
         sorted_indexes= np.flip(np.argsort(scores))[:self.selected_spheres]
-        top_spheres=[generated_spheres[i] for i in sorted_indexes]
+        top_spheres=[sphere_data[i] for i in sorted_indexes]
 
         optimized_spheres= self.optimize_datapoints(top_spheres, self.sphere_scoring_model)
 
@@ -140,14 +142,14 @@ class SphereSamplingGenerator:
     def sample_clip_vectors(self, num_samples):
         # get spheres
         spheres= self.rank_and_optimize_spheres()
-        dim = len(spheres[0]['sphere_center'])
+        dim = len(spheres[0])-1
         points_per_sphere = max(int(num_samples / self.top_k), 1000)
 
         clip_vectors=[]
         scores= []
         for i, sphere in enumerate(spheres):
-            center= sphere['sphere_center']
-            radius= sphere['radius']
+            center= sphere[:dim-1]
+            radius= sphere[-1]
 
             # Calculate z-scores for each feature
             z_scores = (center - self.clip_mean) / self.clip_std
