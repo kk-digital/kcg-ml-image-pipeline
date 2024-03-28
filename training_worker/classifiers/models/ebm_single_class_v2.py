@@ -312,6 +312,16 @@ class EBM_Single_Class:
         # target_paths, adv_paths = get_all_tag_jobs(class_ids = all_tags, target_id =class_tag)
         # print("target_paths lenght : ", len(target_paths))
         # print("adv_paths lenght : ", len(adv_paths))
+        
+        # for path in target_paths:
+        #     print(" Path t :", path)
+        # # for path in adv_paths:
+        # #     print(" Path adv :", path)
+        # #Create dataloader of target class
+        # train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(target_paths,1)
+
+        # # Create dataloader of adversarial classes
+        # train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_path(adv_paths,0)
         ##################### Standard method ##########################
 
 
@@ -325,15 +335,6 @@ class EBM_Single_Class:
 
 
 
-        for path in target_paths:
-            print(" Path t :", path)
-        # for path in adv_paths:
-        #     print(" Path adv :", path)
-        #Create dataloader of target class
-        train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(target_paths,1)
-
-        # Create dataloader of adversarial classes
-        train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_path(adv_paths,0)
         # init the loader
         train_loader = train_loader_automated
         val_loader = val_loader_automated
