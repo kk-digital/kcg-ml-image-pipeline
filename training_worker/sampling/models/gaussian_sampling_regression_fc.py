@@ -112,7 +112,7 @@ class SamplingFCRegressionNetwork(nn.Module):
             total_val_loss = 0
             total_val_samples = 0
             
-            if epoch > 0 and is_per_epoch:
+            if epoch == 0 or is_per_epoch:
                 train_dataset, val_dataset, \
                     train_loader, val_loader, \
                         train_size, val_size = self.get_data_for_training(n_spheres, target_avg_points, validation_split, batch_size)
