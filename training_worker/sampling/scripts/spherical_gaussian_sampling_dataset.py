@@ -76,7 +76,7 @@ class SphericalGaussianGenerator:
         # quantizer = faiss.IndexFlatL2(d)
         # cpu_index = faiss.IndexIVFFlat(quantizer, d, nlist)
 
-        index = faiss.IndexFlatL2(d)
+        cpu_index = faiss.IndexFlatL2(d)
         
         if torch.cuda.is_available():
             res = faiss.StandardGpuResources()
