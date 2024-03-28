@@ -5,7 +5,7 @@ import sys
 base_directory = "./"
 sys.path.insert(0, base_directory)
 from training_worker.sampling.models.sampling_fc import SamplingFCNetwork
-from training_worker.sampling.models.sampling_regression_fc import SamplingFCRegressionNetwork
+from training_worker.sampling.models.gaussian_sampling_regression_fc import SamplingFCRegressionNetwork
 from utility.minio import cmd
 
 
