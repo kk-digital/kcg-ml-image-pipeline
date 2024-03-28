@@ -133,6 +133,7 @@ class SphereSamplingGenerator:
         clip_vectors = torch.empty((0,(spheres.size(1)*points_per_sphere)), device=self.device)  # Initialize an empty tensor for all clip vectors
         scores = []
         for sphere in spheres:
+            print(dim)
             center, radius = sphere[:dim-1], sphere[-1]
 
             # Direction adjustment based on z-scores
