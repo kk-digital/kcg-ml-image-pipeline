@@ -6,6 +6,10 @@ import msgpack
 import numpy as np
 import torch
 from scipy.stats import norm
+import pandas as pd
+import io
+from datetime import datetime
+
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
@@ -191,6 +195,7 @@ class SphereSamplingGenerator:
     def generate_images(self, num_images):
         # generate clip vectors
         clip_vectors= self.sample_clip_vectors(num_samples=num_images)
+        df_data=[]
 
         for clip_vector in clip_vectors:
             if self.send_job:
@@ -209,8 +214,37 @@ class SphereSamplingGenerator:
                     print("An error occured.")
                     task_uuid = -1
                     task_time = -1
+            if self.save_csv:
+                df_data.append({
+                    'task_uuid': task_uuid,
+                    'generation_policy_string': self.sampling_policy,
+                    'time': task_time
+                })
+
+        if self.save_csv:
+            self.store_uuids_in_csv_file(df_data)
+            print("Saved csv file with uuid of image.")
         
         print("Jobs were sent for generation.")
+
+    # store list of initial prompts in a csv to use for prompt mutation
+    def store_uuids_in_csv_file(self, data):
+        minio_path=f"{self.dataset}/output/generated-images-csv"
+        local_path="output/generated_images.csv"
+        pd.DataFrame(data).to_csv(local_path, index=False)
+        # Read the contents of the CSV file
+        with open(local_path, 'rb') as file:
+            csv_content = file.read()
+
+        #Upload the CSV file to Minio
+        buffer = io.BytesIO(csv_content)
+        buffer.seek(0)
+
+        current_date=datetime.now().strftime("%Y-%m-%d-%H:%M")
+        minio_path= minio_path + f"/{current_date}-{self.sampling_policy}-{self.dataset}.csv"
+        cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
+        # Remove the temporary file
+        os.remove(local_path)
 
 def main():
     args= parse_args()
