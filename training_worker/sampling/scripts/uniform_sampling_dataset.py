@@ -134,13 +134,8 @@ class UniformSphereGenerator:
             inputs.append(np.append(center, math.sqrt(radius)))
             targets.append(target)
             total_covered_points.update(point_indices)
-        
-        # Calculate statistics
-        points_per_sphere = [len(sphere['points']) for sphere in sphere_data]
-        avg_points_per_sphere = np.mean(points_per_sphere) if points_per_sphere else 0
 
         print(f"total datapoints: {len(total_covered_points)}")
-        print(f"average points per sphere: {avg_points_per_sphere}")
         
         return inputs, targets
 

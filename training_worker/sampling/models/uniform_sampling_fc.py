@@ -187,7 +187,8 @@ class SamplingFCNetwork(nn.Module):
         inference_speed=(val_size + train_size)/(end - start)
         print(f'Time taken for inference of {(val_size + train_size)} data points is: {end - start:.2f} seconds')
         
-        self.save_graph_report(train_loss, val_loss, best_epoch,
+        self.save_graph_report(train_loss, val_loss, 
+                               best_epoch, generate_every_epoch,
                                best_train_loss, best_val_loss,
                                val_residuals, train_residuals,
                                train_size, val_size)
@@ -269,7 +270,7 @@ class SamplingFCNetwork(nn.Module):
         os.remove(local_report_path)
 
     def save_graph_report(self, train_loss_per_round, val_loss_per_round,
-                          saved_at_epoch,
+                          saved_at_epoch, generate_every_epoch,
                           best_train_loss, best_val_loss, 
                           val_residuals, train_residuals,
                           training_size, validation_size):
@@ -287,7 +288,8 @@ class SamplingFCNetwork(nn.Module):
                             "Validation size = {}\n"
                             "Training loss = {:.4f}\n"
                             "Validation loss = {:.4f}\n"
-                            "Model saved at epoch = {:.4f}\n".format(self.date,
+                            "Model saved at epoch = {}\n"
+                            "Generation policy= {}\n".format(self.date,
                                                             self.dataset,
                                                             'Fc_Network',
                                                             self.input_type,
@@ -297,7 +299,8 @@ class SamplingFCNetwork(nn.Module):
                                                             validation_size,
                                                             best_train_loss,
                                                             best_val_loss,
-                                                            saved_at_epoch
+                                                            saved_at_epoch,
+                                                            "every epoch" if generate_every_epoch else "once"
                                                             ))
 
         # Plot validation and training Rmse vs. Rounds
