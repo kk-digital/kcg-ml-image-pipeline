@@ -615,7 +615,7 @@ def get_clip_vectors(file_paths):
     for path in file_paths:
 
         try:
-            print("path : " , path)
+            #print("path : " , path)
             clip_path = path.replace(".jpg", "_clip_kandinsky.msgpack")
             bucket, features_vector_path = separate_bucket_and_file_path(clip_path)
 
