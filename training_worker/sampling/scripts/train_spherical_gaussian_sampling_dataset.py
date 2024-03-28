@@ -4,7 +4,7 @@ import sys
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
-from training_worker.sampling.models.sampling_fc import SamplingFCNetwork
+from training_worker.sampling.models.gaussian_sampling_fc import SamplingFCNetwork
 from training_worker.sampling.models.gaussian_sampling_regression_fc import SamplingFCRegressionNetwork
 from utility.minio import cmd
 
@@ -26,7 +26,7 @@ def parse_args():
     parser.add_argument('--learning-rate', type=float, default=0.001)
     parser.add_argument('--output-size', type=int, default=8)
     parser.add_argument('--output-type', type=str, default="score_distribution", help="variance, mean_sigma_score or score_distribution")
-    parser.add_argument('--input-type', type=str, default="uniform_sphere", help="Input type - uniform_sphere, gaussian_sphere_variance, gaussian_sphere_sigma, gaussian_sphere_fall_off")
+    parser.add_argument('--input-type', type=str, default="gaussian_sphere_variance", help="Input type - gaussian_sphere_variance, gaussian_sphere_sigma, gaussian_sphere_fall_off")
     parser.add_argument('--bin-size', type=int, default=1)
 
     return parser.parse_args()

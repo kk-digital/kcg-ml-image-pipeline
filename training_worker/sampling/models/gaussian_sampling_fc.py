@@ -20,11 +20,8 @@ from enum import Enum
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
-from training_worker.sampling.scripts.uniform_sampling_dataset import UniformSphereGenerator
 from training_worker.sampling.scripts.spherical_gaussian_sampling_dataset import SphericalGaussianGenerator
 from utility.minio import cmd
-
-SamplingType = Enum('SamplingType', ['UNIFORM_SAMPLING', 'SPHERICAL_GAUSSIAN_SAMPLING'])
 
 class DatasetLoader(Dataset):
     def __init__(self, features, labels):
@@ -54,7 +51,7 @@ class DatasetLoader(Dataset):
 
 
 class SamplingFCNetwork(nn.Module):
-    def __init__(self, minio_client, input_size=1281, hidden_sizes=[512, 256], input_type="uniform_sphere" , output_size=8, 
+    def __init__(self, minio_client, input_size=1281, hidden_sizes=[512, 256], input_type="gaussian_sphere_variance" , output_size=8, 
                  bin_size=1, output_type="score_distribution", dataset="environmental"):
         super(SamplingFCNetwork, self).__init__()
         # set device
@@ -86,11 +83,7 @@ class SamplingFCNetwork(nn.Module):
         self.local_path, self.minio_path=self.get_model_path()
         self.class_labels= self.get_class_labels()
         
-        # sphere dataloader
-        if self.input_type == "uniform_sphere":
-            self.dataloader= UniformSphereGenerator(minio_client, dataset)
-        elif "gaussian_sphere" in self.input_type:
-            self.dataloader = SphericalGaussianGenerator(minio_client, dataset)
+        self.dataloader = SphericalGaussianGenerator(minio_client, dataset)
 
     def set_config(self, sampling_parameter= None):
         self.sampling_parameter = sampling_parameter
@@ -124,12 +117,7 @@ class SamplingFCNetwork(nn.Module):
 
     def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256):
         # load the dataset depends on sampling type
-        if self.input_type == "uniform_sphere":
-            inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_type, self.output_size, self.bin_size,)
-        elif "gaussian_sphere" in self.input_type:
-            inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_size, self.bin_size, self.sampling_parameter["percentile"], self.sampling_parameter["std"], self.output_type, self.input_type)
-        else:
-            return None
+        inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_size, self.bin_size, self.sampling_parameter["percentile"], self.sampling_parameter["std"], self.output_type, self.input_type)
         
         dataset= DatasetLoader(features=inputs, labels=outputs)
         # Split dataset into training and validation
@@ -248,13 +236,7 @@ class SamplingFCNetwork(nn.Module):
                               inference_speed,
                               learning_rate,
                               best_model_epoch):
-        if self.input_type=="uniform_sphere":
-            input_type="[input_clip_vector[1280], radius(float)]"
-        elif "gaussian_sphere" in self.input_type:
-            input_type="[input_clip_vector[1280], {}(float)]".format(self.input_type)
-
-        # Identify all unique labels present in the data
-        labels = np.unique(np.hstack([y_true, y_pred]))
+        input_type="[input_clip_vector[1280], {}(float)]".format(self.input_type)
 
         report_text = (
             "================ Model Report ==================\n"

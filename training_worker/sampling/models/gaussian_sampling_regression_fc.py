@@ -15,7 +15,6 @@ from torch.utils.data.dataloader import DataLoader
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
-from training_worker.sampling.scripts.uniform_sampling_dataset import UniformSphereGenerator
 from training_worker.sampling.scripts.spherical_gaussian_sampling_dataset import SphericalGaussianGenerator
 from utility.minio import cmd
 
@@ -47,7 +46,7 @@ class DatasetLoader(Dataset):
 
 
 class SamplingFCRegressionNetwork(nn.Module):
-    def __init__(self, minio_client, input_size=1281, hidden_sizes=[512, 256], input_type="uniform_sphere",output_size=1, 
+    def __init__(self, minio_client, input_size=1281, hidden_sizes=[512, 256], input_type="gaussian_sphere_variance",output_size=1, 
                  output_type="mean_sigma_score", dataset="environmental"):
         
         super(SamplingFCRegressionNetwork, self).__init__()
@@ -79,10 +78,7 @@ class SamplingFCRegressionNetwork(nn.Module):
         self.local_path, self.minio_path=self.get_model_path()
 
         # sphere dataloader
-        if self.input_type == "uniform_sphere":
-            self.dataloader= UniformSphereGenerator(minio_client, dataset)
-        elif "gaussian_sphere" in self.input_type:
-            self.dataloader = SphericalGaussianGenerator(minio_client, dataset)
+        self.dataloader = SphericalGaussianGenerator(minio_client, dataset)
 
     def set_config(self, sampling_parameter= None):
         self.sampling_parameter = sampling_parameter
@@ -95,14 +91,7 @@ class SamplingFCRegressionNetwork(nn.Module):
 
     def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256):
         # load the dataset depends on sampling type
-        if self.input_type == "uniform_sphere":
-            inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_type)
-        elif "gaussian_sphere" in self.input_type:
-            inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres=n_spheres,target_avg_points=target_avg_points, output_type=self.output_type, percentile=self.sampling_parameter["percentile"], std=self.sampling_parameter["std"], input_type=self.input_type)
-        else:
-            return None
-
-        print(inputs[0] ,outputs[0])
+        inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres=n_spheres,target_avg_points=target_avg_points, output_type=self.output_type, percentile=self.sampling_parameter["percentile"], std=self.sampling_parameter["std"], input_type=self.input_type)
 
         # load the dataset
         dataset= DatasetLoader(features=inputs, labels=outputs)
@@ -225,10 +214,7 @@ class SamplingFCRegressionNetwork(nn.Module):
                               inference_speed,
                               learning_rate,
                               best_model_epoch):
-        if self.input_type=="uniform_sphere":
-            input_type="[input_clip_vector[1280], radius(float)]"
-        elif "gaussian_sphere" in self.input_type:
-            input_type="[input_clip_vector[1280], variance(float)]"
+        input_type="[input_clip_vector[1280], variance(float)]"
 
         report_text = (
             "================ Model Report ==================\n"
