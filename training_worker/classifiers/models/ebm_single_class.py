@@ -600,8 +600,8 @@ def get_clip_embeddings_by_tag(id_classes,label_value):
     val_size = num_samples - train_size
     train_set, val_set = random_split(data_occcult_clips, [train_size, val_size])
 
-    train_loader_clip = data.DataLoader(train_set, batch_size=64, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
-    val_loader_clip = data.DataLoader(val_set, batch_size=64, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
+    train_loader_clip = data.DataLoader(train_set, batch_size=16, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+    val_loader_clip = data.DataLoader(val_set, batch_size=16, shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
     return train_loader_clip, val_loader_clip
 
