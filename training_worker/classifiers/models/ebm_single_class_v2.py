@@ -245,7 +245,7 @@ class EBM_Single_Class:
         print("all tag : ",all_tags)
         class_tag = get_tag_id_by_name(self.classe_name)
         print("class tag : ",  class_tag)
-        target_paths, adv_paths = self.get_all_tag_jobs(class_ids = all_tags, target_id =class_tag)
+        target_paths, adv_paths = get_all_tag_jobs(class_ids = all_tags, target_id =class_tag)
         print("target_paths lenght : ", len(target_paths))
         for path in target_paths:
             print(" Path t :", path)
@@ -369,6 +369,42 @@ def get_tag_id_by_name(tag_name):
         print("Error:", response.status_code)
 
 
+def get_all_tag_jobs(self,class_ids,target_id):
+    all_data = {}  # Dictionary to store data for all class IDs
+    
+    for class_id in class_ids:
+        response = requests.get(f'{API_URL}/tags/get-images-by-tag-id/?tag_id={class_id}')
+        
+        # Check if the response is successful (status code 200)
+        if response.status_code == 200:
+            try:
+                # Parse the JSON response
+                response_data = json.loads(response.content)
+                
+                # Check if 'images' key is present in the JSON response
+                if 'images' in response_data.get('response', {}):
+                    # Extract file paths from the 'images' key
+                    file_paths = [job['file_path'] for job in response_data['response']['images']]
+                    all_data[class_id] = file_paths
+                else:
+                    print(f"Error: 'images' key not found in the JSON response for class ID {class_id}.")
+            except json.JSONDecodeError as e:
+                print(f"Error decoding JSON for class ID {class_id}: {e}")
+        else:
+            print(f"Error: HTTP request failed with status code {response.status_code} for class ID {class_id}")
+    
+
+    # # Separate data for a specific class ID (e.g., class_id = X) from all the rest
+    # target_class_data = all_data.get(target_id, [])
+    # rest_of_data = {class_id: data for class_id, data in all_data.items() if class_id != target_id}
+    # #return target_class_data , rest_of_data
+
+
+    # Separate data for a specific class ID (e.g., class_id = X) from all the rest
+    target_class_data = all_data.get(target_id, [])
+    rest_of_data = [path for class_id, paths in all_data.items() if class_id != target_id for path in paths]
+
+    return target_class_data, rest_of_data
 
 
 
