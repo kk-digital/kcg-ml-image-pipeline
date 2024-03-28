@@ -71,9 +71,10 @@ class SphericalGaussianGenerator:
         sphere_centers = sphere_centers.astype('float32')
 
         d = feature_vectors.shape[1]
-        nlist = 50  # how many cells
-        quantizer = faiss.IndexFlatL2(d)
-        cpu_index = faiss.IndexIVFFlat(quantizer, d, nlist)
+        # remove
+        # nlist = 50  # how many cells
+        # quantizer = faiss.IndexFlatL2(d)
+        # cpu_index = faiss.IndexIVFFlat(quantizer, d, nlist)
 
         index = faiss.IndexFlatL2(d)
         
