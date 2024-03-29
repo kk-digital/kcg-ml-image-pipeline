@@ -110,8 +110,8 @@ class SamplingFCRegressionNetwork(nn.Module):
             self.dataloader.load_data()
 
         # Define the loss function and optimizer
-        self.criterion = nn.L1Loss()  
-        self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
+        criterion = nn.L1Loss()  
+        optimizer = optim.Adam(self.parameters(), lr=learning_rate)
 
         # save loss for each epoch and features
         train_loss=[]
@@ -143,7 +143,7 @@ class SamplingFCRegressionNetwork(nn.Module):
                     targets=targets.to(self._device)
 
                     outputs = self.model(inputs)
-                    loss = self.criterion(outputs.squeeze(1), targets)
+                    loss = criterion(outputs.squeeze(1), targets)
 
                     total_val_loss += loss.item() * inputs.size(0)
                     total_val_samples += inputs.size(0)
@@ -156,11 +156,11 @@ class SamplingFCRegressionNetwork(nn.Module):
                 inputs=inputs.to(self._device)
                 targets=targets.to(self._device)
 
-                self.optimizer.zero_grad()
+                optimizer.zero_grad()
                 outputs = self.model(inputs)
-                loss = self.criterion(outputs.squeeze(1), targets)
+                loss = criterion(outputs.squeeze(1), targets)
                 loss.backward()
-                self.optimizer.step()
+                optimizer.step()
 
                 total_train_loss += loss.item() * inputs.size(0)
                 total_train_samples += inputs.size(0)
@@ -243,7 +243,12 @@ class SamplingFCRegressionNetwork(nn.Module):
                             validation_split, 
                             num_epochs, 
                             batch_size,
-                            generate_every_epoch):       
+                            generate_every_epoch):
+
+        # Define the loss function and optimizer
+        criterion = nn.L1Loss()  
+        optimizer = optim.Adam(self.parameters(), lr=learning_rate)
+
         # save loss for each epoch and features
         train_loss=[]
         val_loss=[]
@@ -275,7 +280,7 @@ class SamplingFCRegressionNetwork(nn.Module):
                     targets=targets.to(self._device)
 
                     outputs = self.residual_model(inputs)
-                    loss = self.criterion(outputs.squeeze(1), targets)
+                    loss = criterion(outputs.squeeze(1), targets)
 
                     total_val_loss += loss.item() * inputs.size(0)
                     total_val_samples += inputs.size(0)
@@ -288,11 +293,11 @@ class SamplingFCRegressionNetwork(nn.Module):
                 inputs=inputs.to(self._device)
                 targets=targets.to(self._device)
 
-                self.optimizer.zero_grad()
+                optimizer.zero_grad()
                 outputs = self.residual_model(inputs)
-                loss = self.criterion(outputs.squeeze(1), targets)
+                loss = criterion(outputs.squeeze(1), targets)
                 loss.backward()
-                self.optimizer.step()
+                optimizer.step()
 
                 total_train_loss += loss.item() * inputs.size(0)
                 total_train_samples += inputs.size(0)
@@ -306,13 +311,13 @@ class SamplingFCRegressionNetwork(nn.Module):
             if val_loss[-1] < best_val_loss:
                 best_val_loss = val_loss[-1]
                 best_train_loss = train_loss[-1]
-                best_model_state = self.model
+                best_model_state = self.residual_model
                 best_epoch= epoch + 1
 
             print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss}, Val Loss: {avg_val_loss}')
         
         # save the model at the best epoch
-        self.model= best_model_state
+        self.residual_model= best_model_state
 
         end = time.time()
         training_time= end - start
