@@ -1567,3 +1567,4 @@ async def update_ranking_file(request: Request, dataset: str, filename: str, upd
         response_data=updated_document,
         http_status_code=200,
     )
+
