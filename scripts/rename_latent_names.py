@@ -11,6 +11,7 @@ access_key = 'v048BpXpWrsVIHUfdAix'
 secret_key = '4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu'
 BUCKET_NAME = 'datasets'
 
+
 def list_datasets(minio_client, bucket_name):
     """
     List all directories in the bucket, assuming each directory is a dataset.
@@ -22,16 +23,15 @@ def list_datasets(minio_client, bucket_name):
 
 def rename_files_in_dataset(minio_client, bucket_name, dataset_name):
     """
-    Rename all _latent.msgpack files to _vae_latent.msgpack in a specific dataset.
+    Rename all _latent.msgpack files in a specific dataset to _vae_latent.msgpack.
     """
     prefix = f'{dataset_name}/'
     objects = minio_client.list_objects(bucket_name, prefix=prefix, recursive=True)
     for obj in tqdm(objects, desc=f"Renaming in {dataset_name}", unit="file"):
         if obj.object_name.endswith('_latent.msgpack'):
             new_name = obj.object_name.replace('_latent.msgpack', '_vae_latent.msgpack')
-            # Copy the object to new name
-            minio_client.copy_object(bucket_name, obj.object_name, bucket_name, new_name)
-            # Delete the old object
+            source = CopySource(bucket_name, obj.object_name)
+            minio_client.copy_object(bucket_name, new_name, source)
             minio_client.remove_object(bucket_name, obj.object_name)
             print(f"Renamed {obj.object_name} to {new_name}")
 
