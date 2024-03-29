@@ -63,8 +63,8 @@ def main():
                                  n_spheres=args.n_spheres, 
                                  target_avg_points=args.target_avg_points,
                                  is_per_epoch=args.per_epoch)
-    # todo remove for test - uncomment
-    # gaussian_sampling_model.save_model()
+    
+    gaussian_sampling_model.save_model()
     
 if __name__ == "__main__":
     main()
