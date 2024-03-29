@@ -1558,8 +1558,9 @@ def tag_images(dataset_name, number_of_samples, number_of_images_to_tag,tag_name
         tag_image_v2(image_uuid = image[5],classifier_id = model_id,score =image[2] )
 
 
-
-tag_images(dataset_name = "environmental", number_of_samples = 30000, number_of_images_to_tag = 100 ,tag_name ="topic-aquatic",model_id = 84)
+# topic-space 87
+# tag_name ="topic-aquatic",model_id = 84
+tag_images(dataset_name = "environmental", number_of_samples = 30000, number_of_images_to_tag = 100 ,tag_name ="topic-space",model_id = 87)
 
 
 
