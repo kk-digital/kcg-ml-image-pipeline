@@ -699,7 +699,7 @@ def main():
 
     # do self training
     training_pipeline.train()
-    training_pipeline.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="defect-split-pane-image" , model_type = "energy-based-model")
+    training_pipeline.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="topic-space" , model_type = "energy-based-model")
     #datasets/test-generations/0024/023128.jpg
 
     print("defect-split-pane-image 1 : , ",training_pipeline.evalute_energy(get_clip_from_path('datasets/environmental/0241/240499.jpg')).item())
