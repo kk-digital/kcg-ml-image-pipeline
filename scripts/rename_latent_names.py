@@ -5,6 +5,8 @@ sys.path.insert(0, base_directory)
 from minio import Minio
 from utility.minio import cmd
 from tqdm import tqdm
+from minio.commonconfig import CopySource
+
 
 minio_ip_addr = '192.168.3.5:9000'
 access_key = 'v048BpXpWrsVIHUfdAix'
