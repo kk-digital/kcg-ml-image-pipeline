@@ -220,7 +220,7 @@ def get_file_paths_and_hashes_uuid(dataset,num_samples):
         
         jobs = json.loads(response.content)
         #print(jobs)
-        file_paths=[job['image_path'] for job in jobs]
+        file_paths=[job['image_path'] for job in jobs['response']['images']]
         hashes=[job['image_hash'] for job in jobs]
         uuid =[job['job_uuid'] for job in jobs] 
         #image_hashes=[job['image_hash'] for job in jobs]
