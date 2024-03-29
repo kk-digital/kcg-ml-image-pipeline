@@ -543,7 +543,7 @@ class SamplingFCRegressionNetwork(nn.Module):
         plt.clf()
 
     def predict(self, data, batch_size=64):
-        if isinstance(data, np.array) or isinstance(data, list):
+        if isinstance(data, np.ndarray) or isinstance(data, list):
             data= torch.FloatTensor(data)
 
         # Ensure the data tensor is on the correct device
