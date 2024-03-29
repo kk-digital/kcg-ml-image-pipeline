@@ -81,7 +81,6 @@ class SamplingFCNetwork(nn.Module):
         self.dataset=dataset
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path=self.get_model_path()
-        self.class_labels= self.get_class_labels()
 
         # sphere dataloader
         self.dataloader= UniformSphereGenerator(minio_client, dataset)
@@ -92,41 +91,18 @@ class SamplingFCNetwork(nn.Module):
 
         return local_path, minio_path
 
-    def get_class_labels(self):
-        output_size= self.output_size
-        bin_size= self.bin_size
+    def train(self, n_spheres, 
+              target_avg_points, 
+              learning_rate=0.001, 
+              validation_split=0.2, 
+              num_epochs=100, 
+              batch_size=256,
+              generate_every_epoch=False):
+       
+        # load datapoints from minio
+        self.dataloader.load_data()
 
-        class_labels=[]
-        for i in range(0, output_size):
-            # calculate min and max for bin
-            min_score_value= int((i-(output_size/2)) * bin_size)
-            max_score_value= int(min_score_value + bin_size)
-            # get label str values
-            if i==0:
-                class_label= f"<{max_score_value}"
-            elif i == output_size-1:
-                class_label= f">{min_score_value}"
-            else:
-                class_label= f"[{min_score_value},{max_score_value}]"
-
-            class_labels.append(class_label)
-
-        return class_labels 
-
-    def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256):
-        # load the dataset
-        inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres,target_avg_points, self.output_size, self.bin_size)
-
-        dataset= DatasetLoader(features=inputs, labels=outputs)
-        # Split dataset into training and validation
-        val_size = int(len(dataset) * validation_split)
-        train_size = len(dataset) - val_size
-        train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
-
-        # Create data loaders
-        train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
-        val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
-
+        # Define the loss function and optimizer 
         criterion = nn.KLDivLoss(reduction='batchmean')  # Using KLDivLoss
         optimizer = optim.Adam(self.parameters(), lr=learning_rate)  # Define the optimizer
 
@@ -137,8 +113,18 @@ class SamplingFCNetwork(nn.Module):
         best_val_loss = float('inf')  # Initialize best validation loss as infinity
         best_train_loss = float('inf')  # Initialize best training loss as infinity
         start = time.time()
+        best_epoch= 0
         # Training and Validation Loop
         for epoch in range(num_epochs):
+            if(epoch==0 or generate_every_epoch):
+                # generate dataset once or every epoch
+                val_loader, train_loader, \
+                val_size, train_size, \
+                val_dataset, train_dataset= self.get_validation_and_training_features(validation_split,
+                                                                                    batch_size,
+                                                                                    n_spheres,
+                                                                                    target_avg_points)
+                
             self.model.eval()
             total_val_loss = 0
             total_val_samples = 0
@@ -182,6 +168,7 @@ class SamplingFCNetwork(nn.Module):
                 best_val_loss = val_loss[-1]
                 best_train_loss = train_loss[-1]
                 best_model_state = self.model
+                best_epoch= epoch + 1
 
             print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss}, Val Loss: {avg_val_loss}')
         
@@ -193,14 +180,15 @@ class SamplingFCNetwork(nn.Module):
 
         start = time.time()
         # Classifying all validation datapoints
-        val_preds, val_true, val_residuals = self.classify(val_dataset, batch_size)
-        _, _, train_residuals = self.classify(train_dataset, batch_size)
+        val_residuals = self.get_residuals(val_dataset, batch_size)
+        train_residuals = self.get_residuals(train_dataset, batch_size)
 
         end = time.time()
         inference_speed=(val_size + train_size)/(end - start)
         print(f'Time taken for inference of {(val_size + train_size)} data points is: {end - start:.2f} seconds')
         
-        self.save_graph_report(train_loss, val_loss,
+        self.save_graph_report(train_loss, val_loss, 
+                               best_epoch, generate_every_epoch,
                                best_train_loss, best_val_loss,
                                val_residuals, train_residuals,
                                train_size, val_size)
@@ -214,6 +202,24 @@ class SamplingFCNetwork(nn.Module):
                               learning_rate=learning_rate)
         
         return best_val_loss
+    
+    def get_validation_and_training_features(self, validation_split, batch_size, n_spheres, target_avg_points):
+        # load inputs and targets
+        inputs, outputs = self.dataloader.generate_spheres(n_spheres, target_avg_points, self.output_type,
+                                                           self.output_size, self.bin_size)
+
+        # load the dataset
+        dataset= DatasetLoader(features=inputs, labels=outputs)
+        # Split dataset into training and validation
+        val_size = int(len(dataset) * validation_split)
+        train_size = len(dataset) - val_size
+        train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+
+        # Create data loaders
+        train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+        val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+
+        return val_loader, train_loader, val_size, train_size, val_dataset, train_dataset
         
     def save_model_report(self,num_training,
                               num_validation,
@@ -264,6 +270,7 @@ class SamplingFCNetwork(nn.Module):
         os.remove(local_report_path)
 
     def save_graph_report(self, train_loss_per_round, val_loss_per_round,
+                          saved_at_epoch, generate_every_epoch,
                           best_train_loss, best_val_loss, 
                           val_residuals, train_residuals,
                           training_size, validation_size):
@@ -280,7 +287,9 @@ class SamplingFCNetwork(nn.Module):
                             "Training size = {}\n"
                             "Validation size = {}\n"
                             "Training loss = {:.4f}\n"
-                            "Validation loss = {:.4f}\n".format(self.date,
+                            "Validation loss = {:.4f}\n"
+                            "Model saved at epoch = {}\n"
+                            "Generation policy= {}\n".format(self.date,
                                                             self.dataset,
                                                             'Fc_Network',
                                                             self.input_type,
@@ -290,6 +299,8 @@ class SamplingFCNetwork(nn.Module):
                                                             validation_size,
                                                             best_train_loss,
                                                             best_val_loss,
+                                                            saved_at_epoch,
+                                                            "every epoch" if generate_every_epoch else "once"
                                                             ))
 
         # Plot validation and training Rmse vs. Rounds
@@ -350,7 +361,7 @@ class SamplingFCNetwork(nn.Module):
 
         return predictions         
 
-    def classify(self, dataset, batch_size=64):
+    def get_residuals(self, dataset, batch_size=64):
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
         self.model.eval()  # Set the model to evaluation mode
         predictions = []
@@ -366,20 +377,12 @@ class SamplingFCNetwork(nn.Module):
         predictions = torch.cat(predictions, dim=0).cpu().numpy()
         true_values = torch.cat(true_values, dim=0).cpu().numpy()
 
-        pred_labels=[]
-        true_labels=[]
-
         residuals=[]
         for pred_probs, true_probs in zip(predictions, true_values):
-            pred_label= np.argmax(pred_probs)
-            true_label= np.argmax(true_probs)
-            pred_labels.append(self.class_labels[pred_label])
-            true_labels.append(self.class_labels[true_label])
-            
             residual= np.mean(np.abs(pred_probs - true_probs))
             residuals.append(residual)
 
-        return pred_labels, true_labels, residuals
+        return residuals
 
     def load_model(self):
         # get model file data from MinIO
