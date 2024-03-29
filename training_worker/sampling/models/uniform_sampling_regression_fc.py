@@ -69,8 +69,10 @@ class SamplingFCRegressionNetwork(nn.Module):
 
         # Combine all layers into a sequential model
         self.model = nn.Sequential(*layers).to(self._device)
+        self.residual_model = nn.Sequential(*layers).to(self._device)
         # model metadata
         self.metadata=None
+        self.residual_model_metadata=None
 
         self.input_size= input_size
         self.minio_client= minio_client
@@ -81,7 +83,7 @@ class SamplingFCRegressionNetwork(nn.Module):
         self.max_radius=0
 
         self.date = datetime.now().strftime("%Y_%m_%d")
-        self.local_path, self.minio_path=self.get_model_path()
+        self.local_path, self.minio_path, self.residual_minio_path=self.get_model_path()
 
         # sphere dataloader
         self.dataloader= UniformSphereGenerator(minio_client, dataset)
@@ -89,8 +91,9 @@ class SamplingFCRegressionNetwork(nn.Module):
     def get_model_path(self):
         local_path=f"output/{self.output_type}_fc_{self.input_type}.pth"
         minio_path=f"{self.dataset}/models/sampling/{self.date}_{self.output_type}_fc_{self.input_type}.pth"
+        residual_minio_path=f"{self.dataset}/models/sampling/{self.date}_{self.output_type}_residual_fc_{self.input_type}.pth"
 
-        return local_path, minio_path
+        return local_path, minio_path, residual_minio_path
 
     def train(self, n_spheres, 
               target_avg_points, 
@@ -98,14 +101,15 @@ class SamplingFCRegressionNetwork(nn.Module):
               validation_split=0.2, 
               num_epochs=100, 
               batch_size=256,
-              generate_every_epoch=False):
+              generate_every_epoch=False,
+              train_residual_model=False):
 
         # load datapoints from minio
         self.dataloader.load_data()
 
         # Define the loss function and optimizer
-        criterion = nn.L1Loss()  
-        optimizer = optim.Adam(self.parameters(), lr=learning_rate)
+        self.criterion = nn.L1Loss()  
+        self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
 
         # save loss for each epoch and features
         train_loss=[]
@@ -137,7 +141,7 @@ class SamplingFCRegressionNetwork(nn.Module):
                     targets=targets.to(self._device)
 
                     outputs = self.model(inputs)
-                    loss = criterion(outputs.squeeze(1), targets)
+                    loss = self.criterion(outputs.squeeze(1), targets)
 
                     total_val_loss += loss.item() * inputs.size(0)
                     total_val_samples += inputs.size(0)
@@ -150,11 +154,11 @@ class SamplingFCRegressionNetwork(nn.Module):
                 inputs=inputs.to(self._device)
                 targets=targets.to(self._device)
 
-                optimizer.zero_grad()
+                self.optimizer.zero_grad()
                 outputs = self.model(inputs)
-                loss = criterion(outputs.squeeze(1), targets)
+                loss = self.criterion(outputs.squeeze(1), targets)
                 loss.backward()
-                optimizer.step()
+                self.optimizer.step()
 
                 total_train_loss += loss.item() * inputs.size(0)
                 total_train_samples += inputs.size(0)
@@ -173,7 +177,6 @@ class SamplingFCRegressionNetwork(nn.Module):
 
             print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss}, Val Loss: {avg_val_loss}')
         
-
         # save the model at the best epoch
         self.model= best_model_state
 
@@ -194,13 +197,13 @@ class SamplingFCRegressionNetwork(nn.Module):
         y_val = torch.cat([y.unsqueeze(0) for _, y in val_dataset]).to(self._device)
 
         # Calculate residuals
-        val_residuals = y_val - val_preds
-        train_residuals = y_train - train_preds
+        val_residual_tensors = y_val - val_preds
+        train_residual_tensors = y_train - train_preds
 
         val_preds= val_preds.cpu().numpy()
         y_val= y_val.cpu().numpy()
-        val_residuals= val_residuals.cpu().numpy()
-        train_residuals= train_residuals.cpu().numpy()
+        val_residuals= val_residual_tensors.cpu().numpy()
+        train_residuals= train_residual_tensors.cpu().numpy()
         
         self.save_graph_report(train_loss, val_loss, 
                                best_epoch, generate_every_epoch,
@@ -216,14 +219,149 @@ class SamplingFCRegressionNetwork(nn.Module):
                               val_loss=best_val_loss,  
                               inference_speed= inference_speed,
                               learning_rate=learning_rate)
+
+        if(train_residual_model):
+            print("training a residual model----------------")
+            self.train_residual_model(n_spheres, 
+                                    target_avg_points,
+                                    learning_rate,
+                                    validation_split, 
+                                    num_epochs, 
+                                    batch_size,
+                                    generate_every_epoch)
         
-        self.save_metadata(inputs, target_avg_points, learning_rate, num_epochs, batch_size)
+        self.save_metadata(inputs, target_avg_points, learning_rate, num_epochs, batch_size, residual_model=train_residual_model)
         
         return best_val_loss
     
-    def get_validation_and_training_features(self, validation_split, batch_size, n_spheres, target_avg_points):
+    def train_residual_model(self,
+                            n_spheres, 
+                            target_avg_points,
+                            learning_rate,
+                            validation_split, 
+                            num_epochs, 
+                            batch_size,
+                            generate_every_epoch):       
+        # save loss for each epoch and features
+        train_loss=[]
+        val_loss=[]
+
+        best_val_loss = float('inf')  # Initialize best validation loss as infinity
+        best_train_loss = float('inf')  # Initialize best training loss as infinity
+        best_epoch= 0
+        start = time.time()
+        # Training and Validation Loop
+        for epoch in range(num_epochs):
+
+            if(epoch==0 or generate_every_epoch):
+                # generate dataset once or every epoch
+                val_loader, train_loader, \
+                val_size, train_size, \
+                val_dataset, train_dataset= self.get_validation_and_training_features(validation_split,
+                                                                                    batch_size,
+                                                                                    n_spheres,
+                                                                                    target_avg_points,
+                                                                                    residual_model=True)
+
+            self.residual_model.eval()
+            total_val_loss = 0
+            total_val_samples = 0
+            
+            with torch.no_grad():
+                for inputs, targets in val_loader:
+                    inputs=inputs.to(self._device)
+                    targets=targets.to(self._device)
+
+                    outputs = self.residual_model(inputs)
+                    loss = self.criterion(outputs.squeeze(1), targets)
+
+                    total_val_loss += loss.item() * inputs.size(0)
+                    total_val_samples += inputs.size(0)
+                    
+            self.residual_model.train()
+            total_train_loss = 0
+            total_train_samples = 0
+            
+            for inputs, targets in train_loader:
+                inputs=inputs.to(self._device)
+                targets=targets.to(self._device)
+
+                self.optimizer.zero_grad()
+                outputs = self.residual_model(inputs)
+                loss = self.criterion(outputs.squeeze(1), targets)
+                loss.backward()
+                self.optimizer.step()
+
+                total_train_loss += loss.item() * inputs.size(0)
+                total_train_samples += inputs.size(0)
+
+            avg_train_loss = total_train_loss / total_train_samples
+            avg_val_loss = total_val_loss / total_val_samples
+            train_loss.append(avg_train_loss)
+            val_loss.append(avg_val_loss)
+
+            # Update best model if current epoch's validation loss is the best
+            if val_loss[-1] < best_val_loss:
+                best_val_loss = val_loss[-1]
+                best_train_loss = train_loss[-1]
+                best_model_state = self.model
+                best_epoch= epoch + 1
+
+            print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss}, Val Loss: {avg_val_loss}')
+        
+        # save the model at the best epoch
+        self.model= best_model_state
+
+        end = time.time()
+        training_time= end - start
+
+        start = time.time()
+        # Inference and calculate residuals on the training and validation set
+        val_preds = self.inference(val_dataset, batch_size)
+        train_preds = self.inference(train_dataset, batch_size)
+        
+        end = time.time()
+        inference_speed=(train_size + val_size)/(end - start)
+        print(f'Time taken for inference of {(train_size + val_size)} data points is: {end - start:.2f} seconds')
+
+        # Extract the true values from the datasets
+        y_train = torch.cat([y.unsqueeze(0) for _, y in train_dataset]).to(self._device)
+        y_val = torch.cat([y.unsqueeze(0) for _, y in val_dataset]).to(self._device)
+
+        # Calculate residuals
+        val_residual_tensors = y_val - val_preds
+        train_residual_tensors = y_train - train_preds
+
+        val_preds= val_preds.cpu().numpy()
+        y_val= y_val.cpu().numpy()
+        val_residuals= val_residual_tensors.cpu().numpy()
+        train_residuals= train_residual_tensors.cpu().numpy()
+        
+        self.save_graph_report(train_loss, val_loss, 
+                               best_epoch, generate_every_epoch,
+                               best_train_loss, best_val_loss, 
+                               val_residuals, train_residuals, 
+                               val_preds, y_val,
+                               train_size, val_size,
+                               residual_model=True)
+        
+        self.save_model_report(num_training=train_size,
+                              num_validation=val_size,
+                              training_time=training_time, 
+                              train_loss=best_train_loss, 
+                              val_loss=best_val_loss,  
+                              inference_speed= inference_speed,
+                              learning_rate=learning_rate,
+                              residual_model=True)
+    
+    def get_validation_and_training_features(self, validation_split, batch_size, n_spheres, target_avg_points, residual_model=False):
         # load inputs and targets
         inputs, outputs = self.dataloader.generate_spheres(n_spheres, target_avg_points, self.output_type)
+
+        if residual_model:
+            predicted_outputs= self.predict(inputs, batch_size= batch_size).squeeze().cpu().numpy()
+            residuals= np.array(outputs) - predicted_outputs
+            outputs= residuals.tolist()
 
         # load the dataset
         dataset= DatasetLoader(features=inputs, labels=outputs)
@@ -238,7 +376,7 @@ class SamplingFCRegressionNetwork(nn.Module):
 
         return val_loader, train_loader, val_size, train_size, val_dataset, train_dataset
     
-    def save_metadata(self, spheres, points_per_sphere, learning_rate, num_epochs, training_batch_size):
+    def save_metadata(self, spheres, points_per_sphere, learning_rate, num_epochs, training_batch_size, residual_model):
         # get min and max of spheres
         radii=[sphere[-1] for sphere in spheres]
 
@@ -255,6 +393,16 @@ class SamplingFCRegressionNetwork(nn.Module):
             'min_radius': self.min_radius,
             'max_radius': self.max_radius
         }
+
+        if residual_model:
+            # Metadata
+            self.residual_model_metadata = {
+                'points_per_sphere': points_per_sphere,
+                'num_epochs': num_epochs,
+                'learning_rate': learning_rate,
+                'training_batch_size': training_batch_size,
+                'model_state': self.residual_model.state_dict()
+            }
         
     def save_model_report(self,num_training,
                               num_validation,
@@ -262,11 +410,9 @@ class SamplingFCRegressionNetwork(nn.Module):
                               train_loss, 
                               val_loss, 
                               inference_speed,
-                              learning_rate):
-        if self.input_type=="uniform_sphere":
-            input_type="[input_clip_vector[1280], radius(float)]"
-        elif self.input_type=="gaussian_sphere":
-            input_type="[input_clip_vector[1280], variance(float)]"
+                              learning_rate,
+                              residual_model=False):
+        input_type="[input_clip_vector[1280], radius(float)]"
 
         report_text = (
             "================ Model Report ==================\n"
@@ -299,7 +445,8 @@ class SamplingFCRegressionNetwork(nn.Module):
         buffer = BytesIO(content)
         buffer.seek(0)
 
-        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.pth', '.txt'), buffer)
+        minio_path= self.residual_minio_path if residual_model else self.minio_path 
+        cmd.upload_data(self.minio_client, 'datasets', minio_path.replace('.pth', '.txt'), buffer)
 
         # Remove the temporary file
         os.remove(local_report_path)
@@ -309,7 +456,8 @@ class SamplingFCRegressionNetwork(nn.Module):
                           best_train_loss, best_val_loss,  
                           val_residuals, train_residuals, 
                           predicted_values, actual_values,
-                          training_size, validation_size):
+                          training_size, validation_size,
+                          residual_model=False):
         fig, axs = plt.subplots(3, 2, figsize=(12, 10))
         
         #info text about the model
@@ -388,34 +536,16 @@ class SamplingFCRegressionNetwork(nn.Module):
         buf.seek(0)
 
         # upload the graph report
-        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.pth', '.png'), buf)  
+        minio_path= self.residual_minio_path if residual_model else self.minio_path 
+        cmd.upload_data(self.minio_client, 'datasets', minio_path.replace('.pth', '.png'), buf)  
 
         # Clear the current figure
         plt.clf()
 
-    # def predict(self, data, batch_size=64):
-    #     # Convert the features array into a PyTorch Tensor
-    #     features_tensor = torch.Tensor(np.array(data)).to(self._device)
-
-    #     # Ensure the model is in evaluation mode
-    #     self.model.eval()
-
-    #     # List to hold all predictions
-    #     predictions = []
-
-    #     # Perform prediction in batches
-    #     with torch.no_grad():
-    #         for i in range(0, len(features_tensor), batch_size):
-    #             batch = features_tensor[i:i + batch_size]  # Extract a batch
-    #             outputs = self.model(batch)  # Get predictions for this batch
-    #             predictions.append(outputs.squeeze())
-
-    #     # Concatenate all predictions and convert to a NumPy array
-    #     predictions = torch.cat(predictions, dim=0).cpu().numpy()
-
-    #     return predictions
-
     def predict(self, data, batch_size=64):
+        if isinstance(data, np.array) or isinstance(data, list):
+            data= torch.FloatTensor(data)
+
         # Ensure the data tensor is on the correct device
         data = data.to(self._device)
 
@@ -448,51 +578,69 @@ class SamplingFCRegressionNetwork(nn.Module):
                 predictions.append(outputs)
         return torch.cat(predictions).squeeze()
 
-    def load_model(self):
+    def load_model(self, load_residual_model=False):
         # get model file data from MinIO
         prefix= f"{self.dataset}/models/sampling/"
-        suffix= f"_{self.output_type}_fc_{self.input_type}.pth"
+        model_suffix= f"_{self.output_type}_fc_{self.input_type}.pth"
+        residual_model_suffix= f"_{self.output_type}_residual_fc_{self.input_type}.pth"
+
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', prefix)
         most_recent_model = None
+        most_recent_residual_model = None
 
         for model_file in model_files:
-            if model_file.endswith(suffix):
+            if model_file.endswith(model_suffix):
                 most_recent_model = model_file
+            if model_file.endswith(residual_model_suffix) and load_residual_model:
+                most_recent_residual_model = model_file
 
         if most_recent_model:
-            model_file_data =cmd.get_file_from_minio(self.minio_client, 'datasets', most_recent_model)
+            model_file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', most_recent_model)
+            # Assuming get_file_from_minio returns a response object that can be read as bytes
+            model_bytes = model_file_data.read()  # Read the entire content as bytes
+            # Use BytesIO as a file-like object for torch.load
+            model_buffer = BytesIO(model_bytes)
+            self.metadata = torch.load(model_buffer)
+            self.min_radius= self.metadata["min_radius"]
+            self.max_radius= self.metadata["max_radius"]
+            self.model.load_state_dict(self.metadata["model_state"])
         else:
-            print("No .pth files found in the list.")
+            print("No files found for this model.")
             return None
-        
+
+        # Similar approach for the residual model
+        if most_recent_residual_model and load_residual_model:
+            residual_model_file_data = cmd.get_file_from_minio(self.minio_client, 'datasets', most_recent_residual_model)
+            residual_model_bytes = residual_model_file_data.read()  # Read as bytes
+            residual_model_buffer = BytesIO(residual_model_bytes)
+            self.residual_model_metadata = torch.load(residual_model_buffer)
+            self.residual_model.load_state_dict(self.residual_model_metadata["model_state"])
+        else:
+            print("No files found for the residual model.")
+            return None
+
         print(most_recent_model)
-
-        # Create a temporary file and write the downloaded content into it
-        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            for data in model_file_data.stream(amt=8192):
-                temp_file.write(data)
-
-        # Load the model from the downloaded bytes
-        self.metadata= torch.load(temp_file.name)
-        self.min_radius= self.metadata["min_radius"]
-        self.max_radius= self.metadata["max_radius"]
-        
-        self.model.load_state_dict(self.metadata["model_state"])
-        
-        # Remove the temporary file
-        os.remove(temp_file.name)
+        print(residual_model_file_data)
 
     def save_model(self):
         if self.metadata is None:
-            raise Exception("you have to train the model first before saving.")
+            raise Exception("You have to train the model first before saving.")
         
-         # Save the model locally
-        torch.save(self.metadata, self.local_path)
-        
-        #Read the contents of the saved model file
-        with open(self.local_path, "rb") as model_file:
-            model_bytes = model_file.read()
-
-        # Upload the model to MinIO
-        cmd.upload_data(self.minio_client, 'datasets', self.minio_path, BytesIO(model_bytes))
+        # Create an in-memory buffer
+        model_buffer = BytesIO()
+        # Save the model directly into the buffer
+        torch.save(self.metadata, model_buffer)
+        # Reset the buffer's position to the beginning
+        model_buffer.seek(0)
+        # Upload the buffer to MinIO
+        cmd.upload_data(self.minio_client, 'datasets', self.minio_path, model_buffer)
         print(f'Model saved to {self.minio_path}')
+
+        if self.residual_model_metadata is not None:
+            # Create an in-memory buffer
+            residual_model_buffer = BytesIO()
+            # Save the model directly into the buffer
+            torch.save(self.residual_model_metadata, residual_model_buffer)
+            residual_model_buffer.seek(0)
+            cmd.upload_data(self.minio_client, 'datasets', self.residual_minio_path, residual_model_buffer)
+            print(f'Residual Model saved to {self.residual_minio_path}')
