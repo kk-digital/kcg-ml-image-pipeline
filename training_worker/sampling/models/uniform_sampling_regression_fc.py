@@ -47,7 +47,7 @@ class DatasetLoader(Dataset):
 
 class SamplingFCRegressionNetwork(nn.Module):
     def __init__(self, minio_client, input_size=1281, hidden_sizes=[512, 256], input_type="uniform_sphere",output_size=1, 
-                 output_type="mean_sigma_score", dataset="environmental"):
+                 output_type="mean_sigma_score", dataset="environmental", dataloader=None):
         
         super(SamplingFCRegressionNetwork, self).__init__()
         # set device
@@ -86,7 +86,7 @@ class SamplingFCRegressionNetwork(nn.Module):
         self.local_path, self.minio_path, self.residual_minio_path=self.get_model_path()
 
         # sphere dataloader
-        self.dataloader= UniformSphereGenerator(minio_client, dataset)
+        self.dataloader = dataloader
 
     def get_model_path(self):
         local_path=f"output/{self.output_type}_fc_{self.input_type}.pth"
@@ -105,7 +105,9 @@ class SamplingFCRegressionNetwork(nn.Module):
               train_residual_model=False):
 
         # load datapoints from minio
-        self.dataloader.load_data()
+        if self.dataloader is None:
+            self.dataloader= UniformSphereGenerator(self.minio_client, self.dataset)
+            self.dataloader.load_data()
 
         # Define the loss function and optimizer
         self.criterion = nn.L1Loss()  
@@ -413,6 +415,7 @@ class SamplingFCRegressionNetwork(nn.Module):
                               learning_rate,
                               residual_model=False):
         input_type="[input_clip_vector[1280], radius(float)]"
+        output_type= f"{self.output_type}_residual" if residual_model else self.output_type
 
         report_text = (
             "================ Model Report ==================\n"
@@ -427,7 +430,7 @@ class SamplingFCRegressionNetwork(nn.Module):
             "================ Input and output ==================\n"
             f"Input: {input_type} \n"
             f"Input Size: {self.input_size} \n" 
-            f"Output: {self.output_type} \n\n"
+            f"Output: {output_type} \n\n"
         )
 
         # Define the local file path for the report
@@ -460,6 +463,7 @@ class SamplingFCRegressionNetwork(nn.Module):
                           residual_model=False):
         fig, axs = plt.subplots(3, 2, figsize=(12, 10))
         
+        output_type= f"{self.output_type}_residual" if residual_model else self.output_type
         #info text about the model
         plt.figtext(0.02, 0.7, "Date = {}\n"
                             "Dataset = {}\n"
@@ -478,7 +482,7 @@ class SamplingFCRegressionNetwork(nn.Module):
                                                             'Fc_Network',
                                                             self.input_type,
                                                             self.input_size,
-                                                            self.output_type,
+                                                            output_type,
                                                             training_size,
                                                             validation_size,
                                                             best_train_loss,
