@@ -1588,8 +1588,8 @@ def tag_images(dataset_name, number_of_samples, number_of_images_to_tag,tag_name
 
 # topic-space 87
 # tag_name ="topic-aquatic",model_id = 84
-#tag_images(dataset_name = "environmental", number_of_samples = 30000, number_of_images_to_tag = 50 ,tag_name ="topic-space",model_id = 87)
-tag_images(dataset_name = "environmental", number_of_samples = 32000, number_of_images_to_tag = 100 ,tag_name ="defect-split-pane-image",model_id = 86)
+tag_images(dataset_name = "environmental", number_of_samples = 32000, number_of_images_to_tag = 100 ,tag_name ="topic-space",model_id = 87)
+#tag_images(dataset_name = "environmental", number_of_samples = 32000, number_of_images_to_tag = 100 ,tag_name ="defect-split-pane-image",model_id = 86)
 
 
 
