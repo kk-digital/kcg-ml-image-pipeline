@@ -1559,7 +1559,7 @@ def tag_images(dataset_name, number_of_samples, number_of_images_to_tag,tag_name
 
 
 
-tag_images(dataset_name = "environmental", number_of_samples = 30000, number_of_images_to_tag = 50 ,tag_name ="concept-occult",model_id = 82)
+tag_images(dataset_name = "environmental", number_of_samples = 5000, number_of_images_to_tag = 10 ,tag_name ="topic-aquatic",model_id = 84)
 
 
 
