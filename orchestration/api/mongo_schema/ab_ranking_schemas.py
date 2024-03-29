@@ -84,22 +84,14 @@ class ImageRank(BaseModel):
     rank_model_id: Optional[int] = None
     file_path: str
     image_hash: str
-    rank_model_type: int = Field(..., description="1 for positive, 0 for negative")
     user_who_created: str = Field(..., description="User who created the rank")
     creation_time: Union[str, None] = None 
-    
-    @validator("rank_model_type")
-    def validate_rank_model_type(cls, value):
-        if value not in [0, 1]:
-            raise ValueError("rank_model_type should be either 0 or 1.")
-        return value
 
     def to_dict(self):
         return {
             "rank_model_id": self.rank_model_id,
             "file_path": self.file_path,
             "image_hash": self.image_hash,
-            "rank_model_type": self.rank_model_type,
             "user_who_created": self.user_who_created,
             "creation_time": self.creation_time
         }
