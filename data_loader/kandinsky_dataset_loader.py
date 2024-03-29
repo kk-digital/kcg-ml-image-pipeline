@@ -125,6 +125,7 @@ class KandinskyDatasetLoader:
             except:
                 print("An error occured")
             
+            index+=1
             if index>50:
                 break
         
