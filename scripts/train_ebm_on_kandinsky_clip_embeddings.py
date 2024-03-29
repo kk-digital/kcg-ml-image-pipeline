@@ -219,6 +219,7 @@ def get_file_paths_and_hashes_uuid(dataset,num_samples):
         response = requests.get(f'{API_URL}/image/list-image-metadata-by-dataset-v1?dataset={dataset}&limit={num_samples}')
         
         jobs = json.loads(response.content)
+        print(jobs)
         #print(jobs)
         file_paths=[job['image_path'] for job in jobs['response']]
         hashes=[job['image_hash'] for job in jobs]
