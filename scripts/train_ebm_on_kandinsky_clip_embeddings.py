@@ -966,26 +966,26 @@ def tag_image_v2(image_uuid,classifier_id,score):
         print(f"Error: HTTP request failed with status code {response.status_code}")
 
 
-# def tag_image_v3(tagging_data):
-#     url = f"{API_URL}pseudotag/add-pseudo-tag-to-image"
-#     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
-#     response = None
+def tag_image_v3(tagging_data):
+    url = f"{API_URL2}pseudotag/add-pseudo-tag-to-image"
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+    response = None
 
-#     try:
-#         response = requests.post(url, data=tagging_data, headers=headers)
+    try:
+        response = requests.post(url, data=tagging_data, headers=headers)
 
-#         if response.status_code != 200:
-#             print(f"request failed with status code: {response.status_code}")
-#         print("model_id=", response.content)
-#         return response.content
-#     except Exception as e:
-#         print('request exception ', e)
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}")
+        print("model_id=", response.content)
+        return response.content
+    except Exception as e:
+        print('request exception ', e)
 
-#     finally:
-#         if response:
-#             response.close()
+    finally:
+        if response:
+            response.close()
 
-#     return None
+    return None
 
 def process_and_sort_dataset_combined(images_paths, model1,model2):
     # Initialize an empty list to hold the structure for each image
@@ -1575,7 +1575,14 @@ def tag_images(dataset_name, number_of_samples, number_of_images_to_tag,tag_name
         #
         print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2], " Hash : ",image[4], " uuid : ",image[5])
         rank +=1
-        tag_image_v2(image_uuid = image[5],classifier_id = model_id,score =image[2] )
+        #tag_image_v2(image_uuid = image[5],classifier_id = model_id,score =image[2] )
+        image_data= {
+            "uuid": image[5],
+            "classifier_id": model_id,
+            "score": image[2]
+            }
+        tag_image_v3(image_data)
+
 
 
 # topic-space 87
