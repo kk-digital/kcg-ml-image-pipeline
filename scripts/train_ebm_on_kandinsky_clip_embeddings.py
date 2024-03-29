@@ -970,7 +970,7 @@ def tag_image_v3(tagging_data):
     url = f"{API_URL2}/pseudotag/add-pseudo-tag-to-image"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
     response = None
-
+    tagging_data = json.dumps(tagging_data)
     try:
         response = requests.post(url, data=tagging_data, headers=headers)
 
