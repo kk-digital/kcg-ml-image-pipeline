@@ -967,7 +967,7 @@ def tag_image_v2(image_uuid,classifier_id,score):
 
 
 def tag_image_v3(tagging_data):
-    url = f"{API_URL2}pseudotag/add-pseudo-tag-to-image"
+    url = f"{API_URL2}/pseudotag/add-pseudo-tag-to-image"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
     response = None
 
