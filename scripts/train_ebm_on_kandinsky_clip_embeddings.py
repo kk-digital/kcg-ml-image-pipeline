@@ -1582,7 +1582,7 @@ def tag_images(dataset_name, number_of_samples, number_of_images_to_tag,tag_name
             "score": image[2]
             }
         print(image_data)
-        #tag_image_v3(image_data)
+        tag_image_v3(image_data)
 
 
 
