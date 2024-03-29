@@ -4,7 +4,7 @@ from utility.minio import cmd
 import os
 import json
 from io import BytesIO
-from orchestration.api.mongo_schema.selection_schemas import Selection, RelevanceSelection
+from orchestration.api.mongo_schema.selection_schemas import Selection, RelevanceSelection, ListSelection
 from .mongo_schemas import FlaggedDataUpdate
 from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, ApiResponseHandler, TagCountResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, RankCountResponse, CountResponse, JsonContentResponse
 import random
@@ -127,7 +127,7 @@ def get_image_rank_use_count(request: Request, image_hash: str):
     return item["count"]
 
 
-@router.post("/ranking/submit-relevance-data", tags= ["deprecated"])
+@router.post("/ranking/submit-relevance-data", tags= ["deprecated2"])
 def add_relevancy_selection_datapoint(request: Request, relevance_selection: RelevanceSelection, dataset: str = Query(...)):
     time = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     relevance_selection.datetime = time
@@ -248,7 +248,7 @@ def add_selection_datapoint(request: Request, selection: Selection):
         )
 
 
-@router.get("/rank/list-ranking-data", tags = ["deprecated"], response_class=PrettyJSONResponse)
+@router.get("/rank/list-ranking-data", tags = ["deprecated2"], response_class=PrettyJSONResponse)
 def list_ranking_data(
     request: Request,
     start_date: str = Query(None),
@@ -331,7 +331,7 @@ def list_ranking_data(
 
     return ranking_data
 
-@router.get("/rank/sort-ranking-data-by-date", tags = ["deprecated"], response_class=PrettyJSONResponse)
+@router.get("/rank/sort-ranking-data-by-date", tags = ["deprecated2"], response_class=PrettyJSONResponse)
 def list_ranking_data(
     request: Request,
     model_type: str = Query(..., description="Model type to filter by, e.g., 'linear' or 'elm-v1'"),
@@ -789,6 +789,70 @@ async def add_selection_datapoint_v2(
         )
     
 
+@router.post("/rank/add-ranking-data-point-v3", 
+             status_code=201,
+             tags = ['ranking'],
+             description="'rank/add-ranking-data-point-v2' is the replacement.",
+             response_model=StandardSuccessResponseV1[Selection],
+             responses=ApiResponseHandlerV1.listErrors([422, 500]))
+async def add_selection_datapoint_v3(request: Request, selection: Selection):
+    api_handler = await ApiResponseHandlerV1.createInstance(request)
+    
+    try:
+        current_time = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S')
+        file_name = f"{current_time}-{selection.username}.json"
+        dataset = selection.image_1_metadata.file_path.split('/')[1]
+        selection.datetime = current_time
+
+        dict_data = selection.to_dict()
+
+        # Prepare ordered data for MongoDB insertion
+        mongo_data = OrderedDict([
+            ("_id", ObjectId()),  # Generate new ObjectId
+            ("file_name", file_name),
+            ("dataset", dataset),
+            *dict_data.items()  # Unpack the rest of dict_data
+        ])
+
+        # Insert the ordered data into MongoDB
+        request.app.image_pair_ranking_collection.insert_one(mongo_data)
+
+        # Prepare data for MinIO upload (excluding the '_id' field)
+        minio_data = mongo_data.copy()
+        minio_data.pop("_id")
+        minio_data.pop("file_name")
+        minio_data.pop("dataset")
+        path = "data/ranking/aggregate"
+        full_path = os.path.join(dataset, path, file_name)
+        json_data = json.dumps(minio_data, indent=4).encode('utf-8')
+        data = BytesIO(json_data)
+
+        # Upload data to MinIO
+        cmd.upload_data(request.app.minio_client, "datasets", full_path, data)
+
+        image_1_hash = selection.image_1_metadata.file_hash
+        image_2_hash = selection.image_2_metadata.file_hash
+
+        # Update rank count for images
+        for img_hash in [image_1_hash, image_2_hash]:
+            update_image_rank_use_count(request, img_hash)
+
+        # Return a success response
+        return api_handler.create_success_response_v1(
+            response_data=minio_data,
+            http_status_code=201
+        )
+
+    except Exception as e:
+
+        return api_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+
+
+
 @router.post("/rank/update-image-rank-use-count-v1", 
              description="Update image rank use count", 
              tags=["deprecated"],
@@ -1051,7 +1115,7 @@ def list_ranking_data_by_residual(
 @router.get("/rank/sort-ranking-data-by-date-v2", 
             description="Sort rank data by date",
             tags=["ranking"],
-            response_model=StandardSuccessResponseV1[Selection],  # Ensure this is the correct response model
+            response_model=StandardSuccessResponseV1[ListSelection],  
             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
 async def sort_ranking_data_by_date_v2(
     request: Request,
@@ -1092,7 +1156,7 @@ async def sort_ranking_data_by_date_v2(
             doc['_id'] = str(doc['_id'])  # Convert ObjectId to string for JSON serialization
         
         return response_handler.create_success_response_v1(
-            response_data=ranking_data, 
+            response_data={"ranking_data": ranking_data}, 
             http_status_code=200
         )
     except Exception as e:
@@ -1312,7 +1376,7 @@ def add_selected_residual_pair(
             http_status_code=500,
         )
 
-@router.get("/rank/read",tags = ['deprecated'], response_class=PrettyJSONResponse)
+@router.get("/rank/read",tags = ['deprecated2'], response_class=PrettyJSONResponse)
 def read_ranking_file(request: Request, dataset: str,
                       filename: str = Query(..., description="Filename of the JSON to read")):
     # Construct the object name for ranking
@@ -1371,7 +1435,7 @@ async def read_ranking_file(request: Request, dataset: str, filename: str = Quer
 
 
 
-@router.get("/relevancy/read", tags = ['deprecated'], response_class=PrettyJSONResponse)
+@router.get("/relevancy/read", tags = ['deprecated2'], response_class=PrettyJSONResponse)
 def read_relevancy_file(request: Request, dataset: str,
                         filename: str = Query(..., description="Filename of the JSON to read")):
     # Construct the object name for relevancy

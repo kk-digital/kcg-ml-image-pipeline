@@ -554,7 +554,7 @@ def get_latest_ranking_model_v1(request: Request,
 @router.post("/models/add-v1",
              response_model=StandardSuccessResponseV1[ModelIdResponse], 
              description="Add a model to model collection",
-             tags=["deprecated"],
+             tags=["deprecated2"],
              status_code=200,
              responses=ApiResponseHandlerV1.listErrors([400, 500]))
 async def add_model(request: Request, model: RankingModel):
@@ -578,7 +578,7 @@ async def add_model(request: Request, model: RankingModel):
             http_status_code=500,
         )    
 
-@router.post("/models/add-v1",
+@router.post("/models/add-model",
              response_model=StandardSuccessResponseV1[ModelIdResponse], 
              description="Add a model to model collection",
              tags=["models"],
