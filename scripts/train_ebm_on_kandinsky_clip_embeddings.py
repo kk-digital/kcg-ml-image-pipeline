@@ -958,7 +958,7 @@ def tag_image(file_hash,tag_id,user):
 def tag_image_v2(image_uuid,classifier_id,score):
     #print("tag: ",tag_id, " hash : ",file_hash, " user : ",user)
     print(f'{API_URL2}/pseudotag/add-pseudo-tag-to-image?uuid={str(image_uuid)}&classifier_id={classifier_id}&score={score}')
-    response = requests.post(f'{API_URL}/pseudotag/add-pseudo-tag-to-image?uuid={image_uuid}&classifier_id={classifier_id}&score={score}')
+    response = requests.post(f'{API_URL}/pseudotag/add-pseudo-tag-to-image?uuid={str(image_uuid)}&classifier_id={classifier_id}&score={score}')
     # Check if the response is successful (status code 200)
     if response.status_code == 200:
         print(f"All Good {response.status_code}")
@@ -1561,8 +1561,8 @@ def tag_images(dataset_name, number_of_samples, number_of_images_to_tag,tag_name
 
 # topic-space 87
 # tag_name ="topic-aquatic",model_id = 84
-tag_images(dataset_name = "environmental", number_of_samples = 30000, number_of_images_to_tag = 50 ,tag_name ="topic-space",model_id = 87)
-
+#tag_images(dataset_name = "environmental", number_of_samples = 30000, number_of_images_to_tag = 50 ,tag_name ="topic-space",model_id = 87)
+tag_images(dataset_name = "environmental", number_of_samples = 30000, number_of_images_to_tag = 50 ,tag_name ="defect-split-pane-image",model_id = 86)
 
 
 
