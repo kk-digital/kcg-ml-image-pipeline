@@ -228,7 +228,7 @@ def get_file_paths_and_hashes_uuid(dataset,num_samples):
         for i in  range(len(file_paths)):
             print("Path : ", file_paths[i], " Hash : ", hashes[i], " UUID : ",uuid[i])
         
-
+        return file_paths, hashes,uuid
 
 
 
@@ -916,7 +916,7 @@ def process_and_sort_dataset(images_paths, model):
     return sorted_structure
 
 
-def process_and_sort_dataset_with_hashes(images_paths, hashes, model):
+def process_and_sort_dataset_with_hashes_uui(images_paths, hashes,uuid, model):
     # Initialize an empty list to hold the structure for each image
     structure = []
 
@@ -931,7 +931,7 @@ def process_and_sort_dataset_with_hashes(images_paths, hashes, model):
         score = model.cnn(embedding.unsqueeze(0).to(model.device)).cpu()
         
         # Append the path, embedding, and score as a tuple to the structure list
-        structure.append((images_paths[i], embedding, score.item(),image,hashes[i]))  # Assuming score is a tensor, use .item() to get the value
+        structure.append((images_paths[i], embedding, score.item(),image,hashes[i],uuid[i]))  # Assuming score is a tensor, use .item() to get the value
 
     # Sort the structure list by the score in descending order (for ascending, remove 'reverse=True')
     # The lambda function specifies that the sorting is based on the third element of each tuple (index 2)
@@ -951,6 +951,17 @@ def tag_image(file_hash,tag_id,user):
         print(f"All Good {response.status_code}")
     else:
         print(f"Error: HTTP request failed with status code {response.status_code}")
+
+def tag_image_v2(image_uuid,classifier_id,score):
+    #print("tag: ",tag_id, " hash : ",file_hash, " user : ",user)
+    print(f'{API_URL}/pseudotag/add-pseudo-tag-to-image?uuid={image_uuid}&classifier_id={classifier_id}&score={score}')
+    response = requests.post(f'{API_URL}/pseudotag/add-pseudo-tag-to-image?uuid={image_uuid}&classifier_id={classifier_id}&score={score}')
+    # Check if the response is successful (status code 200)
+    if response.status_code == 200:
+        print(f"All Good {response.status_code}")
+    else:
+        print(f"Error: HTTP request failed with status code {response.status_code}")
+
 
 
 
@@ -1514,8 +1525,104 @@ def main():
 # plot_samples(dataset_name = "environmental", number_of_samples = 50,model_name ="concept-cybernetic")
 # plot_samples_hashless(dataset_name = "environmental", number_of_samples = 50,model_name ="concept-cybernetic")
 
-plot_samples_hashless(dataset_name = "environmental", number_of_samples = 30000,tag_name ="topic-aquatic")
+#plot_samples_hashless(dataset_name = "environmental", number_of_samples = 30000,tag_name ="topic-aquatic")
+
+
+tag_images(dataset_name = "environmental", number_of_samples = 5000, number_of_images_to_tag = 10 ,tag_name ="concept-cybernetic",model_id = 82)
+
+
+
+def tag_images(dataset_name, number_of_samples, number_of_images_to_tag,tag_name,model_id):
+
+    # get the paths and hashes
+    images_paths_ood, images_hashes_ood, uuid_ood = get_file_paths_and_hashes_uuid(dataset_name,number_of_samples)
+    loaded_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+    # Load the last trained model
+    #load_model_to_minio(loaded_model,model_name)
+    load_model_to_minio_v3(loaded_model,type, 'dataset' , tag_name = tag_name, value='energy',  model_type = "energy-based-model") 
+    # Process the images
+    sorted_images_and_hashes = process_and_sort_dataset_with_hashes_uui(images_paths_ood, images_hashes_ood,uuid_ood, loaded_model) 
+    rank = 1
+    #((images_paths[i], embedding, score.item(),image,hashes[i])) 
+
+
+    # Tag the images
+
+    images_to_tag = sorted_images_and_hashes[:number_of_images_to_tag] 
+    for image in images_to_tag:
+        #
+        print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2], " Hash : ",image[4], " uuid : ",image[5])
+        rank +=1
+        tag_image_v2(image_uuid = image[5],classifier_id = model_id,score =image[2] )
+
+
+
+
+
+
+
+
+#tag_image_v2(image_uuid,classifier_id,score)
+#get_file_paths_and_hashes_uuid
+
 #plot_samples(dataset_name = "environmental", number_of_samples = 20000,tag_name ="concept-cybernetic")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
