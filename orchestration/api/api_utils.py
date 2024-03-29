@@ -9,7 +9,7 @@ from fastapi import Request
 from typing import TypeVar, Generic, List, Any, Dict, Optional
 from pydantic import BaseModel
 from orchestration.api.mongo_schema.tag_schemas import TagDefinition, TagCategory, ImageTag
-from orchestration.api.mongo_schema.pseudo_tag_schemas import PseudoTagDefinition, ImagePseudoTag
+from orchestration.api.mongo_schema.pseudo_tag_schemas import ImagePseudoTag
 from datetime import datetime
 from minio import Minio
 from dateutil import parser
@@ -75,10 +75,6 @@ class TagsListResponse(BaseModel):
 
 class TagCountResponse(BaseModel):
     tag_id: int
-    count: int
-
-class PseudoTagCountResponse(BaseModel):
-    pseudo_tag_id: int
     count: int
 
 class ModelIdResponse(BaseModel):
