@@ -111,7 +111,7 @@ class SamplingFCRegressionNetwork(nn.Module):
 
         # Define the loss function and optimizer
         criterion = nn.L1Loss()  
-        optimizer = optim.Adam(self.parameters(), lr=learning_rate)
+        optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
 
         # save loss for each epoch and features
         train_loss=[]
@@ -247,7 +247,7 @@ class SamplingFCRegressionNetwork(nn.Module):
 
         # Define the loss function and optimizer
         criterion = nn.L1Loss()  
-        optimizer = optim.Adam(self.parameters(), lr=learning_rate)
+        optimizer = optim.Adam(self.residual_model.parameters(), lr=learning_rate)
 
         # save loss for each epoch and features
         train_loss=[]
