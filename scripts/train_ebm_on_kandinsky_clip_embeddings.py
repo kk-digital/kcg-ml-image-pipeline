@@ -112,7 +112,7 @@ from utility.path import separate_bucket_and_file_path
 from data_loader.utils import get_object
 
 API_URL = "http://192.168.3.1:8111"
-
+API_URL2 = "http://103.20.60.90:8764"
 batchsize_x = 16
 
 # Transformations: # don't use greyscale ?
@@ -956,7 +956,7 @@ def tag_image(file_hash,tag_id,user):
 
 def tag_image_v2(image_uuid,classifier_id,score):
     #print("tag: ",tag_id, " hash : ",file_hash, " user : ",user)
-    print(f'{API_URL}/pseudotag/add-pseudo-tag-to-image?uuid={image_uuid}&classifier_id={classifier_id}&score={score}')
+    print(f'{API_URL2}/pseudotag/add-pseudo-tag-to-image?uuid={image_uuid}&classifier_id={classifier_id}&score={score}')
     response = requests.post(f'{API_URL}/pseudotag/add-pseudo-tag-to-image?uuid={image_uuid}&classifier_id={classifier_id}&score={score}')
     # Check if the response is successful (status code 200)
     if response.status_code == 200:
@@ -1559,7 +1559,7 @@ def tag_images(dataset_name, number_of_samples, number_of_images_to_tag,tag_name
 
 
 
-tag_images(dataset_name = "environmental", number_of_samples = 5000, number_of_images_to_tag = 10 ,tag_name ="concept-cybernetic",model_id = 82)
+tag_images(dataset_name = "environmental", number_of_samples = 30000, number_of_images_to_tag = 50 ,tag_name ="concept-occult",model_id = 82)
 
 
 
