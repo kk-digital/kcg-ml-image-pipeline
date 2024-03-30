@@ -278,10 +278,10 @@ async def list_images_by_classifier_scores(
 # Updated apis
   
 
-@router.get("/classifier-scores/get-image-classifier-score-by-hash-and-classifier-id", 
+@router.get("/pseudotag-classifier-scores/get-image-classifier-score-by-hash-and-classifier-id", 
             description="Get image classifier score by classifier_id and image_hash",
             status_code=200,
-            tags=["classifier-scores"],  
+            tags=["pseudotag-classifier-scores"],  
             response_model=StandardSuccessResponseV1[ClassifierScoreV1],  
             responses=ApiResponseHandlerV1.listErrors([400,422]))
 def get_image_classifier_score_by_hash(request: Request, image_hash: str, classifier_id: int):
@@ -311,10 +311,10 @@ def get_image_classifier_score_by_hash(request: Request, image_hash: str, classi
 
 
 
-@router.get("/classifier-scores/get-image-classifier-score-by-uuid-and-classifier-id", 
+@router.get("/pseudotag-classifier-scores/get-image-classifier-score-by-uuid-and-classifier-id", 
             description="Get image classifier score by uuid and classifier_id",
             status_code=200,
-            tags=["classifier-scores"],  
+            tags=["pseudotag-classifier-scores"],  
             response_model=StandardSuccessResponseV1[ClassifierScoreV1],  
             responses=ApiResponseHandlerV1.listErrors([400,422]))
 def get_image_classifier_score_by_uuid_and_classifier_id(request: Request, 
@@ -349,11 +349,11 @@ def get_image_classifier_score_by_uuid_and_classifier_id(request: Request,
 
 
 
-@router.post("/classifier-scores/set-image-classifier-score", 
+@router.post("/pseudotag-classifier-scores/set-image-classifier-score", 
              status_code=200,
              response_model=StandardSuccessResponseV1[ClassifierScoreV1],
              description="Set classifier image score",
-             tags=["classifier-scores"], 
+             tags=["pseudotag-classifier-scores"], 
              responses=ApiResponseHandlerV1.listErrors([404, 422, 500]) 
              )
 async def set_image_classifier_score(request: Request, classifier_score: ClassifierScoreRequest):
@@ -424,10 +424,10 @@ async def set_image_classifier_score(request: Request, classifier_score: Classif
         )
 
 
-@router.delete("/classifier-scores/delete-image-classifier-score-by-uuid-and-classifier-id", 
+@router.delete("/pseudotag-classifier-scores/delete-image-classifier-score-by-uuid-and-classifier-id", 
                description="Delete image classifier score by specific uuid and classifier id.",
                status_code=200,
-               tags=["classifier-scores"],
+               tags=["pseudotag-classifier-scores"],
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([422]))
 async def delete_image_classifier_score_by_uuid_and_classifier_id(
@@ -458,9 +458,9 @@ async def delete_image_classifier_score_by_uuid_and_classifier_id(
         )
 
 
-@router.get("/classifier-scores/list-image-by-scores", 
+@router.get("/pseudotag-classifier-scores/list-image-by-scores", 
             description="List image scores based on classifier criteria",
-            tags=["classifier-scores"],  
+            tags=["pseudotag-classifier-scores"],  
             response_model=StandardSuccessResponseV1[ListClassifierScore1],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 async def list_image_scores(
