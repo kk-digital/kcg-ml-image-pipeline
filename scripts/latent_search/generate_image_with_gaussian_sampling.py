@@ -153,17 +153,8 @@ class SphereSamplingGenerator:
             # Generate uniform random numbers between 0 and 1
             uniform_samples = np.random.rand(points_per_sphere)
 
-            # Assuming uniform_samples is a NumPy array, convert it to a PyTorch tensor
-            uniform_samples_tensor = torch.tensor(uniform_samples)
-
-            # Set the scale parameter (feature value)
-            # feature = 1.0  # Replace with the actual feature value
-
-            # Use the norm.ppf function with the PyTorch tensor
-            normal_distribution = normal.Normal(0, feature)
-            random_radii = normal_distribution.icdf(uniform_samples_tensor)
-            
-            print(random_radii[:10], "ramdom raddi", feature)
+            # Apply the inverse transform sampling for the exponential distribution
+            random_radii = norm.ppf(uniform_samples, scale=feature)
 
             # Direction adjustment based on z-scores
             z_scores = (center - self.clip_mean) / self.clip_std
