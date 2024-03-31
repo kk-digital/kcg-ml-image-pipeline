@@ -972,7 +972,7 @@ def process_and_sort_dataset_with_hashes_uui_v2(images_paths, hashes,uuid, model
         structure.append(image_dict)  # Assuming score is a tensor, use .item() to get the value
 
     # The lambda function specifies that the sorting is based on the third element of each tuple (index 2)
-    sorted_structure = sorted(structure, key=lambda x: x[2], reverse=True)
+    sorted_structure = sorted(structure, key=lambda x: x['score'], reverse=True)
 
     return sorted_structure
 
