@@ -149,13 +149,15 @@ class SphereSamplingGenerator:
         scores = []
         for sphere in spheres:
             center, feature = sphere[:-1], sphere[-1]
-
+            print("sphere", sphere)
             # Generate uniform random numbers between 0 and 1
             uniform_samples = np.random.rand(points_per_sphere)
             print(type(uniform_samples), type(feature))
             feature = feature.to('cpu')
+
             # Apply the inverse transform sampling for the exponential distribution
             random_radii = norm.ppf(uniform_samples, scale=feature)
+            random_radii = np.abs(np.clip(random_radii, self.feature_min_value, self.feature_max_value,))
 
             # Direction adjustment based on z-scores
             z_scores = (center - self.clip_mean) / self.clip_std
@@ -172,7 +174,7 @@ class SphereSamplingGenerator:
                 magnitude = torch.rand(1, device=self.device).pow(1/3) * radius
 
                 point = center + direction * magnitude
-                point = torch.clamp(point, self.clip_min, self.clip_max)
+                # point = torch.clamp(point, self.clip_min, self.clip_max)
 
                 # Collect generated vectors and optionally calculate scores
                 clip_vectors = torch.cat((clip_vectors, point.unsqueeze(0)), dim=0)
