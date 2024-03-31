@@ -15,6 +15,7 @@ import pymongo
 from typing import Optional, List, Dict
 import time
 import io
+from minio import Minio
 
 
 
@@ -1574,9 +1575,8 @@ ACCESS_KEY = 'v048BpXpWrsVIHUfdAix'
 SECRET_KEY = '4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu'
 BUCKET_NAME = 'datasets'
 
-app = FastAPI()
 
-@app.get("/count-msgpack-files-per-dataset/")
+@router.get("/count-msgpack-files-per-dataset/")
 async def count_msgpack_files_per_dataset():
     try:
         minio_client = Minio(MINIO_IP_ADDR, access_key=ACCESS_KEY, secret_key=SECRET_KEY, secure=False)
@@ -1602,7 +1602,7 @@ async def count_msgpack_files_per_dataset():
             msgpack_file_counts[dataset] = {"vae_latent": vae_count, "latent": latent_count}
 
         return msgpack_file_counts
-    except S3Error as e:
+    except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to count msgpack files per dataset due to MinIO error: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to count msgpack files per dataset: {str(e)}")
