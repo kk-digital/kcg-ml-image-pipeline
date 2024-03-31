@@ -19,6 +19,7 @@ from training_worker.sampling.models.gaussian_sampling_regression_fc import Samp
 from training_worker.scoring.models.scoring_fc import ScoringFCNetwork
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 from utility.minio import cmd
+from torch.distributions import normal
 
 def parse_args():
         parser = argparse.ArgumentParser()
@@ -152,8 +153,17 @@ class SphereSamplingGenerator:
             # Generate uniform random numbers between 0 and 1
             uniform_samples = np.random.rand(points_per_sphere)
 
-            # Apply the inverse transform sampling for the exponential distribution
-            random_radii = norm.ppf(uniform_samples, scale=feature)
+            # Assuming uniform_samples is a NumPy array, convert it to a PyTorch tensor
+            uniform_samples_tensor = torch.tensor(uniform_samples)
+
+            # Set the scale parameter (feature value)
+            # feature = 1.0  # Replace with the actual feature value
+
+            # Use the norm.ppf function with the PyTorch tensor
+            normal_distribution = normal.Normal(0, feature)
+            random_radii = normal_distribution.icdf(uniform_samples_tensor)
+            
+            print(random_radii[:10], "ramdom raddi", feature)
 
             # Direction adjustment based on z-scores
             z_scores = (center - self.clip_mean) / self.clip_std
