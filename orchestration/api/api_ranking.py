@@ -12,7 +12,7 @@ from collections import OrderedDict
 from bson import ObjectId
 from pymongo import ReturnDocument
 import pymongo
-from typing import Optional, List
+from typing import Optional, List, Dict
 import time
 import io
 
@@ -1568,3 +1568,41 @@ async def update_ranking_file(request: Request, dataset: str, filename: str, upd
         http_status_code=200,
     )
 
+
+MINIO_IP_ADDR = '192.168.3.5:9000'
+ACCESS_KEY = 'v048BpXpWrsVIHUfdAix'
+SECRET_KEY = '4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu'
+BUCKET_NAME = 'datasets'
+
+app = FastAPI()
+
+@app.get("/count-msgpack-files-per-dataset/")
+async def count_msgpack_files_per_dataset():
+    try:
+        minio_client = Minio(MINIO_IP_ADDR, access_key=ACCESS_KEY, secret_key=SECRET_KEY, secure=False)
+        datasets = set()
+
+        # Listing only the top-level directories in the bucket to identify datasets
+        objects = minio_client.list_objects(BUCKET_NAME, recursive=False)
+        for obj in objects:
+            if obj.is_dir:
+                dataset_name = obj.object_name.strip('/').split('/')[0]
+                datasets.add(dataset_name)
+
+        msgpack_file_counts: Dict[str, Dict[str, int]] = {}
+        for dataset in datasets:
+            vae_count = 0
+            latent_count = 0
+            objects = minio_client.list_objects(BUCKET_NAME, prefix=f'{dataset}/', recursive=True)
+            for obj in objects:
+                if obj.object_name.endswith('_vae_latent.msgpack'):
+                    vae_count += 1
+                elif obj.object_name.endswith('_latent.msgpack'):
+                    latent_count += 1
+            msgpack_file_counts[dataset] = {"vae_latent": vae_count, "latent": latent_count}
+
+        return msgpack_file_counts
+    except S3Error as e:
+        raise HTTPException(status_code=500, detail=f"Failed to count msgpack files per dataset due to MinIO error: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to count msgpack files per dataset: {str(e)}")
