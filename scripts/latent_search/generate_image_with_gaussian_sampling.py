@@ -123,7 +123,7 @@ class SphereSamplingGenerator:
         generated_spheres = generated_spheres.to('cpu')
         batch_scores = self.sphere_scoring_model.predict(generated_spheres, batch_size=self.batch_size)
         scores = torch.tensor(batch_scores, device=self.device, dtype=torch.float32)
-
+        generated_spheres = generated_spheres.to(self.device)
         # Sort scores and select top spheres
         sorted_indexes = torch.argsort(scores.squeeze(), descending=True)[:self.selected_spheres]
         print(scores[sorted_indexes])
