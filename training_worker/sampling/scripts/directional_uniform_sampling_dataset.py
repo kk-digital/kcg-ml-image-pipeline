@@ -81,10 +81,10 @@ class DirectionalUniformSphereGenerator:
 
         # The scaling factors of each sphere are the max distance in each feature
         scaling_factors= []
-        for sphere_indices in indices:
+        for i, sphere_indices in enumerate(indices):
             # get neighbors for each sphere
             neighbors= self.feature_vectors[sphere_indices]
-            scaling_factor= np.max(np.abs(center - neighbors), axis=0)
+            scaling_factor= np.max(np.abs(sphere_centers[i] - neighbors), axis=0)
             # get max distance for each sphere
             scaling_factors.append(scaling_factor)
 
