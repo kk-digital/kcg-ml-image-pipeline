@@ -941,6 +941,42 @@ def process_and_sort_dataset_with_hashes_uui(images_paths, hashes,uuid, model):
 
     return sorted_structure
 
+
+
+
+# using a dictionary
+def process_and_sort_dataset_with_hashes_uui_v2(images_paths, hashes,uuid, model):
+    # Initialize an empty list to hold the structure for each image
+    structure = []
+
+    # Process each image path
+    for i in range(len(images_paths)):
+        # Extract embedding and image tensor from the image path
+        print(images_paths[i])
+        image, embedding = get_clip_and_image_from_path(images_paths[i])
+        
+        # Compute the score by passing the image tensor through the model
+        # Ensure the tensor is in the correct shape, device, etc.
+        score = model.cnn(embedding.unsqueeze(0).to(model.device)).cpu()
+        
+        image_dict = {
+            'path': images_paths[i],
+            'embedding': embedding,
+            'score': score.item(),
+            'image_tensor': image,
+            'hash': hashes[i],
+            'uuid': uuid[i]
+        }
+
+        # Append the path, embedding, and score as a tuple to the structure list
+        structure.append(image_dict)  # Assuming score is a tensor, use .item() to get the value
+
+    # The lambda function specifies that the sorting is based on the third element of each tuple (index 2)
+    sorted_structure = sorted(structure, key=lambda x: x[2], reverse=True)
+
+    return sorted_structure
+
+
 # /pseudotags/add-pseudo-tag-to-image
 # (f'{API_URL}/pseudotags/add-pseudo-tag-to-image?pseudo_tag_id={tag_id}&file_hash={file_hash}&user_who_created={user}')
 #/pseudotags/add-pseudo-tag-to-image
@@ -1563,7 +1599,7 @@ def tag_images(dataset_name, number_of_samples, number_of_images_to_tag,tag_name
     #load_model_to_minio(loaded_model,model_name)
     load_model_to_minio_v3(loaded_model,type, 'dataset' , tag_name = tag_name, value='energy',  model_type = "energy-based-model") 
     # Process the images
-    sorted_images_and_hashes = process_and_sort_dataset_with_hashes_uui(images_paths_ood, images_hashes_ood,uuid_ood, loaded_model) 
+    sorted_images_and_hashes = process_and_sort_dataset_with_hashes_uui_v2(images_paths_ood, images_hashes_ood,uuid_ood, loaded_model) 
     rank = 1
     #((images_paths[i], embedding, score.item(),image,hashes[i])) 
 
@@ -1573,22 +1609,22 @@ def tag_images(dataset_name, number_of_samples, number_of_images_to_tag,tag_name
     images_to_tag = sorted_images_and_hashes[:number_of_images_to_tag] 
     for image in images_to_tag:
         #
-        print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2], " Hash : ",image[4], " uuid : ",image[5])
+        print("Rank : ", rank, " Path : ", image["path"], " Score : ",image["score"], " Hash : ",image["hash"], " uuid : ",image["uuid"])
         rank +=1
         #tag_image_v2(image_uuid = image[5],classifier_id = model_id,score =image[2] )
         image_data= {
-            "uuid": image[5],
+            "uuid": image["uuid"],
             "classifier_id": model_id,
-            "score": image[2]
+            "score": image["score"]
             }
         print(image_data)
         tag_image_v3(image_data)
 
 
 
-# topic-space 87 86 84 
+# topic-space 87 86 84 83
 # tag_name ="topic-aquatic",model_id = 84
-tag_images(dataset_name = "environmental", number_of_samples = 40000, number_of_images_to_tag = 100 ,tag_name ="concept-occult",model_id = 83)
+tag_images(dataset_name = "environmental", number_of_samples = 40000, number_of_images_to_tag = 3 ,tag_name ="topic-desert",model_id = 88)
 #tag_images(dataset_name = "environmental", number_of_samples = 32000, number_of_images_to_tag = 100 ,tag_name ="defect-split-pane-image",model_id = 86)
 
 
