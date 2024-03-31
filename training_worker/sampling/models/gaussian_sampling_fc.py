@@ -50,10 +50,10 @@ class DatasetLoader(Dataset):
         return sample_features, sample_label
 
 
-class SamplingFCRegressionNetwork(nn.Module):
+class SamplingFCNetwork(nn.Module):
     def __init__(self, minio_client, input_size=1281, hidden_sizes=[512, 256], input_type="gaussian_sphere_variance" , output_size=8, 
                  bin_size=1, output_type="score_distribution", dataset="environmental"):
-        super(SamplingFCRegressionNetwork, self).__init__()
+        super(SamplingFCNetwork, self).__init__()
         # set device
         if torch.cuda.is_available():
             device = 'cuda'
