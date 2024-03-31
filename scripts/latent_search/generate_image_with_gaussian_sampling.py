@@ -162,7 +162,7 @@ class SphereSamplingGenerator:
             adjustment_factor = torch.clamp(torch.abs(z_scores), 0, 1)
             direction_adjustment = -torch.sign(z_scores) * adjustment_factor
 
-            for radius in range(random_radii):
+            for radius in random_radii:
                 # Generate points within the sphere
                 random_direction = torch.randn(dim, device=self.device)
                 direction = direction_adjustment + random_direction
