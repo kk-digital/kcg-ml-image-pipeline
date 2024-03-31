@@ -87,6 +87,8 @@ class DirectionalUniformSphereGenerator:
             scaling_factor= np.max(np.abs(sphere_centers[i] - neighbors), axis=0)
             # get max distance for each sphere
             scaling_factors.append(scaling_factor)
+        
+        print(f"scaling factor {scaling_factors[0]}")
 
         print("Processing sphere data-------------")
         # Prepare to collect sphere data and statistics
