@@ -324,8 +324,8 @@ class SamplingFCRegressionNetwork(nn.Module):
 
         start = time.time()
         # Inference and calculate residuals on the training and validation set
-        val_preds = self.inference(val_dataset, batch_size)
-        train_preds = self.inference(train_dataset, batch_size)
+        val_preds = self.inference(val_dataset, batch_size, residual_model=True)
+        train_preds = self.inference(train_dataset, batch_size, residual_model=True)
         
         end = time.time()
         inference_speed=(train_size + val_size)/(end - start)
@@ -576,14 +576,15 @@ class SamplingFCRegressionNetwork(nn.Module):
 
         return predictions        
 
-    def inference(self, dataset, batch_size=64):
+    def inference(self, dataset, batch_size=64, residual_model=False):
+        inference_model= self.residual_model if residual_model else self.model
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
         self.model.eval()  # Set the model to evaluation mode
         predictions = []
         with torch.no_grad():
             for inputs, _ in loader:
                 inputs= inputs.to(self._device)
-                outputs = self.model(inputs)
+                outputs = inference_model(inputs)
                 predictions.append(outputs)
         return torch.cat(predictions).squeeze()
 
