@@ -50,7 +50,7 @@ class DatasetLoader(Dataset):
         return sample_features, sample_label
 
 
-class SamplingFCNetwork(nn.Module):
+class SamplingFCRegressionNetwork(nn.Module):
     def __init__(self, minio_client, input_size=1281, hidden_sizes=[512, 256], input_type="gaussian_sphere_variance" , output_size=8, 
                  bin_size=1, output_type="score_distribution", dataset="environmental"):
         super(SamplingFCNetwork, self).__init__()
