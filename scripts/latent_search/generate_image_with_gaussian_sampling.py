@@ -233,7 +233,7 @@ class SphereSamplingGenerator:
         # generate clip vectors
         clip_vectors= self.sample_clip_vectors(num_samples=num_images)
         df_data=[]
-
+        print("clip vectors", clip_vectors)
         for clip_vector in clip_vectors:
             if self.send_job:
                 try:
