@@ -18,7 +18,7 @@ def parse_args():
     parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
     parser.add_argument('--target-avg-points', type=int, help='Target average of datapoints per sphere', 
                         default=16)
-    parser.add_argument('--sphere-type', type=str, help='Type of spheres, uniform or directional', default="uniform_shpere")
+    parser.add_argument('--sphere-type', type=str, help='Type of spheres, uniform or directional', default="uniform")
     parser.add_argument('--n-spheres', type=int, help='Number of spheres', default=100000)
     parser.add_argument('--generate-every-epoch', action="store_true", help='Generate spheres each epoch', default=False)
     parser.add_argument('--train-residual-model', action="store_true", help='Train residual models', default=False)
@@ -45,11 +45,11 @@ def main():
                                                 output_type= args.output_type,
                                                 bin_size= args.bin_size)
     elif args.output_type in ["variance", "mean_sigma_score"]:
-        if args.sphere_type=="uniform_sphere":
+        if args.sphere_type=="uniform":
             uniform_sampling_model= SamplingFCRegressionNetwork(minio_client=minio_client, 
                                                 dataset=args.dataset,
                                                 output_type= args.output_type)
-        elif args.sphere_type=="directional_sphere":
+        elif args.sphere_type=="directional":
             uniform_sampling_model= DirectionalSamplingFCRegressionNetwork(minio_client=minio_client, 
                                                 dataset=args.dataset,
                                                 output_type= args.output_type)
