@@ -120,6 +120,7 @@ class SphereSamplingGenerator:
         generated_spheres = self.generate_spheres()
         
         # Predict average scores for each sphere
+        generated_spheres = generated_spheres.to('cpu')
         batch_scores = self.sphere_scoring_model.predict(generated_spheres, batch_size=self.batch_size)
         scores = torch.tensor(batch_scores, device=self.device, dtype=torch.float32)
 
@@ -175,7 +176,6 @@ class SphereSamplingGenerator:
                 clip_vectors = torch.cat((clip_vectors, point.unsqueeze(0)), dim=0)
         
         # get sampled datapoint scores
-        clip_vectors= clip_vectors.to('cpu')
         scores = self.scoring_model.predict(clip_vectors, batch_size= self.batch_size)
         # get top scoring datapoints
         _, sorted_indices = torch.sort(scores.squeeze(), descending=True)
