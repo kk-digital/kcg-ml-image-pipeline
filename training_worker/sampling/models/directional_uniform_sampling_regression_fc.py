@@ -614,6 +614,8 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
             self.min_scaling_factors= self.metadata["min_scaling_factors"]
             self.max_scaling_factors= self.metadata["max_scaling_factors"]
             self.model.load_state_dict(self.metadata["model_state"])
+
+            print(most_recent_model)
         else:
             print("No files found for this model.")
             return None
@@ -628,9 +630,6 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
         else:
             print("No files found for the residual model.")
             return None
-
-        print(most_recent_model)
-        print(residual_model_file_data)
 
     def save_model(self):
         if self.metadata is None:
