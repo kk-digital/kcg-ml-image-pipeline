@@ -330,6 +330,7 @@ def main():
     generator= SphereSamplingGenerator(minio_access_key=args.minio_access_key,
                                         minio_secret_key=args.minio_secret_key,
                                         dataset=args.dataset,
+                                        sphere_type= args.sphere_type,
                                         top_k= args.top_k,
                                         total_spheres= args.total_spheres,
                                         selected_spheres= args.selected_spheres,
