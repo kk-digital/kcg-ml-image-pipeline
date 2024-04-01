@@ -97,8 +97,8 @@ class SphereSamplingGenerator:
                 self.sphere_scoring_model= DirectionalSamplingFCRegressionNetwork(minio_client=self.minio_client, dataset=dataset)
                 self.sphere_scoring_model.load_model()
                 # get min and max radius values
-                self.min_radius= torch.tensor(self.sphere_scoring_model.max_scaling_factors)
-                self.max_radius= torch.tensor(self.sphere_scoring_model.min_scaling_factors)
+                self.min_radius= torch.tensor(self.sphere_scoring_model.max_scaling_factors).to(device=self.device)
+                self.max_radius= torch.tensor(self.sphere_scoring_model.min_scaling_factors).to(device=self.device)
 
             # get distribution of clip vectors for the dataset
             self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
