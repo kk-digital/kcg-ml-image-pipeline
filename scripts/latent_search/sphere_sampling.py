@@ -237,6 +237,9 @@ class SphereSamplingGenerator:
             start_idx = batch_idx * self.batch_size
             end_idx = min((batch_idx + 1) * self.batch_size, len(clip_vectors))
             batch_embeddings = clip_vectors[start_idx:end_idx].clone().detach().requires_grad_(True)
+
+            print(batch_embeddings[0])
+            print(batch_embeddings.shape)
             
             # Setup the optimizer for the current batch
             optimizer = optim.Adam([batch_embeddings], lr=0.001)
