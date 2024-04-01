@@ -129,9 +129,6 @@ class SphereSamplingGenerator:
             radii = torch.rand(num_spheres, len(self.max_radius), device=self.device) * (self.max_radius - self.min_radius) + self.min_radius
 
         spheres = torch.cat([sphere_centers, radii], dim=1)
-
-        print(spheres[0], spheres[1], spheres.shape)
-
         return spheres
     
     def rank_and_optimize_spheres(self):
