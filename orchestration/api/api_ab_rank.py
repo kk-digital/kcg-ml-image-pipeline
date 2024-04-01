@@ -548,13 +548,14 @@ def list_rank_model_models(request: Request):
     response_handler = ApiResponseHandlerV1(request)
     try:
         # Query all the rank models
-        ranks_cursor = request.app.rank_model_categories_collection.find({})
+        ranks_cursor = list(request.app.rank_model_categories_collection.find({}))
 
         # Convert each rank document to rankmodel and then to a dictionary
-        result = [RankCategory(**rank).to_dict() for rank in ranks_cursor]
+        for doc in ranks_cursor:
+            doc.pop('_id', None)  
 
         return response_handler.create_success_response_v1(
-            response_data={"rank_model_categories": result}, 
+            response_data={"rank_model_categories": ranks_cursor}, 
             http_status_code=200,
             )
 
@@ -566,6 +567,15 @@ def list_rank_model_models(request: Request):
                                                          http_status_code=500,
                             
                                                          )
+
+
+
+@router.delete("/clear-rank-model-categories")
+def clear_all_pending_jobs(request: Request):
+    request.app.rank_model_categories_collection.delete_many({})
+
+    return True
+
 
 @router.get("/ab-rank/get-images-count-by-rank-id", 
             status_code=200,
