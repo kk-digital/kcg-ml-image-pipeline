@@ -128,6 +128,7 @@ class SphereSamplingGenerator:
         elif self.sphere_type=="directional":
             radii = torch.rand(num_spheres, len(self.max_radius), device=self.device) * (self.max_radius - self.min_radius) + self.min_radius
 
+        print(radii[0], radii[1])
         spheres = torch.cat([sphere_centers, radii], dim=1)
 
         return spheres
