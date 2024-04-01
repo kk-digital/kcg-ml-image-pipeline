@@ -227,6 +227,8 @@ class SphereSamplingGenerator:
         return clip_vectors
     
     def optimize_datapoints(self, clip_vectors, scoring_model):
+        print(clip_vectors[0])
+        print(clip_vectors.shape)
         # Calculate the total number of batches
         num_batches = len(clip_vectors) // self.batch_size + (0 if len(clip_vectors) % self.batch_size == 0 else 1)
         
