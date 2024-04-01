@@ -7,6 +7,7 @@ import sys
 import msgpack
 import numpy as np
 import pandas as pd
+from scipy.spatial.distance import pdist, squareform
 import torch
 import torch.optim as optim
 
@@ -141,15 +142,39 @@ class SphereSamplingGenerator:
         # Sort scores and select top spheres
         sorted_indexes = torch.argsort(scores.squeeze(), descending=True)[:self.selected_spheres]
         top_spheres = generated_spheres[sorted_indexes]
-        top_scores=[scores[index] for index in sorted_indexes]
-        print(top_scores)
+
+        # evaluate distances
+        print("Before optimization:")
+        self.evaluate_distances(top_spheres)
 
         # Optimization step
         if(self.optimize_spheres):
             top_spheres = self.optimize_datapoints(top_spheres, self.sphere_scoring_model)
             top_spheres= torch.stack(top_spheres)
+        
+        # evaluate distances after optimization
+        print("After optimization:")
+        self.evaluate_distances(top_spheres)
 
         return top_spheres.squeeze(1)
+    
+    def evaluate_distances(self, spheres):
+        spheres = spheres.cpu().numpy()  # Move to CPU and convert to numpy if it's a tensor
+
+        # Compute the pairwise distance matrix
+        distance_matrix = squareform(pdist(spheres, 'euclidean'))
+
+        # Remove self-comparisons (distance of 0) by setting them to np.inf
+        np.fill_diagonal(distance_matrix, np.inf)
+
+        # Calculate the lowest, highest, and mean distance, excluding self-comparisons
+        lowest_distance = np.min(distance_matrix)
+        highest_distance = np.max(distance_matrix[distance_matrix != np.inf])
+        mean_distance = np.mean(distance_matrix[distance_matrix != np.inf])
+
+        print(f"lowest distance: {lowest_distance}")
+        print(f"highest distance: {highest_distance}")
+        print(f"mean distance: {mean_distance}")
     
     def uniform_sampling(self, num_samples):
         spheres = self.rank_and_optimize_spheres()  
