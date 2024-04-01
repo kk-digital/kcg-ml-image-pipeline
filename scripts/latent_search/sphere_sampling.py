@@ -192,7 +192,7 @@ class SphereSamplingGenerator:
     
     def directional_uniform_sampling(self, num_samples):
         spheres = self.rank_and_optimize_spheres()  
-        dim = spheres.size(1)/2  # Exclude radius from dimensions
+        dim = int(spheres.size(1)/2)  # Exclude radius from dimensions
         
         # Determine points to generate per sphere
         num_generated_samples = int(num_samples/self.top_k)
