@@ -79,7 +79,7 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
             residual_model_layers.append(nn.Linear(hidden_sizes[i], hidden_sizes[i+1]))
             residual_model_layers.append(nn.ReLU())
         residual_model_layers.append(nn.Linear(hidden_sizes[-1], output_size))
-        self.residual_model = nn.Sequential(*residual_model_layers).to(self.device)
+        self.residual_model = nn.Sequential(*residual_model_layers).to(self._device)
         # model metadata
         self.metadata=None
         self.residual_model_metadata=None
