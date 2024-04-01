@@ -122,7 +122,11 @@ class SphereSamplingGenerator:
                                       std=self.clip_std.repeat(num_spheres, 1))
         sphere_centers = torch.clip(sphere_centers, self.clip_min, self.clip_max)
         radii = torch.rand(num_spheres, len(self.max_radius), device=self.device) * (self.max_radius - self.min_radius) + self.min_radius
-        spheres = torch.cat([sphere_centers, radii.unsqueeze(1)], dim=1)
+       
+        if self.sphere_type=="uniform":
+            radii= radii.unsqueeze(1)
+
+        spheres = torch.cat([sphere_centers, radii], dim=1)
 
         return spheres
     
