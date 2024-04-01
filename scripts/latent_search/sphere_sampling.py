@@ -139,7 +139,6 @@ class SphereSamplingGenerator:
 
         # Sort scores and select top spheres
         sorted_indexes = torch.argsort(scores.squeeze(), descending=True)[:self.selected_spheres]
-        print(scores[sorted_indexes])
         top_spheres = generated_spheres[sorted_indexes]
 
         # Optimization step
