@@ -611,6 +611,7 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
             # Use BytesIO as a file-like object for torch.load
             model_buffer = BytesIO(model_bytes)
             self.metadata = torch.load(model_buffer)
+            print(self.metadata)
             self.max_scaling_factors= self.metadata["min_scaling_factors"]
             self.max_scaling_factors= self.metadata["max_scaling_factors"]
             self.model.load_state_dict(self.metadata["model_state"])
