@@ -201,7 +201,7 @@ class SphereSamplingGenerator:
         clip_vectors = torch.empty((0, dim), device=self.device)  # Initialize an empty tensor for all clip vectors
         scores = []
         for sphere in spheres:
-            center, radius = sphere[:-1], sphere[-1:]
+            center, radius = sphere[:dim], sphere[dim:]
 
             for _ in range(points_per_sphere):
                 # Generate points within the sphere
