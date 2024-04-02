@@ -838,9 +838,45 @@ def main():
     all_tags = get_unique_tag_ids()
     print("all tags : ", all_tags )
     print("all tags length : ", len(all_tags) )
-    all_data,_ = get_all_classes_paths(class_ids = all_tags,target_id=1)
-    print(all_data)
-    print("all data length  : ", len(all_data) )
+    # all_data,_ = get_all_classes_paths(class_ids = all_tags,target_id=1)
+    # print(all_data)
+    # print("all data length  : ", len(all_data) )
+
+
+
+    ##################### Basic method ##########################
+
+    for class_name in class_names:
+        
+        class_tag = get_tag_id_by_name(class_name)
+        print("Initiating training of : ", class_name)
+
+        target_paths, adv_paths = get_all_tag_jobs(class_ids = all_tags, target_id =class_tag)
+        train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(target_paths,1)
+        # Create dataloader of adversarial classes
+        train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_path(adv_paths,0)
+
+
+        if len(train_loader_automated) != 0: 
+            print("Training starated for  ", class_name," with ",len(train_loader_automated)," data points.")
+            training_pipeline=EBM_Single_Class(minio_access_key=args.minio_access_key,
+                                        minio_secret_key=args.minio_secret_key,
+                                        dataset= args.dataset,
+                                        class_name= args.class_name,
+                                        model = None,
+                                        save_name = args.save_name,
+                                        class_id =  get_tag_id_by_name(args.class_name),
+                                        training_batch_size=args.training_batch_size,
+                                        num_samples= args.num_samples,
+                                        epochs= args.epochs,
+                                        learning_rate= args.learning_rate,
+                                        train_loader = train_loader_automated,
+                                        val_loader  = val_loader_automated,
+                                        adv_loader = train_loader_clip_ood)
+            # do self training
+            training_pipeline.train()
+        else:
+            print("There isn't enough data for : ", class_name)
 
 
     ##################### Standard method ##########################
