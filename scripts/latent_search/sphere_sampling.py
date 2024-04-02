@@ -179,13 +179,16 @@ class SphereSamplingGenerator:
         # Retrieve and return the distances
         distance_matrix, _ = index.search(spheres, num_vectors)
 
+        # Convert squared distances to actual distances (FAISS returns squared L2 distances)
+        distance_matrix = np.sqrt(distance_matrix)
+
         # Remove self-comparisons (distance of 0) by setting them to np.inf
         np.fill_diagonal(distance_matrix, np.inf)
 
         # Calculate the lowest, highest, and mean distance, excluding self-comparisons
-        lowest_distance = np.sqrt(np.min(distance_matrix))
-        highest_distance =  np.sqrt(np.max(distance_matrix[distance_matrix != np.inf]))
-        mean_distance =  np.sqrt(np.mean(distance_matrix[distance_matrix != np.inf]))
+        lowest_distance = np.min(distance_matrix)
+        highest_distance =  np.max(distance_matrix[distance_matrix != np.inf])
+        mean_distance =  np.mean(distance_matrix[distance_matrix != np.inf])
 
         print(f"lowest distance: {lowest_distance}")
         print(f"highest distance: {highest_distance}")
