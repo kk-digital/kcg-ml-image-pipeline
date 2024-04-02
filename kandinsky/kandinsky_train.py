@@ -1,3 +1,5 @@
+import os
+import sys
 import torch
 import datasets
 
@@ -10,6 +12,9 @@ from PIL import Image
 import numpy as np
 from tqdm.auto import tqdm
 
+base_dir = "./"
+sys.path.insert(0, base_dir)
+sys.path.insert(0, os.getcwd())
 from kandinsky.model_paths import PRIOR_MODEL_PATH, DECODER_MODEL_PATH
 
 weight_dtype = torch.float32
