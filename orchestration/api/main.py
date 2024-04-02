@@ -1,15 +1,17 @@
+import json
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import pymongo
 from bson.objectid import ObjectId
 from fastapi.responses import JSONResponse
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode,  StandardErrorResponseV1, StandardSuccessResponse
+from .api_utils import ApiResponseHandlerV1, PrettyJSONResponse, ApiResponseHandler, ErrorCode,  StandardErrorResponseV1, StandardSuccessResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi import status, Request
 from dotenv import dotenv_values
 from datetime import datetime
 from orchestration.api.api_clip import router as clip_router
 from orchestration.api.api_dataset import router as dataset_router
+from orchestration.api.api_inpainting_dataset import router as inpainting_dataset_router
 from orchestration.api.api_image import router as image_router
 from orchestration.api.api_job_stats import router as job_stats_router
 from orchestration.api.api_job import router as job_router
@@ -31,6 +33,10 @@ from orchestration.api.api_active_learning_policy import router as active_learni
 from orchestration.api.api_pseudo_tag import router as pseudo_tags_router
 from orchestration.api.api_worker import router as worker_router
 from orchestration.api.api_inpainting_job import router as inpainting_job_router
+from orchestration.api.api_server_utility import router as server_utility_router
+from orchestration.api.api_classifier_score import router as classifier_score_router
+from orchestration.api.api_classifier import router as classifier_router
+from orchestration.api.api_ab_rank import router as ab_rank_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -46,6 +52,7 @@ app.add_middleware(
 
 app.include_router(clip_router)
 app.include_router(dataset_router)
+app.include_router(inpainting_dataset_router)
 app.include_router(image_router)
 app.include_router(image_by_rank_router)
 app.include_router(job_router)
@@ -67,6 +74,10 @@ app.include_router(active_learning_policy_router)
 app.include_router(pseudo_tags_router)
 app.include_router(worker_router)
 app.include_router(inpainting_job_router)
+app.include_router(server_utility_router)
+app.include_router(classifier_score_router)
+app.include_router(classifier_router)
+app.include_router(ab_rank_router)
 
 
 
@@ -100,27 +111,20 @@ def create_index_if_not_exists(collection, index_key, index_name):
         print(f"Index '{index_name}' already exists on collection '{collection.name}'.")
 
 
-# Define the exception handler
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     print(exc.errors())
-    start_time = datetime.now()  # Capture start time at the beginning of request processing
-    end_time = datetime.now()  # Capture end time when handling the exception
-    duration = (end_time - start_time).total_seconds()
-    
-    return PrettyJSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={
-            "request_error_string": "Validation error",
-            "request_error_code": ErrorCode.INVALID_PARAMS.value,  # Ensure this matches the expected format
-            "request_url": str(request.url),
-            "request_dictionary": dict(request.query_params), 
-            "request_method": request.method,
-            "request_time_total": duration,
-            "request_time_start": start_time.isoformat(),
-            "request_time_finished": end_time.isoformat(),
-            "request_response_code": status.HTTP_422_UNPROCESSABLE_ENTITY
-        },
+
+    error_string = ""
+    for err in exc.errors():
+        error_string += "(" + err["loc"][1] + " param in " + err["loc"][0] + ": " + err["msg"] + ") "
+
+    response_handler = ApiResponseHandlerV1.createInstanceWithBody(request, exc.body)
+
+    return response_handler.create_error_response_v1(
+        error_code=ErrorCode.INVALID_PARAMS,
+        error_string="Validation Error " + error_string,
+        http_status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
     )
 
 
@@ -150,6 +154,11 @@ def startup_db_client():
     ]
     create_index_if_not_exists(app.completed_jobs_collection ,completed_jobs_compound_index, 'completed_jobs_compound_index')
 
+    pending_jobs_task_type_index=[
+    ('task_type', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.pending_jobs_collection ,pending_jobs_task_type_index, 'pending_jobs_task_type_index')
+
     app.failed_jobs_collection = app.mongodb_db["failed-jobs"]
 
     #inpainting jobs
@@ -159,6 +168,10 @@ def startup_db_client():
 
     # used to store sequential ids of generated images
     app.dataset_sequential_id_collection = app.mongodb_db["dataset-sequential-id"]
+    # used to store sequential ids of generated images
+    app.inpainting_dataset_sequential_id_collection = app.mongodb_db["inpainting-dataset-sequential-id"]
+    # used store the sequential ids of self training data
+    app.self_training_sequential_id_collection = app.mongodb_db["self-training-sequential-id"]
 
     # for training jobs
     app.training_pending_jobs_collection = app.mongodb_db["training-pending-jobs"]
@@ -169,6 +182,12 @@ def startup_db_client():
     # dataset rate
     app.dataset_config_collection = app.mongodb_db["dataset_config"]
 
+    # ab ranking
+    app.rank_model_models_collection = app.mongodb_db["rank_definitions"]
+    app.image_ranks_collection = app.mongodb_db["image_ranks"]
+    app.rank_model_categories_collection = app.mongodb_db["rank_categories"]
+
+
     # tags
     app.tag_definitions_collection = app.mongodb_db["tag_definitions"]
     app.image_tags_collection = app.mongodb_db["image_tags"]
@@ -176,11 +195,18 @@ def startup_db_client():
 
     # pseudo tags
     app.pseudo_tag_definitions_collection = app.mongodb_db["pseudo_tag_definitions"]
-    app.pseudo_image_tags_collection = app.mongodb_db["pseudo_image_tags"]
+    app.pseudo_tag_images_collection = app.mongodb_db["pseudo_tag_images"]
     app.pseudo_tag_categories_collection = app.mongodb_db["pseudo_tag_categories"]
+    app.uuid_pseudo_tag_count_collection = app.mongodb_db["pseudo_tag_count"]
+
+    #classifier
+    app.classifier_models_collection = app.mongodb_db["classifier_models"]
 
     # delta score
     app.datapoints_delta_score_collection = app.mongodb_db["datapoints_delta_score"]
+
+    # workers
+    app.workers_collection = app.mongodb_db["workers"]
 
     # models
     app.models_collection = app.mongodb_db["models"]
@@ -194,6 +220,9 @@ def startup_db_client():
     
     # scores
     app.image_scores_collection = app.mongodb_db["image-scores"]
+
+    # scores for image classfier
+    app.image_classifier_scores_collection = app.mongodb_db["image_classifier_scores"]
 
     # active learning
     app.active_learning_policies_collection = app.mongodb_db["active-learning-policies"]
@@ -210,6 +239,22 @@ def startup_db_client():
     ('image_hash', pymongo.ASCENDING)
     ]
     create_index_if_not_exists(app.image_scores_collection ,hash_index, 'score_hash_index')
+
+    # classifier scores classifier_id, tag_id, image_hash
+    classifier_image_hash_index=[
+    ('image_hash', pymongo.ASCENDING),
+    ('classifier_id', pymongo.ASCENDING),
+    ('tag_id', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_hash_index, 'classifier_image_hash_index')
+
+    # classifier scores classifier_id, tag_id
+    classifier_image_classifier_index=[
+    ('classifier_id', pymongo.ASCENDING),
+    ('tag_id', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_classifier_index, 'classifier_image_classifier_index')
+
 
     # sigma scores
     app.image_sigma_scores_collection = app.mongodb_db["image-sigma-scores"]
@@ -264,6 +309,3 @@ def startup_db_client():
 @app.on_event("shutdown")
 def shutdown_db_client():
     app.mongodb_client.close()
-
-
-

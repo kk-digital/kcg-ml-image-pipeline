@@ -1,6 +1,8 @@
-from pydantic import BaseModel, Field, constr, validator
+from pydantic import BaseModel, Field, constr, validator, model_validator
 from typing import List, Union, Optional
+import json
 import re
+from typing import Union
 
 class Task(BaseModel):
     task_type: str
@@ -38,6 +40,14 @@ class Task(BaseModel):
             "prompt_generation_data": self.prompt_generation_data
         }
 
+    @model_validator(mode='before')
+    @classmethod
+    def validate_to_json(cls, value):
+        if isinstance(value, str):
+            return cls(**json.loads(value))
+        return value
+
+
 class KandinskyTask(BaseModel):
     job: Task # task data
     positive_embedding: list
@@ -72,6 +82,33 @@ class SequentialID:
             "file_count": self.file_count
         }
 
+class UUIDImageMetadata(BaseModel):
+    uuid: str
+    file_name: str
+    file_hash: Union[str, None] = None
+    file_path: Union[str, None] = None
+    image_type: Union[str, None] = None
+    image_width: Union[str, None] = None
+    image_height: Union[str, None] = None
+    image_size: Union[str, None] = None
+    features_type: Union[str, None] = None
+    features_model: Union[str, None] = None
+    features_vector: Union[list, None] = None
+
+    def to_dict(self):
+        return {
+            "uuid": self.uuid,
+            "file_name": self.file_name,
+            "file_hash": self.file_hash,
+            "file_path": self.file_path,
+            "image_type": self.image_type,
+            "image_width": self.image_width,
+            "image_height": self.image_height,
+            "image_size": self.image_size,
+            "features_type": self.features_type,
+            "features_model": self.features_model,
+            "features_vector": self.features_vector,
+        }
 
 class ImageMetadata(BaseModel):
     file_name: str
@@ -97,51 +134,6 @@ class ImageMetadata(BaseModel):
             "features_type": self.features_type,
             "features_model": self.features_model,
             "features_vector": self.features_vector,
-        }
-
-
-class Selection(BaseModel):
-    task: str
-    username: str
-    image_1_metadata: ImageMetadata
-    image_2_metadata: ImageMetadata
-    selected_image_index: Union[int, None] = None
-    selected_image_hash: Union[str, None] = None
-    datetime: Union[str, None] = None
-    training_mode: Union[str, None] = None
-    active_learning_type: Union[str, None] = None
-    active_learning_policy: Union[str, None] = None
-
-    def to_dict(self):
-        return {
-            "task": self.task,
-            "username": self.username,
-            "image_1_metadata": self.image_1_metadata.to_dict(),
-            "image_2_metadata": self.image_2_metadata.to_dict(),
-            "selected_image_index": self.selected_image_index,
-            "selected_image_hash": self.selected_image_hash,
-            "datetime": self.datetime,
-            "training_mode": self.training_mode,
-            "active_learning_type": self.active_learning_type,
-            "active_learning_policy": self.active_learning_policy,
-        }
-
-
-
-class RelevanceSelection(BaseModel):
-    username: str
-    image_hash: str
-    image_path: str
-    relevance: int  # if relevant, should be 1, otherwise 0
-    datetime: Union[str, None] = None
-
-    def to_dict(self):
-        return {
-            "username": self.username,
-            "image_hash": self.image_hash,
-            "image_path": self.image_path,
-            "relevance": self.relevance,
-            "datetime": self.datetime,
         }
 
 
@@ -181,101 +173,6 @@ class TrainingTask(BaseModel):
             "task_output_file_dict": self.task_output_file_dict,
         }
 
-
-class TagDefinition(BaseModel):
-    tag_id: Optional[int] = None
-    tag_string: str = Field(..., description="Name of the tag")
-    tag_category_id: Optional[int] = None
-    tag_description: str = Field(..., description="Description of the tag")
-    tag_vector_index: Optional[int] = Field(-1, description="Tag definition vector index")
-    deprecated: bool = False
-    user_who_created: str = Field(..., description="User who created the tag")
-    creation_time: Union[str, None] = None 
-
-    def to_dict(self):
-        return {
-            "tag_id": self.tag_id,
-            "tag_string": self.tag_string,
-            "tag_category_id": self.tag_category_id,
-            "tag_description": self.tag_description,
-            "tag_vector_index": self.tag_vector_index,
-            "deprecated": self.deprecated,
-            "user_who_created": self.user_who_created,
-            "creation_time": self.creation_time
-        }
-
-
-NonEmptyString = constr(strict=True, min_length=1)
-
-class NewTagRequest(BaseModel):
-    tag_string: str = Field(..., description="Name of the tag. Should only contain letters, numbers, hyphens, and underscores.")
-    tag_category_id: Optional[int] = Field(None, description="ID of the tag category")
-    tag_description: str = Field(..., description="Description of the tag")
-    tag_vector_index: Optional[int] = None
-    deprecated: bool = False
-    user_who_created: NonEmptyString = Field(..., description="Username of the user who created the tag")
-
-    @validator('tag_string')
-    def validate_tag_string(cls, value):
-        if not re.match(r'^[a-zA-Z0-9_-]+$', value):
-            raise ValueError('Invalid tag string')
-        return value
-
-class NewTagCategory(BaseModel):
-    tag_category_string: str = Field(..., description="Name of the tag category. Should only contain letters, numbers, hyphens, and underscores.")
-    tag_category_description: str = Field(..., description="Description of the tag category")
-    deprecated: bool = False
-    user_who_created: NonEmptyString = Field(..., description="Username of the user who created the tag")
-
-    @validator('tag_category_string')
-    def validate_tag_string(cls, value):
-        if not re.match(r'^[a-zA-Z0-9_-]+$', value):
-            raise ValueError('Invalid tag string')
-        return value
-
-
-class TagCategory(BaseModel):
-    tag_category_id: Optional[int] = None
-    tag_category_string: str = Field(..., description="Name of the tag category")
-    tag_category_description: str = Field(..., description="Description of the tag category")
-    deprecated: bool = False
-    user_who_created: str = Field(..., description="User who created the tag category")
-    creation_time: Union[str, None] = None
-
-    def to_dict(self):
-        return {
-            "tag_category_id": self.tag_category_id,
-            "tag_category_string": self.tag_category_string,
-            "tag_category_description": self.tag_category_description,
-            "deprecated": self.deprecated,
-            "user_who_created": self.user_who_created,
-            "creation_time": self.creation_time
-        }
-
-
-class ImageTag(BaseModel):
-    tag_id: Optional[int] = None
-    file_path: str
-    image_hash: str
-    tag_type: int = Field(..., description="1 for positive, 0 for negative")
-    user_who_created: str = Field(..., description="User who created the tag")
-    creation_time: Union[str, None] = None 
-    
-    @validator("tag_type")
-    def validate_tag_type(cls, value):
-        if value not in [0, 1]:
-            raise ValueError("tag_type should be either 0 or 1.")
-        return value
-
-    def to_dict(self):
-        return {
-            "tag_id": self.tag_id,
-            "file_path": self.file_path,
-            "image_hash": self.image_hash,
-            "tag_type": self.tag_type,
-            "user_who_created": self.user_who_created,
-            "creation_time": self.creation_time
-        }
         
 class FlaggedDataUpdate(BaseModel):
     flagged: bool = Field(..., description="Indicates whether the data is flagged or not")
@@ -289,22 +186,6 @@ class FlaggedDataUpdate(BaseModel):
             "flagged_time": self.flagged_time
         }
 
-
-class User(BaseModel):
-    username: str = Field(...)
-    password: str = Field(...)
-    role: constr(pattern='^(admin|user)$') = Field(...)
-
-    def to_dict(self):
-        return {
-            "username": self.username,
-            "password": self.password,
-            "role": self.role
-        }
-    
-class LoginRequest(BaseModel):
-    username: str = Field(...)
-    password: str = Field(...)
 
 class TokenPayload(BaseModel):
     sub: str = None
@@ -353,7 +234,52 @@ class RankingScore(BaseModel):
             "image_hash": self.image_hash,
             "score": self.score,
         }
+    
 
+class ClassifierScore(BaseModel):
+    uuid: Union[str, None]
+    classifier_id: int
+    image_hash: str
+    tag_id: int
+    score: float
+
+    def to_dict(self):
+        return {
+            "uuid": self.uuid,
+            "classifier_id": self.classifier_id,
+            "image_hash": self.image_hash,
+            "tag_id": self.tag_id,
+            "score": self.score,
+        }
+
+class ClassifierScoreV1(BaseModel):
+    uuid: Union[str, None]
+    classifier_id: int
+    image_hash: str
+    tag_id: int
+    score: float
+    creation_time: Union[str, None] = None
+
+    def to_dict(self):
+        return {
+            "uuid": self.uuid,
+            "classifier_id": self.classifier_id,
+            "image_hash": self.image_hash,
+            "tag_id": self.tag_id,
+            "score": self.score,
+            "creation_time" : self.creation_time
+        }
+    
+class ListClassifierScore(BaseModel):
+    images: List[ClassifierScore]
+
+class ListClassifierScore1(BaseModel):
+    images: List[ClassifierScoreV1]
+
+class ClassifierScoreRequest(BaseModel):
+    job_uuid: Union[str, None]
+    classifier_id: int
+    score: float
 
 class RankingSigmaScore(BaseModel):
     model_id: int
@@ -406,49 +332,6 @@ class RankingResidualPercentile(BaseModel):
         }
 
 
-class ActiveLearningPolicy(BaseModel):
-    active_learning_policy_id: Union[int, None] = None 
-    active_learning_policy: str
-    active_learning_policy_description: str
-    creation_time: Union[str, None] = None 
-
-    def to_dict(self):
-        return{
-            "active_learning_policy_id": self.active_learning_policy_id,
-            "active_learning_policy": self.active_learning_policy,
-            "active_learning_policy_description": self.active_learning_policy_description,
-            "creation_time": self.creation_time
-        }
-
-class RequestActiveLearningPolicy(BaseModel):
-    active_learning_policy: str
-    active_learning_policy_description: str
-
-    def to_dict(self):
-        return{
-            "active_learning_policy": self.active_learning_policy,
-            "active_learning_policy_description": self.active_learning_policy_description,
-        }
-
-class ActiveLearningQueuePair(BaseModel):
-    image1_job_uuid: str
-    image2_job_uuid: str
-    active_learning_policy_id: int
-    metadata: str
-    generator_string: str
-    creation_time: Union[str, None] = None 
-
-    def to_dict(self):
-        return{
-            "image1_job_uuid": self.image1_job_uuid,
-            "image2_job_uuid": self.image2_job_uuid,
-            "active_learning_policy_id": self.active_learning_policy_id,
-            "metadata": self.metadata,
-            "generator_string":self.generator_string,
-            "creation_time": self.creation_time
-        }
-
-
 class PhraseModel(BaseModel):
     phrase: str
 
@@ -468,3 +351,63 @@ class DatapointDeltaScore(BaseModel):
             "file_name": self.file_name,
             "delta_score": self.delta_score
         }    
+
+class Classifier(BaseModel):
+        classifier_id: Union[int, None] = None
+        classifier_name: str
+        tag_id: int
+        model_sequence_number: Union[int, None] = None
+        latest_model: str
+        model_path: str
+        creation_time: str
+
+        def to_dict(self):
+            return{
+                "classifier_id": self.classifier_id,
+                "classifier_name": self.classifier_name,
+                "tag_id": self.tag_id,
+                "model_sequence_number": self.model_sequence_number,
+                "latest_model": self.latest_model,
+                "model_path": self.model_path,
+                "creation_time": self.creation_time
+            }
+
+class ListClassifier(BaseModel):
+    classifiers : List[Classifier]    
+
+class RequestClassifier(BaseModel):
+        
+        classifier_name: str
+        tag_id: int
+        latest_model: str
+        model_path: str
+
+        def to_dict(self):
+            return{
+                "classifier_name": self.classifier_name,
+                "tag_id": self.tag_id,
+                "latest_model": self.latest_model,
+                "model_path": self.model_path,
+            }    
+
+
+class Worker(BaseModel):
+    last_seen: Union[str, None] = None
+    worker_id: str
+    worker_type: str
+    worker_address: Optional[str] = None
+    worker_computer_id: str
+    worker_ip: Optional[str] = None
+
+    def to_dict(self):
+        return{
+            "last_seen": self.last_seen,
+            "worker_id": self.worker_id,
+            "worker_type": self.worker_type,
+            "worker_address": self.worker_address,
+            "worker_computer_id": self.worker_computer_id,
+            "worker_ip": self.worker_ip
+        }   
+    
+class ListWorker(BaseModel):
+    worker: List[Worker]    

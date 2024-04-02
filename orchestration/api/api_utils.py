@@ -8,18 +8,57 @@ import time
 from fastapi import Request
 from typing import TypeVar, Generic, List, Any, Dict, Optional
 from pydantic import BaseModel
-from .mongo_schemas import TagDefinition, TagCategory
+from orchestration.api.mongo_schema.tag_schemas import TagDefinition, TagCategory, ImageTag
+from orchestration.api.mongo_schema.pseudo_tag_schemas import ImagePseudoTag
 from datetime import datetime
 from minio import Minio
 from dateutil import parser
 from datetime import datetime
 import os
-from .mongo_schemas import ImageTag
+from urllib.parse import urlparse
 
+
+
+class SingleModelResponse(BaseModel):
+    model_name: str
+    model_architecture: str
+    model_creation_date: str
+    model_type: str
+    model_path: str
+    model_file_hash: str
+    input_type: str
+    output_type: str
+    number_of_training_points: str
+    number_of_validation_points: str
+    training_loss: str
+    validation_loss: str
+    graph_report: str
+
+class JsonContentResponse(BaseModel):
+    json_content: dict
+
+class ModelResponse(BaseModel):
+    models: List[SingleModelResponse]
+
+class TagListForImages(BaseModel):
+    tags: List[TagDefinition]
+
+class ModelTypeResponse(BaseModel):
+    model_types: List[str]
+    
+class ModelsAndScoresResponse(BaseModel):
+    models: List[str]
+    scores: List[str]
 
 class ListImageTag(BaseModel):
      images: List[ImageTag]
 
+class RankCountResponse(BaseModel):
+    image_hash: str
+    count: int
+
+class CountResponse(BaseModel):
+    count: int
 
 class RechableResponse(BaseModel):
     reachable: bool
@@ -40,11 +79,23 @@ class TagCountResponse(BaseModel):
     tag_id: int
     count: int
 
+class ModelIdResponse(BaseModel):
+    model_id: int
+
+class UrlResponse(BaseModel):
+    url: str
+
 class TagIdResponse(BaseModel):
     tag_id: int
 
+class PseudoTagIdResponse(BaseModel):
+    pseudo_tag_id: int
+
 class GetClipPhraseResponse(BaseModel):
     phrase : str
+    clip_vector: List[List[float]]
+
+class GetKandinskyClipResponse(BaseModel):
     clip_vector: List[List[float]]
 
 class ImageData(BaseModel):
@@ -60,6 +111,7 @@ class TagResponse(BaseModel):
     tag_description: str  
     tag_vector_index: int
     deprecated: bool = False
+    deprecated_tag_category: bool = False
     user_who_created: str
     creation_time: str
 
@@ -165,10 +217,12 @@ class ApiResponseHandler:
 
 
 class StandardSuccessResponseV1(BaseModel, Generic[T]):
+    request_error_string: str = ""
+    request_error_code: int = 0
     request_url: str
     request_dictionary: dict 
     request_method: str
-    request_time_total: float
+    request_complete_time: float
     request_time_start: datetime 
     request_time_finished: datetime
     request_response_code: int 
@@ -181,9 +235,9 @@ class StandardErrorResponseV1(BaseModel):
     request_url: str
     request_dictionary: dict 
     request_method: str
-    request_time_total: float
-    request_time_start: datetime 
-    request_time_finished: datetime
+    request_complete_time: float
+    request_time_start: str 
+    request_time_finished: str
     request_response_code: int 
 
      
@@ -193,10 +247,32 @@ class ApiResponseHandlerV1:
         self.url = str(request.url)
         self.start_time = datetime.now() 
         self.query_params = dict(request.query_params)
+
+        # Parse the URL to extract and store the path
+        parsed_url = urlparse(self.url)
+        self.url_path = parsed_url.path  # Store the path part of the URL
+
         self.request_data = {
             "body": body_data or {},  # Set from the provided body data
             "query": dict(request.query_params)  # Extracted from request
         }
+
+    @staticmethod
+    async def createInstance(request: Request):
+        body = await request.body()
+        body_dictionary = {}
+        if (len(body) > 0):
+            body_string = body.decode('utf-8')
+            body_dictionary = json.loads(body_string)
+
+        instance = ApiResponseHandlerV1(request, body_dictionary)
+        return instance
+    
+    # In middlewares, this must be called instead of "createInstance", as "createInstance" may hang trying to get the request body.
+    @staticmethod
+    def createInstanceWithBody(request: Request, body_data: Dict[str, Any]):
+        instance = ApiResponseHandlerV1(request, body_data)
+        return instance
 
     
     def _elapsed_time(self) -> float:
@@ -222,10 +298,10 @@ class ApiResponseHandlerV1:
         response_content = {
             "request_error_string": '',
             "request_error_code": 0, 
-            "request_url": self.url,
+            "request_url": self.url_path,
             "request_dictionary": self.request_data,  # Or adjust how you access parameters
             "request_method": self.request.method,
-            "request_time_total": str(self._elapsed_time()),
+            "request_complete_time": str(self._elapsed_time()),
             "request_time_start": self.start_time.isoformat(),  
             "request_time_finished": datetime.now().isoformat(), 
             "request_response_code": http_status_code,
@@ -236,21 +312,21 @@ class ApiResponseHandlerV1:
 
     def create_success_delete_response_v1(
             self, 
-            reachable: bool, 
+            wasPresent: bool, 
             http_status_code: int,
             headers: dict = {"Cache-Control": "no-store"} ):
         """Construct a success response for deletion operations."""
         response_content = {
             "request_error_string": '',
             "request_error_code": 0, 
-            "request_url": self.url,
+            "request_url": self.url_path,
             "request_dictionary": self.request_data,
             "request_method": self.request.method,
-            "request_time_total": self._elapsed_time(),
+            "request_complete_time": str(self._elapsed_time()),
             "request_time_start": self.start_time.isoformat(),
             "request_time_finished": datetime.now().isoformat(),
             "request_response_code": http_status_code,
-            "response": {"reachable": reachable}
+            "response": {"wasPresent": wasPresent}
         }
         return PrettyJSONResponse(status_code=http_status_code, content=response_content, headers=headers)
 
@@ -265,10 +341,10 @@ class ApiResponseHandlerV1:
             response_content = {
                 "request_error_string": error_string,
                 "request_error_code": error_code.value,  # Using .name for the enum member name
-                "request_url": self.url,
+                "request_url": self.url_path,
                 "request_dictionary": self.request_data,  # Convert query params to a more usable dict format
                 "request_method": self.request.method,
-                "request_time_total": str(self._elapsed_time()),
+                "request_complete_time": str(self._elapsed_time()),
                 "request_time_start": self.start_time.isoformat(),
                 "request_time_finished": datetime.now().isoformat(),
                 "request_response_code": http_status_code

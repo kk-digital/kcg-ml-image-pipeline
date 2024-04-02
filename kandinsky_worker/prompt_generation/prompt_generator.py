@@ -43,7 +43,8 @@ def generate_image_generation_jobs_with_kandinsky(positive_prompt,
         "decoder_steps": 50,
         "prior_steps": 25,
         "prior_guidance_scale": 4,
-        "decoder_guidance_scale": 4
+        "decoder_guidance_scale": 4,
+        "self_training": False
     }
     prompt_generation_data={
         "prompt_scoring_model": prompt_scoring_model,
@@ -100,7 +101,8 @@ def generate_inpainting_job_with_kandinsky(positive_prompt,
         "decoder_steps": 50,
         "prior_steps": 25,
         "prior_guidance_scale": 4,
-        "decoder_guidance_scale": 4
+        "decoder_guidance_scale": 4,
+        "self_training": False
     }
     prompt_generation_data={
         "prompt_scoring_model": prompt_scoring_model,

@@ -24,20 +24,23 @@ def get_latest_model_filename(client, model_type, dataset_name):
 
     clip_model_filename = ""
     embedding_model_filename = ""
+    clip_h_model_filename = ""
 
     paths = sorted(paths, key=lambda x: os.path.basename(x)[:13], reverse=True)
     # get models
     for path in paths:
         if ".safetensors" in path and model_type in path:
-            if "clip" in path and clip_model_filename == "" and "positive" not in path and "negative" not in path:
+            if "clip" in path and "clip-h" not in path and clip_model_filename == "" and "positive" not in path and "negative" not in path:
                 clip_model_filename = os.path.basename(path)
             if "embedding" in path and embedding_model_filename == "" and "positive" not in path and "negative" not in path:
                 embedding_model_filename = os.path.basename(path)
+            if "clip-h" in path and clip_h_model_filename == "" and "positive" not in path and "negative" not in path:
+                clip_h_model_filename = os.path.basename(path)
 
-            if clip_model_filename != "" and embedding_model_filename != "":
+            if clip_model_filename != "" and embedding_model_filename != "" and clip_h_model_filename != "":
                 break
 
-    return clip_model_filename, embedding_model_filename
+    return clip_model_filename, embedding_model_filename, clip_h_model_filename
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Image Delta Scorer With auto get latest model")
@@ -62,17 +65,19 @@ def main():
     for dataset in dataset_names:
         print("Calculating delta score for dataset: {}".format(dataset))
         # get latest model
-        clip_model_filename, embedding_model_filename = get_latest_model_filename(client=minio_client,
+        clip_model_filename, embedding_model_filename, clip_h_model_filename = get_latest_model_filename(client=minio_client,
                                                                                   model_type=args.model_type,
                                                                                   dataset_name=dataset)
 
         print("clip model= ", clip_model_filename)
         print("embedding model = ", embedding_model_filename)
+        print("clip_h model = ", clip_h_model_filename)
         try:
             run_image_delta_scorer(minio_client,
                                    dataset,
                                    clip_model_filename,
-                                   embedding_model_filename)
+                                   embedding_model_filename,
+                                   clip_h_model_filename)
         except Exception as e:
             print("Error running image scorer for {}: {}".format(dataset, e))
 

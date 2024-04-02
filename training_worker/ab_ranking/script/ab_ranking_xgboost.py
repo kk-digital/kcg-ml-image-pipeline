@@ -35,8 +35,8 @@ def train_xgboost(dataset_name: str,
                   randomize_data_per_epoch=True,
                   ):
     # raise exception if input is not clip
-    if input_type not in ["clip", "embedding"]:
-        raise Exception("Only 'clip' and 'embedding' is supported for now.")
+    if input_type not in ["clip", "embedding", "clip-h"]:
+        raise Exception("Only 'clip' and 'embedding' and 'clip-h' is supported for now.")
 
     date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
     print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
@@ -53,6 +53,8 @@ def train_xgboost(dataset_name: str,
     input_shape = 2 * 768
     if input_type in [constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE, constants.CLIP]:
         input_shape = 768
+    if input_type in [constants.KANDINSKY_CLIP]:
+        input_shape= 1280
 
     # load dataset
     dataset_loader = ABRankingDatasetLoader(dataset_name=dataset_name,

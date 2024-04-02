@@ -5,7 +5,9 @@ import os
 import sys
 import hashlib
 import time
+from os.path import basename
 from io import BytesIO
+import json
 from safetensors.torch import save as safetensors_save
 from safetensors.torch import load as safetensors_load
 
@@ -104,10 +106,31 @@ class ELMRegression():
     def classify(self, dataset_feature_vector):
         print("Classifying...")
 
+        dataset_feature_vector = dataset_feature_vector.to(self._device)
         h = self._activation(torch.add(dataset_feature_vector.mm(self._weight), self._bias))
         out = h.mm(self._beta)
 
         return out
+    
+    def classify_pooled_embeddings(self, positive_embedding_array, negative_embedding_array):
+        # Average pooling
+        embedding_array = torch.cat((positive_embedding_array, negative_embedding_array), dim=-1)
+        avg_pool = torch.nn.AvgPool2d(kernel_size=(77, 1))
+
+        embedding_array = avg_pool(embedding_array)
+        embedding_array = embedding_array.squeeze().unsqueeze(0)
+
+        return self.classify(embedding_array)
+    
+    def predict_positive_or_negative_only_pooled(self, embedding_array):
+        # Average pooling
+
+        avg_pool = torch.nn.AvgPool2d(kernel_size=(77, 1))
+
+        embedding_array = avg_pool(embedding_array)
+        embedding_array = embedding_array.squeeze().unsqueeze(0)
+
+        return self.classify(embedding_array)
 
     def evaluate(self, validation_feature_vector, validation_targets, threshold=0.5):
         print("Evaluating...")
@@ -178,7 +201,7 @@ class ELMRegression():
     def load_safetensors(self, model_buffer):
         data = model_buffer.read()
         safetensors_data = safetensors_load(data)
-
+  
         self._weight = safetensors_data['weight']
         self._beta = safetensors_data['beta']
         self._bias = safetensors_data['bias']
@@ -204,6 +227,38 @@ class ELMRegression():
         self.loss_func_name = model['loss-func']
         self.activation_func_name = model['activation-func']
         self._activation = self.get_activation_func(self.activation_func_name)
+
+    def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
+        input_path = f"{model_dataset}/models/classifiers/{tag_name}/"
+        file_suffix = ".safetensors"
+
+        # Use the MinIO client's list_objects method directly with recursive=True
+        model_files = [obj.object_name for obj in minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix) and model_type in obj.object_name and scoring_model in obj.object_name and not_include not in obj.object_name ]
+        
+        if not model_files:
+            print(f"No .safetensors models found for tag: {tag_name}")
+            return None
+
+        # Assuming there's only one model per tag or choosing the first one
+        model_files.sort(reverse=True)
+        model_file = model_files[0]
+        print(f"Loading model: {model_file}")
+
+        return self.load_model_with_filename(minio_client, model_file, tag_name)
+    
+    def load_model_with_filename(self, minio_client, model_file, model_info=None):
+        model_data = minio_client.get_object('datasets', model_file)
+        
+        clip_model = ELMRegression(device=self._device)
+        
+        # Create a BytesIO object from the model data
+        byte_buffer = BytesIO(model_data.data)
+        clip_model.load_safetensors(byte_buffer)
+
+        print(f"Model loaded for tag: {model_info}")
+        
+        return clip_model, basename(model_file)
+
 
     def get_activation_func(self, activation_func_name):
         if activation_func_name == "sigmoid":

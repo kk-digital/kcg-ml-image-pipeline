@@ -51,43 +51,41 @@ class KandinskyPipeline:
         self.width=width
         self.height=height
 
-        self.inpainting_model=None
         self.device = device
 
 
     def load_models(self, prior_path=PRIOR_MODEL_PATH, decoder_path= DECODER_MODEL_PATH, 
                     inpaint_decoder_path= INPAINT_DECODER_MODEL_PATH, task_type="inpainting"):
         
-        with section("Loading Inpainting model"):
+        with section("Loading kandinsky models"):
             self.image_encoder = CLIPVisionModelWithProjection.from_pretrained(prior_path, local_files_only=True, subfolder='image_encoder').to(torch.float16).to(self.device)
             if task_type == "text2img":
-                self.unet = UNet2DConditionModel.from_pretrained(decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
+                unet = UNet2DConditionModel.from_pretrained(decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
                 
                 self.prior = KandinskyV22PriorPipeline.from_pretrained(prior_path, local_files_only=True, 
                                                                        image_encoder=self.image_encoder, torch_dtype=torch.float16).to(self.device)
                 self.decoder = KandinskyV22Pipeline.from_pretrained(decoder_path, local_files_only=True, use_safetensors=True, 
-                                                                    unet=self.unet, torch_dtype=torch.float16).to(self.device)
+                                                                    unet=unet, torch_dtype=torch.float16).to(self.device)
             elif task_type == "inpainting":
-                self.unet = UNet2DConditionModel.from_pretrained(inpaint_decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
+                unet = UNet2DConditionModel.from_pretrained(inpaint_decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
                 self.prior = KandinskyV22PriorPipeline.from_pretrained(prior_path, local_files_only=True, 
                                                                        image_encoder=self.image_encoder, torch_dtype=torch.float16).to(self.device)
                 self.decoder = KandinskyV22InpaintPipeline.from_pretrained(inpaint_decoder_path, local_files_only=True, 
-                                                                    unet=self.unet, torch_dtype=torch.float16).to(self.device)
+                                                                    unet=unet, torch_dtype=torch.float16).to(self.device)
             elif task_type == "img2img":
-                self.unet = UNet2DConditionModel.from_pretrained(decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
-                self.prior = KandinskyV22PriorPipeline.from_pretrained(prior_path, local_files_only=True,
-                                                                       image_encoder=self.image_encoder, torch_dtype=torch.float16).to(self.device)
+                unet = UNet2DConditionModel.from_pretrained(decoder_path, local_files_only=True, subfolder='unet').to(torch.float16).to(self.device)
                 self.decoder = KandinskyV22Img2ImgPipeline.from_pretrained(decoder_path, local_files_only=True,
-                                                                    unet=self.unet, torch_dtype=torch.float16).to(self.device)
+                                                                    unet=unet, torch_dtype=torch.float16).to(self.device)
+                
             else:
                 raise ValueError("Only text2img, img2img, inpainting is available")
             
+            del unet
             logger.debug(f"Kandinsky Inpainting model successfully loaded")
    
-    def set_models(self, image_encoder, unet, prior_model, decoder_model):
+    def set_models(self, image_encoder, prior_model, decoder_model):
         # setting the kandinsky submodels directly
         self.image_encoder=image_encoder
-        self.unet = unet
         self.prior = prior_model
         self.decoder = decoder_model
         
@@ -96,11 +94,6 @@ class KandinskyPipeline:
             self.image_encoder.to("cpu")
             del self.image_encoder
             self.image_encoder = None
-        
-        if self.unet is not None:
-            self.unet.to("cpu")
-            del self.unet
-            self.unet = None
         
         if self.prior is not None:
             self.prior.to("cpu")
@@ -220,7 +213,7 @@ class KandinskyPipeline:
         zero_image_emb = self.image_encoder(zero_img)["image_embeds"]
         zero_image_emb = zero_image_emb.repeat(batch_size, 1)
         return zero_image_emb
-
+ 
     def generate_img2img(
         self,
         init_img,
@@ -256,6 +249,85 @@ class KandinskyPipeline:
                     height=height,
                     width=width,
                     strength= self.strength
+                )
+        
+        return images[0], latents
+    
+    def generate_img2img_in_batches(
+        self,
+        init_imgs,
+        image_embeds,
+        batch_size,
+        negative_image_embeds=None,
+        seed=None
+    ):
+        height, width = self.get_new_h_w(self.height, self.width)
+        if negative_image_embeds==None:
+            negative_image_embeds= self.get_zero_embed(batch_size=batch_size)
+        
+        with torch.no_grad():
+            if seed:
+                generator=torch.Generator(device=self.device).manual_seed(seed)
+                images, latents = self.decoder(
+                    image=init_imgs,
+                    image_embeds=image_embeds,
+                    negative_image_embeds= negative_image_embeds, 
+                    guidance_scale=self.decoder_guidance_scale,
+                    num_inference_steps=self.decoder_steps,
+                    height=height,
+                    width=width,
+                    strength= self.strength,
+                    generator= generator
+                )
+            else:
+                images, latents = self.decoder(
+                    image=init_imgs,
+                    image_embeds=image_embeds,
+                    negative_image_embeds= negative_image_embeds, 
+                    guidance_scale=self.decoder_guidance_scale,
+                    num_inference_steps=self.decoder_steps,
+                    height=height,
+                    width=width,
+                    strength= self.strength
+                )
+        
+        return images, latents
+  
+    def generate_img2img_inpainting(
+        self,
+        init_img,
+        img_mask,
+        image_embeds,
+        negative_image_embeds=None,
+        seed=None
+    ):
+        if negative_image_embeds==None:
+            negative_image_embeds= self.get_zero_embed()
+        
+        with torch.no_grad():
+            if seed:
+                generator=torch.Generator(device=self.device).manual_seed(seed)
+                images, latents = self.decoder(
+                    image_embeds=image_embeds, 
+                    negative_image_embeds=negative_image_embeds,
+                    num_inference_steps=self.decoder_steps, 
+                    height=self.height,
+                    width=self.width, 
+                    guidance_scale=self.decoder_guidance_scale,
+                    image=init_img, 
+                    mask_image=img_mask,
+                    generator= generator
+                )
+            else:
+                images, latents = self.decoder(
+                    image_embeds=image_embeds, 
+                    negative_image_embeds=negative_image_embeds,
+                    num_inference_steps=self.decoder_steps, 
+                    height=self.height,
+                    width=self.width, 
+                    guidance_scale=self.decoder_guidance_scale,
+                    image=init_img, 
+                    mask_image=img_mask
                 )
         
         return images[0], latents

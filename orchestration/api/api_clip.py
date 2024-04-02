@@ -1,6 +1,6 @@
 from fastapi import Request, APIRouter, HTTPException, Response, File, UploadFile
 import requests
-from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardErrorResponse, StandardErrorResponseV1, StandardSuccessResponse, StandardSuccessResponseV1, RechableResponse, GetClipPhraseResponse, ApiResponseHandlerV1
+from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardErrorResponse, StandardErrorResponseV1, StandardSuccessResponse, StandardSuccessResponseV1, RechableResponse, GetClipPhraseResponse, ApiResponseHandlerV1, GetKandinskyClipResponse, UrlResponse
 from orchestration.api.mongo_schemas import  PhraseModel
 from typing import Optional
 from typing import List
@@ -16,6 +16,8 @@ from minio.error import S3Error
 from .api_utils import find_or_create_next_folder_and_index
 import os
 import io
+from fastapi import Query
+from PIL import Image
 
 CLIP_SERVER_ADDRESS = 'http://192.168.3.31:8002'
 #CLIP_SERVER_ADDRESS = 'http://127.0.0.1:8002'
@@ -381,12 +383,14 @@ def get_random_image_similarity_date_range(
     print(similarity_score_list)
 
     if similarity_score_list is None:
+        print("similarity_score_list is empty")
         return {
             "images" : []
         }
 
     # make sure the similarity list is the correct format
     if 'similarity_list' not in similarity_score_list:
+        print("'similarity_list' not in similarity_score_list")
         return {
             "images": []
         }
@@ -461,35 +465,40 @@ def check_clip_server_status(request: Request):
 
 #  Apis with new names and reponse format
     
-@router.get("/clip/get-kandinsky-clip-vector", tags=["clip"], 
+@router.get("/clip/get-kandinsky-clip-vector", 
+            tags=["clip"], 
             status_code=200, 
-            description="Get kandi Vector for a Phrase")
+            response_model=StandardSuccessResponseV1[GetKandinskyClipResponse],
+            responses=ApiResponseHandlerV1.listErrors([404,422,500]),
+            description="Get kandinsky Vector for a image")
 def get_clip_vector_from_phrase(request: Request, image_path: str):
     
     response_handler = ApiResponseHandlerV1(request)
     try:
-       
         vector = http_clip_server_get_kandinsky_vector(image_path)
         
         if vector is None:
-
             return response_handler.create_error_response_v1(
-                ErrorCode.ELEMENT_NOT_FOUND,
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
                 error_string="image_path not found",
                 http_status_code=404,
-    
             )
 
+        # Directly access the first element if vector is not empty and is a list of lists
+        if vector and isinstance(vector, list) and all(isinstance(elem, list) for elem in vector):
+            features_vector = vector[0]
+        else:
+            features_vector = vector  # Fallback if the structure is different
+
         return response_handler.create_success_response_v1(
-            response_data= vector, 
-            http_status_code=200, 
- 
+            response_data= features_vector, 
+            http_status_code=200,
         )
 
     except Exception as e:
         print(f"Exception occurred: {e}")  # Print statement 5
         return response_handler.create_error_response_v1(
-            ErrorCode.OTHER_ERROR, 
+            error_code=ErrorCode.OTHER_ERROR, 
             error_string="Clip server error",
             http_status_code = 500, 
 
@@ -598,9 +607,9 @@ def check_clip_server_status(request: Request):
         print(f"Exception occurred: {e}")  
         # Adjust the error response creation to match the new handler
         return response_handler.create_error_response_v1(
-            ErrorCode.OTHER_ERROR, 
-            "CLIP server is not reachable", 
-            503, 
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string="CLIP server is not reachable", 
+            http_status_code=503, 
 
         )
 
@@ -609,8 +618,14 @@ def check_clip_server_status(request: Request):
 bucket_name = "datasets"
 base_folder = "external-images"
 
-@router.post("/upload-image")
-async def upload_image(file: UploadFile = File(...)):
+@router.post("/upload-image",
+             status_code=201, 
+             tags = ['deprecated'],
+             response_model=StandardSuccessResponseV1[UrlResponse],
+             responses=ApiResponseHandlerV1.listErrors([422,500]),
+             description="Upload Image on minio")
+async def upload_image(request:Request, file: UploadFile = File(...)):
+    response_handler = ApiResponseHandlerV1(request)
     # Initialize MinIO client
     minio_client = cmd.get_minio_client(minio_access_key="v048BpXpWrsVIHUfdAix", minio_secret_key="4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu")
     
@@ -627,7 +642,177 @@ async def upload_image(file: UploadFile = File(...)):
         content_stream = io.BytesIO(content)
         # Upload the file content
         cmd.upload_data(minio_client, bucket_name, file_path, content_stream)
-        
-        return JSONResponse(status_code=200, content={"message": f"File uploaded successfully to {file_path}."})
+        full_file_path = f"{bucket_name}/{file_path}"
+        return response_handler.create_success_response_v1(
+            response_data = full_file_path, 
+            http_status_code=201,)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"MinIO error: {e}")
+        print(f"Exception occurred: {e}") 
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string="Internal server error",
+            http_status_code = 500, 
+        )
+    
+    
+@router.post("/upload-image-v1",
+             status_code=201, 
+             tags = ['deprecated'],
+             response_model=StandardSuccessResponseV1[UrlResponse],
+             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]),
+             description="Upload Image on minio")
+async def upload_image_v1(request: Request, 
+                          file: UploadFile = File(...), 
+                          check_size: bool = Query(True, description="Check if image is 512x512")):
+    response_handler = ApiResponseHandlerV1(request)
+    # Initialize MinIO client
+    minio_client = cmd.get_minio_client(minio_access_key="v048BpXpWrsVIHUfdAix", minio_secret_key="4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu")
+    
+    # Extract the file extension
+    _, file_extension = os.path.splitext(file.filename)
+    # Ensure the extension is in a consistent format (e.g., lowercase) and validate it if necessary
+    file_extension = file_extension.lower()
+    # Validate or adjust the extension (optional, based on your requirements)
+    # Find or create the next available folder and get the next image index
+    next_folder, next_index = find_or_create_next_folder_and_index(minio_client, bucket_name, base_folder)
+
+    # Construct the file path, preserving the original file extension
+    file_name = f"{next_index:06}{file_extension}"  # Use the extracted file extension
+    file_path = f"{next_folder}/{file_name}"
+
+    try:
+        await file.seek(0)  # Go to the start of the file
+        content = await file.read()  # Read file content into bytes
+
+        if check_size:  # Perform size check if check_size is True
+            # Check if the image is 512x512
+            image = Image.open(io.BytesIO(content))
+            if image.size != (512, 512):
+                return response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS, 
+                    error_string="Image must be 512x512 pixels",
+                    http_status_code=422,
+                )
+
+        content_stream = io.BytesIO(content)
+        # Upload the file content
+        cmd.upload_data(minio_client, bucket_name, file_path, content_stream)
+        full_file_path = f"{bucket_name}/{file_path}"
+        return response_handler.create_success_response_v1(
+            response_data=full_file_path, 
+            http_status_code=201)
+    except Exception as e:
+        print(f"Exception occurred: {e}") 
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string="Internal server error",
+            http_status_code=500, 
+        )
+    
+
+@router.post("/upload-image-v2",
+             status_code=201,
+             tags = ['deprecated'],
+             response_model=StandardSuccessResponseV1[UrlResponse],  # Adjusted for list of URLs response
+             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]),
+             description="Upload multiple images on minio")
+async def upload_image_v2(request: Request, 
+                          files: List[UploadFile] = File(...), 
+                          check_size: bool = Query(True, description="Check if images are 512x512")):
+    response_handler = ApiResponseHandlerV1(request)
+    uploaded_files_paths = []
+
+    for file in files:
+        # Initialize MinIO client for each file, assuming credentials remain constant
+        minio_client = cmd.get_minio_client(minio_access_key="v048BpXpWrsVIHUfdAix", minio_secret_key="4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu")
+        
+        # Extract the file extension and prepare the file path
+        _, file_extension = os.path.splitext(file.filename)
+        file_extension = file_extension.lower()
+        next_folder, next_index = find_or_create_next_folder_and_index(minio_client, bucket_name, base_folder)
+        file_name = f"{next_index:06}{file_extension}"
+        file_path = f"{next_folder}/{file_name}"
+
+        try:
+            await file.seek(0)
+            content = await file.read()
+
+            # Optional: Perform size check if check_size is True
+            if check_size:
+                image = Image.open(io.BytesIO(content))
+                if image.size != (512, 512):
+                    continue  # Skip uploading this file, or handle differently
+
+            content_stream = io.BytesIO(content)
+            cmd.upload_data(minio_client, bucket_name, file_path, content_stream)
+            uploaded_files_paths.append(f"{bucket_name}/{file_path}")
+        except Exception as e:
+            print(f"Exception occurred while processing {file.filename}: {e}")
+            continue  # Optionally, log or handle individual file upload exceptions
+
+    if not uploaded_files_paths:
+        # Handle the case where no files were uploaded successfully
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string="No images were uploaded successfully",
+            http_status_code=500,
+        )
+
+    # Return the paths of successfully uploaded files
+    return response_handler.create_success_response_v1(
+        response_data=uploaded_files_paths,
+        http_status_code=201
+    )        
+
+@router.post("/upload-images",
+             status_code=201,
+             response_model=StandardSuccessResponseV1[UrlResponse],  # Adjusted for list of URLs response
+             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]),
+             description="Upload multiple images on minio")
+async def upload_images(request: Request, 
+                          files: List[UploadFile] = File(...), 
+                          check_size: bool = Query(True, description="Check if images are 512x512")):
+    response_handler = ApiResponseHandlerV1(request)
+    uploaded_files_paths = []
+
+    for file in files:
+        # Initialize MinIO client for each file, assuming credentials remain constant
+        minio_client = cmd.get_minio_client(minio_access_key="v048BpXpWrsVIHUfdAix", minio_secret_key="4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu")
+        
+        # Extract the file extension and prepare the file path
+        _, file_extension = os.path.splitext(file.filename)
+        file_extension = file_extension.lower()
+        next_folder, next_index = find_or_create_next_folder_and_index(minio_client, bucket_name, base_folder)
+        file_name = f"{next_index:06}{file_extension}"
+        file_path = f"{next_folder}/{file_name}"
+
+        try:
+            await file.seek(0)
+            content = await file.read()
+
+            # Optional: Perform size check if check_size is True
+            if check_size:
+                image = Image.open(io.BytesIO(content))
+                if image.size != (512, 512):
+                    continue  # Skip uploading this file, or handle differently
+
+            content_stream = io.BytesIO(content)
+            cmd.upload_data(minio_client, bucket_name, file_path, content_stream)
+            uploaded_files_paths.append(f"{bucket_name}/{file_path}")
+        except Exception as e:
+            print(f"Exception occurred while processing {file.filename}: {e}")
+            continue  # Optionally, log or handle individual file upload exceptions
+
+    if not uploaded_files_paths:
+        # Handle the case where no files were uploaded successfully
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string="No images were uploaded successfully",
+            http_status_code=500,
+        )
+
+    # Return the paths of successfully uploaded files
+    return response_handler.create_success_response_v1(
+        response_data=uploaded_files_paths,
+        http_status_code=201
+    )         

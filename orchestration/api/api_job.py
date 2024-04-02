@@ -15,42 +15,54 @@ from .api_utils import PrettyJSONResponse
 from typing import List
 import json
 import paramiko
-from typing import Optional
+from typing import Optional, Dict
 import csv
 from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, AddJob, WasPresentResponse
-from pymongo import UpdateMany
+from pymongo import UpdateMany, ASCENDING, DESCENDING
+from bson import ObjectId
+
 
 router = APIRouter()
 
 
 # -------------------- Get -------------------------
 
+def convert_objectid_to_str(doc):
+    # Convert ObjectId fields to strings for JSON serialization
+    if "_id" in doc:
+        doc["_id"] = str(doc["_id"])
+    return doc
+
 @router.get("/queue/image-generation/get-job")
-def get_job(request: Request, task_type= None, model_type="sd_1_5"):
-    query = {}
-
+def get_job(request: Request, task_type=None, model_type="sd_1_5"):
+    # Define the base query
+    base_query = {}
     if task_type:
-        query["task_type"] = task_type
-
-    if model_type:    
-        query["task_type"] = {"$regex": model_type}
-
-    # Query to find the n newest elements based on the task_completion_time
-    job = request.app.pending_jobs_collection.find_one(query, sort=[("task_creation_time", pymongo.ASCENDING)])
+        base_query["task_type"] = task_type
+    if model_type:
+        base_query["task_type"] = {"$regex": model_type} 
+    
+    # Prioritize jobs where task_input_dict.dataset is "variants"
+    priority_query = base_query.copy()
+    priority_query["task_input_dict.dataset"] = {"$in": ["variants", "test-generations"]}
+    
+    job = request.app.pending_jobs_collection.find_one(priority_query, sort=[("task_creation_time", pymongo.ASCENDING)])
+    
+    # If no priority job is found, fallback to the base query
+    if job is None:
+        job = request.app.pending_jobs_collection.find_one(base_query, sort=[("task_creation_time", pymongo.ASCENDING)])
 
     if job is None:
         raise HTTPException(status_code=204)
 
-    # delete from pending
+    # Proceed with the rest of the endpoint as before
     request.app.pending_jobs_collection.delete_one({"uuid": job["uuid"]})
-    # add to in progress
-    request.app.in_progress_jobs_collection.insert_one(job)
-
-    # remove the auto generated field
     job.pop('_id', None)
-
+    job["task_start_time"] = datetime.now().isoformat()
+    request.app.in_progress_jobs_collection.insert_one(job)
+    job = convert_objectid_to_str(job)
+    
     return job
-
 
 @router.get("/queue/image-generation/job",
             status_code=200,
@@ -305,6 +317,15 @@ def clear_all_pending_jobs(request: Request):
 
     return True
 
+@router.delete("/queue/image-generation/clear-pending", status_code=200)
+def clear_pending_jobs_by_task_type(task_type: str, request: Request) -> Dict[str, str]:
+    # Perform deletion of pending jobs by the specified task_type
+    deletion_result = request.app.pending_jobs_collection.delete_many({"task_type": task_type})
+
+    # Return a response indicating how many documents were deleted
+    return {"message": f"Deleted {deletion_result.deleted_count} pending jobs with task_type '{task_type}'."}
+
+
 @router.delete("/queue/image-generation/all-pending",
                description="remove all pending jobs",
                response_model=StandardSuccessResponse[WasPresentResponse],
@@ -476,6 +497,17 @@ def get_list_completed_jobs(request: Request, limit: Optional[int] = Query(10, a
 
     return jobs
 
+
+@router.get("/queue/image-generation/list-completed-by-task-type", response_class=PrettyJSONResponse)
+def get_list_completed_jobs_by_dataset(request: Request, task_type, limit: Optional[int] = Query(10, alias="limit")):
+    # Use the limit parameter in the find query to limit the results
+    jobs = list(request.app.completed_jobs_collection.find({"task_type": task_type}).limit(limit))
+
+    for job in jobs:
+        job.pop('_id', None)
+
+    return jobs
+
 @router.get("/queue/image-generation/list-completed-by-dataset", response_class=PrettyJSONResponse)
 def get_list_completed_jobs_by_dataset(request: Request, dataset, limit: Optional[int] = Query(10, alias="limit")):
     # Use the limit parameter in the find query to limit the results
@@ -486,9 +518,31 @@ def get_list_completed_jobs_by_dataset(request: Request, dataset, limit: Optiona
 
     return jobs
 
+@router.get("/queue/image-generation/list-completed-by-dataset-and-task-type", response_class=PrettyJSONResponse)
+def get_list_completed_jobs_by_dataset_and_task_type(request: Request, dataset: str, task_type: str):
+    # Use the limit parameter in the find query to limit the results
+    jobs = list(request.app.completed_jobs_collection.find({"task_input_dict.dataset": dataset,"task_type": task_type}))
+
+    job_data=[]
+    for job in jobs:
+        job_uuid = job.get("uuid")
+        file_path = job.get("task_output_file_dict", {}).get("output_file_path")
+
+        if not job_uuid or not file_path:
+            continue
+
+        job_info = {
+            "job_uuid": job_uuid,
+            "file_path": file_path
+        }
+
+        job_data.append(job_info)
+
+    return job_data
+
 @router.get("/queue/image-generation/list-by-date", response_class=PrettyJSONResponse)
 def get_list_completed_jobs_by_date(
-    request: Request, 
+    request: Request,
     start_date: str = Query(..., description="Start date for filtering jobs"), 
     end_date: str = Query(..., description="End date for filtering jobs"),
     min_clip_sigma_score: float = Query(None, description="Minimum CLIP sigma score to filter jobs")
@@ -531,9 +585,54 @@ def get_list_completed_jobs_by_date(
 
     return datasets
 
+@router.get("/queue/image-generation/list-by-dataset", response_class=PrettyJSONResponse)
+def get_list_completed_jobs_by_dataset(
+    request: Request,
+    dataset: str= Query(..., description="Dataset name"),  
+    model_type: str= Query("elm-v1", description="Model type, elm-v1 or linear"),  
+    min_clip_sigma_score: float = Query(None, description="Minimum CLIP sigma score to filter jobs"),
+    size: int = Query(1, description="Number of images to return")
+):
 
+    query = {
+        "task_input_dict.dataset": dataset
+    }
 
+    # Add condition to filter by min_clip_sigma_score if provided
+    if min_clip_sigma_score is not None:
+        query[f"task_attributes_dict.{model_type}.image_clip_sigma_score"] = {"$gte": min_clip_sigma_score}
 
+    # jobs = list(request.app.completed_jobs_collection.find(query))
+        
+    # Use $match to filter documents based on dataset, creation time, and prompt_generation_policy
+    documents = request.app.completed_jobs_collection.aggregate([
+        {"$match": query},
+        {"$sample": {"size": size}}
+    ])
+
+    # Convert cursor type to list
+    jobs = list(documents)    
+
+    datasets = []
+    for job in jobs:
+        job_uuid = job.get("uuid")
+        file_hash = job.get('task_output_file_dict', {}).get('output_file_hash'),
+        file_path = job.get("task_output_file_dict", {}).get("output_file_path")
+        clip_sigma_score = job.get("task_attributes_dict",{}).get(model_type, {}).get("image_clip_sigma_score")
+
+        if not job_uuid or not file_path:
+            continue
+
+        job_info = {
+            "job_uuid": job_uuid,
+            "image_hash": file_hash,
+            "file_path": file_path, 
+            "clip_sigma_score": clip_sigma_score
+        }
+
+        datasets.append(job_info)
+
+    return datasets
 
 
 @router.get("/queue/image-generation/list-failed", response_class=PrettyJSONResponse)
@@ -555,6 +654,24 @@ def count_completed(request: Request, dataset: str = None):
 
     return len(jobs)
 
+
+@router.get("/queue/image-generation/count-by-task-type")
+def count_by_task_type(request: Request, task_type: str = "image_generation_task"):
+    # Get the completed jobs collection
+    completed_jobs_collection = request.app.completed_jobs_collection
+
+    # Define the query to count documents with a specific task_type
+    count = completed_jobs_collection.count_documents({'task_type': task_type})
+
+    # Fetch documents with the specified task_type
+    documents = completed_jobs_collection.find({'task_type': task_type})
+
+    # Convert ObjectId to string for JSON serialization
+    documents_list = [{k: str(v) if isinstance(v, ObjectId) else v for k, v in doc.items()} for doc in documents]
+
+    # Return the count and documents
+    return PrettyJSONResponse(content={"count": count, "documents": documents_list})
+
 @router.get("/queue/image-generation/count-pending")
 def count_completed(request: Request, dataset: str = None):
 
@@ -574,6 +691,25 @@ def count_completed(request: Request, dataset: str = None):
     return len(jobs)
 
 # ---------------- Update -------------------
+
+
+@router.put("/queue/image-generation/update-completed-jobs-with-better-name", response_class=PrettyJSONResponse)
+def update_completed_jobs_with_better_name(request: Request, task_type_mapping: Dict[str, str]):
+    # Use the limit parameter in the find query to limit the results
+    total_count_updated = 0
+    
+    for key, value in task_type_mapping.items():
+        result = request.app.completed_jobs_collection.update_many(
+            {"task_type": key},
+            {
+                "$set": {
+                    "task_type": value
+                },
+            }
+        )
+        total_count_updated += result.matched_count
+    
+    return total_count_updated
 
 
 @router.put("/queue/image-generation/update-completed", description="Update in progress job and mark as completed.")
@@ -780,6 +916,9 @@ def add_attributes_job_completed(
     text_embedding_score: float = Body(..., embed=True),
     text_embedding_percentile: float = Body(..., embed=True),
     text_embedding_sigma_score: float = Body(..., embed=True),
+    image_clip_h_score: float = Body(..., embed=True),
+    image_clip_h_percentile: float = Body(..., embed=True),
+    image_clip_h_sigma_score: float = Body(..., embed=True),
     delta_sigma_score: float = Body(..., embed=True)
 ):
     query = {"task_output_file_dict.output_file_hash": image_hash}
@@ -791,6 +930,9 @@ def add_attributes_job_completed(
         f"task_attributes_dict.{model_type}.text_embedding_score": text_embedding_score,
         f"task_attributes_dict.{model_type}.text_embedding_percentile": text_embedding_percentile,
         f"task_attributes_dict.{model_type}.text_embedding_sigma_score": text_embedding_sigma_score,
+        f"task_attributes_dict.{model_type}.image_clip_h_score": image_clip_h_score,
+        f"task_attributes_dict.{model_type}.image_clip_h_percentile": image_clip_h_percentile,
+        f"task_attributes_dict.{model_type}.image_clip_h_sigma_score": image_clip_h_sigma_score,
         f"task_attributes_dict.{model_type}.delta_sigma_score": delta_sigma_score
     }}
 
@@ -895,3 +1037,228 @@ async def update_task_definitions(request:Request):
         "inpainting_update_matched_count": inpainting_update_result.matched_count,
         "inpainting_update_modified_count": inpainting_update_result.modified_count,
     }
+
+
+@router.get("/queue/image-generation/score-counts", response_class=PrettyJSONResponse)
+def get_image_score_counts(request: Request):
+    # Fetch all jobs
+    jobs = list(request.app.completed_jobs_collection.find({}))
+    
+    # Initialize counts
+    counts = {
+        'linear': {'more_than_0': 0, 'more_than_1': 0, 'more_than_2': 0, 'more_than_3': 0, 'total': 0},
+        'elm-v1': {'more_than_0': 0, 'more_than_1': 0, 'more_than_2': 0, 'more_than_3': 0, 'total': 0}
+    }
+    
+    # Iterate through jobs to count based on image_clip_sigma_score
+    for job in jobs:
+        task_attributes_dict = job.get('task_attributes_dict')
+        # Check if task_attributes_dict is None or if 'linear' or 'elm-v1' keys are missing
+        if task_attributes_dict is None or not ('linear' in task_attributes_dict and 'elm-v1' in task_attributes_dict):
+            continue
+
+        # Now safe to assume 'task_attributes_dict' is not None and contains 'linear' and 'elm-v1'
+        for model_type in ['linear', 'elm-v1']:
+            score = task_attributes_dict[model_type].get("image_clip_sigma_score", None)
+            if score is not None:
+                counts[model_type]['total'] += 1
+                if score > 0:
+                    counts[model_type]['more_than_0'] += 1
+                if score > 1:
+                    counts[model_type]['more_than_1'] += 1
+                if score > 2:
+                    counts[model_type]['more_than_2'] += 1
+                if score > 3:
+                    counts[model_type]['more_than_3'] += 1
+    
+    # Return the counts
+    return {'counts': counts}
+
+
+@router.get("/queue/image-generation/pending-count-task-type", response_class=PrettyJSONResponse)
+async def get_pending_job_count_task_type(request: Request):
+    # MongoDB aggregation pipeline to group by `task_type` and count occurrences
+    aggregation_pipeline = [
+        {
+            "$group": {
+                "_id": "$task_type",
+                "count": {"$sum": 1}
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "task_type": "$_id",
+                "count": 1
+            }
+        },
+        {
+            "$sort": {"task_type": 1}
+        }
+    ]
+    
+    cursor = request.app.pending_jobs_collection.aggregate(aggregation_pipeline)
+    results = list(cursor)
+    
+    # Transform the results to match the expected output
+    formatted_results = [{"task_type": result["task_type"], "count": result["count"]} for result in results]
+    
+    return formatted_results
+
+
+@router.get("/queue/tasks/times", response_class =PrettyJSONResponse)
+def get_task_times(request: Request):
+    task_type = "img2img_generation_kandinsky"
+    
+    # Query for the first 5 documents
+    first_five = request.app.pending_jobs_collection.find(
+        {"task_type": task_type},
+        {"task_creation_time": 1, "_id": 0}  # Project only the task_creation_time field
+    ).sort("task_creation_time", 1).limit(5)  # Sort ascending
+
+    # Query for the last 5 documents
+    last_five = request.app.pending_jobs_collection.find(
+        {"task_type": task_type},
+        {"task_creation_time": 1, "_id": 0}  # Project only the task_creation_time field
+    ).sort("task_creation_time", -1).limit(5)  # Sort descending
+    
+    # Convert cursor to list using the list() function
+    first_five_results = list(first_five)
+    last_five_results = list(last_five)
+
+    # Reverse the order of last_five_results to display them from earliest to latest
+    last_five_results.reverse()
+
+    return {
+        "first_five": first_five_results,
+        "last_five": last_five_results
+    } 
+
+@router.get("/completed-jobs/kandinsky/dataset-score-count", response_class=PrettyJSONResponse)
+async def get_dataset_image_clip_h_sigma_score_count(request: Request):
+    all_datasets_list = ["waifu","propaganda-poster",
+                         "character", "environmental", "external-images",
+                           "icons", "mech", "test-generations", "variants" ]  # This needs to be defined, either from a query or a predefined list
+
+    aggregation_pipeline = [
+        {
+            "$match": {
+                "task_type": "img2img_generation_kandinsky",
+                "task_attributes_dict.elm-v1.image_clip_h_sigma_score": {"$exists": True}
+            }
+        },
+        {
+            "$group": {
+                "_id": "$task_input_dict.dataset",
+                "count": {"$sum": 1}
+            }
+        }
+    ]
+
+    cursor = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
+    results = list(cursor)
+
+    # Convert aggregation results into a dictionary for easy lookup
+    results_dict = {result["_id"]: result["count"] for result in results}
+
+    # Prepare final results, ensuring all datasets are included with a default count of 0
+    formatted_results = [{"dataset": dataset, "count": results_dict.get(dataset, 0)} for dataset in all_datasets_list]
+
+    return formatted_results
+
+
+@router.get("/completed-jobs/duplicated-jobs-count-by-task-type", response_class=PrettyJSONResponse)
+async def duplicated_jobs_count_by_task_type(request: Request):
+    try:
+        aggregation_pipeline = [
+            {
+                # Stage 1: Group by task_type and uuid to identify unique jobs
+                "$group": {
+                    "_id": {
+                        "task_type": "$task_type",
+                        "uuid": "$uuid"
+                    },
+                    "doc_count": {"$sum": 1}  # Count occurrences of each uuid within each task type
+                }
+            },
+            {
+                # Stage 2: Transform structure, counting total and unique jobs per task_type
+                "$group": {
+                    "_id": "$_id.task_type",
+                    "total_jobs": {"$sum": 1},  # Count all occurrences, which includes duplicates
+                    "unique_jobs": {
+                        "$sum": {
+                            "$cond": [{"$eq": ["$doc_count", 1]}, 1, 0]  # Count as unique if only appeared once
+                        }
+                    }
+                }
+            },
+            {
+                # Stage 3: Calculate the number of duplicated jobs per task_type
+                "$project": {
+                    "task_type": "$_id",
+                    "_id": 0,
+                    "total_jobs": 1,
+                    "unique_jobs_count": "$unique_jobs",
+                    "duplicated_jobs_count": {
+                        "$subtract": ["$total_jobs", "$unique_jobs"]
+                    }
+                }
+            }
+        ]
+
+        cursor = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
+        results = list(cursor)
+
+        # Format the response to include task_type and counts
+        formatted_results = [{
+            "task_type": result["task_type"],
+            "total_jobs": result["total_jobs"],
+            "unique_jobs_count": result["unique_jobs_count"],
+            "duplicated_jobs_count": result["duplicated_jobs_count"]
+        } for result in results]
+
+        return formatted_results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@router.get("/jobs/find-last-duplicate-uuid")
+async def find_last_duplicate_uuid(request: Request):
+    task_type = "clip_calculation_task_kandinsky"
+    aggregation_pipeline = [
+        {
+            "$match": {"task_type": task_type}
+        },
+        {
+            "$group": {
+                "_id": "$uuid",
+                "count": {"$sum": 1},
+                "task_creation_time": {"$last": "$task_creation_time"}  # Change $first to $last
+            }
+        },
+        {
+            "$match": {"count": {"$gt": 1}}
+        },
+        {
+            "$sort": {"task_creation_time": DESCENDING}  # Change ASCENDING to DESCENDING
+        },
+        {
+            "$limit": 1
+        },
+        {
+            "$project": {
+                "uuid": "$_id",
+                "_id": 0,
+                "task_creation_time": 1
+            }
+        }
+    ]
+
+    cursor = request.app.completed_jobs_collection.aggregate(aggregation_pipeline)
+    duplicated_job = next(cursor, None)
+
+    if not duplicated_job:
+        raise HTTPException(status_code=404, detail="No duplicated UUID found for the specified task type.")
+
+    return duplicated_job

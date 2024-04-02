@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from datetime import datetime
 import os
+from os.path import basename
 import sys
 import hashlib
 import time
@@ -120,9 +121,6 @@ class LogisticRegression:
         data = model_buffer.read()
         safetensors_data = safetensors_load(data)
 
-        # Loading state dictionary
-        self.model.load_state_dict(safetensors_data)
-
         # load metadata
         n_header = data[:8]
         n = int.from_bytes(n_header, "little")
@@ -136,7 +134,7 @@ class LogisticRegression:
         self.model_hash = model['model-hash']
         self.date = model['date']
         self.tag_string = model['tag-string']
-        self.input_size = model['']
+        self.input_size = model['input-size']
         self.output_size = model['output-size']
         self.epochs = model['epochs']
         self.learning_rate = model['learning-rate']
@@ -144,6 +142,15 @@ class LogisticRegression:
         self.normalize_feature_vectors = model['normalize-feature-vectors']
         self.training_loss = model['training-loss']
         self.validation_loss = model['validation-loss']
+
+        # Loading state dictionary
+        self.model = nn.Sequential(
+            nn.Linear(int(self.input_size), int(self.output_size)),
+            nn.Sigmoid()
+        )
+        
+        self.model.load_state_dict(safetensors_data)
+        
 
         # load loss func
         self.loss_func = get_loss_func(self.loss_func_name)
@@ -200,6 +207,66 @@ class LogisticRegression:
 
             return outputs
 
+    def classify(self, input, normalize_feature_vectors=False):
+        if normalize_feature_vectors:
+            input = normalize_feature_vector(input)
+        input = input.to(self._device)
+        return self.model(input).squeeze()
+
+    def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
+        input_path = f"{model_dataset}/models/classifiers/{tag_name}/"
+        file_suffix = ".safetensors"
+
+        # Use the MinIO client's list_objects method directly with recursive=True
+        model_files = [obj.object_name for obj in minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix) and model_type in obj.object_name and scoring_model in obj.object_name and not_include not in obj.object_name ]
+        
+        if not model_files:
+            print(f"No .safetensors models found for tag: {tag_name}")
+            return None
+
+        # Assuming there's only one model per tag or choosing the first one
+        model_files.sort(reverse=True)
+        model_file = model_files[0]
+        print(f"Loading model: {model_file}")
+        
+        return self.load_model_with_filename(minio_client, model_file, tag_name)
+
+
+    def load_model_with_filename(self, minio_client, model_file, model_info):
+
+        model_data = minio_client.get_object('datasets', model_file)
+        
+        logistic_model = LogisticRegression(device=self._device)
+        
+        # Create a BytesIO object from the model data
+        byte_buffer = BytesIO(model_data.data)
+        logistic_model.load_safetensors(byte_buffer)
+
+        print(f"Model loaded for tag: {model_info}")
+        
+        return logistic_model, basename(model_file)
+    
+
+    def classify_pooled_embeddings(self, positive_embedding_array, negative_embedding_array):
+        # Average pooling
+        embedding_array = torch.cat((positive_embedding_array, negative_embedding_array), dim=-1)
+        avg_pool = torch.nn.AvgPool2d(kernel_size=(77, 1))
+
+        embedding_array = avg_pool(embedding_array)
+        embedding_array = embedding_array.squeeze().unsqueeze(0)
+
+        return self.classify(embedding_array)
+    
+    
+    def predict_positive_or_negative_only_pooled(self, embedding_array):
+        # Average pooling
+
+        avg_pool = torch.nn.AvgPool2d(kernel_size=(77, 1))
+
+        embedding_array = avg_pool(embedding_array)
+        embedding_array = embedding_array.squeeze().unsqueeze(0)
+
+        return self.classify(embedding_array)
 
 def normalize_feature_vector(feature_vector):
     return feature_vector / torch.linalg.norm(feature_vector, dim=1, keepdim=True)

@@ -60,6 +60,38 @@ def get_sequential_id(request: Request, dataset: str, limit: int = 1):
 
     return sequential_id_arr
 
+@router.delete("/dataset/clear-self-training-sequential-id")
+def clear_self_training_sequential_id_jobs(request: Request):
+    request.app.self_training_sequential_id_collection.delete_many({})
+
+    return True
+
+@router.get("/dataset/self-training-sequential-id/{dataset}")
+def get_self_training_sequential_id(request: Request, dataset: str):
+    dataset_path = f"{dataset}/data/latent-generator/self_training/"
+    # Check and initialize if necessary
+    existing_index = request.app.self_training_sequential_id_collection.find_one({"dataset": dataset})
+    if existing_index is None:
+        # Count the files in MinIO for the dataset to initialize the index
+        files = request.app.minio_client.list_objects('datasets', prefix=dataset_path)
+        files = [file.object_name for file in files]
+        files_count = len(files)
+
+        request.app.self_training_sequential_id_collection.insert_one({"dataset": dataset, "sequential_id": files_count})
+    
+    # Atomically fetch and increment the index
+    result = request.app.self_training_sequential_id_collection.find_one_and_update(
+        {"dataset": dataset},
+        {"$inc": {"sequential_id": 1}},
+        return_document=ReturnDocument.AFTER
+    )
+
+    result.pop("_id", None)
+    
+    if result:
+        return result
+    else:
+        raise HTTPException(status_code=500, detail="Failed to fetch the sequential id")
 
 # -------------------- Dataset rate -------------------------
 @router.get("/dataset/get-rate")
@@ -282,7 +314,65 @@ def list_ranking_files(
 
     return filtered_json_files
 
-@router.get("/datasets/rank/list-v2", response_class=PrettyJSONResponse)
+
+@router.get("/datasets/rank/list-v3", response_class=PrettyJSONResponse)
+def list_ranking_files_v3(
+    request: Request,
+    dataset: str,
+    start_date: str = None,
+    end_date: str = None,
+    list_size: int = Query(100),
+    offset: int = Query(0, description="Offset for pagination"),
+    order: str = Query("desc")
+):
+    # Convert start_date and end_date strings to datetime objects
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
+
+    # Construct the path prefix for ranking
+    path_prefix = f"{dataset}/data/ranking/aggregate"
+
+    # Fetch the list of objects with the given prefix
+    objects = cmd.get_list_of_objects_with_prefix(request.app.minio_client, "datasets", path_prefix)
+
+    # Filter out non-JSON files and apply date filters
+    filtered_json_contents = []
+    for obj in objects:
+        if obj.endswith('.json'):
+            # Extract date from the filename
+            file_date_str = obj.split('/')[-1].split('-')[0:3]
+            file_date_str = '-'.join(file_date_str)  # Reformat to 'YYYY-MM-DD'
+            file_date_obj = datetime.strptime(file_date_str, "%Y-%m-%d")
+
+            # Apply date filtering
+            if start_date_obj and file_date_obj < start_date_obj:
+                continue
+            if end_date_obj and file_date_obj > end_date_obj:
+                continue
+
+            # Fetch and load the JSON file content
+            json_content = cmd.get_file_content(request.app.minio_client, "datasets", obj)
+            if json_content:
+                filtered_json_contents.append(json.loads(json_content))
+
+    # Apply ordering
+    if order == "desc":
+        filtered_json_contents.sort(key=lambda x: x['datetime'], reverse=True)
+    else:
+        filtered_json_contents.sort(key=lambda x: x['datetime'])
+
+    # Apply offset and list size limit
+    start_index = offset
+    end_index = offset + list_size
+    filtered_json_contents = filtered_json_contents[start_index:end_index]
+
+    if not filtered_json_contents:
+        return []
+
+    # Return the content of the JSON files
+    return filtered_json_contents
+
+@router.get("/datasets/rank/list-v2", tags = ['deprecated'], response_class=PrettyJSONResponse)
 def list_ranking_files(
     request: Request, 
     dataset: str, 
@@ -514,7 +604,7 @@ def list_relevancy_files(request: Request, dataset: str):
     return json_files
 
 
-@router.get("/datasets/rank/read", response_class=PrettyJSONResponse)
+@router.get("/datasets/rank/read",tags = ['deprecated'], response_class=PrettyJSONResponse)
 def read_ranking_file(request: Request, dataset: str,
                       filename: str = Query(..., description="Filename of the JSON to read")):
     # Construct the object name for ranking
@@ -534,7 +624,7 @@ def read_ranking_file(request: Request, dataset: str,
     return json.loads(file_content)
 
 
-@router.get("/datasets/relevancy/read", response_class=PrettyJSONResponse)
+@router.get("/datasets/relevancy/read", tags = ['deprecated'], response_class=PrettyJSONResponse)
 def read_relevancy_file(request: Request, dataset: str,
                         filename: str = Query(..., description="Filename of the JSON to read")):
     # Construct the object name for relevancy
@@ -582,7 +672,7 @@ def update_ranking_file(request: Request, dataset: str, filename: str, update_da
 
     return {"message": f"File {filename} has been updated."}
 
-@router.put("/datasets/rank/update_datapoint-v1")
+@router.put("/datasets/rank/update_datapoint-v1", tags=['deprecated'])
 def update_ranking_file(request: Request, dataset: str, filename: str, update_data: FlaggedDataUpdate):
     # Construct the object name based on the dataset
     object_name = f"{dataset}/data/ranking/aggregate/{filename}"

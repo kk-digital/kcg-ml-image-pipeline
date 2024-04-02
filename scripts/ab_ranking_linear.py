@@ -19,8 +19,8 @@ def parse_arguments():
                         help="The dataset name to use for training, use 'all' to train models for all datasets",
                         default='environmental')
     parser.add_argument('--input-type', type=str, default="embedding")
-    parser.add_argument('--epochs', type=int, default=8)
-    parser.add_argument('--learning-rate', type=float, default=0.05)
+    parser.add_argument('--epochs', type=int, default=10)
+    parser.add_argument('--learning-rate', type=float, default=0.01)
     parser.add_argument('--train-percent', type=float, default=0.9)
     parser.add_argument('--training-batch-size', type=int, default=1)
     parser.add_argument('--weight-decay', type=float, default=0.00)

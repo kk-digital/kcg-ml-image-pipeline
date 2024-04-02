@@ -1,6 +1,7 @@
 import requests
 import json
 
+# SERVER_ADDRESS = 'http://123.176.98.90:8764'
 SERVER_ADDRESS = 'http://192.168.3.1:8111'
 
 
@@ -44,6 +45,26 @@ def http_get_sequential_id(dataset_name: str, limit: int):
 
     return None
 
+# Get request to get the self training sequential id of a dataset
+def http_get_self_training_sequential_id(dataset_name: str):
+    url = SERVER_ADDRESS + "/dataset/self-training-sequential-id/{0}".format(dataset_name)
+    response = None
+
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            job_json = response.json()
+            return job_json["sequential_id"]
+        
+    except Exception as e:
+        print('request exception ', e)
+
+    finally:
+        if response:
+            response.close()
+
+    return None
+
 
 def http_add_model(model_card):
     url = SERVER_ADDRESS + "/models/add"
@@ -66,6 +87,26 @@ def http_add_model(model_card):
 
     return None
 
+def http_add_classifier_model(model_card):
+    url = SERVER_ADDRESS + "/classifier/register-tag-classifier"
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+    response = None
+
+    try:
+        response = requests.post(url, data=model_card, headers=headers)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}")
+        print("classifier data=", response.content)
+        return response.content
+    except Exception as e:
+        print('request exception ', e)
+
+    finally:
+        if response:
+            response.close()
+
+    return None
 
 def http_get_model_id(model_hash):
     url = SERVER_ADDRESS + "/models/get-id?model_hash={}".format(model_hash)
@@ -87,12 +128,49 @@ def http_get_model_id(model_hash):
 
     return None
 
+def http_get_classifier_model_list():
+    url = SERVER_ADDRESS + "/classifier/list-classifiers"
+    response = None
+    try:
+        response = requests.get(url)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}")
+            return []
+        return response.json()["response"]
+    except Exception as e:
+        print('request exception ', e)
+        
+    finally:
+        if response:
+            response.close()
+
+    return None
+
 
 def http_add_score(score_data):
     url = SERVER_ADDRESS + "/score/set-image-rank-score"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
     response = None
 
+    try:
+        response = requests.post(url, json=score_data, headers=headers)
+
+        if response.status_code != 200:
+            print(f"request failed with status code: {response.status_code}: {str(response.content)}")
+    except Exception as e:
+        print('request exception ', e)
+
+    finally:
+        if response:
+            response.close()
+
+    return None
+
+def http_add_classifier_score(score_data):
+    url = SERVER_ADDRESS + "/classifier-score/set-image-classifier-score"
+    headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
+    response = None
     try:
         response = requests.post(url, json=score_data, headers=headers)
 
@@ -240,6 +318,9 @@ def http_add_score_attributes(model_type,
                               text_embedding_score,
                               text_embedding_percentile,
                               text_embedding_sigma_score,
+                              image_clip_h_score,
+                              image_clip_h_percentile,
+                              image_clip_h_sigma_score,
                               delta_sigma_score):
     data = {
         "image_hash": img_hash,
@@ -250,8 +331,10 @@ def http_add_score_attributes(model_type,
         "text_embedding_score": text_embedding_score,
         "text_embedding_percentile": text_embedding_percentile,
         "text_embedding_sigma_score": text_embedding_sigma_score,
+        "image_clip_h_score":image_clip_h_score,
+        "image_clip_h_percentile":image_clip_h_percentile,
+        "image_clip_h_sigma_score":image_clip_h_sigma_score,
         "delta_sigma_score": delta_sigma_score
-
     }
 
     url = SERVER_ADDRESS + "/job/add-attributes"
@@ -344,7 +427,7 @@ def http_get_completed_jobs_by_uuids(job_uuids):
     return None
 
 def http_get_tag_list():
-    url = SERVER_ADDRESS + "/tags"
+    url = SERVER_ADDRESS + "/tags/list-tag-definitions"
     try:
         response = requests.get(url)
 

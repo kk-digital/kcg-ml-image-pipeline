@@ -70,6 +70,17 @@ def get_object(client, file_path):
         response = client.get_object("datasets", file_path)
         data = response.data
     finally:
+        if 'response' in locals() and response:
+            response.close()
+            response.release_conn()
+
+    return data
+
+def get_object_with_bucket(client, bucket_name, file_path):
+    try:
+        response = client.get_object(bucket_name, file_path)
+        data = response.data
+    finally:
         if response:
             response.close()
             response.release_conn()

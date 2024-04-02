@@ -10,16 +10,19 @@ sys.path.insert(0, base_directory)
 
 from data_loader.tagged_data_loader import TaggedDatasetLoader
 from utility.minio import cmd
+from utility.http import request
 from training_worker.ab_ranking.model import constants
 from training_worker.classifiers.models import elm_regression
 from training_worker.classifiers.models.reports.elm_train_graph_report import get_graph_report
 from training_worker.classifiers.models.reports.elm_train_txt_report import get_train_txt_report
+from training_worker.classifiers.models.reports.get_model_card import get_model_card_buf
 
 def train_classifier(minio_ip_addr=None,
                      minio_access_key=None,
                      minio_secret_key=None,
                      input_type="embedding",
                      tag_name=None,
+                     tag_id=None,
                      hidden_layer_neuron_count=3000,
                      pooling_strategy=constants.AVERAGE_POOLING,
                      train_percent=0.9,
@@ -37,6 +40,8 @@ def train_classifier(minio_ip_addr=None,
     input_shape = 2 * 768
     if input_type in [constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE, constants.CLIP]:
         input_shape = 768
+    if input_type in [constants.KANDINSKY_CLIP]:
+        input_shape = 1280
 
     # load data
     tag_loader = TaggedDatasetLoader(minio_ip_addr=minio_ip_addr,
@@ -161,3 +166,17 @@ def train_classifier(minio_ip_addr=None,
     graph_name = "{}.png".format(filename)
     graph_output_path = os.path.join(output_path, graph_name)
     cmd.upload_data(tag_loader.minio_client, bucket_name, graph_output_path, graph_buffer)
+
+    # get model card and upload
+    classifier_name="{}-{}-{}-{}".format(tag_name, output_type, network_type, input_type)
+    model_card_name = "{}.json".format(filename)
+    model_card_name_output_path = os.path.join(output_path, model_card_name)
+    model_card_buf, model_card = get_model_card_buf(classifier_name= classifier_name,
+                                                    tag_id= tag_id,
+                                                    latest_model= filename,
+                                                    model_path= model_output_path,
+                                                    creation_time=date_now)
+    cmd.upload_data(tag_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
+
+    # add model card
+    request.http_add_classifier_model(model_card)
