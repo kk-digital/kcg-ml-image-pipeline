@@ -145,7 +145,7 @@ class SphereSamplingGenerator:
 
         # evaluate distances
         print("Before optimization:")
-        self.evaluate_distances(top_spheres)
+        self.evaluate_distances(top_spheres[:,:1280])
 
         # Optimization step
         if(self.optimize_spheres):
@@ -154,7 +154,7 @@ class SphereSamplingGenerator:
         
         # evaluate distances after optimization
         print("After optimization:")
-        self.evaluate_distances(top_spheres)
+        self.evaluate_distances(top_spheres[:,:1280])
 
         return top_spheres.squeeze(1)
     
