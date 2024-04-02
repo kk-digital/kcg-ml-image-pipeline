@@ -276,10 +276,16 @@ class EBM_Single_Class:
                 save_name,
                 dataset,
                 class_id,
+                train_loader,
+                val_loader,
+                adv_loader,
                 training_batch_size=16,
                 num_samples=30000,
                 learning_rate = 0.001,
-                epochs=25):
+                epochs=25,
+
+
+                ):
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
                                             minio_secret_key=minio_secret_key)
@@ -300,8 +306,92 @@ class EBM_Single_Class:
         self.learning_rate = learning_rate
         self.epochs = epochs
         self.model = model
+        self.train_loader = None
+        self.val_loader = None
+        self.adv_loader = None
 
     def train(self,**kwargs):
+
+    
+        trainer = pl.Trainer(
+                            accelerator="gpu" if str(self.device).startswith("cuda") else "cpu",
+                            devices=1,
+                            max_epochs=self.epochs,
+                            gradient_clip_val=0.1,
+                            callbacks=[ModelCheckpoint(save_weights_only=True, mode="min", monitor='val_contrastive_divergence'),
+                                        LearningRateMonitor("epoch")
+                                    ])
+
+        pl.seed_everything(42)
+        self.model = DeepEnergyModel(adv_loader =self.adv_loader,img_shape=(1280,) ,**kwargs)
+        
+        trainer.fit(self.model , self.train_loader, self.val_loader)        
+        self.save_model_to_minio(self.save_name,'temp_model.safetensors')
+
+        # up loader graphs
+
+        # # Plot
+
+        # ############### Plot graph
+        epochs = range(1, len(self.model.total_losses) + 1)  
+
+        # Create subplots grid (3 rows, 1 column)
+        fig, axes = plt.subplots(4, 1, figsize=(10, 24))
+
+        # Plot each loss on its own subplot
+        axes[0].plot(epochs, self.model.total_losses, label='Total Loss')
+        axes[0].set_xlabel('Steps')
+        axes[0].set_ylabel('Loss')
+        axes[0].set_title('Total Loss')
+        axes[0].legend()
+        axes[0].grid(True)
+
+        axes[1].plot(epochs, self.model.cdiv_losses, label='Contrastive Divergence Loss')
+        axes[1].set_xlabel('Steps')
+        axes[1].set_ylabel('Loss')
+        axes[1].set_title('Contrastive Divergence Loss')
+        axes[1].legend()
+        axes[1].grid(True)
+
+
+        axes[2].plot(epochs, self.model.reg_losses , label='Regression Loss')
+        axes[2].set_xlabel('Steps')
+        axes[2].set_ylabel('Loss')
+        axes[2].set_title('Regression Loss')
+        axes[2].legend()
+        axes[2].grid(True)
+
+        # Plot real and fake scores on the fourth subplot
+        axes[3].plot(epochs, self.model.real_scores_s, label='Real Scores')
+        axes[3].plot(epochs, self.model.fake_scores_s, label='Fake Scores')
+        axes[3].set_xlabel('Steps')
+        axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
+        axes[3].set_title('Real vs. Fake Scores')
+        axes[3].legend()
+        axes[3].grid(True)
+
+        # Adjust spacing between subplots for better visualization
+        plt.tight_layout()
+
+        plt.savefig("output/loss_tracking_per_step.png")
+
+        # Save the figure to a file
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+
+        # upload the graph report
+        minio_path="environmental/output/my_tests"
+        minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_"+ self.classe_name + "_" +date_now+".png"
+        cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+        # Remove the temporary file
+        os.remove("output/loss_tracking_per_step.png")
+        # Clear the current figure
+        plt.clf()
+
+
+
+    def train_v2(self,**kwargs):
 
 
         ##################### Standard method ##########################
@@ -584,7 +674,40 @@ def get_all_tag_jobs(class_ids,target_id):
     return target_class_data, rest_of_data
 
 
+def get_all_classes_paths(class_ids):
+    all_data = {}  # Dictionary to store data for all class IDs
+    
+    for class_id in class_ids:
+        response = requests.get(f'{API_URL}/tags/get-images-by-tag-id/?tag_id={class_id}')
+        
+        # Check if the response is successful (status code 200)
+        if response.status_code == 200:
+            try:
+                # Parse the JSON response
+                response_data = json.loads(response.content)
+                
+                # Check if 'images' key is present in the JSON response
+                if 'images' in response_data.get('response', {}):
+                    # Extract file paths from the 'images' key
+                    file_paths = [job['file_path'] for job in response_data['response']['images']]
+                    all_data[class_id] = file_paths
+                else:
+                    print(f"Error: 'images' key not found in the JSON response for class ID {class_id}.")
+            except json.JSONDecodeError as e:
+                print(f"Error decoding JSON for class ID {class_id}: {e}")
+        else:
+            print(f"Error: HTTP request failed with status code {response.status_code} for class ID {class_id}")
+    
 
+    # # Separate data for a specific class ID (e.g., class_id = X) from all the rest
+    # target_class_data = all_data.get(target_id, [])
+    # rest_of_data = {class_id: data for class_id, data in all_data.items() if class_id != target_id}
+    # #return target_class_data , rest_of_data
+
+
+    # Separate data for a specific class ID (e.g., class_id = X) from all the rest
+            
+    return file_paths
 
 # Get train and validation loader from images paths and the label value
 def get_clip_embeddings_by_path(images_paths,label_value):
@@ -705,24 +828,53 @@ def get_unique_tag_names():
 ###################### main
 
 def main():
-    # args = parse_args()
+    args = parse_args()
+    class_names = get_unique_tag_names()
+    all_tags = get_unique_tag_ids()
+    all_data = get_all_classes_paths(class_ids = all_tags)
 
-    # training_pipeline=EBM_Single_Class(minio_access_key=args.minio_access_key,
-    #                             minio_secret_key=args.minio_secret_key,
-    #                             dataset= args.dataset,
-    #                             class_name= args.class_name,
-    #                             model = None,
-    #                             save_name = args.save_name,
-    #                             class_id =  get_tag_id_by_name(args.class_name),
-    #                             training_batch_size=args.training_batch_size,
-    #                             num_samples= args.num_samples,
-    #                             epochs= args.epochs,
-    #                             learning_rate= args.learning_rate)
 
-    # # do self training
-    # training_pipeline.train()
 
-    print(get_unique_tag_names())
+    ##################### Standard method ##########################
+
+    for class_name in class_names:
+        
+        class_tag = get_tag_id_by_name(class_name)
+        print("Initiating training of : ", class_name)
+
+        target_paths = all_data.get(class_tag, [])
+        adv_paths = [path for class_id, paths in all_data.items() if class_id != class_tag for path in paths]
+
+        train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(target_paths,1)
+        # Create dataloader of adversarial classes
+        train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_path(adv_paths,0)
+
+
+        if len(train_loader_automated) != 0: 
+            print("Training starated for  ", class_name," with ",len(train_loader_automated)," data points.")
+            training_pipeline=EBM_Single_Class(minio_access_key=args.minio_access_key,
+                                        minio_secret_key=args.minio_secret_key,
+                                        dataset= args.dataset,
+                                        class_name= args.class_name,
+                                        model = None,
+                                        save_name = args.save_name,
+                                        class_id =  get_tag_id_by_name(args.class_name),
+                                        training_batch_size=args.training_batch_size,
+                                        num_samples= args.num_samples,
+                                        epochs= args.epochs,
+                                        learning_rate= args.learning_rate,
+                                        train_loader = train_loader_automated,
+                                        val_loader  = val_loader_automated,
+                                        adv_loader = train_loader_clip_ood)
+            # do self training
+            training_pipeline.train()
+        else:
+            print("There isn't enough data for : ", class_name)
+
+        # # init the loader
+        # train_loader = train_loader_automated
+        # val_loader = val_loader_automated
+        # adv_loader = train_loader_clip_ood
 
 
 
