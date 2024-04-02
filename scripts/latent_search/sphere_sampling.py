@@ -2,6 +2,7 @@ import argparse
 from datetime import datetime
 import io
 import math
+import faiss
 import os
 import sys
 import msgpack
@@ -162,10 +163,21 @@ class SphereSamplingGenerator:
         return selected_spheres.squeeze(1)
     
     def evaluate_distances(self, spheres):
-        spheres = spheres.cpu().numpy()  # Move to CPU and convert to numpy if it's a tensor
+        spheres = spheres.cpu().numpy()
+        # Ensure vectors are in the right format
+        spheres = spheres.astype('float32')
 
-        # Compute the pairwise distance matrix
-        distance_matrix = squareform(pdist(spheres, 'euclidean'))
+        # Get the number of vectors and their dimensionality
+        num_vectors, dim = spheres.shape
+
+        # Create a FAISS index for L2 distance
+        index = faiss.IndexFlatL2(dim)
+        
+        # Add the vectors to the index
+        index.add(spheres)
+
+        # Retrieve and return the distances
+        distance_matrix, _ = index.search(spheres, num_vectors)
 
         # Remove self-comparisons (distance of 0) by setting them to np.inf
         np.fill_diagonal(distance_matrix, np.inf)
@@ -178,7 +190,7 @@ class SphereSamplingGenerator:
         print(f"lowest distance: {lowest_distance}")
         print(f"highest distance: {highest_distance}")
         print(f"mean distance: {mean_distance}")
-    
+        
     def uniform_sampling(self, num_samples):
         spheres = self.rank_and_optimize_spheres()  
         dim = spheres.size(1) - 1  # Exclude radius from dimensions
