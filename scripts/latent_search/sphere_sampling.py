@@ -183,7 +183,9 @@ class SphereSamplingGenerator:
         distance_matrix = np.sqrt(distance_matrix)
 
         # Remove self-comparisons (distance of 0) by setting them to np.inf
+        print(distance_matrix)
         np.fill_diagonal(distance_matrix, np.inf)
+        print(distance_matrix)
 
         # Calculate the lowest, highest, and mean distance, excluding self-comparisons
         lowest_distance = np.min(distance_matrix)
