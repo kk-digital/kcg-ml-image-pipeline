@@ -838,7 +838,7 @@ def main():
     all_tags = get_unique_tag_ids()
     print("all tags : ", all_tags )
     print("all tags length : ", len(all_tags) )
-    all_data,_ = get_all_classes_paths(class_ids = all_tags)
+    all_data,_ = get_all_classes_paths(class_ids = all_tags,target_id=1)
     print(all_data)
     print("all data length  : ", len(all_data) )
 
