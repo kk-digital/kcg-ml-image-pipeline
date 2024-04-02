@@ -1,0 +1,41 @@
+{
+  "builder_name": "parquet",
+  "citation": "",
+  "config_name": "default",
+  "dataset_name": "pokemon-blip-captions",
+  "dataset_size": 119420742,
+  "description": "",
+  "download_checksums": {
+    "hf://datasets/reach-vb/pokemon-blip-captions@3790f29981f74ca26bf11662048342e19c5b615e/data/train-00000-of-00001-566cc9b19d7203f8.parquet": {
+      "num_bytes": 99672355,
+      "checksum": null
+    }
+  },
+  "download_size": 99672355,
+  "features": {
+    "image": {
+      "_type": "Image"
+    },
+    "text": {
+      "dtype": "string",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 219093097,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 119420742,
+      "num_examples": 833,
+      "dataset_name": "pokemon-blip-captions"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}
