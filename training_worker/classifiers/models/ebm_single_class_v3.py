@@ -822,11 +822,11 @@ def main():
     args = parse_args()
     class_names = get_unique_tag_names()
     all_tags = get_unique_tag_ids()
-    print("all tags : ", all_tags.items() )
-    print("all tags length : ", len(all_tags.items()) )
+    print("all tags : ", all_tags )
+    print("all tags length : ", len(all_tags) )
     all_data = get_all_classes_paths(class_ids = all_tags)
-    print(all_data)
-    print("all data length  : ", len(all_data) )
+    print(all_data.items())
+    print("all data length  : ", len(all_data.items()) )
 
 
     ##################### Standard method ##########################
