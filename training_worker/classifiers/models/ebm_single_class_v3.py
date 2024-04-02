@@ -697,15 +697,6 @@ def get_all_classes_paths(class_ids):
                 print(f"Error decoding JSON for class ID {class_id}: {e}")
         else:
             print(f"Error: HTTP request failed with status code {response.status_code} for class ID {class_id}")
-    
-
-    # # Separate data for a specific class ID (e.g., class_id = X) from all the rest
-    # target_class_data = all_data.get(target_id, [])
-    # rest_of_data = {class_id: data for class_id, data in all_data.items() if class_id != target_id}
-    # #return target_class_data , rest_of_data
-
-
-    # Separate data for a specific class ID (e.g., class_id = X) from all the rest
             
     return file_paths
 
@@ -831,8 +822,8 @@ def main():
     args = parse_args()
     class_names = get_unique_tag_names()
     all_tags = get_unique_tag_ids()
-    print("all tags : ", all_tags )
-    print("all tags length : ", len(all_tags) )
+    print("all tags : ", all_tags.items() )
+    print("all tags length : ", len(all_tags.items()) )
     all_data = get_all_classes_paths(class_ids = all_tags)
     print(all_data)
     print("all data length  : ", len(all_data) )
