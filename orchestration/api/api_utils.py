@@ -15,6 +15,8 @@ from minio import Minio
 from dateutil import parser
 from datetime import datetime
 import os
+from urllib.parse import urlparse
+
 
 
 class SingleModelResponse(BaseModel):
@@ -220,7 +222,7 @@ class StandardSuccessResponseV1(BaseModel, Generic[T]):
     request_url: str
     request_dictionary: dict 
     request_method: str
-    request_time_total: float
+    request_complete_time: float
     request_time_start: datetime 
     request_time_finished: datetime
     request_response_code: int 
@@ -233,7 +235,7 @@ class StandardErrorResponseV1(BaseModel):
     request_url: str
     request_dictionary: dict 
     request_method: str
-    request_time_total: float
+    request_complete_time: float
     request_time_start: str 
     request_time_finished: str
     request_response_code: int 
@@ -245,6 +247,11 @@ class ApiResponseHandlerV1:
         self.url = str(request.url)
         self.start_time = datetime.now() 
         self.query_params = dict(request.query_params)
+
+        # Parse the URL to extract and store the path
+        parsed_url = urlparse(self.url)
+        self.url_path = parsed_url.path  # Store the path part of the URL
+
         self.request_data = {
             "body": body_data or {},  # Set from the provided body data
             "query": dict(request.query_params)  # Extracted from request
@@ -291,10 +298,10 @@ class ApiResponseHandlerV1:
         response_content = {
             "request_error_string": '',
             "request_error_code": 0, 
-            "request_url": self.url,
+            "request_url": self.url_path,
             "request_dictionary": self.request_data,  # Or adjust how you access parameters
             "request_method": self.request.method,
-            "request_time_total": str(self._elapsed_time()),
+            "request_complete_time": str(self._elapsed_time()),
             "request_time_start": self.start_time.isoformat(),  
             "request_time_finished": datetime.now().isoformat(), 
             "request_response_code": http_status_code,
@@ -312,10 +319,10 @@ class ApiResponseHandlerV1:
         response_content = {
             "request_error_string": '',
             "request_error_code": 0, 
-            "request_url": self.url,
+            "request_url": self.url_path,
             "request_dictionary": self.request_data,
             "request_method": self.request.method,
-            "request_time_total": str(self._elapsed_time()),
+            "request_complete_time": str(self._elapsed_time()),
             "request_time_start": self.start_time.isoformat(),
             "request_time_finished": datetime.now().isoformat(),
             "request_response_code": http_status_code,
@@ -334,10 +341,10 @@ class ApiResponseHandlerV1:
             response_content = {
                 "request_error_string": error_string,
                 "request_error_code": error_code.value,  # Using .name for the enum member name
-                "request_url": self.url,
+                "request_url": self.url_path,
                 "request_dictionary": self.request_data,  # Convert query params to a more usable dict format
                 "request_method": self.request.method,
-                "request_time_total": str(self._elapsed_time()),
+                "request_complete_time": str(self._elapsed_time()),
                 "request_time_start": self.start_time.isoformat(),
                 "request_time_finished": datetime.now().isoformat(),
                 "request_response_code": http_status_code

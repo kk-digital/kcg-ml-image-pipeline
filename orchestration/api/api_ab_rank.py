@@ -164,6 +164,52 @@ async def update_rank_model_model(request: Request, rank_model_id: int, update_d
                                                        )
 
 
+
+@router.post("/ab-rank/add-rank-model-in-selection-datapoints",
+             status_code=200,
+             tags=["ab-rank"],
+             description="Updates image pair ranking with a new rank model ID")
+async def update_rank_model_in_image_pairs(
+        request: Request, 
+        rank_model_id: int = Query(..., description="The new rank model ID to assign"),
+        file_name: str = Query(..., description="The file name to match image pairs")
+    ):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Assuming this updates the document correctly and you've verified this elsewhere
+        result = request.app.image_pair_ranking_collection.update_many(
+            {"file_name": file_name},
+            {"$set": {"rank_model_id": rank_model_id}}
+        )
+
+        if result.modified_count == 0:
+            # Handle the case where no documents are updated
+            raise HTTPException(status_code=404, detail="No matching image pairs found.")
+
+        # Fetching an example document to use its structure for the response
+        # Note: This fetch is for illustrative purposes; adapt as necessary
+        document = request.app.image_pair_ranking_collection.find_one({"file_name": file_name})
+
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found after update.")
+
+        # Reconstruct the document with rank_model_id first
+        document_with_rank_first = {"rank_model_id": rank_model_id, **document}
+
+        # Since MongoDB returns '_id' that isn't JSON serializable by default, convert to string or remove it
+        document_with_rank_first.pop('_id', None)  # Removing '_id' for simplicity
+
+        # Return the modified document as a response
+        return document_with_rank_first
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500,
+        )
+
+
 @router.delete("/ab-rank/remove-rank-model/{rank_model_id}", 
                response_model=StandardSuccessResponseV1[WasPresentResponse], 
                description="remove rank with rank_model_id", 
@@ -548,13 +594,14 @@ def list_rank_model_models(request: Request):
     response_handler = ApiResponseHandlerV1(request)
     try:
         # Query all the rank models
-        ranks_cursor = request.app.rank_model_categories_collection.find({})
+        ranks_cursor = list(request.app.rank_model_categories_collection.find({}))
 
         # Convert each rank document to rankmodel and then to a dictionary
-        result = [RankCategory(**rank).to_dict() for rank in ranks_cursor]
+        for doc in ranks_cursor:
+            doc.pop('_id', None)  
 
         return response_handler.create_success_response_v1(
-            response_data={"rank_model_categories": result}, 
+            response_data={"rank_model_categories": ranks_cursor}, 
             http_status_code=200,
             )
 
@@ -566,6 +613,15 @@ def list_rank_model_models(request: Request):
                                                          http_status_code=500,
                             
                                                          )
+
+
+
+@router.delete("/clear-rank-model-categories")
+def clear_all_pending_jobs(request: Request):
+    request.app.rank_model_categories_collection.delete_many({})
+
+    return True
+
 
 @router.get("/ab-rank/get-images-count-by-rank-id", 
             status_code=200,

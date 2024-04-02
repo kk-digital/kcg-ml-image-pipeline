@@ -242,7 +242,7 @@ def get_image_data_by_filepath_2(request: Request, file_path: str):
 
     return response
   
-@router.get("/image/list-image-metadata-by-dataset", tags = ["deprecated"], response_class=PrettyJSONResponse)
+@router.get("/image/list-image-metadata-by-dataset", tags = ["deprecated2"], response_class=PrettyJSONResponse)
 def get_images_metadata(
     request: Request,
     dataset: str = None,
@@ -435,7 +435,9 @@ def list_prompt_generation_policies():
             "independent-approx-substitution-search-v1",
             "proportional_sampling",
             "gradient_descent_optimization",
-            "variant_generation"]
+            "variant_generation",
+            "gaussian-top-k-sphere-sampling",
+            "top-k-sphere-sampling"]
 
 
 
