@@ -674,7 +674,7 @@ def get_all_tag_jobs(class_ids,target_id):
     return target_class_data, rest_of_data
 
 
-def get_all_classes_paths(class_ids):
+def get_all_classes_paths(class_ids,target_id):
     all_data = {}  # Dictionary to store data for all class IDs
     
     for class_id in class_ids:
@@ -697,8 +697,22 @@ def get_all_classes_paths(class_ids):
                 print(f"Error decoding JSON for class ID {class_id}: {e}")
         else:
             print(f"Error: HTTP request failed with status code {response.status_code} for class ID {class_id}")
-            
-    return file_paths
+    
+
+    # # Separate data for a specific class ID (e.g., class_id = X) from all the rest
+    # target_class_data = all_data.get(target_id, [])
+    # rest_of_data = {class_id: data for class_id, data in all_data.items() if class_id != target_id}
+    # #return target_class_data , rest_of_data
+
+    print(all_data.items())
+    # Separate data for a specific class ID (e.g., class_id = X) from all the rest
+    target_class_data = all_data.get(target_id, [])
+    rest_of_data = [path for class_id, paths in all_data.items() if class_id != target_id for path in paths]
+
+    return target_class_data, rest_of_data
+
+
+
 
 # Get train and validation loader from images paths and the label value
 def get_clip_embeddings_by_path(images_paths,label_value):
@@ -824,9 +838,9 @@ def main():
     all_tags = get_unique_tag_ids()
     print("all tags : ", all_tags )
     print("all tags length : ", len(all_tags) )
-    all_data = get_all_classes_paths(class_ids = all_tags)
-    print(all_data[0])
-    print("all data length  : ", len(all_data[0]) )
+    all_data,_ = get_all_classes_paths(class_ids = all_tags)
+    print(all_data)
+    print("all data length  : ", len(all_data) )
 
 
     ##################### Standard method ##########################
