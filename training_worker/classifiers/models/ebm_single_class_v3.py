@@ -825,8 +825,8 @@ def main():
     print("all tags : ", all_tags )
     print("all tags length : ", len(all_tags) )
     all_data = get_all_classes_paths(class_ids = all_tags)
-    print(all_data.items())
-    print("all data length  : ", len(all_data.items()) )
+    print(all_data[0])
+    print("all data length  : ", len(all_data[0]) )
 
 
     ##################### Standard method ##########################
