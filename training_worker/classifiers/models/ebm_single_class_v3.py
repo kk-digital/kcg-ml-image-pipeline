@@ -704,7 +704,7 @@ def get_all_classes_paths(class_ids,target_id):
     # rest_of_data = {class_id: data for class_id, data in all_data.items() if class_id != target_id}
     # #return target_class_data , rest_of_data
 
-    print(all_data.items())
+    print("the full data ",  len(all_data.items()))
     # Separate data for a specific class ID (e.g., class_id = X) from all the rest
     target_class_data = all_data.get(target_id, [])
     rest_of_data = [path for class_id, paths in all_data.items() if class_id != target_id for path in paths]
