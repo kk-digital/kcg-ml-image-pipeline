@@ -140,23 +140,26 @@ class SphereSamplingGenerator:
         scores = torch.tensor(batch_scores, device=self.device, dtype=torch.float32)
 
         # Sort scores and select top spheres
-        sorted_indexes = torch.argsort(scores.squeeze(), descending=True)[:self.selected_spheres]
+        sorted_indexes = torch.argsort(scores.squeeze(), descending=True)[:int(self.total_spheres * self.top_k)]
         top_spheres = generated_spheres[sorted_indexes]
+        # select n random spheres from the top k spheres
+        indices = torch.randperm(top_spheres.size(0))[:self.selected_spheres]
+        selected_spheres = top_spheres[indices]
 
         # evaluate distances
         print("Before optimization:")
-        self.evaluate_distances(top_spheres[:,:1280])
+        self.evaluate_distances(selected_spheres[:,:1280])
 
         # Optimization step
         if(self.optimize_spheres):
-            top_spheres = self.optimize_datapoints(top_spheres, self.sphere_scoring_model)
-            top_spheres= torch.stack(top_spheres)
+            selected_spheres = self.optimize_datapoints(selected_spheres, self.sphere_scoring_model)
+            selected_spheres= torch.stack(selected_spheres)
         
         # evaluate distances after optimization
         print("After optimization:")
-        self.evaluate_distances(top_spheres[:,:1280])
+        self.evaluate_distances(selected_spheres[:,:1280])
 
-        return top_spheres.squeeze(1)
+        return selected_spheres.squeeze(1)
     
     def evaluate_distances(self, spheres):
         spheres = spheres.cpu().numpy()  # Move to CPU and convert to numpy if it's a tensor
