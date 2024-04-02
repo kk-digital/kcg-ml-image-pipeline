@@ -120,7 +120,7 @@ class SphereSamplingGenerator:
     def generate_spheres(self):
         num_spheres = self.total_spheres
 
-        sphere_centers = np.random.rand(num_spheres, len(self.clip_max)) * (self.clip_max - self.clip_min) + self.clip_min
+        sphere_centers = torch.rand(num_spheres, len(self.clip_max)) * (self.clip_max - self.clip_min) + self.clip_min
         sphere_centers = torch.clip(sphere_centers, self.clip_min, self.clip_max)
        
         if self.sphere_type=="uniform":
