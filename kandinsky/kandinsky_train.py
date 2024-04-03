@@ -17,8 +17,7 @@ sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 from kandinsky.model_paths import PRIOR_MODEL_PATH, DECODER_MODEL_PATH
 
-weight_dtype = torch.float32
-# weight_dtype = torch.float16
+weight_dtype = torch.float16
 
 device = torch.device(0)
 
@@ -111,7 +110,7 @@ def preprocess_train(examples):
 if(os.path.exists("input/pokemon-blip-captions")):
     dataset = datasets.load_dataset('reach-vb/pokemon-blip-captions')
     dataset.save_to_disk('input/pokemon-blip-captions')
-    
+
 dataset = datasets.load_dataset('arrow', data_files={'train': 'input/pokemon-blip-captions/train/data-00000-of-00001.arrow'})
 
 # Set the training transforms
