@@ -17,6 +17,19 @@ sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 from kandinsky.model_paths import PRIOR_MODEL_PATH, DECODER_MODEL_PATH
 
+import hashlib
+
+def get_md5(file_path):
+    hash_md5 = hashlib.md5()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()
+
+file_path = 'input/pokemon-blip-captions/train/data-00000-of-00001.arrow'
+md5_checksum = get_md5(file_path)
+print(f"MD5 checksum: {md5_checksum}")
+
 weight_dtype = torch.float32
 # weight_dtype = torch.float16
 
