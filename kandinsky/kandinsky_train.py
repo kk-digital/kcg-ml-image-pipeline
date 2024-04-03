@@ -1,3 +1,4 @@
+from io import BytesIO
 import os
 import sys
 import torch
@@ -12,10 +13,21 @@ from PIL import Image
 import numpy as np
 from tqdm.auto import tqdm
 
+from utility.minio import cmd
+
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 from kandinsky.model_paths import PRIOR_MODEL_PATH, DECODER_MODEL_PATH
+
+# Set up file for logging
+log_file = open("memory_usage_log.txt", "w")
+
+# Function to log memory usage
+def log_memory_usage(description):
+    log_file.write(f"{description}-----------------------\n")
+    log_file.write(f"Memory allocated: {torch.cuda.memory_allocated(device)} bytes\n")
+    log_file.write(f"Max memory allocated: {torch.cuda.max_memory_allocated(device)} bytes\n\n")
 
 weight_dtype = torch.float16
 
@@ -32,7 +44,7 @@ adam_epsilon = 1e-8
 
 snr_gamma = None
 
-max_train_steps = 10000
+max_train_steps = 1000
 gradient_accumulation_steps = 1
 checkpointing_steps = 100
 
@@ -76,8 +88,11 @@ unet.enable_gradient_checkpointing()
 
 # Move image_encode and vae to gpu and cast to weight_dtype
 image_encoder.to(device, dtype=weight_dtype)
+log_memory_usage("Loading the image encoder")
 vae.to(device, dtype=weight_dtype)
+log_memory_usage("Loading the vae")
 unet.to(device, dtype=weight_dtype)
+log_memory_usage("Loading the Unet")
 optimizer = optimizer_cls(
     unet.parameters(),
     lr=learning_rate,
@@ -112,9 +127,12 @@ if not os.path.exists("input/pokemon-blip-captions"):
     dataset.save_to_disk('input/pokemon-blip-captions')
 
 dataset = datasets.load_dataset('arrow', data_files={'train': 'input/pokemon-blip-captions/train/data-00000-of-00001.arrow'})
+log_memory_usage("Loading the pokemon dataset")
 
 # Set the training transforms
 train_dataset = dataset["train"].with_transform(preprocess_train)
+log_memory_usage("Pre-processing the pokemon dataset")
+
 def collate_fn(examples):
     pixel_values = torch.stack([example["pixel_values"] for example in examples])
     pixel_values = pixel_values.to(memory_format=torch.contiguous_format).float()
@@ -227,5 +245,18 @@ while step < max_train_steps:
     if step % checkpointing_steps == 0:
         print(f"Epoch: {epoch}, Step: {step}, Loss: {np.mean(losses)}")
         losses = list()
-        torch.save(unet.state_dict(), f"unet.pth")
-        # torch.save(unet.state_dict(), f"unet_epoch_{epoch}_step_{step}.pth")
+        log_memory_usage(f"Training step {step}")
+        # torch.save(unet.state_dict(), f"unet.pth")
+
+# get minio client
+minio_client = cmd.get_minio_client(minio_access_key="v048BpXpWrsVIHUfdAix",
+                                    minio_secret_key="4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu")
+
+# Upload the local file to MinIO
+buffer = BytesIO(log_file.read())
+buffer.seek(0)
+
+cmd.upload_data(minio_client, 'datasets', "environmental/output/kandinsky_train_report.txt" , buffer)
+
+# Remove the temporary file
+os.remove("memory_usage_log.txt")
