@@ -102,10 +102,10 @@ image_encoder.requires_grad_(False)
 unet.enable_gradient_checkpointing()
 
 # Move image_encode and vae to gpu and cast to weight_dtype
-image_encoder.to(device, dtype=weight_dtype)
-total_memory= log_memory_usage("Loading the image encoder", total_memory)
-vae.to(device, dtype=weight_dtype)
-total_memory= log_memory_usage("Loading the vae", total_memory)
+# image_encoder.to(device, dtype=weight_dtype)
+# total_memory= log_memory_usage("Loading the image encoder", total_memory)
+# vae.to(device, dtype=weight_dtype)
+# total_memory= log_memory_usage("Loading the vae", total_memory)
 unet.to(device, dtype=weight_dtype)
 total_memory= log_memory_usage("Loading the Unet", total_memory)
 # optimizer = optimizer_cls(
