@@ -135,7 +135,7 @@ lr_scheduler = get_scheduler(
     num_warmup_steps=lr_warmup_steps * gradient_accumulation_steps,
     num_training_steps=max_train_steps * gradient_accumulation_steps,
 )
-progress_bar = tqdm(range(0, max_train_steps), desc="Steps")
+# progress_bar = tqdm(range(0, max_train_steps), desc="Steps")
 
 epoch = 1
 step = 0
@@ -208,7 +208,7 @@ while step < max_train_steps:
         # Update the learning rate
         lr_scheduler.step()
         optimizer.zero_grad()
-        progress_bar.update(1)
+        # progress_bar.update(1)
 
     # scaler.scale(loss).backward()
     # step += 1
