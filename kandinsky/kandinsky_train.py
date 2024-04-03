@@ -19,6 +19,7 @@ sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 from kandinsky.model_paths import PRIOR_MODEL_PATH, DECODER_MODEL_PATH
 from utility.minio import cmd
+from torch.profiler import profile, record_function, ProfilerActivity
 
 # Set up file for logging
 log_file_path= "memory_usage_log.txt"
@@ -177,94 +178,74 @@ losses = list()
 # scaler = torch.cuda.amp.GradScaler()
 
 while step < max_train_steps:
-    try:
-        batch = next(data_iter)
-    except:
-        epoch += 1
-        data_iter = iter(train_dataloader)
-        batch = next(data_iter)
-        print(f"Epoch: {epoch}, Step: {step}, Loss: {np.mean(losses)}")
-        losses = list()
-    
-    # Set unet to trainable.
-    unet.train()
+    with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
+        with record_function("batch_processing"):
+            try:
+                batch = next(data_iter)
+            except StopIteration:
+                epoch += 1
+                data_iter = iter(train_dataloader)
+                batch = next(data_iter)
+                print(f"Epoch: {epoch}, Step: {step}, Loss: {np.mean(losses)}")
+                losses = list()
 
-    # Convert images to latent space
-    with torch.no_grad():
-        images = batch["pixel_values"].to(device, weight_dtype)
-        clip_images = batch["clip_pixel_values"].to(device, weight_dtype)
-        latents = vae.encode(images).latents
-        image_embeds = image_encoder(clip_images).image_embeds
-    
-    total_memory= log_memory_usage("Batch processing", total_memory)
-    
-    # Sample noise that we'll add to the latents
-    noise = torch.randn_like(latents)
-    bsz = latents.shape[0]
-    # Sample a random timestep for each image
-    timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (bsz,), device=latents.device)
-    timesteps = timesteps.long()
+            # Set unet to trainable.
+            unet.train()
 
-    noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
-    target = noise
+            # Convert images to latent space
+            with torch.no_grad():
+                images = batch["pixel_values"].to(device, weight_dtype)
+                clip_images = batch["clip_pixel_values"].to(device, weight_dtype)
+                latents = vae.encode(images).latents
+                image_embeds = image_encoder(clip_images).image_embeds
 
-    with torch.cuda.amp.autocast(True):
-        
-        # Predict the noise residual and compute loss
-        added_cond_kwargs = {"image_embeds": image_embeds}
-    
-        model_pred = unet(noisy_latents, timesteps, None, added_cond_kwargs=added_cond_kwargs).sample[:, :4]
-    
-        if snr_gamma is None:
-            loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
-        else:
-            snr = compute_snr(noise_scheduler, timesteps)
-            mse_loss_weights = torch.stack([snr, snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0]
-            if noise_scheduler.config.prediction_type == "epsilon":
-                mse_loss_weights = mse_loss_weights / snr
-            elif noise_scheduler.config.prediction_type == "v_prediction":
-                mse_loss_weights = mse_loss_weights / (snr + 1)
-        
-            loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
-            loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
-            loss = loss.mean()
-        
-        loss = loss / gradient_accumulation_steps  # Adjust loss for gradient accumulation
+            # Sample noise that we'll add to the latents
+            noise = torch.randn_like(latents)
+            bsz = latents.shape[0]
+            # Sample a random timestep for each image
+            timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (bsz,), device=latents.device)
+            timesteps = timesteps.long()
 
-        total_memory= log_memory_usage("Loss Calculation", total_memory)
-        
-    loss.backward()
-    total_memory= log_memory_usage("Backward pass", total_memory)
+            noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
+            target = noise
 
-    step += 1
-    if step % gradient_accumulation_steps == 0:
-        # Performs the optimizer step
-        optimizer.step()
-        total_memory= log_memory_usage("Optimizer step", total_memory)
-        # Update the learning rate
-        lr_scheduler.step()
-        optimizer.zero_grad()
-        # progress_bar.update(1)
+            with record_function("loss_calculation"):
+                with torch.cuda.amp.autocast(True):
+                    added_cond_kwargs = {"image_embeds": image_embeds}
+                    model_pred = unet(noisy_latents, timesteps, None, added_cond_kwargs=added_cond_kwargs).sample[:, :4]
+                    if snr_gamma is None:
+                        loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
+                    else:
+                        snr = compute_snr(noise_scheduler, timesteps)
+                        mse_loss_weights = torch.stack([snr, snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0]
+                        if noise_scheduler.config.prediction_type == "epsilon":
+                            mse_loss_weights = mse_loss_weights / snr
+                        elif noise_scheduler.config.prediction_type == "v_prediction":
+                            mse_loss_weights = mse_loss_weights / (snr + 1)
+                        loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
+                        loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
+                        loss = loss.mean()
+                    loss = loss / gradient_accumulation_steps  # Adjust loss for gradient accumulation
 
-    # scaler.scale(loss).backward()
-    # step += 1
-    # if step % gradient_accumulation_steps == 0:
-    #     # Performs the optimizer step
-    #     scaler.step(optimizer)
-    #     scaler.update()
-    #     # Update the learning rate
-    #     lr_scheduler.step()
-    #     optimizer.zero_grad()
-    #     progress_bar.update(1)
+            # Backward pass and optimizer step profiling
+            with record_function("backward_pass"):
+                loss.backward()
+            with record_function("optimizer_step"):
+                if step % gradient_accumulation_steps == 0:
+                    optimizer.step()
+                    lr_scheduler.step()
+                    optimizer.zero_grad()
 
-    losses.append(loss.detach().cpu().numpy())
-    
-    # Save model periodically or based on conditions
-    if step % checkpointing_steps == 0:
-        print(f"Epoch: {epoch}, Step: {step}, Loss: {np.mean(losses)}")
-        losses = list()
-        # torch.save(unet.state_dict(), f"unet.pth")
+            losses.append(loss.detach().cpu().numpy())
 
+            # Save model periodically or based on conditions
+            if step % checkpointing_steps == 0:
+                print(f"Epoch: {epoch}, Step: {step}, Loss: {np.mean(losses)}")
+                losses = list()
+                # torch.save(unet.state_dict(), f"unet.pth")
+
+# Analyze profiling results
+print(prof.key_averages().table(sort_by="self_cuda_memory_usage", row_limit=10))
 log_file.close()  # Close the log file
 
 # get minio client
