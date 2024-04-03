@@ -164,8 +164,6 @@ dataset = datasets.load_dataset('arrow', data_files={'train': 'input/pokemon-bli
 # Set the training transforms
 train_dataset = dataset["train"].map(
     lambda example: preprocess_train(example, vae, image_encoder, device, weight_dtype),
-    batched=True,
-    batch_size=train_batch_size,
     remove_columns=[image_column]  # Remove original image column
 )
 
