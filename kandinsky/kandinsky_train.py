@@ -1,4 +1,5 @@
 from io import BytesIO
+import io
 import os
 import sys
 import torch
@@ -20,7 +21,8 @@ from kandinsky.model_paths import PRIOR_MODEL_PATH, DECODER_MODEL_PATH
 from utility.minio import cmd
 
 # Set up file for logging
-log_file = open("memory_usage_log.txt", "w")
+log_file_path= "memory_usage_log.txt"
+log_file = open(log_file_path, "w")
 
 # Function to log memory usage
 def log_memory_usage(description):
@@ -247,12 +249,18 @@ while step < max_train_steps:
         log_memory_usage(f"Training step {step}")
         # torch.save(unet.state_dict(), f"unet.pth")
 
+log_file.close()  # Close the log file
+
 # get minio client
 minio_client = cmd.get_minio_client(minio_access_key="v048BpXpWrsVIHUfdAix",
                                     minio_secret_key="4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu")
 
+# Save log file and get its data buffer with BytesIO
+with open(log_file_path, 'rb') as file:
+    data = io.BytesIO(file.read())
+
 # Upload the local file to MinIO
-buffer = BytesIO(log_file.read())
+buffer = BytesIO(data)
 buffer.seek(0)
 
 cmd.upload_data(minio_client, 'datasets', "environmental/output/kandinsky_train_report.txt" , buffer)
