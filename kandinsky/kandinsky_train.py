@@ -33,7 +33,7 @@ def log_memory_usage(description, current_memory_usage):
 
     log_file.write(f"{description}-----------------------\n")
     log_file.write(f"Memory allocated at this step: {memory_used_at_step} GB\n")
-    log_file.write(f"Total allocated memory: {total_memory} GB\n\n")
+    log_file.write(f"Total allocated memory: {total_memory} GB\n")
     log_file.write(f"Max allocated memory: {max_memory} GB\n\n")
 
     print(f"{description}-----------------------")
