@@ -209,40 +209,40 @@ while step < max_train_steps:
             noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
             target = noise
 
-            with record_function("loss_calculation"):
-                with torch.cuda.amp.autocast(True):
-                    added_cond_kwargs = {"image_embeds": image_embeds}
-                    model_pred = unet(noisy_latents, timesteps, None, added_cond_kwargs=added_cond_kwargs).sample[:, :4]
-                    if snr_gamma is None:
-                        loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
-                    else:
-                        snr = compute_snr(noise_scheduler, timesteps)
-                        mse_loss_weights = torch.stack([snr, snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0]
-                        if noise_scheduler.config.prediction_type == "epsilon":
-                            mse_loss_weights = mse_loss_weights / snr
-                        elif noise_scheduler.config.prediction_type == "v_prediction":
-                            mse_loss_weights = mse_loss_weights / (snr + 1)
-                        loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
-                        loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
-                        loss = loss.mean()
-                    loss = loss / gradient_accumulation_steps  # Adjust loss for gradient accumulation
+        with record_function("loss_calculation"):
+            with torch.cuda.amp.autocast(True):
+                added_cond_kwargs = {"image_embeds": image_embeds}
+                model_pred = unet(noisy_latents, timesteps, None, added_cond_kwargs=added_cond_kwargs).sample[:, :4]
+                if snr_gamma is None:
+                    loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
+                else:
+                    snr = compute_snr(noise_scheduler, timesteps)
+                    mse_loss_weights = torch.stack([snr, snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0]
+                    if noise_scheduler.config.prediction_type == "epsilon":
+                        mse_loss_weights = mse_loss_weights / snr
+                    elif noise_scheduler.config.prediction_type == "v_prediction":
+                        mse_loss_weights = mse_loss_weights / (snr + 1)
+                    loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
+                    loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
+                    loss = loss.mean()
+                loss = loss / gradient_accumulation_steps  # Adjust loss for gradient accumulation
 
-            # Backward pass and optimizer step profiling
-            with record_function("backward_pass"):
-                loss.backward()
-            with record_function("optimizer_step"):
-                if step % gradient_accumulation_steps == 0:
-                    optimizer.step()
-                    lr_scheduler.step()
-                    optimizer.zero_grad()
+        # Backward pass and optimizer step profiling
+        with record_function("backward_pass"):
+            loss.backward()
+        with record_function("optimizer_step"):
+            if step % gradient_accumulation_steps == 0:
+                optimizer.step()
+                lr_scheduler.step()
+                optimizer.zero_grad()
 
-            losses.append(loss.detach().cpu().numpy())
+        losses.append(loss.detach().cpu().numpy())
 
-            # Save model periodically or based on conditions
-            if step % checkpointing_steps == 0:
-                print(f"Epoch: {epoch}, Step: {step}, Loss: {np.mean(losses)}")
-                losses = list()
-                # torch.save(unet.state_dict(), f"unet.pth")
+        # Save model periodically or based on conditions
+        if step % checkpointing_steps == 0:
+            print(f"Epoch: {epoch}, Step: {step}, Loss: {np.mean(losses)}")
+            losses = list()
+            # torch.save(unet.state_dict(), f"unet.pth")
 
 # Analyze profiling results
 print(prof.key_averages().table(sort_by="self_cuda_memory_usage", row_limit=10))
