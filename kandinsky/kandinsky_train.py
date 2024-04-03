@@ -243,7 +243,7 @@ while step < max_train_steps:
             # torch.save(unet.state_dict(), f"unet.pth")
 
 # Analyze profiling results
-print(prof.key_averages().table(sort_by="self_cuda_memory_usage", row_limit=10))
+print(prof.key_averages().table())
 log_file.close()  # Close the log file
 
 # get minio client
