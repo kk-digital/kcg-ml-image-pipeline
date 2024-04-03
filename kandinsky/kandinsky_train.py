@@ -107,7 +107,7 @@ def preprocess_train(examples):
     examples["pixel_values"] = [train_transforms(image) for image in images]
     examples["clip_pixel_values"] = image_processor(images, return_tensors="pt").pixel_values
     return examples
-dataset = datasets.load_dataset('arrow', data_files={'train': 'input/pokemon-blip-captions/train/data-00000-of-00001.arrow'})
+dataset = datasets.load_dataset('arrow', data_files={'train': './input/pokemon-blip-captions/train/data-00000-of-00001.arrow'})
 
 # Set the training transforms
 train_dataset = dataset["train"].with_transform(preprocess_train)
