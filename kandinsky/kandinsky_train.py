@@ -230,6 +230,8 @@ while step < max_train_steps:
         # Backward pass and optimizer step profiling
         with record_function("backward_pass"):
             loss.backward()
+        
+        step+=1
         with record_function("optimizer_step"):
             if step % gradient_accumulation_steps == 0:
                 optimizer.step()
