@@ -875,7 +875,7 @@ def main():
                                         learning_rate= args.learning_rate)
 
             # do self training
-            training_pipeline.train()
+            training_pipeline.train_v2()
         else:
             print("There isn't enough data for : ", class_name)
 
