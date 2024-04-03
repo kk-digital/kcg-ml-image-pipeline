@@ -139,6 +139,8 @@ def preprocess_train(examples, vae, image_encoder, device, weight_dtype):
     
     # Transform images to pixel values
     images_tensor = train_transforms(image).to(device, weight_dtype)
+
+    print(images_tensor, images_tensor.shape)
     
     # Calculate CLIP embeddings
     clip_images = image_processor(image, return_tensors="pt").pixel_values
