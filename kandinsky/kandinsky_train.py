@@ -209,9 +209,8 @@ while step < max_train_steps:
 
     with torch.cuda.amp.autocast(True):
         added_cond_kwargs = {"image_embeds": image_embeds}
-        with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as inference_prof:
-            with record_function("inference_step"):
-                model_pred = unet(noisy_latents, timesteps, None, added_cond_kwargs=added_cond_kwargs).sample[:, :4]
+        with profile(activities=[ProfilerActivity.CUDA], profile_memory=True, record_shapes=True) as inference_prof:
+            model_pred = unet(noisy_latents, timesteps, None, added_cond_kwargs=added_cond_kwargs).sample[:, :4]
         if snr_gamma is None:
             loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
         else:
@@ -227,16 +226,14 @@ while step < max_train_steps:
         loss = loss / gradient_accumulation_steps  # Adjust loss for gradient accumulation
 
     # Backward pass profiling
-    with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as backward_pass_prof:
-        with record_function("backward_pass"):
-            loss.backward()
+    with profile(activities=[ProfilerActivity.CUDA], profile_memory=True, record_shapes=True) as backward_pass_prof:
+        loss.backward()
 
     step+=1 
     # Optimizer step profiling
     if step % gradient_accumulation_steps == 0:
-        with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as optimizer_prof:
-            with record_function("optimizer_step"):
-                optimizer.step()
+        with profile(activities=[ProfilerActivity.CUDA], profile_memory=True, record_shapes=True) as optimizer_prof:
+            optimizer.step()
         lr_scheduler.step()
         optimizer.zero_grad()
 
@@ -249,9 +246,9 @@ while step < max_train_steps:
         # torch.save(unet.state_dict(), f"unet.pth")
 
 # Analyze profiling results
-inference_report= inference_prof.key_averages().table()
-optimizer_report= optimizer_prof.key_averages().table()
-backward_pass_report= backward_pass_prof.key_averages().table()
+inference_report= inference_prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=10)
+optimizer_report= optimizer_prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=10)
+backward_pass_report= backward_pass_prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=10)
 
 log_file.write(f"Forward pass: \n\n {inference_report} \n\n")
 log_file.write(f"Backward Pass: \n\n {backward_pass_report} \n\n")
