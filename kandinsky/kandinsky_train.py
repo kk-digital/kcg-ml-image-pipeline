@@ -211,18 +211,18 @@ while step < max_train_steps:
         added_cond_kwargs = {"image_embeds": image_embeds}
         with profile(activities=[ProfilerActivity.CUDA], profile_memory=True, record_shapes=True) as inference_prof:
             model_pred = unet(noisy_latents, timesteps, None, added_cond_kwargs=added_cond_kwargs).sample[:, :4]
-        if snr_gamma is None:
-            loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
-        else:
-            snr = compute_snr(noise_scheduler, timesteps)
-            mse_loss_weights = torch.stack([snr, snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0]
-            if noise_scheduler.config.prediction_type == "epsilon":
-                mse_loss_weights = mse_loss_weights / snr
-            elif noise_scheduler.config.prediction_type == "v_prediction":
-                mse_loss_weights = mse_loss_weights / (snr + 1)
-            loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
-            loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
-            loss = loss.mean()
+            if snr_gamma is None:
+                loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
+            else:
+                snr = compute_snr(noise_scheduler, timesteps)
+                mse_loss_weights = torch.stack([snr, snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0]
+                if noise_scheduler.config.prediction_type == "epsilon":
+                    mse_loss_weights = mse_loss_weights / snr
+                elif noise_scheduler.config.prediction_type == "v_prediction":
+                    mse_loss_weights = mse_loss_weights / (snr + 1)
+                loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
+                loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
+                loss = loss.mean()
         loss = loss / gradient_accumulation_steps  # Adjust loss for gradient accumulation
 
     # Backward pass profiling
@@ -246,11 +246,11 @@ while step < max_train_steps:
         # torch.save(unet.state_dict(), f"unet.pth")
 
 # Analyze profiling results
-inference_report= inference_prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=10)
-optimizer_report= optimizer_prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=10)
-backward_pass_report= backward_pass_prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=10)
+inference_report= inference_prof.key_averages().table(sort_by="self_cuda_memory_usage")
+optimizer_report= optimizer_prof.key_averages().table(sort_by="self_cuda_memory_usage")
+backward_pass_report= backward_pass_prof.key_averages().table(sort_by="self_cuda_memory_usage")
 
-log_file.write(f"Forward pass: \n\n {inference_report} \n\n")
+log_file.write(f"Forward pass and Loss Calculation: \n\n {inference_report} \n\n")
 log_file.write(f"Backward Pass: \n\n {backward_pass_report} \n\n")
 log_file.write(f"Optimization step: \n\n {optimizer_report} \n\n")
 log_file.close()  # Close the log file
