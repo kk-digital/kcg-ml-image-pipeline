@@ -210,7 +210,8 @@ while step < max_train_steps:
 
         with torch.cuda.amp.autocast(True):
             added_cond_kwargs = {"image_embeds": image_embeds}
-            model_pred = unet(noisy_latents, timesteps, None, added_cond_kwargs=added_cond_kwargs).sample[:, :4]
+            with record_function("inference_step"):
+                model_pred = unet(noisy_latents, timesteps, None, added_cond_kwargs=added_cond_kwargs).sample[:, :4]
             if snr_gamma is None:
                 loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
             else:
@@ -246,7 +247,10 @@ while step < max_train_steps:
             # torch.save(unet.state_dict(), f"unet.pth")
 
 # Analyze profiling results
-print(prof.key_averages().table(sort_by="self_cuda_memory_usage"))
+profiler_report= prof.key_averages().select("self_cuda_memory_usage", "cuda_time", "cpu_time").table(sort_by="self_cuda_memory_usage", row_limit=10)
+print(profiler_report)
+log_file.write(f"profiler_report: \n\n 
+               {profiler_report}")
 log_file.close()  # Close the log file
 
 # get minio client
