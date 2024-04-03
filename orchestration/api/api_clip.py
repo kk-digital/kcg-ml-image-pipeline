@@ -375,7 +375,6 @@ def get_random_image_similarity_date_range(
 
         # remove the datasets/ prefix
         image_path = image_path.replace("datasets/", "")
-        print(image_path)
 
         image_path_list.append(image_path)
 
