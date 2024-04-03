@@ -148,8 +148,8 @@ async def delete_classifier(request: Request, classifier_id: int ):
 # Updated apis
 
 
-@router.post("/classifiers/register-tag-classifier", 
-             tags=["classifier"],
+@router.post("/pseudotag-classifiers/register-tag-classifier", 
+             tags=["pseudotag classifier"],
              description="Adds a new classifier model",
              response_model=StandardSuccessResponseV1[Classifier],
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
@@ -196,8 +196,8 @@ async def create_classifier(request: Request, request_classifier_data: RequestCl
         )
 
 
-@router.patch("/classifiers/update-tag-classifier", 
-             tags=["classifier"],
+@router.patch("/pseudotag-classifiers/update-tag-classifier", 
+             tags=["pseudotag classifier"],
              response_model=StandardSuccessResponseV1[Classifier],
              description="Updates an existing classifier model",
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
@@ -257,10 +257,10 @@ async def update_classifier(request: Request, classifier_id: int, update_data: R
 
 
     
-@router.get("/classifiers/list-classifiers", 
+@router.get("/pseudotag-classifiers/list-classifiers", 
             response_model=StandardSuccessResponseV1[ListClassifier],
             description="list Classifiers",
-            tags=["classifier"],
+            tags=["pseudotag classifier"],
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
 async def list_classifiers(request: Request):
@@ -284,8 +284,8 @@ async def list_classifiers(request: Request):
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
 
 
-@router.delete("/classifiers/remove-classifier-with-id", 
-               tags=["classifier"],
+@router.delete("/pseudotag-classifiers/remove-classifier-with-id", 
+               tags=["pseudotag classifier"],
                response_model=StandardSuccessResponseV1[WasPresentResponse], 
                description="Deletes a classifier model by its classifier_id",
                responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))

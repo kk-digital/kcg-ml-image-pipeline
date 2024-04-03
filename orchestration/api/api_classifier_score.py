@@ -278,10 +278,10 @@ async def list_images_by_classifier_scores(
 # Updated apis
   
 
-@router.get("/classifier-scores/get-image-classifier-score-by-hash-and-classifier-id", 
+@router.get("/pseudotag-classifier-scores/get-image-classifier-score-by-hash-and-classifier-id", 
             description="Get image classifier score by classifier_id and image_hash",
             status_code=200,
-            tags=["classifier-scores"],  
+            tags=["pseudotag-classifier-scores"],  
             response_model=StandardSuccessResponseV1[ClassifierScoreV1],  
             responses=ApiResponseHandlerV1.listErrors([400,422]))
 def get_image_classifier_score_by_hash(request: Request, image_hash: str, classifier_id: int):
@@ -311,10 +311,10 @@ def get_image_classifier_score_by_hash(request: Request, image_hash: str, classi
 
 
 
-@router.get("/classifier-scores/get-image-classifier-score-by-uuid-and-classifier-id", 
+@router.get("/pseudotag-classifier-scores/get-image-classifier-score-by-uuid-and-classifier-id", 
             description="Get image classifier score by uuid and classifier_id",
             status_code=200,
-            tags=["classifier-scores"],  
+            tags=["pseudotag-classifier-scores"],  
             response_model=StandardSuccessResponseV1[ClassifierScoreV1],  
             responses=ApiResponseHandlerV1.listErrors([400,422]))
 def get_image_classifier_score_by_uuid_and_classifier_id(request: Request, 
@@ -349,11 +349,11 @@ def get_image_classifier_score_by_uuid_and_classifier_id(request: Request,
 
 
 
-@router.post("/classifier-scores/set-image-classifier-score", 
+@router.post("/pseudotag-classifier-scores/set-image-classifier-score", 
              status_code=200,
              response_model=StandardSuccessResponseV1[ClassifierScoreV1],
              description="Set classifier image score",
-             tags=["classifier-scores"], 
+             tags=["pseudotag-classifier-scores"], 
              responses=ApiResponseHandlerV1.listErrors([404, 422, 500]) 
              )
 async def set_image_classifier_score(request: Request, classifier_score: ClassifierScoreRequest):
@@ -424,10 +424,10 @@ async def set_image_classifier_score(request: Request, classifier_score: Classif
         )
 
 
-@router.delete("/classifier-scores/delete-image-classifier-score-by-uuid-and-classifier-id", 
+@router.delete("/pseudotag-classifier-scores/delete-image-classifier-score-by-uuid-and-classifier-id", 
                description="Delete image classifier score by specific uuid and classifier id.",
                status_code=200,
-               tags=["classifier-scores"],
+               tags=["pseudotag-classifier-scores"],
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([422]))
 async def delete_image_classifier_score_by_uuid_and_classifier_id(
@@ -458,9 +458,9 @@ async def delete_image_classifier_score_by_uuid_and_classifier_id(
         )
 
 
-@router.get("/classifier-scores/list-image-by-scores", 
+@router.get("/pseudotag-classifier-scores/list-image-by-scores", 
             description="List image scores based on classifier criteria",
-            tags=["classifier-scores"],  
+            tags=["pseudotag-classifier-scores"],  
             response_model=StandardSuccessResponseV1[ListClassifierScore1],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 async def list_image_scores(
@@ -490,6 +490,62 @@ async def list_image_scores(
 
     # Fetch and sort data from MongoDB with pagination
     cursor = request.app.image_classifier_scores_collection.find(query).sort([("score", sort_order)]).skip(offset).limit(limit)
+    scores_data = list(cursor)
+
+    # Remove _id in response data
+    for score in scores_data:
+        score.pop('_id', None)
+
+    # Prepare the data for the response
+    images_data = ListClassifierScore1(images=[ClassifierScoreV1(**doc).to_dict() for doc in scores_data]).dict()
+
+    # Return the fetched data with a success response
+    return response_handler.create_success_response_v1(
+        response_data=images_data, 
+        http_status_code=200
+    )
+
+
+@router.get("/pseudotag-classifier-scores/list-image-by-scores-v1", 
+            description="List image scores based on classifier",
+            tags=["pseudotag-classifier-scores"],  
+            response_model=StandardSuccessResponseV1[ListClassifierScore1],  
+            responses=ApiResponseHandlerV1.listErrors([400, 422]))
+async def list_image_scores(
+    request: Request,
+    classifier_id: Optional[int] = Query(None, description="Filter by classifier ID"),
+    min_score: Optional[float] = Query(None, description="Minimum score"),
+    max_score: Optional[float] = Query(None, description="Maximum score"),
+    limit: int = Query(10, description="Limit on the number of results returned"),
+    offset: int = Query(0, description="Offset for pagination"),
+    order: str = Query("desc", description="Sort order: 'asc' for ascending, 'desc' for descending"),
+    random_sampling: bool = Query(True, description="Enable random sampling")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    # Build the query based on provided filters
+    query = {}
+    if classifier_id is not None:
+        query["classifier_id"] = classifier_id
+    if min_score is not None and max_score is not None:
+        query["score"] = {"$gte": min_score, "$lte": max_score}
+    elif min_score is not None:
+        query["score"] = {"$gte": min_score}
+    elif max_score is not None:
+        query["score"] = {"$lte": max_score}
+
+    # Modify behavior based on random_sampling parameter
+    if random_sampling:
+        # Fetch data without sorting when random_sampling is True
+        cursor = request.app.image_classifier_scores_collection.aggregate([
+            {"$match": query},
+            {"$sample": {"size": limit}}  # Use the MongoDB $sample operator for random sampling
+        ])
+    else:
+        # Determine sort order and fetch sorted data when random_sampling is False
+        sort_order = 1 if order == "asc" else -1
+        cursor = request.app.image_classifier_scores_collection.find(query).sort([("score", sort_order)]).skip(offset).limit(limit)
+    
     scores_data = list(cursor)
 
     # Remove _id in response data
