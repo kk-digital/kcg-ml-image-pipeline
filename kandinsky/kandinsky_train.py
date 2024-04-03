@@ -23,18 +23,23 @@ from utility.minio import cmd
 # Set up file for logging
 log_file_path= "memory_usage_log.txt"
 log_file = open(log_file_path, "w")
+total_memory=0
 
 # Function to log memory usage
-def log_memory_usage(description):
-    memory_used= torch.cuda.memory_allocated(device) / (1024 * 1024 * 1024)
+def log_memory_usage(description, current_memory_usage):
+    total_memory= torch.cuda.memory_allocated(device) / (1024 * 1024 * 1024)
+    memory_used_at_step= total_memory - current_memory_usage 
     max_memory= torch.cuda.max_memory_allocated(device) / (1024 * 1024 * 1024)
-    log_file.write(f"{description}-----------------------\n")
-    log_file.write(f"Memory allocated: {memory_used} GB\n")
-    log_file.write(f"Max memory allocated: {max_memory} GB\n\n")
 
-    print(f"{description}-----------------------\n")
-    print(f"Memory allocated: {memory_used} GB")
-    print(f"Max memory allocated: {max_memory} GB")
+    log_file.write(f"{description}-----------------------\n")
+    log_file.write(f"Memory allocated at this step: {memory_used_at_step} GB\n")
+    log_file.write(f"Total allocated memory: {total_memory} GB\n\n")
+
+    print(f"{description}-----------------------")
+    print(f"Memory allocated at this step: {memory_used_at_step} GB")
+    print(f"Total allocated memory: {total_memory} GB")
+
+    return total_memory
 
 weight_dtype = torch.float16
 
@@ -51,7 +56,7 @@ adam_epsilon = 1e-8
 
 snr_gamma = None
 
-max_train_steps = 1000
+max_train_steps = 1
 gradient_accumulation_steps = 1
 checkpointing_steps = 100
 
@@ -95,11 +100,11 @@ unet.enable_gradient_checkpointing()
 
 # Move image_encode and vae to gpu and cast to weight_dtype
 image_encoder.to(device, dtype=weight_dtype)
-log_memory_usage("Loading the image encoder")
+total_memory= log_memory_usage("Loading the image encoder", total_memory)
 vae.to(device, dtype=weight_dtype)
-log_memory_usage("Loading the vae")
+total_memory= log_memory_usage("Loading the vae", total_memory)
 unet.to(device, dtype=weight_dtype)
-log_memory_usage("Loading the Unet")
+total_memory= log_memory_usage("Loading the Unet", total_memory)
 optimizer = optimizer_cls(
     unet.parameters(),
     lr=learning_rate,
@@ -134,11 +139,10 @@ if not os.path.exists("input/pokemon-blip-captions"):
     dataset.save_to_disk('input/pokemon-blip-captions')
 
 dataset = datasets.load_dataset('arrow', data_files={'train': 'input/pokemon-blip-captions/train/data-00000-of-00001.arrow'})
-log_memory_usage("Loading the pokemon dataset")
+total_memory= log_memory_usage("Loading the pokemon dataset", total_memory)
 
 # Set the training transforms
 train_dataset = dataset["train"].with_transform(preprocess_train)
-log_memory_usage("Pre-processing the pokemon dataset")
 
 def collate_fn(examples):
     pixel_values = torch.stack([example["pixel_values"] for example in examples])
@@ -172,7 +176,6 @@ losses = list()
 # scaler = torch.cuda.amp.GradScaler()
 
 while step < max_train_steps:
-    
     try:
         batch = next(data_iter)
     except:
@@ -191,6 +194,8 @@ while step < max_train_steps:
         clip_images = batch["clip_pixel_values"].to(device, weight_dtype)
         latents = vae.encode(images).latents
         image_embeds = image_encoder(clip_images).image_embeds
+    
+    total_memory= log_memory_usage("Coverting images to latent space", total_memory)
     
     # Sample noise that we'll add to the latents
     noise = torch.randn_like(latents)
@@ -224,6 +229,8 @@ while step < max_train_steps:
             loss = loss.mean()
         
         loss = loss / gradient_accumulation_steps  # Adjust loss for gradient accumulation
+
+        total_memory= log_memory_usage("Loss Calculation", total_memory)
         
     loss.backward()
     step += 1
@@ -234,6 +241,8 @@ while step < max_train_steps:
         lr_scheduler.step()
         optimizer.zero_grad()
         # progress_bar.update(1)
+
+    total_memory= log_memory_usage("Updating gradients", total_memory)
 
     # scaler.scale(loss).backward()
     # step += 1
@@ -252,7 +261,6 @@ while step < max_train_steps:
     if step % checkpointing_steps == 0:
         print(f"Epoch: {epoch}, Step: {step}, Loss: {np.mean(losses)}")
         losses = list()
-        log_memory_usage(f"Training step {step}")
         # torch.save(unet.state_dict(), f"unet.pth")
 
 log_file.close()  # Close the log file
