@@ -34,10 +34,12 @@ def log_memory_usage(description, current_memory_usage):
     log_file.write(f"{description}-----------------------\n")
     log_file.write(f"Memory allocated at this step: {memory_used_at_step} GB\n")
     log_file.write(f"Total allocated memory: {total_memory} GB\n\n")
+    log_file.write(f"Max allocated memory: {max_memory} GB\n\n")
 
     print(f"{description}-----------------------")
     print(f"Memory allocated at this step: {memory_used_at_step} GB")
     print(f"Total allocated memory: {total_memory} GB")
+    print(f"Max allocated memory: {max_memory} GB")
 
     return total_memory
 
@@ -139,7 +141,6 @@ if not os.path.exists("input/pokemon-blip-captions"):
     dataset.save_to_disk('input/pokemon-blip-captions')
 
 dataset = datasets.load_dataset('arrow', data_files={'train': 'input/pokemon-blip-captions/train/data-00000-of-00001.arrow'})
-total_memory= log_memory_usage("Loading the pokemon dataset", total_memory)
 
 # Set the training transforms
 train_dataset = dataset["train"].with_transform(preprocess_train)
@@ -195,7 +196,7 @@ while step < max_train_steps:
         latents = vae.encode(images).latents
         image_embeds = image_encoder(clip_images).image_embeds
     
-    total_memory= log_memory_usage("Coverting images to latent space", total_memory)
+    total_memory= log_memory_usage("Batch processing", total_memory)
     
     # Sample noise that we'll add to the latents
     noise = torch.randn_like(latents)
