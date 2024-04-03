@@ -135,13 +135,13 @@ def train_transforms(img):
 #     return examples
 
 def preprocess_train(examples, vae, image_encoder, device, weight_dtype):
-    images = [image.convert("RGB") for image in examples[image_column]]
+    image = examples[image_column].convert("RGB")
     
     # Transform images to pixel values
-    examples["pixel_values"] = [train_transforms(image) for image in images]
+    examples["pixel_values"] = train_transforms(image)
     
     # Calculate CLIP embeddings
-    clip_images = image_processor(images, return_tensors="pt").pixel_values
+    clip_images = image_processor(image, return_tensors="pt").pixel_values
     examples["clip_pixel_values"]= clip_images
     with torch.no_grad():
         examples["image_embeds"] = image_encoder(clip_images.to(device, weight_dtype)).image_embeds
