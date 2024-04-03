@@ -249,8 +249,7 @@ while step < max_train_steps:
 # Analyze profiling results
 profiler_report= prof.key_averages().select("self_cuda_memory_usage", "cuda_time", "cpu_time").table(sort_by="self_cuda_memory_usage", row_limit=10)
 print(profiler_report)
-log_file.write(f"profiler_report: \n\n 
-               {profiler_report}")
+log_file.write(f"profiler_report: \n\n {profiler_report}")
 log_file.close()  # Close the log file
 
 # get minio client
