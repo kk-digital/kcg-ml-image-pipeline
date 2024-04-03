@@ -107,7 +107,7 @@ def preprocess_train(examples):
     examples["clip_pixel_values"] = image_processor(images, return_tensors="pt").pixel_values
     return examples
 
-if(os.path.exists("input/pokemon-blip-captions")):
+if not os.path.exists("input/pokemon-blip-captions"):
     dataset = datasets.load_dataset('reach-vb/pokemon-blip-captions')
     dataset.save_to_disk('input/pokemon-blip-captions')
 
