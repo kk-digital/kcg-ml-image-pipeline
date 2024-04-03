@@ -170,7 +170,7 @@ def encode_images(dataset, vae, image_encoder, device, weight_dtype):
 preprocessed_dataset = encode_images(train_dataset, vae, image_encoder, device, weight_dtype)
 
 train_dataloader = torch.utils.data.DataLoader(
-    train_dataset,
+    preprocessed_dataset,
     shuffle=True,
     collate_fn=collate_fn,
     batch_size=train_batch_size,
