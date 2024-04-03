@@ -852,12 +852,14 @@ def main():
         print("Initiating training of : ", class_name)
 
         target_paths, adv_paths = get_all_tag_jobs(class_ids = all_tags, target_id =class_tag)
-        train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(target_paths,1)
-        # Create dataloader of adversarial classes
-        train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_path(adv_paths,0)
 
 
-        if len(train_loader_automated) != 0: 
+
+        if len(target_paths) != 0: 
+
+            train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(target_paths,1)
+            # Create dataloader of adversarial classes
+            train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_path(adv_paths,0)
             print("Training starated for  ", class_name," with ",len(train_loader_automated)," data points.")
             training_pipeline=EBM_Single_Class(minio_access_key=args.minio_access_key,
                                         minio_secret_key=args.minio_secret_key,
