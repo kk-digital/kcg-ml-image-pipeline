@@ -231,6 +231,7 @@ while step < max_train_steps:
             with record_function("backward_pass"):
                 loss.backward()
 
+            step+=1 
             # Optimizer step profiling
             with record_function("optimizer_step"):
                 if step % gradient_accumulation_steps == 0:
@@ -247,7 +248,7 @@ while step < max_train_steps:
                 # torch.save(unet.state_dict(), f"unet.pth")
 
 # Analyze profiling results
-print(prof.key_averages().table())
+print(prof.key_averages().table(sort_by="self_cuda_memory_usage", row_limit=10))
 log_file.close()  # Close the log file
 
 # get minio client
