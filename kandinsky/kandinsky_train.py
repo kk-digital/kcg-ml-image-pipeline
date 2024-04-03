@@ -44,7 +44,7 @@ def log_memory_usage(description, current_memory_usage):
 
     return total_memory
 
-weight_dtype = torch.float16
+weight_dtype = torch.float32
 
 device = torch.device(0)
 
