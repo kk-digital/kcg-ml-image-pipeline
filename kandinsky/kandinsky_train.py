@@ -247,7 +247,7 @@ while step < max_train_steps:
             # torch.save(unet.state_dict(), f"unet.pth")
 
 # Analyze profiling results
-profiler_report= prof.key_averages().table(sort_by="self_cuda_memory_usage", row_limit=10)
+profiler_report= prof.key_averages().table()
 print(profiler_report)
 log_file.write(f"profiler_report: \n\n {profiler_report}")
 log_file.close()  # Close the log file
