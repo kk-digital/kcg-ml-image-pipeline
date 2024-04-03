@@ -263,11 +263,8 @@ minio_client = cmd.get_minio_client(minio_access_key="v048BpXpWrsVIHUfdAix",
 
 # Save log file and get its data buffer with BytesIO
 with open(log_file_path, 'rb') as file:
-    data = io.BytesIO(file.read())
-
-# Upload the local file to MinIO
-buffer = BytesIO(data)
-buffer.seek(0)
+    buffer = io.BytesIO(file.read())
+    buffer.seek(0)
 
 cmd.upload_data(minio_client, 'datasets', "environmental/output/kandinsky_train_report.txt" , buffer)
 
