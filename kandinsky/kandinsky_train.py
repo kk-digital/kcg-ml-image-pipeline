@@ -234,12 +234,12 @@ while step < max_train_steps:
         total_memory= log_memory_usage("Loss Calculation", total_memory)
         
     loss.backward()
-    total_memory= log_memory_usage("Backward Pass", total_memory)
 
     step += 1
     if step % gradient_accumulation_steps == 0:
         # Performs the optimizer step
         optimizer.step()
+        total_memory= log_memory_usage("Optimizer step", total_memory)
         # Update the learning rate
         lr_scheduler.step()
         optimizer.zero_grad()
