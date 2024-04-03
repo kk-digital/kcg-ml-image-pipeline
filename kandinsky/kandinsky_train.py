@@ -178,78 +178,84 @@ losses = list()
 # scaler = torch.cuda.amp.GradScaler()
 
 while step < max_train_steps:
-    with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as prof:
-        try:
-            batch = next(data_iter)
-        except StopIteration:
-            epoch += 1
-            data_iter = iter(train_dataloader)
-            batch = next(data_iter)
-            print(f"Epoch: {epoch}, Step: {step}, Loss: {np.mean(losses)}")
-            losses = list()
+    try:
+        batch = next(data_iter)
+    except StopIteration:
+        epoch += 1
+        data_iter = iter(train_dataloader)
+        batch = next(data_iter)
+        print(f"Epoch: {epoch}, Step: {step}, Loss: {np.mean(losses)}")
+        losses = list()
 
-        # Set unet to trainable.
-        unet.train()
+    # Set unet to trainable.
+    unet.train()
 
-        # Convert images to latent space
-        with torch.no_grad():
-            images = batch["pixel_values"].to(device, weight_dtype)
-            clip_images = batch["clip_pixel_values"].to(device, weight_dtype)
-            latents = vae.encode(images).latents
-            image_embeds = image_encoder(clip_images).image_embeds
+    # Convert images to latent space
+    with torch.no_grad():
+        images = batch["pixel_values"].to(device, weight_dtype)
+        clip_images = batch["clip_pixel_values"].to(device, weight_dtype)
+        latents = vae.encode(images).latents
+        image_embeds = image_encoder(clip_images).image_embeds
 
-        # Sample noise that we'll add to the latents
-        noise = torch.randn_like(latents)
-        bsz = latents.shape[0]
-        # Sample a random timestep for each image
-        timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (bsz,), device=latents.device)
-        timesteps = timesteps.long()
+    # Sample noise that we'll add to the latents
+    noise = torch.randn_like(latents)
+    bsz = latents.shape[0]
+    # Sample a random timestep for each image
+    timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (bsz,), device=latents.device)
+    timesteps = timesteps.long()
 
-        noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
-        target = noise
+    noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
+    target = noise
 
-        with torch.cuda.amp.autocast(True):
-            added_cond_kwargs = {"image_embeds": image_embeds}
+    with torch.cuda.amp.autocast(True):
+        added_cond_kwargs = {"image_embeds": image_embeds}
+        with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as inference_prof:
             with record_function("inference_step"):
                 model_pred = unet(noisy_latents, timesteps, None, added_cond_kwargs=added_cond_kwargs).sample[:, :4]
-            if snr_gamma is None:
-                loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
-            else:
-                snr = compute_snr(noise_scheduler, timesteps)
-                mse_loss_weights = torch.stack([snr, snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0]
-                if noise_scheduler.config.prediction_type == "epsilon":
-                    mse_loss_weights = mse_loss_weights / snr
-                elif noise_scheduler.config.prediction_type == "v_prediction":
-                    mse_loss_weights = mse_loss_weights / (snr + 1)
-                loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
-                loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
-                loss = loss.mean()
-            loss = loss / gradient_accumulation_steps  # Adjust loss for gradient accumulation
+        if snr_gamma is None:
+            loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
+        else:
+            snr = compute_snr(noise_scheduler, timesteps)
+            mse_loss_weights = torch.stack([snr, snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0]
+            if noise_scheduler.config.prediction_type == "epsilon":
+                mse_loss_weights = mse_loss_weights / snr
+            elif noise_scheduler.config.prediction_type == "v_prediction":
+                mse_loss_weights = mse_loss_weights / (snr + 1)
+            loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
+            loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
+            loss = loss.mean()
+        loss = loss / gradient_accumulation_steps  # Adjust loss for gradient accumulation
 
-        # Backward pass profiling
+    # Backward pass profiling
+    with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as backward_pass_prof:
         with record_function("backward_pass"):
             loss.backward()
 
-        step+=1 
-        # Optimizer step profiling
-        if step % gradient_accumulation_steps == 0:
+    step+=1 
+    # Optimizer step profiling
+    if step % gradient_accumulation_steps == 0:
+        with profile(activities=[ProfilerActivity.CUDA], record_shapes=True) as optimizer_prof:
             with record_function("optimizer_step"):
                 optimizer.step()
-            lr_scheduler.step()
-            optimizer.zero_grad()
+        lr_scheduler.step()
+        optimizer.zero_grad()
 
-        losses.append(loss.detach().cpu().numpy())
+    losses.append(loss.detach().cpu().numpy())
 
-        # Save model periodically or based on conditions
-        if step % checkpointing_steps == 0:
-            print(f"Epoch: {epoch}, Step: {step}, Loss: {np.mean(losses)}")
-            losses = list()
-            # torch.save(unet.state_dict(), f"unet.pth")
+    # Save model periodically or based on conditions
+    if step % checkpointing_steps == 0:
+        print(f"Epoch: {epoch}, Step: {step}, Loss: {np.mean(losses)}")
+        losses = list()
+        # torch.save(unet.state_dict(), f"unet.pth")
 
 # Analyze profiling results
-profiler_report= prof.key_averages().table()
-print(profiler_report)
-log_file.write(f"profiler_report: \n\n {profiler_report}")
+inference_report= inference_prof.key_averages().table()
+optimizer_report= optimizer_prof.key_averages().table()
+backward_pass_report= backward_pass_prof.key_averages().table()
+
+log_file.write(f"Forward pass: \n\n {inference_report} \n\n")
+log_file.write(f"Backward Pass: \n\n {backward_pass_report} \n\n")
+log_file.write(f"Optimization step: \n\n {optimizer_report} \n\n")
 log_file.close()  # Close the log file
 
 # get minio client
