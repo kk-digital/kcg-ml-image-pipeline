@@ -131,10 +131,31 @@ def train_transforms(img):
     img = torch.from_numpy(np.transpose(img, [2, 0, 1]))
     return img
 
-def preprocess_train(examples):
+# def preprocess_train(examples):
+#     images = [image.convert("RGB") for image in examples[image_column]]
+#     examples["pixel_values"] = [train_transforms(image) for image in images]
+#     examples["clip_pixel_values"] = image_processor(images, return_tensors="pt").pixel_values
+#     return examples
+
+def preprocess_train(examples, vae, image_encoder, device, weight_dtype):
     images = [image.convert("RGB") for image in examples[image_column]]
+    
+    # Transform images to pixel values
     examples["pixel_values"] = [train_transforms(image) for image in images]
-    examples["clip_pixel_values"] = image_processor(images, return_tensors="pt").pixel_values
+    
+    # Calculate CLIP embeddings
+    clip_images = image_processor(images, return_tensors="pt").pixel_values
+    examples["clip_pixel_values"]= clip_images
+    with torch.no_grad():
+        examples["image_embeds"] = image_encoder(clip_images.to(device, weight_dtype)).image_embeds
+    
+    # Convert images to torch tensors
+    images_tensor = torch.stack(examples["pixel_values"]).to(device, weight_dtype)
+    
+    # Calculate VAE latents
+    with torch.no_grad():
+        examples["latents"] = vae.encode(images_tensor).latents
+        
     return examples
 
 if not os.path.exists("input/pokemon-blip-captions"):
@@ -144,7 +165,14 @@ if not os.path.exists("input/pokemon-blip-captions"):
 dataset = datasets.load_dataset('arrow', data_files={'train': 'input/pokemon-blip-captions/train/data-00000-of-00001.arrow'})
 
 # Set the training transforms
-train_dataset = dataset["train"].with_transform(preprocess_train)
+train_dataset = dataset["train"].map(
+    lambda example: preprocess_train(example, vae, image_encoder, device, weight_dtype),
+    batched=True,
+    batch_size=train_batch_size,
+    remove_columns=[image_column]  # Remove original image column
+)
+
+# train_dataset = dataset["train"].with_transform(preprocess_train)
 
 def collate_fn(examples):
     pixel_values = torch.stack([example["pixel_values"] for example in examples])
