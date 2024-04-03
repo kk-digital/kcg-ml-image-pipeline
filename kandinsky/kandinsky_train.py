@@ -176,7 +176,7 @@ def collate_fn(examples):
     # clip_pixel_values = torch.stack([example["clip_pixel_values"] for example in examples])
     # clip_pixel_values = clip_pixel_values.to(memory_format=torch.contiguous_format).float()
     
-    print(examples[0]["latents"])
+    print(examples[0]["latents"][0], len(examples[0]["latents"]))
     latents = torch.stack([example["latents"] for example in examples])
     latents = latents.to(memory_format=torch.contiguous_format).float()
     image_embeds = torch.stack([example["image_embeds"] for example in examples])
