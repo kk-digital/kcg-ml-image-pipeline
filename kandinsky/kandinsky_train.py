@@ -18,9 +18,6 @@ sys.path.insert(0, os.getcwd())
 from kandinsky.model_paths import PRIOR_MODEL_PATH, DECODER_MODEL_PATH
 from utility.minio import cmd
 
-# Set the multiprocessing start method to 'spawn'
-multiprocessing.set_start_method('spawn', force=True)
-
 # Set up file for logging
 log_file_path= "memory_usage_log.txt"
 log_file = open(log_file_path, "w")
