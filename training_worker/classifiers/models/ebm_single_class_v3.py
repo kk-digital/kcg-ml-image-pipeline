@@ -856,7 +856,7 @@ def main():
 
 
         if len(target_paths) >= 16: 
-
+            
             train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(target_paths,1)
             # Create dataloader of adversarial classes
             train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_path(adv_paths,0)
@@ -865,7 +865,7 @@ def main():
             training_pipeline=EBM_Single_Class(minio_access_key=args.minio_access_key,
                                         minio_secret_key=args.minio_secret_key,
                                         dataset= args.dataset,
-                                        class_name= args.class_name,
+                                        class_name= class_name,
                                         model = None,
                                         save_name = args.save_name,
                                         class_id =  get_tag_id_by_name(args.class_name),
@@ -877,7 +877,7 @@ def main():
                                         val_loader  = val_loader_automated,
                                         adv_loader = train_loader_clip_ood)
             # do self training
-            training_pipeline.train_v2()
+            training_pipeline.train()
         else:
             print("There isn't enough data for : ", class_name)
 
