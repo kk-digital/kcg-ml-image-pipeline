@@ -138,16 +138,12 @@ def preprocess_train(examples, vae, image_encoder, device, weight_dtype):
     image = examples[image_column].convert("RGB")
     
     # Transform images to pixel values
-    examples["pixel_values"] = train_transforms(image)
+    images_tensor = train_transforms(image).to(device, weight_dtype)
     
     # Calculate CLIP embeddings
     clip_images = image_processor(image, return_tensors="pt").pixel_values
-    examples["clip_pixel_values"]= clip_images
     with torch.no_grad():
         examples["image_embeds"] = image_encoder(clip_images.to(device, weight_dtype)).image_embeds
-    
-    # Convert images to torch tensors
-    images_tensor = torch.stack(examples["pixel_values"]).to(device, weight_dtype)
     
     # Calculate VAE latents
     with torch.no_grad():
