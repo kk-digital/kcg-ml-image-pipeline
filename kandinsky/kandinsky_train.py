@@ -266,4 +266,4 @@ buffer.seek(0)
 cmd.upload_data(minio_client, 'datasets', "environmental/output/kandinsky_train_report.txt" , buffer)
 
 # Remove the temporary file
-os.remove("memory_usage_log.txt")
+os.remove(log_file_path)
