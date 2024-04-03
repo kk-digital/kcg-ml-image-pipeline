@@ -26,9 +26,13 @@ log_file = open(log_file_path, "w")
 
 # Function to log memory usage
 def log_memory_usage(description):
+    memory_used= torch.cuda.memory_allocated(device)
+    max_memory= torch.cuda.max_memory_allocated(device)
     log_file.write(f"{description}-----------------------\n")
-    log_file.write(f"Memory allocated: {torch.cuda.memory_allocated(device)} bytes\n")
-    log_file.write(f"Max memory allocated: {torch.cuda.max_memory_allocated(device)} bytes\n\n")
+    log_file.write(f"Memory allocated: {memory_used} bytes\n")
+    log_file.write(f"Max memory allocated: {max_memory} bytes\n\n")
+    print(f"Memory allocated: {memory_used} bytes")
+    print(f"Max memory allocated: {max_memory} bytes")
 
 weight_dtype = torch.float16
 
