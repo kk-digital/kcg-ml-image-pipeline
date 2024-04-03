@@ -1,15 +1,13 @@
-from io import BytesIO
 import io
 import os
 import sys
 import torch
 import datasets
-
 import torch.nn.functional as F
 from diffusers.optimization import get_scheduler
-from diffusers import AutoPipelineForText2Image, DDPMScheduler, UNet2DConditionModel, VQModel
+from diffusers import DDPMScheduler, UNet2DConditionModel, VQModel
 from transformers import CLIPImageProcessor, CLIPVisionModelWithProjection
-
+import multiprocessing
 from PIL import Image
 import numpy as np
 from tqdm.auto import tqdm
@@ -19,6 +17,9 @@ sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 from kandinsky.model_paths import PRIOR_MODEL_PATH, DECODER_MODEL_PATH
 from utility.minio import cmd
+
+# Set the multiprocessing start method to 'spawn'
+multiprocessing.set_start_method('spawn', force=True)
 
 # Set up file for logging
 log_file_path= "memory_usage_log.txt"
