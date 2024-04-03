@@ -276,9 +276,9 @@ class EBM_Single_Class:
                 save_name,
                 dataset,
                 class_id,
-                train_loader,
-                val_loader,
-                adv_loader,
+                # train_loader,
+                # val_loader,
+                # adv_loader,
                 training_batch_size=16,
                 num_samples=30000,
                 learning_rate = 0.001,
@@ -857,9 +857,9 @@ def main():
 
         if len(target_paths) >= 16: 
             
-            train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(target_paths,1)
-            # Create dataloader of adversarial classes
-            train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_path(adv_paths,0)
+            # train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(target_paths,1)
+            # # Create dataloader of adversarial classes
+            # train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_path(adv_paths,0)
             print("Training starated for  ", class_name," with ",len(train_loader_automated)," data points.")
 
             training_pipeline=EBM_Single_Class(minio_access_key=args.minio_access_key,
@@ -872,10 +872,8 @@ def main():
                                         training_batch_size=args.training_batch_size,
                                         num_samples= args.num_samples,
                                         epochs= args.epochs,
-                                        learning_rate= args.learning_rate,
-                                        train_loader = train_loader_automated,
-                                        val_loader  = val_loader_automated,
-                                        adv_loader = train_loader_clip_ood)
+                                        learning_rate= args.learning_rate)
+
             # do self training
             training_pipeline.train()
         else:
