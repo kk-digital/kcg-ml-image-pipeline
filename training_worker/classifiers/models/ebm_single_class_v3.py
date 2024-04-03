@@ -855,7 +855,7 @@ def main():
 
 
 
-        if len(target_paths) != 0: 
+        if len(target_paths) > 16: 
 
             train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(target_paths,1)
             # Create dataloader of adversarial classes
