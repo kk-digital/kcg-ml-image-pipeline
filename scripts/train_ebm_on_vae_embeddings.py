@@ -507,7 +507,7 @@ class DeepEnergyModel(pl.LightningModule):
         cdiv_loss = fake_scores.mean() - real_scores.mean()
 
         # regression loss
-        reg_loss =(real_scores ** 2 + fake_scores ** 2).mean()
+        reg_loss =((real_scores + fake_scores )** 2) .mean()
 
         # Combine losses and backpropagate
         alphaW = 1  # Adjust weight for cdiv_loss
@@ -1177,7 +1177,7 @@ plt.clf()
 
 
 # Load the environmental dataset     
-images_paths_ood = get_file_paths("environmental",30000)
+images_paths_ood = get_file_paths("environmental",10000)
 
 # Evaluate new model
 #automated model
