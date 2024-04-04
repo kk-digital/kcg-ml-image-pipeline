@@ -256,8 +256,9 @@ while step < max_train_steps:
         loss = loss / gradient_accumulation_steps  # Adjust loss for gradient accumulation
 
     # Print sizes of model parameters
+    log_file.write("Parameters: \n\n")
     for name, param in unet.named_parameters():
-        print(f"Parameter: {name}, Size: {param.size()}")
+        log_file.write(f"{name}, Size: {param.size()} \n")
 
     # Backward pass profiling
     loss.backward()
@@ -266,7 +267,7 @@ while step < max_train_steps:
     # Optimizer step profiling
     if step % gradient_accumulation_steps == 0:
         # Context manager to enable autograd profiler
-        with profiler.profile() as prof:
+        with profiler.profile(use_cuda=True, profile_memory=True) as prof:
             optimizer.step()
         total_memory= log_memory_usage("Optimizer Step", total_memory)
         lr_scheduler.step()
@@ -281,7 +282,7 @@ while step < max_train_steps:
         # torch.save(unet.state_dict(), f"unet.pth")
 
 # Print the profiler results
-print(prof.key_averages().table())
+log_file.write(f"Optimizer profiler: \n\n {prof.key_averages().table()}")
 
 log_file.close()  # Close the log file
 
