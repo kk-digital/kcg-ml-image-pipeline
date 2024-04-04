@@ -265,12 +265,14 @@ class SphereSamplingGenerator:
                 point = torch.clamp(point, self.clip_min, self.clip_max)
 
                 # get classifier score
-                score = self.classifier_model.classify(point.unsqueeze(0)).to(device=self.device)
+                # score = self.classifier_model.classify(point.unsqueeze(0)).to(device=self.device)
 
                 # Collect generated vectors
                 clip_vectors = torch.cat((clip_vectors, point.unsqueeze(0)), dim=0)
-                scores = torch.cat((scores, score), dim=0)
+                # scores = torch.cat((scores, score), dim=0)
         
+        # get sampled datapoint scores
+        scores = self.scoring_model.predict(clip_vectors, batch_size= self.batch_size)
         # get top scoring datapoints
         _, sorted_indices = torch.sort(scores.squeeze(), descending=True)
         clip_vectors = clip_vectors[sorted_indices[:num_samples]]
@@ -300,16 +302,16 @@ class SphereSamplingGenerator:
                 scores = scoring_model.model(batch_embeddings)
 
                 # compute classifier scores
-                feature_vectors= batch_embeddings[:,:dim]
-                classifier_scores = []
-                for vector in feature_vectors:
-                    score= self.classifier_model.classify(vector.unsqueeze(0)).to(device=self.device)
-                    classifier_scores.append(score.unsqueeze(0))
+                # feature_vectors= batch_embeddings[:,:dim]
+                # classifier_scores = []
+                # for vector in feature_vectors:
+                #     score= self.classifier_model.classify(vector.unsqueeze(0)).to(device=self.device)
+                #     classifier_scores.append(score.unsqueeze(0))
                 
-                classifier_scores= torch.cat(classifier_scores, dim=0)
+                # classifier_scores= torch.cat(classifier_scores, dim=0)
 
                 # Calculate the loss for each embedding in the batch
-                score_losses = -scores.squeeze() - classifier_scores.squeeze()
+                score_losses = -scores.squeeze()
 
                 # Calculate the total loss for the batch
                 total_loss = score_losses.mean()
