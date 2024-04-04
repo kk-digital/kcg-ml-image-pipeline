@@ -131,7 +131,7 @@ class DirectionalGaussianGenerator:
             for i, idx in enumerate(point_indices, 0):
                 score = self.scores[idx]
                 sphere_scores.append(score)
-                weight = gaussian_pdf(distance_vector[i], variance)
+                weight = np.mean(gaussian_pdf(distance_vector[i], variance)).item()
                 sum_weights += weight
 
                 for i, bin_edge in enumerate(bins):
