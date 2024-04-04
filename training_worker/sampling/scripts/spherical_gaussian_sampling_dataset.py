@@ -36,7 +36,7 @@ def parse_args():
 
     return parser.parse_args()
 
-class SphericalGaussianGenerator:
+class DirectionalGaussianGenerator:
     def __init__(self,
                  minio_client,
                  dataset):
