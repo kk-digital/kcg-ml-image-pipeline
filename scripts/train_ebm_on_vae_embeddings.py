@@ -165,6 +165,7 @@ def get_image(file_path: str):
     return img
 
 import diffusers
+from torchvision.transforms import ToTensor
 
 def get_clip_and_image_from_path(image_path):
     image=get_image(image_path)
