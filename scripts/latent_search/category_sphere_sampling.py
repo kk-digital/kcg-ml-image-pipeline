@@ -261,7 +261,7 @@ class SphereSamplingGenerator:
                 point = torch.clamp(point, self.clip_min, self.clip_max)
 
                 # get classifier score
-                score = self.classifier_model.classify(point).to(device=self.device)
+                score = self.classifier_model.classify(point.unsqueeze(0)).to(device=self.device)
 
                 # Collect generated vectors
                 clip_vectors = torch.cat((clip_vectors, point.unsqueeze(0)), dim=0)
