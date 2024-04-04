@@ -179,7 +179,7 @@ def get_clip_and_image_from_path(image_path):
 
     clip_embedding = latents
     #clip_embedding = torch.tensor(clip_embedding)
-    return image,clip_embedding.float()
+    return image,clip_embedding
 
 
 def get_tag_jobs(tag_id):
