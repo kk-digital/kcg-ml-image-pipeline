@@ -178,7 +178,6 @@ class SphereSamplingGenerator:
         print("scoring spheres -----------")
         for sphere in tqdm(generated_spheres):
             feature_vector= sphere[:1280]
-            print(feature_vector.unsqueeze(0), feature_vector.unsqueeze(0).shape)
             score= self.classifier_model.classify(feature_vector.unsqueeze(0)).to(device=self.device)
             scores = torch.cat((scores, score), dim=0)
 
