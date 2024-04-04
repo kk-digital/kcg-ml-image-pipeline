@@ -128,31 +128,31 @@ def train_transforms(img):
     img = torch.from_numpy(np.transpose(img, [2, 0, 1]))
     return img
 
-# def preprocess_train(examples):
-#     images = [image.convert("RGB") for image in examples[image_column]]
-#     examples["pixel_values"] = [train_transforms(image) for image in images]
-#     examples["clip_pixel_values"] = image_processor(images, return_tensors="pt").pixel_values
-#     return examples
-
-def preprocess_train(examples, vae, image_encoder, device, weight_dtype):
+def preprocess_train(examples):
     images = [image.convert("RGB") for image in examples[image_column]]
-    
-    # Transform images to pixel values
-    pixel_values = [train_transforms(image) for image in images]
-    
-    # Calculate CLIP embeddings
-    clip_images = image_processor(images, return_tensors="pt").pixel_values
-    with torch.no_grad():
-        examples["image_embeds"] = image_encoder(clip_images.to(device, weight_dtype)).image_embeds
-
-    # Convert images to torch tensors
-    images_tensor = torch.stack(pixel_values).to(device, weight_dtype)
-    
-    # Calculate VAE latents
-    with torch.no_grad():
-        examples["latents"] = vae.encode(images_tensor).latents
-        
+    examples["pixel_values"] = [train_transforms(image) for image in images]
+    examples["clip_pixel_values"] = image_processor(images, return_tensors="pt").pixel_values
     return examples
+
+# def preprocess_train(examples, vae, image_encoder, device, weight_dtype):
+#     images = [image.convert("RGB") for image in examples[image_column]]
+    
+#     # Transform images to pixel values
+#     pixel_values = [train_transforms(image) for image in images]
+    
+#     # Calculate CLIP embeddings
+#     clip_images = image_processor(images, return_tensors="pt").pixel_values
+#     with torch.no_grad():
+#         examples["image_embeds"] = image_encoder(clip_images.to(device, weight_dtype)).image_embeds
+
+#     # Convert images to torch tensors
+#     images_tensor = torch.stack(pixel_values).to(device, weight_dtype)
+    
+#     # Calculate VAE latents
+#     with torch.no_grad():
+#         examples["latents"] = vae.encode(images_tensor).latents
+        
+#     return examples
 
 if not os.path.exists("input/pokemon-blip-captions"):
     dataset = datasets.load_dataset('reach-vb/pokemon-blip-captions')
@@ -161,28 +161,28 @@ if not os.path.exists("input/pokemon-blip-captions"):
 dataset = datasets.load_dataset('arrow', data_files={'train': 'input/pokemon-blip-captions/train/data-00000-of-00001.arrow'})
 
 # Set the training transforms
-train_dataset = dataset["train"].map(
-    lambda example: preprocess_train(example, vae, image_encoder, device, weight_dtype),
-    batched=True,
-    batch_size= train_batch_size,
-    remove_columns=[image_column]  # Remove original image column
-)
+# train_dataset = dataset["train"].map(
+#     lambda example: preprocess_train(example, vae, image_encoder, device, weight_dtype),
+#     batched=True,
+#     batch_size= train_batch_size,
+#     remove_columns=[image_column]  # Remove original image column
+# )
 
-# train_dataset = dataset["train"].with_transform(preprocess_train)
+train_dataset = dataset["train"].with_transform(preprocess_train)
 
 def collate_fn(examples):
-    # pixel_values = torch.stack([example["pixel_values"] for example in examples])
-    # pixel_values = pixel_values.to(memory_format=torch.contiguous_format).float()
-    # clip_pixel_values = torch.stack([example["clip_pixel_values"] for example in examples])
-    # clip_pixel_values = clip_pixel_values.to(memory_format=torch.contiguous_format).float()
-    
-    print(examples[0]["latents"][0], len(examples[0]["latents"]))
-    latents = torch.stack([example["latents"] for example in examples])
-    latents = latents.to(memory_format=torch.contiguous_format).float()
-    image_embeds = torch.stack([example["image_embeds"] for example in examples])
-    image_embeds = image_embeds.to(memory_format=torch.contiguous_format).float()
+    pixel_values = torch.stack([example["pixel_values"] for example in examples])
+    pixel_values = pixel_values.to(memory_format=torch.contiguous_format).float()
+    clip_pixel_values = torch.stack([example["clip_pixel_values"] for example in examples])
+    clip_pixel_values = clip_pixel_values.to(memory_format=torch.contiguous_format).float()
+    # print(examples[0]["latents"][0], len(examples[0]["latents"]))
+    # latents = torch.stack([example["latents"] for example in examples])
+    # latents = latents.to(memory_format=torch.contiguous_format).float()
+    # image_embeds = torch.stack([example["image_embeds"] for example in examples])
+    # image_embeds = image_embeds.to(memory_format=torch.contiguous_format).float()
 
-    return {"latents": latents, "image_embeds": image_embeds}
+    return {"pixel_values": pixel_values, "clip_pixel_values": clip_pixel_values}
+    # return {"latents": latents, "image_embeds": image_embeds}
 
 train_dataloader = torch.utils.data.DataLoader(
     train_dataset,
@@ -199,6 +199,30 @@ lr_scheduler = get_scheduler(
     num_training_steps=max_train_steps * gradient_accumulation_steps,
 )
 # progress_bar = tqdm(range(0, max_train_steps), desc="Steps")
+
+# Preprocess dataset to calculate latents and image_embeds
+latent_batches = []
+image_embeds_batches = []
+for batch in train_dataloader:
+    with torch.no_grad():
+        images = batch["pixel_values"].to(device, weight_dtype)
+        clip_images = batch["clip_pixel_values"].to(device, weight_dtype)
+        latents_batch = vae.encode(images).latents
+        image_embeds_batch = image_encoder(clip_images).image_embeds
+    latent_batches.append(latents_batch)
+    image_embeds_batches.append(image_embeds_batch)
+
+# Convert the lists to tensors
+latent_batches = torch.cat(latent_batches)
+image_embeds_batches = torch.cat(image_embeds_batches)
+
+# Move vae and image_encoder to CPU
+vae.to('cpu')
+image_encoder.to('cpu')
+
+# Delete vae and image_encoder
+del vae
+del image_encoder
 
 epoch = 1
 step = 0
@@ -222,15 +246,19 @@ while step < max_train_steps:
     # Set unet to trainable.
     unet.train()
 
-    # # Convert images to latent space
+    # Convert images to latent space
     # with torch.no_grad():
     #     images = batch["pixel_values"].to(device, weight_dtype)
     #     clip_images = batch["clip_pixel_values"].to(device, weight_dtype)
     #     latents = vae.encode(images).latents
     #     image_embeds = image_encoder(clip_images).image_embeds
 
-    latents= batch["latents"]
-    image_embeds= batch["image_embeds"]
+    # Get latents and image_embeds for the current batch
+    latents = latent_batches[step * train_batch_size: (step + 1) * train_batch_size]
+    image_embeds = image_embeds_batches[step * train_batch_size: (step + 1) * train_batch_size]
+
+    # latents= batch["latents"]
+    # image_embeds= batch["image_embeds"]
 
     # Sample noise that we'll add to the latents
     noise = torch.randn_like(latents)
