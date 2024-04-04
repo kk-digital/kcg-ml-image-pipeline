@@ -172,15 +172,12 @@ class SphereSamplingGenerator:
     
     def rank_and_optimize_spheres(self):
         generated_spheres = self.generate_spheres()
-        scores=[]
+        scores = torch.empty((0, 1), device=self.device)  # Initialize an empty tensor for all scores
         # Predict average scores for each sphere
         for sphere in generated_spheres:
             feature_vector= sphere[:1280]
-            print(feature_vector.shape)
-            score= self.classifier_model.classify(feature_vector).item()
-            scores.append(score)
-
-        scores = torch.tensor(scores, device=self.device, dtype=torch.float32)
+            score= self.classifier_model.classify(feature_vector.unsqueeze(0)).item()
+            scores = torch.cat((scores, score.unsqueeze(0)), dim=0)
 
         # Sort scores and select top spheres
         sorted_indexes = torch.argsort(scores.squeeze(), descending=True)[:int(self.total_spheres * self.top_k)]
@@ -246,7 +243,7 @@ class SphereSamplingGenerator:
         points_per_sphere = max(int(num_generated_samples/self.selected_spheres), 100)
         
         clip_vectors = torch.empty((0, dim), device=self.device)  # Initialize an empty tensor for all clip vectors
-        scores = []
+        scores = torch.empty((0, 1), device=self.device)  # Initialize an empty tensor for all scores
         for sphere in spheres:
             center, radius = sphere[:dim], sphere[dim:]
 
