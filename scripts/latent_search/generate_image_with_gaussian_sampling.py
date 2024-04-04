@@ -37,6 +37,7 @@ def parse_args():
         parser.add_argument('--sampling-policy', type=str, default="gaussian-top-k-sphere-sampling")
         parser.add_argument('--optimize-spheres', action='store_true', default=False)
         parser.add_argument('--optimize-samples', action='store_true', default=False)
+        parser.add_argument('--penalty', type=int, default=10)
 
         return parser.parse_args()
 
@@ -54,6 +55,7 @@ class SphereSamplingGenerator:
                 save_csv=False,
                 optimize_spheres=False,
                 optimize_samples=False,
+                penalty=10,
                 ):
             
             self.dataset= dataset
@@ -67,6 +69,7 @@ class SphereSamplingGenerator:
             self.sampling_policy= sampling_policy
             self.optimize_spheres= optimize_spheres
             self.optimize_samples= optimize_samples
+            self.penalty = penalty
 
             # get minio client
             self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
@@ -127,7 +130,7 @@ class SphereSamplingGenerator:
         generated_spheres = generated_spheres.to(self.device)
         # Sort scores and select top spheres
         sorted_indexes = torch.argsort(scores.squeeze(), descending=True)[:self.selected_spheres]
-        print(scores[sorted_indexes])
+        
         top_spheres = generated_spheres[sorted_indexes]
 
         # Optimization step
@@ -172,7 +175,7 @@ class SphereSamplingGenerator:
 
                 # Magnitude for uniform sampling within volume
                 # magnitude = torch.rand(1, device=self.device) * radius
-                print(radius)
+
                 point = center + direction * ((radius) ** 0.5)
                 point = torch.clamp(point, self.clip_min, self.clip_max)
 
@@ -183,6 +186,15 @@ class SphereSamplingGenerator:
         scores = self.scoring_model.predict(clip_vectors, batch_size= self.batch_size)
         # get top scoring datapoints
         _, sorted_indices = torch.sort(scores.squeeze(), descending=True)
+        # filter with penalty
+        for i in range(num_samples):
+            clip_vector = clip_vectors[i]
+            for j in range(num_samples - 1, i, -1):
+                if torch.norm(clip_vector - clip_vectors[j]) < self.penalty:
+                    print(i, j)
+                    clip_vectors = torch.cat((clip_vectors[:j], clip_vectors[j+1:]), dim=0)
+                    print(clip_vectors.size(), "size of clip vectors")
+
         clip_vectors = clip_vectors[sorted_indices[:num_samples]]
 
         # Optimization step
@@ -300,7 +312,8 @@ def main():
                                         send_job= args.send_job,
                                         save_csv= args.save_csv,
                                         optimize_spheres= args.optimize_spheres,
-                                        optimize_samples= args.optimize_samples)
+                                        optimize_samples= args.optimize_samples,
+                                        penalty= args.penalty)
 
     generator.generate_images(num_images=args.num_images)
 
