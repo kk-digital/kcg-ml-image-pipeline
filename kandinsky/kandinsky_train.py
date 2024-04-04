@@ -57,7 +57,7 @@ adam_epsilon = 1e-8
 
 snr_gamma = None
 
-max_train_steps = 1
+max_train_steps = 10000
 gradient_accumulation_steps = 1
 checkpointing_steps = 100
 
