@@ -164,9 +164,12 @@ def get_image(file_path: str):
 
     return img
 
+import diffusers
 
 def get_clip_and_image_from_path(image_path):
     image=get_image(image_path)
+    to_tensor = ToTensor()
+    tensor = to_tensor(image)
 
     vae = VQModel.from_pretrained(
         decoder_path, subfolder="movq", torch_dtype=weight_dtype,
@@ -175,7 +178,7 @@ def get_clip_and_image_from_path(image_path):
 
 
     with torch.no_grad():
-            latents = vae.encode(image).latents
+            latents = vae.encode(tensor).latents
 
     clip_embedding = latents
     print("latent shape is : ", latents.shape())
