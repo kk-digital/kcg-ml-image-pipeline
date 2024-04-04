@@ -282,7 +282,7 @@ while step < max_train_steps:
         # torch.save(unet.state_dict(), f"unet.pth")
 
 # Print the profiler results
-log_file.write(f"Optimizer profiler: \n\n {prof.key_averages().table(sort_by="self_cuda_memory_usage")}")
+log_file.write(f"Optimizer profiler: \n\n {prof.key_averages().table(sort_by='self_cuda_memory_usage')}")
 
 log_file.close()  # Close the log file
 
