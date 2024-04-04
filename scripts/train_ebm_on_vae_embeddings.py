@@ -128,6 +128,21 @@ image_embedder= KandinskyCLIPImageEncoder(device="cuda")
 image_embedder.load_submodels()
 
 
+
+from diffusers import VQModel
+
+base_dir = "./"
+sys.path.insert(0, base_dir)
+sys.path.insert(0, os.getcwd())
+from kandinsky.model_paths import DECODER_MODEL_PATH
+
+decoder_path= DECODER_MODEL_PATH
+local_files_only = True
+weight_dtype = torch.Float16
+
+
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------- Define Functions --------------------------------------------------
 # ---------------------------------------------------------------------------------------------------------------------
@@ -152,7 +167,17 @@ def get_image(file_path: str):
 
 def get_clip_and_image_from_path(image_path):
     image=get_image(image_path)
-    clip_embedding =  image_embedder.get_image_features(image)
+
+    vae = VQModel.from_pretrained(
+        decoder_path, subfolder="movq", torch_dtype=weight_dtype,
+        local_files_only=local_files_only
+    ).eval().to(device, dtype=weight_dtype)
+
+
+    with torch.no_grad():
+            latents = vae.encode(image).latents
+
+    clip_embedding = latents
     #clip_embedding = torch.tensor(clip_embedding)
     return image,clip_embedding.float()
 
