@@ -11,6 +11,7 @@ import multiprocessing
 from PIL import Image
 import numpy as np
 from tqdm.auto import tqdm
+import torch.autograd.profiler as profiler
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -41,7 +42,7 @@ def log_memory_usage(description, current_memory_usage):
 
     return total_memory
 
-weight_dtype = torch.float32
+weight_dtype = torch.float16
 
 device = torch.device(0)
 
@@ -105,6 +106,7 @@ vae.to(device, dtype=weight_dtype)
 total_memory= log_memory_usage("Loading the vae", total_memory)
 unet.to(device, dtype=weight_dtype)
 total_memory= log_memory_usage("Loading the Unet", total_memory)
+
 optimizer = optimizer_cls(
     unet.parameters(),
     lr=learning_rate,
@@ -112,6 +114,7 @@ optimizer = optimizer_cls(
     weight_decay=adam_weight_decay,
     eps=adam_epsilon,
 )
+
 def center_crop(image):
     width, height = image.size
     new_size = min(width, height)
@@ -134,40 +137,11 @@ def preprocess_train(examples):
     examples["clip_pixel_values"] = image_processor(images, return_tensors="pt").pixel_values
     return examples
 
-# def preprocess_train(examples, vae, image_encoder, device, weight_dtype):
-#     images = [image.convert("RGB") for image in examples[image_column]]
-    
-#     # Transform images to pixel values
-#     pixel_values = [train_transforms(image) for image in images]
-    
-#     # Calculate CLIP embeddings
-#     clip_images = image_processor(images, return_tensors="pt").pixel_values
-#     with torch.no_grad():
-#         examples["image_embeds"] = image_encoder(clip_images.to(device, weight_dtype)).image_embeds
-
-#     # Convert images to torch tensors
-#     images_tensor = torch.stack(pixel_values).to(device, weight_dtype)
-    
-#     # Calculate VAE latents
-#     with torch.no_grad():
-#         examples["latents"] = vae.encode(images_tensor).latents
-        
-#     return examples
-
 if not os.path.exists("input/pokemon-blip-captions"):
     dataset = datasets.load_dataset('reach-vb/pokemon-blip-captions')
     dataset.save_to_disk('input/pokemon-blip-captions')
 
 dataset = datasets.load_dataset('arrow', data_files={'train': 'input/pokemon-blip-captions/train/data-00000-of-00001.arrow'})
-
-# Set the training transforms
-# train_dataset = dataset["train"].map(
-#     lambda example: preprocess_train(example, vae, image_encoder, device, weight_dtype),
-#     batched=True,
-#     batch_size= train_batch_size,
-#     remove_columns=[image_column]  # Remove original image column
-# )
-
 train_dataset = dataset["train"].with_transform(preprocess_train)
 
 def collate_fn(examples):
@@ -175,14 +149,8 @@ def collate_fn(examples):
     pixel_values = pixel_values.to(memory_format=torch.contiguous_format).float()
     clip_pixel_values = torch.stack([example["clip_pixel_values"] for example in examples])
     clip_pixel_values = clip_pixel_values.to(memory_format=torch.contiguous_format).float()
-    # print(examples[0]["latents"][0], len(examples[0]["latents"]))
-    # latents = torch.stack([example["latents"] for example in examples])
-    # latents = latents.to(memory_format=torch.contiguous_format).float()
-    # image_embeds = torch.stack([example["image_embeds"] for example in examples])
-    # image_embeds = image_embeds.to(memory_format=torch.contiguous_format).float()
 
     return {"pixel_values": pixel_values, "clip_pixel_values": clip_pixel_values}
-    # return {"latents": latents, "image_embeds": image_embeds}
 
 train_dataloader = torch.utils.data.DataLoader(
     train_dataset,
@@ -198,7 +166,6 @@ lr_scheduler = get_scheduler(
     num_warmup_steps=lr_warmup_steps * gradient_accumulation_steps,
     num_training_steps=max_train_steps * gradient_accumulation_steps,
 )
-# progress_bar = tqdm(range(0, max_train_steps), desc="Steps")
 
 # Preprocess dataset to calculate latents and image_embeds
 latent_batches = []
@@ -246,19 +213,9 @@ while step < max_train_steps:
     # Set unet to trainable.
     unet.train()
 
-    # Convert images to latent space
-    # with torch.no_grad():
-    #     images = batch["pixel_values"].to(device, weight_dtype)
-    #     clip_images = batch["clip_pixel_values"].to(device, weight_dtype)
-    #     latents = vae.encode(images).latents
-    #     image_embeds = image_encoder(clip_images).image_embeds
-
     # Get latents and image_embeds for the current batch
     latents = latent_batches[step * train_batch_size: (step + 1) * train_batch_size]
     image_embeds = image_embeds_batches[step * train_batch_size: (step + 1) * train_batch_size]
-
-    # latents= batch["latents"]
-    # image_embeds= batch["image_embeds"]
 
     # Sample noise that we'll add to the latents
     noise = torch.randn_like(latents)
@@ -273,6 +230,13 @@ while step < max_train_steps:
     with torch.cuda.amp.autocast(True):
         added_cond_kwargs = {"image_embeds": image_embeds}
         model_pred = unet(noisy_latents, timesteps, None, added_cond_kwargs=added_cond_kwargs).sample[:, :4]
+
+        if torch.isnan(model_pred).any():
+            print("NaN values detected in model predictions!")
+        
+        if torch.isnan(target).any():
+            print("NaN values detected in target predictions!")
+
         if snr_gamma is None:
             loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
             total_memory= log_memory_usage("Forward Pass", total_memory)
@@ -286,7 +250,14 @@ while step < max_train_steps:
             loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
             loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
             loss = loss.mean()
+        
+        if torch.isnan(loss).any():
+            print("NaN values detected in Loss calculation!")
         loss = loss / gradient_accumulation_steps  # Adjust loss for gradient accumulation
+
+    # Print sizes of model parameters
+    for name, param in unet.parameters():
+        print(f"Parameter: {name}, Size: {param.size()}")
 
     # Backward pass profiling
     loss.backward()
@@ -294,7 +265,9 @@ while step < max_train_steps:
     step+=1 
     # Optimizer step profiling
     if step % gradient_accumulation_steps == 0:
-        optimizer.step()
+        # Context manager to enable autograd profiler
+        with profiler.profile() as prof:
+            optimizer.step()
         total_memory= log_memory_usage("Optimizer Step", total_memory)
         lr_scheduler.step()
         optimizer.zero_grad()
@@ -306,6 +279,9 @@ while step < max_train_steps:
         print(f"Epoch: {epoch}, Step: {step}, Loss: {np.mean(losses)}")
         losses = list()
         # torch.save(unet.state_dict(), f"unet.pth")
+
+# Print the profiler results
+print(prof.key_averages().table())
 
 log_file.close()  # Close the log file
 
