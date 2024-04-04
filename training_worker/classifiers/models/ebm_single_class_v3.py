@@ -921,9 +921,6 @@ def main():
         # val_loader = val_loader_automated
         # adv_loader = train_loader_clip_ood
 
-
-
-
     # training_pipeline.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="topic-space" , model_type = "energy-based-model")
     # #datasets/test-generations/0024/023128.jpg
 
