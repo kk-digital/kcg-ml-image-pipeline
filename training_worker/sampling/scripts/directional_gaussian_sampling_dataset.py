@@ -36,7 +36,7 @@ def parse_args():
 
     return parser.parse_args()
 
-class SphericalGaussianGenerator:
+class DirectionalGaussianGenerator:
     def __init__(self,
                  minio_client,
                  dataset):
@@ -261,13 +261,16 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
 
-    generator= SphericalGaussianGenerator(minio_client=minio_client,
+    generator= DirectionalGaussianGenerator(minio_client=minio_client,
                                     dataset=args.dataset)
     
-    inputs, outputs = generator.load_sphere_dataset(num_bins= args.num_bins,
-                                                    bin_size= args.bin_size,
+    generator.load_dataset()
+
+    inputs, outputs = generator.load_sphere_dataset(
                                                     n_spheres=args.n_spheres,
                                                     target_avg_points= args.target_avg_points,
+                                                    num_bins= args.num_bins,
+                                                    bin_size= args.bin_size,
                                                     percentile=args.percentile,
                                                     std = args.std)
     
