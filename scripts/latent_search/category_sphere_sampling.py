@@ -177,7 +177,7 @@ class SphereSamplingGenerator:
         for sphere in generated_spheres:
             feature_vector= sphere[:1280]
             score= self.classifier_model.classify(feature_vector.unsqueeze(0)).to(device=self.device)
-            scores = torch.cat((scores, score.unsqueeze(0)), dim=0)
+            scores = torch.cat((scores, score), dim=0)
 
         # Sort scores and select top spheres
         sorted_indexes = torch.argsort(scores.squeeze(), descending=True)[:int(self.total_spheres * self.top_k)]
@@ -263,7 +263,7 @@ class SphereSamplingGenerator:
 
                 # Collect generated vectors
                 clip_vectors = torch.cat((clip_vectors, point.unsqueeze(0)), dim=0)
-                scores = torch.cat((scores, score.unsqueeze(0)), dim=0)
+                scores = torch.cat((scores, score), dim=0)
         
         # get top scoring datapoints
         _, sorted_indices = torch.sort(scores.squeeze(), descending=True)
