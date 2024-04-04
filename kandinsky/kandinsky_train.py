@@ -203,7 +203,7 @@ lr_scheduler = get_scheduler(
 # Preprocess dataset to calculate latents and image_embeds
 latent_batches = []
 image_embeds_batches = []
-for batch in train_dataloader:
+for batch in tqdm(train_dataloader):
     with torch.no_grad():
         images = batch["pixel_values"].to(device, weight_dtype)
         clip_images = batch["clip_pixel_values"].to(device, weight_dtype)
