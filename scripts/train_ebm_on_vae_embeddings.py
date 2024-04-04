@@ -170,7 +170,7 @@ from torchvision.transforms import ToTensor
 def get_clip_and_image_from_path(image_path):
     image=get_image(image_path)
     to_tensor = ToTensor()
-    tensor = to_tensor(image)
+    tensor = tensor.to(device).to(torch.cuda.FloatTensor)
 
     vae = VQModel.from_pretrained(
         decoder_path, subfolder="movq", torch_dtype=weight_dtype,
