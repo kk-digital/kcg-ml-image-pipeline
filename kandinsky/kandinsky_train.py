@@ -46,7 +46,7 @@ weight_dtype = torch.float16
 
 device = torch.device(0)
 
-optimizer_cls = torch.optim.AdamW
+optimizer_cls = torch.optim.SGD
 
 learning_rate = 1e-4
 
@@ -200,6 +200,9 @@ losses = list()
 # # Initialize the gradient scaler for mixed precision training
 # scaler = torch.cuda.amp.GradScaler()
 
+def compute_snr():
+    pass
+
 while step < max_train_steps:
     try:
         batch = next(data_iter)
@@ -261,7 +264,6 @@ while step < max_train_steps:
     #     log_file.write(f"{name}, Size: {param.size()} \n")
 
     # Backward pass profiling
-    optimizer.zero_grad()
     loss.backward()
     # total_memory= log_memory_usage("Backward Pass", total_memory)
     step+=1 
@@ -272,6 +274,7 @@ while step < max_train_steps:
         optimizer.step()
         # total_memory= log_memory_usage("Optimizer Step", total_memory)
         lr_scheduler.step()
+        optimizer.zero_grad()
 
     losses.append(loss.detach().cpu().numpy())
 
