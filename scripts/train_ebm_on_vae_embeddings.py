@@ -169,21 +169,21 @@ from torchvision.transforms import ToTensor
 
 def get_clip_and_image_from_path(image_path):
     image=get_image(image_path)
-    to_tensor = ToTensor()
-    tensor = to_tensor(image)
+    # to_tensor = ToTensor()
+    # tensor = to_tensor(image)
 
-    vae = VQModel.from_pretrained(
-        decoder_path, subfolder="movq", torch_dtype=weight_dtype,
-        local_files_only=local_files_only
-    ).eval().to(device, dtype=weight_dtype)
+    # vae = VQModel.from_pretrained(
+    #     decoder_path, subfolder="movq", torch_dtype=weight_dtype,
+    #     local_files_only=local_files_only
+    # ).eval().to(device, dtype=weight_dtype)
 
 
-    with torch.no_grad():
-            latents = vae.encode(tensor).latents
+    # with torch.no_grad():
+    #         latents = vae.encode(tensor).latents
 
-    clip_embedding = latents
-    print("latent shape is : ", latents.shape())
-    #clip_embedding = torch.tensor(clip_embedding)
+    # clip_embedding = latents
+    clip_embedding = get_clip_vectors_single(image_path)
+
     return image,clip_embedding
 
 
@@ -268,6 +268,26 @@ def get_clip_vectors(file_paths):
             # You might want to log the error for further analysis or take alternative actions.
 
     return clip_vectors
+
+# From multiples image paths
+def get_clip_vectors_single(file_paths):
+
+    try:
+        print("path : " , file_paths)
+        clip_path = file_paths.replace(".jpg", "_vae_latent.msgpack")
+        bucket, features_vector_path = separate_bucket_and_file_path(clip_path)
+
+        features_data = get_object(minio_client, features_vector_path)
+        features = msgpack.unpackb(features_data)["latent_vector"]
+        features = torch.tensor(features)
+        
+    except Exception as e:
+        # Handle the specific exception (e.g., FileNotFoundError, ConnectionError) or a general exception.
+        print(f"Error processing clip at path {path}: {e}")
+        # You might want to log the error for further analysis or take alternative actions.
+
+
+    return features
 
 # From a single image 
 def get_clip_from_image(image):
