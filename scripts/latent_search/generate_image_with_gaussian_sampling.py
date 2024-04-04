@@ -201,6 +201,8 @@ class SphereSamplingGenerator:
         if(self.optimize_samples):
             clip_vectors = self.optimize_datapoints(clip_vectors, self.scoring_model)
 
+
+
         return clip_vectors
     
     def optimize_datapoints(self, clip_vectors, scoring_model):
