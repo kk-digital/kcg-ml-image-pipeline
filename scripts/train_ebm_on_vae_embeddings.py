@@ -271,7 +271,7 @@ def get_clip_vectors(file_paths):
 
 # From multiples image paths
 def get_clip_vectors_single(file_paths):
-
+    features = None
     try:
         print("path : " , file_paths)
         clip_path = file_paths.replace(".jpg", "_vae_latent.msgpack")
