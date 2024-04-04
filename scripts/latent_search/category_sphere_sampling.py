@@ -176,7 +176,7 @@ class SphereSamplingGenerator:
         # Predict average scores for each sphere
         for sphere in generated_spheres:
             feature_vector= sphere[:1280]
-            score= self.classifier_model.classify(feature_vector.unsqueeze(0))
+            score= self.classifier_model.classify(feature_vector.unsqueeze(0)).to(device=self.device)
             scores = torch.cat((scores, score.unsqueeze(0)), dim=0)
 
         # Sort scores and select top spheres
@@ -259,7 +259,7 @@ class SphereSamplingGenerator:
                 point = torch.clamp(point, self.clip_min, self.clip_max)
 
                 # get classifier score
-                score = self.scoring_model.predict(point)
+                score = self.classifier_model.classify(point).to(device=self.device)
 
                 # Collect generated vectors
                 clip_vectors = torch.cat((clip_vectors, point.unsqueeze(0)), dim=0)
