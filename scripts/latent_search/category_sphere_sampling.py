@@ -176,6 +176,7 @@ class SphereSamplingGenerator:
         # Predict average scores for each sphere
         for sphere in generated_spheres:
             feature_vector= sphere[:1280]
+            print(feature_vector.shape)
             score= self.classifier_model.classify(feature_vector).item()
             scores.append(score)
 
