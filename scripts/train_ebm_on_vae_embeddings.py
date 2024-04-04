@@ -138,7 +138,7 @@ from kandinsky.model_paths import DECODER_MODEL_PATH
 
 decoder_path= DECODER_MODEL_PATH
 local_files_only = True
-weight_dtype = torch.Float16
+weight_dtype =  torch.half
 
 
 
