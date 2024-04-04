@@ -692,15 +692,15 @@ def process_and_sort_dataset(images_paths, model):
     for image_path in images_paths:
         # Extract embedding and image tensor from the image path
         image, embedding = get_clip_and_image_from_path(image_path)
-        
-        # Compute the score by passing the image tensor through the model
-        # Ensure the tensor is in the correct shape, device, etc.
-        score = model.cnn(embedding.to(model.device)).cpu()
-        
-        # Append the path, embedding, and score as a tuple to the structure list
-        structure.append((image_path, embedding, score.item(),image))  # Assuming score is a tensor, use .item() to get the value
+        if (image != None) and  (embedding != None):
+            # Compute the score by passing the image tensor through the model
+            # Ensure the tensor is in the correct shape, device, etc.
+            score = model.cnn(embedding.to(model.device)).cpu()
+            
+            # Append the path, embedding, and score as a tuple to the structure list
+            structure.append((image_path, embedding, score.item(),image))  # Assuming score is a tensor, use .item() to get the value
 
-    # Sort the structure list by the score in descending order (for ascending, remove 'reverse=True')
+        # Sort the structure list by the score in descending order (for ascending, remove 'reverse=True')
     # The lambda function specifies that the sorting is based on the third element of each tuple (index 2)
     sorted_structure = sorted(structure, key=lambda x: x[2], reverse=True)
 
