@@ -178,6 +178,7 @@ def get_clip_and_image_from_path(image_path):
             latents = vae.encode(image).latents
 
     clip_embedding = latents
+    print("latent shape is : ", latents.shape())
     #clip_embedding = torch.tensor(clip_embedding)
     return image,clip_embedding
 
