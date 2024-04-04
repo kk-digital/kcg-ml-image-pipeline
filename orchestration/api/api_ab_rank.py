@@ -1,7 +1,7 @@
 from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
-from orchestration.api.mongo_schema.ab_ranking_schemas import Rankmodel, RankRequest, RankListResponse, ListImageRank, ImageRank, RankCategory, RankCategoryRequest, RankCategoryListResponse, RankCountResponse
+from orchestration.api.mongo_schema.ab_ranking_schemas import Rankmodel, RankRequest, RankListResponse, ListImageRank, ImageRank, RankCategory, RankCategoryRequest, RankCategoryListResponse, RankCountResponse, RankedSelection
 from .mongo_schemas import Classifier
 from typing import Union
 from .api_utils import PrettyJSONResponse, validate_date_format, ErrorCode, WasPresentResponse, VectorIndexUpdateRequest, StandardSuccessResponseV1, ApiResponseHandlerV1
@@ -168,6 +168,8 @@ async def update_rank_model_model(request: Request, rank_model_id: int, update_d
 @router.post("/ab-rank/add-rank-model-in-selection-datapoints",
              status_code=200,
              tags=["ab-rank"],
+             response_model=StandardSuccessResponseV1[RankedSelection],
+             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]),
              description="Updates image pair ranking with a new rank model ID")
 async def update_rank_model_in_image_pairs(
         request: Request, 
@@ -200,7 +202,9 @@ async def update_rank_model_in_image_pairs(
         document_with_rank_first.pop('_id', None)  # Removing '_id' for simplicity
 
         # Return the modified document as a response
-        return document_with_rank_first
+        return response_handler.create_success_response_v1( 
+            response_data=document_with_rank_first,
+            http_status_code=201)
 
     except Exception as e:
         return response_handler.create_error_response_v1(
