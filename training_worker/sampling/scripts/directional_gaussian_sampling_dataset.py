@@ -74,9 +74,9 @@ class SphericalGaussianGenerator:
 
         d = self.feature_vectors.shape[1]
         # remove
-        # nlist = 50  # how many cells
-        # quantizer = faiss.IndexFlatL2(d)
-        # cpu_index = faiss.IndexIVFFlat(quantizer, d, nlist)
+        nlist = 50  # how many cells
+        quantizer = faiss.IndexFlatL2(d)
+        cpu_index = faiss.IndexIVFFlat(quantizer, d, nlist)
 
         cpu_index = faiss.IndexFlatL2(d)
         
@@ -116,8 +116,11 @@ class SphericalGaussianGenerator:
             # Extract indices of points within the sphere
             point_indices = sphere_indices
             
-            d = np.percentile(distance_vector, percentile)
+            sphere = self.feature_vectors[sphere_indices]
+
+            d = np.percentile(sphere, percentile, axis=0)
             variance = (d / std) ** 2
+
             sigma = d / std
             fall_off = 2 * np.sqrt(2 * np.log(2)) * sigma
 
@@ -179,7 +182,7 @@ class SphericalGaussianGenerator:
         for sphere in sphere_data:
             # get input vectors
             
-            inputs.append(np.concatenate([sphere['center'], [sphere[input_type]]]))
+            inputs.append(np.concatenate([sphere['center'], sphere[input_type]]))
             # get score distribution
             outputs.append(sphere[output_type])
 
