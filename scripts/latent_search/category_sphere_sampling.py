@@ -178,7 +178,8 @@ class SphereSamplingGenerator:
         print("scoring spheres -----------")
         for sphere in tqdm(generated_spheres):
             feature_vector= sphere[:1280]
-            score= self.classifier_model.classify(feature_vector.unsqueeze(0)).to(device=self.device)
+            with torch.no_grad():
+                score= self.classifier_model.classify(feature_vector.unsqueeze(0)).to(device=self.device)
             scores = torch.cat((scores, score), dim=0)
 
         # Sort scores and select top spheres
@@ -297,11 +298,10 @@ class SphereSamplingGenerator:
 
                 # compute classifier scores
                 feature_vectors= batch_embeddings[:,:dim]
-                classifier_scores=[]
+                classifier_scores = torch.empty((0, 1), device=self.device)
                 for vector in feature_vectors:
-                    score= self.classifier_model.classify(vector).item()
-                    classifier_scores.append(score)
-                classifier_scores = torch.tensor(classifier_scores, device=self.device, dtype=torch.float32)
+                    score= self.classifier_model.classify(vector.unsqueeze(0)).to(device=self.device)
+                    classifier_scores = torch.cat((scores, score), dim=0)
 
                 # Calculate the loss for each embedding in the batch
                 score_losses = -scores.squeeze() - classifier_scores.squeeze()
