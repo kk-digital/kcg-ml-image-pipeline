@@ -34,7 +34,7 @@ def parse_args():
         parser.add_argument('--batch-size', type=int, help='Inference batch size used by the scoring model', default=256)
         parser.add_argument('--send-job', action='store_true', default=False)
         parser.add_argument('--save-csv', action='store_true', default=False)
-        parser.add_argument('--sampling-policy', type=str, default="gaussain-top-k-sphere-sampling")
+        parser.add_argument('--sampling-policy', type=str, default="gaussian-top-k-sphere-sampling")
         parser.add_argument('--optimize-spheres', action='store_true', default=False)
         parser.add_argument('--optimize-samples', action='store_true', default=False)
 
@@ -143,7 +143,7 @@ class SphereSamplingGenerator:
         
         # Determine points to generate per sphere
         num_generated_samples = int(num_samples/self.top_k)
-        points_per_sphere = max(int(num_generated_samples/self.selected_spheres), 1000)
+        points_per_sphere = max(int(num_generated_samples/self.selected_spheres), 10)
         
         clip_vectors = torch.empty((0, dim), device=self.device)  # Initialize an empty tensor for all clip vectors
         scores = []
@@ -156,8 +156,8 @@ class SphereSamplingGenerator:
             feature = feature.to('cpu')
 
             # Apply the inverse transform sampling for the exponential distribution
-            random_radii = norm.ppf(uniform_samples, scale=feature)
-            random_radii = np.abs(np.clip(random_radii, self.feature_min_value, self.feature_max_value,))
+            random_radii = norm.ppf(uniform_samples, scale=(feature ** 0.5))
+            random_radii = np.abs(random_radii)
 
             # Direction adjustment based on z-scores
             z_scores = (center - self.clip_mean) / self.clip_std
@@ -171,10 +171,10 @@ class SphereSamplingGenerator:
                 direction /= torch.norm(direction)
 
                 # Magnitude for uniform sampling within volume
-                magnitude = torch.rand(1, device=self.device).pow(1/3) * radius
-
-                point = center + direction * magnitude
-                # point = torch.clamp(point, self.clip_min, self.clip_max)
+                # magnitude = torch.rand(1, device=self.device) * radius
+                print(radius)
+                point = center + direction * ((radius) ** 0.5)
+                point = torch.clamp(point, self.clip_min, self.clip_max)
 
                 # Collect generated vectors and optionally calculate scores
                 clip_vectors = torch.cat((clip_vectors, point.unsqueeze(0)), dim=0)
