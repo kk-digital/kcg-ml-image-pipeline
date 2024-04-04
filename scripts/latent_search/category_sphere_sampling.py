@@ -133,7 +133,7 @@ class SphereSamplingGenerator:
     def load_model_with_filename(self, minio_client, model_file, model_info=None):
         model_data = minio_client.get_object('datasets', model_file)
         
-        clip_model = ELMRegression(device=self._device)
+        clip_model = ELMRegression(device=self.device)
         
         # Create a BytesIO object from the model data
         byte_buffer = io.BytesIO(model_data.data)
