@@ -138,7 +138,7 @@ from kandinsky.model_paths import DECODER_MODEL_PATH
 
 decoder_path= DECODER_MODEL_PATH
 local_files_only = True
-weight_dtype =  torch.float
+weight_dtype =  torch.cuda.FloatTensor
 
 
 
@@ -171,8 +171,7 @@ def get_clip_and_image_from_path(image_path):
     image=get_image(image_path)
     to_tensor = ToTensor()
     tensor = to_tensor(image)
-    #tensor = tensor.to(device).to(torch.cuda.FloatTensor)
-    tensor = tensor.to(device, dtype=torch.cuda.FloatTensor)
+
     vae = VQModel.from_pretrained(
         decoder_path, subfolder="movq", torch_dtype=weight_dtype,
         local_files_only=local_files_only
