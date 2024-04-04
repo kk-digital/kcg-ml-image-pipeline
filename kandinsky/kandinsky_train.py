@@ -239,7 +239,7 @@ while step < max_train_steps:
 
         if snr_gamma is None:
             loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
-            total_memory= log_memory_usage("Forward Pass", total_memory)
+            # total_memory= log_memory_usage("Forward Pass", total_memory)
         else:
             snr = compute_snr(noise_scheduler, timesteps)
             mse_loss_weights = torch.stack([snr, snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0]
@@ -255,23 +255,23 @@ while step < max_train_steps:
             print("NaN values detected in Loss calculation!")
         loss = loss / gradient_accumulation_steps  # Adjust loss for gradient accumulation
 
-    # Print sizes of model parameters
-    log_file.write("Parameters: \n\n")
-    for name, param in unet.named_parameters():
-        log_file.write(f"{name}, Size: {param.size()} \n")
+    # # Print sizes of model parameters
+    # log_file.write("Parameters: \n\n")
+    # for name, param in unet.named_parameters():
+    #     log_file.write(f"{name}, Size: {param.size()} \n")
 
     # Backward pass profiling
+    optimizer.zero_grad()
     loss.backward()
-    total_memory= log_memory_usage("Backward Pass", total_memory)
+    # total_memory= log_memory_usage("Backward Pass", total_memory)
     step+=1 
     # Optimizer step profiling
     if step % gradient_accumulation_steps == 0:
         # Context manager to enable autograd profiler
-        with profiler.profile(use_cuda=True, profile_memory=True) as prof:
-            optimizer.step()
-        total_memory= log_memory_usage("Optimizer Step", total_memory)
+        # with profiler.profile(use_cuda=True, profile_memory=True) as prof:
+        optimizer.step()
+        # total_memory= log_memory_usage("Optimizer Step", total_memory)
         lr_scheduler.step()
-        optimizer.zero_grad()
 
     losses.append(loss.detach().cpu().numpy())
 
@@ -282,7 +282,7 @@ while step < max_train_steps:
         # torch.save(unet.state_dict(), f"unet.pth")
 
 # Print the profiler results
-log_file.write(f"Optimizer profiler: \n\n {prof.key_averages().table(sort_by='self_cuda_memory_usage')}")
+#log_file.write(f"Optimizer profiler: \n\n {prof.key_averages().table(sort_by='self_cuda_memory_usage')}")
 
 log_file.close()  # Close the log file
 
