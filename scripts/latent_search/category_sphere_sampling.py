@@ -11,6 +11,7 @@ import pandas as pd
 from scipy.spatial.distance import pdist, squareform
 import torch
 import torch.optim as optim
+from tqdm import tqdm
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -174,7 +175,8 @@ class SphereSamplingGenerator:
         generated_spheres = self.generate_spheres()
         scores = torch.empty((0, 1), device=self.device)  # Initialize an empty tensor for all scores
         # Predict average scores for each sphere
-        for sphere in generated_spheres:
+        print("scoring spheres -----------")
+        for sphere in tqdm(generated_spheres):
             feature_vector= sphere[:1280]
             score= self.classifier_model.classify(feature_vector.unsqueeze(0)).to(device=self.device)
             scores = torch.cat((scores, score), dim=0)
