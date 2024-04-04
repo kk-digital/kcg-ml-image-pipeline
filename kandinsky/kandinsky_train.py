@@ -191,7 +191,9 @@ del image_encoder
 
 epoch = 1
 step = 0
+batch_iter = 0
 data_iter = iter(train_dataloader)
+
 
 losses = list()
 
@@ -205,6 +207,7 @@ while step < max_train_steps:
     try:
         batch = next(data_iter)
     except StopIteration:
+        batch_iter = 0
         epoch += 1
         data_iter = iter(train_dataloader)
         batch = next(data_iter)
@@ -215,8 +218,8 @@ while step < max_train_steps:
     unet.train()
 
     # Get latents and image_embeds for the current batch
-    latents = latent_batches[step * train_batch_size: (step + 1) * train_batch_size]
-    image_embeds = image_embeds_batches[step * train_batch_size: (step + 1) * train_batch_size]
+    latents = latent_batches[batch_iter * train_batch_size: (batch_iter + 1) * train_batch_size]
+    image_embeds = image_embeds_batches[batch_iter * train_batch_size: (batch_iter + 1) * train_batch_size]
 
     # Sample noise that we'll add to the latents
     noise = torch.randn_like(latents)
@@ -265,6 +268,7 @@ while step < max_train_steps:
     loss.backward()
     # total_memory= log_memory_usage("Backward Pass", total_memory)
     step+=1 
+    batch_iter+= 1
     # Optimizer step profiling
     if step % gradient_accumulation_steps == 0:
         # Context manager to enable autograd profiler
