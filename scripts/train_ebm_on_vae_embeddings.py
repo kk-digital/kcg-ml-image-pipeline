@@ -283,7 +283,7 @@ def get_clip_vectors_single(file_paths):
         
     except Exception as e:
         # Handle the specific exception (e.g., FileNotFoundError, ConnectionError) or a general exception.
-        print(f"Error processing clip at path {path}: {e}")
+        print(f"Error processing clip at path {file_paths}: {e}")
         # You might want to log the error for further analysis or take alternative actions.
 
 
