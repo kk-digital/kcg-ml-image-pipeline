@@ -176,7 +176,7 @@ class SphereSamplingGenerator:
         # Predict average scores for each sphere
         for sphere in generated_spheres:
             feature_vector= sphere[:1280]
-            score= self.classifier_model.classify(feature_vector.unsqueeze(0)).item()
+            score= self.classifier_model.classify(feature_vector.unsqueeze(0))
             scores = torch.cat((scores, score.unsqueeze(0)), dim=0)
 
         # Sort scores and select top spheres
