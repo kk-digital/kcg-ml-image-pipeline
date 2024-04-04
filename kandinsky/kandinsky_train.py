@@ -110,9 +110,7 @@ total_memory= log_memory_usage("Loading the Unet", total_memory)
 optimizer = optimizer_cls(
     unet.parameters(),
     lr=learning_rate,
-    betas=(adam_beta1, adam_beta2),
-    weight_decay=adam_weight_decay,
-    eps=adam_epsilon,
+    weight_decay=adam_weight_decay
 )
 
 def center_crop(image):
