@@ -256,7 +256,7 @@ while step < max_train_steps:
         loss = loss / gradient_accumulation_steps  # Adjust loss for gradient accumulation
 
     # Print sizes of model parameters
-    for name, param in unet.parameters():
+    for name, param in unet.named_parameters():
         print(f"Parameter: {name}, Size: {param.size()}")
 
     # Backward pass profiling
