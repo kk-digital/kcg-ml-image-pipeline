@@ -132,16 +132,15 @@ class SphereSamplingGenerator:
             
             spheres = torch.cat([sphere_centers, gaussian_features.unsqueeze(1)], dim=1)
         elif self.sphere_type == 'directional':
-            print("test------>")
             dim = sphere_centers.size(1)
             gaussian_features = torch.empty(0, dim, device=self.device)
-
+            print(dim, "dim")
+            print(self.feature_max_value.size(), "feature max value")
             for feature in torch.rand(num_spheres, dim, device=self.device):
                 feature = feature  * (self.feature_max_value - self.feature_min_value) + self.feature_min_value
-                gaussian_features = torch.cat([gaussian_features, feature], dim=0)
+                gaussian_features = torch.cat([gaussian_features, feature.unsqueeze(0)], dim=0)
 
-            spheres = torch.cat([sphere_centers, gaussian_features.unsqueeze(1)], dim=1)
-            print("test------->")
+            spheres = torch.cat([sphere_centers, gaussian_features], dim=1)
         return spheres
     
     def rank_and_optimize_spheres(self):
