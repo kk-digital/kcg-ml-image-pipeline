@@ -456,11 +456,10 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
         os.remove(temp_file.name)
 
     def save_metadata(self, inputs, points_per_sphere, learning_rate, num_epochs, training_batch_size):
-        print(self.input_size//2)
-        print(inputs.size)
+
         feature_input_vector = [input[self.input_size//2:] for input in inputs]
-        self.feature_min_value = min(feature_input_vector)
-        self.feature_max_value = max(feature_input_vector)
+        self.min_scaling_factors = [min(feature_values) for feature_values in zip(*feature_input_vector)]
+        self.max_scaling_factors = [max(feature_values) for feature_values in zip(*feature_input_vector)]
 
         self.metadata = {
             'points_per_sphere': points_per_sphere,
@@ -468,8 +467,8 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
             'learning_rate': learning_rate,
             'training_batch_size': training_batch_size,
             'model_state': self.model.state_dict(),
-            'feature_min_value': self.feature_min_value,
-            'feature_max_value': self.feature_max_value
+            'feature_min_value': self.min_scaling_factors,
+            'feature_max_value': self.max_scaling_factors
         }
 
     def save_model(self):
