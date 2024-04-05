@@ -256,7 +256,8 @@ class SphereSamplingGenerator:
 
             for _ in range(points_per_sphere):
                 # Generate points within the sphere
-                direction = torch.rand(dim, device=self.device) * 2 - 1
+                direction = torch.randn(dim, device=self.device)
+                direction /= torch.norm(direction)
 
                 point = center + direction * radius
                 point = torch.clamp(point, self.clip_min, self.clip_max)
@@ -278,7 +279,7 @@ class SphereSamplingGenerator:
     
     def optimize_datapoints(self, clip_vectors, scoring_model):
         # Calculate the total number of batches
-        dim = int(clip_vectors.size(1)/2)  # Exclude radius from dimensions
+        dim = 1280
         num_batches = len(clip_vectors) // self.batch_size + (0 if len(clip_vectors) % self.batch_size == 0 else 1)
         
         optimized_embeddings_list = []
