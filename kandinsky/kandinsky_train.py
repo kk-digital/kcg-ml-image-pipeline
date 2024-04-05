@@ -208,6 +208,8 @@ losses = list()
 def compute_snr():
     pass
 
+torch.autograd.set_detect_anomaly(True)
+
 while step < max_train_steps:
     try:
         batch = next(data_iter)
@@ -239,6 +241,13 @@ while step < max_train_steps:
     target = noise
 
     with torch.cuda.amp.autocast(True):
+        if not torch.isnan(noisy_latents).any():
+            print("NaN values detected in latents!")
+        if not torch.isnan(timesteps).any():
+            print("NaN values detected in timesteps!")
+        if not torch.isnan(image_embeds).any():
+            print("NaN values detected in image_embeds!")
+
         added_cond_kwargs = {"image_embeds": image_embeds}
         model_pred = unet(noisy_latents, timesteps, None, added_cond_kwargs=added_cond_kwargs).sample[:, :4]
         
@@ -248,8 +257,6 @@ while step < max_train_steps:
         if torch.isnan(model_pred).any():
             print("NaN values detected in model predictions!")
         
-        if torch.isnan(target).any():
-            print("NaN values detected in target predictions!")
 
         if snr_gamma is None:
             loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
@@ -264,14 +271,7 @@ while step < max_train_steps:
             loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
             loss = loss.mean()
         
-        if torch.isnan(loss).any():
-            print("NaN values detected in Loss calculation!")
         loss = loss / gradient_accumulation_steps  # Adjust loss for gradient accumulation
-
-    # # Print sizes of model parameters
-    # log_file.write("Parameters: \n\n")
-    # for name, param in unet.named_parameters():
-    #     log_file.write(f"{name}, Size: {param.size()} \n")
 
     # Backward pass profiling
     loss.backward()
