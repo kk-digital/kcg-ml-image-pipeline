@@ -72,13 +72,11 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
 
         # Define layers for the residual model
         residual_model_layers = [
-            nn.Linear(input_size, hidden_sizes[0]),
-            nn.ReLU()
+            nn.Linear(input_size, 512),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(512, output_size)
         ]
-        for i in range(len(hidden_sizes)-1):
-            residual_model_layers.append(nn.Linear(hidden_sizes[i], hidden_sizes[i+1]))
-            residual_model_layers.append(nn.ReLU())
-        residual_model_layers.append(nn.Linear(hidden_sizes[-1], output_size))
         self.residual_model = nn.Sequential(*residual_model_layers).to(self._device)
         # model metadata
         self.metadata=None
@@ -257,7 +255,7 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
 
         # Define the loss function and optimizer
         criterion = nn.L1Loss()  
-        optimizer = optim.Adam(self.residual_model.parameters(), lr=learning_rate)
+        optimizer = optim.Adam(self.residual_model.parameters(), weight_decay=1e-5, lr=learning_rate)
 
         # save loss for each epoch and features
         train_loss=[]
@@ -270,7 +268,7 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
         # Training and Validation Loop
         for epoch in range(num_epochs):
 
-            if(epoch==0):
+            if(epoch==0 and generate_every_epoch):
                 # generate dataset once or every epoch
                 val_loader, train_loader, \
                 val_size, train_size, \
