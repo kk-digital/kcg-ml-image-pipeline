@@ -1181,8 +1181,8 @@ train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(targe
 # Get adversarial dataset
 train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag(adv_paths,0)
 
-print("target paths : ", len(target_paths))
-print("ood paths : ", len(adv_paths) )
+print("target paths : ", target_paths)
+print("ood paths : ", adv_paths)
 print("Train loader  len : ", len(train_loader_automated) )
 # # init the loader
 # train_loader = train_loader_automated
