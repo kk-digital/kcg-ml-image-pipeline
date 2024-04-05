@@ -168,7 +168,7 @@ class DirectionalGaussianGenerator:
         return sphere_data, avg_points_per_sphere, len(total_covered_points)
 
 
-    def load_sphere_dataset(self, n_spheres, target_avg_points, num_bins=8, bin_size=1, percentile=75, std=1, output_type="score_distribution", input_type="guassian_sphere_variance"):
+    def load_sphere_dataset(self, n_spheres, target_avg_points, num_bins=8, bin_size=1, percentile=75, std=1, output_type="score_distribution", input_type="gaussian_sphere_variance"):
         # generating spheres
         sphere_data, avg_points_per_sphere, total_covered_points= self.generate_spheres(n_spheres=n_spheres,
                                                        target_avg_points=target_avg_points,
