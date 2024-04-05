@@ -282,10 +282,12 @@ while step < max_train_steps:
     # Optimizer step profiling
     if step % gradient_accumulation_steps == 0:
         # Context manager to enable autograd profiler
-        with profiler.profile(use_cuda=True, profile_memory=True) as prof:
-            optimizer.step()
         if(epoch==1 and step==0):
+            with profiler.profile(use_cuda=True, profile_memory=True) as prof:
+                optimizer.step()
             total_memory= log_memory_usage("Optimizer Step", total_memory)
+        else:
+            optimizer.step()
         lr_scheduler.step()
         optimizer.zero_grad()
 

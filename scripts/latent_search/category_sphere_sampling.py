@@ -303,16 +303,16 @@ class SphereSamplingGenerator:
                 scores = scoring_model.model(batch_embeddings)
 
                 # compute classifier scores
-                # feature_vectors= batch_embeddings[:,:dim]
-                # classifier_scores = []
-                # for vector in feature_vectors:
-                #     score= self.classifier_model.classify(vector.unsqueeze(0)).to(device=self.device)
-                #     classifier_scores.append(score.unsqueeze(0))
+                feature_vectors= batch_embeddings[:,:dim]
+                classifier_scores = []
+                for vector in feature_vectors:
+                    score= self.classifier_model.classify(vector.unsqueeze(0)).to(device=self.device)
+                    classifier_scores.append(score.unsqueeze(0))
                 
-                # classifier_scores= torch.cat(classifier_scores, dim=0)
+                classifier_scores= torch.cat(classifier_scores, dim=0)
 
                 # Calculate the loss for each embedding in the batch
-                score_losses = -scores.squeeze()
+                score_losses = -scores.squeeze() - classifier_scores.squeeze()
 
                 # Calculate the total loss for the batch
                 total_loss = score_losses.mean()
