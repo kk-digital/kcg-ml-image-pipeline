@@ -1039,6 +1039,42 @@ async def update_task_definitions(request:Request):
     }
 
 
+@router.put("/job/add-attributes-witout-embeddings", description="Adds the attributes to a completed job without embedding.")
+def add_attributes_job_completed(
+    request: Request,
+    image_hash: str = Body(..., embed=True),
+    model_type: str = Body(..., embed=True),
+    image_clip_score: float = Body(..., embed=True),
+    image_clip_percentile: float = Body(..., embed=True),
+    image_clip_sigma_score: float = Body(..., embed=True),
+    image_clip_h_score: float = Body(..., embed=True),
+    image_clip_h_percentile: float = Body(..., embed=True),
+    image_clip_h_sigma_score: float = Body(..., embed=True),
+    delta_sigma_score: float = Body(..., embed=True)
+):
+    query = {"task_output_file_dict.output_file_hash": image_hash}
+
+    update_query = {"$set": {
+        f"task_attributes_dict.{model_type}.image_clip_score": image_clip_score,
+        f"task_attributes_dict.{model_type}.image_clip_percentile": image_clip_percentile,
+        f"task_attributes_dict.{model_type}.image_clip_sigma_score": image_clip_sigma_score,
+        f"task_attributes_dict.{model_type}.image_clip_h_score": image_clip_h_score,
+        f"task_attributes_dict.{model_type}.image_clip_h_percentile": image_clip_h_percentile,
+        f"task_attributes_dict.{model_type}.image_clip_h_sigma_score": image_clip_h_sigma_score,
+        f"task_attributes_dict.{model_type}.delta_sigma_score": delta_sigma_score
+    }}
+
+    result = request.app.completed_jobs_collection.update_one(query, update_query)
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=304, detail="Job not updated, possibly no change in data")
+
+    return {"message": "Job attributes updated successfully."}
+
+
 @router.get("/queue/image-generation/score-counts", response_class=PrettyJSONResponse)
 def get_image_score_counts(request: Request):
     # Fetch all jobs
