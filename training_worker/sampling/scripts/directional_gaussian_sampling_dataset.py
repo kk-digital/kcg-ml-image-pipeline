@@ -118,6 +118,10 @@ class DirectionalGaussianGenerator:
             
             sphere = self.feature_vectors[sphere_indices]
 
+            # move to center
+            sphere = sphere - center
+
+            # calculate the variance, sigma and fall off of gaussian distribution
             d = np.percentile(sphere, percentile, axis=0)
             variance = (d / std) ** 2
 
