@@ -377,8 +377,11 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
 
         if residual_model:
             predicted_outputs= self.predict(inputs, batch_size= batch_size).squeeze().cpu().numpy()
+            print(predicted_outputs[:10])
             residuals= np.array(outputs) - predicted_outputs
+            print(residuals[:10])
             outputs= residuals.tolist()
+            print(outputs[:10])
 
         # load the dataset
         dataset= DatasetLoader(features=inputs, labels=outputs)
