@@ -1176,25 +1176,25 @@ plt.clf()
 
 
 
-# # Load the environmental dataset     
-# images_paths_ood = get_file_paths("environmental",10000)
+# Load the environmental dataset     
+images_paths_ood = get_file_paths("environmental",10000)
 
-# # Evaluate new model
-# #automated model
-# #toodoo
-# #go create something
-# print("yep it's here")
-# new_sorted_images = process_and_sort_dataset(images_paths_ood, new_cyber_vae_model)
+# Evaluate new model
+#automated model
+#toodoo
+#go create something
+print("yep it's here")
+new_sorted_images = process_and_sort_dataset(images_paths_ood, new_cyber_vae_model)
 
 
-# get_structure_csv_content(new_sorted_images,"cyber_vae_on_env_30000_sample")
-# selected_structure_first_52 = new_sorted_images[:52]
-# selected_structure_second_52 = new_sorted_images[52:103]
-# selected_structure_third_52 = new_sorted_images[103:154]
+get_structure_csv_content(new_sorted_images,"cyber_vae_on_env_30000_sample")
+selected_structure_first_52 = new_sorted_images[:52]
+selected_structure_second_52 = new_sorted_images[52:103]
+selected_structure_third_52 = new_sorted_images[103:154]
 
-# plot_images_with_scores(selected_structure_first_52,"Top_first_52_cyber_vae_env_added_50")
-# plot_images_with_scores(selected_structure_second_52,"Top_second_52_cyber_vae_env_added_50")
-# plot_images_with_scores(selected_structure_third_52,"Top_third_52_cyber_vae_env_added_50")
+plot_images_with_scores(selected_structure_first_52,"Top_first_52_cyber_vae_env_added_50")
+plot_images_with_scores(selected_structure_second_52,"Top_second_52_cyber_vae_env_added_50")
+plot_images_with_scores(selected_structure_third_52,"Top_third_52_cyber_vae_env_added_50")
     
 
 
