@@ -1,6 +1,7 @@
 import io
 import os
 import sys
+from matplotlib import pyplot as plt
 import torch
 import datasets
 import torch.nn.functional as F
@@ -177,6 +178,8 @@ for batch in tqdm(train_dataloader):
     latent_batches.append(latents_batch)
     image_embeds_batches.append(image_embeds_batch)
 
+total_memory= log_memory_usage("Pre-processing the dataset", total_memory)
+
 # Convert the lists to tensors
 latent_batches = torch.cat(latent_batches)
 image_embeds_batches = torch.cat(image_embeds_batches)
@@ -189,12 +192,14 @@ image_encoder.to('cpu')
 del vae
 del image_encoder
 
+total_memory= log_memory_usage("Unloading vae and Image Encoder", total_memory)
+
 epoch = 1
 step = 0
 batch_iter = 0
 data_iter = iter(train_dataloader)
 
-
+loss_per_epoch=[]
 losses = list()
 
 # # Initialize the gradient scaler for mixed precision training
@@ -211,7 +216,9 @@ while step < max_train_steps:
         epoch += 1
         data_iter = iter(train_dataloader)
         batch = next(data_iter)
-        print(f"Epoch: {epoch}, Step: {step}, Loss: {np.mean(losses)}")
+        avg_loss= np.mean(losses)
+        loss_per_epoch.append(avg_loss)
+        print(f"Epoch: {epoch}, Step: {step}, Loss: {avg_loss}")
         losses = list()
 
     # Set unet to trainable.
@@ -234,6 +241,9 @@ while step < max_train_steps:
     with torch.cuda.amp.autocast(True):
         added_cond_kwargs = {"image_embeds": image_embeds}
         model_pred = unet(noisy_latents, timesteps, None, added_cond_kwargs=added_cond_kwargs).sample[:, :4]
+        
+        if(epoch==1 and step==0):
+            total_memory= log_memory_usage("Forward Pass", total_memory)
 
         if torch.isnan(model_pred).any():
             print("NaN values detected in model predictions!")
@@ -243,7 +253,6 @@ while step < max_train_steps:
 
         if snr_gamma is None:
             loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
-            # total_memory= log_memory_usage("Forward Pass", total_memory)
         else:
             snr = compute_snr(noise_scheduler, timesteps)
             mse_loss_weights = torch.stack([snr, snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0]
@@ -266,15 +275,17 @@ while step < max_train_steps:
 
     # Backward pass profiling
     loss.backward()
-    # total_memory= log_memory_usage("Backward Pass", total_memory)
+    if(epoch==1 and step==0):
+        total_memory= log_memory_usage("Backward Pass", total_memory)
     step+=1 
     batch_iter+= 1
     # Optimizer step profiling
     if step % gradient_accumulation_steps == 0:
         # Context manager to enable autograd profiler
-        # with profiler.profile(use_cuda=True, profile_memory=True) as prof:
-        optimizer.step()
-        # total_memory= log_memory_usage("Optimizer Step", total_memory)
+        with profiler.profile(use_cuda=True, profile_memory=True) as prof:
+            optimizer.step()
+        if(epoch==1 and step==0):
+            total_memory= log_memory_usage("Optimizer Step", total_memory)
         lr_scheduler.step()
         optimizer.zero_grad()
 
@@ -287,7 +298,7 @@ while step < max_train_steps:
         # torch.save(unet.state_dict(), f"unet.pth")
 
 # Print the profiler results
-#log_file.write(f"Optimizer profiler: \n\n {prof.key_averages().table(sort_by='self_cuda_memory_usage')}")
+log_file.write(f"Optimizer profiler: \n\n {prof.key_averages().table(sort_by='self_cuda_memory_usage')}")
 
 log_file.close()  # Close the log file
 
@@ -300,7 +311,22 @@ with open(log_file_path, 'rb') as file:
     buffer = io.BytesIO(file.read())
     buffer.seek(0)
 
-cmd.upload_data(minio_client, 'datasets', "environmental/output/kandinsky_train_report.txt" , buffer)
+cmd.upload_data(minio_client, 'datasets', "environmental/output/kandinsky_train_report/kandinsky_train_report.txt" , buffer)
+
+# graph loss curve
+plt.plot(range(1, len(loss_per_epoch) + 1), loss_per_epoch,'b', label='Loss')
+plt.title('Loss per Epoch')
+plt.ylabel('Loss')
+plt.xlabel('Epochs')
+plt.legend(['Loss curve'])
+
+# Save the figure to a file
+buf = io.BytesIO()
+plt.savefig(buf, format='png')
+buf.seek(0)
+
+cmd.upload_data(minio_client, 'datasets', "environmental/output/kandinsky_train_report/loss_curve.png" , buf)
 
 # Remove the temporary file
 os.remove(log_file_path)
+plt.clf()
