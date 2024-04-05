@@ -11,6 +11,7 @@ import pandas as pd
 from scipy.spatial.distance import pdist, squareform
 import torch
 import torch.optim as optim
+from tqdm import tqdm
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -19,39 +20,46 @@ from data_loader.utils import get_object
 from training_worker.sampling.models.uniform_sampling_regression_fc import SamplingFCRegressionNetwork
 from training_worker.sampling.models.directional_uniform_sampling_regression_fc import DirectionalSamplingFCRegressionNetwork
 from training_worker.scoring.models.scoring_fc import ScoringFCNetwork
+from training_worker.classifiers.models.elm_regression import ELMRegression
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 from utility.minio import cmd
 
 def parse_args():
-        parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser()
 
-        parser.add_argument('--minio-access-key', type=str, help='Minio access key')
-        parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
-        parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
-        parser.add_argument('--num-images', type=int, help='Number of images to generate', default=1000)
-        parser.add_argument('--sphere-type', type=str, help='Type of spheres used', default="uniform")
-        parser.add_argument('--top-k', type=float, help='Portion of spheres to select from', default=0.1)
-        parser.add_argument('--total-spheres', type=int, help='Number of random spheres to rank', default=500000)
-        parser.add_argument('--selected-spheres', type=int, help='Number of spheres to sample from', default=10)
-        parser.add_argument('--batch-size', type=int, help='Inference batch size used by the scoring model', default=256)
-        parser.add_argument('--send-job', action='store_true', default=False)
-        parser.add_argument('--save-csv', action='store_true', default=False)
-        parser.add_argument('--sampling-policy', type=str, default="top-k-sphere-sampling")
-        parser.add_argument('--optimize-spheres', action='store_true', default=False)
-        parser.add_argument('--optimize-samples', action='store_true', default=False)
+    parser.add_argument('--minio-access-key', type=str, help='Minio access key')
+    parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
+    parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
+    parser.add_argument('--tag-name', type=str, help='Name of the tag to generate for', default="topic-forest")
+    parser.add_argument('--num-images', type=int, help='Number of images to generate', default=1000)
+    parser.add_argument('--sphere-type', type=str, help='Type of spheres used', default="uniform")
+    parser.add_argument('--top-k', type=float, help='Portion of spheres to select from', default=0.1)
+    parser.add_argument('--total-spheres', type=int, help='Number of random spheres to rank', default=500000)
+    parser.add_argument('--selected-spheres', type=int, help='Number of spheres to sample from', default=10)
+    parser.add_argument('--batch-size', type=int, help='Inference batch size used by the scoring model', default=256)
+    parser.add_argument('--steps', type=int, help='Optimization steps', default=200)
+    parser.add_argument('--learning-rate', type=float, help='Optimization learning rate', default=0.001)
+    parser.add_argument('--send-job', action='store_true', default=False)
+    parser.add_argument('--save-csv', action='store_true', default=False)
+    parser.add_argument('--sampling-policy', type=str, default="top-k-sphere-sampling")
+    parser.add_argument('--optimize-spheres', action='store_true', default=False)
+    parser.add_argument('--optimize-samples', action='store_true', default=False)
 
-        return parser.parse_args()
+    return parser.parse_args()
 
 class SphereSamplingGenerator:
     def __init__(self,
                 minio_access_key,
                 minio_secret_key,
                 dataset,
+                tag_name,
                 sphere_type,
                 top_k,
                 total_spheres,
                 selected_spheres,
                 batch_size,
+                steps,
+                learning_rate,
                 sampling_policy,
                 send_job=False,
                 save_csv=False,
@@ -60,6 +68,7 @@ class SphereSamplingGenerator:
                 ):
             
             self.dataset= dataset
+            self.tag_name= tag_name
             self.sphere_type= sphere_type
             self.send_job= send_job
             self.save_csv= save_csv
@@ -68,6 +77,8 @@ class SphereSamplingGenerator:
             self.selected_spheres= selected_spheres
             self.selected_spheres= selected_spheres
             self.batch_size= batch_size
+            self.steps= steps
+            self.learning_rate= learning_rate
             self.sampling_policy= sampling_policy
             self.optimize_spheres= optimize_spheres
             self.optimize_samples= optimize_samples
@@ -87,6 +98,9 @@ class SphereSamplingGenerator:
             self.scoring_model= ScoringFCNetwork(minio_client=self.minio_client, dataset=dataset)
             self.scoring_model.load_model()
 
+            # get classifier model for selected tag
+            self.classifier_model= self.get_classifier_model(self.tag_name)
+
             # load the sphere average score model
             if self.sphere_type=="uniform":
                 self.sphere_scoring_model= SamplingFCRegressionNetwork(minio_client=self.minio_client, dataset=dataset)
@@ -105,6 +119,37 @@ class SphereSamplingGenerator:
             # get distribution of clip vectors for the dataset
             self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
     
+    def get_classifier_model(self, tag_name):
+        input_path = f"{self.dataset}/models/classifiers/{tag_name}/"
+        file_suffix = "elm-regression-clip-h.safetensors"
+
+        # Use the MinIO client's list_objects method directly with recursive=True
+        model_files = [obj.object_name for obj in self.minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix)]
+        
+        if not model_files:
+            print(f"No .safetensors models found for tag: {tag_name}")
+            return None
+
+        # Assuming there's only one model per tag or choosing the first one
+        model_files.sort(reverse=True)
+        model_file = model_files[0]
+        print(f"Loading model: {model_file}")
+
+        return self.load_model_with_filename(self.minio_client, model_file, tag_name)
+
+    def load_model_with_filename(self, minio_client, model_file, model_info=None):
+        model_data = minio_client.get_object('datasets', model_file)
+        
+        clip_model = ELMRegression(device=self.device)
+        
+        # Create a BytesIO object from the model data
+        byte_buffer = io.BytesIO(model_data.data)
+        clip_model.load_safetensors(byte_buffer)
+
+        print(f"Model loaded for tag: {model_info}")
+        
+        return clip_model
+
     def get_clip_distribution(self):
         data = get_object(self.minio_client, f"{self.dataset}/output/stats/clip_stats.msgpack")
         data_dict = msgpack.unpackb(data)
@@ -135,10 +180,17 @@ class SphereSamplingGenerator:
     
     def rank_and_optimize_spheres(self):
         generated_spheres = self.generate_spheres()
-        
+        scores = torch.empty((0, 1), device=self.device)  # Initialize an empty tensor for all scores
         # Predict average scores for each sphere
-        batch_scores = self.sphere_scoring_model.predict(generated_spheres, batch_size=self.batch_size)
-        scores = torch.tensor(batch_scores, device=self.device, dtype=torch.float32)
+        print("scoring spheres -----------")
+        classifier_scores=[]
+        for sphere in tqdm(generated_spheres):
+            feature_vector= sphere[:1280]
+            with torch.no_grad():
+                score= self.classifier_model.classify(feature_vector.unsqueeze(0)).to(device=self.device)
+                classifier_scores.append(score.unsqueeze(0))
+        
+        scores= torch.cat(classifier_scores, dim=0)
 
         # Sort scores and select top spheres
         sorted_indexes = torch.argsort(scores.squeeze(), descending=True)[:int(self.total_spheres * self.top_k)]
@@ -147,49 +199,12 @@ class SphereSamplingGenerator:
         indices = torch.randperm(top_spheres.size(0))[:self.selected_spheres]
         selected_spheres = top_spheres[indices]
 
-        # evaluate distances
-        print("Before optimization:")
-        self.evaluate_distances(selected_spheres[:,:1280])
-
         # Optimization step
         if(self.optimize_spheres):
             selected_spheres = self.optimize_datapoints(selected_spheres, self.sphere_scoring_model)
             selected_spheres= torch.stack(selected_spheres)
         
-        # evaluate distances after optimization
-        print("After optimization:")
-        self.evaluate_distances(selected_spheres[:,:1280])
-
         return selected_spheres.squeeze(1)
-    
-    def evaluate_distances(self, spheres):
-        spheres = spheres.cpu().numpy()
-        # Ensure vectors are in the right format
-        spheres = spheres.astype('float32')
-
-        # Get the number of vectors and their dimensionality
-        num_vectors, dim = spheres.shape
-
-        # Create a FAISS index for L2 distance
-        index = faiss.IndexFlatL2(dim)
-        
-        # Add the vectors to the index
-        index.add(spheres)
-
-        # Retrieve and return the distances
-        distance_matrix, _ = index.search(spheres, num_vectors)
-
-        # Convert squared distances to actual distances (FAISS returns squared L2 distances)
-        distance_matrix = np.sqrt(distance_matrix)
-
-        # Calculate the lowest, highest, and mean distance, excluding self-comparisons
-        lowest_distance = np.min(distance_matrix[distance_matrix != 0])
-        highest_distance =  np.max(distance_matrix[distance_matrix != 0])
-        mean_distance =  np.mean(distance_matrix[distance_matrix != 0])
-
-        print(f"lowest distance: {lowest_distance}")
-        print(f"highest distance: {highest_distance}")
-        print(f"mean distance: {mean_distance}")
         
     def uniform_sampling(self, num_samples):
         spheres = self.rank_and_optimize_spheres()  
@@ -241,7 +256,7 @@ class SphereSamplingGenerator:
         points_per_sphere = max(int(num_generated_samples/self.selected_spheres), 100)
         
         clip_vectors = torch.empty((0, dim), device=self.device)  # Initialize an empty tensor for all clip vectors
-        scores = []
+        scores = torch.empty((0, 1), device=self.device)  # Initialize an empty tensor for all scores
         for sphere in spheres:
             center, radius = sphere[:dim], sphere[dim:]
 
@@ -250,14 +265,15 @@ class SphereSamplingGenerator:
                 direction = torch.randn(dim, device=self.device)
                 direction /= torch.norm(direction)
 
-                # Magnitude for uniform sampling within volume
-                magnitude = torch.rand(dim, device=self.device).pow(1/3) * radius
-
-                point = center + direction * magnitude
+                point = center + direction * radius
                 point = torch.clamp(point, self.clip_min, self.clip_max)
+
+                # get classifier score
+                # score = self.classifier_model.classify(point.unsqueeze(0)).to(device=self.device)
 
                 # Collect generated vectors
                 clip_vectors = torch.cat((clip_vectors, point.unsqueeze(0)), dim=0)
+                # scores = torch.cat((scores, score), dim=0)
         
         # get sampled datapoint scores
         scores = self.scoring_model.predict(clip_vectors, batch_size= self.batch_size)
@@ -268,9 +284,8 @@ class SphereSamplingGenerator:
         return clip_vectors
     
     def optimize_datapoints(self, clip_vectors, scoring_model):
-        print(clip_vectors[0])
-        print(clip_vectors.shape)
         # Calculate the total number of batches
+        dim = 1280
         num_batches = len(clip_vectors) // self.batch_size + (0 if len(clip_vectors) % self.batch_size == 0 else 1)
         
         optimized_embeddings_list = []
@@ -282,16 +297,25 @@ class SphereSamplingGenerator:
             batch_embeddings = clip_vectors[start_idx:end_idx].clone().detach().requires_grad_(True)
             
             # Setup the optimizer for the current batch
-            optimizer = optim.Adam([batch_embeddings], lr=0.001)
+            optimizer = optim.Adam([batch_embeddings], lr=self.learning_rate)
             
-            for step in range(200):
+            for step in range(self.steps):
                 optimizer.zero_grad()
 
                 # Compute scores for the current batch of embeddings
                 scores = scoring_model.model(batch_embeddings)
 
+                # compute classifier scores
+                feature_vectors= batch_embeddings[:,:dim]
+                classifier_scores = []
+                for vector in feature_vectors:
+                    score= self.classifier_model.classify(vector.unsqueeze(0)).to(device=self.device)
+                    classifier_scores.append(score.unsqueeze(0))
+                
+                classifier_scores= torch.cat(classifier_scores, dim=0)
+
                 # Calculate the loss for each embedding in the batch
-                score_losses = -scores.squeeze()
+                score_losses = -scores.squeeze() - classifier_scores.squeeze()
 
                 # Calculate the total loss for the batch
                 total_loss = score_losses.mean()
@@ -301,7 +325,10 @@ class SphereSamplingGenerator:
 
                 optimizer.step()
 
-                print(f"Batch: {batch_idx + 1}/{num_batches}, Step: {step}, Mean Score: {scores.mean().item()}, Loss: {total_loss.item()}")
+                print(f"Batch: {batch_idx + 1}/{num_batches}, Step: {step},") 
+                print(f"Mean ranking Score: {scores.mean().item()}") 
+                print(f"Mean classifier Score: {classifier_scores.mean().item()}")
+                print(f"Loss: {total_loss.item()}")
 
             # After optimization, detach and add the optimized batch embeddings to the list
             optimized_batch_embeddings = batch_embeddings.detach()
@@ -378,11 +405,14 @@ def main():
     generator= SphereSamplingGenerator(minio_access_key=args.minio_access_key,
                                         minio_secret_key=args.minio_secret_key,
                                         dataset=args.dataset,
+                                        tag_name=args.tag_name,
                                         sphere_type= args.sphere_type,
                                         top_k= args.top_k,
                                         total_spheres= args.total_spheres,
                                         selected_spheres= args.selected_spheres,
                                         batch_size= args.batch_size,
+                                        steps= args.steps,
+                                        learning_rate= args.learning_rate,
                                         sampling_policy= args.sampling_policy,
                                         send_job= args.send_job,
                                         save_csv= args.save_csv,

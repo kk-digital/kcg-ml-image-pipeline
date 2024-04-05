@@ -15,7 +15,7 @@ from torch.utils.data.dataloader import DataLoader
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
-from training_worker.sampling.scripts.uniform_sampling_dataset import UniformSphereGenerator
+from training_worker.sampling.scripts.directional_uniform_sampling_dataset import DirectionalUniformSphereGenerator
 from utility.minio import cmd
 
 class DatasetLoader(Dataset):
@@ -45,11 +45,11 @@ class DatasetLoader(Dataset):
         return sample_features, sample_label
 
 
-class SamplingFCRegressionNetwork(nn.Module):
-    def __init__(self, minio_client, input_size=1281, hidden_sizes=[512, 256], input_type="uniform_sphere",output_size=1, 
-                 output_type="mean_sigma_score", dataset="environmental", dataloader=None):
+class DirectionalSamplingFCRegressionNetwork(nn.Module):
+    def __init__(self, minio_client, input_size=2560, hidden_sizes=[512, 256], input_type="directional_uniform_sphere",
+                 output_size=1, output_type="mean_sigma_score", dataset="environmental", dataloader=None):
         
-        super(SamplingFCRegressionNetwork, self).__init__()
+        super(DirectionalSamplingFCRegressionNetwork, self).__init__()
         # set device
         if torch.cuda.is_available():
             device = 'cuda'
@@ -69,7 +69,15 @@ class SamplingFCRegressionNetwork(nn.Module):
 
         # Combine all layers into a sequential model
         self.model = nn.Sequential(*layers).to(self._device)
-        self.residual_model = nn.Sequential(*layers).to(self._device)
+
+        # Define layers for the residual model
+        residual_model_layers = [
+            nn.Linear(input_size, 512),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(512, output_size)
+        ]
+        self.residual_model = nn.Sequential(*residual_model_layers).to(self._device)
         # model metadata
         self.metadata=None
         self.residual_model_metadata=None
@@ -79,8 +87,8 @@ class SamplingFCRegressionNetwork(nn.Module):
         self.input_type= input_type
         self.output_type= output_type
         self.dataset=dataset
-        self.min_radius=0
-        self.max_radius=0
+        self.min_scaling_factors=None
+        self.max_scaling_factors=None
 
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path, self.residual_minio_path=self.get_model_path()
@@ -106,7 +114,7 @@ class SamplingFCRegressionNetwork(nn.Module):
 
         # load datapoints from minio
         if self.dataloader is None:
-            self.dataloader= UniformSphereGenerator(self.minio_client, self.dataset)
+            self.dataloader= DirectionalUniformSphereGenerator(self.minio_client, self.dataset)
             self.dataloader.load_data()
 
         # Define the loss function and optimizer
@@ -247,7 +255,7 @@ class SamplingFCRegressionNetwork(nn.Module):
 
         # Define the loss function and optimizer
         criterion = nn.L1Loss()  
-        optimizer = optim.Adam(self.residual_model.parameters(), lr=learning_rate)
+        optimizer = optim.Adam(self.residual_model.parameters(), weight_decay=1e-5, lr=learning_rate)
 
         # save loss for each epoch and features
         train_loss=[]
@@ -260,7 +268,7 @@ class SamplingFCRegressionNetwork(nn.Module):
         # Training and Validation Loop
         for epoch in range(num_epochs):
 
-            if(epoch==0 or generate_every_epoch):
+            if(epoch==0 and generate_every_epoch):
                 # generate dataset once or every epoch
                 val_loader, train_loader, \
                 val_size, train_size, \
@@ -385,10 +393,10 @@ class SamplingFCRegressionNetwork(nn.Module):
     
     def save_metadata(self, spheres, points_per_sphere, learning_rate, num_epochs, training_batch_size, residual_model):
         # get min and max of spheres
-        radii=[sphere[-1] for sphere in spheres]
+        scaling_factors=[sphere[self.input_size//2:] for sphere in spheres]
 
-        self.min_radius=min(radii)
-        self.max_radius=max(radii)
+        self.min_scaling_factors = [min(feature_values) for feature_values in zip(*scaling_factors)]
+        self.max_scaling_factors = [max(feature_values) for feature_values in zip(*scaling_factors)]
 
         # Metadata
         self.metadata = {
@@ -397,8 +405,8 @@ class SamplingFCRegressionNetwork(nn.Module):
             'learning_rate': learning_rate,
             'training_batch_size': training_batch_size,
             'model_state': self.model.state_dict(),
-            'min_radius': self.min_radius,
-            'max_radius': self.max_radius
+            'min_scaling_factors': self.min_scaling_factors,
+            'max_scaling_factors': self.max_scaling_factors
         }
 
         if residual_model:
@@ -419,7 +427,7 @@ class SamplingFCRegressionNetwork(nn.Module):
                               inference_speed,
                               learning_rate,
                               residual_model=False):
-        input_type="[input_clip_vector[1280], radius(float)]"
+        input_type="[input_clip_vector[1280], scaling_factors[1280]]"
         output_type= f"{self.output_type}_residual" if residual_model else self.output_type
 
         report_text = (
@@ -611,9 +619,11 @@ class SamplingFCRegressionNetwork(nn.Module):
             # Use BytesIO as a file-like object for torch.load
             model_buffer = BytesIO(model_bytes)
             self.metadata = torch.load(model_buffer)
-            self.min_radius= self.metadata["min_radius"]
-            self.max_radius= self.metadata["max_radius"]
+            self.min_scaling_factors= self.metadata["min_scaling_factors"]
+            self.max_scaling_factors= self.metadata["max_scaling_factors"]
             self.model.load_state_dict(self.metadata["model_state"])
+
+            print(most_recent_model)
         else:
             print("No files found for this model.")
             return None
@@ -628,9 +638,6 @@ class SamplingFCRegressionNetwork(nn.Module):
         else:
             print("No files found for the residual model.")
             return None
-
-        print(most_recent_model)
-        print(residual_model_file_data)
 
     def save_model(self):
         if self.metadata is None:
