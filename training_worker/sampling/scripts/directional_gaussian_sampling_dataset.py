@@ -274,7 +274,7 @@ def main():
                                                     percentile=args.percentile,
                                                     std = args.std)
     
-    print(inputs.shape, outputs.shape)
+    
 if __name__ == "__main__":
     main()
 

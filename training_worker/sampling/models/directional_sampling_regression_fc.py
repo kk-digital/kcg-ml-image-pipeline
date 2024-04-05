@@ -15,7 +15,7 @@ from torch.utils.data.dataloader import DataLoader
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
-from training_worker.sampling.scripts.spherical_gaussian_sampling_dataset import SphericalGaussianGenerator
+from training_worker.sampling.scripts.directional_gaussian_sampling_dataset import DirectionalGaussianGenerator
 from utility.minio import cmd
 
 class DatasetLoader(Dataset):
@@ -45,11 +45,11 @@ class DatasetLoader(Dataset):
         return sample_features, sample_label
 
 
-class SamplingFCRegressionNetwork(nn.Module):
-    def __init__(self, minio_client, input_size=1281, hidden_sizes=[512, 256], input_type="gaussian_sphere_variance",output_size=1, 
+class DirectionalSamplingFCRegressionNetwork(nn.Module):
+    def __init__(self, minio_client, input_size=2560, hidden_sizes=[512, 256], input_type="gaussian_sphere_variance",output_size=1, 
                  output_type="mean_sigma_score", dataset="environmental"):
         
-        super(SamplingFCRegressionNetwork, self).__init__()
+        super(DirectionalSamplingFCRegressionNetwork, self).__init__()
         # set device
         if torch.cuda.is_available():
             device = 'cuda'
@@ -78,7 +78,7 @@ class SamplingFCRegressionNetwork(nn.Module):
         self.local_path, self.minio_path=self.get_model_path()
         self.metadata = None
         # sphere dataloader
-        self.dataloader = SphericalGaussianGenerator(minio_client, dataset)
+        self.dataloader = DirectionalGaussianGenerator(minio_client, dataset)
 
     def set_config(self, sampling_parameter= None):
         self.sampling_parameter = sampling_parameter
@@ -237,7 +237,7 @@ class SamplingFCRegressionNetwork(nn.Module):
                               inference_speed,
                               learning_rate,
                               best_model_epoch):
-        input_type="[input_clip_vector[1280], variance(float)]"
+        input_type="[input_clip_vector[2560], variance(float)]"
 
         report_text = (
             "================ Model Report ==================\n"
@@ -456,7 +456,7 @@ class SamplingFCRegressionNetwork(nn.Module):
         os.remove(temp_file.name)
 
     def save_metadata(self, inputs, points_per_sphere, learning_rate, num_epochs, training_batch_size):
-        feature_input_vector = [input[-1] for input in inputs]
+        feature_input_vector = [input[:len(input)/2] for input in inputs]
         self.feature_min_value = min(feature_input_vector)
         self.feature_max_value = max(feature_input_vector)
 
