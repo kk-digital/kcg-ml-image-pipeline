@@ -937,7 +937,6 @@ def get_tag_id_by_name(tag_name):
     else:
         print("Error:", response.status_code)
 
-
 def get_all_tag_jobs(class_ids,target_id):
     all_data = {}  # Dictionary to store data for all class IDs
     
@@ -962,6 +961,18 @@ def get_all_tag_jobs(class_ids,target_id):
         else:
             print(f"Error: HTTP request failed with status code {response.status_code} for class ID {class_id}")
     
+
+    # # Separate data for a specific class ID (e.g., class_id = X) from all the rest
+    # target_class_data = all_data.get(target_id, [])
+    # rest_of_data = {class_id: data for class_id, data in all_data.items() if class_id != target_id}
+    # #return target_class_data , rest_of_data
+
+
+    # Separate data for a specific class ID (e.g., class_id = X) from all the rest
+    target_class_data = all_data.get(target_id, [])
+    rest_of_data = [path for class_id, paths in all_data.items() if class_id != target_id for path in paths]
+
+    return target_class_data, rest_of_data
 
 
 # ---------------------------------------------------------------------------------------------------------------------
