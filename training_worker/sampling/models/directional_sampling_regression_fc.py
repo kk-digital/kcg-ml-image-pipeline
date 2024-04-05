@@ -456,7 +456,8 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
         os.remove(temp_file.name)
 
     def save_metadata(self, inputs, points_per_sphere, learning_rate, num_epochs, training_batch_size):
-        feature_input_vector = [input[:len(input)/2] for input in inputs]
+        print(input[self.input_size//2:])
+        feature_input_vector = [input[self.input_size//2:] for input in inputs]
         self.feature_min_value = min(feature_input_vector)
         self.feature_max_value = max(feature_input_vector)
 
