@@ -85,7 +85,7 @@ class SamplingFCRegressionNetwork(nn.Module):
 
     def get_model_path(self):
         local_path=f"output/{self.output_type}_fc_{self.input_type}.pth"
-        minio_path=f"{self.dataset}/models/sampling/{self.date}_{self.output_type}_fc_{self.input_type}.pth"
+        minio_path=f"{self.dataset}/models/sampling/{self.date}_spherical_gaussian_{self.output_type}_fc_{self.input_type}.pth"
 
         return local_path, minio_path
 
@@ -424,7 +424,7 @@ class SamplingFCRegressionNetwork(nn.Module):
     def load_model(self):
         # get model file data from MinIO
         prefix= f"{self.dataset}/models/sampling/"
-        suffix= f"_{self.output_type}_fc_{self.input_type}.pth"
+        suffix= f"_spherical_gaussian_{self.output_type}_fc_{self.input_type}.pth"
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', prefix)
         most_recent_model = None
 
