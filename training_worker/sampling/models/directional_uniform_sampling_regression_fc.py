@@ -270,7 +270,7 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
         # Training and Validation Loop
         for epoch in range(num_epochs):
 
-            if(epoch==0 or generate_every_epoch):
+            if(epoch==0):
                 # generate dataset once or every epoch
                 val_loader, train_loader, \
                 val_size, train_size, \
