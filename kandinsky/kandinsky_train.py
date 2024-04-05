@@ -47,7 +47,7 @@ weight_dtype = torch.float32
 
 device = torch.device(0)
 
-optimizer_cls = torch.optim.SGD
+optimizer_cls = torch.optim.AdamW
 
 learning_rate = 1e-4
 
