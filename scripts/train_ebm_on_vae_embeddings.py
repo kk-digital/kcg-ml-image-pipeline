@@ -1176,14 +1176,14 @@ new_combined_paths = get_tag_jobs(35)
 
 
 # Create dataloader of occult
-train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(new_combined_paths,1)
+train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(target_paths,1)
 
 # Get adversarial dataset
-train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,20,21,22],0)
+train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag(adv_paths,0)
 
-print("new combined paths : ", len(new_combined_paths))
-print("Train loader len : ", len(train_loader_automated) )
-print("Train loader ood len : ", len(train_loader_clip_ood) )
+print("target paths : ", len(target_paths))
+print("ood paths : ", len(adv_paths) )
+print("Train loader  len : ", len(train_loader_automated) )
 # # init the loader
 # train_loader = train_loader_automated
 # val_loader = val_loader_automated
