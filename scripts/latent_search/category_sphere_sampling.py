@@ -256,13 +256,9 @@ class SphereSamplingGenerator:
 
             for _ in range(points_per_sphere):
                 # Generate points within the sphere
-                direction = torch.randn(dim, device=self.device)
-                direction /= torch.norm(direction)
+                direction = torch.rand(dim, device=self.device).pow(1/3) * radius
 
-                # Magnitude for uniform sampling within volume
-                magnitude = torch.rand(dim, device=self.device).pow(1/3) * radius
-
-                point = center + direction * magnitude
+                point = center + direction
                 point = torch.clamp(point, self.clip_min, self.clip_max)
 
                 # get classifier score
