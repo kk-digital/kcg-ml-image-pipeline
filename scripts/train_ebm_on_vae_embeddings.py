@@ -1174,7 +1174,7 @@ print("adv_paths lenght : ", len(adv_paths))
 
 new_combined_paths = get_tag_jobs(35)
 
-
+print("new combined paths : ", len(new_combined_paths))
 # Create dataloader of occult
 train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(new_combined_paths,1)
 
