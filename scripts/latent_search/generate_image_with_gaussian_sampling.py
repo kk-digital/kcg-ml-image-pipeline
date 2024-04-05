@@ -16,6 +16,7 @@ sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 from data_loader.utils import get_object
 from training_worker.sampling.models.gaussian_sampling_regression_fc import SamplingFCRegressionNetwork
+from training_worker.sampling.models.directional_sampling_regression_fc import DirectionalSamplingFCRegressionNetwork
 from training_worker.scoring.models.scoring_fc import ScoringFCNetwork
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 from utility.minio import cmd
@@ -38,7 +39,7 @@ def parse_args():
         parser.add_argument('--optimize-spheres', action='store_true', default=False)
         parser.add_argument('--optimize-samples', action='store_true', default=False)
         parser.add_argument('--penalty', type=int, default=10)
-
+        parser.add_argument('--sphere-type', type=str, default='spherical', help="Sphere type, spherical and directional")
         return parser.parse_args()
 
 class SphereSamplingGenerator:
@@ -56,6 +57,7 @@ class SphereSamplingGenerator:
                 optimize_spheres=False,
                 optimize_samples=False,
                 penalty=10,
+                sphere_type="spherical"
                 ):
             
             self.dataset= dataset
@@ -70,6 +72,7 @@ class SphereSamplingGenerator:
             self.optimize_spheres= optimize_spheres
             self.optimize_samples= optimize_samples
             self.penalty = penalty
+            self.sphere_type = sphere_type
 
             # get minio client
             self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
@@ -87,12 +90,21 @@ class SphereSamplingGenerator:
             self.scoring_model.load_model()
 
             # get the sphere average score model
-            self.sphere_scoring_model= SamplingFCRegressionNetwork(minio_client=self.minio_client, dataset=dataset)
-            self.sphere_scoring_model.load_model()
+            if self.sphere_type == "spherical":
+                self.sphere_scoring_model= SamplingFCRegressionNetwork(minio_client=self.minio_client, dataset=dataset)
+                self.sphere_scoring_model.load_model()
 
-            # get min and max variance values
-            self.feature_max_value= self.sphere_scoring_model.feature_max_value.item()
-            self.feature_min_value= self.sphere_scoring_model.feature_min_value.item()
+                # get min and max variance(float)
+                self.feature_max_value= self.sphere_scoring_model.feature_max_value.item()
+                self.feature_min_value= self.sphere_scoring_model.feature_min_value.item()
+            elif self.sphere_type == "directional":
+                self.sphere_scoring_model= DirectionalSamplingFCRegressionNetwork(minio_client=self.minio_client, dataset=dataset)
+                self.sphere_scoring_model.load_model()
+
+                # get min and max directional variance(vector)
+                self.feature_max_value= torch.tensor(self.sphere_scoring_model.feature_max_value, device=self.device)
+                self.feature_min_value= torch.tensor(self.sphere_scoring_model.feature_min_value, device=self.device)
+
 
             # get distribution of clip vectors for the dataset
             self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
@@ -111,13 +123,25 @@ class SphereSamplingGenerator:
 
     def generate_spheres(self):
         num_spheres = self.total_spheres
-
+    
         sphere_centers = torch.normal(mean=self.clip_mean.repeat(num_spheres, 1), 
                                       std=self.clip_std.repeat(num_spheres, 1))
         sphere_centers = torch.clip(sphere_centers, self.clip_min, self.clip_max)
-        gaussian_features = torch.rand(num_spheres, device=self.device) * (self.feature_max_value - self.feature_min_value) + self.feature_min_value
-        spheres = torch.cat([sphere_centers, gaussian_features.unsqueeze(1)], dim=1)
+        if self.sphere_type == 'spherical':
+            gaussian_features = torch.rand(num_spheres, device=self.device) * (self.feature_max_value - self.feature_min_value) + self.feature_min_value
+            
+            spheres = torch.cat([sphere_centers, gaussian_features.unsqueeze(1)], dim=1)
+        elif self.sphere_type == 'directional':
+            print("test------>")
+            dim = sphere_centers.size(1)
+            gaussian_features = torch.empty(0, dim, device=self.device)
 
+            for feature in torch.rand(num_spheres, dim, device=self.device):
+                feature = feature  * (self.feature_max_value - self.feature_min_value) + self.feature_min_value
+                gaussian_features = torch.cat([gaussian_features, feature], dim=0)
+
+            spheres = torch.cat([sphere_centers, gaussian_features.unsqueeze(1)], dim=1)
+            print("test------->")
         return spheres
     
     def rank_and_optimize_spheres(self):
@@ -160,7 +184,7 @@ class SphereSamplingGenerator:
 
             # Apply the inverse transform sampling for the exponential distribution
             random_radii = norm.ppf(uniform_samples, scale=(feature ** 0.5))
-            random_radii = np.abs(random_radii)
+            random_radii = np.abs(random_radii)   
 
             # Direction adjustment based on z-scores
             z_scores = (center - self.clip_mean) / self.clip_std
@@ -257,7 +281,7 @@ class SphereSamplingGenerator:
                         image_embedding=clip_vector.unsqueeze(0),
                         negative_image_embedding=None,
                         dataset_name="test-generations",
-                        prompt_generation_policy=self.sampling_policy,
+                        prompt_generation_policy=self.sphere_type + self.sampling_policy,
                         self_training=True
                     )
 
@@ -315,7 +339,8 @@ def main():
                                         save_csv= args.save_csv,
                                         optimize_spheres= args.optimize_spheres,
                                         optimize_samples= args.optimize_samples,
-                                        penalty= args.penalty)
+                                        penalty= args.penalty,
+                                        sphere_type=args.sphere_type)
 
     generator.generate_images(num_images=args.num_images)
 
