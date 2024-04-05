@@ -900,79 +900,8 @@ def getAccuracy_v2(cyber_sample_loader, model1, model2):
     print(f"Accuracy : {preci} / {cpt}")
 
 
-def get_unique_tag_ids():
-    response = requests.get(f'{API_URL}/tags/list-tag-definitions')
-    if response.status_code == 200:
-        try:
-            json_data = response.json()
-            tags = json_data.get('response', {}).get('tags', [])
-
-            # Extract unique tag IDs
-            unique_tag_ids = set(tag.get('tag_id') for tag in tags)
-            
-            # Convert the set of unique tag IDs to a list
-            unique_tag_ids_list = list(unique_tag_ids)
-            
-            return unique_tag_ids_list
-        except json.JSONDecodeError as e:
-            print(f"Error decoding JSON: {e}")
-    else:
-        print(f"Error: HTTP request failed with status code {response.status_code}")
 
 
-def get_tag_id_by_name(tag_name):
-    response = requests.get(f'{API_URL}/tags/get-tag-id-by-tag-name?tag_string={tag_name}')
-    
-    # Check if the request was successful (status code 200)
-    if response.status_code == 200:
-        # Parse the JSON response
-        json_data = response.json()
-
-        # Get the value of "response" from the JSON data
-        response_value = json_data.get('response')
-        tag_id = response_value.get('tag_id')
-        # Print or use the response value
-        #print("The tag id is:", response_value, " the tag id is : ",tag_id )
-        return tag_id
-    else:
-        print("Error:", response.status_code)
-
-def get_all_tag_jobs(class_ids,target_id):
-    all_data = {}  # Dictionary to store data for all class IDs
-    
-    for class_id in class_ids:
-        response = requests.get(f'{API_URL}/tags/get-images-by-tag-id/?tag_id={class_id}')
-        
-        # Check if the response is successful (status code 200)
-        if response.status_code == 200:
-            try:
-                # Parse the JSON response
-                response_data = json.loads(response.content)
-                
-                # Check if 'images' key is present in the JSON response
-                if 'images' in response_data.get('response', {}):
-                    # Extract file paths from the 'images' key
-                    file_paths = [job['file_path'] for job in response_data['response']['images']]
-                    all_data[class_id] = file_paths
-                else:
-                    print(f"Error: 'images' key not found in the JSON response for class ID {class_id}.")
-            except json.JSONDecodeError as e:
-                print(f"Error decoding JSON for class ID {class_id}: {e}")
-        else:
-            print(f"Error: HTTP request failed with status code {response.status_code} for class ID {class_id}")
-    
-
-    # # Separate data for a specific class ID (e.g., class_id = X) from all the rest
-    # target_class_data = all_data.get(target_id, [])
-    # rest_of_data = {class_id: data for class_id, data in all_data.items() if class_id != target_id}
-    # #return target_class_data , rest_of_data
-
-
-    # Separate data for a specific class ID (e.g., class_id = X) from all the rest
-    target_class_data = all_data.get(target_id, [])
-    rest_of_data = [path for class_id, paths in all_data.items() if class_id != target_id for path in paths]
-
-    return target_class_data, rest_of_data
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1152,22 +1081,19 @@ def get_all_tag_jobs(class_ids,target_id):
  
 
 
-classe_name = "concept-cybernetic"
 
-print("class name ", classe_name)
-all_tags = get_unique_tag_ids()
-print("all tag : ",all_tags)
-class_tag = get_tag_id_by_name(classe_name)
-print("class tag : ",  class_tag)
-target_paths, adv_paths = get_all_tag_jobs(class_ids = all_tags, target_id =class_tag)
 
+
+
+
+new_combined_paths = get_tag_jobs(35)
 
 
 # Create dataloader of occult
-train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(target_paths,1)
+train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(new_combined_paths,1)
 
 # Get adversarial dataset
-train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag(adv_paths,0)
+train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,20,21,22],0)
 
 # init the loader
 train_loader = train_loader_automated
@@ -1251,7 +1177,7 @@ plt.clf()
 
 
 # Load the environmental dataset     
-images_paths_ood = get_file_paths("environmental",45000)
+images_paths_ood = get_file_paths("environmental",30000)
 
 # Evaluate new model
 #automated model
