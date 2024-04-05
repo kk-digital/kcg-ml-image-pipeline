@@ -85,7 +85,7 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
 
     def get_model_path(self):
         local_path=f"output/{self.output_type}_fc_{self.input_type}.pth"
-        minio_path=f"{self.dataset}/models/sampling/{self.date}_{self.output_type}_fc_{self.input_type}.pth"
+        minio_path=f"{self.dataset}/models/sampling/{self.date}_directional_gaussian_{self.output_type}_fc_{self.input_type}.pth"
 
         return local_path, minio_path
 
@@ -424,7 +424,7 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
     def load_model(self):
         # get model file data from MinIO
         prefix= f"{self.dataset}/models/sampling/"
-        suffix= f"_{self.output_type}_fc_{self.input_type}.pth"
+        suffix= f"_directional_gaussian_{self.output_type}_fc_{self.input_type}.pth"
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', prefix)
         most_recent_model = None
 
@@ -456,7 +456,8 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
         os.remove(temp_file.name)
 
     def save_metadata(self, inputs, points_per_sphere, learning_rate, num_epochs, training_batch_size):
-        print(input[self.input_size//2:])
+        print(self.input_size//2)
+        print(inputs.size)
         feature_input_vector = [input[self.input_size//2:] for input in inputs]
         self.feature_min_value = min(feature_input_vector)
         self.feature_max_value = max(feature_input_vector)
