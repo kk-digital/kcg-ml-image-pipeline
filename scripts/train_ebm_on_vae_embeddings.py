@@ -1169,14 +1169,14 @@ print("target_paths lenght : ", len(target_paths))
 print("adv_paths lenght : ", len(adv_paths))
 
 
-new_combined_paths = get_tag_jobs(39)
+new_combined_paths = get_tag_jobs(21)
 
 
 # Create dataloader of occult
 train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(new_combined_paths,1)
 
 # Get adversarial dataset
-train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,20,21,22],0)
+train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,20,22,23,24,25,26,27,28,29,30,31,32,34],0)
 
 # init the loader
 train_loader = train_loader_automated
