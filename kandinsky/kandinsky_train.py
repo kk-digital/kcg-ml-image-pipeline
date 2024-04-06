@@ -240,41 +240,49 @@ while step < max_train_steps:
     noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
     target = noise
 
-    with torch.cuda.amp.autocast(True):
-        if torch.isnan(noisy_latents).any():
-            print("NaN values detected in latents!")
-        if torch.isnan(timesteps).any():
-            print("NaN values detected in timesteps!")
-        if torch.isnan(image_embeds).any():
-            print("NaN values detected in image_embeds!")
+    if torch.isnan(noisy_latents).any():
+        print("NaN values detected in latents!")
+    if torch.isnan(timesteps).any():
+        print("NaN values detected in timesteps!")
+    if torch.isnan(image_embeds).any():
+        print("NaN values detected in image_embeds!")
 
-        added_cond_kwargs = {"image_embeds": image_embeds}
-        model_pred = unet(noisy_latents, timesteps, None, added_cond_kwargs=added_cond_kwargs).sample[:, :4]
-        
-        if(epoch==1 and step==0):
-            total_memory= log_memory_usage("Forward Pass", total_memory)
+    added_cond_kwargs = {"image_embeds": image_embeds}
+    model_pred = unet(noisy_latents, timesteps, None, added_cond_kwargs=added_cond_kwargs).sample[:, :4]
+    
+    if(epoch==1 and step==0):
+        total_memory= log_memory_usage("Forward Pass", total_memory)
 
-        if torch.isnan(model_pred).any():
-            print("NaN values detected in model predictions!")
-        
+    if torch.isnan(model_pred).any():
+        print("NaN values detected in model predictions!")
 
-        if snr_gamma is None:
-            loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
-        else:
-            snr = compute_snr(noise_scheduler, timesteps)
-            mse_loss_weights = torch.stack([snr, snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0]
-            if noise_scheduler.config.prediction_type == "epsilon":
-                mse_loss_weights = mse_loss_weights / snr
-            elif noise_scheduler.config.prediction_type == "v_prediction":
-                mse_loss_weights = mse_loss_weights / (snr + 1)
-            loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
-            loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
-            loss = loss.mean()
-        
-        loss = loss / gradient_accumulation_steps  # Adjust loss for gradient accumulation
+    if snr_gamma is None:
+        loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
+    else:
+        snr = compute_snr(noise_scheduler, timesteps)
+        mse_loss_weights = torch.stack([snr, snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0]
+        if noise_scheduler.config.prediction_type == "epsilon":
+            mse_loss_weights = mse_loss_weights / snr
+        elif noise_scheduler.config.prediction_type == "v_prediction":
+            mse_loss_weights = mse_loss_weights / (snr + 1)
+        loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
+        loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
+        loss = loss.mean()
+    
+    loss = loss / gradient_accumulation_steps  # Adjust loss for gradient accumulation
+
+    for name, param in unet.named_parameters():
+        if param.grad is not None:
+            grad_mean = param.grad.abs().mean()
+            if grad_mean > 1e+5:  # Arbitrary large value to detect overflow
+                print(f"Potential overflow detected in the gradients of {name}")
+            if grad_mean < 1e-6:  # Arbitrary small value to detect underflow
+                print(f"Potential underflow detected in the gradients of {name}")
+
 
     # Backward pass profiling
     loss.backward()
+    # torch.nn.utils.clip_grad_norm_(unet.parameters(), max_norm=1.0)
     if(epoch==1 and step==0):
         total_memory= log_memory_usage("Backward Pass", total_memory)
     step+=1 
