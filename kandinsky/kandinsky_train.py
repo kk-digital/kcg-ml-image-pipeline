@@ -48,7 +48,7 @@ weight_dtype = torch.float32
 
 device = torch.device(0)
 
-optimizer_cls = torch.optim.AdamW
+optimizer_cls = torch.optim.SGD
 
 learning_rate = 1e-4
 
@@ -112,9 +112,7 @@ total_memory= log_memory_usage("Loading the Unet", total_memory)
 optimizer = optimizer_cls(
     unet.parameters(),
     lr=learning_rate,
-    betas=(adam_beta1, adam_beta2),
-    weight_decay=adam_weight_decay,
-    eps=adam_epsilon
+    weight_decay=adam_weight_decay
 )
 
 def center_crop(image):
@@ -205,9 +203,6 @@ data_iter = iter(train_dataloader)
 loss_per_epoch=[]
 losses = list()
 
-# Initialize the gradient scaler for mixed precision training
-scaler = GradScaler()
-
 def compute_snr():
     pass
 
@@ -244,21 +239,11 @@ while step < max_train_steps:
     target = noise
 
     with autocast():
-        if torch.isnan(noisy_latents).any():
-            print("NaN values detected in latents!")
-        if torch.isnan(timesteps).any():
-            print("NaN values detected in timesteps!")
-        if torch.isnan(image_embeds).any():
-            print("NaN values detected in image_embeds!")
-
         added_cond_kwargs = {"image_embeds": image_embeds}
         model_pred = unet(noisy_latents, timesteps, None, added_cond_kwargs=added_cond_kwargs).sample[:, :4]
         
         if(epoch==1 and step==0):
             total_memory= log_memory_usage("Forward Pass", total_memory)
-
-        if torch.isnan(model_pred).any():
-            print("NaN values detected in model predictions!")
 
         if snr_gamma is None:
             loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
@@ -275,31 +260,21 @@ while step < max_train_steps:
         
         loss = loss / gradient_accumulation_steps  # Adjust loss for gradient accumulation
 
-        for name, param in unet.named_parameters():
-            if param.grad is not None:
-                grad_mean = param.grad.abs().mean()
-                if grad_mean > 1e+5:  # Arbitrary large value to detect overflow
-                    print(f"Potential overflow detected in the gradients of {name}")
-                if grad_mean < 1e-6:  # Arbitrary small value to detect underflow
-                    print(f"Potential underflow detected in the gradients of {name}")
-
     # Backward pass profiling
-    scaler.scale(loss).backward()
+    loss.backward()
     if(epoch==1 and step==0):
         total_memory= log_memory_usage("Backward Pass", total_memory)
     step+=1 
     batch_iter+= 1
     # Optimizer step profiling
     if step % gradient_accumulation_steps == 0:
-        scaler.unscale_(optimizer)
         # Context manager to enable autograd profiler
         if(epoch==1 and step==1):
             with profiler.profile(use_cuda=True, profile_memory=True) as prof:
-                scaler.step(optimizer)
+                optimizer.step()
             total_memory= log_memory_usage("Optimizer Step", total_memory)
         else:
-            scaler.step(optimizer)
-        scaler.update()
+            optimizer.step()
         lr_scheduler.step()
         optimizer.zero_grad()
 
