@@ -374,8 +374,11 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
         inputs, outputs = self.dataloader.generate_spheres(n_spheres, target_avg_points, self.output_type)
 
         if residual_model:
+            print(f"targets: {outputs[:10]}")
             predicted_outputs= self.predict(inputs, batch_size= batch_size).squeeze().cpu().numpy()
-            residuals= np.array(outputs) - predicted_outputs
+            print(f"predictions: {predicted_outputs[:10]}")
+            residuals= np.abs(np.array(outputs) - predicted_outputs)
+            print(f"residuals: {residuals[:10]}")
             outputs= residuals.tolist()
 
         # load the dataset
