@@ -683,7 +683,7 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
 
         return val_loader, train_loader, val_size, train_size, val_dataset, train_dataset
     
-    def save_metadata(self, spheres, points_per_sphere, learning_rate, num_epochs, training_batch_size, residual_model):
+    def save_metadata(self, spheres, points_per_sphere, learning_rate, num_epochs, training_batch_size):
         # get min and max of spheres
         scaling_factors=[sphere[self.input_size//2:] for sphere in spheres]
 
