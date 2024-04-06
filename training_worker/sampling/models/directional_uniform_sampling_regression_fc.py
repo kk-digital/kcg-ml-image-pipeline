@@ -653,7 +653,7 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
                                                                  dataloader= self.dataloader)
             residual_model.train(n_spheres, 
                                 target_avg_points,
-                                self.model,
+                                self,
                                 learning_rate,
                                 validation_split, 
                                 num_epochs, 
