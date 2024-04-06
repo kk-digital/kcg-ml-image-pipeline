@@ -241,11 +241,11 @@ while step < max_train_steps:
     target = noise
 
     with torch.cuda.amp.autocast(True):
-        if not torch.isnan(noisy_latents).any():
+        if torch.isnan(noisy_latents).any():
             print("NaN values detected in latents!")
-        if not torch.isnan(timesteps).any():
+        if torch.isnan(timesteps).any():
             print("NaN values detected in timesteps!")
-        if not torch.isnan(image_embeds).any():
+        if torch.isnan(image_embeds).any():
             print("NaN values detected in image_embeds!")
 
         added_cond_kwargs = {"image_embeds": image_embeds}
