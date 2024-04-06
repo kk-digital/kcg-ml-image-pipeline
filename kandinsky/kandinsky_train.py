@@ -279,10 +279,9 @@ while step < max_train_steps:
             if grad_mean < 1e-6:  # Arbitrary small value to detect underflow
                 print(f"Potential underflow detected in the gradients of {name}")
 
-
     # Backward pass profiling
     loss.backward()
-    # torch.nn.utils.clip_grad_norm_(unet.parameters(), max_norm=1.0)
+    torch.nn.utils.clip_grad_norm_(unet.parameters(), max_norm=1.0)
     if(epoch==1 and step==0):
         total_memory= log_memory_usage("Backward Pass", total_memory)
     step+=1 
