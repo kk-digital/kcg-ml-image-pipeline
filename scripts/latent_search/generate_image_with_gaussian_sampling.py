@@ -123,7 +123,8 @@ class SphereSamplingGenerator:
 
     def generate_spheres(self):
         num_spheres = self.total_spheres
-    
+        print("max :", self.feature_max_value)
+        print('min :', self.feature_min_value)
         sphere_centers = torch.normal(mean=self.clip_mean.repeat(num_spheres, 1), 
                                       std=self.clip_std.repeat(num_spheres, 1))
         sphere_centers = torch.clip(sphere_centers, self.clip_min, self.clip_max)
@@ -134,11 +135,7 @@ class SphereSamplingGenerator:
         elif self.sphere_type == 'directional':
             dim = sphere_centers.size(1)
             gaussian_features = torch.empty(0, dim, device=self.device)
-            print(dim, "dim")
-            print(self.feature_max_value.size(), "feature max value")
-            for feature in torch.rand(num_spheres, dim, device=self.device):
-                feature = feature  * (self.feature_max_value - self.feature_min_value) + self.feature_min_value
-                gaussian_features = torch.cat([gaussian_features, feature.unsqueeze(0)], dim=0)
+            gaussian_features = torch.rand(num_spheres, dim, device=self.device) * (self.feature_max_value - self.feature_min_value) + self.feature_min_value
 
             spheres = torch.cat([sphere_centers, gaussian_features], dim=1)
         return spheres
@@ -163,7 +160,46 @@ class SphereSamplingGenerator:
 
         return top_spheres.squeeze(1)
     
-    def sample_clip_vectors(self, num_samples):
+    def sample_clip_vectors_with_directional(self, num_samples):
+        spheres = self.rank_and_optimize_spheres()  
+        dim = spheres.size(1) // 2 # Exclude directional variance from dimensions
+        # Determine points to generate per sphere
+        num_generated_samples = int(num_samples/self.top_k)
+        points_per_sphere = max(int(num_generated_samples/self.selected_spheres), 1000)
+
+        clip_vectors = torch.empty((0, dim), device=self.device)  # Initialize an empty tensor for all clip vectors
+        scores = []
+        for sphere in spheres:
+            center, feature = sphere[:dim], sphere[dim:]
+            print("directional variance", feature)
+            X = np.random.randn(points_per_sphere, dim)
+            covariance = np.diag(feature.cpu().numpy())
+
+            L = np.linalg.cholesky(covariance)
+            Y = center.cpu().numpy() + X@L.T
+            
+            # Collect generated vectors and optionally calculate scores
+            clip_vectors = torch.cat((clip_vectors, torch.tensor(Y, device=self.device, dtype=torch.float32)), dim=0)
+
+        # get sampled datapoint scores
+        scores = self.scoring_model.predict(clip_vectors)
+        # get top scoring datapoints
+        _, sorted_indices = torch.sort(scores.squeeze(), descending=True)
+        # filter with penalty
+        for i in range(num_samples):
+            clip_vector = clip_vectors[i]
+            for j in range(num_samples - 1, i, -1):
+                if torch.norm(clip_vector - clip_vectors[j]) < self.penalty:
+                    clip_vectors = torch.cat((clip_vectors[:j], clip_vectors[j+1:]), dim=0)
+        clip_vectors = clip_vectors[sorted_indices[:num_samples]]
+
+        # Optimization step
+        if(self.optimize_samples):
+            clip_vectors = self.optimize_datapoints(clip_vectors, self.scoring_model)
+
+        return clip_vectors
+    
+    def sample_clip_vectors_with_spherical(self, num_samples):
         spheres = self.rank_and_optimize_spheres()  
         dim = spheres.size(1) - 1  # Exclude radius from dimensions
         
@@ -175,10 +211,8 @@ class SphereSamplingGenerator:
         scores = []
         for sphere in spheres:
             center, feature = sphere[:-1], sphere[-1]
-            print("sphere", sphere)
             # Generate uniform random numbers between 0 and 1
             uniform_samples = np.random.rand(points_per_sphere)
-            print(type(uniform_samples), type(feature))
             feature = feature.to('cpu')
 
             # Apply the inverse transform sampling for the exponential distribution
@@ -204,7 +238,6 @@ class SphereSamplingGenerator:
 
                 # Collect generated vectors and optionally calculate scores
                 clip_vectors = torch.cat((clip_vectors, point.unsqueeze(0)), dim=0)
-        
         # get sampled datapoint scores
         scores = self.scoring_model.predict(clip_vectors, batch_size= self.batch_size)
         # get top scoring datapoints
@@ -214,9 +247,7 @@ class SphereSamplingGenerator:
             clip_vector = clip_vectors[i]
             for j in range(num_samples - 1, i, -1):
                 if torch.norm(clip_vector - clip_vectors[j]) < self.penalty:
-                    print(i, j)
                     clip_vectors = torch.cat((clip_vectors[:j], clip_vectors[j+1:]), dim=0)
-                    print(clip_vectors.size(), "size of clip vectors")
 
         clip_vectors = clip_vectors[sorted_indices[:num_samples]]
 
@@ -224,10 +255,8 @@ class SphereSamplingGenerator:
         if(self.optimize_samples):
             clip_vectors = self.optimize_datapoints(clip_vectors, self.scoring_model)
 
-
-
         return clip_vectors
-    
+
     def optimize_datapoints(self, clip_vectors, scoring_model):
         # Calculate the total number of batches
         num_batches = len(clip_vectors) // self.batch_size + (0 if len(clip_vectors) % self.batch_size == 0 else 1)
@@ -270,9 +299,11 @@ class SphereSamplingGenerator:
     
     def generate_images(self, num_images):
         # generate clip vectors
-        clip_vectors= self.sample_clip_vectors(num_samples=num_images)
+        if self.sphere_type == "spherical":
+            clip_vectors= self.sample_clip_vectors_with_spherical(num_samples=num_images)
+        elif self.sphere_type == 'directional':
+            clip_vectors= self.sample_clip_vectors_with_directional(num_samples=num_images)
         df_data=[]
-        print("clip vectors", clip_vectors)
         for clip_vector in clip_vectors:
             if self.send_job:
                 try:
@@ -280,14 +311,14 @@ class SphereSamplingGenerator:
                         image_embedding=clip_vector.unsqueeze(0),
                         negative_image_embedding=None,
                         dataset_name="test-generations",
-                        prompt_generation_policy=self.sphere_type + self.sampling_policy,
+                        prompt_generation_policy=self.sphere_type + "-" + self.sampling_policy,
                         self_training=True
                     )
 
                     task_uuid = response['uuid']
                     task_time = response['creation_time']
-                except:
-                    print("An error occured.")
+                except Exception as e:
+                    print("An error occured.", e)
                     task_uuid = -1
                     task_time = -1         
 
