@@ -511,7 +511,7 @@ class DeepEnergyModel(pl.LightningModule):
 
         # Combine losses and backpropagate
         alphaW = 1  # Adjust weight for cdiv_loss
-        alphaY = 0.01  # Adjust weight for reg_loss
+        alphaY = 0.05  # Adjust weight for reg_loss
         total_loss =  ((alphaW) * cdiv_loss) + (alphaY * reg_loss)
 
 
@@ -1169,14 +1169,14 @@ print("target_paths lenght : ", len(target_paths))
 print("adv_paths lenght : ", len(adv_paths))
 
 
-new_combined_paths = get_tag_jobs(20)
+new_combined_paths = get_tag_jobs(21)
 
 
 # Create dataloader of occult
 train_loader_automated, val_loader_automated = get_clip_embeddings_by_path(new_combined_paths,1)
 
 # Get adversarial dataset
-train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,21,22,23,24,25,26,27,28,29,30,31,32,34],0)
+train_loader_clip_ood, val_loader_clip_ood = get_clip_embeddings_by_tag([3,5,7,8,9,15,20,22,23,24,25,26,27,28,29,30,31,32,34],0)
 
 # init the loader
 train_loader = train_loader_automated
@@ -1248,9 +1248,13 @@ buf = io.BytesIO()
 plt.savefig(buf, format='png')
 buf.seek(0)
 
+
+alphaW_name = "2"  # Adjust weight for cdiv_loss
+alphaY_name = "d5" # Adjust weight for reg_loss
+
 # upload the graph report
 minio_path="environmental/output/my_tests"
-minio_path= minio_path + "/loss_tracking_per_step_1_cd_p2_regloss_isometric_training" +date_now+".png"
+minio_path= minio_path + "/loss_tracking_W"+alphaW_name +"_Y_"+alphaY_name+"_"+date_now+".png"
 cmd.upload_data(minio_client, 'datasets', minio_path, buf)
 # Remove the temporary file
 os.remove("output/loss_tracking_per_step.png")
