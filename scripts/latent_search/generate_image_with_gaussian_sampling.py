@@ -171,6 +171,7 @@ class SphereSamplingGenerator:
         scores = []
         for sphere in spheres:
             center, feature = sphere[:dim], sphere[dim:]
+            feature = torch.abs(feature)
             print("directional variance", feature)
             X = np.random.randn(points_per_sphere, dim)
             covariance = np.diag(feature.cpu().numpy())
