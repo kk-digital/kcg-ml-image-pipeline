@@ -511,7 +511,7 @@ class DeepEnergyModel(pl.LightningModule):
 
         # Combine losses and backpropagate
         alphaW = 1  # Adjust weight for cdiv_loss
-        alphaY = 0.05  # Adjust weight for reg_loss
+        alphaY = 0.1  # Adjust weight for reg_loss
         total_loss =  ((alphaW) * cdiv_loss) + (alphaY * reg_loss)
 
 
@@ -1249,8 +1249,8 @@ plt.savefig(buf, format='png')
 buf.seek(0)
 
 
-alphaW_name = "2"  # Adjust weight for cdiv_loss
-alphaY_name = "d5" # Adjust weight for reg_loss
+alphaW_name = "1"  # Adjust weight for cdiv_loss
+alphaY_name = "d1" # Adjust weight for reg_loss
 
 # upload the graph report
 minio_path="environmental/output/my_tests"
