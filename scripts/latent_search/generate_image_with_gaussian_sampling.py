@@ -185,7 +185,7 @@ class SphereSamplingGenerator:
             
             # Collect generated vectors and optionally calculate scores
             clip_vectors = torch.cat((clip_vectors, torch.tensor(Y, device=self.device, dtype=torch.float32)), dim=0)
-
+            clip_vectors = torch.cat((clip_vectors, center))
         # get sampled datapoint scores
         scores = self.scoring_model.predict(clip_vectors)
         # get top scoring datapoints
@@ -202,8 +202,7 @@ class SphereSamplingGenerator:
         if(self.optimize_samples):
             clip_vectors = self.optimize_datapoints(clip_vectors, self.scoring_model)
 
-        # return clip_vectors
-        return sphere[:][dim:]
+        return clip_vectors
     
     def sample_clip_vectors_with_spherical(self, num_samples):
         spheres = self.rank_and_optimize_spheres()  
