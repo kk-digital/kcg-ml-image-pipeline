@@ -202,7 +202,8 @@ class SphereSamplingGenerator:
         if(self.optimize_samples):
             clip_vectors = self.optimize_datapoints(clip_vectors, self.scoring_model)
 
-        return clip_vectors
+        # return clip_vectors
+        return sphere[:, dim//2:]
     
     def sample_clip_vectors_with_spherical(self, num_samples):
         spheres = self.rank_and_optimize_spheres()  
