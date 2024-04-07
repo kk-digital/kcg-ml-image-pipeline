@@ -171,13 +171,15 @@ class SphereSamplingGenerator:
         scores = []
         for sphere in spheres:
             center, feature = sphere[:dim], sphere[dim:]
-            feature = torch.abs(feature) ** 0.5
+            feature = torch.abs(feature)
             print("directional variance", feature)
             X = np.random.randn(points_per_sphere, dim)
             covariance = np.diag(feature.cpu().numpy())
 
             L = np.linalg.cholesky(covariance)
             Y = center.cpu().numpy() + X@L.T
+            Y = torch.tensor(Y, device=self.device, dtype=torch.float32)
+            Y = torch.clamp(Y, self.clip_min, self.clip_max)
             
             # Collect generated vectors and optionally calculate scores
             clip_vectors = torch.cat((clip_vectors, torch.tensor(Y, device=self.device, dtype=torch.float32)), dim=0)
