@@ -1264,7 +1264,7 @@ plt.clf()
 
 
 # Load the environmental dataset     
-images_paths_ood = get_file_paths("environmental",30000)
+images_paths_ood = get_file_paths("environmental",60000)
 
 # Evaluate new model
 #automated model
