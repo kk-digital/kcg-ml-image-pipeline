@@ -180,6 +180,7 @@ class SphereSamplingGenerator:
             Y = center.cpu().numpy() + X@L.T
             Y = torch.tensor(Y, device=self.device, dtype=torch.float32)
             Y = torch.clamp(Y, self.clip_min, self.clip_max)
+            print("result Y vector", Y)
             
             # Collect generated vectors and optionally calculate scores
             clip_vectors = torch.cat((clip_vectors, torch.tensor(Y, device=self.device, dtype=torch.float32)), dim=0)
