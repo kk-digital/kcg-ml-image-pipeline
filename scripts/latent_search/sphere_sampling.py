@@ -308,7 +308,7 @@ class SphereSamplingGenerator:
         # elif self.sphere_type=="directional":
         #     clip_vectors= self.directional_uniform_sampling(num_samples=num_images)
 
-        clip_vectors= self.rank_and_optimize_spheres(num_samples=num_images)
+        clip_vectors= self.rank_and_optimize_spheres(num_images=num_images)
         
         # Optimization step
         if(self.optimize_samples):
