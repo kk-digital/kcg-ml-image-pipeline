@@ -172,6 +172,7 @@ class SphereSamplingGenerator:
 
 
         for sphere in spheres:
+            # sperate the center and variance of direcitonal gaussian distribution
             center, feature = sphere[:dim], sphere[dim:]
             
             # Direction adjustment based on z-scores
@@ -179,6 +180,7 @@ class SphereSamplingGenerator:
             adjustment_factor = torch.clamp(torch.abs(z_scores), 0, 1)
             direction_adjustment = -torch.sign(z_scores) * adjustment_factor
 
+            # get clip vectors on direciton gaussain distribution using box muller transform
             feature = torch.abs(feature)
             X = np.random.randn(points_per_sphere, dim)
             covariance = np.diag(feature.cpu().numpy())
