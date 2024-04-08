@@ -165,37 +165,36 @@ class SphereSamplingGenerator:
         dim = spheres.size(1) // 2 # Exclude directional variance from dimensions
         # Determine points to generate per sphere
         num_generated_samples = int(num_samples/self.top_k)
-        points_per_sphere = max(int(num_generated_samples/self.selected_spheres), 1000)
+        points_per_sphere = max(int(num_generated_samples/self.selected_spheres), 10)
 
         clip_vectors = torch.empty((0, dim), device=self.device)  # Initialize an empty tensor for all clip vectors
         scores = []
+
+
         for sphere in spheres:
             center, feature = sphere[:dim], sphere[dim:]
+            
+            # Direction adjustment based on z-scores
+            z_scores = (center - self.clip_mean) / self.clip_std
+            adjustment_factor = torch.clamp(torch.abs(z_scores), 0, 1)
+            direction_adjustment = -torch.sign(z_scores) * adjustment_factor
+
             feature = torch.abs(feature)
             print("directional variance", feature)
             X = np.random.randn(points_per_sphere, dim)
             covariance = np.diag(feature.cpu().numpy())
 
             L = np.linalg.cholesky(covariance)
-            Y = center.cpu().numpy() + X@L.T
-            Y = torch.tensor(Y, device=self.device, dtype=torch.float32)
-            Y = torch.clamp(Y, self.clip_min, self.clip_max)
-            print("center", center)
-            print("result Y vector", Y)
-            
+            Y = center.cpu().numpy() + np.abs((X@L.T)) ** (1/2) * direction_adjustment.cpu().numpy()
+            Y = torch.clamp(torch.tensor(Y, device=self.device, dtype=torch.float32), self.clip_min, self.clip_max)
+
             # Collect generated vectors and optionally calculate scores
-            # clip_vectors = torch.cat((clip_vectors, torch.tensor(Y, device=self.device, dtype=torch.float32)), dim=0)
-            clip_vectors = torch.cat((clip_vectors, center.unsqueeze(0)))
+            clip_vectors = torch.cat((clip_vectors, Y), dim=0)
         # get sampled datapoint scores
         scores = self.scoring_model.predict(clip_vectors)
         # get top scoring datapoints
         _, sorted_indices = torch.sort(scores.squeeze(), descending=True)
-        # filter with penalty
-        for i in range(num_samples):
-            clip_vector = clip_vectors[i]
-            for j in range(num_samples - 1, i, -1):
-                if torch.norm(clip_vector - clip_vectors[j]) < self.penalty:
-                    clip_vectors = torch.cat((clip_vectors[:j], clip_vectors[j+1:]), dim=0)
+
         clip_vectors = clip_vectors[sorted_indices[:num_samples]]
 
         # Optimization step
