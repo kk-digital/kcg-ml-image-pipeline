@@ -152,13 +152,16 @@ class DirectionalSamplingResidualXgboost(nn.Module):
             training_time= end - start
     
             #Extract MAE values and residuals
-            val_loss = evals_result['eval']['mae']
-            train_loss = evals_result['train']['mae']
+            current_val_loss = evals_result['eval']['mae']
+            current_train_loss = evals_result['train']['mae']
+
+            train_loss.append(current_train_loss[-1])
+            val_loss.append(current_val_loss[-1])
 
             # Update best model if current epoch's validation loss is the best
-            if val_loss[-1] < best_val_loss:
-                best_val_loss = val_loss[-1]
-                best_train_loss = train_loss[-1]
+            if current_val_loss[-1] < best_val_loss:
+                best_val_loss = current_val_loss[-1]
+                best_train_loss = current_train_loss[-1]
                 best_model_state = self.model
                 best_epoch= epoch + 1
 
