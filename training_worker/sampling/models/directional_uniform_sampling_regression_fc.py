@@ -141,10 +141,10 @@ class DirectionalSamplingResidualXgboost(nn.Module):
             start = time.time()
 
             if epoch==0:
-                self.model = xgb.train(params, dtrain, num_boost_round=100, evals=[(dval,'eval'), (dtrain,'train')], 
+                self.model = xgb.train(params, dtrain, num_boost_round=400, evals=[(dval,'eval'), (dtrain,'train')], 
                                     early_stopping_rounds=early_stopping, evals_result=evals_result)
             else:
-                self.model = xgb.train(params, dtrain, num_boost_round=100, evals=[(dval,'eval'), (dtrain,'train')], 
+                self.model = xgb.train(params, dtrain, num_boost_round=400, evals=[(dval,'eval'), (dtrain,'train')], 
                                     early_stopping_rounds=early_stopping, evals_result=evals_result, xgb_model= self.model)
 
             end = time.time()
