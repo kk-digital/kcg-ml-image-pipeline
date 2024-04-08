@@ -1493,7 +1493,7 @@ async def read_relevancy_file(request: Request, dataset: str, filename: str = Qu
         )
 
 
-@router.put("/rank/update_datapoint_v1", 
+@router.put("/rank/update-ranking-datapoint", 
             tags=['ranking'], 
             response_model=StandardSuccessResponseV1[Selection],
             responses=ApiResponseHandlerV1.listErrors([404, 422]))
