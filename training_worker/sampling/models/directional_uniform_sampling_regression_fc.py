@@ -239,7 +239,7 @@ class DirectionalSamplingResidualXgboost(nn.Module):
         buffer = BytesIO(content)
         buffer.seek(0)
 
-        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.pth', '.txt'), buffer)
+        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.json', '.txt'), buffer)
 
         # Remove the temporary file
         os.remove(local_report_path)
@@ -329,7 +329,7 @@ class DirectionalSamplingResidualXgboost(nn.Module):
         buf.seek(0)
 
         # upload the graph report
-        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.pth', '.png'), buf)  
+        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.json', '.png'), buf)  
 
         # Clear the current figure
         plt.clf()
