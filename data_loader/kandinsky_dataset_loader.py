@@ -123,7 +123,7 @@ class KandinskyDatasetLoader:
 
             except:
                 print("An error occured")
-        
+
         return feature_vectors, scores
 
 def main():
