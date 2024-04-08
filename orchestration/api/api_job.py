@@ -17,7 +17,7 @@ import json
 import paramiko
 from typing import Optional, Dict
 import csv
-from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, AddJob, WasPresentResponse
+from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, AddJob, WasPresentResponse, ApiResponseHandlerV1, StandardSuccessResponseV1
 from pymongo import UpdateMany, ASCENDING, DESCENDING
 from bson import ObjectId
 
@@ -68,10 +68,10 @@ def get_job(request: Request, task_type=None, model_type="sd_1_5"):
             status_code=200,
             tags=["jobs"],
             description="add job in in-progress",
-            response_model=StandardSuccessResponse[Task],
-            responses=ApiResponseHandler.listErrors([400, 422, 500]))
-def get_job(request: Request, task_type: str = None):
-    api_response_handler = ApiResponseHandler(request)
+            response_model=StandardSuccessResponseV1[Task],
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def get_job(request: Request, task_type: str = None):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
         query = {}
         if task_type is not None:
@@ -82,7 +82,7 @@ def get_job(request: Request, task_type: str = None):
 
         if job is None:
             # Use ApiResponseHandler for standardized error response
-            return api_response_handler.create_error_response(
+            return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS,
                 error_string="No job found.",
                 http_status_code=400
@@ -101,17 +101,17 @@ def get_job(request: Request, task_type: str = None):
 
 
         # Use ApiResponseHandler for standardized success response
-        return api_response_handler.create_success_response(
+        return api_response_handler.create_success_response_v1(
             response_data=job,
             http_status_code=200
         )
 
     except Exception as e:
         # Log the error and return a standardized error response
-        return api_response_handler.create_error_response(
-            ErrorCode.OTHER_ERROR,
-            str(e),
-            500
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
         )
 
 
@@ -192,10 +192,10 @@ def encode_ndarray(obj):
              description="Add a job to db",
              status_code=200,
              tags=["jobs"],
-             response_model=StandardSuccessResponse[AddJob],
-             responses=ApiResponseHandler.listErrors([500]))
-def add_job(request: Request, task: Task):
-    api_response_handler = ApiResponseHandler(request)
+             response_model=StandardSuccessResponseV1[AddJob],
+             responses=ApiResponseHandlerV1.listErrors([500]))
+async def add_job(request: Request, task: Task):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
         if task.uuid in ["", None]:
             # Generate UUID since it's empty
@@ -218,17 +218,17 @@ def add_job(request: Request, task: Task):
         # Convert datetime to ISO 8601 formatted string for JSON serialization
         creation_time_iso = task.task_creation_time.isoformat() if task.task_creation_time else None
         # Use ApiResponseHandler for standardized success response
-        return api_response_handler.create_success_response(
+        return api_response_handler.create_success_response_v1(
             response_data={"uuid": task.uuid, "creation_time": creation_time_iso},
             http_status_code=200
         )
 
     except Exception as e:
         # Log the error and return a standardized error response
-        return api_response_handler.create_error_response(
-            ErrorCode.OTHER_ERROR,
-            str(e),
-            500
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
         )
 
 
@@ -326,23 +326,23 @@ def clear_pending_jobs_by_task_type(task_type: str, request: Request) -> Dict[st
     return {"message": f"Deleted {deletion_result.deleted_count} pending jobs with task_type '{task_type}'."}
 
 
-@router.delete("/queue/image-generation/all-pending",
+@router.delete("/queue/image-generation/remove-all-pending",
                description="remove all pending jobs",
-               response_model=StandardSuccessResponse[WasPresentResponse],
+               response_model=StandardSuccessResponseV1[WasPresentResponse],
                tags=["jobs"],
-               responses=ApiResponseHandler.listErrors([500]))
+               responses=ApiResponseHandlerV1.listErrors([500]))
 def clear_all_pending_jobs(request: Request):
-    api_response_handler = ApiResponseHandler(request)
+    api_response_handler = ApiResponseHandlerV1(request)
     try:
         was_present = request.app.pending_jobs_collection.count_documents({}) > 0
         request.app.pending_jobs_collection.delete_many({})
 
-        return api_response_handler.create_success_response(
+        return api_response_handler.create_success_response_v1(
             response_data={"wasPresent": was_present},
             http_status_code=200
         )
     except Exception as e:
-        return api_response_handler.create_error_response(
+        return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
             error_string=str(e),
             http_status_code=500
@@ -355,23 +355,23 @@ def clear_all_in_progress_jobs(request: Request):
 
     return True
 
-@router.delete("/queue/image-generation/all-in-progress",
+@router.delete("/queue/image-generation/remove-all-in-progress",
                description="remove all in-progress jobs",
-               response_model=StandardSuccessResponse[WasPresentResponse],
+               response_model=StandardSuccessResponseV1[WasPresentResponse],
                tags=["jobs"],
-               responses=ApiResponseHandler.listErrors([500]))
+               responses=ApiResponseHandlerV1.listErrors([500]))
 def clear_all_in_progress_jobs(request: Request):
-    api_response_handler = ApiResponseHandler(request)
+    api_response_handler = ApiResponseHandlerV1(request)
     try:
         was_present = request.app.in_progress_jobs_collection.count_documents({}) > 0
         request.app.in_progress_jobs_collection.delete_many({})
 
-        return api_response_handler.create_success_response(
+        return api_response_handler.create_success_response_v1(
             response_data={"wasPresent": was_present},
             http_status_code=200
         )
     except Exception as e:
-        return api_response_handler.create_error_response(
+        return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
             error_string=str(e),
             http_status_code=500
@@ -384,23 +384,23 @@ def clear_all_failed_jobs(request: Request):
 
     return True
 
-@router.delete("/queue/image-generation/all-failed",
+@router.delete("/queue/image-generation/remove-all-failed",
                description="remove all failed jobs",
-               response_model=StandardSuccessResponse[WasPresentResponse],
+               response_model=StandardSuccessResponseV1[WasPresentResponse],
                tags=["jobs"],
-               responses=ApiResponseHandler.listErrors([500]))
+               responses=ApiResponseHandlerV1.listErrors([500]))
 def clear_all_in_progress_jobs(request: Request):
-    api_response_handler = ApiResponseHandler(request)
+    api_response_handler = ApiResponseHandlerV1(request)
     try:
         was_present = request.app.failed_jobs_collection.count_documents({}) > 0
         request.app.failed_jobs_collection.delete_many({})
 
-        return api_response_handler.create_success_response(
+        return api_response_handler.create_success_response_v1(
             response_data={"wasPresent": was_present},
             http_status_code=200
         )
     except Exception as e:
-        return api_response_handler.create_error_response(
+        return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
             error_string=str(e),
             http_status_code=500
@@ -414,23 +414,23 @@ def clear_all_completed_jobs(request: Request):
     return True
 
 
-@router.delete("/queue/image-generation/all-completed",
+@router.delete("/queue/image-generation/remove-all-completed",
                description="remove all completed jobs",
-               response_model=StandardSuccessResponse[WasPresentResponse],
+               response_model=StandardSuccessResponseV1[WasPresentResponse],
                tags=["jobs"],
                responses=ApiResponseHandler.listErrors([500]))
 def clear_all_in_progress_jobs(request: Request):
-    api_response_handler = ApiResponseHandler(request)
+    api_response_handler = ApiResponseHandlerV1(request)
     try:
         was_present = request.app.completed_jobs_collection.count_documents({}) > 0
         request.app.completed_jobs_collection.delete_many({})
 
-        return api_response_handler.create_success_response(
+        return api_response_handler.create_success_response_v1(
             response_data={"wasPresent": was_present},
             http_status_code=200
         )
     except Exception as e:
-        return api_response_handler.create_error_response(
+        return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
             error_string=str(e),
             http_status_code=500

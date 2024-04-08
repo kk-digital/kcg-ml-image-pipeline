@@ -17,8 +17,12 @@ from datetime import datetime
 import os
 from urllib.parse import urlparse
 
+class DatasetResponse(BaseModel):
+    dataset: List[str]
 
-
+class SeqIdResponse(BaseModel):
+    sequential_ids : List[str]
+    
 class SingleModelResponse(BaseModel):
     model_name: str
     model_architecture: str
