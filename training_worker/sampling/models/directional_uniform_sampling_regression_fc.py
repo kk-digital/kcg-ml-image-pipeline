@@ -65,6 +65,8 @@ class DirectionalSamplingResidualXgboost(nn.Module):
         self.output_type= output_type
         self.dataset=dataset
 
+        self.model=None
+
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path =self.get_model_path()
 
@@ -137,11 +139,7 @@ class DirectionalSamplingResidualXgboost(nn.Module):
             
             start = time.time()
 
-            if epoch==0:
-                self.model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval,'eval'), (dtrain,'train')], 
-                                    early_stopping_rounds=early_stopping, evals_result=evals_result)
-            else:
-                self.model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval,'eval'), (dtrain,'train')], 
+            self.model = xgb.train(params, dtrain, num_boost_round=100, evals=[(dval,'eval'), (dtrain,'train')], 
                                     early_stopping_rounds=early_stopping, evals_result=evals_result, xgb_model= self.model)
 
             end = time.time()
@@ -256,10 +254,9 @@ class DirectionalSamplingResidualXgboost(nn.Module):
                             "Validation size = {}\n"
                             "Training loss = {:.4f}\n"
                             "Validation loss = {:.4f}\n"
-                            "Saved at epoch = {}\n"
                             "Generation policy = {}\n".format(self.date,
                                                             self.dataset,
-                                                            'Fc_Network',
+                                                            'Xgboost',
                                                             self.input_type,
                                                             self.input_size,
                                                             output_type,
