@@ -34,6 +34,8 @@ def parse_args():
         parser.add_argument('--total-spheres', type=int, help='Number of random spheres to rank', default=500000)
         parser.add_argument('--selected-spheres', type=int, help='Number of spheres to sample from', default=10)
         parser.add_argument('--batch-size', type=int, help='Inference batch size used by the scoring model', default=256)
+        parser.add_argument('--steps', type=int, help='Optimization steps', default=200)
+        parser.add_argument('--learning-rate', type=float, help='Optimization learning rate', default=0.001)
         parser.add_argument('--send-job', action='store_true', default=False)
         parser.add_argument('--save-csv', action='store_true', default=False)
         parser.add_argument('--sampling-policy', type=str, default="top-k-sphere-sampling")
@@ -52,6 +54,8 @@ class SphereSamplingGenerator:
                 total_spheres,
                 selected_spheres,
                 batch_size,
+                steps,
+                learning_rate,
                 sampling_policy,
                 send_job=False,
                 save_csv=False,
@@ -68,6 +72,8 @@ class SphereSamplingGenerator:
             self.selected_spheres= selected_spheres
             self.selected_spheres= selected_spheres
             self.batch_size= batch_size
+            self.steps= steps
+            self.learning_rate= learning_rate
             self.sampling_policy= sampling_policy
             self.optimize_spheres= optimize_spheres
             self.optimize_samples= optimize_samples
@@ -274,9 +280,9 @@ class SphereSamplingGenerator:
             batch_embeddings = clip_vectors[start_idx:end_idx].clone().detach().requires_grad_(True)
             
             # Setup the optimizer for the current batch
-            optimizer = optim.Adam([batch_embeddings], lr=0.001)
+            optimizer = optim.Adam([batch_embeddings], lr=self.learning_rate)
             
-            for step in range(200):
+            for step in range(self.steps):
                 optimizer.zero_grad()
 
                 # Compute scores for the current batch of embeddings
@@ -377,6 +383,8 @@ def main():
                                         total_spheres= args.total_spheres,
                                         selected_spheres= args.selected_spheres,
                                         batch_size= args.batch_size,
+                                        steps= args.steps,
+                                        learning_rate= args.learning_rate,
                                         sampling_policy= args.sampling_policy,
                                         send_job= args.send_job,
                                         save_csv= args.save_csv,
