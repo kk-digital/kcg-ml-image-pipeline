@@ -134,11 +134,10 @@ class DirectionalSamplingResidualXgboost(nn.Module):
         evals_result = {}
         start = time.time()
 
-        self.model = xgb.train(params, dtrain, num_boost_round=400, evals=[(dval,'eval'), (dtrain,'train')], 
-                                early_stopping_rounds=early_stopping, evals_result=evals_result, xgb_model= self.model)
+        self.model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval,'eval'), (dtrain,'train')], 
+                                early_stopping_rounds=early_stopping, evals_result=evals_result)
 
         end = time.time()
-
         training_time= end - start
 
         #Extract MAE values and residuals
