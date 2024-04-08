@@ -1653,7 +1653,7 @@ score = original_model.cnn(clip_h_vector.unsqueeze(0).to(original_model.device))
 
 elm_model = ELMRegression()
 #def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
-elm_model.load_model(minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-aquatic", model_type = "elm", not_include= 'batatatatatata', device= original_model.device)
+elm_model.load_model(minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-aquatic", model_type = "elm-regression", not_include= 'batatatatatata', device= original_model.device)
 
 
 
