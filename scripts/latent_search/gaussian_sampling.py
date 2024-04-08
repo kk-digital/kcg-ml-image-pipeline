@@ -66,7 +66,6 @@ class SphereSamplingGenerator:
             self.top_k= top_k
             self.total_spheres= total_spheres
             self.selected_spheres= selected_spheres
-            self.selected_spheres= selected_spheres
             self.batch_size= batch_size
             self.sampling_policy= sampling_policy
             self.optimize_spheres= optimize_spheres
@@ -203,6 +202,14 @@ class SphereSamplingGenerator:
 
         return clip_vectors
     
+
+    def sample_clip_vectors_with_none(self, num_samples):
+        spheres = self.rank_and_optimize_spheres()  
+        dim = spheres.size(1) - 1  # Exclude radius from dimensions
+        
+        return spheres[:][:dim]
+
+
     def sample_clip_vectors_with_spherical(self, num_samples):
         spheres = self.rank_and_optimize_spheres()  
         dim = spheres.size(1) - 1  # Exclude radius from dimensions
@@ -306,6 +313,8 @@ class SphereSamplingGenerator:
         if self.sphere_type == "spherical":
             clip_vectors= self.sample_clip_vectors_with_spherical(num_samples=num_images)
         elif self.sphere_type == 'directional':
+            clip_vectors= self.sample_clip_vectors_with_directional(num_samples=num_images)
+        elif self.sphere_type == 'none':
             clip_vectors= self.sample_clip_vectors_with_directional(num_samples=num_images)
         df_data=[]
         for clip_vector in clip_vectors:
