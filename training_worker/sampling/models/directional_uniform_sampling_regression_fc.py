@@ -128,7 +128,7 @@ class DirectionalSamplingResidualXgboost(nn.Module):
 
                 # calculate residuals
                 predicted_outputs= trained_model.predict(inputs, batch_size= batch_size).squeeze().cpu().numpy()
-                residuals= np.abs(np.array(outputs) - predicted_outputs)
+                residuals= np.array(outputs) - predicted_outputs
                 outputs= residuals.tolist()
 
             X_train, X_val, y_train, y_val = train_test_split(inputs, outputs, test_size=validation_split, shuffle=True)
