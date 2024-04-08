@@ -180,10 +180,8 @@ class SphereSamplingGenerator:
             direction_adjustment = -torch.sign(z_scores) * adjustment_factor
 
             feature = torch.abs(feature)
-            print("directional variance", feature)
             X = np.random.randn(points_per_sphere, dim)
             covariance = np.diag(feature.cpu().numpy())
-
             L = np.linalg.cholesky(covariance)
             Y = center.cpu().numpy() + np.abs((X@L.T)) ** (1/2) * direction_adjustment.cpu().numpy()
             Y = torch.clamp(torch.tensor(Y, device=self.device, dtype=torch.float32), self.clip_min, self.clip_max)
