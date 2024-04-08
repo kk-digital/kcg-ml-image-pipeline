@@ -114,9 +114,6 @@ class DirectionalSamplingResidualXgboost(nn.Module):
         train_loss=[]
         val_loss=[]
 
-        best_val_loss = float('inf')  # Initialize best validation loss as infinity
-        best_train_loss = float('inf')  # Initialize best training loss as infinity
-        best_epoch= 0
         start = time.time()        
 
         # Training and Validation Loop
@@ -131,20 +128,20 @@ class DirectionalSamplingResidualXgboost(nn.Module):
                 residuals= np.array(outputs) - predicted_outputs
                 outputs= residuals.tolist()
 
-            X_train, X_val, y_train, y_val = train_test_split(inputs, outputs, test_size=validation_split, shuffle=True)
+                X_train, X_val, y_train, y_val = train_test_split(inputs, outputs, test_size=validation_split, shuffle=True)
 
-            dtrain = xgb.DMatrix(X_train, label=y_train)
-            dval = xgb.DMatrix(X_val, label=y_val)
+                dtrain = xgb.DMatrix(X_train, label=y_train)
+                dval = xgb.DMatrix(X_val, label=y_val)
 
             evals_result = {}
             
             start = time.time()
 
             if epoch==0:
-                self.model = xgb.train(params, dtrain, num_boost_round=400, evals=[(dval,'eval'), (dtrain,'train')], 
+                self.model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval,'eval'), (dtrain,'train')], 
                                     early_stopping_rounds=early_stopping, evals_result=evals_result)
             else:
-                self.model = xgb.train(params, dtrain, num_boost_round=400, evals=[(dval,'eval'), (dtrain,'train')], 
+                self.model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval,'eval'), (dtrain,'train')], 
                                     early_stopping_rounds=early_stopping, evals_result=evals_result, xgb_model= self.model)
 
             end = time.time()
@@ -158,16 +155,7 @@ class DirectionalSamplingResidualXgboost(nn.Module):
             train_loss.append(current_train_loss[-1])
             val_loss.append(current_val_loss[-1])
 
-            # Update best model if current epoch's validation loss is the best
-            if current_val_loss[-1] < best_val_loss:
-                best_val_loss = current_val_loss[-1]
-                best_train_loss = current_train_loss[-1]
-                best_model_state = self.model
-                best_epoch= epoch + 1
-
             print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {train_loss[-1]}, Val Loss: {val_loss[-1]}')
-        
-        self.model= best_model_state
 
         start = time.time()
         # Get predictions for validation set
@@ -184,8 +172,8 @@ class DirectionalSamplingResidualXgboost(nn.Module):
         train_residuals = y_train - train_preds
         
         self.save_graph_report(train_loss, val_loss, 
-                               best_epoch, generate_every_epoch,
-                               best_train_loss, best_val_loss, 
+                               generate_every_epoch,
+                               train_loss[-1], val_loss[-1], 
                                val_residuals, train_residuals, 
                                val_preds, y_val,
                                len(X_train), len(X_val))
@@ -193,8 +181,8 @@ class DirectionalSamplingResidualXgboost(nn.Module):
         self.save_model_report(num_training=len(X_train),
                               num_validation=len(X_val),
                               training_time=training_time, 
-                              train_loss=best_train_loss, 
-                              val_loss=best_val_loss,  
+                              train_loss=train_loss[-1], 
+                              val_loss=val_loss[-1],  
                               inference_speed= inference_speed,
                               model_params=params)
 
@@ -248,7 +236,7 @@ class DirectionalSamplingResidualXgboost(nn.Module):
         os.remove(local_report_path)
 
     def save_graph_report(self, train_mae_per_round, val_mae_per_round,
-                          saved_at_epoch, generate_every_epoch,
+                          generate_every_epoch,
                           best_train_loss, best_val_loss,  
                           val_residuals, train_residuals, 
                           predicted_values, actual_values,
@@ -279,16 +267,15 @@ class DirectionalSamplingResidualXgboost(nn.Module):
                                                             validation_size,
                                                             best_train_loss,
                                                             best_val_loss,
-                                                            saved_at_epoch,
                                                             "every epoch" if generate_every_epoch else "once"
                                                             ))
 
         # Plot validation and training Rmse vs. Rounds
         axs[0][0].plot(range(1, len(train_mae_per_round) + 1), train_mae_per_round,'b', label='Training loss')
         axs[0][0].plot(range(1, len(val_mae_per_round) + 1), val_mae_per_round,'r', label='Validation loss')
-        axs[0][0].set_title('MAE per Round')
+        axs[0][0].set_title('Loss per epoch')
         axs[0][0].set_ylabel('Loss')
-        axs[0][0].set_xlabel('Rounds')
+        axs[0][0].set_xlabel('Epochs')
         axs[0][0].legend(['Training loss', 'Validation loss'])
 
         # Scatter Plot of actual values vs predicted values
