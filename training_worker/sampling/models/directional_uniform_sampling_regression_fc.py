@@ -116,44 +116,34 @@ class DirectionalSamplingResidualXgboost(nn.Module):
         train_loss=[]
         val_loss=[]
 
-        start = time.time()        
+        start = time.time()
 
-        # Training and Validation Loop
-        for epoch in range(num_epochs):
+        # load inputs and targets
+        inputs, outputs = self.dataloader.generate_spheres(n_spheres*num_epochs, target_avg_points, self.output_type)
 
-            if(epoch==0 or generate_every_epoch):
-                # load inputs and targets
-                inputs, outputs = self.dataloader.generate_spheres(n_spheres, target_avg_points, self.output_type)
+        # calculate residuals
+        predicted_outputs= trained_model.predict(inputs, batch_size= batch_size).squeeze().cpu().numpy()
+        residuals= np.array(outputs) - predicted_outputs
+        outputs= residuals.tolist()
 
-                # calculate residuals
-                predicted_outputs= trained_model.predict(inputs, batch_size= batch_size).squeeze().cpu().numpy()
-                residuals= np.array(outputs) - predicted_outputs
-                outputs= residuals.tolist()
+        X_train, X_val, y_train, y_val = train_test_split(inputs, outputs, test_size=validation_split, shuffle=True)
 
-                X_train, X_val, y_train, y_val = train_test_split(inputs, outputs, test_size=validation_split, shuffle=True)
+        dtrain = xgb.DMatrix(X_train, label=y_train)
+        dval = xgb.DMatrix(X_val, label=y_val)        
 
-                dtrain = xgb.DMatrix(X_train, label=y_train)
-                dval = xgb.DMatrix(X_val, label=y_val)
+        evals_result = {}
+        start = time.time()
 
-            evals_result = {}
-            
-            start = time.time()
+        self.model = xgb.train(params, dtrain, num_boost_round=400, evals=[(dval,'eval'), (dtrain,'train')], 
+                                early_stopping_rounds=early_stopping, evals_result=evals_result, xgb_model= self.model)
 
-            self.model = xgb.train(params, dtrain, num_boost_round=400, evals=[(dval,'eval'), (dtrain,'train')], 
-                                    early_stopping_rounds=early_stopping, evals_result=evals_result, xgb_model= self.model)
+        end = time.time()
 
-            end = time.time()
+        training_time= end - start
 
-            training_time= end - start
-    
-            #Extract MAE values and residuals
-            current_val_loss = evals_result['eval']['mae']
-            current_train_loss = evals_result['train']['mae']
-
-            train_loss.append(current_train_loss[-1])
-            val_loss.append(current_val_loss[-1])
-
-            print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {train_loss[-1]}, Val Loss: {val_loss[-1]}')
+        #Extract MAE values and residuals
+        val_loss = evals_result['eval']['mae']
+        train_loss = evals_result['train']['mae']
 
         start = time.time()
         # Get predictions for validation set
@@ -170,19 +160,19 @@ class DirectionalSamplingResidualXgboost(nn.Module):
         train_residuals = y_train - train_preds
         
         self.save_graph_report(train_loss, val_loss, 
-                               generate_every_epoch,
-                               train_loss[-1], val_loss[-1], 
-                               val_residuals, train_residuals, 
-                               val_preds, y_val,
-                               len(X_train), len(X_val))
+                            generate_every_epoch,
+                            train_loss[-1], val_loss[-1], 
+                            val_residuals, train_residuals, 
+                            val_preds, y_val,
+                            len(X_train), len(X_val))
         
         self.save_model_report(num_training=len(X_train),
-                              num_validation=len(X_val),
-                              training_time=training_time, 
-                              train_loss=train_loss[-1], 
-                              val_loss=val_loss[-1],  
-                              inference_speed= inference_speed,
-                              model_params=params)
+                            num_validation=len(X_val),
+                            training_time=training_time, 
+                            train_loss=train_loss[-1], 
+                            val_loss=val_loss[-1],  
+                            inference_speed= inference_speed,
+                            model_params=params)
 
     def save_model_report(self,num_training,
                             num_validation,
