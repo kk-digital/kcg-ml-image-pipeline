@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, constr, validator
 from typing import List, Union, Optional
 import re
+from orchestration.api.mongo_schemas import ImageMetadata
 
 class Rankmodel(BaseModel):
     rank_model_id: Optional[int] = None
@@ -102,3 +103,16 @@ class ListImageRank(BaseModel):
 class RankCountResponse(BaseModel):
     rank_model_id: int
     count: int
+
+class RankedSelection(BaseModel):
+    rank_model_id: int
+    task: str
+    username: str
+    image_1_metadata: ImageMetadata
+    image_2_metadata: ImageMetadata
+    selected_image_index: int
+    selected_image_hash: str
+    datetime: str
+    training_mode: str
+    active_learning_type: str
+    active_learning_policy: str

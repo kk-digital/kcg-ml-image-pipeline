@@ -31,8 +31,8 @@ def get_next_classifier_id_sequence(request: Request):
     return counter_seq
 
 @router.post("/classifier/register-tag-classifier", 
-             tags=["classifier"],
-             description="Adds or updates a classifier model",
+             tags=["deprecated2"],
+             description="deprecated, replaced with /pseudotag-classifiers/register-tag-classifier",
              responses=ApiResponseHandlerV1.listErrors([400, 500]))
 async def add_update_classifier(request: Request, classifier_data: Classifier):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -95,8 +95,8 @@ async def add_update_classifier(request: Request, classifier_data: Classifier):
     
 @router.get("/classifier/list-classifiers", 
             response_model=StandardSuccessResponseV1[List[Classifier]],
-            description="list Classifiers",
-            tags=["classifier"],
+            description="deprecated, replaced with /pseudotag-classifiers/list-classifiers",
+            tags=["deprecated2"],
             status_code=200,
             responses=ApiResponseHandlerV1.listErrors([500]))
 async def list_classifiers(request: Request):
@@ -119,8 +119,8 @@ async def list_classifiers(request: Request):
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
 
 @router.delete("/classifier/remove-classifier-with-id", 
-               tags=["classifier"],
-               description="Deletes a classifier model by its classifier_id",
+               tags=["deprecated2"],
+               description="deprecated, replaced with /pseudotag-classifiers/remove-classifier-with-id",
                responses=ApiResponseHandlerV1.listErrors([400, 404, 500]))
 async def delete_classifier(request: Request, classifier_id: int ):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -196,7 +196,7 @@ async def create_classifier(request: Request, request_classifier_data: RequestCl
         )
 
 
-@router.patch("/pseudotag-classifiers/update-tag-classifier", 
+@router.put("/pseudotag-classifiers/update-tag-classifier", 
              tags=["pseudotag classifier"],
              response_model=StandardSuccessResponseV1[Classifier],
              description="Updates an existing classifier model",

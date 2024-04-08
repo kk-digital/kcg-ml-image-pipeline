@@ -102,25 +102,31 @@ def http_clip_server_get_cosine_similarity(image_path: str,
 
     return None
 
-def http_clip_server_get_cosine_similarity_list(image_path_list: List[str],
-                                           phrase: str):
+def http_clip_server_get_cosine_similarity_list(image_path_list: List[str], phrase: str):
     url = f'{CLIP_SERVER_ADDRESS}/cosine-similarity-list?phrase={phrase}'
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
-    response = None
-    # Use json.dumps to convert the list to a JSON-formatted string
+    
+    # Use json.dumps to convert the list to a JSON-formatted string and print it
     json_string = json.dumps(image_path_list)
-
-    print(json_string)
+    print("Sending JSON string:", json_string)
 
     try:
         response = requests.post(url, json=image_path_list, headers=headers)
+        print(f"Response status code: {response.status_code}")  # Print the status code of the response
+
+        # Print the entire response text to debug what the server actually returned
+        print("Response text:", response.text)
 
         if response.status_code == 200:
             result_json = response.json()
+            print("Response JSON:", result_json)  # Print the parsed JSON response
             return result_json
+        else:
+            print(f"Error: Unexpected response status: {response.status_code}")
+            return None  # Optionally return None explicitly here for clarity
 
     except Exception as e:
-        print('request exception ', e)
+        print('Request exception:', e)
 
     finally:
         if response:

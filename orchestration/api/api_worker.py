@@ -1,6 +1,6 @@
 from fastapi import Request, APIRouter, HTTPException, Query, Body
 from utility.minio import cmd
-from .api_utils import PrettyJSONResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode
+from .api_utils import PrettyJSONResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode, WasPresentResponse
 from orchestration.api.mongo_schemas import Worker, ListWorker
 import json
 import paramiko
@@ -93,6 +93,7 @@ async def register_worker(request: Request, worker_data: Worker):
             http_status_code=500,
         )
     
+    
 @router.get("/worker/list-workers",
             status_code=200,
             tags=["worker"],
@@ -115,6 +116,84 @@ async def list_workers(
         # Return the fetched data with a success response
         return response_handler.create_success_response_v1(
             response_data={"worker": workers},
+            http_status_code=200
+        )
+    except Exception as e:
+        # Handle exceptions and return an error response
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f"Internal Server Error: {str(e)}",
+            http_status_code=500,
+        )    
+
+
+@router.get("/worker/get-worker-with-id",
+            status_code=200,
+            tags=["worker"],
+            description="Get details of a specific worker by ID",
+            response_model=StandardSuccessResponseV1[Worker], # Ensure this response model is defined to match your API's structure
+            responses=ApiResponseHandlerV1.listErrors([400, 404, 500]))
+async def get_worker_details(
+    request: Request,
+    worker_id: str = Query(..., description="The ID of the worker to fetch details for")):
+
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+        # Fetch data from MongoDB for a specific worker ID
+        worker_data = request.app.workers_collection.find_one({"worker_id": worker_id})
+
+        if not worker_data:
+            # If no worker is found with the provided ID, return a 404 error
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"No worker found with ID {worker_id}",
+                http_status_code=404,
+            )
+
+        # Exclude MongoDB's auto-generated '_id' field from the response
+        worker_data.pop('_id', None)
+
+        # Return the fetched data with a success response
+        return response_handler.create_success_response_v1(
+            response_data={"worker": worker_data},
+            http_status_code=200
+        )
+    except Exception as e:
+        # Handle exceptions and return an error response
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f"Internal Server Error: {str(e)}",
+            http_status_code=500,
+        )        
+    
+
+@router.delete("/worker/delete-worker-with-id",
+               status_code=200,
+               tags=["worker"],
+               description="Delete a specific worker by ID",
+               response_model=StandardSuccessResponseV1[WasPresentResponse],
+               responses=ApiResponseHandlerV1.listErrors([400, 404, 500]))
+async def delete_worker(
+    request: Request,
+    worker_id: str = Query(..., description="The ID of the worker to delete")):
+
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    try:
+        # Attempt to delete the worker with the specified worker_id
+        deletion_result = request.app.workers_collection.delete_one({"worker_id": worker_id})
+
+        if deletion_result.deleted_count == 0:
+            # If no worker was deleted, it means no worker was found with that ID
+            return response_handler.create_success_delete_response_v1(
+                False,
+                http_status_code=200
+            )
+
+        # If the deletion was successful, return a success response
+        return response_handler.create_success_delete_response_v1(
+            True,
             http_status_code=200
         )
     except Exception as e:
