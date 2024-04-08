@@ -69,6 +69,11 @@ from utility.path import separate_bucket_and_file_path
 from data_loader.utils import get_object
 from utility.http import request
 
+
+
+from training_worker.classifiers.models.elm_regression import ELMRegression
+#from training_worker.classifiers.models.elm_regression import load_model
+
 # ------------------------------------------------- Parameters -------------------------------------------------
 matplotlib.rcParams['lines.linewidth'] = 2.0
 
@@ -1622,9 +1627,49 @@ def tag_images(dataset_name, number_of_samples, number_of_images_to_tag,tag_name
 
 
 
+
+
+# ELM VS EBM
+# 2024-02-29-00-topic-aquatic-score-elm-regression-clip-h.safetensors
+
+
+
+idi = ['datasets/environmental/0042/041848.jpg','datasets/environmental/0263/262253.jpg','datasets/environmental/0056/055126.jpg']
+ood = ['datasets/environmental/0058/057516.jpg','datasets/environmental/0214/213301.jpg','datasets/environmental/0063/062805.jpg']
+
+
+clip_h_vector = get_clip_and_image_from_path(idi[0])
+elm_model = ELMRegression()
+#def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
+elm_model.load_model(minio_client = minio_client, model_dataset = "environmental",tag_name = "topic-aquatic", model_type = "elm")
+
+
+
+
+# EBM
+original_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# Load the last occult trained model
+load_model_to_minio(original_model,'topic-aquatic')
+score = original_model.cnn(clip_h_vector.unsqueeze(0).to(original_model.device)).cpu()
+
+print("the EBM score is : ",score)
+print("the ELM score is : ", elm_model.classify(clip_h_vector))
+
+
+
+
+
+
+
+
+
+
+
+
+
 # topic-space 87 86 84 83 88
 # tag_name ="topic-aquatic",model_id = 84
-tag_images(dataset_name = "environmental", number_of_samples = 40000, number_of_images_to_tag = 50 ,tag_name ="topic-desert",model_id = 88)
+#tag_images(dataset_name = "environmental", number_of_samples = 40000, number_of_images_to_tag = 50 ,tag_name ="topic-desert",model_id = 88)
 #tag_images(dataset_name = "environmental", number_of_samples = 32000, number_of_images_to_tag = 100 ,tag_name ="defect-split-pane-image",model_id = 86)
 
 
