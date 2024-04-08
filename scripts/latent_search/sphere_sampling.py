@@ -133,7 +133,7 @@ class SphereSamplingGenerator:
         spheres = torch.cat([sphere_centers, radii], dim=1)
         return spheres
     
-    def rank_and_optimize_spheres(self):
+    def rank_and_optimize_spheres(self, num_images):
         generated_spheres = self.generate_spheres()
         
         # Predict average scores for each sphere
@@ -144,23 +144,15 @@ class SphereSamplingGenerator:
         sorted_indexes = torch.argsort(scores.squeeze(), descending=True)[:int(self.total_spheres * self.top_k)]
         top_spheres = generated_spheres[sorted_indexes]
         # select n random spheres from the top k spheres
-        indices = torch.randperm(top_spheres.size(0))[:self.selected_spheres]
+        indices = torch.randperm(top_spheres.size(0))[:num_images]
         selected_spheres = top_spheres[indices]
-
-        # evaluate distances
-        print("Before optimization:")
-        self.evaluate_distances(selected_spheres[:,:1280])
 
         # Optimization step
         if(self.optimize_spheres):
             selected_spheres = self.optimize_datapoints(selected_spheres, self.sphere_scoring_model)
             selected_spheres= torch.stack(selected_spheres)
-        
-        # evaluate distances after optimization
-        print("After optimization:")
-        self.evaluate_distances(selected_spheres[:,:1280])
 
-        return selected_spheres.squeeze(1)
+        return selected_spheres[:,:1280]
     
     def evaluate_distances(self, spheres):
         spheres = spheres.cpu().numpy()
@@ -311,10 +303,12 @@ class SphereSamplingGenerator:
     
     def generate_images(self, num_images):
         # generate clip vectors
-        if self.sphere_type=="uniform":
-            clip_vectors= self.uniform_sampling(num_samples=num_images)
-        elif self.sphere_type=="directional":
-            clip_vectors= self.directional_uniform_sampling(num_samples=num_images)
+        # if self.sphere_type=="uniform":
+        #     clip_vectors= self.uniform_sampling(num_samples=num_images)
+        # elif self.sphere_type=="directional":
+        #     clip_vectors= self.directional_uniform_sampling(num_samples=num_images)
+
+        clip_vectors= self.rank_and_optimize_spheres(num_samples=num_images)
         
         # Optimization step
         if(self.optimize_samples):
