@@ -40,6 +40,7 @@ def parse_args():
         parser.add_argument('--optimize-samples', action='store_true', default=False)
         parser.add_argument('--penalty', type=int, default=10)
         parser.add_argument('--sphere-type', type=str, default='spherical', help="Sphere type, spherical and directional")
+        parser.add_argument('--only-top-k-spheres', action='store_true', default=False)
         return parser.parse_args()
 
 class SphereSamplingGenerator:
@@ -57,8 +58,8 @@ class SphereSamplingGenerator:
                 optimize_spheres=False,
                 optimize_samples=False,
                 penalty=10,
-                sphere_type="spherical"
-                ):
+                sphere_type="spherical",
+                only_top_k_spheres=False):
             
             self.dataset= dataset
             self.send_job= send_job
@@ -72,7 +73,7 @@ class SphereSamplingGenerator:
             self.optimize_samples= optimize_samples
             self.penalty = penalty
             self.sphere_type = sphere_type
-
+            self.only_top_k_spheres = only_top_k_spheres
             # get minio client
             self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
                                                     minio_secret_key=minio_secret_key)
@@ -310,12 +311,13 @@ class SphereSamplingGenerator:
     
     def generate_images(self, num_images):
         # generate clip vectors
-        if self.sphere_type == "spherical":
-            clip_vectors= self.sample_clip_vectors_with_spherical(num_samples=num_images)
-        elif self.sphere_type == 'directional':
+        if self.only_top_k_spheres:
             clip_vectors= self.sample_clip_vectors_with_directional(num_samples=num_images)
-        elif self.sphere_type == 'none':
-            clip_vectors= self.sample_clip_vectors_with_directional(num_samples=num_images)
+        else:
+            if self.sphere_type == "spherical":
+                clip_vectors= self.sample_clip_vectors_with_spherical(num_samples=num_images)
+            elif self.sphere_type == 'directional':
+                clip_vectors= self.sample_clip_vectors_with_directional(num_samples=num_images)
         df_data=[]
         for clip_vector in clip_vectors:
             if self.send_job:
@@ -383,7 +385,8 @@ def main():
                                         optimize_spheres= args.optimize_spheres,
                                         optimize_samples= args.optimize_samples,
                                         penalty= args.penalty,
-                                        sphere_type=args.sphere_type)
+                                        sphere_type=args.sphere_type,
+                                        only_top_k_spheres=args.only_top_k_spheres)
 
     generator.generate_images(num_images=args.num_images)
 
