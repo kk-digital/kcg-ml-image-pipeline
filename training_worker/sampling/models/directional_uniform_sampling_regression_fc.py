@@ -321,7 +321,7 @@ class DirectionalSamplingResidualXgboost(nn.Module):
         # Adjust spacing between subplots
         plt.subplots_adjust(hspace=0.7, wspace=0.3, left=0.3)
 
-        plt.savefig(self.local_path.replace('.pth', '.png'))
+        plt.savefig(self.local_path.replace('.json', '.png'))
 
         # Save the figure to a file
         buf = BytesIO()
