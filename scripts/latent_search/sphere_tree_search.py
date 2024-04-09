@@ -145,7 +145,7 @@ class RapidlyExploringTreeSearch:
         pbar.close()
         
         # After the final iteration, choose the top n highest scoring points overall
-        _, final_indices_of_top_points = torch.topk(all_scores, num_images)
+        _, final_indices_of_top_points = torch.topk(all_scores.squeeze(0), num_images)
         final_top_points = torch.vstack(next_generation)[final_indices_of_top_points]
 
         print("average score: ", torch.mean(all_scores[final_indices_of_top_points]))
