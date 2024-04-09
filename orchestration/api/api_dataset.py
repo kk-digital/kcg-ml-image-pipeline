@@ -7,7 +7,7 @@ import json
 from datetime import datetime
 import io
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from .api_utils import PrettyJSONResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, StandardErrorResponseV1, ErrorCode, WasPresentResponse, DatasetResponse, SeqIdResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, StandardErrorResponseV1, ErrorCode, WasPresentResponse, DatasetResponse, SeqIdResponse, SeqIdDatasetResponse, SetRateResponse, ListFilePathResponse, RankinModelResponse, ListDatasetConfig, DatasetConfig, HourlyResponse, SetHourlyResponse, RateResponse
 from .mongo_schemas import FlaggedDataUpdate, RankingModel
 from pymongo import ReturnDocument
 router = APIRouter()
@@ -857,6 +857,7 @@ async def clear_self_training_sequential_id_jobs(request: Request):
 @router.get("/dataset/self-training-sequential-id-v1/{dataset}",
             description="Get or create self-training sequential ID for a dataset",
             tags=["dataset"],
+            response_model=StandardSuccessResponseV1[SeqIdDatasetResponse],  
             responses=ApiResponseHandlerV1.listErrors([400, 500]))
 async def get_self_training_sequential_id(request: Request, dataset: str):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -896,14 +897,15 @@ async def get_self_training_sequential_id(request: Request, dataset: str):
 @router.put("/dataset/set-rate-v1",
             description="Set the rate for a dataset",
             tags=["dataset"],
+            response_model=StandardSuccessResponseV1[SetRateResponse],  
             responses=ApiResponseHandlerV1.listErrors([500]))
 async def set_rate_v1(request: Request, dataset: str, rate: float = 0):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
         date_now = datetime.utcnow()  # Using UTC for consistency
-        query = {"dataset_name": dataset}
+        query = {"dataset": dataset}
         new_values = {
-            "dataset_name": dataset,
+            "dataset": dataset,
             "last_update": date_now,
             "dataset_rate": rate,
             "relevance_model": "",
@@ -925,7 +927,7 @@ async def set_rate_v1(request: Request, dataset: str, rate: float = 0):
             updated_item.pop('_id', None)  # Remove the auto-generated MongoDB ID before returning
         
         return response_handler.create_success_response_v1(
-            response_data=updated_item,  # Return the updated or newly added item
+            response_data=updated_item, 
             http_status_code=200
         )
     except Exception as e:
@@ -939,6 +941,7 @@ async def set_rate_v1(request: Request, dataset: str, rate: float = 0):
 @router.get("/dataset/get-rate-v1",
             description="Get the rate of a dataset",
             tags=["dataset"],
+            response_model=StandardSuccessResponseV1[RateResponse],
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 async def get_rate(request: Request, dataset: str):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -967,16 +970,16 @@ async def get_rate(request: Request, dataset: str):
 
 @router.put("/dataset/set-hourly-limit-v1",
             description="Set the hourly limit for a dataset",
-            response_model=StandardSuccessResponseV1[dict],  # Adjusted to return the updated dataset config
+            response_model=StandardSuccessResponseV1[SetHourlyResponse], 
             tags=["dataset"],
             responses=ApiResponseHandlerV1.listErrors([500]))
 async def set_hourly_limit(request: Request, dataset: str, hourly_limit: int = 0):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
         date_now = datetime.utcnow()  # Using UTC for consistency
-        query = {"dataset_name": dataset}
+        query = {"dataset": dataset}
         dataset_config = {
-            "dataset_name": dataset,
+            "dataset": dataset,
             "last_update": date_now,
             "hourly_limit": hourly_limit,
             "relevance_model": "",
@@ -1007,6 +1010,7 @@ async def set_hourly_limit(request: Request, dataset: str, hourly_limit: int = 0
     
 @router.get("/dataset/get-hourly-limit-v1",
             description="Get the hourly limit of a dataset",
+            response_model=StandardSuccessResponseV1[HourlyResponse],
             tags=["dataset"],
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 async def get_hourly_limit(request: Request, dataset: str):
@@ -1035,35 +1039,10 @@ async def get_hourly_limit(request: Request, dataset: str):
         )
     
 
-@router.get("/dataset/get-all-dataset-config-v1",
-            description="Get configurations for all datasets",
-            tags=["dataset"],
-            responses=ApiResponseHandlerV1.listErrors([500]))
-async def get_all_dataset_config(request: Request):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-    try:
-        dataset_configs = []
-        items = request.app.dataset_config_collection.find({})
-
-        for item in items:
-            item.pop('_id', None)
-            dataset_configs.append(item)
-
-        return response_handler.create_success_response_v1(
-            response_data=dataset_configs, 
-            http_status_code=200
-        )
-    except Exception as e:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )
-
-
 @router.get("/dataset/get-dataset-config-v1",
             description="Get configuration for a specific dataset",
             tags=["dataset"],
+            response_model=StandardSuccessResponseV1[DatasetConfig],
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 async def get_dataset_config(request: Request, dataset: str = Query(...)):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -1091,6 +1070,7 @@ async def get_dataset_config(request: Request, dataset: str = Query(...)):
 
 @router.get("/dataset/get-all-dataset-config-v1",
             description="Get configurations for all datasets",
+            response_model=StandardSuccessResponseV1[ListDatasetConfig],
             tags=["dataset"],
             responses=ApiResponseHandlerV1.listErrors([500]))
 async def get_all_dataset_config(request: Request):
@@ -1130,7 +1110,7 @@ async def set_relevance_model(request: Request, dataset: str, relevance_model: s
             return response_handler.create_error_response_v1(
                 error_code=ErrorCode.ELEMENT_NOT_FOUND,
                 error_string="Dataset not found",
-                http_status_code=422  # Consider using 404 if it's more appropriate for "not found"
+                http_status_code=404 
             )
     
         # Update the relevance model
@@ -1138,7 +1118,7 @@ async def set_relevance_model(request: Request, dataset: str, relevance_model: s
         request.app.dataset_config_collection.update_one(query, new_values)
 
         return response_handler.create_success_response_v1(
-            response_data=True,  # Or return updated document or confirmation message
+            response_data=new_values,  
             http_status_code=200
         )
     except Exception as e:
@@ -1151,6 +1131,7 @@ async def set_relevance_model(request: Request, dataset: str, relevance_model: s
 @router.put("/dataset/set-ranking-model-v1",
             description="Set the ranking model for a specific dataset",
             tags=["dataset"],
+            response_model=StandardSuccessResponseV1[RankinModelResponse],
             responses=ApiResponseHandlerV1.listErrors([422, 500]))
 async def set_ranking_model(request: Request, dataset: str, ranking_model: str):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -1172,7 +1153,7 @@ async def set_ranking_model(request: Request, dataset: str, ranking_model: str):
         request.app.dataset_config_collection.update_one(query, new_values)
 
         return response_handler.create_success_response_v1(
-            response_data=True,  # Confirmation of the update
+            response_data=new_values,  
             http_status_code=200
         )
     except Exception as e:
@@ -1183,9 +1164,10 @@ async def set_ranking_model(request: Request, dataset: str, ranking_model: str):
         )
     
 
-@router.get("/datasets/rank/list-sort-by-score",
+@router.get("/datasets/rank/list-sort-by-score-v1",
             description="List ranking files sorted by score",
             tags=["rank"],
+            response_model=StandardSuccessResponseV1[ListFilePathResponse],
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 async def list_ranking_files_sort_by_score(
     request: Request, 
@@ -1272,7 +1254,7 @@ async def list_ranking_files_sort_by_score(
             )
 
         return response_handler.create_success_response_v1(
-            response_data=sorted_json_files, 
+            response_data= {"file_paths": sorted_json_files}, 
             http_status_code=200
         )
     except Exception as e:
@@ -1285,6 +1267,7 @@ async def list_ranking_files_sort_by_score(
 
 @router.get("/datasets/rank/list-sort-by-residual-v1",
             description="List ranking files sorted by residual",
+            response_model=StandardSuccessResponseV1[ListFilePathResponse],
             tags=["rank"],
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
 async def list_ranking_files_sort_by_residual(
