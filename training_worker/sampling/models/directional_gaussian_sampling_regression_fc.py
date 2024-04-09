@@ -89,7 +89,7 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
 
         return local_path, minio_path
 
-    def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256, is_per_epoch=False):
+    def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256, is_per_epoch=False, model_name="Directional Gaussian Sampling Regression"):
 
         # load the dataset depends on sampling type
         self.dataloader.load_dataset()
@@ -197,7 +197,7 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
                                best_state["train_loss"], best_state["val_loss"], 
                                val_residuals, train_residuals, 
                                val_preds, y_val,
-                               train_size, val_size, best_state["epoch"])
+                               train_size, val_size, best_state["epoch"], model_name)
         
         self.save_model_report(num_training=train_size,
                               num_validation=val_size,
@@ -293,9 +293,11 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
                           best_train_loss, best_val_loss,  
                           val_residuals, train_residuals, 
                           predicted_values, actual_values,
-                          training_size, validation_size, best_model_epoch):
+                          training_size, validation_size, best_model_epoch, title='Directional Gaussian Sampling Regression'):
         fig, axs = plt.subplots(3, 2, figsize=(12, 10))
-        
+
+        # set title of graph
+        plt.title(title)
         fig_report_text = ("Date = {}\n"
                             "Dataset = {}\n"
                             "Model type = {}\n"

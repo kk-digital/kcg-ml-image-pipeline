@@ -59,7 +59,8 @@ def main():
                                  learning_rate= args.learning_rate,
                                  n_spheres=args.n_spheres, 
                                  target_avg_points=args.target_avg_points,
-                                 is_per_epoch=args.per_epoch)
+                                 is_per_epoch=args.per_epoch, 
+                                 model_name="Residual prediction model on directional gaussian sampling")
     
     gaussian_sampling_model.save_model()
     
