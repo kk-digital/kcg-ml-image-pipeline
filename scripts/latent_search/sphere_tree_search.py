@@ -110,8 +110,11 @@ class RapidlyExploringTreeSearch:
 
     def expand_tree(self, nodes_per_iteration, max_nodes, top_k, num_images):
         radius= torch.rand(1, len(self.max_radius), device=self.device) * (self.max_radius - self.min_radius) + self.min_radius
-        sphere_center= torch.cat([self.clip_mean, radius], dim=1)
-        current_generation = [sphere_center]
+        print("radius:", radius.shape)
+        print("root:", self.clip_mean.shape)
+        sphere= torch.cat([self.clip_mean, radius], dim=1)
+        print("sphere:", sphere.shape)
+        current_generation = [sphere]
         
         # Initialize tqdm
         pbar = tqdm(total=max_nodes)
