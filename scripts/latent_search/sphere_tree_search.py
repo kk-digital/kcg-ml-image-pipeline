@@ -155,7 +155,7 @@ class RapidlyExploringTreeSearch:
         print(all_scores.shape)
         print(sorted_indices.shape)
 
-        #print("average score: ", torch.mean(all_scores[sorted_indices[:num_images]]))
+        print("scores: ", all_scores[sorted_indices[:num_images]])
 
         return final_top_points
 
