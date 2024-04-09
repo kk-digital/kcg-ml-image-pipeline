@@ -148,7 +148,7 @@ class RapidlyExploringTreeSearch:
         pbar.close()
         
         # After the final iteration, choose the top n highest scoring points overall
-        _, sorted_indices = torch.sort(all_scores.squeeze(), descending=True)
+        _, sorted_indices = torch.sort(all_scores, descending=True)
 
         final_top_points = torch.stack(next_generation, dim=0)[sorted_indices[:num_images]]
         print(final_top_points.shape)
