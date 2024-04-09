@@ -74,7 +74,7 @@ class RapidlyExploringTreeSearch:
         return mean_vector, std_vector, max_vector, min_vector
 
     def find_nearest_points(self, sphere, num_samples):
-        dim= point.size(1)
+        dim= sphere.size(1)
         point = sphere[:dim].squeeze(0)
         # Direction adjustment based on z-scores
         z_scores = (point - self.clip_mean) / self.clip_std
