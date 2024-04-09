@@ -121,6 +121,8 @@ class RapidlyExploringTreeSearch:
             all_scores = torch.tensor([], dtype=torch.float32, device=self.device)
             
             for point in current_generation:
+
+                print(point.shape)
                 # Find nearest k points to the current point
                 nearest_points = self.find_nearest_points(point, nodes_per_iteration)
                 
@@ -129,13 +131,12 @@ class RapidlyExploringTreeSearch:
                 
                 # Keep track of scores for selection later
                 all_scores = torch.cat((all_scores, nearest_scores), dim=0)
-
-                print(nearest_scores.shape)
                 
                 # Select top n points based on scores
                 _, sorted_indices = torch.sort(nearest_scores.squeeze(), descending=True)
                 top_points = nearest_points[sorted_indices[:top_k]]
-                
+
+                print(top_points.shape)
                 next_generation.extend(top_points)
                 nodes+= top_k
                 pbar.update(top_k)
