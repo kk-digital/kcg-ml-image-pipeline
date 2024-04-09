@@ -1,6 +1,9 @@
 import argparse
+from datetime import datetime
+import io
 import os
 import sys
+import pandas as pd
 import torch
 import msgpack
 from tqdm import tqdm
@@ -10,6 +13,7 @@ sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 from data_loader.utils import get_object
 from training_worker.sampling.models.directional_uniform_sampling_regression_fc import DirectionalSamplingFCRegressionNetwork
+from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 from utility.minio import cmd
 
 def parse_args():
@@ -151,9 +155,62 @@ class RapidlyExploringTreeSearch:
         values, sorted_indices = torch.sort(all_scores.squeeze(1), descending=True)
         final_top_points = torch.stack(next_generation, dim=0)[sorted_indices[:num_images]]
 
-        print(f"scores: {values}")
+        return final_top_points[:,:1280]
+    
+    def generate_images(self, nodes_per_iteration, max_nodes, top_k, num_images):
 
-        return final_top_points
+        clip_vectors= self.expand_tree(nodes_per_iteration, max_nodes, top_k, num_images)
+
+        df_data=[]
+
+        for clip_vector in clip_vectors:
+            if self.send_job:
+                try:
+                    response= generate_img2img_generation_jobs_with_kandinsky(
+                        image_embedding=clip_vector.unsqueeze(0),
+                        negative_image_embedding=None,
+                        dataset_name="test-generations",
+                        prompt_generation_policy=self.sampling_policy,
+                        self_training=True
+                    )
+
+                    task_uuid = response['uuid']
+                    task_time = response['creation_time']
+                except:
+                    print("An error occured.")
+                    task_uuid = -1
+                    task_time = -1         
+
+            if self.save_csv:
+                df_data.append({
+                    'task_uuid': task_uuid,
+                    'generation_policy_string': self.sampling_policy,
+                    'time': task_time
+                })
+
+        if self.save_csv:
+            self.store_uuids_in_csv_file(df_data)
+        
+        print("Jobs were sent for generation.")
+
+    # store list of initial prompts in a csv to use for prompt mutation
+    def store_uuids_in_csv_file(self, data):
+        minio_path=f"{self.dataset}/output/generated-images-csv"
+        local_path="output/generated_images.csv"
+        pd.DataFrame(data).to_csv(local_path, index=False)
+        # Read the contents of the CSV file
+        with open(local_path, 'rb') as file:
+            csv_content = file.read()
+
+        #Upload the CSV file to Minio
+        buffer = io.BytesIO(csv_content)
+        buffer.seek(0)
+
+        current_date=datetime.now().strftime("%Y-%m-%d-%H:%M")
+        minio_path= minio_path + f"/{current_date}-{self.sampling_policy}-{self.dataset}.csv"
+        cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
+        # Remove the temporary file
+        os.remove(local_path)
 
 def main():
     args= parse_args()
@@ -166,7 +223,7 @@ def main():
                                         send_job= args.send_job,
                                         save_csv= args.save_csv)
 
-    generator.expand_tree(nodes_per_iteration=args.nodes_per_iteration,
+    generator.generate_images(nodes_per_iteration=args.nodes_per_iteration,
                           max_nodes= args.max_nodes,
                           top_k= args.top_k,
                           num_images= args.num_images)
