@@ -131,7 +131,7 @@ class RapidlyExploringTreeSearch:
                 all_scores = torch.cat((all_scores, nearest_scores), dim=0)
                 
                 # Select top n points based on scores
-                _, indices_of_top_points = torch.topk(nearest_scores, top_k)
+                _, indices_of_top_points = torch.topk(nearest_scores.squeeze(0), top_k)
                 top_points = nearest_points[indices_of_top_points]
                 
                 next_generation.extend(top_points)
