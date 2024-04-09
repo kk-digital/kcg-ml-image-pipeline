@@ -131,7 +131,7 @@ class RapidlyExploringTreeSearch:
                 all_scores = torch.cat((all_scores, nearest_scores), dim=0)
                 
                 # Select top n points based on scores
-                _, indices_of_top_points = torch.topk(nearest_scores.squeeze(0), top_k)
+                _, indices_of_top_points = torch.topk(nearest_scores, top_k, dim=1)
                 top_points = nearest_points[indices_of_top_points]
                 
                 next_generation.extend(top_points)
@@ -145,7 +145,7 @@ class RapidlyExploringTreeSearch:
         pbar.close()
         
         # After the final iteration, choose the top n highest scoring points overall
-        _, final_indices_of_top_points = torch.topk(all_scores.squeeze(0), num_images)
+        _, final_indices_of_top_points = torch.topk(all_scores, num_images, dim=1)
         final_top_points = torch.vstack(next_generation)[final_indices_of_top_points]
 
         print("average score: ", torch.mean(all_scores[final_indices_of_top_points]))
