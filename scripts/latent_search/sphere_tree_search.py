@@ -151,7 +151,7 @@ class RapidlyExploringTreeSearch:
         values, sorted_indices = torch.sort(all_scores.squeeze(1), descending=True)
         final_top_points = torch.stack(next_generation, dim=0)[sorted_indices[:num_images]]
 
-        print(f"scores: {values.mean()}")
+        print(f"scores: {values}")
 
         return final_top_points
 
