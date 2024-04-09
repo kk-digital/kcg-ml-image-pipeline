@@ -76,7 +76,8 @@ class RapidlyExploringTreeSearch:
     def find_nearest_points(self, sphere, num_samples):
         dim= sphere.size(1)//2
         point = sphere[:,:dim].squeeze(0)
-        
+        clip_vectors = torch.empty((0, dim), device=self.device)
+
         # Direction adjustment based on z-scores
         z_scores = (point - self.clip_mean) / self.clip_std
         adjustment_factor = torch.clamp(torch.abs(z_scores), 0, 1)
