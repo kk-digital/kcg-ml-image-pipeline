@@ -76,6 +76,7 @@ class RapidlyExploringTreeSearch:
     def find_nearest_points(self, sphere, num_samples):
         dim= sphere.size(1)//2
         point = sphere[:,:dim].squeeze(0)
+        
         # Direction adjustment based on z-scores
         z_scores = (point - self.clip_mean) / self.clip_std
         adjustment_factor = torch.clamp(torch.abs(z_scores), 0, 1)
@@ -98,9 +99,9 @@ class RapidlyExploringTreeSearch:
         
         # sample random scaling factors
         radii= torch.rand(num_samples, len(self.max_radius), device=self.device) * (self.max_radius - self.min_radius) + self.min_radius
-        sphere_center= torch.cat([sphere_center, radii], dim=1)
+        sphere_centers= torch.cat([clip_vectors, radii], dim=1)
         
-        return clip_vectors
+        return sphere_centers
 
     def score_points(self, points):
         scores= self.sphere_scoring_model.predict(points)
