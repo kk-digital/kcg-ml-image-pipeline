@@ -485,3 +485,36 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
         # Upload the model to MinIO
         cmd.upload_data(self.minio_client, 'datasets', self.minio_path, BytesIO(model_bytes))
         print(f'Model saved to {self.minio_path}')
+
+
+class DirectionalGuassianResidualFCNetwork(DirectionalSamplingFCRegressionNetwork):
+
+    def __init__(self, minio_client, input_size=2560, hidden_sizes=[512], input_type="gaussian_sphere_variance", output_size=1, output_type="mean_sigma_score", dataset="environmental"):
+        super().__init__(minio_client, input_size, hidden_sizes, input_type, output_size, output_type, dataset)
+
+        self.trained_model = DirectionalSamplingFCRegressionNetwork(minio_client, input_size, hidden_sizes, input_type, output_size, output_type, dataset)
+        
+    def get_model_path(self):
+        local_path=f"output/{self.output_type}_fc_{self.input_type}_residual.pth"
+        minio_path=f"{self.dataset}/models/sampling/{self.date}_directional_gaussian_{self.output_type}_fc_{self.input_type}_residual.pth"
+        return local_path, minio_path
+    
+    def get_data_for_training(self, n_spheres, target_avg_points, validation_split, batch_size):
+        
+        inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres=n_spheres,target_avg_points=target_avg_points, output_type=self.output_type, percentile=self.sampling_parameter["percentile"], std=self.sampling_parameter["std"], input_type=self.input_type)
+        
+        predict_outputs = self.trained_model.predict(inputs, batch_size=1000).squeeze().cput().numpy()
+        residuals = (np.abs(np.array(outputs) - predict_outputs)).tolist()
+
+        # load the dataset
+        dataset= DatasetLoader(features=inputs, labels=residuals)
+        # Split dataset into training and validation
+        val_size = int(len(dataset) * validation_split)
+        train_size = len(dataset) - val_size
+        train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+
+        # Create data loaders
+        train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+        val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+
+        return train_dataset, val_dataset, train_loader, val_loader, val_size, train_size
