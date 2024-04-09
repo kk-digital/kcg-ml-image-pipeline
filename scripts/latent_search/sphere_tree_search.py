@@ -3,6 +3,7 @@ import os
 import sys
 import torch
 import msgpack
+from tqdm import tqdm
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -107,9 +108,12 @@ class RapidlyExploringTreeSearch:
 
     def expand_tree(self, nodes_per_iteration, max_nodes, top_k, num_images):
         radius= torch.rand(1, len(self.max_radius), device=self.device) * (self.max_radius - self.min_radius) + self.min_radius
-        sphere_center= torch.cat([sphere_center, radius], dim=1)
+        sphere_center= torch.cat([self.clip_mean, radius], dim=1)
         current_generation = [sphere_center]
         
+
+        # Initialize tqdm
+        pbar = tqdm(total=max_nodes)
         nodes=0
         while(nodes < max_nodes):
             next_generation = []
@@ -131,9 +135,13 @@ class RapidlyExploringTreeSearch:
                 
                 next_generation.extend(top_points)
                 nodes+= top_k
+                pbar.update(top_k)
             
             # Prepare for the next iteration
             current_generation = next_generation
+        
+        # Close the progress bar when done
+        pbar.close()
         
         # After the final iteration, choose the top n highest scoring points overall
         _, final_indices_of_top_points = torch.topk(all_scores, num_images)
