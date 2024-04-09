@@ -492,7 +492,7 @@ class DirectionalGuassianResidualFCNetwork(DirectionalSamplingFCRegressionNetwor
     def __init__(self, minio_client, input_size=2560, hidden_sizes=[512], input_type="gaussian_sphere_variance", output_size=1, output_type="mean_sigma_score", dataset="environmental"):
         super().__init__(minio_client, input_size, hidden_sizes, input_type, output_size, output_type, dataset)
 
-        self.trained_model = DirectionalSamplingFCRegressionNetwork(minio_client, input_type, output_type, dataset)
+        self.trained_model = DirectionalSamplingFCRegressionNetwork(minio_client=self.minio_client, dataset=dataset)
         self.trained_model.load_model()
         
     def get_model_path(self):
