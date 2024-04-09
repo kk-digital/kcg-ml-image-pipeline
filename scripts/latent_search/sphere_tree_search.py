@@ -135,6 +135,8 @@ class RapidlyExploringTreeSearch:
                 _, sorted_indices = torch.sort(nearest_scores.squeeze(), descending=True)
                 top_points = nearest_points[sorted_indices[:top_k]]
 
+                print()
+
                 next_generation.extend(top_points)
                 nodes+= nodes_per_iteration
                 pbar.update(nodes_per_iteration)
@@ -149,7 +151,7 @@ class RapidlyExploringTreeSearch:
         _, sorted_indices = torch.sort(all_scores.squeeze(), descending=True)
         final_top_points = torch.vstack(next_generation)[sorted_indices[:num_images]]
 
-        print("average score: ", torch.mean(all_scores[sorted_indices[:num_images]]))
+        print("average score: ", torch.mean(all_scores.squeeze()[sorted_indices[:num_images]]))
 
         return final_top_points
 
