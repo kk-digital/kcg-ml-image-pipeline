@@ -139,8 +139,6 @@ class RapidlyExploringTreeSearch:
                 _, sorted_indices = torch.sort(nearest_scores.squeeze(), descending=True)
                 top_points = nearest_points[sorted_indices[:top_k]]
 
-                print()
-
                 next_generation.extend(top_points)
                 nodes+= nodes_per_iteration
                 pbar.update(nodes_per_iteration)
