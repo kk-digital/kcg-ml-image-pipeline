@@ -129,6 +129,8 @@ class RapidlyExploringTreeSearch:
                 
                 # Keep track of scores for selection later
                 all_scores = torch.cat((all_scores, nearest_scores), dim=0)
+
+                print(nearest_scores.shape)
                 
                 # Select top n points based on scores
                 _, indices_of_top_points = torch.topk(nearest_scores, top_k, dim=1)
