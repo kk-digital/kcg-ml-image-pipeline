@@ -378,7 +378,7 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
         plt.subplots_adjust(hspace=0.7, wspace=0.3, left=0.3)
 
         plt.tight_layout()
-        
+
         plt.savefig(self.local_path.replace('.pth', '.png'))
 
         # Save the figure to a file
@@ -509,7 +509,7 @@ class DirectionalGuassianResidualFCNetwork(DirectionalSamplingFCRegressionNetwor
         inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres=n_spheres,target_avg_points=target_avg_points, output_type=self.output_type, percentile=self.sampling_parameter["percentile"], std=self.sampling_parameter["std"], input_type=self.input_type)
         
         predict_outputs = self.trained_model.predict(inputs, batch_size=1000).squeeze()
-        residuals = (np.abs(np.array(outputs) - predict_outputs)).tolist()
+        residuals = (np.array(outputs) - predict_outputs).tolist()
 
         # load the dataset
         dataset= DatasetLoader(features=inputs, labels=residuals)
