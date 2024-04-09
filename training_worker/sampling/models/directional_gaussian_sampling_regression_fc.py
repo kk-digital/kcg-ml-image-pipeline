@@ -493,6 +493,7 @@ class DirectionalGuassianResidualFCNetwork(DirectionalSamplingFCRegressionNetwor
         super().__init__(minio_client, input_size, hidden_sizes, input_type, output_size, output_type, dataset)
 
         self.trained_model = DirectionalSamplingFCRegressionNetwork(minio_client, input_size, hidden_sizes, input_type, output_size, output_type, dataset)
+        self.trained_model.load_model()
         
     def get_model_path(self):
         local_path=f"output/{self.output_type}_fc_{self.input_type}_residual.pth"
