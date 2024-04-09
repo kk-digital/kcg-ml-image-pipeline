@@ -105,7 +105,7 @@ class RapidlyExploringTreeSearch:
         return sphere_centers
 
     def score_points(self, points):
-        scores= self.sphere_scoring_model.predict(points)
+        scores= self.sphere_scoring_model.predict(points, batch_size=1000)
         return scores
 
     def expand_tree(self, nodes_per_iteration, max_nodes, top_k, num_images):
@@ -118,7 +118,7 @@ class RapidlyExploringTreeSearch:
         nodes=0
         while(nodes < max_nodes):
             next_generation = []
-            all_scores = torch.tensor([], dtype=torch.float32)
+            all_scores = torch.tensor([], dtype=torch.float32, device=self.device)
             
             for point in current_generation:
                 # Find nearest k points to the current point
