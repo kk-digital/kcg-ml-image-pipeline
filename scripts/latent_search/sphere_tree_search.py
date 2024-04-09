@@ -140,7 +140,7 @@ class RapidlyExploringTreeSearch:
                 top_points = nearest_points[sorted_indices[:top_k]]
 
                 print(top_points.shape)
-                next_generation.extend(top_points)
+                next_generation.append(top_points)
                 nodes+= top_k
                 pbar.update(top_k)
             
