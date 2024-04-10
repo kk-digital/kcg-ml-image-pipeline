@@ -1,7 +1,7 @@
 from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
-from .mongo_schemas import Classifier, RequestClassifier, ListClassifier
+from .mongo_schemas import Classifier, RequestClassifier, ListClassifier, UpdateClassifier
 from typing import Union
 from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponseV1, ApiResponseHandlerV1, WasPresentResponse
 import traceback
@@ -174,7 +174,6 @@ async def create_classifier(request: Request, request_classifier_data: RequestCl
         full_classifier_data = Classifier(
             classifier_id=new_classifier_id,
             classifier_name=request_classifier_data.classifier_name,
-            tag_id=request_classifier_data.tag_id,
             model_sequence_number=new_model_sequence_number,
             latest_model=request_classifier_data.latest_model,
             model_path=request_classifier_data.model_path,
@@ -201,7 +200,7 @@ async def create_classifier(request: Request, request_classifier_data: RequestCl
              response_model=StandardSuccessResponseV1[Classifier],
              description="Updates an existing classifier model",
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-async def update_classifier(request: Request, classifier_id: int, update_data: RequestClassifier):
+async def update_classifier(request: Request, classifier_id: int, update_data: UpdateClassifier):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:

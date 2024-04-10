@@ -1,5 +1,14 @@
 import requests
 import json
+from fastapi import Request
+from pymongo import MongoClient
+
+# Connect to the MongoDB database
+client = MongoClient('mongodb://192.168.3.1:32017/')
+db = client['orchestration-job-db']
+
+# Access the specific collection
+comleted_jobs_collection = db["completed-jobs"]
 
 # SERVER_ADDRESS = 'http://123.176.98.90:8764'
 SERVER_ADDRESS = 'http://192.168.3.1:8111'
@@ -349,6 +358,73 @@ def http_add_score_attributes(model_type,
     except Exception as e:
         print('request exception ', e)
 
+    finally:
+        if response:
+            response.close()
+
+    return None
+
+
+def http_add_score_attributes_v1(model_type, img_hash, image_clip_score, image_clip_percentile,
+                              image_clip_sigma_score, text_embedding_score, text_embedding_percentile,
+                              text_embedding_sigma_score, image_clip_h_score, image_clip_h_percentile,
+                              image_clip_h_sigma_score, delta_sigma_score):
+    
+    query = {"task_output_file_dict.output_file_hash": img_hash}
+    job = comleted_jobs_collection.find_one(query)
+    
+    if not job:
+        print(f"Failed to fetch job data for image hash {img_hash}. Job not found.")
+        return
+        
+    task_type = job.get("task_type")
+
+    if "kandinsky" in task_type:
+        url = SERVER_ADDRESS + "/job/add-attributes-witout-embeddings"
+    else:
+        url = SERVER_ADDRESS + "/job/add-attributes"
+
+    # Prepare the data payload excluding text embedding attributes if calling the without-embeddings endpoint
+    if url.endswith("witout-embeddings"):
+        data = {
+            "image_hash": img_hash,
+            "model_type": model_type,
+            "image_clip_score": image_clip_score,
+            "image_clip_percentile": image_clip_percentile,
+            "image_clip_sigma_score": image_clip_sigma_score,
+            "image_clip_h_score": image_clip_h_score,
+            "image_clip_h_percentile": image_clip_h_percentile,
+            "image_clip_h_sigma_score": image_clip_h_sigma_score,
+            "delta_sigma_score": delta_sigma_score
+        }
+    else:
+        data = {
+            "image_hash": img_hash,
+            "model_type": model_type,
+            "image_clip_score": image_clip_score,
+            "image_clip_percentile": image_clip_percentile,
+            "image_clip_sigma_score": image_clip_sigma_score,
+            "text_embedding_score": text_embedding_score,
+            "text_embedding_percentile": text_embedding_percentile,
+            "text_embedding_sigma_score": text_embedding_sigma_score,
+            "image_clip_h_score": image_clip_h_score,
+            "image_clip_h_percentile": image_clip_h_percentile,
+            "image_clip_h_sigma_score": image_clip_h_sigma_score,
+            "delta_sigma_score": delta_sigma_score
+        }
+
+    headers = {"Content-Type": "application/json"}
+    response = None
+
+    try:
+        response = requests.put(url, json=data, headers=headers)
+
+        if response.status_code != 200:
+            print(f"Request failed with status code: {response.status_code}: {str(response.content)}")
+        else:
+            print("Attributes updated successfully.")
+    except Exception as e:
+        print('Request exception', e)
     finally:
         if response:
             response.close()

@@ -68,7 +68,7 @@ def upload_scores_attributes_to_completed_jobs(model_type,
 
             delta_score = hash_delta_score_dict[img_hash]
 
-            futures.append(executor.submit(request.http_add_score_attributes,
+            futures.append(executor.submit(request.http_add_score_attributes_v1,
                                            model_type=model_type,
                                            img_hash=img_hash,
                                            image_clip_score=clip_score,
