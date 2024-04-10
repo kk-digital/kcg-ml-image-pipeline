@@ -965,7 +965,7 @@ print(clip_h_vector)
 
 
 
-EBM
+#EBM
 args = parse_args()
 original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
                             minio_secret_key=args.minio_secret_key,
