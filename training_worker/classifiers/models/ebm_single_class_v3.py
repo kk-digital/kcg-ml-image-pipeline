@@ -994,5 +994,5 @@ score = original_model.evalute_energy(clip_h_vector)
 
 # print( elm_model == None)
 
-print("the EBM score is : ",score)
+print("the EBM score is : ",score.item())
 # print("the ELM score is : ", elm_model.classify(clip_h_vector))
