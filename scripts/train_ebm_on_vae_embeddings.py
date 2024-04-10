@@ -448,27 +448,66 @@ def get_dataset_from_id(id_class,data_augment_passes,label_value):
 # ---------------------------------------------------------------------------------------------------------------------
 
 
-
-class Clip_NN(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
-        super(Clip_NN, self).__init__()
-        self.fc1 = nn.Linear(input_size, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, 256)
-        self.fc3 = nn.Linear(256, 128)
-        self.fc4 = nn.Linear(128, output_size)
+class Clip_CNN(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size,):
+        super(Clip_CNN, self).__init__()
+        self.conv1 = nn.Conv2d(input_size, hidden_size, kernel_size=3, padding=1)
+        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.conv2 = nn.Conv2d(hidden_size, hidden_size, kernel_size=3, padding=1)
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.fc1 = nn.Linear(hidden_size * 16 * 16, hidden_size)
         self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
-        # Flatten the input tensor if it's not already flattened
+        x = self.conv1(x)
+        x = self.pool1(x)
+        x = self.conv2(x)
+        x = self.pool2(x)
         x = x.view(x.size(0), -1)
         x = self.fc1(x)
         x = self.relu(x)
         x = self.fc2(x)
-        x = self.relu(x)
-        x = self.fc3(x)
-        x = self.relu(x)
-        x = self.fc4(x)
         return x
+    
+
+# class Clip_NN(nn.Module):
+#     def __init__(self, input_size, hidden_size, output_size):
+#         super(Clip_NN, self).__init__()
+#         self.fc1 = nn.Linear(input_size, hidden_size)
+#         self.fc2 = nn.Linear(hidden_size, 256)
+#         self.fc3 = nn.Linear(256, 128)
+#         self.fc4 = nn.Linear(128, output_size)
+#         self.relu = nn.ReLU()
+
+#     def forward(self, x):
+#         # Flatten the input tensor if it's not already flattened
+#         x = x.view(x.size(0), -1)
+#         x = self.fc1(x)
+#         x = self.relu(x)
+#         x = self.fc2(x)
+#         x = self.relu(x)
+#         x = self.fc3(x)
+#         x = self.relu(x)
+#         x = self.fc4(x)
+#         return x
+    
+
+# class Clip_NN(nn.Module):
+#     def __init__(self, input_size, hidden_size, output_size):
+#         super(Clip_NN, self).__init__()
+#         self.fc1 = nn.Linear(input_size, hidden_size)
+#         self.relu = nn.ReLU()
+#         self.fc2 = nn.Linear(hidden_size, output_size)
+
+#     def forward(self, x):
+#         # Flatten the input tensor if it's not already flattened
+#         x = x.view(x.size(0), -1)
+#         x = self.fc1(x)
+#         x = self.relu(x)
+#         x = self.fc2(x)
+#         return x
+
 class DeepEnergyModel(pl.LightningModule):
 
     def __init__(self, img_shape, batch_size = batchsize_x, alpha=0.1, lr=1e-4, beta1=0.0, **CNN_args):
