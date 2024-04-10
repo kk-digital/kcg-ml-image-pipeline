@@ -1250,106 +1250,135 @@ train_loader = train_loader_automated
 val_loader = val_loader_automated
 adv_loader = train_loader_clip_ood
 
+for batch in train_loader:
+    inputs, targets = batch
+    print("Input shape:", inputs.shape)
+    print("Target shape:", targets.shape)
+    break  # Only print the shape of the first batch
+
+# ############################
 
 
-############################
+# # Train
+# new_cyber_vae_model = train_model(img_shape=(64,64,4),
+#                     batch_size=train_loader.batch_size,
+#                     lr=0.001,
+#                     beta1=0.0)
+# save_model(new_cyber_vae_model,'iso_vae','temp_model.pth')
 
 
-# Train
-new_cyber_vae_model = train_model(img_shape=(64,64,4),
-                    batch_size=train_loader.batch_size,
-                    lr=0.001,
-                    beta1=0.0)
-save_model(new_cyber_vae_model,'iso_vae','temp_model.pth')
+# # up loader graphs
+
+# # # Plot
+
+# # ############### Plot graph
+# epochs = range(1, len(total_losses) + 1)  
+
+# # Create subplots grid (3 rows, 1 column)
+# fig, axes = plt.subplots(4, 1, figsize=(10, 24))
+
+# # Plot each loss on its own subplot
+# axes[0].plot(epochs, total_losses, label='Total Loss')
+# axes[0].set_xlabel('Steps')
+# axes[0].set_ylabel('Loss')
+# axes[0].set_title('Total Loss')
+# axes[0].legend()
+# axes[0].grid(True)
+
+# axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
+# axes[1].set_xlabel('Steps')
+# axes[1].set_ylabel('Loss')
+# axes[1].set_title('Contrastive Divergence Loss')
+# axes[1].legend()
+# axes[1].grid(True)
 
 
-# up loader graphs
+# axes[2].plot(epochs, reg_losses , label='Regression Loss')
+# axes[2].set_xlabel('Steps')
+# axes[2].set_ylabel('Loss')
+# axes[2].set_title('Regression Loss')
+# axes[2].legend()
+# axes[2].grid(True)
 
-# # Plot
+# # Plot real and fake scores on the fourth subplot
+# axes[3].plot(epochs, real_scores_s, label='Real Scores')
+# axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
+# axes[3].set_xlabel('Steps')
+# axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
+# axes[3].set_title('Real vs. Fake Scores')
+# axes[3].legend()
+# axes[3].grid(True)
 
-# ############### Plot graph
-epochs = range(1, len(total_losses) + 1)  
+# # Adjust spacing between subplots for better visualization
+# plt.tight_layout()
 
-# Create subplots grid (3 rows, 1 column)
-fig, axes = plt.subplots(4, 1, figsize=(10, 24))
+# plt.savefig("output/loss_tracking_per_step.png")
 
-# Plot each loss on its own subplot
-axes[0].plot(epochs, total_losses, label='Total Loss')
-axes[0].set_xlabel('Steps')
-axes[0].set_ylabel('Loss')
-axes[0].set_title('Total Loss')
-axes[0].legend()
-axes[0].grid(True)
-
-axes[1].plot(epochs, cdiv_losses, label='Contrastive Divergence Loss')
-axes[1].set_xlabel('Steps')
-axes[1].set_ylabel('Loss')
-axes[1].set_title('Contrastive Divergence Loss')
-axes[1].legend()
-axes[1].grid(True)
-
-
-axes[2].plot(epochs, reg_losses , label='Regression Loss')
-axes[2].set_xlabel('Steps')
-axes[2].set_ylabel('Loss')
-axes[2].set_title('Regression Loss')
-axes[2].legend()
-axes[2].grid(True)
-
-# Plot real and fake scores on the fourth subplot
-axes[3].plot(epochs, real_scores_s, label='Real Scores')
-axes[3].plot(epochs, fake_scores_s, label='Fake Scores')
-axes[3].set_xlabel('Steps')
-axes[3].set_ylabel('Score')  # Adjust label if scores represent a different metric
-axes[3].set_title('Real vs. Fake Scores')
-axes[3].legend()
-axes[3].grid(True)
-
-# Adjust spacing between subplots for better visualization
-plt.tight_layout()
-
-plt.savefig("output/loss_tracking_per_step.png")
-
-# Save the figure to a file
-buf = io.BytesIO()
-plt.savefig(buf, format='png')
-buf.seek(0)
+# # Save the figure to a file
+# buf = io.BytesIO()
+# plt.savefig(buf, format='png')
+# buf.seek(0)
 
 
-alphaW_name = "1"  # Adjust weight for cdiv_loss
-alphaY_name = "d1" # Adjust weight for reg_loss
+# alphaW_name = "1"  # Adjust weight for cdiv_loss
+# alphaY_name = "d1" # Adjust weight for reg_loss
 
-# upload the graph report
-minio_path="environmental/output/my_tests"
-minio_path= minio_path + "/loss_tracking_W"+alphaW_name +"_Y_"+alphaY_name+"_"+date_now+".png"
-cmd.upload_data(minio_client, 'datasets', minio_path, buf)
-# Remove the temporary file
-os.remove("output/loss_tracking_per_step.png")
-# Clear the current figure
-plt.clf()
+# # upload the graph report
+# minio_path="environmental/output/my_tests"
+# minio_path= minio_path + "/loss_tracking_W"+alphaW_name +"_Y_"+alphaY_name+"_"+date_now+".png"
+# cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+# # Remove the temporary file
+# os.remove("output/loss_tracking_per_step.png")
+# # Clear the current figure
+# plt.clf()
 
 
 
-# Load the environmental dataset     
-images_paths_ood = get_file_paths("environmental",60000)
+# # Load the environmental dataset     
+# images_paths_ood = get_file_paths("environmental",60000)
 
-# Evaluate new model
-#automated model
-#toodoo
-#go create something
-print("yep it's here")
-new_sorted_images = process_and_sort_dataset(images_paths_ood, new_cyber_vae_model)
+# # Evaluate new model
+# #automated model
+# #toodoo
+# #go create something
+# print("yep it's here")
+# new_sorted_images = process_and_sort_dataset(images_paths_ood, new_cyber_vae_model)
 
 
-get_structure_csv_content(new_sorted_images,"cyber_vae_on_env_30000_sample")
-selected_structure_first_52 = new_sorted_images[:52]
-selected_structure_second_52 = new_sorted_images[52:103]
-selected_structure_third_52 = new_sorted_images[103:154]
+# get_structure_csv_content(new_sorted_images,"cyber_vae_on_env_30000_sample")
+# selected_structure_first_52 = new_sorted_images[:52]
+# selected_structure_second_52 = new_sorted_images[52:103]
+# selected_structure_third_52 = new_sorted_images[103:154]
 
-plot_images_with_scores(selected_structure_first_52,"Top_first_52_cyber_vae_env_added_50")
-plot_images_with_scores(selected_structure_second_52,"Top_second_52_cyber_vae_env_added_50")
-plot_images_with_scores(selected_structure_third_52,"Top_third_52_cyber_vae_env_added_50")
+# plot_images_with_scores(selected_structure_first_52,"Top_first_52_cyber_vae_env_added_50")
+# plot_images_with_scores(selected_structure_second_52,"Top_second_52_cyber_vae_env_added_50")
+# plot_images_with_scores(selected_structure_third_52,"Top_third_52_cyber_vae_env_added_50")
     
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
