@@ -1001,5 +1001,5 @@ print("The element model ", elm_model)
 print("the vector is : ",clip_h_vector)
 
 #print("the EBM score is : ",score.item())
-dataset_feature_vector = torch.tensor(clip_h_vector)
-print("the ELM score is : ", elm_model.classify(dataset_feature_vector))
+
+print("the ELM score is : ", elm_model.classify(clip_h_vector.clip_h_vector.unsqueeze(0)))
