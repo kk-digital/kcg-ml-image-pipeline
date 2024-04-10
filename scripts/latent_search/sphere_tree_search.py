@@ -123,7 +123,7 @@ class RapidlyExploringTreeSearch:
         # pbar = tqdm(total=max_nodes)
         nodes=0
         while(nodes < max_nodes):
-            print(f"{nodes} generated")
+            print(f"{nodes} nodes generated")
             next_generation = []
             
             for point in current_generation:
@@ -134,12 +134,13 @@ class RapidlyExploringTreeSearch:
                 # Score these points
                 nearest_scores = self.score_points(nearest_points)
                 
-                # Keep track of scores for selection later
-                all_scores = torch.cat((all_scores, nearest_scores), dim=0)
-                
                 # Select top n points based on scores
                 _, sorted_indices = torch.sort(nearest_scores.squeeze(), descending=True)
                 top_points = nearest_points[sorted_indices[:top_k]]
+                top_scores = nearest_scores[sorted_indices[:top_k]]
+
+                # Keep track of scores for selection later
+                all_scores = torch.cat((all_scores, top_scores), dim=0)
 
                 next_generation.extend(top_points)
                 all_generations.extend(top_points)
