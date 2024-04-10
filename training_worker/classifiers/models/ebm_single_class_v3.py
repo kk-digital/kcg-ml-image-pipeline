@@ -578,7 +578,7 @@ class EBM_Single_Class:
             for model_file in model_files:
                 #print("model path : ",model_file)
                 if tag_name in model_file and model_type in model_file and model_file.endswith(suffix):
-                    print("yep found one",model_file)
+                    #print("yep found one",model_file)
                     most_recent_model = model_file
 
             print("most recent model is : ",  most_recent_model)
@@ -963,36 +963,41 @@ _, clip_h_vector = get_clip_and_image_from_path(idi[0])
 
 print(clip_h_vector)
 
-# EBM
-args = parse_args()
-original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
-                            minio_secret_key=args.minio_secret_key,
-                            dataset= args.dataset,
-                            class_name= "topic-aquatic" ,
-                            model = None,
-                            save_name = args.save_name,
-                            class_id =  get_tag_id_by_name(args.class_name),
-                            training_batch_size=args.training_batch_size,
-                            num_samples= args.num_samples,
-                            epochs= args.epochs,
-                            learning_rate= args.learning_rate)
 
-#original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-# Load the last occult trained model
-original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="topic-aquatic" , model_type = "energy-based-model")
-#score = original_model.cnn(clip_h_vector.unsqueeze(0).to(original_model.device)).cpu()
-score = original_model.evalute_energy(clip_h_vector)
+
+# EBM
+# args = parse_args()
+# original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
+#                             minio_secret_key=args.minio_secret_key,
+#                             dataset= args.dataset,
+#                             class_name= "topic-aquatic" ,
+#                             model = None,
+#                             save_name = args.save_name,
+#                             class_id =  get_tag_id_by_name(args.class_name),
+#                             training_batch_size=args.training_batch_size,
+#                             num_samples= args.num_samples,
+#                             epochs= args.epochs,
+#                             learning_rate= args.learning_rate)
+
+# #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# # Load the last occult trained model
+# original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="topic-aquatic" , model_type = "energy-based-model")
+# #score = original_model.cnn(clip_h_vector.unsqueeze(0).to(original_model.device)).cpu()
+# score = original_model.evalute_energy(clip_h_vector)
+
+
+
 
 # ELM
-
 from training_worker.classifiers.models.elm_regression import ELMRegression
 elm_model = ELMRegression()
 #def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
 elm_model.load_model(minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-aquatic", model_type = "elm-regression", not_include= 'batatatatatata', device= original_model.device)
 
+print("The element model ", elm_model) 
 
 
 # print( elm_model == None)
 
-print("the EBM score is : ",score.item())
+#print("the EBM score is : ",score.item())
 print("the ELM score is : ", elm_model.classify(clip_h_vector))
