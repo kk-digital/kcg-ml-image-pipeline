@@ -111,7 +111,7 @@ class RapidlyExploringTreeSearch:
     
     def find_nearest_points(self, sphere, num_samples, covariance_matrix):
         dim= sphere.size(1)//2
-        point = sphere[:,:dim]
+        point = sphere[:,:dim].squeeze(0)
         
         # Sampling from a multivariate Gaussian distribution
         distribution = torch.distributions.MultivariateNormal(point, covariance_matrix)
@@ -137,7 +137,6 @@ class RapidlyExploringTreeSearch:
 
         # generate covariance matrix
         covariance_matrix = torch.diag((self.clip_std * jump_distance).pow(2).squeeze(0))
-        print(covariance_matrix.shape)
         
         # Initialize tqdm
         pbar = tqdm(total=max_nodes)
