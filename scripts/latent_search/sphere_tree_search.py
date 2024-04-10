@@ -26,7 +26,7 @@ def parse_args():
         parser.add_argument('--nodes-per-iteration', type=int, help='Number of nodes to evaluate each iteration', default=1000)
         parser.add_argument('--top-k', type=int, help='Number of nodes to expand on each iteration', default=10)
         parser.add_argument('--max-nodes', type=int, help='Number of maximum nodes', default=1e+6)
-        parser.add_argument('--jump-distance', type=int, help='Jump distance for each node', default=3)
+        parser.add_argument('--jump-distance', type=float, help='Jump distance for each node', default=0.01)
         parser.add_argument('--send-job', action='store_true', default=False)
         parser.add_argument('--save-csv', action='store_true', default=False)
         parser.add_argument('--sampling-policy', type=str, default="rapidly_exploring_tree_search")
@@ -78,35 +78,50 @@ class RapidlyExploringTreeSearch:
 
         return mean_vector, std_vector, max_vector, min_vector
 
-    def find_nearest_points(self, sphere, num_samples, jump_distance):
+    # def find_nearest_points(self, sphere, num_samples, jump_distance):
+    #     dim= sphere.size(1)//2
+    #     point = sphere[:,:dim]
+    #     clip_vectors = torch.empty((0, dim), device=self.device)
+
+    #     # Direction adjustment based on z-scores
+    #     z_scores = (point - self.clip_mean) / self.clip_std
+    #     adjustment_factor = torch.clamp(torch.abs(z_scores), 0, 1)
+    #     direction_adjustment = -torch.sign(z_scores) * adjustment_factor
+
+    #     for _ in range(num_samples):
+    #         # Generate points within the sphere
+    #         random_direction = torch.randn(dim, device=self.device)
+    #         direction = direction_adjustment + random_direction
+    #         direction /= torch.norm(direction)
+
+    #         # Magnitude for uniform sampling within volume
+    #         magnitude = torch.rand(1, device=self.device).pow(1/3) * jump_distance
+
+    #         point = point + direction * magnitude
+    #         point = torch.clamp(point, self.clip_min, self.clip_max)
+
+    #         # Collect generated vectors
+    #         clip_vectors = torch.cat((clip_vectors, point), dim=0)
+        
+    #     # sample random scaling factors
+    #     radii= torch.rand(num_samples, len(self.max_radius), device=self.device) * (self.max_radius - self.min_radius) + self.min_radius
+    #     sphere_centers= torch.cat([clip_vectors, radii], dim=1)
+        
+    #     return sphere_centers
+    
+    def find_nearest_points(self, sphere, num_samples, covariance_matrix):
         dim= sphere.size(1)//2
         point = sphere[:,:dim]
-        clip_vectors = torch.empty((0, dim), device=self.device)
-
-        # Direction adjustment based on z-scores
-        z_scores = (point - self.clip_mean) / self.clip_std
-        adjustment_factor = torch.clamp(torch.abs(z_scores), 0, 1)
-        direction_adjustment = -torch.sign(z_scores) * adjustment_factor
-
-        for _ in range(num_samples):
-            # Generate points within the sphere
-            random_direction = torch.randn(dim, device=self.device)
-            direction = direction_adjustment + random_direction
-            direction /= torch.norm(direction)
-
-            # Magnitude for uniform sampling within volume
-            magnitude = torch.rand(1, device=self.device).pow(1/3) * jump_distance
-
-            point = point + direction * magnitude
-            point = torch.clamp(point, self.clip_min, self.clip_max)
-
-            # Collect generated vectors
-            clip_vectors = torch.cat((clip_vectors, point), dim=0)
         
+        # Sampling from a multivariate Gaussian distribution
+        distribution = torch.distributions.MultivariateNormal(point, covariance_matrix)
+        clip_vectors = distribution.sample((num_samples,))
+        clip_vectors = torch.clamp(clip_vectors, self.clip_min, self.clip_max)
+
         # sample random scaling factors
         radii= torch.rand(num_samples, len(self.max_radius), device=self.device) * (self.max_radius - self.min_radius) + self.min_radius
         sphere_centers= torch.cat([clip_vectors, radii], dim=1)
-        
+
         return sphere_centers
 
     def score_points(self, points):
@@ -119,6 +134,9 @@ class RapidlyExploringTreeSearch:
         current_generation = [sphere.squeeze()]
         all_nodes = []
         all_scores = torch.tensor([], dtype=torch.float32, device=self.device)
+
+        # generate covariance matrix
+        covariance_matrix = torch.diag((self.clip_std * jump_distance) ** 2)
         
         # Initialize tqdm
         pbar = tqdm(total=max_nodes)
@@ -129,7 +147,7 @@ class RapidlyExploringTreeSearch:
             for point in current_generation:
                 point= point.unsqueeze(0)
                 # Find nearest k points to the current point
-                nearest_points = self.find_nearest_points(point, nodes_per_iteration, jump_distance)
+                nearest_points = self.find_nearest_points(point, nodes_per_iteration, covariance_matrix)
                 
                 # Score these points
                 nearest_scores = self.score_points(nearest_points)
