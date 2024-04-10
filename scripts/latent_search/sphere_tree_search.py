@@ -176,10 +176,15 @@ class RapidlyExploringTreeSearch:
         # After the final iteration, choose the top n highest scoring points overall
         values, sorted_indices = torch.sort(all_scores.squeeze(1), descending=True)
         final_top_points = torch.stack(all_nodes, dim=0)[sorted_indices[:num_images]]
+        final_top_points = final_top_points[:,:1280]
 
-        print(f"average score: {torch.mean(values[sorted_indices[:num_images]])}")
+        print(f"top score: {values}")
+        max_vector= torch.max(final_top_points, dim=1)
+        min_vector= torch.min(final_top_points, dim=1)
+        print(f"max vector: {max_vector}")
+        print(f"min vector: {min_vector}")
 
-        return final_top_points[:,:1280]
+        return final_top_points
     
     def generate_images(self, nodes_per_iteration, max_nodes, top_k, jump_distance, num_images):
         clip_vectors= self.expand_tree(nodes_per_iteration, max_nodes, top_k, jump_distance, num_images)
