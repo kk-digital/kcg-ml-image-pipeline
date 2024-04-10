@@ -508,6 +508,7 @@ class DirectionalGuassianResidualFCNetwork(DirectionalSamplingFCRegressionNetwor
         
         predict_outputs = self.trained_model.predict(inputs, batch_size=batch_size).squeeze()
         print("predict_outputs", predict_outputs)
+        print("outputs", outputs)
         residuals = (np.array(outputs) - predict_outputs).tolist()
 
         # load the dataset
