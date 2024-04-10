@@ -995,4 +995,4 @@ elm_model.load_model(minio_client = minio_client, model_dataset = "environmental
 # print( elm_model == None)
 
 print("the EBM score is : ",score.item())
-# print("the ELM score is : ", elm_model.classify(clip_h_vector))
+print("the ELM score is : ", elm_model.classify(clip_h_vector))
