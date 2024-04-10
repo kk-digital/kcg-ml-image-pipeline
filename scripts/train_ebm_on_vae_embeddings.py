@@ -450,7 +450,7 @@ def get_dataset_from_id(id_class,data_augment_passes,label_value):
 class Clip_NN(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super(Clip_NN, self).__init__()
-        self.conv1 = nn.Conv3d(in_channels=1, out_channels=hidden_size, kernel_size=(3, 3, 3), padding=(1, 1, 1))
+        self.conv1 = nn.Conv3d(in_channels=input_size, out_channels=hidden_size, kernel_size=(3, 3, 3), padding=(1, 1, 1))
         self.pool1 = nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2))
         self.conv2 = nn.Conv3d(in_channels=hidden_size, out_channels=hidden_size, kernel_size=(3, 3, 3), padding=(1, 1, 1))
         self.pool2 = nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2))
