@@ -181,8 +181,13 @@ class RapidlyExploringTreeSearch:
         print(f"top score: {values}")
         max_vector= torch.max(final_top_points, dim=1)
         min_vector= torch.min(final_top_points, dim=1)
+        mean_vector= torch.mean(final_top_points, dim=1)
+        std_vector= torch.std(final_top_points, dim=1)
+
         print(f"max vector: {max_vector}")
         print(f"min vector: {min_vector}")
+        print(f"mean vector: {mean_vector}")
+        print(f"std vector: {std_vector}")
 
         return final_top_points
     
