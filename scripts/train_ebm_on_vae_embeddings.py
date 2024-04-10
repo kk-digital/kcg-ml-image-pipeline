@@ -447,13 +447,12 @@ def get_dataset_from_id(id_class,data_augment_passes,label_value):
 # ------------------------------------------------- Neural Network Architecture ---------------------------------------
 # ---------------------------------------------------------------------------------------------------------------------
 
-
 class Clip_NN(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super(Clip_NN, self).__init__()
-        self.conv1 = nn.Conv3d(input_size, hidden_size, kernel_size=(3, 3, 3), padding=(1, 1, 1))
+        self.conv1 = nn.Conv3d(in_channels=1, out_channels=hidden_size, kernel_size=(3, 3, 3), padding=(1, 1, 1))
         self.pool1 = nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2))
-        self.conv2 = nn.Conv3d(hidden_size, hidden_size, kernel_size=(3, 3, 3), padding=(1, 1, 1))
+        self.conv2 = nn.Conv3d(in_channels=hidden_size, out_channels=hidden_size, kernel_size=(3, 3, 3), padding=(1, 1, 1))
         self.pool2 = nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2))
         self.fc1 = nn.Linear(hidden_size * 8 * 8 * 4, hidden_size)  # Adjusted for input shape (4, 64, 64)
         self.relu = nn.ReLU()
@@ -536,7 +535,7 @@ class DeepEnergyModel(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
         #self.cnn = Clip_NN(input_size= 64 * 64 * 4, hidden_size = 512, output_size =1) 
-        self.cnn = Clip_NN(input_size=4, hidden_size=128, output_size=1)
+        self.cnn = Clip_NN(input_size=1, hidden_size=128, output_size=1)
         self.example_input_array = torch.zeros(1, *img_shape)
 
     def forward(self, x):
