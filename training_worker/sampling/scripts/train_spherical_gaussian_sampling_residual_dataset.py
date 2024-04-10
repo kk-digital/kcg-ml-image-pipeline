@@ -6,7 +6,7 @@ base_directory = './'
 sys.path.insert(0, base_directory)
 from training_worker.sampling.models.gaussian_sampling_fc import SamplingFCNetwork
 from training_worker.sampling.models.gaussian_sampling_regression_fc import SamplingFCRegressionNetwork
-from training_worker.sampling.models.directional_gaussian_sampling_regression_fc import DirectionalGuassianResidualFCNetwork
+from training_worker.sampling.models.directional_gaussian_sampling_regression_fc import DirectionalGuassianResidualFCNetwork, DirectionalSamplingResidualXGBoost
 from utility.minio import cmd
 
 
@@ -31,6 +31,7 @@ def parse_args():
     parser.add_argument('--bin-size', type=int, default=1)
     parser.add_argument('--per-epoch', action='store_true', default=False, help='Generate the random spheres per epoch')
     parser.add_argument('--sphere-type', type=str, default='directional', help='directional')
+    parser.add_argument('--model-type', type=str, default='FCNetwork', help='FCNetwork, XGBoost')
     return parser.parse_args()
 
 def main():
@@ -48,10 +49,17 @@ def main():
         if args.sphere_type == 'spherical':
             pass
         elif args.sphere_type == 'directional':
-            gaussian_sampling_model = DirectionalGuassianResidualFCNetwork(minio_client=minio_client, 
+            if args.model_type == 'FCNetwork':
+                gaussian_sampling_model = DirectionalGuassianResidualFCNetwork(minio_client=minio_client, 
                                                 dataset=args.dataset,
                                                 input_type=args.input_type,
                                                 output_type= args.output_type)
+            elif args.model_type == 'XGBoost':
+                gaussian_sampling_model = DirectionalSamplingResidualXGBoost(minio_client=minio_client, 
+                                                dataset=args.dataset,
+                                                input_type=args.input_type,
+                                                output_type= args.output_type)
+                
     gaussian_sampling_model.set_config(sampling_parameter={'percentile': args.percentile, 'std': args.std})
 
     gaussian_sampling_model.train(num_epochs=args.epochs,
