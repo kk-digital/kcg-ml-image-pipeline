@@ -121,6 +121,7 @@ class RapidlyExploringTreeSearch:
         pbar = tqdm(total=max_nodes)
         nodes=0
         while(nodes < max_nodes):
+            print(nodes)
             next_generation = []
             all_scores = torch.tensor([], dtype=torch.float32, device=self.device)
             
@@ -156,9 +157,7 @@ class RapidlyExploringTreeSearch:
         return final_top_points[:,:1280]
     
     def generate_images(self, nodes_per_iteration, max_nodes, top_k, num_images):
-
         clip_vectors= self.expand_tree(nodes_per_iteration, max_nodes, top_k, num_images)
-
         df_data=[]
 
         for clip_vector in clip_vectors:
@@ -168,8 +167,7 @@ class RapidlyExploringTreeSearch:
                         image_embedding=clip_vector.unsqueeze(0),
                         negative_image_embedding=None,
                         dataset_name="test-generations",
-                        prompt_generation_policy=self.sampling_policy,
-                        self_training=True
+                        prompt_generation_policy=self.sampling_policy
                     )
 
                     task_uuid = response['uuid']
