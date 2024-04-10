@@ -454,7 +454,7 @@ class Clip_NN(nn.Module):
         self.pool1 = nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2))
         self.conv2 = nn.Conv3d(in_channels=hidden_size, out_channels=hidden_size, kernel_size=(3, 3, 3), padding=(1, 1, 1))
         self.pool2 = nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2))
-        self.fc1 = nn.Linear(hidden_size * 8 * 8 * 4, hidden_size)  # Adjusted for input shape (4, 64, 64)
+        self.fc1 = nn.Linear(hidden_size * 8 * 8 * 4, hidden_size)  # Adjusted for input shape (1, 64, 64, 4)
         self.relu = nn.ReLU()
         self.fc2 = nn.Linear(hidden_size, output_size)
 
