@@ -107,7 +107,8 @@ class ELMRegression():
         print("Classifying...")
         print("dataset_feature_vector: ", dataset_feature_vector)
         print("dataset_feature_vector.shape: ", dataset_feature_vector.shape)
-        dataset_feature_vector = dataset_feature_vector.to(self._device)
+        #dataset_feature_vector = dataset_feature_vector.to(self._device)
+        dataset_feature_vector = dataset_feature_vector.squeeze()
         h = self._activation(torch.add(dataset_feature_vector.mm(self._weight), self._bias))
         out = h.mm(self._beta)
 
