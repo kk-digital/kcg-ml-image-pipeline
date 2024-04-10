@@ -559,7 +559,7 @@ class DirectionalSamplingResidualXGBoost(nn.Module):
     def set_config(self, sampling_parameter= None):
         self.sampling_parameter = sampling_parameter
 
-        
+
     def get_model_path(self):
         local_path=f"output/{self.output_type}_xgboost_{self.input_type}_residual.json"
         minio_path=f"{self.dataset}/models/sampling/{self.date}_{self.output_type}_xgboost_{self.input_type}_residual.json"
@@ -613,7 +613,7 @@ class DirectionalSamplingResidualXGBoost(nn.Module):
                 inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres=n_spheres,target_avg_points=target_avg_points, output_type=self.output_type, percentile=self.sampling_parameter["percentile"], std=self.sampling_parameter["std"], input_type=self.input_type)
 
                 # calculate residuals
-                predicted_outputs= trained_model.predict(inputs, batch_size= batch_size).squeeze().cpu().numpy()
+                predicted_outputs= trained_model.predict(inputs, batch_size= batch_size).squeeze()
                 residuals= np.array(outputs) - predicted_outputs
                 outputs= residuals.tolist()
 
