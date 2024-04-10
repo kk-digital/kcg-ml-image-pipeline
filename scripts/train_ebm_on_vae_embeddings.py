@@ -446,9 +446,9 @@ def get_dataset_from_id(id_class,data_augment_passes,label_value):
 # ---------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------- Neural Network Architecture ---------------------------------------
 # ---------------------------------------------------------------------------------------------------------------------
-class Clip_CNN(nn.Module):
-    def __init__(self, input_size, output_size):
-        super(Clip_CNN, self).__init__()
+class Clip_NN(nn.Module):
+    def __init__(self, input_size,hidden_size, output_size):
+        super(Clip_NN, self).__init__()
         self.conv1 = nn.Conv2d(input_size, 16, kernel_size=3, padding=1)
         self.relu1 = nn.ReLU()
         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
