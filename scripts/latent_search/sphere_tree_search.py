@@ -121,6 +121,7 @@ class RapidlyExploringTreeSearch:
         # pbar = tqdm(total=max_nodes)
         nodes=0
         while(nodes < max_nodes):
+            print(nodes)
             next_generation = []
             all_scores = torch.tensor([], dtype=torch.float32, device=self.device)
             
