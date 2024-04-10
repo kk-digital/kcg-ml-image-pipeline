@@ -508,7 +508,8 @@ class DirectionalGuassianResidualFCNetwork(DirectionalSamplingFCRegressionNetwor
         
         inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres=n_spheres,target_avg_points=target_avg_points, output_type=self.output_type, percentile=self.sampling_parameter["percentile"], std=self.sampling_parameter["std"], input_type=self.input_type)
         
-        predict_outputs = self.trained_model.predict(inputs, batch_size=1000).squeeze()
+        predict_outputs = self.trained_model.predict(inputs, batch_size=batch_size).squeeze()
+        print("predict_outputs", predict_outputs)
         residuals = (np.array(outputs) - predict_outputs).tolist()
 
         # load the dataset
