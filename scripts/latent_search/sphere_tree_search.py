@@ -123,7 +123,7 @@ class RapidlyExploringTreeSearch:
         # Initialize tqdm
         pbar = tqdm(total=max_nodes)
         nodes=0
-        while(nodes > max_nodes):
+        while(nodes < max_nodes):
             next_generation = []
             
             for point in current_generation:
