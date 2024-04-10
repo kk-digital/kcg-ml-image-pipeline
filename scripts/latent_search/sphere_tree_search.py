@@ -116,7 +116,7 @@ class RapidlyExploringTreeSearch:
         radius= torch.rand(1, len(self.max_radius), device=self.device) * (self.max_radius - self.min_radius) + self.min_radius
         sphere= torch.cat([self.clip_mean, radius], dim=1)
         current_generation = [sphere.squeeze()]
-        all_generations = []
+        all_nodes = []
         all_scores = torch.tensor([], dtype=torch.float32, device=self.device)
         
         # Initialize tqdm
@@ -139,11 +139,11 @@ class RapidlyExploringTreeSearch:
                 top_points = nearest_points[sorted_indices[:top_k]]
                 top_scores = nearest_scores[sorted_indices[:top_k]]
 
-                # Keep track of scores for selection later
+                # Keep track of all nodes and their scores for selection later
                 all_scores = torch.cat((all_scores, top_scores), dim=0)
+                all_nodes.extend(top_points)
 
                 next_generation.extend(top_points)
-                all_generations.extend(top_points)
                 nodes+= nodes_per_iteration
                 # pbar.update(nodes_per_iteration)
             
@@ -155,7 +155,9 @@ class RapidlyExploringTreeSearch:
         
         # After the final iteration, choose the top n highest scoring points overall
         values, sorted_indices = torch.sort(all_scores.squeeze(1), descending=True)
-        final_top_points = torch.stack(all_generations, dim=0)[sorted_indices[:num_images]]
+        final_top_points = torch.stack(all_nodes, dim=0)[sorted_indices[:num_images]]
+
+        print(f"average score: {torch.mean(values[sorted_indices[:num_images]])}")
 
         return final_top_points[:,:1280]
     
