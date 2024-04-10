@@ -136,7 +136,8 @@ class RapidlyExploringTreeSearch:
         all_scores = torch.tensor([], dtype=torch.float32, device=self.device)
 
         # generate covariance matrix
-        covariance_matrix = torch.diag((self.clip_std * jump_distance) ** 2)
+        covariance_matrix = torch.diag((self.clip_std * jump_distance).pow(2).squeeze(0))
+        print(covariance_matrix.shape)
         
         # Initialize tqdm
         pbar = tqdm(total=max_nodes)
