@@ -118,10 +118,9 @@ class RapidlyExploringTreeSearch:
         current_generation = [sphere.squeeze()]
         
         # Initialize tqdm
-        pbar = tqdm(total=max_nodes)
+        # pbar = tqdm(total=max_nodes)
         nodes=0
         while(nodes < max_nodes):
-            print(nodes)
             next_generation = []
             all_scores = torch.tensor([], dtype=torch.float32, device=self.device)
             
@@ -148,7 +147,7 @@ class RapidlyExploringTreeSearch:
             current_generation = next_generation
         
         # Close the progress bar when done
-        pbar.close()
+        # pbar.close()
         
         # After the final iteration, choose the top n highest scoring points overall
         values, sorted_indices = torch.sort(all_scores.squeeze(1), descending=True)
