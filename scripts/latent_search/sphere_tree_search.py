@@ -141,7 +141,7 @@ class RapidlyExploringTreeSearch:
 
                 next_generation.extend(top_points)
                 nodes+= nodes_per_iteration
-                pbar.update(nodes_per_iteration)
+                # pbar.update(nodes_per_iteration)
             
             # Prepare for the next iteration
             current_generation = next_generation
