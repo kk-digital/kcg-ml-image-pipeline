@@ -191,7 +191,7 @@ class KandinskyImageGenerator:
         num_generated_samples= max(int(num_samples / self.top_k), 1000)
         embeddings, scores = self.sample_embeddings(num_generated_samples)
 
-        indexes= np.argsort(scores)[:num_samples]
+        indexes= np.flip(np.argsort(scores))[:num_samples]
         samples= [embeddings[index].unsqueeze(0) for index in indexes]
 
         return samples

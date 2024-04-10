@@ -4,7 +4,6 @@ import os
 import sys
 import tempfile
 from matplotlib import pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 import torch
 import time
@@ -13,13 +12,10 @@ import torch.optim as optim
 from torch.utils.data import Dataset
 from torch.utils.data import random_split
 from torch.utils.data.dataloader import DataLoader
-from sklearn.metrics import confusion_matrix
-import seaborn as sb
-from sklearn.metrics import classification_report
 
 base_directory = "./"
 sys.path.insert(0, base_directory)
-from training_worker.sampling.scripts.uniform_sampling_dataset import UniformSphereGenerator
+from training_worker.sampling.scripts.directional_gaussian_sampling_dataset import DirectionalGaussianGenerator
 from utility.minio import cmd
 
 class DatasetLoader(Dataset):
@@ -49,11 +45,11 @@ class DatasetLoader(Dataset):
         return sample_features, sample_label
 
 
-class SamplingFCNetwork(nn.Module):
-    def __init__(self, minio_client, input_size=1281, hidden_sizes=[512, 256], input_type="uniform_sphere" , output_size=8, 
-                 bin_size=1, output_type="score_distribution", dataset="environmental"):
+class DirectionalSamplingFCRegressionNetwork(nn.Module):
+    def __init__(self, minio_client, input_size=2560, hidden_sizes=[512, 256], input_type="gaussian_sphere_variance",output_size=1, 
+                 output_type="mean_sigma_score", dataset="environmental"):
         
-        super(SamplingFCNetwork, self).__init__()
+        super(DirectionalSamplingFCRegressionNetwork, self).__init__()
         # set device
         if torch.cuda.is_available():
             device = 'cuda'
@@ -67,75 +63,67 @@ class SamplingFCNetwork(nn.Module):
             layers.append(nn.ReLU())
             layers.append(nn.Linear(hidden_sizes[i], hidden_sizes[i+1]))
         
-        # Adjusting the last layer to use LogSoftmax for KLDivLoss compatibility
-        layers += [nn.Linear(hidden_sizes[-1], output_size), nn.LogSoftmax(dim=1)]
+        # Adding the final layer (without an activation function for linear output)
+        layers.append(nn.ReLU())
+        layers.append(nn.Linear(hidden_sizes[-1], output_size))
 
         # Combine all layers into a sequential model
         self.model = nn.Sequential(*layers).to(self._device)
         self.input_size= input_size
-        self.output_size= output_size
-        self.bin_size= bin_size
         self.minio_client= minio_client
         self.input_type= input_type
         self.output_type= output_type
         self.dataset=dataset
         self.date = datetime.now().strftime("%Y_%m_%d")
         self.local_path, self.minio_path=self.get_model_path()
-
+        self.metadata = None
         # sphere dataloader
-        self.dataloader= UniformSphereGenerator(minio_client, dataset)
+        self.dataloader = DirectionalGaussianGenerator(minio_client, dataset)
+
+    def set_config(self, sampling_parameter= None):
+        self.sampling_parameter = sampling_parameter
 
     def get_model_path(self):
         local_path=f"output/{self.output_type}_fc_{self.input_type}.pth"
-        minio_path=f"{self.dataset}/models/sampling/{self.date}_{self.output_type}_fc_{self.input_type}.pth"
+        minio_path=f"{self.dataset}/models/sampling/{self.date}_directional_gaussian_{self.output_type}_fc_{self.input_type}.pth"
 
         return local_path, minio_path
 
-    def train(self, n_spheres, 
-              target_avg_points, 
-              learning_rate=0.001, 
-              validation_split=0.2, 
-              num_epochs=100, 
-              batch_size=256,
-              generate_every_epoch=False):
-       
-        # load datapoints from minio
-        self.dataloader.load_data()
+    def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256, is_per_epoch=False):
 
-        # Define the loss function and optimizer 
-        criterion = nn.KLDivLoss(reduction='batchmean')  # Using KLDivLoss
+        # load the dataset depends on sampling type
+        self.dataloader.load_dataset()
+        
+        criterion = nn.L1Loss()  # Define the loss function
         optimizer = optim.Adam(self.parameters(), lr=learning_rate)  # Define the optimizer
 
         # save loss for each epoch and features
         train_loss=[]
         val_loss=[]
 
-        best_val_loss = float('inf')  # Initialize best validation loss as infinity
-        best_train_loss = float('inf')  # Initialize best training loss as infinity
+        best_state = {
+            "val_loss": float('inf'), # Initialize best validation loss as infinity
+            "train_loss": float('inf') # Initialize best training loss as infinity
+        }
         start = time.time()
-        best_epoch= 0
         # Training and Validation Loop
         for epoch in range(num_epochs):
-            if(epoch==0 or generate_every_epoch):
-                # generate dataset once or every epoch
-                val_loader, train_loader, \
-                val_size, train_size, \
-                val_dataset, train_dataset= self.get_validation_and_training_features(validation_split,
-                                                                                    batch_size,
-                                                                                    n_spheres,
-                                                                                    target_avg_points)
-                
             self.model.eval()
             total_val_loss = 0
             total_val_samples = 0
             
+            if epoch == 0 or is_per_epoch:
+                train_dataset, val_dataset, \
+                    train_loader, val_loader, \
+                        train_size, val_size = self.get_data_for_training(n_spheres, target_avg_points, validation_split, batch_size)
+
             with torch.no_grad():
                 for inputs, targets in val_loader:
                     inputs=inputs.to(self._device)
                     targets=targets.to(self._device)
 
                     outputs = self.model(inputs)
-                    loss = criterion(outputs, targets)
+                    loss = criterion(outputs.squeeze(1), targets)
 
                     total_val_loss += loss.item() * inputs.size(0)
                     total_val_samples += inputs.size(0)
@@ -150,8 +138,7 @@ class SamplingFCNetwork(nn.Module):
 
                 optimizer.zero_grad()
                 outputs = self.model(inputs)
-                loss = criterion(outputs, targets)
-                
+                loss = criterion(outputs.squeeze(1), targets)
                 loss.backward()
                 optimizer.step()
 
@@ -164,50 +151,71 @@ class SamplingFCNetwork(nn.Module):
             val_loss.append(avg_val_loss)
 
             # Update best model if current epoch's validation loss is the best
-            if val_loss[-1] < best_val_loss:
-                best_val_loss = val_loss[-1]
-                best_train_loss = train_loss[-1]
-                best_model_state = self.model
-                best_epoch= epoch + 1
-
+            if val_loss[-1] < best_state["val_loss"]:
+                best_state = {
+                    "model": self.model,
+                    "epoch": epoch,
+                    "train_dataset": train_dataset,
+                    "val_dataset": val_dataset,
+                    "train_size": train_size,
+                    "val_size": val_size,
+                    "train_loss": train_loss[-1],
+                    "val_loss": val_loss[-1],
+                }
             print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss}, Val Loss: {avg_val_loss}')
         
+
         # save the model at the best epoch
-        self.model= best_model_state
+        self.model= best_state["model"]
         
         end = time.time()
         training_time= end - start
 
         start = time.time()
-        # Classifying all validation datapoints
-        val_residuals = self.get_residuals(val_dataset, batch_size)
-        train_residuals = self.get_residuals(train_dataset, batch_size)
-
-        end = time.time()
-        inference_speed=(val_size + train_size)/(end - start)
-        print(f'Time taken for inference of {(val_size + train_size)} data points is: {end - start:.2f} seconds')
+        # Inference and calculate residuals on the training and validation set
+        val_preds = self.inference(best_state["val_dataset"], batch_size)
+        train_preds = self.inference(best_state["train_dataset"], batch_size)
         
-        self.save_graph_report(train_loss, val_loss, 
-                               best_epoch, generate_every_epoch,
-                               best_train_loss, best_val_loss,
-                               val_residuals, train_residuals,
-                               train_size, val_size)
+        end = time.time()
+        inference_speed=(best_state["train_size"] + best_state["val_size"])/(end - start)
+        print(f'Time taken for inference of {best_state["train_size"] + best_state["val_size"]} data points is: {end - start:.2f} seconds')
+
+        # Extract the true values from the datasets
+        y_train = torch.cat([y.unsqueeze(0) for _, y in best_state["train_dataset"]]).to(self._device)
+        y_val = torch.cat([y.unsqueeze(0) for _, y in best_state["val_dataset"]]).to(self._device)
+
+        # Calculate residuals
+        val_residuals = y_val - val_preds
+        train_residuals = y_train - train_preds
+
+        val_preds= val_preds.cpu().numpy()
+        y_val= y_val.cpu().numpy()
+        val_residuals= val_residuals.cpu().numpy()
+        train_residuals= train_residuals.cpu().numpy()
+        
+        self.save_graph_report(train_loss, val_loss,
+                               best_state["train_loss"], best_state["val_loss"], 
+                               val_residuals, train_residuals, 
+                               val_preds, y_val,
+                               train_size, val_size, best_state["epoch"])
         
         self.save_model_report(num_training=train_size,
                               num_validation=val_size,
-                              training_time=training_time,
-                              train_loss=best_train_loss, 
-                              val_loss=best_val_loss, 
+                              training_time=training_time, 
+                              train_loss=best_state["train_loss"], 
+                              val_loss=best_state["val_loss"],  
                               inference_speed= inference_speed,
-                              learning_rate=learning_rate)
+                              learning_rate=learning_rate, best_model_epoch=best_state["epoch"])
         
-        return best_val_loss
-    
-    def get_validation_and_training_features(self, validation_split, batch_size, n_spheres, target_avg_points):
-        # load inputs and targets
-        inputs, outputs = self.dataloader.generate_spheres(n_spheres, target_avg_points, self.output_type,
-                                                           self.output_size, self.bin_size)
+        self.save_metadata(inputs, target_avg_points, learning_rate, num_epochs, batch_size)
 
+        return best_state["val_loss"]
+    
+
+    def get_data_for_training(self, n_spheres, target_avg_points, validation_split, batch_size):
+
+        inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres=n_spheres,target_avg_points=target_avg_points, output_type=self.output_type, percentile=self.sampling_parameter["percentile"], std=self.sampling_parameter["std"], input_type=self.input_type)
+        
         # load the dataset
         dataset= DatasetLoader(features=inputs, labels=outputs)
         # Split dataset into training and validation
@@ -219,19 +227,17 @@ class SamplingFCNetwork(nn.Module):
         train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
         val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
-        return val_loader, train_loader, val_size, train_size, val_dataset, train_dataset
+        return train_dataset, val_dataset, train_loader, val_loader, val_size, train_size
         
     def save_model_report(self,num_training,
                               num_validation,
-                              training_time,
+                              training_time, 
                               train_loss, 
                               val_loss, 
                               inference_speed,
-                              learning_rate):
-        if self.input_type=="uniform_sphere":
-            input_type="[input_clip_vector[1280], radius(float)]"
-        elif self.input_type=="gaussian_sphere":
-            input_type="[input_clip_vector[1280], variance(float)]"
+                              learning_rate,
+                              best_model_epoch):
+        input_type="[input_clip_vector[2560], variance(float)]"
 
         report_text = (
             "================ Model Report ==================\n"
@@ -239,6 +245,7 @@ class SamplingFCNetwork(nn.Module):
             f"Number of validation datapoints: {num_validation} \n"
             f"Total training Time: {training_time:.2f} seconds\n"
             "Loss Function: L1 \n"
+            f"Epoch of best model: {best_model_epoch} \n"
             f"Learning Rate: {learning_rate} \n"
             f"Training Loss: {train_loss} \n"
             f"Validation Loss: {val_loss} \n"
@@ -248,6 +255,19 @@ class SamplingFCNetwork(nn.Module):
             f"Input Size: {self.input_size} \n" 
             f"Output: {self.output_type} \n\n"
         )
+
+        # Add Sampling Method Parameter
+        report_text += (
+            f"================ Sampling Policy  ==================\n"
+            f"type: {self.input_type}"
+        )
+        if self.sampling_parameter is not None:
+            for key, value in zip(self.sampling_parameter.keys(), self.sampling_parameter.values()):
+                report_text += (
+                    f"{key}: {value}\n"
+                )
+        else:
+            report_text += "No Sampling Parameter"
 
         # Define the local file path for the report
         local_report_path = 'output/model_report.txt'
@@ -269,15 +289,14 @@ class SamplingFCNetwork(nn.Module):
         # Remove the temporary file
         os.remove(local_report_path)
 
-    def save_graph_report(self, train_loss_per_round, val_loss_per_round,
-                          saved_at_epoch, generate_every_epoch,
-                          best_train_loss, best_val_loss, 
-                          val_residuals, train_residuals,
-                          training_size, validation_size):
-        fig, axs = plt.subplots(3, 1, figsize=(12, 10))
+    def save_graph_report(self, train_mae_per_round, val_mae_per_round, 
+                          best_train_loss, best_val_loss,  
+                          val_residuals, train_residuals, 
+                          predicted_values, actual_values,
+                          training_size, validation_size, best_model_epoch):
+        fig, axs = plt.subplots(3, 2, figsize=(12, 10))
         
-        #info text about the model
-        plt.figtext(0.02, 0.7, "Date = {}\n"
+        fig_report_text = ("Date = {}\n"
                             "Dataset = {}\n"
                             "Model type = {}\n"
                             "Input type = {}\n"
@@ -288,8 +307,7 @@ class SamplingFCNetwork(nn.Module):
                             "Validation size = {}\n"
                             "Training loss = {:.4f}\n"
                             "Validation loss = {:.4f}\n"
-                            "Model saved at epoch = {}\n"
-                            "Generation policy= {}\n".format(self.date,
+                            "Epoch of Best model = {}\n".format(self.date,
                                                             self.dataset,
                                                             'Fc_Network',
                                                             self.input_type,
@@ -299,29 +317,60 @@ class SamplingFCNetwork(nn.Module):
                                                             validation_size,
                                                             best_train_loss,
                                                             best_val_loss,
-                                                            saved_at_epoch,
-                                                            "every epoch" if generate_every_epoch else "once"
+                                                            best_model_epoch
                                                             ))
 
+        fig_report_text += (
+            "Sampling Policy: {}\n".format(self.input_type)
+        )
+        if self.sampling_parameter is not None:
+            for key, value in zip(self.sampling_parameter.keys(), self.sampling_parameter.values()):
+                fig_report_text += (
+                    f"{key}: {value}\n"
+                )
+        else:
+            fig_report_text += "No Sampling Parameter"
+
+        #info text about the model
+        plt.figtext(0.02, 0.7, fig_report_text)
+            
         # Plot validation and training Rmse vs. Rounds
-        axs[0].plot(range(1, len(train_loss_per_round) + 1), train_loss_per_round,'b', label='Training loss')
-        axs[0].plot(range(1, len(val_loss_per_round) + 1), val_loss_per_round,'r', label='Validation loss')
-        axs[0].set_title('KL loss per Round')
-        axs[0].set_ylabel('Loss')
-        axs[0].set_xlabel('Epochs')
-        axs[0].legend(['Training loss', 'Validation loss'])
+        axs[0][0].plot(range(1, len(train_mae_per_round) + 1), train_mae_per_round,'b', label='Training loss')
+        axs[0][0].plot(range(1, len(val_mae_per_round) + 1), val_mae_per_round,'r', label='Validation loss')
+        axs[0][0].set_title('MAE per Round')
+        axs[0][0].set_ylabel('Loss')
+        axs[0][0].set_xlabel('Rounds')
+        axs[0][0].legend(['Training loss', 'Validation loss'])
+
+        # Scatter Plot of actual values vs predicted values
+        axs[0][1].scatter(predicted_values, actual_values, color='green', alpha=0.5)
+        axs[0][1].set_title('Predicted values vs actual values')
+        axs[0][1].set_ylabel('True')
+        axs[0][1].set_xlabel('Predicted')
 
         # plot histogram of training residuals
-        axs[1].hist(train_residuals, bins=30, color='blue', alpha=0.7)
-        axs[1].set_xlabel('Residuals')
-        axs[1].set_ylabel('Frequency')
-        axs[1].set_title('Training Residual Histogram')
+        axs[1][0].hist(train_residuals, bins=30, color='blue', alpha=0.7)
+        axs[1][0].set_xlabel('Residuals')
+        axs[1][0].set_ylabel('Frequency')
+        axs[1][0].set_title('Training Residual Histogram')
 
         # plot histogram of validation residuals
-        axs[2].hist(val_residuals, bins=30, color='blue', alpha=0.7)
-        axs[2].set_xlabel('Residuals')
-        axs[2].set_ylabel('Frequency')
-        axs[2].set_title('Validation Residual Histogram')
+        axs[1][1].hist(val_residuals, bins=30, color='blue', alpha=0.7)
+        axs[1][1].set_xlabel('Residuals')
+        axs[1][1].set_ylabel('Frequency')
+        axs[1][1].set_title('Validation Residual Histogram')
+        
+        # plot histogram of predicted values
+        axs[2][0].hist(predicted_values, bins=30, color='blue', alpha=0.7)
+        axs[2][0].set_xlabel('Predicted Values')
+        axs[2][0].set_ylabel('Frequency')
+        axs[2][0].set_title('Validation Predicted Values Histogram')
+        
+        # plot histogram of true values
+        axs[2][1].hist(actual_values, bins=30, color='blue', alpha=0.7)
+        axs[2][1].set_xlabel('Actual values')
+        axs[2][1].set_ylabel('Frequency')
+        axs[2][1].set_title('Validation True Values Histogram')
 
         # Adjust spacing between subplots
         plt.subplots_adjust(hspace=0.7, wspace=0.3, left=0.3)
@@ -354,40 +403,28 @@ class SamplingFCNetwork(nn.Module):
             for i in range(0, len(features_tensor), batch_size):
                 batch = features_tensor[i:i + batch_size]  # Extract a batch
                 outputs = self.model(batch)  # Get predictions for this batch
-                predictions.append(torch.exp(outputs))
+                predictions.append(outputs.squeeze())
 
         # Concatenate all predictions and convert to a NumPy array
         predictions = torch.cat(predictions, dim=0).cpu().numpy()
 
         return predictions         
 
-    def get_residuals(self, dataset, batch_size=64):
+    def inference(self, dataset, batch_size=64):
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
         self.model.eval()  # Set the model to evaluation mode
         predictions = []
-        true_values = []
         with torch.no_grad():
-            for inputs, targets in loader:
+            for inputs, _ in loader:
                 inputs= inputs.to(self._device)
                 outputs = self.model(inputs)
-                true_values.append(targets)
-                predictions.append(torch.exp(outputs))
-        
-        # Concatenate all predictions and convert to a NumPy array
-        predictions = torch.cat(predictions, dim=0).cpu().numpy()
-        true_values = torch.cat(true_values, dim=0).cpu().numpy()
-
-        residuals=[]
-        for pred_probs, true_probs in zip(predictions, true_values):
-            residual= np.mean(np.abs(pred_probs - true_probs))
-            residuals.append(residual)
-
-        return residuals
+                predictions.append(outputs)
+        return torch.cat(predictions).squeeze()
 
     def load_model(self):
         # get model file data from MinIO
         prefix= f"{self.dataset}/models/sampling/"
-        suffix= f"_{self.output_type}_fc_{self.input_type}.pth"
+        suffix= f"_directional_gaussian_{self.output_type}_fc_{self.input_type}.pth"
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', prefix)
         most_recent_model = None
 
@@ -409,17 +446,40 @@ class SamplingFCNetwork(nn.Module):
                 temp_file.write(data)
 
         # Load the model from the downloaded bytes
-        self.model.load_state_dict(torch.load(temp_file.name))
+        self.metadata = torch.load(temp_file.name)
+        self.feature_max_value = self.metadata["feature_max_value"]
+        self.feature_min_value = self.metadata["feature_min_value"]
+
+        self.model.load_state_dict(self.metadata["model_state"])
         
         # Remove the temporary file
         os.remove(temp_file.name)
 
+    def save_metadata(self, inputs, points_per_sphere, learning_rate, num_epochs, training_batch_size):
+
+        feature_input_vector = [input[self.input_size//2:] for input in inputs]
+        self.min_scaling_factors = [min(feature_values) for feature_values in zip(*feature_input_vector)]
+        self.max_scaling_factors = [max(feature_values) for feature_values in zip(*feature_input_vector)]
+
+        self.metadata = {
+            'points_per_sphere': points_per_sphere,
+            'num_epochs': num_epochs,
+            'learning_rate': learning_rate,
+            'training_batch_size': training_batch_size,
+            'model_state': self.model.state_dict(),
+            'feature_min_value': self.min_scaling_factors,
+            'feature_max_value': self.max_scaling_factors
+        }
+
     def save_model(self):
-         # Save the model locally
-        torch.save(self.model.state_dict(), self.local_path)
+        if self.metadata is None:
+            raise Exception("you have to train the model before saving.")
         
-        #Read the contents of the saved model file
-        with open(self.local_path, "rb") as model_file:
+        # Save the model locally
+        torch.save(self.metadata, self.local_path)
+
+        # Read the contents of the saved model file
+        with open(self.local_path, 'rb') as model_file:
             model_bytes = model_file.read()
 
         # Upload the model to MinIO

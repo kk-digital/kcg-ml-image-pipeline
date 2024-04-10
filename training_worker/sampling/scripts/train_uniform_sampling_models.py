@@ -6,6 +6,7 @@ base_directory = "./"
 sys.path.insert(0, base_directory)
 from training_worker.sampling.models.uniform_sampling_fc import SamplingFCNetwork
 from training_worker.sampling.models.uniform_sampling_regression_fc import SamplingFCRegressionNetwork
+from training_worker.sampling.models.directional_uniform_sampling_regression_fc import DirectionalSamplingFCRegressionNetwork
 from utility.minio import cmd
 
 
@@ -17,7 +18,10 @@ def parse_args():
     parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
     parser.add_argument('--target-avg-points', type=int, help='Target average of datapoints per sphere', 
                         default=16)
+    parser.add_argument('--sphere-type', type=str, help='Type of spheres, uniform or directional', default="uniform")
     parser.add_argument('--n-spheres', type=int, help='Number of spheres', default=100000)
+    parser.add_argument('--generate-every-epoch', action="store_true", help='Generate spheres each epoch', default=False)
+    parser.add_argument('--train-residual-model', action="store_true", help='Train residual models', default=False)
     parser.add_argument('--training-batch-size', type=int, default=64)
     parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--learning-rate', type=float, default=0.001)
@@ -41,7 +45,12 @@ def main():
                                                 output_type= args.output_type,
                                                 bin_size= args.bin_size)
     elif args.output_type in ["variance", "mean_sigma_score"]:
-        uniform_sampling_model= SamplingFCRegressionNetwork(minio_client=minio_client, 
+        if args.sphere_type=="uniform":
+            uniform_sampling_model= SamplingFCRegressionNetwork(minio_client=minio_client, 
+                                                dataset=args.dataset,
+                                                output_type= args.output_type)
+        elif args.sphere_type=="directional":
+            uniform_sampling_model= DirectionalSamplingFCRegressionNetwork(minio_client=minio_client, 
                                                 dataset=args.dataset,
                                                 output_type= args.output_type)
         
@@ -49,7 +58,9 @@ def main():
                                  batch_size=args.training_batch_size,
                                  learning_rate= args.learning_rate,
                                  n_spheres=args.n_spheres, 
-                                 target_avg_points=args.target_avg_points)
+                                 target_avg_points=args.target_avg_points,
+                                 generate_every_epoch= args.generate_every_epoch,
+                                 train_residual_model= args.train_residual_model)
     
     uniform_sampling_model.save_model()
     

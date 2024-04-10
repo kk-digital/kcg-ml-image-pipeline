@@ -36,7 +36,7 @@ def parse_args():
 
     return parser.parse_args()
 
-class SphericalGaussianGenerator:
+class DirectionalGaussianGenerator:
     def __init__(self,
                  minio_client,
                  dataset):
@@ -116,8 +116,15 @@ class SphericalGaussianGenerator:
             # Extract indices of points within the sphere
             point_indices = sphere_indices
             
-            d = np.percentile(distance_vector, percentile)
+            sphere = self.feature_vectors[sphere_indices]
+
+            # move to center
+            sphere = sphere - center
+
+            # calculate the variance, sigma and fall off of gaussian distribution
+            d = np.percentile(sphere, percentile, axis=0)
             variance = (d / std) ** 2
+
             sigma = d / std
             fall_off = 2 * np.sqrt(2 * np.log(2)) * sigma
 
@@ -128,7 +135,7 @@ class SphericalGaussianGenerator:
             for i, idx in enumerate(point_indices, 0):
                 score = self.scores[idx]
                 sphere_scores.append(score)
-                weight = gaussian_pdf(distance_vector[i], variance)
+                weight = np.mean(gaussian_pdf(distance_vector[i], variance)).item()
                 sum_weights += weight
 
                 for i, bin_edge in enumerate(bins):
@@ -165,7 +172,7 @@ class SphericalGaussianGenerator:
         return sphere_data, avg_points_per_sphere, len(total_covered_points)
 
 
-    def load_sphere_dataset(self, n_spheres, target_avg_points, num_bins=8, bin_size=1, percentile=75, std=1, output_type="score_distribution", input_type="guassian_sphere_variance"):
+    def load_sphere_dataset(self, n_spheres, target_avg_points, num_bins=8, bin_size=1, percentile=75, std=1, output_type="score_distribution", input_type="gaussian_sphere_variance"):
         # generating spheres
         sphere_data, avg_points_per_sphere, total_covered_points= self.generate_spheres(n_spheres=n_spheres,
                                                        target_avg_points=target_avg_points,
@@ -179,7 +186,7 @@ class SphericalGaussianGenerator:
         for sphere in sphere_data:
             # get input vectors
             
-            inputs.append(np.concatenate([sphere['center'], [sphere[input_type]]]))
+            inputs.append(np.concatenate([sphere['center'], sphere[input_type]]))
             # get score distribution
             outputs.append(sphere[output_type])
 
@@ -258,13 +265,16 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
 
-    generator= SphericalGaussianGenerator(minio_client=minio_client,
+    generator= DirectionalGaussianGenerator(minio_client=minio_client,
                                     dataset=args.dataset)
     
-    inputs, outputs = generator.load_sphere_dataset(num_bins= args.num_bins,
-                                                    bin_size= args.bin_size,
+    generator.load_dataset()
+
+    inputs, outputs = generator.load_sphere_dataset(
                                                     n_spheres=args.n_spheres,
                                                     target_avg_points= args.target_avg_points,
+                                                    num_bins= args.num_bins,
+                                                    bin_size= args.bin_size,
                                                     percentile=args.percentile,
                                                     std = args.std)
     

@@ -96,6 +96,7 @@ class KandinskyDatasetLoader:
         jobs= self.load_kandinsky_jobs()
         feature_vectors=[]
         scores=[]
+        
         print("Loading input clip vectors and sigma scores for each job")
         for job in tqdm(jobs):
             try:
@@ -122,7 +123,7 @@ class KandinskyDatasetLoader:
 
             except:
                 print("An error occured")
-        
+
         return feature_vectors, scores
 
 def main():
