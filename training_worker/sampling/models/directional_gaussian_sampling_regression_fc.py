@@ -377,8 +377,6 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
         # Adjust spacing between subplots
         plt.subplots_adjust(hspace=0.7, wspace=0.3, left=0.3)
 
-        plt.tight_layout()
-
         plt.savefig(self.local_path.replace('.pth', '.png'))
 
         # Save the figure to a file
