@@ -25,7 +25,8 @@ def parse_args():
         parser.add_argument('--num-images', type=int, help='Number of images to generate', default=100)
         parser.add_argument('--nodes-per-iteration', type=int, help='Number of nodes to evaluate each iteration', default=1000)
         parser.add_argument('--top-k', type=int, help='Number of nodes to expand on each iteration', default=10)
-        parser.add_argument('--max-nodes', type=int, help='Number of maximum nodes', default=1e+7)
+        parser.add_argument('--max-nodes', type=int, help='Number of maximum nodes', default=1e+6)
+        parser.add_argument('--jump-distance', type=int, help='Jump distance for each node', default=3)
         parser.add_argument('--send-job', action='store_true', default=False)
         parser.add_argument('--save-csv', action='store_true', default=False)
         parser.add_argument('--sampling-policy', type=str, default="rapidly_exploring_tree_search")
@@ -77,7 +78,7 @@ class RapidlyExploringTreeSearch:
 
         return mean_vector, std_vector, max_vector, min_vector
 
-    def find_nearest_points(self, sphere, num_samples):
+    def find_nearest_points(self, sphere, num_samples, jump_distance):
         dim= sphere.size(1)//2
         point = sphere[:,:dim]
         clip_vectors = torch.empty((0, dim), device=self.device)
@@ -94,7 +95,7 @@ class RapidlyExploringTreeSearch:
             direction /= torch.norm(direction)
 
             # Magnitude for uniform sampling within volume
-            magnitude = torch.rand(1, device=self.device).pow(1/3) * 10
+            magnitude = torch.rand(1, device=self.device).pow(1/3) * jump_distance
 
             point = point + direction * magnitude
             point = torch.clamp(point, self.clip_min, self.clip_max)
@@ -112,7 +113,7 @@ class RapidlyExploringTreeSearch:
         scores= self.sphere_scoring_model.predict(points, batch_size=1000)
         return scores
 
-    def expand_tree(self, nodes_per_iteration, max_nodes, top_k, num_images):
+    def expand_tree(self, nodes_per_iteration, max_nodes, top_k, jump_distance, num_images):
         radius= torch.rand(1, len(self.max_radius), device=self.device) * (self.max_radius - self.min_radius) + self.min_radius
         sphere= torch.cat([self.clip_mean, radius], dim=1)
         current_generation = [sphere.squeeze()]
@@ -120,16 +121,15 @@ class RapidlyExploringTreeSearch:
         all_scores = torch.tensor([], dtype=torch.float32, device=self.device)
         
         # Initialize tqdm
-        # pbar = tqdm(total=max_nodes)
+        pbar = tqdm(total=max_nodes)
         nodes=0
-        while(nodes < max_nodes):
-            print(f"{nodes} nodes generated")
+        while(nodes > max_nodes):
             next_generation = []
             
             for point in current_generation:
                 point= point.unsqueeze(0)
                 # Find nearest k points to the current point
-                nearest_points = self.find_nearest_points(point, nodes_per_iteration)
+                nearest_points = self.find_nearest_points(point, nodes_per_iteration, jump_distance)
                 
                 # Score these points
                 nearest_scores = self.score_points(nearest_points)
@@ -145,13 +145,15 @@ class RapidlyExploringTreeSearch:
 
                 next_generation.extend(top_points)
                 nodes+= nodes_per_iteration
-                # pbar.update(nodes_per_iteration)
+                pbar.update(nodes_per_iteration)
+                if nodes > max_nodes:
+                    break
             
             # Prepare for the next iteration
             current_generation = next_generation
         
         # Close the progress bar when done
-        # pbar.close()
+        pbar.close()
         
         # After the final iteration, choose the top n highest scoring points overall
         values, sorted_indices = torch.sort(all_scores.squeeze(1), descending=True)
@@ -161,8 +163,8 @@ class RapidlyExploringTreeSearch:
 
         return final_top_points[:,:1280]
     
-    def generate_images(self, nodes_per_iteration, max_nodes, top_k, num_images):
-        clip_vectors= self.expand_tree(nodes_per_iteration, max_nodes, top_k, num_images)
+    def generate_images(self, nodes_per_iteration, max_nodes, top_k, jump_distance, num_images):
+        clip_vectors= self.expand_tree(nodes_per_iteration, max_nodes, top_k, jump_distance, num_images)
         df_data=[]
 
         for clip_vector in clip_vectors:
@@ -227,6 +229,7 @@ def main():
     generator.generate_images(nodes_per_iteration=args.nodes_per_iteration,
                           max_nodes= args.max_nodes,
                           top_k= args.top_k,
+                          jump_distance= args.jump_distance,
                           num_images= args.num_images)
 
 if __name__ == "__main__":
