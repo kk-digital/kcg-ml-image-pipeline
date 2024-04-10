@@ -11,7 +11,7 @@ router = APIRouter()
 
 
 @router.get("/classifier-score/get-scores-by-classifier-id-and-tag-id",
-            description="deprecated, replaced with /pseudotag-classifier-scores/list-image-by-scores-v1",
+            description="deprecated, replaced with /pseudotag-classifier-scores/list-images-by-scores-v1",
             status_code=200,
             tags=["deprecated2"],
             response_model=StandardSuccessResponseV1[ClassifierScore],
@@ -229,7 +229,7 @@ def delete_image_classifier_score_by_uuid(
 
 
 @router.get("/classifier-score/list-by-scores", 
-            description="deprecated, replaced with /classifier-score/list-by-scores",
+            description="deprecated, replaced with /pseudotag-classifier-scores/list-images-by-scores-v1",
             tags=["deprecated2"],  
             response_model=StandardSuccessResponseV1[ListClassifierScore],  # Adjust the response model as needed
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
@@ -460,7 +460,7 @@ async def delete_image_classifier_score_by_uuid_and_classifier_id(
 
 
 @router.get("/pseudotag-classifier-scores/list-image-by-scores", 
-            description="deprecated, replaced with /pseudotag-classifier-scores/list-image-by-scores-v1",
+            description="deprecated, replaced with /pseudotag-classifier-scores/list-images-by-scores-v1",
             tags=["deprecated2"],  
             response_model=StandardSuccessResponseV1[ListClassifierScore1],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
