@@ -1169,7 +1169,7 @@ print("target_paths lenght : ", len(target_paths))
 print("adv_paths lenght : ", len(adv_paths))
 
 
-new_combined_paths = get_tag_jobs(21)
+new_combined_paths = get_tag_jobs(4)
 
 
 # Create dataloader of occult
@@ -1193,7 +1193,7 @@ new_cyber_vae_model = train_model(img_shape=(64,64,4),
                     batch_size=train_loader.batch_size,
                     lr=0.001,
                     beta1=0.0)
-save_model(new_cyber_vae_model,'cyber_vae','temp_model.pth')
+save_model(new_cyber_vae_model,'iso_vae','temp_model.pth')
 
 
 # up loader graphs
