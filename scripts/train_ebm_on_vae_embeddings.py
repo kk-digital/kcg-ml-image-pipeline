@@ -517,7 +517,7 @@ class DeepEnergyModel(pl.LightningModule):
 
         # Combine losses and backpropagate
         alphaW = 1  # Adjust weight for cdiv_loss
-        alphaY = 0.1  # Adjust weight for reg_loss
+        alphaY = 0.25  # Adjust weight for reg_loss
         total_loss =  ((alphaW) * cdiv_loss) + (alphaY * reg_loss)
 
 
