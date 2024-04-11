@@ -997,6 +997,9 @@ idi = ['datasets/environmental/0042/041848.jpg','datasets/environmental/0263/262
 ood = ['datasets/environmental/0058/057516.jpg','datasets/environmental/0214/213301.jpg','datasets/environmental/0063/062805.jpg']
 
 
+
+target_image = 'datasets/environmental/0214/213301.jpg' # idi[0]
+
 _, clip_h_vector = get_clip_and_image_from_path(idi[0])
 
 print(clip_h_vector)
@@ -1024,8 +1027,6 @@ original_model.load_model_from_minio(minio_client, dataset_name = "environmental
 score = original_model.evalute_energy(clip_h_vector)
 
 
-
-
 # ELM
 from training_worker.classifiers.models.elm_regression import ELMRegression
 # elm_model = ELMRegression()
@@ -1033,10 +1034,7 @@ from training_worker.classifiers.models.elm_regression import ELMRegression
 
 elm_model, _ = load_model_elm(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-desert", model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
 
-# print("The element model ", elm_model) 
 
-# # print( elm_model == None)
-# print("the vector is : ",clip_h_vector)
 
 print("the EBM score is : ",score.item())
 
