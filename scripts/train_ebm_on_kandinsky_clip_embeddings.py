@@ -1410,13 +1410,6 @@ def plot_samples_hashless(dataset_name, number_of_samples,tag_name):
     plot_images_with_scores_hasheless(selected_structure_second_50,plot_name2)
     plot_images_with_scores_hasheless(selected_structure_third_50,plot_name3)
 
-def get_clip_from_path(image_path):
-    image=get_image(image_path)
-    clip_embedding =  image_embedder.get_image_features(image)
-    #clip_embedding = torch.tensor(clip_embedding)
-    return clip_embedding.float()
-
-
 # ---------------------------------------------------------------------------------------------------------------------
 # -------------------------------------------------------- Define the main function -----------------------------------
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1569,15 +1562,6 @@ class EBM_Single_Class_Trainer:
         plt.clf()
 
 
-    # Via clip-H
-    def evalute_energy(self, dataset_feature_vector):
-        print("Evaluate energy...")
-        #print("da vector ", dataset_feature_vector)
-        #dataset_feature_vector = dataset_feature_vector.to(self._device)
-        energy = self.model.cnn(dataset_feature_vector.unsqueeze(0).to(self.model.device)).cpu()
-        return energy
-
-
 def main():
     args = parse_args()
 
@@ -1662,21 +1646,20 @@ print(clip_h_vector)
 original_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
 load_model_to_minio(original_model,'topic-aquatic')
-#score = original_model.cnn(clip_h_vector.unsqueeze(0).to(original_model.device)).cpu()
-score = original_model.evalute_energy(clip_h_vector)
+score = original_model.cnn(clip_h_vector.unsqueeze(0).to(original_model.device)).cpu()
 
 # ELM
 
 
-# elm_model = ELMRegression()
-# #def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
-# elm_model.load_model(minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-aquatic", model_type = "elm-regression", not_include= 'batatatatatata', device= original_model.device)
+elm_model = ELMRegression()
+#def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
+elm_model.load_model(minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-aquatic", model_type = "elm-regression", not_include= 'batatatatatata', device= original_model.device)
 
 
 
-# print( elm_model == None)
+print( elm_model == None)
 
-print("the EBM score is : ",score)
+# print("the EBM score is : ",score)
 # print("the ELM score is : ", elm_model.classify(clip_h_vector))
 
 

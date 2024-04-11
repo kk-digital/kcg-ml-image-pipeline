@@ -993,6 +993,13 @@ def main():
 
 
 
+
+
+
+###########################################################################################################################
+##################################################  ELM VS EBM     ########################################################
+###########################################################################################################################
+
 idi = ['datasets/environmental/0042/041848.jpg','datasets/environmental/0263/262253.jpg','datasets/environmental/0056/055126.jpg']
 ood = ['datasets/environmental/0058/057516.jpg','datasets/environmental/0214/213301.jpg','datasets/environmental/0063/062805.jpg']
 
@@ -1022,7 +1029,7 @@ original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
 
 #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
-original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="topic-desert" , model_type = "energy-based-model")
+original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="topic-aquatic" , model_type = "energy-based-model")
 #score = original_model.cnn(clip_h_vector.unsqueeze(0).to(original_model.device)).cpu()
 score = original_model.evalute_energy(clip_h_vector)
 
@@ -1032,7 +1039,7 @@ from training_worker.classifiers.models.elm_regression import ELMRegression
 # elm_model = ELMRegression()
 #def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
 
-elm_model, _ = load_model_elm(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-desert", model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
+elm_model, _ = load_model_elm(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-aquatic", model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
 
 
 
@@ -1048,7 +1055,7 @@ class_names = get_unique_tag_names()
 all_tags = get_unique_tag_ids()
 print("all tags : ", all_tags )
 print("all tags length : ", len(all_tags) )
-target_data , ood_data = get_all_classes_paths(class_ids = all_tags,target_id=35)
+target_data , ood_data = get_all_classes_paths(class_ids = all_tags,target_id=21)
 
 
 target_scores_EBM = []
@@ -1082,3 +1089,30 @@ print(f'Standard diviation EBM: {statistics.stdev(target_scores_EBM)} , ELM {sta
 
 print(f'Average OOD EBM score is {statistics.mean(ood_scores_EBM)} , and average OOD ELM score is {statistics.mean(ood_scores_ELM)}')
 print(f'Standard diviation OOD EBM: {statistics.stdev(ood_scores_EBM)} , ELM {statistics.stdev(ood_scores_ELM)}')
+
+
+###########################################################################################################################
+##################################################  ELM VS EBM     ########################################################
+###########################################################################################################################
+
+
+
+
+
+
+# new_sorted_images = process_and_sort_dataset_with_hashes(images_paths_ood,images_hashes_ood, retrained_model)
+
+
+
+# selected_structure_first_50 = new_sorted_images[:52]
+# selected_structure_second_50 = new_sorted_images[52:103]
+# selected_structure_third_50 = new_sorted_images[103:154]
+
+
+# plot_name1 = model_name + "_tier1"
+# plot_name2 = model_name + "_tier2"
+# plot_name3  = model_name + "_tier3"
+
+# plot_images_with_scores(selected_structure_first_50,plot_name1)
+# plot_images_with_scores(selected_structure_second_50,plot_name2)
+# plot_images_with_scores(selected_structure_third_50,plot_name3)
