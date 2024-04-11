@@ -195,14 +195,10 @@ class RapidlyExploringTreeSearch:
         selected_points = final_top_points[indices]
 
         max_values = torch.max(final_top_points, dim=1).values
-        min_values = torch.min(final_top_points, dim=1).values
-        mean_values = torch.mean(final_top_points, dim=1)
-        std_values = torch.std(final_top_points, dim=1)
+        var_values = torch.var(final_top_points, dim=1)
 
         print(f"max vector: {max_values}")
-        print(f"min vector: {min_values}")
-        print(f"mean vector: {mean_values}")
-        print(f"std vector: {std_values}")
+        print(f"var vector: {var_values}")
 
         return selected_points
     
