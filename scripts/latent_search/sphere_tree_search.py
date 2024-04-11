@@ -188,12 +188,21 @@ class RapidlyExploringTreeSearch:
         
         # After the final iteration, choose the top n highest scoring points overall
         values, sorted_indices = torch.sort(all_scores.squeeze(1), descending=True)
-        print(values[:100])
         final_top_points = torch.stack(all_nodes, dim=0)[sorted_indices[:num_images*top_k]]
         final_top_points = final_top_points[:,:1280]
         # select n random spheres from the top k spheres
         indices = torch.randperm(final_top_points.size(0))[:num_images]
         selected_points = final_top_points[indices]
+
+        max_values = torch.max(final_top_points, dim=1).values
+        min_values = torch.min(final_top_points, dim=1).values
+        mean_values = torch.mean(final_top_points, dim=1)
+        std_values = torch.std(final_top_points, dim=1)
+
+        print(f"max vector: {max_values}")
+        print(f"min vector: {min_values}")
+        print(f"mean vector: {mean_values}")
+        print(f"std vector: {std_values}")
 
         return selected_points
     
