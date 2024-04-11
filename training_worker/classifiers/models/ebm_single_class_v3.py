@@ -1058,4 +1058,4 @@ ood_scores_ELM = []
 
 for target in target_data:
     vector = get_clip_from_path(target)
-    print(f'The score for EBM is {(original_model.evalute_energy(vector))} , and the score of ELM is {(elm_model.classify(vector)).item()}')
+    print(f'The score for EBM is {(original_model.evalute_energy(vector).item())} , and the score of ELM is {(elm_model.classify(vector)).item()}')
