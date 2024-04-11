@@ -1033,10 +1033,10 @@ from training_worker.classifiers.models.elm_regression import ELMRegression
 
 elm_model, _ = load_model_elm(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-desert", model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
 
-print("The element model ", elm_model) 
+# print("The element model ", elm_model) 
 
-# print( elm_model == None)
-print("the vector is : ",clip_h_vector)
+# # print( elm_model == None)
+# print("the vector is : ",clip_h_vector)
 
 print("the EBM score is : ",score.item())
 
