@@ -1268,7 +1268,7 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 
 
-plot_samples_hashless(elm_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name ="content-has-text")
+plot_samples_hashless(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 30000,tag_name ="content-has-text")
 
 
 
