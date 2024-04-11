@@ -527,6 +527,108 @@ class DirectionalGuassianResidualFCNetwork(DirectionalSamplingFCRegressionNetwor
 
         return train_dataset, val_dataset, train_loader, val_loader, val_size, train_size
     
+    def save_graph_report(self, train_mae_per_round, val_mae_per_round, 
+                          best_train_loss, best_val_loss,  
+                          val_residuals, train_residuals, 
+                          predicted_values, actual_values,
+                          training_size, validation_size, best_model_epoch, title='Directional Gaussian Sampling Regression'):
+        fig, axs = plt.subplots(3, 2, figsize=(12, 10))
+
+        output_type = self.output_type + "_residual"
+        # set title of graph
+        plt.title(title)
+        fig_report_text = ("Date = {}\n"
+                            "Dataset = {}\n"
+                            "Model type = {}\n"
+                            "Input type = {}\n"
+                            "Input shape = {}\n"
+                            "Output type= {}\n\n"
+                            ""
+                            "Training size = {}\n"
+                            "Validation size = {}\n"
+                            "Training loss = {:.4f}\n"
+                            "Validation loss = {:.4f}\n"
+                            "Epoch of Best model = {}\n".format(self.date,
+                                                            self.dataset,
+                                                            'Fc_Network',
+                                                            self.input_type,
+                                                            self.input_size,
+                                                            output_type,
+                                                            training_size,
+                                                            validation_size,
+                                                            best_train_loss,
+                                                            best_val_loss,
+                                                            best_model_epoch
+                                                            ))
+
+        fig_report_text += (
+            "Sampling Policy: {}\n".format(self.input_type)
+        )
+        if self.sampling_parameter is not None:
+            for key, value in zip(self.sampling_parameter.keys(), self.sampling_parameter.values()):
+                fig_report_text += (
+                    f"{key}: {value}\n"
+                )
+        else:
+            fig_report_text += "No Sampling Parameter"
+
+        #info text about the model
+        plt.figtext(0.02, 0.7, fig_report_text)
+            
+        # Plot validation and training Rmse vs. Rounds
+        axs[0][0].plot(range(1, len(train_mae_per_round) + 1), train_mae_per_round,'b', label='Training loss')
+        axs[0][0].plot(range(1, len(val_mae_per_round) + 1), val_mae_per_round,'r', label='Validation loss')
+        axs[0][0].set_title('MAE per Round')
+        axs[0][0].set_ylabel('Loss')
+        axs[0][0].set_xlabel('Rounds')
+        axs[0][0].legend(['Training loss', 'Validation loss'])
+
+        # Scatter Plot of actual values vs predicted values
+        axs[0][1].scatter(predicted_values, actual_values, color='green', alpha=0.5)
+        axs[0][1].set_title('Predicted values vs actual values')
+        axs[0][1].set_ylabel('True')
+        axs[0][1].set_xlabel('Predicted')
+
+        # plot histogram of training residuals
+        axs[1][0].hist(train_residuals, bins=30, color='blue', alpha=0.7)
+        axs[1][0].set_xlabel('Residuals')
+        axs[1][0].set_ylabel('Frequency')
+        axs[1][0].set_title('Training Residual Histogram')
+
+        # plot histogram of validation residuals
+        axs[1][1].hist(val_residuals, bins=30, color='blue', alpha=0.7)
+        axs[1][1].set_xlabel('Residuals')
+        axs[1][1].set_ylabel('Frequency')
+        axs[1][1].set_title('Validation Residual Histogram')
+        
+        # plot histogram of predicted values
+        axs[2][0].hist(predicted_values, bins=30, color='blue', alpha=0.7)
+        axs[2][0].set_xlabel('Predicted Values')
+        axs[2][0].set_ylabel('Frequency')
+        axs[2][0].set_title('Validation Predicted Values Histogram')
+        
+        # plot histogram of true values
+        axs[2][1].hist(actual_values, bins=30, color='blue', alpha=0.7)
+        axs[2][1].set_xlabel('Actual values')
+        axs[2][1].set_ylabel('Frequency')
+        axs[2][1].set_title('Validation True Values Histogram')
+
+        # Adjust spacing between subplots
+        plt.subplots_adjust(hspace=0.7, wspace=0.3, left=0.3)
+
+        plt.savefig(self.local_path.replace('.pth', '.png'))
+
+        # Save the figure to a file
+        buf = BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+
+        # upload the graph report
+        cmd.upload_data(self.minio_client, 'datasets', self.minio_path.replace('.pth', '.png'), buf)  
+
+        # Clear the current figure
+        plt.clf()
+    
 
 
 class DirectionalSamplingResidualXGBoost(nn.Module):
@@ -561,8 +663,8 @@ class DirectionalSamplingResidualXGBoost(nn.Module):
 
 
     def get_model_path(self):
-        local_path=f"output/{self.output_type}_xgboost_{self.input_type}_residual.json"
-        minio_path=f"{self.dataset}/models/sampling/{self.date}_{self.output_type}_xgboost_{self.input_type}_residual.json"
+        local_path=f"output/{self.output_type}_residual_xgboost_{self.input_type}.json"
+        minio_path=f"{self.dataset}/models/sampling/{self.date}_{self.output_type}_residual_xgboost_{self.input_type}.json"
 
         return local_path, minio_path
     
@@ -739,7 +841,7 @@ class DirectionalSamplingResidualXGBoost(nn.Module):
                             "Model type = {}\n"
                             "Input type = {}\n"
                             "Input shape = {}\n"
-                            "Output type= {}\n\n"
+                            "Output type= {}_residual\n\n"
                             ""
                             "Training size = {}\n"
                             "Validation size = {}\n"
