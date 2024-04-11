@@ -14,6 +14,7 @@ sys.path.insert(0, os.getcwd())
 from data_loader.utils import get_object
 from training_worker.sampling.models.directional_uniform_sampling_regression_fc import DirectionalSamplingFCRegressionNetwork
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
+from training_worker.classifiers.models.elm_regression import ELMRegression
 from utility.minio import cmd
 
 def parse_args():
@@ -22,6 +23,7 @@ def parse_args():
         parser.add_argument('--minio-access-key', type=str, help='Minio access key')
         parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
         parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
+        parser.add_argument('--tag-name', type=str, help='Name of the tag to generate for', default="topic-forest")
         parser.add_argument('--num-images', type=int, help='Number of images to generate', default=100)
         parser.add_argument('--nodes-per-iteration', type=int, help='Number of nodes to evaluate each iteration', default=1000)
         parser.add_argument('--top-k', type=int, help='Number of nodes to expand on each iteration', default=10)
@@ -38,12 +40,14 @@ class RapidlyExploringTreeSearch:
                  minio_access_key,
                  minio_secret_key,
                  dataset,
+                 tag_name,
                  sampling_policy,
                  send_job,
                  save_csv):
         
         # parameters
         self.dataset= dataset  
+        self.tag_name= tag_name  
         self.sampling_policy= sampling_policy  
         self.send_job= send_job
         self.save_csv= save_csv
@@ -61,6 +65,9 @@ class RapidlyExploringTreeSearch:
         self.sphere_scoring_model= DirectionalSamplingFCRegressionNetwork(minio_client=self.minio_client, dataset=dataset)
         self.sphere_scoring_model.load_model()
 
+        # get classifier model for selected tag
+        self.classifier_model= self.get_classifier_model(self.tag_name)
+
         # get distribution of clip vectors for the dataset
         self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
         self.min_radius= torch.tensor(self.sphere_scoring_model.max_scaling_factors).to(device=self.device)
@@ -77,37 +84,37 @@ class RapidlyExploringTreeSearch:
         min_vector = torch.tensor(data_dict["min"], device=self.device, dtype=torch.float32)
 
         return mean_vector, std_vector, max_vector, min_vector
+    
+    def get_classifier_model(self, tag_name):
+        input_path = f"{self.dataset}/models/classifiers/{tag_name}/"
+        file_suffix = "elm-regression-clip-h.safetensors"
 
-    # def find_nearest_points(self, sphere, num_samples, jump_distance):
-    #     dim= sphere.size(1)//2
-    #     point = sphere[:,:dim]
-    #     clip_vectors = torch.empty((0, dim), device=self.device)
-
-    #     # Direction adjustment based on z-scores
-    #     z_scores = (point - self.clip_mean) / self.clip_std
-    #     adjustment_factor = torch.clamp(torch.abs(z_scores), 0, 1)
-    #     direction_adjustment = -torch.sign(z_scores) * adjustment_factor
-
-    #     for _ in range(num_samples):
-    #         # Generate points within the sphere
-    #         random_direction = torch.randn(dim, device=self.device)
-    #         direction = direction_adjustment + random_direction
-    #         direction /= torch.norm(direction)
-
-    #         # Magnitude for uniform sampling within volume
-    #         magnitude = torch.rand(1, device=self.device).pow(1/3) * jump_distance
-
-    #         point = point + direction * magnitude
-    #         point = torch.clamp(point, self.clip_min, self.clip_max)
-
-    #         # Collect generated vectors
-    #         clip_vectors = torch.cat((clip_vectors, point), dim=0)
+        # Use the MinIO client's list_objects method directly with recursive=True
+        model_files = [obj.object_name for obj in self.minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix)]
         
-    #     # sample random scaling factors
-    #     radii= torch.rand(num_samples, len(self.max_radius), device=self.device) * (self.max_radius - self.min_radius) + self.min_radius
-    #     sphere_centers= torch.cat([clip_vectors, radii], dim=1)
+        if not model_files:
+            print(f"No .safetensors models found for tag: {tag_name}")
+            return None
+
+        # Assuming there's only one model per tag or choosing the first one
+        model_files.sort(reverse=True)
+        model_file = model_files[0]
+        print(f"Loading model: {model_file}")
+
+        return self.load_model_with_filename(self.minio_client, model_file, tag_name)
+
+    def load_model_with_filename(self, minio_client, model_file, model_info=None):
+        model_data = minio_client.get_object('datasets', model_file)
         
-    #     return sphere_centers
+        clip_model = ELMRegression(device=self.device)
+        
+        # Create a BytesIO object from the model data
+        byte_buffer = io.BytesIO(model_data.data)
+        clip_model.load_safetensors(byte_buffer)
+
+        print(f"Model loaded for tag: {model_info}")
+        
+        return clip_model
     
     def find_nearest_points(self, sphere, num_samples, covariance_matrix):
         dim= sphere.size(1)//2
@@ -126,6 +133,10 @@ class RapidlyExploringTreeSearch:
 
     def score_points(self, points):
         scores= self.sphere_scoring_model.predict(points, batch_size=1000)
+        return scores
+    
+    def classifiy_points(self, points):
+        scores= self.classifier_model.classify(points)
         return scores
 
     def expand_tree(self, nodes_per_iteration, max_nodes, top_k, jump_distance, num_images):
@@ -150,7 +161,7 @@ class RapidlyExploringTreeSearch:
                 nearest_points = self.find_nearest_points(point, nodes_per_iteration, covariance_matrix)
                 
                 # Score these points
-                nearest_scores = self.score_points(nearest_points)
+                nearest_scores = self.classifiy_points(nearest_points)
                 
                 # Select top n points based on scores
                 _, sorted_indices = torch.sort(nearest_scores.squeeze(), descending=True)
@@ -242,6 +253,7 @@ def main():
     generator= RapidlyExploringTreeSearch(minio_access_key=args.minio_access_key,
                                         minio_secret_key=args.minio_secret_key,
                                         dataset=args.dataset,
+                                        tag_name= args.tag_name,
                                         sampling_policy= args.sampling_policy,
                                         send_job= args.send_job,
                                         save_csv= args.save_csv)
