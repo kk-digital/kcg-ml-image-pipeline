@@ -1031,7 +1031,7 @@ from training_worker.classifiers.models.elm_regression import ELMRegression
 # elm_model = ELMRegression()
 #def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
 
-elm_model = load_model_elm(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-desert", model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
+elm_model, _ = load_model_elm(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-desert", model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
 
 
 
