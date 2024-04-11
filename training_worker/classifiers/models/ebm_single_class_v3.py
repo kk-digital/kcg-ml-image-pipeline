@@ -1169,9 +1169,9 @@ def process_and_sort_dataset(images_paths, model):
 
     return sorted_structure
 
-def plot_samples_hashless(loaded_model,dataset_name, number_of_samples,tag_name,images_paths):
+def plot_samples_hashless(loaded_model,dataset_name, number_of_samples,tag_name):
 
-    images_paths_ood = get_file_paths(dataset_name,number_of_samples)
+    images_paths = get_file_paths(dataset_name,number_of_samples)
     
     # Process the images
     sorted_images_and_hashes = process_and_sort_dataset(images_paths, loaded_model) 
@@ -1252,7 +1252,7 @@ original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
 original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="topic-aquatic" , model_type = "energy-based-model")
 
 
-plot_samples_hashless(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name ="topic-aquatic", images_paths=)
+plot_samples_hashless(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name ="topic-aquatic")
 
 
 
