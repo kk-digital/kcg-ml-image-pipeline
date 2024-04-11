@@ -169,7 +169,7 @@ async def update_rank_model_model(request: Request, rank_model_id: int, update_d
              status_code=200,
              tags=["ab-rank"],
              response_model=StandardSuccessResponseV1[RankedSelection],
-             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]),
+             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]),
              description="Updates image pair ranking with a new rank model ID")
 async def update_rank_model_in_image_pairs(
         request: Request, 
@@ -186,14 +186,22 @@ async def update_rank_model_in_image_pairs(
 
         if result.modified_count == 0:
             # Handle the case where no documents are updated
-            raise HTTPException(status_code=404, detail="No matching image pairs found.")
+            return response_handler.create_error_response_v1(
+                error_code="No matching image pairs found.",
+                error_string=str(e),
+                http_status_code=404,
+            )
 
         # Fetching an example document to use its structure for the response
         # Note: This fetch is for illustrative purposes; adapt as necessary
         document = request.app.image_pair_ranking_collection.find_one({"file_name": file_name})
 
         if not document:
-            raise HTTPException(status_code=404, detail="Document not found after update.")
+            return response_handler.create_error_response_v1(
+                error_code="Document not found after update.",
+                error_string=str(e),
+                http_status_code=404,
+            )
 
         # Reconstruct the document with rank_model_id first
         document_with_rank_first = {"rank_model_id": rank_model_id, **document}
@@ -204,7 +212,7 @@ async def update_rank_model_in_image_pairs(
         # Return the modified document as a response
         return response_handler.create_success_response_v1( 
             response_data=document_with_rank_first,
-            http_status_code=201)
+            http_status_code=200)
 
     except Exception as e:
         return response_handler.create_error_response_v1(

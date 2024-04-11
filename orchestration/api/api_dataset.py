@@ -7,7 +7,7 @@ import json
 from datetime import datetime
 import io
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from .api_utils import PrettyJSONResponse
+from .api_utils import PrettyJSONResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, StandardErrorResponseV1, ErrorCode, WasPresentResponse, DatasetResponse, SeqIdResponse, SeqIdDatasetResponse, SetRateResponse, ListFilePathResponse, RankinModelResponse, ListDatasetConfig, DatasetConfig, HourlyResponse, SetHourlyResponse, RateResponse
 from .mongo_schemas import FlaggedDataUpdate, RankingModel
 from pymongo import ReturnDocument
 router = APIRouter()
@@ -713,3 +713,747 @@ def update_ranking_file(request: Request, dataset: str, filename: str, update_da
         raise HTTPException(status_code=404, detail=f"Document with filename {filename} not found in MongoDB.")
 
     return {"message": f"File {filename} has been updated in both MinIO and MongoDB."}
+
+
+# New standardized apis
+
+
+@router.delete("/dataset/clear-sequential-id-v1",
+               description="Clear all documents from the dataset sequential ID collection",
+               response_model=StandardSuccessResponseV1[WasPresentResponse],  
+               tags=["dataset"],
+               responses=ApiResponseHandlerV1.listErrors([500]))
+async def clear_dataset_sequential_id_jobs(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Check if there are documents in the collection
+        was_present = request.app.dataset_sequential_id_collection.count_documents({}) > 0
+
+        if not was_present:
+            # If no documents are present, return False in the wasPresent field of the response
+            return response_handler.create_success_response_v1(
+                response_data=False, 
+                http_status_code=200
+            )
+
+        # If documents are present, delete them
+        request.app.dataset_sequential_id_collection.delete_many({})
+
+        # Assuming deletion is always successful, return True in the wasPresent field
+        return response_handler.create_success_response_v1(
+            response_data=True, 
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+
+
+@router.get("/dataset/list-v1",
+            description="List datasets from storage",
+            response_model=StandardSuccessResponseV1[DatasetResponse], 
+            tags=["dataset"],
+            responses=ApiResponseHandlerV1.listErrors([500]))
+async def get_datasets(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        objects = cmd.get_list_of_objects(request.app.minio_client, "datasets")
+        return response_handler.create_success_response_v1(
+            response_data={"datasets": objects},  # Ensure the response data structure matches your requirements
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+    
+
+@router.get("/dataset/sequential-id-v1/{dataset}",
+            description="Get or create sequential ID for a dataset",
+            response_model=StandardSuccessResponseV1[SeqIdResponse],  
+            tags=["dataset"],
+            responses=ApiResponseHandlerV1.listErrors([400, 500]))
+async def get_sequential_id(request: Request, dataset: str, limit: int = Query(default=1, ge=1)):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    sequential_id_arr = []
+
+    try:
+        sequential_id = request.app.dataset_sequential_id_collection.find_one({"dataset_name": dataset})
+
+        if sequential_id is None:
+            # create one
+            new_sequential_id = SequentialID(dataset)
+            # get the sequential id arr
+            for i in range(limit):
+                sequential_id_arr.append(new_sequential_id.get_sequential_id())
+            # add to collection
+            request.app.dataset_sequential_id_collection.insert_one(new_sequential_id.to_dict())
+
+        else:
+            # if found, use the found sequential id
+            found_sequential_id = SequentialID(sequential_id["dataset_name"], sequential_id.get("subfolder_count", 0),
+                                               sequential_id.get("file_count", 0))
+            for i in range(limit):
+                sequential_id_arr.append(found_sequential_id.get_sequential_id())
+
+            new_values = {"$set": found_sequential_id.to_dict()}
+            # update existing sequential id
+            request.app.dataset_sequential_id_collection.update_one({"dataset_name": dataset}, new_values)
+
+        # Return the sequential IDs
+        return response_handler.create_success_response_v1(
+            response_data={"sequential_ids": sequential_id_arr}, 
+            http_status_code=200
+        )
+        
+    except Exception as e:
+        # Handle exceptions and return an error response
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+    
+    
+@router.delete("/dataset/clear-self-training-sequential-id-v1",
+               description="Clear all documents from the self-training sequential ID collection",
+               response_model=StandardSuccessResponseV1[WasPresentResponse],  
+               tags=["dataset"],
+               responses=ApiResponseHandlerV1.listErrors([500]))
+async def clear_self_training_sequential_id_jobs(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+
+        # Check if there are documents in the collection
+        was_present = request.app.self_training_sequential_id_collection.count_documents({}) > 0
+
+        if not was_present:
+            # If no documents are present, return False in the wasPresent field of the response
+            return response_handler.create_success_response_v1(
+                response_data=False, 
+                http_status_code=200
+            )
+
+
+        request.app.self_training_sequential_id_collection.delete_many({})
+        # Assuming deletion is always successful, returning True for simplification
+        return response_handler.create_success_response_v1(
+            response_data=True, 
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+
+
+@router.get("/dataset/self-training-sequential-id-v1/{dataset}",
+            description="Get or create self-training sequential ID for a dataset",
+            tags=["dataset"],
+            response_model=StandardSuccessResponseV1[SeqIdDatasetResponse],  
+            responses=ApiResponseHandlerV1.listErrors([400, 500]))
+async def get_self_training_sequential_id(request: Request, dataset: str):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        dataset_path = f"{dataset}/data/latent-generator/self_training/"
+        # Check and initialize if necessary
+        existing_index = request.app.self_training_sequential_id_collection.find_one({"dataset": dataset})
+        if existing_index is None:
+            # Count the files in MinIO for the dataset to initialize the index
+            files_count = sum(1 for _ in request.app.minio_client.list_objects('datasets', prefix=dataset_path))
+            request.app.self_training_sequential_id_collection.insert_one({"dataset": dataset, "sequential_id": files_count})
+        
+        # Atomically fetch and increment the index
+        result = request.app.self_training_sequential_id_collection.find_one_and_update(
+            {"dataset": dataset},
+            {"$inc": {"sequential_id": 1}},
+            return_document=ReturnDocument.AFTER
+        )
+
+        if result:
+            result.pop("_id", None)
+            return response_handler.create_success_response_v1(
+                response_data=result, 
+                http_status_code=200
+            )
+        else:
+            raise HTTPException(status_code=500, detail="Failed to fetch the sequential id")
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )        
+    
+# -------------------- Dataset rate -------------------------
+        
+@router.put("/dataset/set-rate-v1",
+            description="Set the rate for a dataset",
+            tags=["dataset"],
+            response_model=StandardSuccessResponseV1[SetRateResponse],  
+            responses=ApiResponseHandlerV1.listErrors([500]))
+async def set_rate_v1(request: Request, dataset: str, rate: float = 0):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        date_now = datetime.utcnow()  # Using UTC for consistency
+        query = {"dataset": dataset}
+        new_values = {
+            "dataset": dataset,
+            "last_update": date_now,
+            "dataset_rate": rate,
+            "relevance_model": "",
+            "ranking_model": "",
+        }
+        
+        # Check if the item exists
+        item = request.app.dataset_config_collection.find_one(query)
+        if item is None:
+            # If it doesn't exist, add it
+            request.app.dataset_config_collection.insert_one(new_values)
+        else:
+            # If it exists, update it
+            request.app.dataset_config_collection.update_one(query, {"$set": new_values})
+        
+        # Fetch the updated or newly added item
+        updated_item = request.app.dataset_config_collection.find_one(query)
+        if updated_item:
+            updated_item.pop('_id', None)  # Remove the auto-generated MongoDB ID before returning
+        
+        return response_handler.create_success_response_v1(
+            response_data=updated_item, 
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+
+        
+@router.get("/dataset/get-rate-v1",
+            description="Get the rate of a dataset",
+            tags=["dataset"],
+            response_model=StandardSuccessResponseV1[RateResponse],
+            responses=ApiResponseHandlerV1.listErrors([404, 500]))
+async def get_rate(request: Request, dataset: str):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        query = {"dataset_name": dataset}
+        item = request.app.dataset_config_collection.find_one(query)
+        if item is None:
+            # If not found, return a 404 error using the response handler
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"Dataset {dataset} not found",
+                http_status_code=404
+            )
+
+        # Assuming item['dataset_rate'] exists and is valid
+        return response_handler.create_success_response_v1(
+            response_data={"dataset_rate": item["dataset_rate"]}, 
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )        
+
+@router.put("/dataset/set-hourly-limit-v1",
+            description="Set the hourly limit for a dataset",
+            response_model=StandardSuccessResponseV1[SetHourlyResponse], 
+            tags=["dataset"],
+            responses=ApiResponseHandlerV1.listErrors([500]))
+async def set_hourly_limit(request: Request, dataset: str, hourly_limit: int = 0):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        date_now = datetime.utcnow()  # Using UTC for consistency
+        query = {"dataset": dataset}
+        dataset_config = {
+            "dataset": dataset,
+            "last_update": date_now,
+            "hourly_limit": hourly_limit,
+            "relevance_model": "",
+            "ranking_model": "",
+        }
+
+        # If the dataset config doesn't exist, insert it; otherwise, update it
+        item = request.app.dataset_config_collection.find_one(query)
+        if item is None:
+            request.app.dataset_config_collection.insert_one(dataset_config)
+        else:
+            request.app.dataset_config_collection.update_one(query, {"$set": dataset_config})
+
+        # Fetch and return the updated or newly added item, excluding the MongoDB ID field
+        updated_config = request.app.dataset_config_collection.find_one(query)
+        updated_config.pop('_id', None)
+
+        return response_handler.create_success_response_v1(
+            response_data=updated_config,
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+    
+@router.get("/dataset/get-hourly-limit-v1",
+            description="Get the hourly limit of a dataset",
+            response_model=StandardSuccessResponseV1[HourlyResponse],
+            tags=["dataset"],
+            responses=ApiResponseHandlerV1.listErrors([404, 500]))
+async def get_hourly_limit(request: Request, dataset: str):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        query = {"dataset_name": dataset}
+        item = request.app.dataset_config_collection.find_one(query)
+        if item is None:
+            # If not found, use the response handler to return a 404 error
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"Dataset {dataset} not found",
+                http_status_code=404
+            )
+
+        # Assuming item['hourly_limit'] exists and is valid
+        return response_handler.create_success_response_v1(
+            response_data={"hourly_limit": item["hourly_limit"]}, 
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+    
+
+@router.get("/dataset/get-dataset-config-v1",
+            description="Get configuration for a specific dataset",
+            tags=["dataset"],
+            response_model=StandardSuccessResponseV1[DatasetConfig],
+            responses=ApiResponseHandlerV1.listErrors([404, 500]))
+async def get_dataset_config(request: Request, dataset: str = Query(...)):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        item = request.app.dataset_config_collection.find_one({"dataset_name": dataset})
+        if item is None:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Dataset not found",
+                http_status_code=404
+            )
+
+        item.pop('_id', None)
+        return response_handler.create_success_response_v1(
+            response_data=item, 
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+    
+
+@router.get("/dataset/get-all-dataset-config-v1",
+            description="Get configurations for all datasets",
+            response_model=StandardSuccessResponseV1[ListDatasetConfig],
+            tags=["dataset"],
+            responses=ApiResponseHandlerV1.listErrors([500]))
+async def get_all_dataset_config(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        dataset_configs = []
+        items = request.app.dataset_config_collection.find({})
+
+        for item in items:
+            item.pop('_id', None)
+            dataset_configs.append(item)
+
+        return response_handler.create_success_response_v1(
+            response_data=dataset_configs, 
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+
+
+@router.put("/dataset/set-relevance-model-v1",
+            description="Set the relevance model for a specific dataset",
+            tags=["dataset"],
+            responses=ApiResponseHandlerV1.listErrors([422, 500]))
+async def set_relevance_model(request: Request, dataset: str, relevance_model: str):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        date_now = datetime.utcnow()  # Consider using UTC
+        query = {"dataset_name": dataset}
+        item = request.app.dataset_config_collection.find_one(query)
+    
+        if item is None:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Dataset not found",
+                http_status_code=404 
+            )
+    
+        # Update the relevance model
+        new_values = {"$set": {"last_update": date_now, "relevance_model": relevance_model}}
+        request.app.dataset_config_collection.update_one(query, new_values)
+
+        return response_handler.create_success_response_v1(
+            response_data=new_values,  
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+
+@router.put("/dataset/set-ranking-model-v1",
+            description="Set the ranking model for a specific dataset",
+            tags=["dataset"],
+            response_model=StandardSuccessResponseV1[RankinModelResponse],
+            responses=ApiResponseHandlerV1.listErrors([422, 500]))
+async def set_ranking_model(request: Request, dataset: str, ranking_model: str):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        date_now = datetime.utcnow()  # Using UTC
+        query = {"dataset_name": dataset}
+        item = request.app.dataset_config_collection.find_one(query)
+    
+        if item is None:
+            # Dataset not found
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Dataset not found",
+                http_status_code=422  # Or consider using 404 for not found
+            )
+    
+        # Update the ranking model
+        new_values = {"$set": {"last_update": date_now, "ranking_model": ranking_model}}
+        request.app.dataset_config_collection.update_one(query, new_values)
+
+        return response_handler.create_success_response_v1(
+            response_data=new_values,  
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+    
+
+@router.get("/datasets/rank/list-sort-by-score-v1",
+            description="List ranking files sorted by score",
+            tags=["rank"],
+            response_model=StandardSuccessResponseV1[ListFilePathResponse],
+            responses=ApiResponseHandlerV1.listErrors([404, 500]))
+async def list_ranking_files_sort_by_score(
+    request: Request, 
+    dataset: str,
+    model_id: int,
+    start_date: str = None, 
+    end_date: str = None, 
+    list_size: int = Query(100, description="Number of results to return"),
+    offset: int = Query(0, description="Offset for pagination"),
+    order: str = Query("desc", description="Order in which the data should be returned")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Convert start_date and end_date strings to datetime objects
+        start_date_obj = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+        end_date_obj = datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
+
+        # Construct the path prefix for ranking
+        path_prefix = f"{dataset}/data/ranking/aggregate"
+
+        # Fetch the list of objects with the given prefix
+        objects = cmd.get_list_of_objects_with_prefix(request.app.minio_client, "datasets", path_prefix)
+
+        # Filter out non-JSON files
+        json_files = [obj for obj in objects if obj.endswith('.json')]
+
+        if not json_files:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="No Json files founded",
+                http_status_code=404
+            )
+
+        # Query for model sigma scores
+        query = {"model_id": model_id}
+        sort_order = -1 if order == "desc" else 1
+        model_scores = request.app.image_scores_collection.find(query).sort("score", sort_order)
+        model_scores = list(model_scores)
+
+        if len(model_scores) == 0:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=str(e),
+                http_status_code=404
+            )
+
+        # Read json files and filter based on date range and pagination
+        json_files_selected_hash_dict = {}
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = []
+            for json_file in json_files:
+                file_date_str = json_file.split('/')[-1].split('-')[0:3]
+                file_date_str = '-'.join(file_date_str)
+                file_date_obj = datetime.strptime(file_date_str, "%Y-%m-%d")
+
+                # Apply date filtering
+                if start_date_obj and file_date_obj < start_date_obj:
+                    continue
+                if end_date_obj and file_date_obj > end_date_obj:
+                    continue
+
+                futures.append(executor.submit(read_json_data, request=request, json_file=json_file))
+
+            for future in as_completed(futures):
+                selected_image_hash, json_file = future.result()
+                json_files_selected_hash_dict[selected_image_hash] = json_file
+
+        # Sort and paginate the results
+        sorted_json_files = []
+        for score_data in model_scores:
+            if score_data["image_hash"] in json_files_selected_hash_dict:
+                json_file = json_files_selected_hash_dict[score_data["image_hash"]]
+                sorted_json_files.append(json_file)
+
+        # Apply offset and list size limit
+        start_index = offset
+        end_index = offset + list_size
+        sorted_json_files = sorted_json_files[start_index:end_index]
+
+        if not sorted_json_files:
+            return response_handler.create_success_response_v1(
+                response_data=[], 
+                http_status_code=200
+            )
+
+        return response_handler.create_success_response_v1(
+            response_data= {"file_paths": sorted_json_files}, 
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+    
+
+@router.get("/datasets/rank/list-sort-by-residual-v1",
+            description="List ranking files sorted by residual",
+            response_model=StandardSuccessResponseV1[ListFilePathResponse],
+            tags=["rank"],
+            responses=ApiResponseHandlerV1.listErrors([404, 500]))
+async def list_ranking_files_sort_by_residual(
+    request: Request, 
+    dataset: str,
+    model_id: int,
+    start_date: str = None, 
+    end_date: str = None, 
+    list_size: int = Query(100, description="Number of results to return"),
+    offset: int = Query(0, description="Offset for pagination"),
+    order: str = Query("desc", description="Order in which the data should be returned")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Convert start_date and end_date strings to datetime objects
+        start_date_obj = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+        end_date_obj = datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
+
+        # Construct the path prefix for ranking
+        path_prefix = f"{dataset}/data/ranking/aggregate"
+
+        # Fetch the list of objects with the given prefix
+        objects = cmd.get_list_of_objects_with_prefix(request.app.minio_client, "datasets", path_prefix)
+
+        # Filter out non-JSON files
+        json_files = [obj for obj in objects if obj.endswith('.json')]
+
+        if not json_files:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="No Json files founded",
+                http_status_code=404
+            )  
+
+        # Query for model residuals
+        query = {"model_id": model_id}
+        sort_order = -1 if order == "desc" else 1
+        model_residuals = request.app.image_residuals_collection.find(query).sort("residual", sort_order)
+        model_residuals = list(model_residuals)
+
+        if len(model_residuals) == 0:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Image rank residuals data not found",
+                http_status_code=404
+            )   
+
+        # Read json files and filter based on date range and pagination
+        json_files_selected_hash_dict = {}
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = []
+            for json_file in json_files:
+                file_date_str = json_file.split('/')[-1].split('-')[0:3]
+                file_date_str = '-'.join(file_date_str)
+                file_date_obj = datetime.strptime(file_date_str, "%Y-%m-%d")
+
+                # Apply date filtering
+                if start_date_obj and file_date_obj < start_date_obj:
+                    continue
+                if end_date_obj and file_date_obj > end_date_obj:
+                    continue
+
+                futures.append(executor.submit(read_json_data, request=request, json_file=json_file))
+
+            for future in as_completed(futures):
+                selected_image_hash, json_file = future.result()
+                json_files_selected_hash_dict[selected_image_hash] = json_file
+
+        # Sort and paginate the results
+        sorted_json_files = []
+        for residual_data in model_residuals:
+            if residual_data["image_hash"] in json_files_selected_hash_dict:
+                json_file = json_files_selected_hash_dict[residual_data["image_hash"]]
+                sorted_json_files.append(json_file)
+
+        # Apply offset and list size limit
+        start_index = offset
+        end_index = offset + list_size
+        sorted_json_files = sorted_json_files[start_index:end_index]
+
+        # Return through ApiResponseHandlerV1 if there are sorted json files
+        if not sorted_json_files:
+            return response_handler.create_success_response_v1(
+                response_data=[], 
+                http_status_code=200
+            )
+
+        return response_handler.create_success_response_v1(
+            response_data=sorted_json_files,
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )        
+
+
+@router.get("/datasets/relevancy/list-v1",
+            description="List relevancy files for a dataset",
+            tags=["relevancy"],
+            responses=ApiResponseHandlerV1.listErrors([500]))
+async def list_relevancy_files(request: Request, dataset: str):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        path_prefix = f"{dataset}/data/relevancy/aggregate"
+        objects = cmd.get_list_of_objects_with_prefix(request.app.minio_client, "datasets", path_prefix)
+        json_files = [obj for obj in objects if obj.endswith('.json')]
+
+        return response_handler.create_success_response_v1(
+            response_data=json_files, 
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )        
+
+
+@router.get("/datasets/rank/read-v1",
+            tags=['deprecated'],
+            description="Read a specific ranking file",
+            responses=ApiResponseHandlerV1.listErrors([404, 500]))
+async def read_ranking_file(request: Request, dataset: str,
+                            filename: str = Query(..., description="Filename of the JSON to read")):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        object_name = f"{dataset}/data/ranking/aggregate/{filename}"
+        data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
+
+        if data is None:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"File {filename} not found.",
+                http_status_code=404
+            )
+
+        file_content = ""
+        for chunk in data.stream(32 * 1024):
+            file_content += chunk.decode('utf-8')
+
+        return response_handler.create_success_response_v1(
+            response_data=json.loads(file_content), 
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+    
+
+@router.get("/datasets/relevancy/read-v1",
+            tags=['deprecated'],
+            description="Read a specific relevancy file",
+            responses=ApiResponseHandlerV1.listErrors([404, 500]))
+async def read_relevancy_file(request: Request, dataset: str,
+                              filename: str = Query(..., description="Filename of the JSON to read")):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        object_name = f"{dataset}/data/relevancy/aggregate/{filename}"
+        data = cmd.get_file_from_minio(request.app.minio_client, "datasets", object_name)
+
+        if data is None:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"File {filename} not found.",
+                http_status_code=404  
+            )
+
+        file_content = ""
+        for chunk in data.stream(32 * 1024):
+            file_content += chunk.decode('utf-8')
+
+        return response_handler.create_success_response_v1(
+            response_data=json.loads(file_content), 
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+
