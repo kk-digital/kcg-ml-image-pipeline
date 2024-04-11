@@ -1047,8 +1047,7 @@ def main():
 
 # print("the ELM score is : ", (elm_model.classify(clip_h_vector)).item())
 
-
-# import statistics
+import statistics
 
 
 # class_names = get_unique_tag_names()
@@ -1255,7 +1254,7 @@ original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
 
 #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
-original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="topic-desert" , model_type = "energy-based-model")
+original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="content-has-text" , model_type = "energy-based-model")
 
 
 
@@ -1264,12 +1263,65 @@ from training_worker.classifiers.models.elm_regression import ELMRegression
 # elm_model = ELMRegression()
 #def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
 
-elm_model, _ = load_model_elm(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-desert", model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
+elm_model, _ = load_model_elm(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "content-has-text", model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
 
 
 
 
-plot_samples_hashless(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name ="topic-desert")
+plot_samples_hashless(elm_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name ="content-has-text")
+
+
+
+
+class_names = get_unique_tag_names()
+all_tags = get_unique_tag_ids()
+print("all tags : ", all_tags )
+print("all tags length : ", len(all_tags) )
+target_data , ood_data = get_all_classes_paths(class_ids = all_tags,target_id=22)
+
+
+target_scores_EBM = []
+ood_scores_EBM = []
+
+target_scores_ELM = []
+ood_scores_ELM = []
+
+for target in target_data:
+    vector = get_clip_from_path(target)
+    ebm_score = (original_model.evalute_energy(vector).item())
+    elm_score = (elm_model.classify(vector)).item()
+    target_scores_EBM.append(ebm_score)
+    target_scores_ELM.append(elm_score)
+    print(f'The score for EBM is {ebm_score} , and the score of ELM is {elm_score}')
+
+
+for ood_image in ood_data:
+    vector = get_clip_from_path(ood_image)
+    ebm_score = (original_model.evalute_energy(vector).item())
+    elm_score = (elm_model.classify(vector)).item()
+    ood_scores_EBM.append(ebm_score)
+    ood_scores_ELM.append(elm_score)
+    print(f'The score for EBM is {ebm_score} , and the score of ELM is {elm_score}')
+
+
+
+print(f'Average EBM score is {statistics.mean(target_scores_EBM)} , and average ELM score is {statistics.mean(target_scores_ELM)}')
+print(f'Standard diviation EBM: {statistics.stdev(target_scores_EBM)} , ELM {statistics.stdev(target_scores_ELM)}')
+
+
+print(f'Average OOD EBM score is {statistics.mean(ood_scores_EBM)} , and average OOD ELM score is {statistics.mean(ood_scores_ELM)}')
+print(f'Standard diviation OOD EBM: {statistics.stdev(ood_scores_EBM)} , ELM {statistics.stdev(ood_scores_ELM)}')
+
+
+
+
+
+
+
+
+
+
+
 
 
 
