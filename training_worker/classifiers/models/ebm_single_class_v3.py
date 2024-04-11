@@ -1158,7 +1158,7 @@ def process_and_sort_dataset(images_paths, model):
         
         # Compute the score by passing the image tensor through the model
         # Ensure the tensor is in the correct shape, device, etc.
-        score = model.cnn(embedding.unsqueeze(0).to(model.device)).cpu()
+        score = model.evalute_energy(embedding).cpu()
         
         # Append the path, embedding, and score as a tuple to the structure list
         structure.append((image_path, embedding, score.item(),image))  # Assuming score is a tensor, use .item() to get the value
@@ -1210,7 +1210,7 @@ def process_and_sort_dataset(images_paths, model):
         
         # Compute the score by passing the image tensor through the model
         # Ensure the tensor is in the correct shape, device, etc.
-        score = model.cnn(embedding.unsqueeze(0).to(model.device)).cpu()
+        score = model.evalute_energy(embedding).cpu()
         
         # Append the path, embedding, and score as a tuple to the structure list
         structure.append((image_path, embedding, score.item(),image))  # Assuming score is a tensor, use .item() to get the value
