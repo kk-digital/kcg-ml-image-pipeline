@@ -136,6 +136,8 @@ class RapidlyExploringTreeSearch:
         return scores
     
     def classifiy_points(self, points):
+        dim= points.size(1)//2
+        points = points[:,:dim]
         scores= self.classifier_model.classify(points)
         return scores
 
