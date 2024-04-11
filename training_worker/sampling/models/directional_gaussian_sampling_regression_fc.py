@@ -518,7 +518,7 @@ class DirectionalGuassianResidualFCNetwork(DirectionalSamplingFCRegressionNetwor
         inputs, outputs = self.dataloader.load_sphere_dataset(n_spheres=n_spheres,target_avg_points=target_avg_points, output_type=self.output_type, percentile=self.sampling_parameter["percentile"], std=self.sampling_parameter["std"], input_type=self.input_type)
         
         predict_outputs = self.trained_model.predict(inputs, batch_size=batch_size).squeeze()
-        
+
         residuals = (np.array(outputs) - predict_outputs).tolist()
 
         # load the dataset
@@ -538,10 +538,10 @@ class DirectionalGuassianResidualFCNetwork(DirectionalSamplingFCRegressionNetwor
                           best_train_loss, best_val_loss,  
                           val_residuals, train_residuals, 
                           predicted_values, actual_values,
-                          training_size, validation_size, best_model_epoch, title='Directional Gaussian Sampling Regression'):
+                          training_size, validation_size, best_model_epoch, title='Directional Gaussian Sampling Regression', is_generate_every_epoch=False):
         fig, axs = plt.subplots(3, 2, figsize=(12, 10))
 
-        output_type = self.output_type + "_residual"
+        output_type = self.output_type + "_residuals"
         # set title of graph
         plt.title(title)
         fig_report_text = ("Date = {}\n"
@@ -555,7 +555,8 @@ class DirectionalGuassianResidualFCNetwork(DirectionalSamplingFCRegressionNetwor
                             "Validation size = {}\n"
                             "Training loss = {:.4f}\n"
                             "Validation loss = {:.4f}\n"
-                            "Epoch of Best model = {}\n".format(self.date,
+                            "Epoch of Best model = {}\n"
+                            "Generation policy = {}\n".format(self.date,
                                                             self.dataset,
                                                             'Fc_Network',
                                                             self.input_type,
@@ -565,7 +566,8 @@ class DirectionalGuassianResidualFCNetwork(DirectionalSamplingFCRegressionNetwor
                                                             validation_size,
                                                             best_train_loss,
                                                             best_val_loss,
-                                                            best_model_epoch
+                                                            best_model_epoch,
+                                                            "every epoch" if is_generate_every_epoch else "once"
                                                             ))
 
         fig_report_text += (
