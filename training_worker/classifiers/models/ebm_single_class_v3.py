@@ -1041,6 +1041,7 @@ print("the EBM score is : ",score.item())
 print("the ELM score is : ", (elm_model.classify(clip_h_vector)).item())
 
 
+import statistics
 
 
 class_names = get_unique_tag_names()
@@ -1058,4 +1059,10 @@ ood_scores_ELM = []
 
 for target in target_data:
     vector = get_clip_from_path(target)
-    print(f'The score for EBM is {(original_model.evalute_energy(vector).item())} , and the score of ELM is {(elm_model.classify(vector)).item()}')
+    ebm_score = (original_model.evalute_energy(vector).item())
+    elm_score = (elm_model.classify(vector)).item()
+    target_scores_EBM.append(ebm_score)
+    target_scores_ELM.append(elm_score)
+    print(f'The score for EBM is {ebm_score} , and the score of ELM is {elm_score}')
+
+print(f'Average EBM score is {statistics.mean(target_scores_EBM)} , and average ELM score is {statistics.mean(target_scores_ELM)}')
