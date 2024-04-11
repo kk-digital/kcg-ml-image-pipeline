@@ -54,22 +54,31 @@ def main():
                                                 dataset=args.dataset,
                                                 input_type=args.input_type,
                                                 output_type= args.output_type)
+                
+                gaussian_sampling_model.set_config(sampling_parameter={'percentile': args.percentile, 'std': args.std})
+
+                gaussian_sampling_model.train(num_epochs=args.epochs,
+                                            batch_size=args.training_batch_size,
+                                            learning_rate= args.learning_rate,
+                                            n_spheres=args.n_spheres, 
+                                            target_avg_points=args.target_avg_points,
+                                            is_generate_every_epoch=args.per_epoch, 
+                                            model_name="Residual prediction model on directional gaussian sampling")
             elif args.model_type == 'XGBoost':
                 gaussian_sampling_model = DirectionalSamplingResidualXGBoost(minio_client=minio_client, 
                                                 dataset=args.dataset,
                                                 input_type=args.input_type,
                                                 output_type= args.output_type)
                 
-    gaussian_sampling_model.set_config(sampling_parameter={'percentile': args.percentile, 'std': args.std})
-
-    gaussian_sampling_model.train(num_epochs=args.epochs,
-                                 batch_size=args.training_batch_size,
-                                 learning_rate= args.learning_rate,
-                                 n_spheres=args.n_spheres, 
-                                 target_avg_points=args.target_avg_points,
-                                 is_generate_every_epoch=args.per_epoch, 
-                                 model_name="Residual prediction model on directional gaussian sampling")
-    
+                gaussian_sampling_model.set_config(sampling_parameter={'percentile': args.percentile, 'std': args.std})
+                
+                gaussian_sampling_model.train(num_epochs=args.epochs,
+                                            batch_size=args.training_batch_size,
+                                            n_spheres=args.n_spheres, 
+                                            target_avg_points=args.target_avg_points,
+                                            validation_split=0.3,
+                                            generate_every_epoch=args.per_epoch,
+                                            trained_model=None)
     gaussian_sampling_model.save_model()
     
 if __name__ == '__main__':
