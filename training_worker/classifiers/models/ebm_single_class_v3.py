@@ -833,7 +833,7 @@ def get_unique_tag_names():
 
 
 
-def load_model(minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
+def load_model_elm(minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
     input_path = f"{model_dataset}/models/classifiers/{tag_name}/"
     file_suffix = ".safetensors"
 
@@ -1031,7 +1031,7 @@ from training_worker.classifiers.models.elm_regression import ELMRegression
 # elm_model = ELMRegression()
 #def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
 
-elm_model = load_model(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-desert", model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
+elm_model = load_model_elm(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-desert", model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
 
 
 
