@@ -1221,6 +1221,11 @@ def plot_samples_hashless(loaded_model,dataset_name, number_of_samples,tag_name)
     tier9 = sorted_images_and_hashes[400:450]
 
 
+
+    tier10 = sorted_images_and_hashes[450:500] 
+    tier11 = sorted_images_and_hashes[500:550]
+    tier12 = sorted_images_and_hashes[550:600]
+
     #tag_image(file_hash,tag_id,user)
 
     
@@ -1234,6 +1239,10 @@ def plot_samples_hashless(loaded_model,dataset_name, number_of_samples,tag_name)
     plot_name8  = tag_name + "_tier8_hs"
     plot_name9  = tag_name + "_tier9_hs"
 
+    plot_name10 = tag_name + "_tier10_hs"
+    plot_name11  = tag_name + "_tier11_hs"
+    plot_name12  = tag_name + "_tier12_hs"
+
     plot_images_with_scores_hasheless(selected_structure_first_50,plot_name1)
     plot_images_with_scores_hasheless(selected_structure_second_50,plot_name2)
     plot_images_with_scores_hasheless(selected_structure_third_50,plot_name3)
@@ -1245,6 +1254,9 @@ def plot_samples_hashless(loaded_model,dataset_name, number_of_samples,tag_name)
     plot_images_with_scores_hasheless(tier8,plot_name8)
     plot_images_with_scores_hasheless(tier9,plot_name9)
 
+    plot_images_with_scores_hasheless(tier10,plot_name10)
+    plot_images_with_scores_hasheless(tier11,plot_name11)
+    plot_images_with_scores_hasheless(tier12,plot_name12)
 
 
 def get_file_paths(dataset,num_samples):
@@ -1275,7 +1287,9 @@ original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
 
 #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
-original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="topic-aquatic" , model_type = "energy-based-model")
+
+tag_name_x = "topic-space"
+original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =tag_name_x, model_type = "energy-based-model")
 
 
 
@@ -1284,12 +1298,12 @@ from training_worker.classifiers.models.elm_regression import ELMRegression
 # elm_model = ELMRegression()
 #def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
 
-elm_model, _ = load_model_elm(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-aquatic", model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
+elm_model, _ = load_model_elm(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = tag_name_x, model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
 
 
 
-plot_samples_hashless(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name ="topic-aquatic")
-plot_samples_hashless(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 30000,tag_name ="topic-aquatic")
+plot_samples_hashless(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
+plot_samples_hashless(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
 
 
 
