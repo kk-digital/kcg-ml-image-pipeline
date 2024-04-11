@@ -1039,3 +1039,23 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 print("the EBM score is : ",score.item())
 
 print("the ELM score is : ", (elm_model.classify(clip_h_vector)).item())
+
+
+
+
+class_names = get_unique_tag_names()
+all_tags = get_unique_tag_ids()
+print("all tags : ", all_tags )
+print("all tags length : ", len(all_tags) )
+target_data , ood_data = get_all_classes_paths(class_ids = all_tags,target_id=20)
+
+
+target_scores_EBM = []
+ood_scores_EBM = []
+
+target_scores_ELM = []
+ood_scores_ELM = []
+
+for target in target_data:
+    vector = get_clip_from_path(target)
+    print(f'The score for EBM is {(original_model.evalute_energy(vector)).item} , and the score of ELM is {(elm_model.classify(vector)).item()}')
