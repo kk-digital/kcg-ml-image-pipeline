@@ -49,15 +49,11 @@ class DatasetLoader(Dataset):
 
 
 class DirectionalSamplingFCRegressionNetwork(nn.Module):
-    def __init__(self, minio_client, input_size=2560, hidden_sizes=[512, 256], input_type="gaussian_sphere_variance",output_size=1, 
-                 output_type="mean_sigma_score", dataset="environmental"):
+    def __init__(self, minio_client, input_size=2560, hidden_sizes=[512, 256], input_type="gaussian_sphere_variance",output_size=1, output_type="mean_sigma_score", dataset="environmental"):
         
         super(DirectionalSamplingFCRegressionNetwork, self).__init__()
         # set device
-        if torch.cuda.is_available():
-            device = 'cuda'
-        else:
-            device = 'cpu'
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self._device = torch.device(device)
 
         # Define the multi-layered model architecture
@@ -83,8 +79,11 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
         # sphere dataloader
         self.dataloader = DirectionalGaussianGenerator(minio_client, dataset)
 
+    # set the parameter like percentile and std to generate sphere dataset
+    # for directioal gaussian distribution
     def set_config(self, sampling_parameter= None):
         self.sampling_parameter = sampling_parameter
+
 
     def get_model_path(self):
         local_path=f"output/{self.output_type}_fc_{self.input_type}.pth"
@@ -92,34 +91,41 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
 
         return local_path, minio_path
 
-    def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256, is_per_epoch=False, model_name="Directional Gaussian Sampling Regression"):
+    def train(self, n_spheres, target_avg_points, learning_rate=0.001, validation_split=0.2, num_epochs=100, batch_size=256, is_generate_every_epoch=False, model_name="Directional Gaussian Sampling Regression"):
 
-        # load the dataset depends on sampling type
+        # load the clip vector dataset depends on sampling type
         self.dataloader.load_dataset()
         
         criterion = nn.L1Loss()  # Define the loss function
-        optimizer = optim.Adam(self.parameters(), lr=learning_rate)  # Define the optimizer
+        optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)  # Define the optimizer
 
         # save loss for each epoch and features
         train_loss=[]
         val_loss=[]
 
+        # Obtain training and validation datasets, data loaders, and sizes for training
+        train_dataset, val_dataset, \
+                    train_loader, val_loader, \
+                        train_size, val_size = self.get_data_for_training(n_spheres, target_avg_points, validation_split, batch_size)
+
         best_state = {
             "val_loss": float('inf'), # Initialize best validation loss as infinity
             "train_loss": float('inf') # Initialize best training loss as infinity
         }
+
         start = time.time()
         # Training and Validation Loop
         for epoch in range(num_epochs):
-            self.model.eval()
             total_val_loss = 0
             total_val_samples = 0
             
-            if epoch == 0 or is_per_epoch:
+            # Generate the dataset every epoch if is_per_epoch is True
+            if is_generate_every_epoch:
                 train_dataset, val_dataset, \
                     train_loader, val_loader, \
                         train_size, val_size = self.get_data_for_training(n_spheres, target_avg_points, validation_split, batch_size)
 
+            self.model.eval()
             with torch.no_grad():
                 for inputs, targets in val_loader:
                     inputs=inputs.to(self._device)
@@ -131,10 +137,10 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
                     total_val_loss += loss.item() * inputs.size(0)
                     total_val_samples += inputs.size(0)
                     
-            self.model.train()
             total_train_loss = 0
             total_train_samples = 0
             
+            self.model.train()
             for inputs, targets in train_loader:
                 inputs=inputs.to(self._device)
                 targets=targets.to(self._device)
@@ -200,7 +206,7 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
                                best_state["train_loss"], best_state["val_loss"], 
                                val_residuals, train_residuals, 
                                val_preds, y_val,
-                               train_size, val_size, best_state["epoch"], model_name)
+                               train_size, val_size, best_state["epoch"], model_name, is_generate_every_epoch)
         
         self.save_model_report(num_training=train_size,
                               num_validation=val_size,
@@ -296,7 +302,7 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
                           best_train_loss, best_val_loss,  
                           val_residuals, train_residuals, 
                           predicted_values, actual_values,
-                          training_size, validation_size, best_model_epoch, title='Directional Gaussian Sampling Regression'):
+                          training_size, validation_size, best_model_epoch, title='Directional Gaussian Sampling Regression', is_generate_every_epoch=False):
         fig, axs = plt.subplots(3, 2, figsize=(12, 10))
 
         # set title of graph
@@ -312,7 +318,8 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
                             "Validation size = {}\n"
                             "Training loss = {:.4f}\n"
                             "Validation loss = {:.4f}\n"
-                            "Epoch of Best model = {}\n".format(self.date,
+                            "Epoch of Best model = {}\n"
+                            "Generation policy = {}\n".format(self.date,
                                                             self.dataset,
                                                             'Fc_Network',
                                                             self.input_type,
@@ -322,7 +329,8 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
                                                             validation_size,
                                                             best_train_loss,
                                                             best_val_loss,
-                                                            best_model_epoch
+                                                            best_model_epoch,
+                                                            "every epoch" if is_generate_every_epoch else "once"
                                                             ))
 
         fig_report_text += (
