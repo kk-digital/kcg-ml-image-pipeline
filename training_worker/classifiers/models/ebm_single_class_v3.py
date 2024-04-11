@@ -1055,7 +1055,7 @@ class_names = get_unique_tag_names()
 all_tags = get_unique_tag_ids()
 print("all tags : ", all_tags )
 print("all tags length : ", len(all_tags) )
-target_data , ood_data = get_all_classes_paths(class_ids = all_tags,target_id=20)
+target_data , ood_data = get_all_classes_paths(class_ids = all_tags,target_id=35)
 
 
 target_scores_EBM = []
