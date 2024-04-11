@@ -604,7 +604,7 @@ class EBM_Single_Class:
             os.remove(temp_file.name)
 
     # Via clip-H
-    def evalute_energy(self, dataset_feature_vector):
+    def classify(self, dataset_feature_vector):
         print("Evaluate energy...")
         #print("da vector ", dataset_feature_vector)
         #dataset_feature_vector = dataset_feature_vector.to(self._device)
@@ -1170,6 +1170,32 @@ def process_and_sort_dataset(images_paths, model):
 
     return sorted_structure
 
+
+
+def process_and_sort_dataset_elm(images_paths, model):
+    # Initialize an empty list to hold the structure for each image
+    structure = []
+
+    # Process each image path
+    for image_path in images_paths:
+        # Extract embedding and image tensor from the image path
+        image, embedding = get_clip_and_image_from_path(image_path)
+        
+        # Compute the score by passing the image tensor through the model
+        # Ensure the tensor is in the correct shape, device, etc.
+        #score = model.evalute_energy(embedding).cpu()
+        score = model.classify(embedding).cpu()
+        
+        # Append the path, embedding, and score as a tuple to the structure list
+        structure.append((image_path, embedding, score.item(),image))  # Assuming score is a tensor, use .item() to get the value
+
+    # Sort the structure list by the score in descending order (for ascending, remove 'reverse=True')
+    # The lambda function specifies that the sorting is based on the third element of each tuple (index 2)
+    sorted_structure = sorted(structure, key=lambda x: x[2], reverse=True)
+
+    return sorted_structure
+
+
 def plot_samples_hashless(loaded_model,dataset_name, number_of_samples,tag_name):
 
     images_paths = get_file_paths(dataset_name,number_of_samples)
@@ -1200,28 +1226,6 @@ def plot_samples_hashless(loaded_model,dataset_name, number_of_samples,tag_name)
 
 
 
-def process_and_sort_dataset(images_paths, model):
-    # Initialize an empty list to hold the structure for each image
-    structure = []
-
-    # Process each image path
-    for image_path in images_paths:
-        # Extract embedding and image tensor from the image path
-        image, embedding = get_clip_and_image_from_path(image_path)
-        
-        # Compute the score by passing the image tensor through the model
-        # Ensure the tensor is in the correct shape, device, etc.
-        #score = model.evalute_energy(embedding).cpu()
-        score = model.classify(embedding).cpu()
-        
-        # Append the path, embedding, and score as a tuple to the structure list
-        structure.append((image_path, embedding, score.item(),image))  # Assuming score is a tensor, use .item() to get the value
-
-    # Sort the structure list by the score in descending order (for ascending, remove 'reverse=True')
-    # The lambda function specifies that the sorting is based on the third element of each tuple (index 2)
-    sorted_structure = sorted(structure, key=lambda x: x[2], reverse=True)
-
-    return sorted_structure
 
 def get_file_paths(dataset,num_samples):
         
@@ -1251,7 +1255,7 @@ original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
 
 #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
-original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="topic-aquatic" , model_type = "energy-based-model")
+original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="topic-desert" , model_type = "energy-based-model")
 
 
 
@@ -1265,7 +1269,7 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 
 
-plot_samples_hashless(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 30000,tag_name ="topic-desert")
+plot_samples_hashless(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name ="topic-desert")
 
 
 
