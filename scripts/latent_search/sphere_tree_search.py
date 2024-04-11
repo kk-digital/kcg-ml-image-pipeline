@@ -138,7 +138,7 @@ class RapidlyExploringTreeSearch:
     def classifiy_points(self, points):
         dim= points.size(1)//2
         points = points[:,:dim]
-        scores= self.classifier_model.classify(points)
+        scores= self.classifier_model.classify(points).to(device=self.device)
         return scores
 
     def expand_tree(self, nodes_per_iteration, max_nodes, top_k, jump_distance, num_images):
