@@ -1066,3 +1066,15 @@ for target in target_data:
     print(f'The score for EBM is {ebm_score} , and the score of ELM is {elm_score}')
 
 print(f'Average EBM score is {statistics.mean(target_scores_EBM)} , and average ELM score is {statistics.mean(target_scores_ELM)}')
+
+
+
+for ood_image in ood_data:
+    vector = get_clip_from_path(ood_image)
+    ebm_score = (original_model.evalute_energy(vector).item())
+    elm_score = (elm_model.classify(vector)).item()
+    ood_scores_EBM.append(ebm_score)
+    ood_scores_ELM.append(elm_score)
+    print(f'The score for EBM is {ebm_score} , and the score of ELM is {elm_score}')
+
+print(f'Average OOD EBM score is {statistics.mean(target_scores_EBM)} , and average OOD ELM score is {statistics.mean(target_scores_ELM)}')
