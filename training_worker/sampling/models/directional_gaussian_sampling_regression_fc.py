@@ -712,7 +712,7 @@ class DirectionalSamplingResidualXGBoost(nn.Module):
         # load datapoints from minio
         if self.dataloader is None:
             self.dataloader= DirectionalGaussianGenerator(self.minio_client, self.dataset)
-            self.dataloader.load_data()
+            self.dataloader.load_dataset()
 
         # save loss for each epoch and features
         train_loss=[]
