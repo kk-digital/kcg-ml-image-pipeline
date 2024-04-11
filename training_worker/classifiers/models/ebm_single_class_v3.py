@@ -992,7 +992,7 @@ score = original_model.evalute_energy(clip_h_vector)
 from training_worker.classifiers.models.elm_regression import ELMRegression
 elm_model = ELMRegression()
 #def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
-elm_model.load_model(minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-desert", model_type = "regression-clip-h", not_include= 'batatatatatata', device= original_model.device)
+elm_model.load_model(minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-desert", model_type = "elm-regression-clip-h", not_include= 'batatatatatata', device= original_model.device)
 
 
 
