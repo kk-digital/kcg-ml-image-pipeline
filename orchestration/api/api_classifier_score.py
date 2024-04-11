@@ -11,9 +11,9 @@ router = APIRouter()
 
 
 @router.get("/classifier-score/get-scores-by-classifier-id-and-tag-id",
-            description="Get the images scores by tag",
+            description="deprecated, replaced with /pseudotag-classifier-scores/list-image-by-scores-v1",
             status_code=200,
-            tags=["classifier-score"],
+            tags=["deprecated2"],
             response_model=StandardSuccessResponseV1[ClassifierScore],
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 def get_scores_by_classifier_id_and_tag_id(request: Request, 
@@ -48,9 +48,9 @@ def get_scores_by_classifier_id_and_tag_id(request: Request,
 
 
 @router.get("/classifier-score/get-image-classifier-score-by-hash", 
-            description="Get image classifier score by classifier_id, tag_id and image_hash",
+            description="deprecated, replaced with /pseudotag-classifier-scores/get-image-classifier-score-by-hash-and-classifier-id ",
             status_code=200,
-            tags=["score"],  
+            tags=["deprecated2"],  
             response_model=StandardSuccessResponseV1[ClassifierScore],  # Specify the expected response model, adjust as needed
             responses=ApiResponseHandlerV1.listErrors([400,422]))
 def get_image_classifier_score_by_hash(request: Request, image_hash: str, tag_id: int, classifier_id: int):
@@ -81,9 +81,9 @@ def get_image_classifier_score_by_hash(request: Request, image_hash: str, tag_id
 
 
 @router.get("/classifier-score/get-image-classifier-score-by-uuid", 
-            description="Get image classifier score by uuid",
+            description="deprecated, replaced with /pseudotag-classifier-scores/get-image-classifier-score-by-uuid-and-classifier-id",
             status_code=200,
-            tags=["score"],  
+            tags=["deprecated2"],  
             response_model=StandardSuccessResponseV1[ClassifierScore],  # Specify the expected response model, adjust as needed
             responses=ApiResponseHandlerV1.listErrors([400,422]))
 def get_image_classifier_score_by_uuid(request: Request, classifier_score_uuid: str):
@@ -113,9 +113,9 @@ def get_image_classifier_score_by_uuid(request: Request, classifier_score_uuid: 
 
 
 @router.put("/classifier-score/update-image-classifier-score-by-uuid",
-            description="update image-classfier-score by uuid",
+            description="deprecated, replaced with /pseudotag-classifier-scores/set-image-classifier-score",
             status_code=200,
-            tags=["put_score_by_hash"],
+            tags=["deprecated2"],
             response_model=StandardSuccessResponseV1[ClassifierScore],  # Specify the expected response model, adjust as needed
             responses=ApiResponseHandlerV1.listErrors([400,422]))
 async def update_image_classifier_score_by_uuid(request: Request, classifier_score: ClassifierScore):
@@ -161,8 +161,8 @@ async def update_image_classifier_score_by_uuid(request: Request, classifier_sco
 
 @router.post("/classifier-score/set-image-classifier-score", 
              status_code=200,
-             description="Set classifier image score",
-             tags=["score"],  
+             description="deprecated, replaced with /pseudotag-classifier-scores/set-image-classifier-score",
+             tags=["deprecated2"],  
              )
 async def set_image_classifier_score(request: Request, classifier_score: ClassifierScore):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
@@ -205,8 +205,9 @@ async def set_image_classifier_score(request: Request, classifier_score: Classif
 
 
 @router.delete("/classifier-score/delete-image-classifier-score-by-uuid", 
-               description="Delete image classifier score by specific uuid.",
+               description="deprecated,replaced with /pseudotag-classifier-scores/delete-image-classifier-score-by-uuid-and-classifier-id",
                status_code=200,
+               tags = ['deprecated2'],
                response_model=StandardSuccessResponseV1[WasPresentResponse],
                responses=ApiResponseHandlerV1.listErrors([422]))
 def delete_image_classifier_score_by_uuid(
@@ -228,8 +229,8 @@ def delete_image_classifier_score_by_uuid(
 
 
 @router.get("/classifier-score/list-by-scores", 
-            description="List images by classifier scores",
-            tags=["score"],  
+            description="deprecated, replaced with /classifier-score/list-by-scores",
+            tags=["deprecated2"],  
             response_model=StandardSuccessResponseV1[ListClassifierScore],  # Adjust the response model as needed
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 async def list_images_by_classifier_scores(
@@ -459,8 +460,8 @@ async def delete_image_classifier_score_by_uuid_and_classifier_id(
 
 
 @router.get("/pseudotag-classifier-scores/list-image-by-scores", 
-            description="List image scores based on classifier criteria",
-            tags=["pseudotag-classifier-scores"],  
+            description="deprecated, replaced with /pseudotag-classifier-scores/list-image-by-scores-v1",
+            tags=["deprecated2"],  
             response_model=StandardSuccessResponseV1[ListClassifierScore1],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 async def list_image_scores(
@@ -506,7 +507,7 @@ async def list_image_scores(
     )
 
 
-@router.get("/pseudotag-classifier-scores/list-image-by-scores-v1", 
+@router.get("/pseudotag-classifier-scores/list-images-by-scores-v1", 
             description="List image scores based on classifier",
             tags=["pseudotag-classifier-scores"],  
             response_model=StandardSuccessResponseV1[ListClassifierScore1],  

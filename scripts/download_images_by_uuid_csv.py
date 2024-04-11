@@ -17,7 +17,7 @@ def str_to_bool(v):
 
 def get_output_file_path(uuid):
     # Update the URL to match your new API endpoint
-    url = f"http://123.176.98.90:8764/job/get-job/{uuid}"
+    url = f"http://103.20.60.90:8764/job/get-job/{uuid}"
     response = requests.get(url)
     if response.status_code == 200:
         job_data = response.json()
@@ -43,7 +43,7 @@ def download_image(uuid, output_path, downloaded_uuids_path, use_uuid):
 
     full_local_path = os.path.join(output_path, new_filename)
 
-    url = f"http://123.176.98.90:8764/get-image-by-job-uuid/{uuid}"
+    url = f"http://103.20.60.90:8764/get-image-by-job-uuid/{uuid}"
     response = requests.get(url, stream=True)
     if response.status_code == 200:
         with open(full_local_path, 'wb') as f:
