@@ -706,8 +706,8 @@ class DirectionalSamplingResidualXGBoost(nn.Module):
         }
 
         if trained_model is None:
-            trained_model = DirectionalSamplingFCRegressionNetwork(self.minio_client, self.dataset)
-            trained_model.load_model()
+            self.trained_model = DirectionalSamplingFCRegressionNetwork(minio_client=self.minio_client, dataset=self.dataset)
+            self.trained_model.load_model()
 
         # load datapoints from minio
         if self.dataloader is None:
