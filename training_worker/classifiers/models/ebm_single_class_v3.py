@@ -1253,7 +1253,18 @@ original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
 original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="topic-aquatic" , model_type = "energy-based-model")
 
 
-plot_samples_hashless(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name ="topic-aquatic")
+
+# ELM
+from training_worker.classifiers.models.elm_regression import ELMRegression
+# elm_model = ELMRegression()
+#def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
+
+elm_model, _ = load_model_elm(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-aquatic", model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
+
+
+
+
+plot_samples_hashless(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 30000,tag_name ="topic-aquatic")
 
 
 
