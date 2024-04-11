@@ -1212,17 +1212,38 @@ def plot_samples_hashless(loaded_model,dataset_name, number_of_samples,tag_name)
     selected_structure_first_50 = sorted_images_and_hashes[:52] 
     selected_structure_second_50 = sorted_images_and_hashes[52:103]
     selected_structure_third_50 = sorted_images_and_hashes[103:154]
+    
+    tier4 = sorted_images_and_hashes[150:200] 
+    tier5 = sorted_images_and_hashes[200:250]
+    tier6 = sorted_images_and_hashes[250:300]
+    tier7 = sorted_images_and_hashes[300:350] 
+    tier8 = sorted_images_and_hashes[350:400]
+    tier9 = sorted_images_and_hashes[400:450]
+
+
     #tag_image(file_hash,tag_id,user)
 
     
     plot_name1 = tag_name + "_tier1_hs"
     plot_name2 = tag_name + "_tier2_hs"
     plot_name3  = tag_name + "_tier3_hs"
+    plot_name4 = tag_name + "_tier4_hs"
+    plot_name5 = tag_name + "_tier5_hs"
+    plot_name6  = tag_name + "_tier6_hs"
+    plot_name7 = tag_name + "_tier7_hs"
+    plot_name8  = tag_name + "_tier8_hs"
+    plot_name9  = tag_name + "_tier9_hs"
 
     plot_images_with_scores_hasheless(selected_structure_first_50,plot_name1)
     plot_images_with_scores_hasheless(selected_structure_second_50,plot_name2)
     plot_images_with_scores_hasheless(selected_structure_third_50,plot_name3)
 
+    plot_images_with_scores_hasheless(tier4,plot_name4)
+    plot_images_with_scores_hasheless(tier5,plot_name5)
+    plot_images_with_scores_hasheless(tier6,plot_name6)
+    plot_images_with_scores_hasheless(tier7,plot_name7)
+    plot_images_with_scores_hasheless(tier8,plot_name8)
+    plot_images_with_scores_hasheless(tier9,plot_name9)
 
 
 
@@ -1254,7 +1275,7 @@ original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
 
 #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
-original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="content-has-text" , model_type = "energy-based-model")
+original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="topic-aquatic" , model_type = "energy-based-model")
 
 
 
@@ -1263,54 +1284,54 @@ from training_worker.classifiers.models.elm_regression import ELMRegression
 # elm_model = ELMRegression()
 #def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
 
-elm_model, _ = load_model_elm(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "content-has-text", model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
+elm_model, _ = load_model_elm(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-aquatic", model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
+
+
+
+plot_samples_hashless(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name ="topic-aquatic")
+plot_samples_hashless(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 30000,tag_name ="topic-aquatic")
 
 
 
 
-plot_samples_hashless(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 30000,tag_name ="content-has-text")
+# class_names = get_unique_tag_names()
+# all_tags = get_unique_tag_ids()
+# print("all tags : ", all_tags )
+# print("all tags length : ", len(all_tags) )
+# target_data , ood_data = get_all_classes_paths(class_ids = all_tags,target_id=22)
+
+
+# target_scores_EBM = []
+# ood_scores_EBM = []
+
+# target_scores_ELM = []
+# ood_scores_ELM = []
+
+# for target in target_data:
+#     vector = get_clip_from_path(target)
+#     ebm_score = (original_model.classify(vector).item())
+#     elm_score = (elm_model.classify(vector)).item()
+#     target_scores_EBM.append(ebm_score)
+#     target_scores_ELM.append(elm_score)
+#     print(f'The score for EBM is {ebm_score} , and the score of ELM is {elm_score}')
+
+
+# for ood_image in ood_data:
+#     vector = get_clip_from_path(ood_image)
+#     ebm_score = (original_model.classify(vector).item())
+#     elm_score = (elm_model.classify(vector)).item()
+#     ood_scores_EBM.append(ebm_score)
+#     ood_scores_ELM.append(elm_score)
+#     print(f'The score for EBM is {ebm_score} , and the score of ELM is {elm_score}')
 
 
 
-
-class_names = get_unique_tag_names()
-all_tags = get_unique_tag_ids()
-print("all tags : ", all_tags )
-print("all tags length : ", len(all_tags) )
-target_data , ood_data = get_all_classes_paths(class_ids = all_tags,target_id=22)
+# print(f'Average EBM score is {statistics.mean(target_scores_EBM)} , and average ELM score is {statistics.mean(target_scores_ELM)}')
+# print(f'Standard diviation EBM: {statistics.stdev(target_scores_EBM)} , ELM {statistics.stdev(target_scores_ELM)}')
 
 
-target_scores_EBM = []
-ood_scores_EBM = []
-
-target_scores_ELM = []
-ood_scores_ELM = []
-
-for target in target_data:
-    vector = get_clip_from_path(target)
-    ebm_score = (original_model.evalute_energy(vector).item())
-    elm_score = (elm_model.classify(vector)).item()
-    target_scores_EBM.append(ebm_score)
-    target_scores_ELM.append(elm_score)
-    print(f'The score for EBM is {ebm_score} , and the score of ELM is {elm_score}')
-
-
-for ood_image in ood_data:
-    vector = get_clip_from_path(ood_image)
-    ebm_score = (original_model.evalute_energy(vector).item())
-    elm_score = (elm_model.classify(vector)).item()
-    ood_scores_EBM.append(ebm_score)
-    ood_scores_ELM.append(elm_score)
-    print(f'The score for EBM is {ebm_score} , and the score of ELM is {elm_score}')
-
-
-
-print(f'Average EBM score is {statistics.mean(target_scores_EBM)} , and average ELM score is {statistics.mean(target_scores_ELM)}')
-print(f'Standard diviation EBM: {statistics.stdev(target_scores_EBM)} , ELM {statistics.stdev(target_scores_ELM)}')
-
-
-print(f'Average OOD EBM score is {statistics.mean(ood_scores_EBM)} , and average OOD ELM score is {statistics.mean(ood_scores_ELM)}')
-print(f'Standard diviation OOD EBM: {statistics.stdev(ood_scores_EBM)} , ELM {statistics.stdev(ood_scores_ELM)}')
+# print(f'Average OOD EBM score is {statistics.mean(ood_scores_EBM)} , and average OOD ELM score is {statistics.mean(ood_scores_ELM)}')
+# print(f'Standard diviation OOD EBM: {statistics.stdev(ood_scores_EBM)} , ELM {statistics.stdev(ood_scores_ELM)}')
 
 
 
