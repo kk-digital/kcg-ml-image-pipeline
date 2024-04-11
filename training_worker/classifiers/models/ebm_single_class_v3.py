@@ -1000,17 +1000,237 @@ def main():
 ##################################################  ELM VS EBM     ########################################################
 ###########################################################################################################################
 
-idi = ['datasets/environmental/0042/041848.jpg','datasets/environmental/0263/262253.jpg','datasets/environmental/0056/055126.jpg']
-ood = ['datasets/environmental/0058/057516.jpg','datasets/environmental/0214/213301.jpg','datasets/environmental/0063/062805.jpg']
+# idi = ['datasets/environmental/0042/041848.jpg','datasets/environmental/0263/262253.jpg','datasets/environmental/0056/055126.jpg']
+# ood = ['datasets/environmental/0058/057516.jpg','datasets/environmental/0214/213301.jpg','datasets/environmental/0063/062805.jpg']
 
 
 
-target_image = 'datasets/environmental/0214/213301.jpg' # idi[0]
+# target_image = 'datasets/environmental/0214/213301.jpg' # idi[0]
 
-_, clip_h_vector = get_clip_and_image_from_path(idi[0])
+# _, clip_h_vector = get_clip_and_image_from_path(idi[0])
 
-print(clip_h_vector)
+# print(clip_h_vector)
 
+
+
+# #EBM
+# args = parse_args()
+# original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
+#                             minio_secret_key=args.minio_secret_key,
+#                             dataset= args.dataset,
+#                             class_name= "topic-aquatic" ,
+#                             model = None,
+#                             save_name = args.save_name,
+#                             class_id =  get_tag_id_by_name(args.class_name),
+#                             training_batch_size=args.training_batch_size,
+#                             num_samples= args.num_samples,
+#                             epochs= args.epochs,
+#                             learning_rate= args.learning_rate)
+
+# #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# # Load the last occult trained model
+# original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="topic-aquatic" , model_type = "energy-based-model")
+# #score = original_model.cnn(clip_h_vector.unsqueeze(0).to(original_model.device)).cpu()
+# score = original_model.evalute_energy(clip_h_vector)
+
+
+# # ELM
+# from training_worker.classifiers.models.elm_regression import ELMRegression
+# # elm_model = ELMRegression()
+# #def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
+
+# elm_model, _ = load_model_elm(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-aquatic", model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
+
+
+
+# print("the EBM score is : ",score.item())
+
+# print("the ELM score is : ", (elm_model.classify(clip_h_vector)).item())
+
+
+# import statistics
+
+
+# class_names = get_unique_tag_names()
+# all_tags = get_unique_tag_ids()
+# print("all tags : ", all_tags )
+# print("all tags length : ", len(all_tags) )
+# target_data , ood_data = get_all_classes_paths(class_ids = all_tags,target_id=35)
+
+
+# target_scores_EBM = []
+# ood_scores_EBM = []
+
+# target_scores_ELM = []
+# ood_scores_ELM = []
+
+# for target in target_data:
+#     vector = get_clip_from_path(target)
+#     ebm_score = (original_model.evalute_energy(vector).item())
+#     elm_score = (elm_model.classify(vector)).item()
+#     target_scores_EBM.append(ebm_score)
+#     target_scores_ELM.append(elm_score)
+#     print(f'The score for EBM is {ebm_score} , and the score of ELM is {elm_score}')
+
+
+# for ood_image in ood_data:
+#     vector = get_clip_from_path(ood_image)
+#     ebm_score = (original_model.evalute_energy(vector).item())
+#     elm_score = (elm_model.classify(vector)).item()
+#     ood_scores_EBM.append(ebm_score)
+#     ood_scores_ELM.append(elm_score)
+#     print(f'The score for EBM is {ebm_score} , and the score of ELM is {elm_score}')
+
+
+
+# print(f'Average EBM score is {statistics.mean(target_scores_EBM)} , and average ELM score is {statistics.mean(target_scores_ELM)}')
+# print(f'Standard diviation EBM: {statistics.stdev(target_scores_EBM)} , ELM {statistics.stdev(target_scores_ELM)}')
+
+
+# print(f'Average OOD EBM score is {statistics.mean(ood_scores_EBM)} , and average OOD ELM score is {statistics.mean(ood_scores_ELM)}')
+# print(f'Standard diviation OOD EBM: {statistics.stdev(ood_scores_EBM)} , ELM {statistics.stdev(ood_scores_ELM)}')
+
+
+###########################################################################################################################
+##################################################  ELM VS EBM     ########################################################
+###########################################################################################################################
+
+
+def plot_images_with_scores_hasheless(sorted_dataset,name):
+    minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
+            "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+            None)
+    # Number of images
+    num_images = len(sorted_dataset)
+    
+    # Fixed columns to 4
+    cols = 4
+    # Calculate rows needed for 4 images per row
+    rows = math.ceil(num_images / cols)
+
+    # Create figure with subplots
+    # Adjust figsize here: width, height in inches. Increase for larger images.
+    fig, axes = plt.subplots(rows, cols, figsize=(4*cols, 4*rows))  # 4 inches per image in each dimension
+    fig.tight_layout(pad=3.0)  # Adjust padding as needed
+    # Flatten axes array for easy indexing
+    axes = axes.flatten()
+
+    # Loop over sorted dataset and plot each image with its score
+    for i, (image_path, _, score, image_tensor) in enumerate(sorted_dataset):
+        # Check if image_tensor is a PIL Image; no need to convert if already a numpy array
+        if not isinstance(image_tensor, np.ndarray):
+            # Convert PIL Image to a format suitable for matplotlib
+            image = np.array(image_tensor)
+        
+        # Plot the image
+        axes[i].imshow(image)
+        axes[i].set_title(f"Score: {score:.2f}")
+        axes[i].axis('off')  # Hide axis ticks and labels
+
+    # Hide any unused subplots
+    for j in range(i + 1, len(axes)):
+        axes[j].axis('off')
+
+    plt.savefig("output/rank.png")
+
+    # Save the figure to a file
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+
+    # upload the graph report
+    minio_path="environmental/output/my_tests"
+    minio_path= minio_path + "/ranking_ds_"+ name + '_' +date_now+".png"
+    cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+    # Remove the temporary file
+    os.remove("output/rank.png")
+    # Clear the current figure
+    plt.clf()
+
+def process_and_sort_dataset(images_paths, model):
+    # Initialize an empty list to hold the structure for each image
+    structure = []
+
+    # Process each image path
+    for image_path in images_paths:
+        # Extract embedding and image tensor from the image path
+        image, embedding = get_clip_and_image_from_path(image_path)
+        
+        # Compute the score by passing the image tensor through the model
+        # Ensure the tensor is in the correct shape, device, etc.
+        score = model.cnn(embedding.unsqueeze(0).to(model.device)).cpu()
+        
+        # Append the path, embedding, and score as a tuple to the structure list
+        structure.append((image_path, embedding, score.item(),image))  # Assuming score is a tensor, use .item() to get the value
+
+    # Sort the structure list by the score in descending order (for ascending, remove 'reverse=True')
+    # The lambda function specifies that the sorting is based on the third element of each tuple (index 2)
+    sorted_structure = sorted(structure, key=lambda x: x[2], reverse=True)
+
+    return sorted_structure
+
+def plot_samples_hashless(loaded_model,dataset_name, number_of_samples,tag_name,images_paths):
+
+    images_paths_ood = get_file_paths(dataset_name,number_of_samples)
+    
+    # Process the images
+    sorted_images_and_hashes = process_and_sort_dataset(images_paths, loaded_model) 
+
+    rank = 1
+    for image in sorted_images_and_hashes:
+        #
+        print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2])
+        rank += 0
+    # Tag the images
+
+    selected_structure_first_50 = sorted_images_and_hashes[:52] 
+    selected_structure_second_50 = sorted_images_and_hashes[52:103]
+    selected_structure_third_50 = sorted_images_and_hashes[103:154]
+    #tag_image(file_hash,tag_id,user)
+
+    
+    plot_name1 = tag_name + "_tier1_hs"
+    plot_name2 = tag_name + "_tier2_hs"
+    plot_name3  = tag_name + "_tier3_hs"
+
+    plot_images_with_scores_hasheless(selected_structure_first_50,plot_name1)
+    plot_images_with_scores_hasheless(selected_structure_second_50,plot_name2)
+    plot_images_with_scores_hasheless(selected_structure_third_50,plot_name3)
+
+
+
+def process_and_sort_dataset(images_paths, model):
+    # Initialize an empty list to hold the structure for each image
+    structure = []
+
+    # Process each image path
+    for image_path in images_paths:
+        # Extract embedding and image tensor from the image path
+        image, embedding = get_clip_and_image_from_path(image_path)
+        
+        # Compute the score by passing the image tensor through the model
+        # Ensure the tensor is in the correct shape, device, etc.
+        score = model.cnn(embedding.unsqueeze(0).to(model.device)).cpu()
+        
+        # Append the path, embedding, and score as a tuple to the structure list
+        structure.append((image_path, embedding, score.item(),image))  # Assuming score is a tensor, use .item() to get the value
+
+    # Sort the structure list by the score in descending order (for ascending, remove 'reverse=True')
+    # The lambda function specifies that the sorting is based on the third element of each tuple (index 2)
+    sorted_structure = sorted(structure, key=lambda x: x[2], reverse=True)
+
+    return sorted_structure
+
+def get_file_paths(dataset,num_samples):
+        
+        response = requests.get(f'{API_URL}/queue/image-generation/list-by-dataset?dataset={dataset}&size={num_samples}')
+        
+        jobs = json.loads(response.content)
+        
+        file_paths=[job['file_path'] for job in jobs]
+        #image_hashes=[job['image_hash'] for job in jobs]
+        
+        return file_paths
 
 
 #EBM
@@ -1030,89 +1250,29 @@ original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
 #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
 original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="topic-aquatic" , model_type = "energy-based-model")
-#score = original_model.cnn(clip_h_vector.unsqueeze(0).to(original_model.device)).cpu()
-score = original_model.evalute_energy(clip_h_vector)
 
 
-# ELM
-from training_worker.classifiers.models.elm_regression import ELMRegression
-# elm_model = ELMRegression()
-#def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
-
-elm_model, _ = load_model_elm(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-aquatic", model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
-
-
-
-print("the EBM score is : ",score.item())
-
-print("the ELM score is : ", (elm_model.classify(clip_h_vector)).item())
-
-
-import statistics
-
-
-class_names = get_unique_tag_names()
-all_tags = get_unique_tag_ids()
-print("all tags : ", all_tags )
-print("all tags length : ", len(all_tags) )
-target_data , ood_data = get_all_classes_paths(class_ids = all_tags,target_id=35)
-
-
-target_scores_EBM = []
-ood_scores_EBM = []
-
-target_scores_ELM = []
-ood_scores_ELM = []
-
-for target in target_data:
-    vector = get_clip_from_path(target)
-    ebm_score = (original_model.evalute_energy(vector).item())
-    elm_score = (elm_model.classify(vector)).item()
-    target_scores_EBM.append(ebm_score)
-    target_scores_ELM.append(elm_score)
-    print(f'The score for EBM is {ebm_score} , and the score of ELM is {elm_score}')
-
-
-for ood_image in ood_data:
-    vector = get_clip_from_path(ood_image)
-    ebm_score = (original_model.evalute_energy(vector).item())
-    elm_score = (elm_model.classify(vector)).item()
-    ood_scores_EBM.append(ebm_score)
-    ood_scores_ELM.append(elm_score)
-    print(f'The score for EBM is {ebm_score} , and the score of ELM is {elm_score}')
-
-
-
-print(f'Average EBM score is {statistics.mean(target_scores_EBM)} , and average ELM score is {statistics.mean(target_scores_ELM)}')
-print(f'Standard diviation EBM: {statistics.stdev(target_scores_EBM)} , ELM {statistics.stdev(target_scores_ELM)}')
-
-
-print(f'Average OOD EBM score is {statistics.mean(ood_scores_EBM)} , and average OOD ELM score is {statistics.mean(ood_scores_ELM)}')
-print(f'Standard diviation OOD EBM: {statistics.stdev(ood_scores_EBM)} , ELM {statistics.stdev(ood_scores_ELM)}')
-
-
-###########################################################################################################################
-##################################################  ELM VS EBM     ########################################################
-###########################################################################################################################
+plot_samples_hashless(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name ="topic-aquatic", images_paths=)
 
 
 
 
 
 
-# new_sorted_images = process_and_sort_dataset_with_hashes(images_paths_ood,images_hashes_ood, retrained_model)
+
+# new_sorted_images = process_and_sort_dataset(ood_data, original_model)
 
 
 
 # selected_structure_first_50 = new_sorted_images[:52]
 # selected_structure_second_50 = new_sorted_images[52:103]
 # selected_structure_third_50 = new_sorted_images[103:154]
-
+# model_name = "EBM-Aquatic"
 
 # plot_name1 = model_name + "_tier1"
 # plot_name2 = model_name + "_tier2"
 # plot_name3  = model_name + "_tier3"
 
-# plot_images_with_scores(selected_structure_first_50,plot_name1)
-# plot_images_with_scores(selected_structure_second_50,plot_name2)
-# plot_images_with_scores(selected_structure_third_50,plot_name3)
+# plot_images_with_scores_hasheless(selected_structure_first_50,plot_name1)
+# plot_images_with_scores_hasheless(selected_structure_second_50,plot_name2)
+# plot_images_with_scores_hasheless(selected_structure_third_50,plot_name3)
