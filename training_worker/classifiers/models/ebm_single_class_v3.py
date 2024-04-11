@@ -1066,7 +1066,7 @@ for target in target_data:
     print(f'The score for EBM is {ebm_score} , and the score of ELM is {elm_score}')
 
 print(f'Average EBM score is {statistics.mean(target_scores_EBM)} , and average ELM score is {statistics.mean(target_scores_ELM)}')
-
+print(f'Standard diviation EBM: {statistics.stdev(target_scores_EBM)} , ELM {statistics.stdev(target_scores_ELM)}')
 
 
 for ood_image in ood_data:
@@ -1077,4 +1077,5 @@ for ood_image in ood_data:
     ood_scores_ELM.append(elm_score)
     print(f'The score for EBM is {ebm_score} , and the score of ELM is {elm_score}')
 
-print(f'Average OOD EBM score is {statistics.mean(target_scores_EBM)} , and average OOD ELM score is {statistics.mean(target_scores_ELM)}')
+print(f'Average OOD EBM score is {statistics.mean(ood_scores_EBM)} , and average OOD ELM score is {statistics.mean(ood_scores_ELM)}')
+print(f'Standard diviation EBM: {statistics.stdev(ood_scores_EBM)} , ELM {statistics.stdev(ood_scores_ELM)}')
