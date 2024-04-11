@@ -830,6 +830,44 @@ def get_unique_tag_names():
         print(f"Error: HTTP request failed with status code {response.status_code}")
 
 
+
+
+
+def load_model(minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
+    input_path = f"{model_dataset}/models/classifiers/{tag_name}/"
+    file_suffix = ".safetensors"
+
+    # Use the MinIO client's list_objects method directly with recursive=True
+    model_files = [obj.object_name for obj in minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix) and model_type in obj.object_name and scoring_model in obj.object_name and not_include not in obj.object_name ]
+    
+    if not model_files:
+        print(f"No .safetensors models found for tag: {tag_name}")
+        return None
+
+    # Assuming there's only one model per tag or choosing the first one
+    model_files.sort(reverse=True)
+    model_file = model_files[0]
+    print(f"Loading model: {model_file}")
+
+    return load_model_with_filename(minio_client, model_file, tag_name, device)
+
+
+
+
+def load_model_with_filename(minio_client, model_file, device, model_info=None):
+    model_data = minio_client.get_object('datasets', model_file)
+    
+    clip_model = ELMRegression(device= device )
+    
+    # Create a BytesIO object from the model data
+    byte_buffer = BytesIO(model_data.data)
+    clip_model.load_safetensors(byte_buffer)
+
+    print(f"Model loaded for tag: {model_info}")
+    
+    return clip_model, basename(model_file)
+
+
 ###################### main
 
 def main():
@@ -992,7 +1030,9 @@ score = original_model.evalute_energy(clip_h_vector)
 from training_worker.classifiers.models.elm_regression import ELMRegression
 elm_model = ELMRegression()
 #def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
-elm_model = elm_model.load_model(minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-desert", model_type = "elm-regression-clip-h", not_include= 'batatatatatata', device= original_model.device)
+elm_model = load_model(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-desert", model_type = "elm-regression-clip-h", not_include= 'batatatatatata', device= original_model.device)
+
+
 
 
 
