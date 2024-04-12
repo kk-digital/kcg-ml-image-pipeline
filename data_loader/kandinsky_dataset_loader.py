@@ -187,8 +187,9 @@ class KandinskyDatasetLoader:
                 batch.append(output_clip_vector)
                 if len(batch) == batch_size:
                     batch= torch.stack(batch, dim=0).to(device=self.device)
-                    output_clip_scores = classifier.classify(batch)
+                    output_clip_scores = classifier.classify(batch).tolist()
                     scores.extend(output_clip_scores)
+                    batch=[]
 
                 feature_vectors.append(input_clip_vector)
 
