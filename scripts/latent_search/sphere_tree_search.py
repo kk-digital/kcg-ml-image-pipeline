@@ -7,6 +7,7 @@ import pandas as pd
 import torch
 import msgpack
 from tqdm import tqdm
+import torch.optim as optim
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -30,9 +31,13 @@ def parse_args():
         parser.add_argument('--top-k', type=int, help='Number of nodes to expand on each iteration', default=10)
         parser.add_argument('--max-nodes', type=int, help='Number of maximum nodes', default=1e+6)
         parser.add_argument('--jump-distance', type=float, help='Jump distance for each node', default=0.01)
+        parser.add_argument('--batch-size', type=int, help='Inference batch size used by the scoring model', default=256)
+        parser.add_argument('--steps', type=int, help='Optimization steps', default=200)
+        parser.add_argument('--learning-rate', type=float, help='Optimization learning rate', default=0.001)
         parser.add_argument('--send-job', action='store_true', default=False)
         parser.add_argument('--save-csv', action='store_true', default=False)
         parser.add_argument('--sampling-policy', type=str, default="rapidly_exploring_tree_search")
+        parser.add_argument('--optimize-samples', action='store_true', default=False)
 
         return parser.parse_args()
 
@@ -42,16 +47,24 @@ class RapidlyExploringTreeSearch:
                  minio_secret_key,
                  dataset,
                  tag_name,
+                 batch_size,
+                 steps,
+                 learning_rate,
                  sampling_policy,
                  send_job,
-                 save_csv):
+                 save_csv,
+                 optimize_samples):
         
         # parameters
         self.dataset= dataset  
-        self.tag_name= tag_name  
+        self.tag_name= tag_name
+        self.batch_size= batch_size
+        self.steps= steps
+        self.learning_rate= learning_rate  
         self.sampling_policy= sampling_policy  
         self.send_job= send_job
         self.save_csv= save_csv
+        self.optimize_samples= optimize_samples
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
                                                 minio_secret_key=minio_secret_key)
@@ -202,8 +215,53 @@ class RapidlyExploringTreeSearch:
 
         return final_top_points
     
+    def optimize_datapoints(self, clip_vectors, scoring_model):
+        # Calculate the total number of batches
+        num_batches = len(clip_vectors) // self.batch_size + (0 if len(clip_vectors) % self.batch_size == 0 else 1)
+        
+        optimized_embeddings_list = []
+
+        for batch_idx in range(num_batches):
+            # Select a batch of embeddings
+            start_idx = batch_idx * self.batch_size
+            end_idx = min((batch_idx + 1) * self.batch_size, len(clip_vectors))
+            batch_embeddings = clip_vectors[start_idx:end_idx].clone().detach().requires_grad_(True)
+            
+            # Setup the optimizer for the current batch
+            optimizer = optim.Adam([batch_embeddings], lr=self.learning_rate)
+            
+            for step in range(self.steps):
+                optimizer.zero_grad()
+
+                # Compute scores for the current batch of embeddings
+                scores = scoring_model.model(batch_embeddings)
+
+                # Calculate the loss for each embedding in the batch
+                score_losses = -scores.squeeze()
+
+                # Calculate the total loss for the batch
+                total_loss = score_losses.mean()
+
+                # Backpropagate
+                total_loss.backward()
+
+                optimizer.step()
+
+                print(f"Batch: {batch_idx + 1}/{num_batches}, Step: {step}, Mean Score: {scores.mean().item()}, Loss: {total_loss.item()}")
+
+            # After optimization, detach and add the optimized batch embeddings to the list
+            optimized_batch_embeddings = batch_embeddings.detach()
+            optimized_embeddings_list.extend([emb for emb in optimized_batch_embeddings])
+
+        return optimized_embeddings_list
+
     def generate_images(self, nodes_per_iteration, max_nodes, top_k, jump_distance, num_images):
         clip_vectors= self.expand_tree(nodes_per_iteration, max_nodes, top_k, jump_distance, num_images)
+
+        # Optimization step
+        if(self.optimize_samples):
+            clip_vectors = self.optimize_datapoints(clip_vectors, self.classifier_model)
+
         df_data=[]
 
         for clip_vector in clip_vectors:
@@ -262,9 +320,13 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         dataset=args.dataset,
                                         tag_name= args.tag_name,
+                                        batch_size= args.batch_size,
+                                        steps= args.steps,
+                                        learning_rate= args.learning_rate,
                                         sampling_policy= args.sampling_policy,
                                         send_job= args.send_job,
-                                        save_csv= args.save_csv)
+                                        save_csv= args.save_csv,
+                                        optimize_samples= args.optimize_samples)
 
     generator.generate_images(nodes_per_iteration=args.nodes_per_iteration,
                           max_nodes= args.max_nodes,
