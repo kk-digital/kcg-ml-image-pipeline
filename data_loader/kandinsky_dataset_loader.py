@@ -158,7 +158,7 @@ class KandinskyDatasetLoader:
         
         return feature_vectors, scores
     
-    def load_classifier_scores(self, tag_name):
+    def load_classifier_scores(self, tag_name, batch_size):
         classifier= self.get_classifier_model(tag_name)
         jobs= self.load_kandinsky_jobs()
         feature_vectors=[]
@@ -185,7 +185,7 @@ class KandinskyDatasetLoader:
                 output_clip_vector= torch.tensor(features_vector).to(device=self.device)
 
                 batch.append(output_clip_vector)
-                if len(batch)==1000:
+                if len(batch) == batch_size:
                     batch= torch.stack(batch, dim=0).to(device=self.device)
                     output_clip_scores = classifier.classify(batch)
                     scores.extend(output_clip_scores)
@@ -196,7 +196,7 @@ class KandinskyDatasetLoader:
                 print("An error occured")
             
             index+=1
-            if index>=1000:
+            if index>=batch_size:
                 break
 
         return feature_vectors, scores
