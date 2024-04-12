@@ -190,6 +190,7 @@ class KandinskyDatasetLoader:
                     output_clip_scores = classifier.classify(batch).tolist()
                     scores.extend(output_clip_scores)
                     batch=[]
+                    print("done")
 
                 feature_vectors.append(input_clip_vector)
 
@@ -200,7 +201,7 @@ class KandinskyDatasetLoader:
             if index>batch_size:
                 break
 
-            print(len(scores), scores)
+            print(len(batch))
 
         return feature_vectors, scores
 
