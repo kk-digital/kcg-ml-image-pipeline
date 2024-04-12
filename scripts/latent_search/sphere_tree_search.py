@@ -256,11 +256,11 @@ class RapidlyExploringTreeSearch:
         return optimized_embeddings_list
 
     def generate_images(self, nodes_per_iteration, max_nodes, top_k, jump_distance, num_images):
-        clip_vectors= self.expand_tree(nodes_per_iteration, max_nodes, top_k, jump_distance, num_images)
+        spheres= self.expand_tree(nodes_per_iteration, max_nodes, top_k, jump_distance, num_images)
 
         # Optimization step
         if(self.optimize_samples):
-            clip_vectors = self.optimize_datapoints(clip_vectors, self.classifier_model)
+            clip_vectors = self.optimize_datapoints(spheres)
 
         df_data=[]
 
