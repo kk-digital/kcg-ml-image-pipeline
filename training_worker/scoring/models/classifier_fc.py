@@ -78,7 +78,7 @@ class ClassifierFCNetwork(nn.Module):
 
     def get_model_path(self):
         local_path=f"output/{self.tag_name}-{self.output_type}_fc_{self.input_type}.pth"
-        minio_path=f"environmental/models/classifiers/{self.date}-{self.tag_name}-{self.output_type}-fc-{self.input_type}.pth"
+        minio_path=f"environmental/models/classifiers/{self.tag_name}/{self.date}-{self.tag_name}-{self.output_type}-fc-{self.input_type}.pth"
 
         return local_path, minio_path
 
