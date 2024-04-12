@@ -59,8 +59,8 @@ def main():
                 clip_data = get_object(minio_client, clip_path)
                 clip_vector = msgpack.unpackb(clip_data)['clip-feature-vector']
                 clip_vectors.append(clip_vector)
-            except:
-                print("an error occured")
+            except Exception as e:
+                print(f"an error occured: {e}")
 
         # Convert list of vectors into a numpy array for easier computation
         print(len(clip_vectors), clip_vectors[0].shape)
