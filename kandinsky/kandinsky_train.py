@@ -8,7 +8,8 @@ import torch.nn.functional as F
 from diffusers.optimization import get_scheduler
 from diffusers import DDPMScheduler, UNet2DConditionModel, VQModel
 from transformers import CLIPImageProcessor, CLIPVisionModelWithProjection
-import multiprocessing
+from torch.cuda.amp import GradScaler, autocast
+scaler = GradScaler()
 from PIL import Image
 import numpy as np
 from tqdm.auto import tqdm
@@ -47,7 +48,7 @@ weight_dtype = torch.float32
 
 device = torch.device(0)
 
-optimizer_cls = torch.optim.AdamW
+optimizer_cls = torch.optim.SGD
 
 learning_rate = 1e-4
 
@@ -202,11 +203,10 @@ data_iter = iter(train_dataloader)
 loss_per_epoch=[]
 losses = list()
 
-# # Initialize the gradient scaler for mixed precision training
-# scaler = torch.cuda.amp.GradScaler()
-
 def compute_snr():
     pass
+
+torch.autograd.set_detect_anomaly(True)
 
 while step < max_train_steps:
     try:
@@ -238,18 +238,12 @@ while step < max_train_steps:
     noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
     target = noise
 
-    with torch.cuda.amp.autocast(True):
+    with autocast():
         added_cond_kwargs = {"image_embeds": image_embeds}
         model_pred = unet(noisy_latents, timesteps, None, added_cond_kwargs=added_cond_kwargs).sample[:, :4]
         
         if(epoch==1 and step==0):
             total_memory= log_memory_usage("Forward Pass", total_memory)
-
-        if torch.isnan(model_pred).any():
-            print("NaN values detected in model predictions!")
-        
-        if torch.isnan(target).any():
-            print("NaN values detected in target predictions!")
 
         if snr_gamma is None:
             loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
@@ -264,14 +258,7 @@ while step < max_train_steps:
             loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
             loss = loss.mean()
         
-        if torch.isnan(loss).any():
-            print("NaN values detected in Loss calculation!")
         loss = loss / gradient_accumulation_steps  # Adjust loss for gradient accumulation
-
-    # # Print sizes of model parameters
-    # log_file.write("Parameters: \n\n")
-    # for name, param in unet.named_parameters():
-    #     log_file.write(f"{name}, Size: {param.size()} \n")
 
     # Backward pass profiling
     loss.backward()

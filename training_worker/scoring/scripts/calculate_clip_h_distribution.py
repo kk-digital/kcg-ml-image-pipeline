@@ -29,7 +29,7 @@ def parse_args():
     return parser.parse_args()
 
 def get_job_list(dataset):
-    response = requests.get(f'{API_URL}/image_by_rank/image-list-sorted?dataset={dataset}&limit=4000000&model_type=elm-v1&score_field=image_clip_sigma_score&min_score=1')
+    response = requests.get(f'{API_URL}/image_by_rank/image-list-sorted?dataset={dataset}&limit=4000000&model_type=elm-v1&score_field=image_clip_sigma_score')
         
     jobs = json.loads(response.content)
 
@@ -59,8 +59,8 @@ def main():
                 clip_data = get_object(minio_client, clip_path)
                 clip_vector = msgpack.unpackb(clip_data)['clip-feature-vector']
                 clip_vectors.append(clip_vector)
-            except:
-                print("an error occured")
+            except Exception as e:
+                print(f"an error occured: {e}")
 
         # Convert list of vectors into a numpy array for easier computation
         clip_vectors_np = np.array(clip_vectors)
@@ -79,6 +79,8 @@ def main():
             "max": max_vector.tolist(),
             "min": min_vector.tolist(),
         }
+
+        print(stats)
 
         stats_msgpack = msgpack.packb(stats)
 
