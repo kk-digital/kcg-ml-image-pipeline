@@ -1224,8 +1224,8 @@ def plot_samples_hashless(loaded_model,dataset_name, number_of_samples,tag_name)
 
     tier10 = sorted_images_and_hashes[450:500] 
     tier11 = sorted_images_and_hashes[500:550]
-    tier12 = sorted_images_and_hashes[550:1500]
-
+    tier12 = sorted_images_and_hashes[550:1000]
+    tier13 = sorted_images_and_hashes[550:1400]
     #tag_image(file_hash,tag_id,user)
 
     
@@ -1242,6 +1242,7 @@ def plot_samples_hashless(loaded_model,dataset_name, number_of_samples,tag_name)
     plot_name10 = tag_name + "_tier10_hs"
     plot_name11  = tag_name + "_tier11_hs"
     plot_name12  = tag_name + "_tier12_hs"
+    plot_name13  = tag_name + "_tier13_hs"
 
     plot_images_with_scores_hasheless(selected_structure_first_50,plot_name1)
     plot_images_with_scores_hasheless(selected_structure_second_50,plot_name2)
@@ -1257,7 +1258,7 @@ def plot_samples_hashless(loaded_model,dataset_name, number_of_samples,tag_name)
     plot_images_with_scores_hasheless(tier10,plot_name10)
     plot_images_with_scores_hasheless(tier11,plot_name11)
     plot_images_with_scores_hasheless(tier12,plot_name12)
-
+    plot_images_with_scores_hasheless(tier13,plot_name13)
 
 def get_file_paths(dataset,num_samples):
         
