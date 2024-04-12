@@ -190,9 +190,9 @@ class ClassifierFCNetwork(nn.Module):
                               val_loss, 
                               inference_speed,
                               learning_rate):
-        if self.input_type=="output_clip":
+        if self.input_type=="output-clip":
             input_type="[output_image_clip_vector[1280]]"
-        elif self.input_type=="input_clip":
+        elif self.input_type=="input-clip":
             input_type="[input_clip_vector[1280]]"
 
         report_text = (
