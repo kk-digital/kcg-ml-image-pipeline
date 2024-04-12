@@ -8,8 +8,6 @@ import torch
 import msgpack
 from tqdm import tqdm
 
-from training_worker.scoring.models.classifier_fc import ClassifierFCNetwork
-
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
@@ -17,6 +15,7 @@ from data_loader.utils import get_object
 from training_worker.sampling.models.directional_uniform_sampling_regression_fc import DirectionalSamplingFCRegressionNetwork
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 from training_worker.classifiers.models.elm_regression import ELMRegression
+from training_worker.scoring.models.classifier_fc import ClassifierFCNetwork
 from utility.minio import cmd
 
 def parse_args():
