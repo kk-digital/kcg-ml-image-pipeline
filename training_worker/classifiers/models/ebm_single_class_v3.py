@@ -1224,7 +1224,7 @@ def plot_samples_hashless(loaded_model,dataset_name, number_of_samples,tag_name)
 
     tier10 = sorted_images_and_hashes[450:500] 
     tier11 = sorted_images_and_hashes[500:550]
-    tier12 = sorted_images_and_hashes[550:1000]
+    tier12 = sorted_images_and_hashes[550:1500]
 
     #tag_image(file_hash,tag_id,user)
 
@@ -1288,7 +1288,7 @@ original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
 #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
 
-tag_name_x = "defect-split-pane-image"
+tag_name_x = "topic-desert"
 original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =tag_name_x, model_type = "energy-based-model")
 
 
@@ -1302,7 +1302,7 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 
 
-#plot_samples_hashless(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
+plot_samples_hashless(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
 plot_samples_hashless(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
 
 
