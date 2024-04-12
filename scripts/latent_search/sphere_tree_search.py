@@ -164,7 +164,7 @@ class RapidlyExploringTreeSearch:
                 nearest_points = self.find_nearest_points(point, nodes_per_iteration, covariance_matrix)
                 
                 # Score these points
-                nearest_scores = self.score_points(nearest_points)
+                nearest_scores = self.classifiy_points(nearest_points)
                 
                 # Select top n points based on scores
                 _, sorted_indices = torch.sort(nearest_scores.squeeze(), descending=True)
@@ -188,19 +188,19 @@ class RapidlyExploringTreeSearch:
         pbar.close()
         
         # After the final iteration, choose the top n highest scoring points overall
-        # values, sorted_indices = torch.sort(all_scores.squeeze(1), descending=True)
+        values, sorted_indices = torch.sort(all_scores.squeeze(1), descending=True)
         final_top_points = torch.stack(all_nodes, dim=0)
-        ranking_scores= self.classifiy_points(final_top_points)
+        # ranking_scores= self.score_points(final_top_points)
 
-        values, sorted_indices = torch.sort(ranking_scores.squeeze(1), descending=True)
-        final_top_points=final_top_points[sorted_indices[:num_images* top_k]]
+        # values, sorted_indices = torch.sort(ranking_scores.squeeze(1), descending=True)
+        final_top_points=final_top_points[num_images]
         final_top_points = final_top_points[:,:1280]
 
         # select n random spheres from the top k spheres
-        indices = torch.randperm(final_top_points.size(0))[:num_images]
-        selected_points = final_top_points[indices]
+        # indices = torch.randperm(final_top_points.size(0))[:num_images]
+        # selected_points = final_top_points[indices]
 
-        return selected_points
+        return final_top_points
     
     def generate_images(self, nodes_per_iteration, max_nodes, top_k, jump_distance, num_images):
         clip_vectors= self.expand_tree(nodes_per_iteration, max_nodes, top_k, jump_distance, num_images)
