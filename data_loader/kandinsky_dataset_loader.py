@@ -166,7 +166,6 @@ class KandinskyDatasetLoader:
 
         input_batch=[]
         output_batch=[]
-        index=0
         print("Loading input clip vectors and sigma scores for each job")
         for job in tqdm(jobs):
             try:
@@ -187,7 +186,7 @@ class KandinskyDatasetLoader:
 
                 input_batch.append(input_clip_vector)
                 output_batch.append(output_clip_vector)
-                if len(input_batch) == 256:
+                if len(input_batch) == batch_size:
                     output_features= torch.stack(output_batch, dim=0).squeeze(1).to(device=self.device)
                     output_clip_scores = classifier.classify(output_features).squeeze(1).tolist()
                     scores.extend(output_clip_scores)
@@ -197,13 +196,6 @@ class KandinskyDatasetLoader:
 
             except Exception as e:
                 print(f"An error occured {e}")
-            
-            index+=1
-            if index>1000:
-                break
-        
-        print(feature_vectors[0], len(feature_vectors))
-        print(len(scores))
 
         return feature_vectors, scores
 
