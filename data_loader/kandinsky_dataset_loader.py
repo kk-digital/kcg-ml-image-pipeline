@@ -201,8 +201,6 @@ class KandinskyDatasetLoader:
             if index>batch_size:
                 break
 
-            print(len(batch))
-
         return feature_vectors, scores
 
 def main():
