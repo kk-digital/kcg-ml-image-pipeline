@@ -1224,7 +1224,7 @@ def plot_samples_hashless(loaded_model,dataset_name, number_of_samples,tag_name)
 
     tier10 = sorted_images_and_hashes[450:500] 
     tier11 = sorted_images_and_hashes[500:550]
-    tier12 = sorted_images_and_hashes[550:600]
+    tier12 = sorted_images_and_hashes[550:1000]
 
     #tag_image(file_hash,tag_id,user)
 
