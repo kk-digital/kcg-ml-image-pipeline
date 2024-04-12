@@ -59,7 +59,7 @@ class ABRankingFcTrainingPipeline:
 
     def train(self):
         # load the training dataset
-        inputs, outputs= self.dataloader.load_classifier_scores(self.tag_name)
+        inputs, outputs= self.dataloader.load_classifier_scores(self.tag_name, batch_size=self.classifier_batch_size)
         
         # training and saving the model
         print(f"training an fc model for the {self.tag_name} tag")
