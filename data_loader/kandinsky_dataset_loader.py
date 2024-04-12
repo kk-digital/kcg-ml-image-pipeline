@@ -189,6 +189,7 @@ class KandinskyDatasetLoader:
                 output_batch.append(output_clip_vector)
                 if len(input_batch) == 256:
                     output_features= torch.stack(output_batch, dim=0).to(device=self.device)
+                    print(output_features.shape)
                     output_clip_scores = classifier.classify(output_features)
                     scores.extend(output_clip_scores)
                     feature_vectors.extend(input_batch)
@@ -201,8 +202,6 @@ class KandinskyDatasetLoader:
             index+=1
             if index>1000:
                 break
-
-            print(len(scores), len(feature_vectors))
 
         return feature_vectors, scores
 
