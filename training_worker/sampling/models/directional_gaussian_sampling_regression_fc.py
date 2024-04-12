@@ -116,6 +116,7 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
         start = time.time()
         # Training and Validation Loop
         for epoch in range(num_epochs):
+            self.model.eval()
             total_val_loss = 0
             total_val_samples = 0
             
@@ -125,7 +126,6 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
                     train_loader, val_loader, \
                         train_size, val_size = self.get_data_for_training(n_spheres, target_avg_points, validation_split, batch_size)
 
-            self.model.eval()
             with torch.no_grad():
                 for inputs, targets in val_loader:
                     inputs=inputs.to(self._device)
@@ -137,10 +137,10 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
                     total_val_loss += loss.item() * inputs.size(0)
                     total_val_samples += inputs.size(0)
                     
+            self.model.train()
             total_train_loss = 0
             total_train_samples = 0
             
-            self.model.train()
             for inputs, targets in train_loader:
                 inputs=inputs.to(self._device)
                 targets=targets.to(self._device)
