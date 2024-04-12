@@ -187,15 +187,15 @@ class KandinskyDatasetLoader:
                 batch.append(output_clip_vector)
                 if len(batch) == 256:
                     batch= torch.stack(batch, dim=0).to(device=self.device)
-                    output_clip_scores = classifier.classify(batch).tolist()
+                    output_clip_scores = classifier.classify(batch)
                     scores.extend(output_clip_scores)
                     batch=[]
                     print("done")
 
                 feature_vectors.append(input_clip_vector)
 
-            except:
-                print("An error occured")
+            except Exception as e:
+                print(f"An error occured {e}")
             
             index+=1
             if index>batch_size:
