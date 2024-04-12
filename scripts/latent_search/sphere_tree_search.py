@@ -249,7 +249,6 @@ class RapidlyExploringTreeSearch:
                 print(f"Batch: {batch_idx + 1}/{num_batches}, Step: {step}, Mean ranking Score: {ranking_scores.mean().item()}, Mean classifier Score: {classifier_scores.mean().item()}, Loss: {total_loss.item()}")
 
             # After optimization, detach and add the optimized batch embeddings to the list
-            batch_embeddings=batch_embeddings[:,:1280]
             optimized_batch_embeddings = batch_embeddings.detach()
             optimized_embeddings_list.extend([emb for emb in optimized_batch_embeddings])
 
@@ -260,8 +259,9 @@ class RapidlyExploringTreeSearch:
 
         # Optimization step
         if(self.optimize_samples):
-            clip_vectors = self.optimize_datapoints(spheres)
-
+            spheres = self.optimize_datapoints(spheres)
+        
+        clip_vectors = spheres[:,:1280]
         df_data=[]
 
         for clip_vector in clip_vectors:
