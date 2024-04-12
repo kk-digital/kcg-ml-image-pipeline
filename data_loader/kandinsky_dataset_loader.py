@@ -165,6 +165,7 @@ class KandinskyDatasetLoader:
         scores=[]
 
         batch=[]
+        index=0
         print("Loading input clip vectors and sigma scores for each job")
         for job in tqdm(jobs):
             try:
@@ -193,6 +194,10 @@ class KandinskyDatasetLoader:
 
             except:
                 print("An error occured")
+            
+            index+=1
+            if index>=100:
+                break
 
 def main():
     args= parse_args()
