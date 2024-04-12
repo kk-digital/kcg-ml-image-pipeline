@@ -687,10 +687,11 @@ class DirectionalSamplingResidualXGBoost(nn.Module):
               generate_every_epoch,
               max_depth=7, 
               min_child_weight=1,
-              gamma=0.01, 
-              subsample=1, 
-              colsample_bytree=1, 
+              gamma=0.1, 
               eta=0.1,
+              subsample=0.5, 
+              colsample_bytree=1, 
+              reg_alpha = 5,
               early_stopping=50):
 
         params = {
@@ -702,7 +703,9 @@ class DirectionalSamplingResidualXGBoost(nn.Module):
             'subsample': subsample,
             'colsample_bytree': colsample_bytree,
             'eta': eta,
-            'eval_metric': 'mae'
+            'eval_metric': 'mae',
+            'alpha': reg_alpha,
+            'multi_strategy': 'multi_output_tree'
         }
 
         if trained_model is None:
