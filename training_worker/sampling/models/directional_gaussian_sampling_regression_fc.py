@@ -685,7 +685,7 @@ class DirectionalSamplingResidualXGBoost(nn.Module):
               num_epochs, 
               batch_size,
               generate_every_epoch,
-              max_depth=7, 
+              max_depth=5, 
               min_child_weight=1,
               gamma=0.1, 
               eta=0.1,
@@ -705,7 +705,6 @@ class DirectionalSamplingResidualXGBoost(nn.Module):
             'eta': eta,
             'eval_metric': 'mae',
             'alpha': reg_alpha,
-            'multi_strategy': 'multi_output_tree'
         }
 
         if trained_model is None:
