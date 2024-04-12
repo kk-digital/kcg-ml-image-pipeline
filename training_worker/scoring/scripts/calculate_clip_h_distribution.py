@@ -32,6 +32,7 @@ def get_job_list(dataset):
     response = requests.get(f'{API_URL}/image_by_rank/image-list-sorted?dataset={dataset}&limit=4000000&model_type=elm-v1')
         
     jobs = json.loads(response.content)
+    print(jobs)
 
     return jobs['response']
 
