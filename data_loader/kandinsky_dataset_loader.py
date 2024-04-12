@@ -196,9 +196,9 @@ class KandinskyDatasetLoader:
                 print("An error occured")
             
             index+=1
-            if index>=100:
+            if index>=1000:
                 break
-            
+
         return feature_vectors, scores
 
 def main():
