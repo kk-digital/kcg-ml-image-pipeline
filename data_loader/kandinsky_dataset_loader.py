@@ -197,7 +197,7 @@ class KandinskyDatasetLoader:
                 print("An error occured")
             
             index+=1
-            if index>=batch_size:
+            if index>batch_size:
                 break
 
             print(len(scores), scores)
