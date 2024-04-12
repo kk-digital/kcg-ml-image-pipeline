@@ -63,6 +63,7 @@ def main():
                 print("an error occured")
 
         # Convert list of vectors into a numpy array for easier computation
+        print(len(clip_vectors), clip_vectors[0].shape)
         clip_vectors_np = np.array(clip_vectors)
 
         # Calculate mean and std for each feature
