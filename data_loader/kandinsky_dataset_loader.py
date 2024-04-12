@@ -199,7 +199,7 @@ class KandinskyDatasetLoader:
                 print(f"An error occured {e}")
             
             index+=1
-            if index>batch_size:
+            if index>1000:
                 break
 
             print(len(scores), len(feature_vectors))
