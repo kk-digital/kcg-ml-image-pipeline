@@ -217,8 +217,6 @@ class RapidlyExploringTreeSearch:
     def optimize_datapoints(self, clip_vectors):
         # Calculate the total number of batches
         num_batches = len(clip_vectors) // self.batch_size + (0 if len(clip_vectors) % self.batch_size == 0 else 1)
-        
-        optimized_embeddings_list = []
 
         for batch_idx in range(num_batches):
             # Select a batch of embeddings
@@ -239,7 +237,7 @@ class RapidlyExploringTreeSearch:
                 classifier_scores = self.classifier_model.model(batch_embeddings[:,:1280]).squeeze()
                 
                 # Calculate the total loss for the batch
-                total_loss = - ranking_scores.mean() - classifier_scores.mean()
+                total_loss = - ranking_scores.mean() - (10 * classifier_scores.mean())
 
                 # Backpropagate
                 total_loss.backward()
