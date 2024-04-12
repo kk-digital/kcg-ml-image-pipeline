@@ -198,6 +198,8 @@ class KandinskyDatasetLoader:
             index+=1
             if index>=100:
                 break
+            
+        return feature_vectors, scores
 
 def main():
     args= parse_args()
