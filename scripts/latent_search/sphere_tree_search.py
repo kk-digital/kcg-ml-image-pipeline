@@ -8,6 +8,8 @@ import torch
 import msgpack
 from tqdm import tqdm
 
+from training_worker.scoring.models.classifier_fc import ClassifierFCNetwork
+
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
@@ -66,7 +68,7 @@ class RapidlyExploringTreeSearch:
         self.sphere_scoring_model.load_model()
 
         # get classifier model for selected tag
-        self.classifier_model= self.get_classifier_model(self.tag_name)
+        self.classifier_model= ClassifierFCNetwork(minio_client=self.minio_client, tag_name=tag_name)
 
         # get distribution of clip vectors for the dataset
         self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
@@ -138,7 +140,7 @@ class RapidlyExploringTreeSearch:
     def classifiy_points(self, points):
         dim= points.size(1)//2
         points = points[:,:dim]
-        scores= self.classifier_model.classify(points).to(device=self.device)
+        scores= self.classifier_model.predict(points, batch_size=points.size(0)).to(device=self.device)
         return scores
 
     def expand_tree(self, nodes_per_iteration, max_nodes, top_k, jump_distance, num_images):
@@ -163,7 +165,7 @@ class RapidlyExploringTreeSearch:
                 nearest_points = self.find_nearest_points(point, nodes_per_iteration, covariance_matrix)
                 
                 # Score these points
-                nearest_scores = self.classifiy_points(nearest_points)
+                nearest_scores = self.score_points(nearest_points)
                 
                 # Select top n points based on scores
                 _, sorted_indices = torch.sort(nearest_scores.squeeze(), descending=True)
@@ -187,12 +189,12 @@ class RapidlyExploringTreeSearch:
         pbar.close()
         
         # After the final iteration, choose the top n highest scoring points overall
-        values, sorted_indices = torch.sort(all_scores.squeeze(1), descending=True)
-        final_top_points = torch.stack(all_nodes, dim=0)[sorted_indices[:num_images*100]]
-        ranking_scores= self.score_points(final_top_points)
+        # values, sorted_indices = torch.sort(all_scores.squeeze(1), descending=True)
+        final_top_points = torch.stack(all_nodes, dim=0)
+        ranking_scores= self.classifiy_points(final_top_points)
 
         values, sorted_indices = torch.sort(ranking_scores.squeeze(1), descending=True)
-        final_top_points=final_top_points[sorted_indices]
+        final_top_points=final_top_points[sorted_indices[:num_images* top_k]]
         final_top_points = final_top_points[:,:1280]
 
         # select n random spheres from the top k spheres
