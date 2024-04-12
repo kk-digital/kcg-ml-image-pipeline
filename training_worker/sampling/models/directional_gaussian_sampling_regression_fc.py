@@ -509,8 +509,8 @@ class DirectionalGuassianResidualFCNetwork(DirectionalSamplingFCRegressionNetwor
         self.trained_model.load_model()
         
     def get_model_path(self):
-        local_path=f"output/{self.output_type}_fc_{self.input_type}_residual.pth"
-        minio_path=f"{self.dataset}/models/sampling/{self.date}_directional_gaussian_{self.output_type}_fc_{self.input_type}_residual.pth"
+        local_path=f"output/{self.output_type}_residual_fc_{self.input_type}.pth"
+        minio_path=f"{self.dataset}/models/sampling/{self.date}_directional_gaussian_{self.output_type}_residual_fc_{self.input_type}.pth"
         return local_path, minio_path
     
     def get_data_for_training(self, n_spheres, target_avg_points, validation_split, batch_size):
