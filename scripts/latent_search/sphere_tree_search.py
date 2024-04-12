@@ -237,7 +237,7 @@ class RapidlyExploringTreeSearch:
                 classifier_scores = self.classifier_model.model(batch_embeddings[:,:1280]).squeeze()
                 
                 # Calculate the total loss for the batch
-                total_loss = - ranking_scores.mean() - (10 * classifier_scores.mean())
+                total_loss = - (0.1 * ranking_scores.mean()) - (10 * classifier_scores.mean())
 
                 # Backpropagate
                 total_loss.backward()
