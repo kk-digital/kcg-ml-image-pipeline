@@ -163,7 +163,10 @@ class RapidlyExploringTreeSearch:
                 nearest_points = self.find_nearest_points(point, nodes_per_iteration, covariance_matrix)
                 
                 # Score these points
-                nearest_scores = self.classifiy_points(nearest_points)
+                classifier_scores = self.classifiy_points(nearest_points)
+                ranking_scores = self.score_points(nearest_points)
+
+                nearest_scores= classifier_scores + ranking_scores
                 
                 # Select top n points based on scores
                 _, sorted_indices = torch.sort(nearest_scores.squeeze(), descending=True)
