@@ -202,7 +202,8 @@ class KandinskyDatasetLoader:
             if index>1000:
                 break
         
-        print(feature_vectors)
+        print(feature_vectors[0], len(feature_vectors))
+        print(len(scores))
 
         return feature_vectors, scores
 
