@@ -41,7 +41,7 @@ def main():
     minio_client= cmd.get_minio_client(minio_access_key=args.minio_access_key,
                                        minio_secret_key=args.minio_secret_key)
     
-    datasets=["character", "environmental", "icons", "mech", "propaganda-poster", "waifu"]
+    datasets=["environmental"]
     
     for dataset in datasets:
         print(f"fetching job data for {dataset}...........")
