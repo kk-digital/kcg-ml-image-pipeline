@@ -17,6 +17,7 @@ from kandinsky_worker.dataloaders.image_embedding import ImageEmbedding
 from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
+from training_worker.classifiers.models.elm_regression import ELMRegression
 
 API_URL="http://192.168.3.1:8111"
 
@@ -82,6 +83,37 @@ class KandinskyDatasetLoader:
         ranking_model.load_safetensors(byte_buffer)
 
         return ranking_model
+    
+    def get_classifier_model(self, tag_name):
+        input_path = f"{self.dataset}/models/classifiers/{tag_name}/"
+        file_suffix = "elm-regression-clip-h.safetensors"
+
+        # Use the MinIO client's list_objects method directly with recursive=True
+        model_files = [obj.object_name for obj in self.minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix)]
+        
+        if not model_files:
+            print(f"No .safetensors models found for tag: {tag_name}")
+            return None
+
+        # Assuming there's only one model per tag or choosing the first one
+        model_files.sort(reverse=True)
+        model_file = model_files[0]
+        print(f"Loading model: {model_file}")
+
+        return self.load_model_with_filename(self.minio_client, model_file, tag_name)
+
+    def load_model_with_filename(self, minio_client, model_file, model_info=None):
+        model_data = minio_client.get_object('datasets', model_file)
+        
+        clip_model = ELMRegression(device=self.device)
+        
+        # Create a BytesIO object from the model data
+        byte_buffer = io.BytesIO(model_data.data)
+        clip_model.load_safetensors(byte_buffer)
+
+        print(f"Model loaded for tag: {model_info}")
+        
+        return clip_model
 
 
     def load_kandinsky_jobs(self):
@@ -125,6 +157,42 @@ class KandinskyDatasetLoader:
                 print("An error occured")
         
         return feature_vectors, scores
+    
+    def load_classifier_scores(self, tag_name):
+        classifier= self.get_classifier_model(tag_name)
+        jobs= self.load_kandinsky_jobs()
+        feature_vectors=[]
+        scores=[]
+
+        batch=[]
+        print("Loading input clip vectors and sigma scores for each job")
+        for job in tqdm(jobs):
+            try:
+                file_path= job['file_path']
+                bucket_name, input_file_path = separate_bucket_and_file_path(file_path)
+                file_path = os.path.splitext(input_file_path)[0]
+
+                input_clip_path = file_path + "_embedding.msgpack"
+                clip_data = get_object(self.minio_client, input_clip_path)
+                embedding_dict = ImageEmbedding.from_msgpack_bytes(clip_data)
+                input_clip_vector= embedding_dict.image_embedding
+                input_clip_vector= input_clip_vector[0].cpu().numpy().tolist()
+
+                output_clip_path = file_path + "_clip_kandinsky.msgpack"
+                features_data = get_object(self.minio_client, output_clip_path)
+                features_vector = msgpack.unpackb(features_data)["clip-feature-vector"]
+                output_clip_vector= torch.tensor(features_vector).to(device=self.device)
+
+                batch.append(output_clip_vector)
+                if len(batch)==1000:
+                    batch= torch.stack(batch, dim=0).to(device=self.device)
+                    output_clip_scores = classifier.classify(batch)
+                    scores.extend(output_clip_scores)
+
+                feature_vectors.append(input_clip_vector)
+
+            except:
+                print("An error occured")
 
 def main():
     args= parse_args()
