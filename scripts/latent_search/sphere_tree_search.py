@@ -207,7 +207,6 @@ class RapidlyExploringTreeSearch:
 
         # values, sorted_indices = torch.sort(ranking_scores.squeeze(1), descending=True)
         final_top_points=final_top_points[:num_images]
-        final_top_points = final_top_points[:,:1280]
 
         # select n random spheres from the top k spheres
         # indices = torch.randperm(final_top_points.size(0))[:num_images]
@@ -215,7 +214,7 @@ class RapidlyExploringTreeSearch:
 
         return final_top_points
     
-    def optimize_datapoints(self, clip_vectors, scoring_model):
+    def optimize_datapoints(self, clip_vectors):
         # Calculate the total number of batches
         num_batches = len(clip_vectors) // self.batch_size + (0 if len(clip_vectors) % self.batch_size == 0 else 1)
         
@@ -233,21 +232,21 @@ class RapidlyExploringTreeSearch:
             for step in range(self.steps):
                 optimizer.zero_grad()
 
-                # Compute scores for the current batch of embeddings
-                scores = scoring_model.model(batch_embeddings)
-
-                # Calculate the loss for each embedding in the batch
-                score_losses = -scores.squeeze()
-
+                # Compute ranking scores for the current batch of embeddings
+                ranking_scores = self.sphere_scoring_model.model(batch_embeddings).squeeze()
+                
+                # Compute classifier scores for the current batch of embeddings
+                classifier_scores = self.classifier_model.model(batch_embeddings[:,:1280]).squeeze()
+                
                 # Calculate the total loss for the batch
-                total_loss = score_losses.mean()
+                total_loss = - ranking_scores.mean() - classifier_scores.mean()
 
                 # Backpropagate
                 total_loss.backward()
 
                 optimizer.step()
 
-                print(f"Batch: {batch_idx + 1}/{num_batches}, Step: {step}, Mean Score: {scores.mean().item()}, Loss: {total_loss.item()}")
+                print(f"Batch: {batch_idx + 1}/{num_batches}, Step: {step}, Mean ranking Score: {ranking_scores.mean().item()}, Mean classifier Score: {classifier_scores.mean().item()}, Loss: {total_loss.item()}")
 
             # After optimization, detach and add the optimized batch embeddings to the list
             optimized_batch_embeddings = batch_embeddings.detach()
