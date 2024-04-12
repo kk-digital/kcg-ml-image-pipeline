@@ -29,7 +29,7 @@ def parse_args():
     return parser.parse_args()
 
 def get_job_list(dataset):
-    response = requests.get(f'{API_URL}/image_by_rank/image-list-sorted?dataset={dataset}&limit=4000000&model_type=elm-v1&score_field=image_clip_sigma_score&min_score=1')
+    response = requests.get(f'{API_URL}/image_by_rank/image-list-sorted?dataset={dataset}&limit=4000000&model_type=elm-v1')
         
     jobs = json.loads(response.content)
 
@@ -80,6 +80,7 @@ def main():
             "min": min_vector.tolist(),
         }
 
+        print(stats)
         stats_msgpack = msgpack.packb(stats)
 
         data = BytesIO()
