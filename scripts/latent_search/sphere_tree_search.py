@@ -248,11 +248,7 @@ class RapidlyExploringTreeSearch:
 
                 print(f"Batch: {batch_idx + 1}/{num_batches}, Step: {step}, Mean ranking Score: {ranking_scores.mean().item()}, Mean classifier Score: {classifier_scores.mean().item()}, Loss: {total_loss.item()}")
 
-            # After optimization, detach and add the optimized batch embeddings to the list
-            optimized_batch_embeddings = batch_embeddings.detach()
-            optimized_embeddings_list.extend([emb for emb in optimized_batch_embeddings])
-
-        return optimized_embeddings_list
+        return batch_embeddings
 
     def generate_images(self, nodes_per_iteration, max_nodes, top_k, jump_distance, num_images):
         spheres= self.expand_tree(nodes_per_iteration, max_nodes, top_k, jump_distance, num_images)
