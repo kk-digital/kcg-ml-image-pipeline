@@ -192,7 +192,8 @@ class KandinskyDatasetLoader:
                     output_clip_scores = classifier.classify(output_features)
                     scores.extend(output_clip_scores)
                     feature_vectors.extend(input_batch)
-                    batch=[]
+                    input_batch=[]
+                    output_batch=[]
 
             except Exception as e:
                 print(f"An error occured {e}")
@@ -200,6 +201,8 @@ class KandinskyDatasetLoader:
             index+=1
             if index>batch_size:
                 break
+
+            print(len(scores), len(feature_vectors))
 
         return feature_vectors, scores
 
