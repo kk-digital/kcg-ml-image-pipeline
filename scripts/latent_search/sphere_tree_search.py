@@ -38,8 +38,8 @@ def parse_args():
         parser.add_argument('--save-csv', action='store_true', default=False)
         parser.add_argument('--sampling-policy', type=str, default="rapidly_exploring_tree_search")
         parser.add_argument('--optimize-samples', action='store_true', default=False)
-        parser.add_argument('--classifier-weight', type=int, default=1)
-        parser.add_argument('--ranking-weight', type=int, default=0)
+        parser.add_argument('--classifier-weight', type=float, default=1)
+        parser.add_argument('--ranking-weight', type=float, default=0)
 
         return parser.parse_args()
 
