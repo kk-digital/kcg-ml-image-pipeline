@@ -38,6 +38,8 @@ def parse_args():
         parser.add_argument('--save-csv', action='store_true', default=False)
         parser.add_argument('--sampling-policy', type=str, default="rapidly_exploring_tree_search")
         parser.add_argument('--optimize-samples', action='store_true', default=False)
+        parser.add_argument('--classifier-weight', type=int, default=1)
+        parser.add_argument('--ranking-weight', type=int, default=0)
 
         return parser.parse_args()
 
@@ -53,7 +55,9 @@ class RapidlyExploringTreeSearch:
                  sampling_policy,
                  send_job,
                  save_csv,
-                 optimize_samples):
+                 optimize_samples,
+                 ranking_weight,
+                 classifier_weight):
         
         # parameters
         self.dataset= dataset  
@@ -65,6 +69,8 @@ class RapidlyExploringTreeSearch:
         self.send_job= send_job
         self.save_csv= save_csv
         self.optimize_samples= optimize_samples
+        self.ranking_weight= ranking_weight
+        self.classifier_weight= classifier_weight
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
                                                 minio_secret_key=minio_secret_key)
@@ -237,7 +243,7 @@ class RapidlyExploringTreeSearch:
                 classifier_scores = self.classifier_model.model(batch_embeddings[:,:1280]).squeeze()
                 
                 # Calculate the total loss for the batch
-                total_loss = - (0.1 * ranking_scores.mean()) - (10 * classifier_scores.mean())
+                total_loss = - (self.ranking_weight * ranking_scores.mean()) - (self.classifier_weight * classifier_scores.mean())
 
                 # Backpropagate
                 total_loss.backward()
@@ -320,7 +326,9 @@ def main():
                                         sampling_policy= args.sampling_policy,
                                         send_job= args.send_job,
                                         save_csv= args.save_csv,
-                                        optimize_samples= args.optimize_samples)
+                                        optimize_samples= args.optimize_samples,
+                                        ranking_weight= args.ranking_weight,
+                                        classifier_weight= args.classifier_weight)
 
     generator.generate_images(nodes_per_iteration=args.nodes_per_iteration,
                           max_nodes= args.max_nodes,
