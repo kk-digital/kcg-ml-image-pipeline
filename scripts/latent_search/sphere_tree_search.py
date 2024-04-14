@@ -87,6 +87,7 @@ class RapidlyExploringTreeSearch:
 
         # get classifier model for selected tag
         self.classifier_model= ClassifierFCNetwork(minio_client=self.minio_client, tag_name=tag_name)
+        self.classifier_model.load_model()
 
         # get distribution of clip vectors for the dataset
         self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
