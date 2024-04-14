@@ -229,7 +229,7 @@ class RapidlyExploringTreeSearch:
 
         all_ranks= classifier_ranks + quality_ranks
         values, sorted_indices = torch.sort(all_ranks, descending=True)
-        final_top_points = torch.stack(all_nodes, dim=0)[sorted_indices[:num_images//top_k]]
+        final_top_points = torch.stack(all_nodes, dim=0)[sorted_indices[:int(num_images/top_k)]]
 
         # select n random spheres from the top k spheres
         indices = torch.randperm(final_top_points.size(0))[:num_images]
