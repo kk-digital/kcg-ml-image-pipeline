@@ -164,12 +164,12 @@ class RapidlyExploringTreeSearch:
     
     def rank_points(self, spheres):
         # calculate ranking and classifier scores
-        classifier_scores = self.classifiy_points(spheres)
-        ranking_scores = self.score_points(spheres)
+        classifier_scores = self.classifiy_points(spheres).squeeze(1)
+        ranking_scores = self.score_points(spheres).squeeze(1)
 
         # combine scores
-        classifier_ranks= self.classifier_weight * torch.softmax(classifier_scores, dim=1) 
-        quality_ranks=  self.ranking_weight * torch.softmax(ranking_scores, dim=1)
+        classifier_ranks= self.classifier_weight * torch.softmax(classifier_scores, dim=0) 
+        quality_ranks=  self.ranking_weight * torch.softmax(ranking_scores, dim=0)
         ranks= classifier_ranks + quality_ranks
 
         return ranks, classifier_scores, ranking_scores 
@@ -200,7 +200,7 @@ class RapidlyExploringTreeSearch:
                 ranks, classifier_scores, ranking_scores = self.rank_points(nearest_points)
                 
                 # Select top n points based on scores
-                _, sorted_indices = torch.sort(ranks.squeeze(), descending=True)
+                _, sorted_indices = torch.sort(ranks, descending=True)
                 top_points = nearest_points[sorted_indices[:top_k]]
                 top_classifier_scores = classifier_scores[sorted_indices[:top_k]]
                 top_ranking_scores = ranking_scores[sorted_indices[:top_k]]
@@ -223,12 +223,11 @@ class RapidlyExploringTreeSearch:
         pbar.close()
         
         # After the final iteration, choose the top n highest scoring points overall
-        print(all_classifier_scores.shape, all_ranking_scores.shape)
-        classifier_ranks= self.classifier_weight * torch.softmax(all_classifier_scores, dim=1) 
-        quality_ranks= self.ranking_weight * torch.softmax(all_ranking_scores, dim=1)
+        classifier_ranks= self.classifier_weight * torch.softmax(all_classifier_scores, dim=0) 
+        quality_ranks= self.ranking_weight * torch.softmax(all_ranking_scores, dim=0)
 
         all_ranks= classifier_ranks + quality_ranks
-        values, sorted_indices = torch.sort(all_ranks.squeeze(1), descending=True)
+        values, sorted_indices = torch.sort(all_ranks, descending=True)
         final_top_points = torch.stack(all_nodes, dim=0)[sorted_indices[:num_images*top_k]]
 
         # ranking_scores= self.score_points(final_top_points)
