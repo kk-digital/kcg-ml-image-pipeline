@@ -28,8 +28,9 @@ def parse_args():
         parser.add_argument('--tag-name', type=str, help='Name of the tag to generate for', default="topic-forest")
         parser.add_argument('--num-images', type=int, help='Number of images to generate', default=100)
         parser.add_argument('--nodes-per-iteration', type=int, help='Number of nodes to evaluate each iteration', default=1000)
-        parser.add_argument('--top-k', type=int, help='Number of nodes to expand on each iteration', default=10)
-        parser.add_argument('--max-nodes', type=int, help='Number of maximum nodes', default=1e+6)
+        parser.add_argument('--branches-per-iteration', type=int, help='Number of branches to expand each iteration', default=10)
+        parser.add_argument('--top-k', type=float, default=0.01)
+        parser.add_argument('--max-nodes', type=int, help='Number of maximum nodes', default=1e+7)
         parser.add_argument('--jump-distance', type=float, help='Jump distance for each node', default=0.01)
         parser.add_argument('--batch-size', type=int, help='Inference batch size used by the scoring model', default=256)
         parser.add_argument('--steps', type=int, help='Optimization steps', default=200)
@@ -174,7 +175,7 @@ class RapidlyExploringTreeSearch:
 
         return ranks, classifier_scores, ranking_scores 
 
-    def expand_tree(self, nodes_per_iteration, max_nodes, top_k, jump_distance, num_images):
+    def expand_tree(self, nodes_per_iteration, branches_per_iteration, max_nodes, top_k, jump_distance, num_images):
         radius= torch.rand(1, len(self.max_radius), device=self.device) * (self.max_radius - self.min_radius) + self.min_radius
         sphere= torch.cat([self.clip_mean, radius], dim=1)
         current_generation = [sphere.squeeze()]
@@ -201,9 +202,9 @@ class RapidlyExploringTreeSearch:
                 
                 # Select top n points based on scores
                 _, sorted_indices = torch.sort(ranks, descending=True)
-                top_points = nearest_points[sorted_indices[:top_k]]
-                top_classifier_scores = classifier_scores[sorted_indices[:top_k]]
-                top_ranking_scores = ranking_scores[sorted_indices[:top_k]]
+                top_points = nearest_points[sorted_indices[:branches_per_iteration]]
+                top_classifier_scores = classifier_scores[sorted_indices[:branches_per_iteration]]
+                top_ranking_scores = ranking_scores[sorted_indices[:branches_per_iteration]]
 
                 # Keep track of all nodes and their scores for selection later
                 all_classifier_scores = torch.cat((all_classifier_scores, top_classifier_scores), dim=0)
@@ -228,11 +229,7 @@ class RapidlyExploringTreeSearch:
 
         all_ranks= classifier_ranks + quality_ranks
         values, sorted_indices = torch.sort(all_ranks, descending=True)
-        final_top_points = torch.stack(all_nodes, dim=0)[sorted_indices[:num_images*top_k]]
-
-        # ranking_scores= self.score_points(final_top_points)
-        # values, sorted_indices = torch.sort(ranking_scores.squeeze(1), descending=True)
-        # final_top_points=final_top_points[:num_images]
+        final_top_points = torch.stack(all_nodes, dim=0)[sorted_indices[:num_images//top_k]]
 
         # select n random spheres from the top k spheres
         indices = torch.randperm(final_top_points.size(0))[:num_images]
@@ -274,8 +271,8 @@ class RapidlyExploringTreeSearch:
 
         return batch_embeddings
 
-    def generate_images(self, nodes_per_iteration, max_nodes, top_k, jump_distance, num_images):
-        spheres= self.expand_tree(nodes_per_iteration, max_nodes, top_k, jump_distance, num_images)
+    def generate_images(self, nodes_per_iteration, branches_per_iteration, max_nodes, top_k, jump_distance, num_images):
+        spheres= self.expand_tree(nodes_per_iteration, branches_per_iteration, max_nodes, top_k, jump_distance, num_images)
 
         # Optimization step
         if(self.optimize_samples):
@@ -351,6 +348,7 @@ def main():
                                         classifier_weight= args.classifier_weight)
 
     generator.generate_images(nodes_per_iteration=args.nodes_per_iteration,
+                          branches_per_iteration=args.branches_per_iteration,
                           max_nodes= args.max_nodes,
                           top_k= args.top_k,
                           jump_distance= args.jump_distance,
