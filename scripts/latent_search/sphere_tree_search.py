@@ -169,9 +169,9 @@ class RapidlyExploringTreeSearch:
         ranking_scores = self.score_points(spheres).squeeze(1)
 
         # combine scores
-        classifier_ranks= self.classifier_weight * torch.softmax(classifier_scores, dim=0) 
-        quality_ranks=  self.ranking_weight * torch.softmax(ranking_scores, dim=0)
-        ranks= classifier_ranks + quality_ranks
+        classifier_ranks= torch.softmax(classifier_scores, dim=0) 
+        quality_ranks=  torch.softmax(ranking_scores, dim=0)
+        ranks= (classifier_ranks * quality_ranks).sqrt()
 
         return ranks, classifier_scores, ranking_scores 
 
@@ -224,10 +224,10 @@ class RapidlyExploringTreeSearch:
         pbar.close()
         
         # After the final iteration, choose the top n highest scoring points overall
-        classifier_ranks= self.classifier_weight * torch.softmax(all_classifier_scores, dim=0) 
-        quality_ranks= self.ranking_weight * torch.softmax(all_ranking_scores, dim=0)
+        classifier_ranks= torch.softmax(all_classifier_scores, dim=0) 
+        quality_ranks= torch.softmax(all_ranking_scores, dim=0)
 
-        all_ranks= classifier_ranks + quality_ranks
+        all_ranks= (classifier_ranks * quality_ranks).sqrt()
         values, sorted_indices = torch.sort(all_ranks, descending=True)
         final_top_points = torch.stack(all_nodes, dim=0)[sorted_indices[:int(num_images/top_k)]]
 
