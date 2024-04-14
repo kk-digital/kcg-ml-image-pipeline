@@ -167,6 +167,7 @@ class RapidlyExploringTreeSearch:
         classifier_scores = self.classifiy_points(spheres)
         ranking_scores = self.score_points(spheres)
 
+        print(classifier_scores.shape, ranking_scores.shape)
         # combine scores
         classifier_ranks= self.classifier_weight * torch.softmax(classifier_scores) 
         quality_ranks=  self.ranking_weight * torch.softmax(ranking_scores)
