@@ -1301,7 +1301,7 @@ original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
 #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
 
-tag_name_x = "perspective-isometric "#"topic-desert"
+tag_name_x = "defect-only-a-texture" #"topic-desert"
 original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =tag_name_x, model_type = "energy-based-model")
 
 
