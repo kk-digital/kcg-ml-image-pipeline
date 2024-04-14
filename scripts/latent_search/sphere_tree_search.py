@@ -167,11 +167,9 @@ class RapidlyExploringTreeSearch:
         classifier_scores = self.classifiy_points(spheres)
         ranking_scores = self.score_points(spheres)
 
-        print(classifier_scores.shape, ranking_scores.shape)
         # combine scores
         classifier_ranks= self.classifier_weight * torch.softmax(classifier_scores, dim=1) 
         quality_ranks=  self.ranking_weight * torch.softmax(ranking_scores, dim=1)
-
         ranks= classifier_ranks + quality_ranks
 
         return ranks, classifier_scores, ranking_scores 
@@ -225,8 +223,9 @@ class RapidlyExploringTreeSearch:
         pbar.close()
         
         # After the final iteration, choose the top n highest scoring points overall
-        classifier_ranks= self.classifier_weight * torch.softmax(all_classifier_scores) 
-        quality_ranks= self.ranking_weight * torch.softmax(all_ranking_scores)
+        print(all_classifier_scores.shape, all_ranking_scores.shape)
+        classifier_ranks= self.classifier_weight * torch.softmax(all_classifier_scores, dim=1) 
+        quality_ranks= self.ranking_weight * torch.softmax(all_ranking_scores, dim=1)
 
         all_ranks= classifier_ranks + quality_ranks
         values, sorted_indices = torch.sort(all_ranks.squeeze(1), descending=True)
