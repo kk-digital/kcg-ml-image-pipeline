@@ -1272,6 +1272,85 @@ def plot_samples_hashless(loaded_model,dataset_name, number_of_samples,tag_name)
     plot_images_with_scores_hasheless(tier15,plot_name15)
 
 
+
+def plot_samples_hashless_from_target_dataset(loaded_model, tag_id ,tag_name):
+
+    images_paths = get_tag_jobs(tag_id)
+    
+    # Process the images
+    sorted_images_and_hashes = process_and_sort_dataset(images_paths, loaded_model) 
+
+    rank = 1
+    for image in sorted_images_and_hashes:
+        #
+        print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2])
+        rank += 0
+    # Tag the images
+
+    
+    selected_structure_first_50 = sorted_images_and_hashes[:52] 
+    # selected_structure_second_50 = sorted_images_and_hashes[52:103]
+    # selected_structure_third_50 = sorted_images_and_hashes[103:154]
+    
+    # tier4 = sorted_images_and_hashes[150:200] 
+    # tier5 = sorted_images_and_hashes[200:250]
+    # tier6 = sorted_images_and_hashes[250:300]
+    # tier7 = sorted_images_and_hashes[300:350] 
+    # tier8 = sorted_images_and_hashes[350:400]
+    # tier9 = sorted_images_and_hashes[400:450]
+
+
+
+    # tier10 = sorted_images_and_hashes[450:500] 
+    # tier11 = sorted_images_and_hashes[500:550]
+    # tier12 = sorted_images_and_hashes[550:750]
+    # tier13 = sorted_images_and_hashes[750:950]
+    # tier14 = sorted_images_and_hashes[950:1150]
+    # tier15 = sorted_images_and_hashes[1150:1350]
+
+    #tag_image(file_hash,tag_id,user)
+
+    
+    plot_name1 = tag_name + "_tier1_hs"
+    # plot_name2 = tag_name + "_tier2_hs"
+    # plot_name3  = tag_name + "_tier3_hs"
+    # plot_name4 = tag_name + "_tier4_hs"
+    # plot_name5 = tag_name + "_tier5_hs"
+    # plot_name6  = tag_name + "_tier6_hs"
+    # plot_name7 = tag_name + "_tier7_hs"
+    # plot_name8  = tag_name + "_tier8_hs"
+    # plot_name9  = tag_name + "_tier9_hs"
+
+    # plot_name10 = tag_name + "_tier10_hs"
+    # plot_name11  = tag_name + "_tier11_hs"
+    # plot_name12  = tag_name + "_tier12_hs"
+
+
+    # plot_name13 = tag_name + "_tier13_hs"
+    # plot_name14  = tag_name + "_tier14_hs"
+    # plot_name15  = tag_name + "_tier15_hs"
+
+    plot_images_with_scores_hasheless(selected_structure_first_50,plot_name1)
+    # plot_images_with_scores_hasheless(selected_structure_second_50,plot_name2)
+    # plot_images_with_scores_hasheless(selected_structure_third_50,plot_name3)
+
+    # plot_images_with_scores_hasheless(tier4,plot_name4)
+    # plot_images_with_scores_hasheless(tier5,plot_name5)
+    # plot_images_with_scores_hasheless(tier6,plot_name6)
+    # plot_images_with_scores_hasheless(tier7,plot_name7)
+    # plot_images_with_scores_hasheless(tier8,plot_name8)
+    # plot_images_with_scores_hasheless(tier9,plot_name9)
+
+    # plot_images_with_scores_hasheless(tier10,plot_name10)
+    # plot_images_with_scores_hasheless(tier11,plot_name11)
+    # plot_images_with_scores_hasheless(tier12,plot_name12)
+
+    
+    # plot_images_with_scores_hasheless(tier13,plot_name13)
+    # plot_images_with_scores_hasheless(tier14,plot_name14)
+    # plot_images_with_scores_hasheless(tier15,plot_name15)
+
+
 def get_file_paths(dataset,num_samples):
         
         response = requests.get(f'{API_URL}/queue/image-generation/list-by-dataset?dataset={dataset}&size={num_samples}')
@@ -1301,7 +1380,7 @@ original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
 #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
 
-tag_name_x = "defect-only-a-texture" #"topic-desert"
+tag_name_x = "topic-desert" #"topic-desert"
 original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =tag_name_x, model_type = "energy-based-model")
 
 
@@ -1315,8 +1394,9 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 
 
+plot_samples_hashless_from_target_dataset(original_model, 21 ,tag_name = tag_name_x)
 #plot_samples_hashless(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
-plot_samples_hashless(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
+#plot_samples_hashless(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
 
 
 

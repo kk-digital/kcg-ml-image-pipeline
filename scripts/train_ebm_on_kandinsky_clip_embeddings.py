@@ -1634,33 +1634,33 @@ def tag_images(dataset_name, number_of_samples, number_of_images_to_tag,tag_name
 
 
 
-idi = ['datasets/environmental/0042/041848.jpg','datasets/environmental/0263/262253.jpg','datasets/environmental/0056/055126.jpg']
-ood = ['datasets/environmental/0058/057516.jpg','datasets/environmental/0214/213301.jpg','datasets/environmental/0063/062805.jpg']
+# idi = ['datasets/environmental/0042/041848.jpg','datasets/environmental/0263/262253.jpg','datasets/environmental/0056/055126.jpg']
+# ood = ['datasets/environmental/0058/057516.jpg','datasets/environmental/0214/213301.jpg','datasets/environmental/0063/062805.jpg']
 
 
-_, clip_h_vector = get_clip_and_image_from_path(idi[0])
+# _, clip_h_vector = get_clip_and_image_from_path(idi[0])
 
-print(clip_h_vector)
+# print(clip_h_vector)
 
-# EBM
-original_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-# Load the last occult trained model
-load_model_to_minio(original_model,'topic-aquatic')
-score = original_model.cnn(clip_h_vector.unsqueeze(0).to(original_model.device)).cpu()
+# # EBM
+# original_model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# # Load the last occult trained model
+# load_model_to_minio(original_model,'topic-aquatic')
+# score = original_model.cnn(clip_h_vector.unsqueeze(0).to(original_model.device)).cpu()
 
-# ELM
-
-
-elm_model = ELMRegression()
-#def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
-elm_model.load_model(minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-aquatic", model_type = "elm-regression", not_include= 'batatatatatata', device= original_model.device)
+# # ELM
 
 
+# elm_model = ELMRegression()
+# #def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
+# elm_model.load_model(minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = "topic-aquatic", model_type = "elm-regression", not_include= 'batatatatatata', device= original_model.device)
 
-print( elm_model == None)
 
-# print("the EBM score is : ",score)
-# print("the ELM score is : ", elm_model.classify(clip_h_vector))
+
+# print( elm_model == None)
+
+# # print("the EBM score is : ",score)
+# # print("the ELM score is : ", elm_model.classify(clip_h_vector))
 
 
 
