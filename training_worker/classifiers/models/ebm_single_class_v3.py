@@ -1393,9 +1393,10 @@ from training_worker.classifiers.models.elm_regression import ELMRegression
 elm_model, _ = load_model_elm(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = tag_name_x, model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
 
 
-
-#plot_samples_hashless_from_target_dataset(original_model, 4 ,tag_name = tag_name_x)
-plot_samples_hashless_from_target_dataset(elm_model, 4 ,tag_name = tag_name_x)
+# 4 Iso 
+# 18 Forest
+plot_samples_hashless_from_target_dataset(original_model, 18 ,tag_name = tag_name_x)
+#plot_samples_hashless_from_target_dataset(elm_model, 18 ,tag_name = tag_name_x)
 
 #plot_samples_hashless(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
 #plot_samples_hashless(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
