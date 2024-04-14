@@ -308,7 +308,7 @@ class RapidlyExploringTreeSearch:
         buffer.seek(0)
 
         current_date=datetime.now().strftime("%Y-%m-%d-%H:%M")
-        minio_path= minio_path + f"/{current_date}-{self.sampling_policy}-{self.dataset}.csv"
+        minio_path= minio_path + f"/{current_date}-{self.sampling_policy}-{self.dataset}-{self.tag_name}.csv"
         cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
         # Remove the temporary file
         os.remove(local_path)
