@@ -390,6 +390,17 @@ class RequestClassifier(BaseModel):
                 "model_path": self.model_path,
             }    
 
+class UpdateClassifier(BaseModel):
+        classifier_name: str
+        latest_model: str
+        model_path: str
+
+        def to_dict(self):
+            return{
+                "classifier_name": self.classifier_name,
+                "latest_model": self.latest_model,
+                "model_path": self.model_path,
+            }   
 
 class Worker(BaseModel):
     last_seen: Union[str, None] = None

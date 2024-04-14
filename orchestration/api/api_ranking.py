@@ -1121,6 +1121,7 @@ async def sort_ranking_data_by_date_v2(
     request: Request,
     dataset: str = Query(..., description="Dataset to filter by"),
     start_date: Optional[str] = Query(None, description="Start date (inclusive) in YYYY-MM-DD format"),
+    rank_model_id: int = Query(None, description="Rank model ID to filter by"),
     end_date: Optional[str] = Query(None, description="End date (inclusive) in YYYY-MM-DD format"),
     skip: int = Query(0, alias="offset"),
     limit: int = Query(10, alias="limit"),
@@ -1133,7 +1134,7 @@ async def sort_ranking_data_by_date_v2(
         end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
 
         # Build the query filter based on dataset and optional dates
-        query_filter = {"dataset": dataset}
+        query_filter = {"dataset": dataset, "rank_model_id": rank_model_id}
         if start_date_obj or end_date_obj:
             date_filter = {}
             if start_date_obj:
@@ -1493,7 +1494,7 @@ async def read_relevancy_file(request: Request, dataset: str, filename: str = Qu
         )
 
 
-@router.put("/rank/update_datapoint_v1", 
+@router.put("/rank/update-ranking-datapoint", 
             tags=['ranking'], 
             response_model=StandardSuccessResponseV1[Selection],
             responses=ApiResponseHandlerV1.listErrors([404, 422]))
@@ -1567,60 +1568,3 @@ async def update_ranking_file(request: Request, dataset: str, filename: str, upd
         response_data=updated_document,
         http_status_code=200,
     )
-
-
-@router.get("/rank/list-ranking-data-by-rank", 
-            description="list rank data by rannk",
-            tags=["ranking"],
-            response_model=StandardSuccessResponseV1[ListSelection],  
-            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-async def sort_ranking_data_by_date_v2(
-    request: Request,
-    dataset: str = Query(..., description="Dataset to filter by"),
-    rank_model_id: int = Query(None, description="Rank model ID to filter by"),
-    start_date: Optional[str] = Query(None, description="Start date (inclusive) in YYYY-MM-DD format"),
-    end_date: Optional[str] = Query(None, description="End date (inclusive) in YYYY-MM-DD format"),
-    skip: int = Query(0, alias="offset"),
-    limit: int = Query(10, alias="limit"),
-    order: str = Query("desc", regex="^(desc|asc)$")
-):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-    try:
-        # Convert start_date and end_date strings to datetime objects, if provided
-        start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else None
-        end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
-
-        # Build the query filter based on dataset and optional dates
-        query_filter = {"dataset": dataset, "rank_model_id": rank_model_id}
-
-        if start_date_obj or end_date_obj:
-            date_filter = {}
-            if start_date_obj:
-                date_filter["$gte"] = start_date_obj
-            if end_date_obj:
-                date_filter["$lte"] = end_date_obj
-            query_filter["datetime"] = date_filter 
-
-        # Determine the sort order
-        sort_order = pymongo.DESCENDING if order == "desc" else pymongo.ASCENDING
-
-        # Fetch and sort data from MongoDB with pagination
-        cursor = request.app.image_pair_ranking_collection.find(query_filter).sort(
-            "datetime", sort_order  
-        ).skip(skip).limit(limit)
-
-        # Convert cursor to list of dictionaries
-        ranking_data = [doc for doc in cursor]
-        for doc in ranking_data:
-            doc['_id'] = str(doc['_id'])  # Convert ObjectId to string for JSON serialization
-        
-        return response_handler.create_success_response_v1(
-            response_data={"ranking_data": ranking_data}, 
-            http_status_code=200
-        )
-    except Exception as e:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=f"Internal Server Error: {str(e)}",
-            http_status_code=500
-        )   

@@ -171,9 +171,15 @@ async def add_pseudo_tag_to_image(request: Request, pseudo_tag: ImagePseudoTagRe
         if existing_pseudo_tag:
             # Update the score if pseudo tag already exists
             request.app.pseudo_tag_images_collection.update_one(
-                {"_id": existing_pseudo_tag["_id"]}, 
-                {"$set": {"score": pseudo_tag.score}}
-            )
+            {"_id": existing_pseudo_tag["_id"]}, 
+            {
+                "$set": {
+                    "classifier_id": pseudo_tag.classifier_id,
+                    "score": pseudo_tag.score
+                }
+            }
+        )
+
             
             # Retrieve the updated document to include in the response
             updated_pseudo_tag = request.app.pseudo_tag_images_collection.find_one({"_id": existing_pseudo_tag["_id"]})
