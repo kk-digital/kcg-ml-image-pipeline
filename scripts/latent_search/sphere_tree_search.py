@@ -171,7 +171,7 @@ class RapidlyExploringTreeSearch:
         # combine scores
         classifier_ranks= torch.softmax(classifier_scores, dim=0) 
         quality_ranks=  torch.softmax(ranking_scores, dim=0)
-        ranks= (classifier_ranks * quality_ranks).sqrt()
+        ranks= torch.min(classifier_ranks , quality_ranks)
 
         return ranks, classifier_scores, ranking_scores 
 
@@ -227,7 +227,7 @@ class RapidlyExploringTreeSearch:
         classifier_ranks= torch.softmax(all_classifier_scores, dim=0) 
         quality_ranks= torch.softmax(all_ranking_scores, dim=0)
 
-        all_ranks= (classifier_ranks * quality_ranks).sqrt()
+        all_ranks= torch.min(classifier_ranks , quality_ranks)
         values, sorted_indices = torch.sort(all_ranks, descending=True)
         final_top_points = torch.stack(all_nodes, dim=0)[sorted_indices[:int(num_images/top_k)]]
 
