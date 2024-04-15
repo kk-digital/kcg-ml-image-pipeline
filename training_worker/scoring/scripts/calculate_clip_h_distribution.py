@@ -41,7 +41,7 @@ def main():
     minio_client= cmd.get_minio_client(minio_access_key=args.minio_access_key,
                                        minio_secret_key=args.minio_secret_key)
     
-    datasets=["character", "environmental", "icons", "mech", "propaganda-poster", "waifu"]
+    datasets=["environmental", "character", "icons", "mech", "propaganda-poster", "waifu"]
     
     for dataset in datasets:
         print(f"fetching job data for {dataset}...........")
@@ -73,14 +73,18 @@ def main():
         max_vector = np.max(clip_vectors_np, axis=0)
         min_vector = np.min(clip_vectors_np, axis=0)
 
+        # calculate covariance matrix
+        covariance_matrix = np.cov(clip_vectors, rowvar=False)
+
         stats = {
             "mean": mean_vector.tolist(),
             "std": std_vector.tolist(),
             "max": max_vector.tolist(),
             "min": min_vector.tolist(),
+            "cov_matrix": covariance_matrix.tolist()
         }
 
-        print(stats)
+        print(covariance_matrix.shape)
 
         stats_msgpack = msgpack.packb(stats)
 
