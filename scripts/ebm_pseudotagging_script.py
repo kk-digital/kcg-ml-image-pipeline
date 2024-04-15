@@ -833,7 +833,7 @@ def get_all_ebm_classifier():
     # get all the classifier
     print('Loading classifiers')
     #energy-based-model-clip-h  = classifier_name
-    response = requests.get(f'{API_URL2}//classifier/list-classifiers?classifier_name')
+    response = requests.get(f'{API_URL2}//classifier/list-classifiers')
     
     if response.status_code == 200:
         try:
