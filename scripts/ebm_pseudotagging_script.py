@@ -826,10 +826,6 @@ def tag_images(dataset_name, number_of_samples, number_of_images_to_tag,tag_name
 
 
 def get_all_ebm_classifier():
-
-
-    # Request
-    #http://103.20.60.90:8764/classifier/list-classifiers
     # get all the classifier
     print('Loading classifiers')
     #energy-based-model-clip-h  = classifier_name
@@ -841,23 +837,30 @@ def get_all_ebm_classifier():
 
             jobs = jobs_full.get('response', [])
             #print(jobs)
-            classifier_id=[job['classifier_id'] for job in jobs]
-            tag_id=[job['tag_id'] for job in jobs]
-            model_path =[job['model_path'] for job in jobs] 
+            # classifier_id=[job['classifier_id'] for job in jobs]
+            # tag_id=[job['tag_id'] for job in jobs]
+            # model_path =[job['model_path'] for job in jobs] 
             #image_hashes=[job['image_hash'] for job in jobs]
 
-            for i in  range(len(classifier_id)):
-                print("classifier_id : ", classifier_id[i], " Tag_id : ", tag_id[i], " model_path : ",model_path[i])
+            # for i in  range(len(classifier_id)):
+            #     print("classifier_id : ", classifier_id[i], " Tag_id : ", tag_id[i], " model_path : ",model_path[i])
 
             filtered_data = [item for item in jobs if "-energy-energy-based-model-clip-h" in item["model_path"]]
-            classifier_id=[job['classifier_id'] for job in filtered_data]
-            tag_id=[job['tag_id'] for job in filtered_data]
-            model_path =[job['model_path'] for job in filtered_data] 
+            # classifier_id=[job['classifier_id'] for job in filtered_data]
+            # tag_id=[job['tag_id'] for job in filtered_data]
+            # model_path =[job['model_path'] for job in filtered_data] 
 
-            for j in  range(len(filtered_data)):
-                print("classifier_id : ", classifier_id[j], " Tag_id : ", tag_id[j], " model_path : ",model_path[j])
+            # for j in  range(len(filtered_data)):
+            #     print("classifier_id : ", classifier_id[j], " Tag_id : ", tag_id[j], " model_path : ",model_path[j])
 
-            return filtered_data
+            filtered_dict = {
+                "classifier_id": [job['classifier_id'] for job in filtered_data],
+                "tag_id": [job['tag_id'] for job in filtered_data],
+                "model_path": [job['model_path'] for job in filtered_data]
+            }
+
+
+            return filtered_dict
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
     else:
@@ -880,4 +883,16 @@ def get_all_ebm_classifier():
 
 
 #tag_images(dataset_name = "environmental", number_of_samples = 20000, number_of_images_to_tag = 5 ,tag_name ="topic-aquatic",model_id = 88)
-get_all_ebm_classifier()
+
+filtered_dict = get_all_ebm_classifier()
+
+# Check if the filtered_dict is not None
+if filtered_dict:
+    # Iterate through the keys of the dictionary (assuming all keys have the same length)
+    for i in range(len(filtered_dict["classifier_id"])):
+        classifier_id = filtered_dict["classifier_id"][i]
+        tag_id = filtered_dict["tag_id"][i]
+        model_path = filtered_dict["model_path"][i]
+        print(f"Classifier ID: {classifier_id}, Tag ID: {tag_id}, Model Path: {model_path}")
+else:
+    print("No filtered data found.")
