@@ -601,7 +601,7 @@ async def batch_update_classifier_scores_with_task_type(request: Request):
             http_status_code=500
         )    
 
- @router.get("/image-classifier-scores/count", 
+@router.get("/image-classifier-scores/count", 
             response_model=StandardSuccessResponseV1[int],
             status_code=200,
             tags=["image-classifier-scores"],
