@@ -31,7 +31,7 @@ def parse_args():
     parser.add_argument('--minio-access-key', type=str, help='Minio access key')
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
-    parser.add_argument('--tag-name', type=str, help='Name of the tag to generate for', default="topic-forest")
+    parser.add_argument('--tag-name', type=str, help='Name of the tag to generate for', default="topic-desert")
     parser.add_argument('--num-images', type=int, help='Number of images to generate', default=10)
     parser.add_argument('--sphere-type', type=str, help='Type of spheres used', default="spherical")
     parser.add_argument('--top-k', type=float, help='Portion of spheres to select from', default=0.1)
