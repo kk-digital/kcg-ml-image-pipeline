@@ -543,7 +543,9 @@ class EBM_Single_Class:
     def classify(self, dataset_feature_vector):
         print("Evaluate energy...")
         #print("da vector ", dataset_feature_vector)
-
+        energy = self.model.cnn(dataset_feature_vector.unsqueeze(0).to(self.model.device)).cpu()
+        return energy
+    
 
 
 
