@@ -42,7 +42,7 @@ def parse_args():
     parser.add_argument('--learning-rate', type=float, help='Optimization learning rate', default=0.001)
     parser.add_argument('--send-job', action='store_true', default=False)
     parser.add_argument('--save-csv', action='store_true', default=False)
-    parser.add_argument('--sampling-policy', type=str, default="top-k-sphere-sampling")
+    parser.add_argument('--sampling-policy', type=str, default="spherical-gaussian-top-k-sphere-sampling")
     parser.add_argument('--optimize-spheres', action='store_true', default=False)
     parser.add_argument('--optimize-samples', action='store_true', default=False)
 
@@ -384,13 +384,10 @@ class SphereSamplingGenerator:
         #     clip_vectors = self.optimize_datapoints(clip_vectors, self.scoring_model)
 
         # generate clip vectors
-        if self.only_top_k_spheres:
+        if self.sphere_type == "spherical":
+            clip_vectors= self.sample_clip_vectors_with_spherical(num_samples=num_images)
+        elif self.sphere_type == 'directional':
             clip_vectors= self.sample_clip_vectors_with_directional(num_samples=num_images)
-        else:
-            if self.sphere_type == "spherical":
-                clip_vectors= self.sample_clip_vectors_with_spherical(num_samples=num_images)
-            elif self.sphere_type == 'directional':
-                clip_vectors= self.sample_clip_vectors_with_directional(num_samples=num_images)
 
         df_data=[]
 
