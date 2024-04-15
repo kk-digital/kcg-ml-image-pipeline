@@ -67,6 +67,7 @@ from os.path import basename
 
 API_URL = "http://192.168.3.1:8111"
 API_URL2 = "http://103.20.60.90:8764"
+
 date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%d-%m-%Y %H:%M:%S')
 
 minio_client = cmd.get_minio_client("D6ybtPLyUrca5IdZfCIM",
@@ -824,5 +825,33 @@ def tag_images(dataset_name, number_of_samples, number_of_images_to_tag,tag_name
 
 
 
+def get_all_ebm_classifier():
 
-tag_images(dataset_name = "environmental", number_of_samples = 20000, number_of_images_to_tag = 5 ,tag_name ="topic-aquatic",model_id = 88)
+
+    # Request
+
+    # get all the classifier
+    print('Loading image file paths')
+    #energy-based-model-clip-h  = classifier_name
+    response = requests.get(f'{API_URL2}//classifier/list-classifiers?classifier_name')
+    
+    jobs_full = json.loads(response.content)
+    
+    jobs = jobs_full.get('response', [])
+    #print(jobs)
+    classifier_id=[job['classifier_id'] for job in jobs]
+    tag_id=[job['tag_id'] for job in jobs]
+    model_path =[job['model_path'] for job in jobs] 
+    #image_hashes=[job['image_hash'] for job in jobs]
+
+    for i in  range(len(classifier_id)):
+        print("classifier_id : ", classifier_id[i], " Tag_id : ", tag_id[i], " model_path : ",model_path[i])
+    
+
+    # Create the dictionnary
+
+    return False
+
+
+# tag_images(dataset_name = "environmental", number_of_samples = 20000, number_of_images_to_tag = 5 ,tag_name ="topic-aquatic",model_id = 88)
+get_all_ebm_classifier()
