@@ -871,4 +871,5 @@ def get_all_ebm_classifier():
     return False
 
 
-tag_images(dataset_name = "environmental", number_of_samples = 20000, number_of_images_to_tag = 5 ,tag_name ="topic-aquatic",model_id = 88)
+#tag_images(dataset_name = "environmental", number_of_samples = 20000, number_of_images_to_tag = 5 ,tag_name ="topic-aquatic",model_id = 88)
+get_all_ebm_classifier()
