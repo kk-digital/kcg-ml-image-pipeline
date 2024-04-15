@@ -769,6 +769,7 @@ def tag_image_v3(tagging_data):
 
 def tag_images(dataset_name, number_of_samples, number_of_images_to_tag,tag_name,model_id):
 
+    tag_name_input = tag_name
     # get the paths and hashes
     images_paths_ood, images_hashes_ood, uuid_ood = get_file_paths_and_hashes_uuid(dataset_name,number_of_samples)
 
@@ -790,7 +791,7 @@ def tag_images(dataset_name, number_of_samples, number_of_images_to_tag,tag_name
     # Load the last occult trained model
 
     
-    loaded_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =tag_name, model_type = "energy-based-model")
+    loaded_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =tag_name_input, model_type = "energy-based-model")
 
 
 
