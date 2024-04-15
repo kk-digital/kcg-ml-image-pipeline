@@ -7,6 +7,7 @@ import pandas as pd
 import torch
 import msgpack
 from tqdm import tqdm
+import torch.optim as optim
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -27,12 +28,19 @@ def parse_args():
         parser.add_argument('--tag-name', type=str, help='Name of the tag to generate for', default="topic-forest")
         parser.add_argument('--num-images', type=int, help='Number of images to generate', default=100)
         parser.add_argument('--nodes-per-iteration', type=int, help='Number of nodes to evaluate each iteration', default=1000)
-        parser.add_argument('--top-k', type=int, help='Number of nodes to expand on each iteration', default=10)
-        parser.add_argument('--max-nodes', type=int, help='Number of maximum nodes', default=1e+6)
+        parser.add_argument('--branches-per-iteration', type=int, help='Number of branches to expand each iteration', default=10)
+        parser.add_argument('--top-k', type=float, default=0.01)
+        parser.add_argument('--max-nodes', type=int, help='Number of maximum nodes', default=1e+7)
         parser.add_argument('--jump-distance', type=float, help='Jump distance for each node', default=0.01)
+        parser.add_argument('--batch-size', type=int, help='Inference batch size used by the scoring model', default=256)
+        parser.add_argument('--steps', type=int, help='Optimization steps', default=200)
+        parser.add_argument('--learning-rate', type=float, help='Optimization learning rate', default=0.001)
         parser.add_argument('--send-job', action='store_true', default=False)
         parser.add_argument('--save-csv', action='store_true', default=False)
         parser.add_argument('--sampling-policy', type=str, default="rapidly_exploring_tree_search")
+        parser.add_argument('--optimize-samples', action='store_true', default=False)
+        parser.add_argument('--classifier-weight', type=float, default=1)
+        parser.add_argument('--ranking-weight', type=float, default=0)
 
         return parser.parse_args()
 
@@ -42,16 +50,28 @@ class RapidlyExploringTreeSearch:
                  minio_secret_key,
                  dataset,
                  tag_name,
+                 batch_size,
+                 steps,
+                 learning_rate,
                  sampling_policy,
                  send_job,
-                 save_csv):
+                 save_csv,
+                 optimize_samples,
+                 ranking_weight,
+                 classifier_weight):
         
         # parameters
         self.dataset= dataset  
-        self.tag_name= tag_name  
+        self.tag_name= tag_name
+        self.batch_size= batch_size
+        self.steps= steps
+        self.learning_rate= learning_rate  
         self.sampling_policy= sampling_policy  
         self.send_job= send_job
         self.save_csv= save_csv
+        self.optimize_samples= optimize_samples
+        self.ranking_weight= ranking_weight
+        self.classifier_weight= classifier_weight
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
                                                 minio_secret_key=minio_secret_key)
@@ -68,11 +88,12 @@ class RapidlyExploringTreeSearch:
 
         # get classifier model for selected tag
         self.classifier_model= ClassifierFCNetwork(minio_client=self.minio_client, tag_name=tag_name)
+        self.classifier_model.load_model()
 
         # get distribution of clip vectors for the dataset
         self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
-        self.min_radius= torch.tensor(self.sphere_scoring_model.max_scaling_factors).to(device=self.device)
-        self.max_radius= torch.tensor(self.sphere_scoring_model.min_scaling_factors).to(device=self.device)
+        self.min_radius= torch.tensor(self.sphere_scoring_model.min_scaling_factors).to(device=self.device)
+        self.max_radius= torch.tensor(self.sphere_scoring_model.max_scaling_factors).to(device=self.device)
     
     def get_clip_distribution(self):
         data = get_object(self.minio_client, f"{self.dataset}/output/stats/clip_stats.msgpack")
@@ -141,13 +162,29 @@ class RapidlyExploringTreeSearch:
         points = points[:,:dim]
         scores= self.classifier_model.predict(points, batch_size=points.size(0)).to(device=self.device)
         return scores
+    
+    def rank_points(self, spheres):
+        # calculate ranking and classifier scores
+        classifier_scores = self.classifiy_points(spheres).squeeze(1)
+        ranking_scores = self.score_points(spheres).squeeze(1)
 
-    def expand_tree(self, nodes_per_iteration, max_nodes, top_k, jump_distance, num_images):
+        # increase classifier scores with a threshold
+        classifier_scores= torch.where(classifier_scores>0.6, torch.tensor(1), classifier_scores)
+
+        # combine scores
+        classifier_ranks= torch.softmax(classifier_scores, dim=0) 
+        quality_ranks=  torch.softmax(ranking_scores, dim=0)
+        ranks= torch.min(classifier_ranks , quality_ranks)
+
+        return ranks, classifier_scores, ranking_scores 
+
+    def expand_tree(self, nodes_per_iteration, branches_per_iteration, max_nodes, top_k, jump_distance, num_images):
         radius= torch.rand(1, len(self.max_radius), device=self.device) * (self.max_radius - self.min_radius) + self.min_radius
         sphere= torch.cat([self.clip_mean, radius], dim=1)
         current_generation = [sphere.squeeze()]
         all_nodes = []
-        all_scores = torch.tensor([], dtype=torch.float32, device=self.device)
+        all_classifier_scores = torch.tensor([], dtype=torch.float32, device=self.device)
+        all_ranking_scores = torch.tensor([], dtype=torch.float32, device=self.device)
 
         # generate covariance matrix
         covariance_matrix = torch.diag((self.clip_std * jump_distance).squeeze(0))
@@ -164,15 +201,18 @@ class RapidlyExploringTreeSearch:
                 nearest_points = self.find_nearest_points(point, nodes_per_iteration, covariance_matrix)
                 
                 # Score these points
-                nearest_scores = self.classifiy_points(nearest_points)
+                ranks, classifier_scores, ranking_scores = self.rank_points(nearest_points)
                 
                 # Select top n points based on scores
-                _, sorted_indices = torch.sort(nearest_scores.squeeze(), descending=True)
-                top_points = nearest_points[sorted_indices[:top_k]]
-                top_scores = nearest_scores[sorted_indices[:top_k]]
+                _, sorted_indices = torch.sort(ranks, descending=True)
+                top_points = nearest_points[sorted_indices[:branches_per_iteration]]
+                top_classifier_scores = classifier_scores[sorted_indices[:branches_per_iteration]]
+                top_classifier_scores= torch.where(top_classifier_scores>0.6, torch.tensor(1), top_classifier_scores)
+                top_ranking_scores = ranking_scores[sorted_indices[:branches_per_iteration]]
 
                 # Keep track of all nodes and their scores for selection later
-                all_scores = torch.cat((all_scores, top_scores), dim=0)
+                all_classifier_scores = torch.cat((all_classifier_scores, top_classifier_scores), dim=0)
+                all_ranking_scores = torch.cat((all_ranking_scores, top_ranking_scores), dim=0)
                 all_nodes.extend(top_points)
 
                 next_generation.extend(top_points)
@@ -188,22 +228,61 @@ class RapidlyExploringTreeSearch:
         pbar.close()
         
         # After the final iteration, choose the top n highest scoring points overall
-        values, sorted_indices = torch.sort(all_scores.squeeze(1), descending=True)
-        final_top_points = torch.stack(all_nodes, dim=0)[sorted_indices]
-        # ranking_scores= self.score_points(final_top_points)
+        classifier_ranks= torch.softmax(all_classifier_scores, dim=0) 
+        quality_ranks= torch.softmax(all_ranking_scores, dim=0)
 
-        # values, sorted_indices = torch.sort(ranking_scores.squeeze(1), descending=True)
-        final_top_points=final_top_points[:num_images]
-        final_top_points = final_top_points[:,:1280]
+        all_ranks= torch.min(classifier_ranks , quality_ranks)
+        values, sorted_indices = torch.sort(all_ranks, descending=True)
+        final_top_points = torch.stack(all_nodes, dim=0)[sorted_indices[:int(num_images/top_k)]]
 
         # select n random spheres from the top k spheres
-        # indices = torch.randperm(final_top_points.size(0))[:num_images]
-        # selected_points = final_top_points[indices]
+        indices = torch.randperm(final_top_points.size(0))[:num_images]
+        selected_points = final_top_points[indices]
 
-        return final_top_points
+        return selected_points
     
-    def generate_images(self, nodes_per_iteration, max_nodes, top_k, jump_distance, num_images):
-        clip_vectors= self.expand_tree(nodes_per_iteration, max_nodes, top_k, jump_distance, num_images)
+    def optimize_datapoints(self, clip_vectors):
+        # Calculate the total number of batches
+        num_batches = len(clip_vectors) // self.batch_size + (0 if len(clip_vectors) % self.batch_size == 0 else 1)
+
+        for batch_idx in range(num_batches):
+            # Select a batch of embeddings
+            start_idx = batch_idx * self.batch_size
+            end_idx = min((batch_idx + 1) * self.batch_size, len(clip_vectors))
+            batch_embeddings = clip_vectors[start_idx:end_idx].clone().detach().requires_grad_(True)
+            
+            # Setup the optimizer for the current batch
+            optimizer = optim.Adam([batch_embeddings], lr=self.learning_rate)
+            
+            for step in range(self.steps):
+                optimizer.zero_grad()
+
+                # Compute ranking scores for the current batch of embeddings
+                ranking_scores = self.sphere_scoring_model.model(batch_embeddings).squeeze()
+                
+                # Compute classifier scores for the current batch of embeddings
+                classifier_scores = self.classifier_model.model(batch_embeddings[:,:1280]).squeeze()
+                
+                # Calculate the total loss for the batch
+                total_loss = - (self.ranking_weight * ranking_scores.mean()) - (self.classifier_weight * classifier_scores.mean())
+
+                # Backpropagate
+                total_loss.backward()
+
+                optimizer.step()
+
+                print(f"Batch: {batch_idx + 1}/{num_batches}, Step: {step}, Mean ranking Score: {ranking_scores.mean().item()}, Mean classifier Score: {classifier_scores.mean().item()}, Loss: {total_loss.item()}")
+
+        return batch_embeddings
+
+    def generate_images(self, nodes_per_iteration, branches_per_iteration, max_nodes, top_k, jump_distance, num_images):
+        spheres= self.expand_tree(nodes_per_iteration, branches_per_iteration, max_nodes, top_k, jump_distance, num_images)
+
+        # Optimization step
+        if(self.optimize_samples):
+            spheres = self.optimize_datapoints(spheres)
+        
+        clip_vectors = spheres[:,:1280]
         df_data=[]
 
         for clip_vector in clip_vectors:
@@ -249,7 +328,7 @@ class RapidlyExploringTreeSearch:
         buffer.seek(0)
 
         current_date=datetime.now().strftime("%Y-%m-%d-%H:%M")
-        minio_path= minio_path + f"/{current_date}-{self.sampling_policy}-{self.dataset}.csv"
+        minio_path= minio_path + f"/{current_date}-{self.sampling_policy}-{self.dataset}-{self.tag_name}.csv"
         cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
         # Remove the temporary file
         os.remove(local_path)
@@ -262,11 +341,18 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         dataset=args.dataset,
                                         tag_name= args.tag_name,
+                                        batch_size= args.batch_size,
+                                        steps= args.steps,
+                                        learning_rate= args.learning_rate,
                                         sampling_policy= args.sampling_policy,
                                         send_job= args.send_job,
-                                        save_csv= args.save_csv)
+                                        save_csv= args.save_csv,
+                                        optimize_samples= args.optimize_samples,
+                                        ranking_weight= args.ranking_weight,
+                                        classifier_weight= args.classifier_weight)
 
     generator.generate_images(nodes_per_iteration=args.nodes_per_iteration,
+                          branches_per_iteration=args.branches_per_iteration,
                           max_nodes= args.max_nodes,
                           top_k= args.top_k,
                           jump_distance= args.jump_distance,

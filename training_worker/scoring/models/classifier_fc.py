@@ -350,7 +350,7 @@ class ClassifierFCNetwork(nn.Module):
     def load_model(self):
         # get model file data from MinIO
         prefix= f"environmental/models/classifiers/{self.tag_name}/"
-        suffix= f"_{self.output_type}_fc_{self.input_type}.pth"
+        suffix= f"-{self.output_type}-fc-{self.input_type}.pth"
         model_files=cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', prefix)
         most_recent_model = None
 
