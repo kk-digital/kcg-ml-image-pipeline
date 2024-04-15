@@ -92,8 +92,8 @@ class RapidlyExploringTreeSearch:
 
         # get distribution of clip vectors for the dataset
         self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
-        self.min_radius= torch.tensor(self.sphere_scoring_model.max_scaling_factors).to(device=self.device)
-        self.max_radius= torch.tensor(self.sphere_scoring_model.min_scaling_factors).to(device=self.device)
+        self.min_radius= torch.tensor(self.sphere_scoring_model.feature_min_value).to(device=self.device)
+        self.max_radius= torch.tensor(self.sphere_scoring_model.feature_max_value).to(device=self.device)
     
     def get_clip_distribution(self):
         data = get_object(self.minio_client, f"{self.dataset}/output/stats/clip_stats.msgpack")
