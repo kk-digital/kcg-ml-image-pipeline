@@ -254,6 +254,7 @@ class ClassifierScore(BaseModel):
 
 class ClassifierScoreV1(BaseModel):
     uuid: Union[str, None]
+    task_type: str
     classifier_id: int
     image_hash: str
     tag_id: int
@@ -263,6 +264,7 @@ class ClassifierScoreV1(BaseModel):
     def to_dict(self):
         return {
             "uuid": self.uuid,
+            "task_type": self.task_type,
             "classifier_id": self.classifier_id,
             "image_hash": self.image_hash,
             "tag_id": self.tag_id,
