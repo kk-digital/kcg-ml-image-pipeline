@@ -95,7 +95,7 @@ class RapidlyExploringTreeSearch:
         self.classifier_model.load_model()
 
         # get distribution of clip vectors for the dataset
-        self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
+        self.clip_mean , self.clip_std, self.clip_max, self.clip_min, self.covariance_matrix= self.get_clip_distribution()
         self.min_radius= torch.tensor(self.sphere_scoring_model.min_scaling_factors).to(device=self.device)
         self.max_radius= torch.tensor(self.sphere_scoring_model.max_scaling_factors).to(device=self.device)
     
@@ -104,12 +104,13 @@ class RapidlyExploringTreeSearch:
         data_dict = msgpack.unpackb(data)
 
         # Convert to PyTorch tensors
-        mean_vector = torch.tensor(data_dict["mean"], device=self.device, dtype=torch.float32)
-        std_vector = torch.tensor(data_dict["std"], device=self.device, dtype=torch.float32)
-        max_vector = torch.tensor(data_dict["max"], device=self.device, dtype=torch.float32)
-        min_vector = torch.tensor(data_dict["min"], device=self.device, dtype=torch.float32)
+        mean_vector = torch.tensor(data_dict["mean"], device=self.device, dtype=torch.float32).unsqueeze()
+        std_vector = torch.tensor(data_dict["std"], device=self.device, dtype=torch.float32).unsqueeze()
+        max_vector = torch.tensor(data_dict["max"], device=self.device, dtype=torch.float32).unsqueeze()
+        min_vector = torch.tensor(data_dict["min"], device=self.device, dtype=torch.float32).unsqueeze()
+        covariance_matrix = torch.tensor(data_dict["cov_matrix"], device=self.device, dtype=torch.float32)
 
-        return mean_vector, std_vector, max_vector, min_vector
+        return mean_vector, std_vector, max_vector, min_vector, covariance_matrix
     
     def get_classifier_model(self, tag_name):
         input_path = f"{self.dataset}/models/classifiers/{tag_name}/"
@@ -192,8 +193,8 @@ class RapidlyExploringTreeSearch:
         all_classifier_scores = torch.tensor([], dtype=torch.float32, device=self.device)
         all_ranking_scores = torch.tensor([], dtype=torch.float32, device=self.device)
 
-        # generate covariance matrix
-        covariance_matrix = torch.diag((self.clip_std.pow(2) * jump_distance).squeeze(0))
+        # # generate covariance matrix
+        # covariance_matrix = torch.diag((self.clip_std.pow(2) * jump_distance).squeeze(0))
         
         # Initialize tqdm
         pbar = tqdm(total=max_nodes)
@@ -204,7 +205,7 @@ class RapidlyExploringTreeSearch:
             for point in current_generation:
                 point= point.unsqueeze(0)
                 # Find nearest k points to the current point
-                nearest_points = self.find_nearest_points(point, nodes_per_iteration, covariance_matrix)
+                nearest_points = self.find_nearest_points(point, nodes_per_iteration, self.covariance_matrix)
                 
                 # Score these points
                 ranks, classifier_scores, ranking_scores = self.rank_points(nearest_points)
