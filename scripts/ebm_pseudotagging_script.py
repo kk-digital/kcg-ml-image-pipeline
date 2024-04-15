@@ -849,7 +849,10 @@ def get_all_ebm_classifier():
             for i in  range(len(classifier_id)):
                 print("classifier_id : ", classifier_id[i], " Tag_id : ", tag_id[i], " model_path : ",model_path[i])
 
-            filtered_data = [item for item in data if "-energy-energy-based-model-clip-h" in item["model_path"]]
+            filtered_data = [item for item in jobs if "-energy-energy-based-model-clip-h" in item["model_path"]]
+            classifier_id=[job['classifier_id'] for job in filtered_data]
+            tag_id=[job['tag_id'] for job in filtered_data]
+            model_path =[job['model_path'] for job in filtered_data] 
 
             for j in  range(len(filtered_data)):
                 print("classifier_id : ", classifier_id[j], " Tag_id : ", tag_id[j], " model_path : ",model_path[j])
