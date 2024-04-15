@@ -829,29 +829,46 @@ def get_all_ebm_classifier():
 
 
     # Request
-
+    #http://103.20.60.90:8764/classifier/list-classifiers
     # get all the classifier
-    print('Loading image file paths')
+    print('Loading classifiers')
     #energy-based-model-clip-h  = classifier_name
     response = requests.get(f'{API_URL2}//classifier/list-classifiers?classifier_name')
     
-    jobs_full = json.loads(response.content)
-    
-    jobs = jobs_full.get('response', [])
-    #print(jobs)
-    classifier_id=[job['classifier_id'] for job in jobs]
-    tag_id=[job['tag_id'] for job in jobs]
-    model_path =[job['model_path'] for job in jobs] 
-    #image_hashes=[job['image_hash'] for job in jobs]
+    if response.status_code == 200:
+        try:
+            jobs_full = json.loads(response.content)
 
-    for i in  range(len(classifier_id)):
-        print("classifier_id : ", classifier_id[i], " Tag_id : ", tag_id[i], " model_path : ",model_path[i])
-    
+            jobs = jobs_full.get('response', [])
+            #print(jobs)
+            classifier_id=[job['classifier_id'] for job in jobs]
+            tag_id=[job['tag_id'] for job in jobs]
+            model_path =[job['model_path'] for job in jobs] 
+            #image_hashes=[job['image_hash'] for job in jobs]
 
-    # Create the dictionnary
+            for i in  range(len(classifier_id)):
+                print("classifier_id : ", classifier_id[i], " Tag_id : ", tag_id[i], " model_path : ",model_path[i])
+
+
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON: {e}")
+    else:
+        print(f"Error: HTTP request failed with status code {response.status_code}")
+
+
+
+
+    # # Create the dictionnary
+    #     image_dict = {
+    #     'path': images_paths[i],
+    #     'embedding': embedding,
+    #     'score': score.item(),
+    #     'image_tensor': image,
+    #     'hash': hashes[i],
+    #     'uuid': uuid[i]
+    # }
 
     return False
 
 
-# tag_images(dataset_name = "environmental", number_of_samples = 20000, number_of_images_to_tag = 5 ,tag_name ="topic-aquatic",model_id = 88)
-get_all_ebm_classifier()
+tag_images(dataset_name = "environmental", number_of_samples = 20000, number_of_images_to_tag = 5 ,tag_name ="topic-aquatic",model_id = 88)
