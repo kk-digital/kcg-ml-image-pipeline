@@ -195,7 +195,7 @@ class RapidlyExploringTreeSearch:
 
         # generate covariance matrix
         # covariance_matrix = torch.diag((self.clip_std.pow(2) * jump_distance).squeeze(0))
-        covariance_matrix = self.covariance_matrix * jump_distance 
+        covariance_matrix = torch.nan_to_num(self.covariance_matrix) * jump_distance
         
         # Initialize tqdm
         pbar = tqdm(total=max_nodes)
