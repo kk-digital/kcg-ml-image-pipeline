@@ -9,13 +9,12 @@ import msgpack
 from tqdm import tqdm
 import torch.optim as optim
 
-from training_worker.scoring.models.scoring_fc import ScoringFCNetwork
-
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 from data_loader.utils import get_object
 from training_worker.sampling.models.directional_uniform_sampling_regression_fc import DirectionalSamplingFCRegressionNetwork
+from training_worker.scoring.models.scoring_fc import ScoringFCNetwork
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 from training_worker.classifiers.models.elm_regression import ELMRegression
 from training_worker.scoring.models.classifier_fc import ClassifierFCNetwork
