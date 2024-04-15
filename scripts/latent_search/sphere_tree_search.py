@@ -158,6 +158,8 @@ class RapidlyExploringTreeSearch:
         return sphere_centers
 
     def score_points(self, points):
+        dim= points.size(1)//2
+        points = points[:,:dim]
         scores= self.scoring_model.predict(points, batch_size=1000)
         return scores
     
