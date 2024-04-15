@@ -13,7 +13,7 @@ base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 from data_loader.utils import get_object
-from training_worker.sampling.models.directional_gaussian_sampling_regression_fc import DirectionalSamplingFCRegressionNetwork
+from training_worker.sampling.models.directional_uniform_sampling_regression_fc import DirectionalSamplingFCRegressionNetwork
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 from training_worker.classifiers.models.elm_regression import ELMRegression
 from training_worker.scoring.models.classifier_fc import ClassifierFCNetwork
@@ -92,8 +92,8 @@ class RapidlyExploringTreeSearch:
 
         # get distribution of clip vectors for the dataset
         self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
-        self.min_radius= torch.tensor(self.sphere_scoring_model.feature_min_value).to(device=self.device)
-        self.max_radius= torch.tensor(self.sphere_scoring_model.feature_max_value).to(device=self.device)
+        self.min_radius= torch.tensor(self.sphere_scoring_model.min_scaling_factors).to(device=self.device)
+        self.max_radius= torch.tensor(self.sphere_scoring_model.max_scaling_factors).to(device=self.device)
     
     def get_clip_distribution(self):
         data = get_object(self.minio_client, f"{self.dataset}/output/stats/clip_stats.msgpack")
