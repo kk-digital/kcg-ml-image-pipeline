@@ -600,3 +600,27 @@ async def batch_update_classifier_scores_with_task_type(request: Request):
             error_string=f"Failed to batch update classifier scores: {str(e)}",
             http_status_code=500
         )    
+
+ @router.get("/image-classifier-scores/count", 
+            response_model=StandardSuccessResponseV1[int],
+            status_code=200,
+            tags=["image-classifier-scores"],
+            description="Counts the number of documents in the image classifier scores collection",
+            responses=ApiResponseHandlerV1.listErrors([500]))
+async def count_classifier_scores(request: Request):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Count documents in the image_classifier_scores_collection
+        count = request.app.image_classifier_scores_collection.count_documents({})
+
+        return api_response_handler.create_success_response_v1(
+            response_data={"count": count},
+            http_status_code=200  
+        )
+    
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500
+        )       
