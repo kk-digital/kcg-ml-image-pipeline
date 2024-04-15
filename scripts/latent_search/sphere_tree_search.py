@@ -13,7 +13,7 @@ base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 from data_loader.utils import get_object
-from training_worker.sampling.models.directional_uniform_sampling_regression_fc import DirectionalSamplingFCRegressionNetwork
+from training_worker.sampling.models.directional_gaussian_sampling_regression_fc import DirectionalSamplingFCRegressionNetwork
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 from training_worker.classifiers.models.elm_regression import ELMRegression
 from training_worker.scoring.models.classifier_fc import ClassifierFCNetwork
@@ -207,6 +207,7 @@ class RapidlyExploringTreeSearch:
                 _, sorted_indices = torch.sort(ranks, descending=True)
                 top_points = nearest_points[sorted_indices[:branches_per_iteration]]
                 top_classifier_scores = classifier_scores[sorted_indices[:branches_per_iteration]]
+                top_classifier_scores= torch.where(top_classifier_scores>0.6, torch.tensor(1), top_classifier_scores)
                 top_ranking_scores = ranking_scores[sorted_indices[:branches_per_iteration]]
 
                 # Keep track of all nodes and their scores for selection later
