@@ -168,6 +168,9 @@ class RapidlyExploringTreeSearch:
         classifier_scores = self.classifiy_points(spheres).squeeze(1)
         ranking_scores = self.score_points(spheres).squeeze(1)
 
+        # increase classifier scores with a threshold
+        classifier_scores= torch.where(classifier_scores>0.6, torch.tensor(1), classifier_scores)
+
         # combine scores
         classifier_ranks= torch.softmax(classifier_scores, dim=0) 
         quality_ranks=  torch.softmax(ranking_scores, dim=0)
