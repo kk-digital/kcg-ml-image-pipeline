@@ -48,6 +48,7 @@ def main():
         jobs_list= get_job_list(dataset=dataset)
         clip_vectors=[]
 
+        index=0
         print(f"fetching image clip files for {dataset}...........")
         for job in tqdm(jobs_list):
             try:
@@ -58,9 +59,13 @@ def main():
                 clip_path = file_path + "_clip_kandinsky.msgpack"
                 clip_data = get_object(minio_client, clip_path)
                 clip_vector = msgpack.unpackb(clip_data)['clip-feature-vector']
-                clip_vectors.append(clip_vector)
+                clip_vectors.append(clip_vector[0])
             except Exception as e:
                 print(f"an error occured: {e}")
+            
+            index+=1
+            if index>100:
+                break
 
         # Convert list of vectors into a numpy array for easier computation
         clip_vectors_np = np.array(clip_vectors)
@@ -84,18 +89,19 @@ def main():
             "cov_matrix": covariance_matrix.tolist()
         }
 
-        print(covariance_matrix.shape)
+        
+        print(covariance_matrix, covariance_matrix.shape)
 
-        stats_msgpack = msgpack.packb(stats)
+        # stats_msgpack = msgpack.packb(stats)
 
-        data = BytesIO()
-        data.write(stats_msgpack)
-        data.seek(0)
+        # data = BytesIO()
+        # data.write(stats_msgpack)
+        # data.seek(0)
 
-        # Storing stats in MinIO
-        bucket_name = "datasets"
-        output_path = f"{dataset}/output/stats/clip_stats.msgpack"
-        cmd.upload_data(minio_client, bucket_name, output_path, data)
+        # # Storing stats in MinIO
+        # bucket_name = "datasets"
+        # output_path = f"{dataset}/output/stats/clip_stats.msgpack"
+        # cmd.upload_data(minio_client, bucket_name, output_path, data)
 
 if __name__ == '__main__':
     main()
