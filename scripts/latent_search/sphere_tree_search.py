@@ -9,6 +9,8 @@ import msgpack
 from tqdm import tqdm
 import torch.optim as optim
 
+from training_worker.scoring.models.scoring_fc import ScoringFCNetwork
+
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
@@ -86,6 +88,9 @@ class RapidlyExploringTreeSearch:
         self.sphere_scoring_model= DirectionalSamplingFCRegressionNetwork(minio_client=self.minio_client, dataset=dataset)
         self.sphere_scoring_model.load_model()
 
+        self.scoring_model= ScoringFCNetwork(minio_client=self.minio_client, dataset=dataset)
+        self.scoring_model.load_model()
+
         # get classifier model for selected tag
         self.classifier_model= ClassifierFCNetwork(minio_client=self.minio_client, tag_name=tag_name)
         self.classifier_model.load_model()
@@ -154,7 +159,7 @@ class RapidlyExploringTreeSearch:
         return sphere_centers
 
     def score_points(self, points):
-        scores= self.sphere_scoring_model.predict(points, batch_size=1000)
+        scores= self.scoring_model.predict(points, batch_size=1000)
         return scores
     
     def classifiy_points(self, points):
