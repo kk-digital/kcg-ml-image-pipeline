@@ -193,8 +193,8 @@ class RapidlyExploringTreeSearch:
         all_classifier_scores = torch.tensor([], dtype=torch.float32, device=self.device)
         all_ranking_scores = torch.tensor([], dtype=torch.float32, device=self.device)
 
-        # # generate covariance matrix
-        # covariance_matrix = torch.diag((self.clip_std.pow(2) * jump_distance).squeeze(0))
+        # generate covariance matrix
+        covariance_matrix = torch.diag((self.clip_std.pow(2) * jump_distance).squeeze(0))
         
         # Initialize tqdm
         pbar = tqdm(total=max_nodes)
@@ -205,7 +205,7 @@ class RapidlyExploringTreeSearch:
             for point in current_generation:
                 point= point.unsqueeze(0)
                 # Find nearest k points to the current point
-                nearest_points = self.find_nearest_points(point, nodes_per_iteration, self.covariance_matrix)
+                nearest_points = self.find_nearest_points(point, nodes_per_iteration, covariance_matrix)
                 
                 # Score these points
                 ranks, classifier_scores, ranking_scores = self.rank_points(nearest_points)
