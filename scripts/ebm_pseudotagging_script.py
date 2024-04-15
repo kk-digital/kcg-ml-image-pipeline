@@ -774,8 +774,8 @@ def tag_images(dataset_name, number_of_samples, number_of_images_to_tag,tag_name
 
 
 
-    loaded_model=EBM_Single_Class(minio_access_key=minio_client.minio_access_key,
-                                minio_secret_key=minio_client.minio_secret_key,
+    loaded_model=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
+                                minio_secret_key="2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
                                 dataset= dataset_name,
                                 class_name= tag_name ,
                                 model = None,
