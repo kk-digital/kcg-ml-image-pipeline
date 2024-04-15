@@ -104,10 +104,10 @@ class RapidlyExploringTreeSearch:
         data_dict = msgpack.unpackb(data)
 
         # Convert to PyTorch tensors
-        mean_vector = torch.tensor(data_dict["mean"], device=self.device, dtype=torch.float32).unsqueeze()
-        std_vector = torch.tensor(data_dict["std"], device=self.device, dtype=torch.float32).unsqueeze()
-        max_vector = torch.tensor(data_dict["max"], device=self.device, dtype=torch.float32).unsqueeze()
-        min_vector = torch.tensor(data_dict["min"], device=self.device, dtype=torch.float32).unsqueeze()
+        mean_vector = torch.tensor(data_dict["mean"], device=self.device, dtype=torch.float32).unsqueeze(0)
+        std_vector = torch.tensor(data_dict["std"], device=self.device, dtype=torch.float32).unsqueeze(0)
+        max_vector = torch.tensor(data_dict["max"], device=self.device, dtype=torch.float32).unsqueeze(0)
+        min_vector = torch.tensor(data_dict["min"], device=self.device, dtype=torch.float32).unsqueeze(0)
         covariance_matrix = torch.tensor(data_dict["cov_matrix"], device=self.device, dtype=torch.float32)
 
         return mean_vector, std_vector, max_vector, min_vector, covariance_matrix
