@@ -443,6 +443,7 @@ class EBM_Single_Class:
         os.remove("output/loss_tracking_per_step.png")
         # Clear the current figure
         plt.clf()
+
     def save_model_to_minio(self,name,local_path):
             # Save the model locally pth
             save_model(self.model, local_path)
@@ -502,7 +503,8 @@ class EBM_Single_Class:
             cmd.upload_data(minio_client, bucket_name, model_card_name_output_path, model_card_buf)
 
             # add model card
-            request.http_add_classifier_model(model_card)      
+            request.http_add_classifier_model(model_card)     
+
     def load_model_from_minio(self, minio_client, dataset_name, tag_name, model_type):
             # get model file data from MinIO
             #datasets/environmental/models/classifiers/concept-cybernetic
@@ -539,6 +541,10 @@ class EBM_Single_Class:
             load_model(self.model, temp_file.name)
             # Remove the temporary file
             os.remove(temp_file.name)
+
+
+
+
 
     # Via clip-H
     def classify(self, dataset_feature_vector):
@@ -824,6 +830,73 @@ def tag_images(dataset_name, number_of_samples, number_of_images_to_tag,tag_name
 
 
 
+def tag_images_v2(dataset_name, number_of_samples, number_of_images_to_tag,model_name,model_id):
+
+    tag_name_input = model_name
+    # get the paths and hashes
+    images_paths_ood, images_hashes_ood, uuid_ood = get_file_paths_and_hashes_uuid(dataset_name,number_of_samples)
+
+
+
+    loaded_model=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
+                                minio_secret_key="2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+                                dataset= dataset_name,
+                                class_name= "topic-aquatic" ,
+                                model = None,
+                                save_name = "name",
+                                class_id =  1,
+                                training_batch_size=16,
+                                num_samples= 32000,
+                                epochs= 16,
+                                learning_rate= 0.001)
+
+    #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+    # Load the last occult trained model
+
+    
+    #loaded_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =tag_name_input, model_type = "energy-based-model")
+
+
+    model_file_data =cmd.get_file_from_minio(minio_client, 'datasets', tag_name_input)
+    # Create a temporary file and write the downloaded content into it
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        for data in model_file_data.stream(amt=8192):
+            temp_file.write(data)
+
+    # Load the model from the downloaded bytes
+    #model.load_state_dict(torch.load(temp_file.name))
+    loaded_model.model = DeepEnergyModel(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+    load_model(loaded_model.model, temp_file.name)
+    # Remove the temporary file
+    os.remove(temp_file.name)
+
+
+
+    sorted_images_and_hashes = process_and_sort_dataset_with_hashes_uui_v2(images_paths_ood, images_hashes_ood,uuid_ood, loaded_model) 
+    rank = 1
+    #((images_paths[i], embedding, score.item(),image,hashes[i])) 
+
+
+    # Tag the images
+
+    images_to_tag = sorted_images_and_hashes[:number_of_images_to_tag] 
+    for image in images_to_tag:
+        #
+        print("Rank : ", rank, " Path : ", image["path"], " Score : ",image["score"], " Hash : ",image["hash"], " uuid : ",image["uuid"])
+        rank +=1
+        #tag_image_v2(image_uuid = image[5],classifier_id = model_id,score =image[2] )
+        date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
+        image_data= {
+            "uuid": image["uuid"],
+            "classifier_id": model_id,
+            "score": image["score"],
+            "creation_time": date_now
+            }
+        print(image_data)
+        tag_image_v3(image_data)
+
+
+
 
 def get_all_ebm_classifier():
     # get all the classifier
@@ -884,6 +957,9 @@ def get_all_ebm_classifier():
 
 #tag_images(dataset_name = "environmental", number_of_samples = 20000, number_of_images_to_tag = 5 ,tag_name ="topic-aquatic",model_id = 88)
 
+
+
+
 filtered_dict = get_all_ebm_classifier()
 
 # Check if the filtered_dict is not None
@@ -893,6 +969,8 @@ if filtered_dict:
         classifier_id = filtered_dict["classifier_id"][i]
         tag_id = filtered_dict["tag_id"][i]
         model_path = filtered_dict["model_path"][i]
-        print(f"Classifier ID: {classifier_id}, Tag ID: {tag_id}, Model Path: {model_path}")
+        print(f"Now tagging using Classifier : Classifier ID: {classifier_id}, Tag ID: {tag_id}, Model Path: {model_path}")
+        tag_images_v2(dataset_name = "environmental", number_of_samples = 20000, number_of_images_to_tag = 3 ,model_name = model_path,model_id =classifier_id )
+        #tag_images(dataset_name = "environmental", number_of_samples = 20000, number_of_images_to_tag = 3 ,tag_name ="topic-aquatic",model_id = 88)
 else:
     print("No filtered data found.")
