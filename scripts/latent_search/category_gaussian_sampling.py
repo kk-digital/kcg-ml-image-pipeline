@@ -208,8 +208,9 @@ class SphereSamplingGenerator:
         sorted_indexes = torch.argsort(scores.squeeze(), descending=True)[:int(self.total_spheres * self.top_k)]
         top_spheres = generated_spheres[sorted_indexes]
         # select n random spheres from the top k spheres
-        indices = torch.randperm(top_spheres.size(0))[:self.selected_spheres]
-        selected_spheres = top_spheres[indices]
+        # indices = torch.randperm(top_spheres.size(0))[:self.selected_spheres]
+        # selected_spheres = top_spheres[indices]
+        selected_spheres = top_spheres[:self.selected_spheres]
 
         # Optimization step
         if(self.optimize_spheres):
@@ -362,6 +363,7 @@ class SphereSamplingGenerator:
 
                 # Calculate the loss for each embedding in the batch
                 score_losses = -scores.squeeze() - classifier_scores.squeeze()
+                score_losses = - classifier_scores.squeeze()
 
                 # Calculate the total loss for the batch
                 total_loss = score_losses.mean()
