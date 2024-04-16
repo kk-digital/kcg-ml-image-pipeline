@@ -160,7 +160,10 @@ class SphereSamplingGenerator:
         std_vector = torch.tensor(data_dict["std"][0], device=self.device, dtype=torch.float32)
         max_vector = torch.tensor(data_dict["max"][0], device=self.device, dtype=torch.float32)
         min_vector = torch.tensor(data_dict["min"][0], device=self.device, dtype=torch.float32)
-
+        print("mean", mean_vector)
+        print("std", std_vector)
+        print("max", max_vector)
+        print("min", min_vector)
         return mean_vector, std_vector, max_vector, min_vector
 
     def generate_spheres(self):
