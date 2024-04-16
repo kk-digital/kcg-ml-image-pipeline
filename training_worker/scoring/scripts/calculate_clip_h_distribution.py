@@ -77,12 +77,20 @@ def main():
         mean_vector = np.mean(clip_vectors_np, axis=0)
         std_vector = np.std(clip_vectors_np, axis=0)
 
+        print(mean_vector.shape)
+        print(std_vector.shape)
+
         # Calculate max and min vectors
         max_vector = np.max(clip_vectors_np, axis=0)
         min_vector = np.min(clip_vectors_np, axis=0)
 
+        print(max_vector.shape)
+        print(min_vector.shape)
+
         # calculate covariance matrix
         covariance_matrix = np.cov(clip_vectors, rowvar=False)
+
+        print(covariance_matrix.shape)
 
         stats = {
             "mean": mean_vector.tolist(),
