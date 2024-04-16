@@ -363,7 +363,7 @@ async def set_image_classifier_score(request: Request, classifier_score: Classif
     try:
 
         # Fetch image_hash from completed_jobs_collection
-        job_data = request.app.completed_jobs_collection.find_one({"uuid": classifier_score.job_uuid}, {"task_output_file_dict.output_file_hash": 1})
+        job_data = request.app.completed_jobs_collection.find_one({"uuid": classifier_score.job_uuid},  {"task_output_file_dict.output_file_hash": 1, "task_type": 1})
         if not job_data or 'task_output_file_dict' not in job_data or 'output_file_hash' not in job_data['task_output_file_dict']:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS,
@@ -371,6 +371,7 @@ async def set_image_classifier_score(request: Request, classifier_score: Classif
                 http_status_code=404
             )
         image_hash = job_data['task_output_file_dict']['output_file_hash']
+        task_type = job_data['task_type']
 
         # Fetch tag_id from classifier_models_collection
         classifier_data = request.app.classifier_models_collection.find_one({"classifier_id": classifier_score.classifier_id}, {"tag_id": 1})
@@ -395,6 +396,7 @@ async def set_image_classifier_score(request: Request, classifier_score: Classif
         # Initialize new_score_data outside of the if/else block
         new_score_data = {
             "uuid": classifier_score.job_uuid,
+            "task_type": task_type,
             "classifier_id": classifier_score.classifier_id,
             "tag_id": tag_id,
             "score": classifier_score.score,
@@ -507,6 +509,7 @@ async def list_image_scores(
     )
 
 
+
 @router.get("/pseudotag-classifier-scores/list-images-by-scores-v1", 
             description="List image scores based on classifier",
             tags=["pseudotag-classifier-scores"],  
@@ -561,3 +564,63 @@ async def list_image_scores(
         response_data=images_data, 
         http_status_code=200
     )
+
+
+@router.post("/pseudotag-classifier-scores/batch-update-task-type", 
+             response_model=StandardSuccessResponseV1[dict],
+             responses=ApiResponseHandlerV1.listErrors([500]))
+async def batch_update_classifier_scores_with_task_type(request: Request):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+    
+    try:
+        # Cursor for iterating over all scores in the image_classifier_scores_collection
+        scores_cursor = request.app.image_classifier_scores_collection.find({})
+        updated_count = 0
+
+        for score in scores_cursor:
+            # Fetch corresponding job using the UUID
+            job = request.app.completed_jobs_collection.find_one({"uuid": score["uuid"]}, {"task_type": 1})
+            if job and 'task_type' in job:
+                # Update the score document with the task_type
+                update_result = request.app.image_classifier_scores_collection.update_one(
+                    {"_id": score["_id"]},
+                    {"$set": {"task_type": job['task_type']}}
+                )
+                if update_result.modified_count > 0:
+                    updated_count += 1
+
+        return api_response_handler.create_success_response_v1(
+            response_data={"updated_count": updated_count},
+            http_status_code=200
+        )
+    
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=f"Failed to batch update classifier scores: {str(e)}",
+            http_status_code=500
+        )    
+
+@router.get("/image-classifier-scores/count", 
+            response_model=StandardSuccessResponseV1[int],
+            status_code=200,
+            tags=["image-classifier-scores"],
+            description="Counts the number of documents in the image classifier scores collection",
+            responses=ApiResponseHandlerV1.listErrors([500]))
+async def count_classifier_scores(request: Request):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Count documents in the image_classifier_scores_collection
+        count = request.app.image_classifier_scores_collection.count_documents({})
+
+        return api_response_handler.create_success_response_v1(
+            response_data={"count": count},
+            http_status_code=200  
+        )
+    
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500
+        )       
