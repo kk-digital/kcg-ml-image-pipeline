@@ -156,14 +156,10 @@ class SphereSamplingGenerator:
         data_dict = msgpack.unpackb(data)
 
         # Convert to PyTorch tensors
-        mean_vector = torch.tensor(data_dict["mean"][0], device=self.device, dtype=torch.float32)
-        std_vector = torch.tensor(data_dict["std"][0], device=self.device, dtype=torch.float32)
-        max_vector = torch.tensor(data_dict["max"][0], device=self.device, dtype=torch.float32)
-        min_vector = torch.tensor(data_dict["min"][0], device=self.device, dtype=torch.float32)
-        print("mean", mean_vector)
-        print("std", std_vector)
-        print("max", max_vector)
-        print("min", min_vector)
+        mean_vector = torch.tensor(data_dict["mean"], device=self.device, dtype=torch.float32)
+        std_vector = torch.tensor(data_dict["std"], device=self.device, dtype=torch.float32)
+        max_vector = torch.tensor(data_dict["max"], device=self.device, dtype=torch.float32)
+        min_vector = torch.tensor(data_dict["min"], device=self.device, dtype=torch.float32)
         return mean_vector, std_vector, max_vector, min_vector
 
     def generate_spheres(self):
