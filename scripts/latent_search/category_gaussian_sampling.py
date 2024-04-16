@@ -180,7 +180,7 @@ class SphereSamplingGenerator:
             gaussian_features = torch.rand(num_spheres, dim, device=self.device) * (self.feature_max_value - self.feature_min_value) + self.feature_min_value
 
             spheres = torch.cat([sphere_centers, torch.abs(gaussian_features)], dim=1)
-        print(spheres.size()), "------------->sphere size"
+            print(spheres.size(), "------------->sphere ")
         return spheres
     
     def rank_and_optimize_spheres(self):
