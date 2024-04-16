@@ -175,7 +175,7 @@ class SphereSamplingGenerator:
             
             spheres = torch.cat([sphere_centers, gaussian_features.unsqueeze(1)], dim=1)
         elif self.sphere_type == 'directional':
-            dim = sphere_centers.size(1)
+            dim = len(self.feature_max_value)
             gaussian_features = torch.empty(0, dim, device=self.device)
             gaussian_features = torch.rand(num_spheres, dim, device=self.device) * (self.feature_max_value - self.feature_min_value) + self.feature_min_value
 
