@@ -196,7 +196,7 @@ class SphereSamplingGenerator:
         for sphere in tqdm(generated_spheres):
             feature_vector= sphere[:1280]
             with torch.no_grad():
-                score= self.classifier_model.classify(feature_vector.unsqueeze(0)).to(device=self.device)
+                score= self.classifier_model.model(feature_vector.unsqueeze(0)).to(device=self.device)
                 classifier_scores.append(score.unsqueeze(0))
         
         scores= torch.cat(classifier_scores, dim=0)
@@ -354,7 +354,7 @@ class SphereSamplingGenerator:
                 feature_vectors= batch_embeddings[:,:dim]
                 classifier_scores = []
                 for vector in feature_vectors:
-                    score= self.classifier_model.classify(vector.unsqueeze(0)).to(device=self.device)
+                    score= self.classifier_model.model(vector.unsqueeze(0)).to(device=self.device)
                     classifier_scores.append(score.unsqueeze(0))
                 
                 classifier_scores= torch.cat(classifier_scores, dim=0)
