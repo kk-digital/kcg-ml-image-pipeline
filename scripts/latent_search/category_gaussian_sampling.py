@@ -180,6 +180,7 @@ class SphereSamplingGenerator:
             gaussian_features = torch.rand(num_spheres, dim, device=self.device) * (self.feature_max_value - self.feature_min_value) + self.feature_min_value
 
             spheres = torch.cat([sphere_centers, torch.abs(gaussian_features)], dim=1)
+        print(spheres.size()), "------------->sphere size"
         return spheres
     
     def rank_and_optimize_spheres(self):
@@ -250,7 +251,9 @@ class SphereSamplingGenerator:
                 # Collect generated vectors and optionally calculate scores
                 clip_vectors = torch.cat((clip_vectors, point.unsqueeze(0)), dim=0)
         # get sampled datapoint scores
-        scores = self.scoring_model.predict(clip_vectors, batch_size= self.batch_size)
+        classifier_scores = self.classifier_model.model(clip_vectors)
+        quality_scores = self.scoring_model.model(clip_vectors)
+        scores = classifier_scores + quality_scores
         # get top scoring datapoints
         _, sorted_indices = torch.sort(scores.squeeze(), descending=True)
         # filter with penalty
