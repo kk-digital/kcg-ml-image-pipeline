@@ -25,14 +25,17 @@ async def add_new_rank_model_model(request: Request, rank_model_data: RankReques
 
          # Check for existing classifier_id
         if rank_model_data.classifier_id is not None:
-            classifier_id = request.app.classifier_models_collection.find_one({"classifier_id": rank_model_data.classifier_id})
-            if not classifier_id:
+            classifier_info = request.app.classifier_models_collection.find_one({"classifier_id": rank_model_data.classifier_id}, {"model_path": 1})
+            if not classifier_info:
                 return response_handler.create_error_response_v1(
                     error_code=ErrorCode.INVALID_PARAMS,
                     error_string="The provided classifier ID does not exist.",
                     http_status_code=400
                 )
-        
+            
+            model_path = classifier_info.get("model_path", None)  
+
+
         # Check for existing rank_model_category_id
         if rank_model_data.rank_model_category_id is not None:
             existing_category = request.app.rank_model_categories_collection.find_one(
@@ -78,7 +81,7 @@ async def add_new_rank_model_model(request: Request, rank_model_data: RankReques
             "rank_model_id": new_rank_model_id,
             "rank_model_string": rank_model_data.rank_model_string,
             "classifier_id": rank_model_data.classifier_id,
-            "model_path": rank_model_data.model_path,
+            "model_path": model_path,
             "rank_model_category_id": rank_model_data.rank_model_category_id,
             "rank_model_description": rank_model_data.rank_model_description,
             "rank_model_vector_index": rank_model_data.rank_model_vector_index if rank_model_data.rank_model_vector_index is not None else -1,
@@ -122,68 +125,53 @@ async def update_rank_model_model(request: Request, rank_model_id: int, update_d
     query = {"rank_model_id": rank_model_id}
     existing_rank = request.app.rank_model_models_collection.find_one(query)
 
-    if update_data.classifier_id is not None:
-            classifier_id = request.app.classifier_models_collection.find_one({"classifier_id": update_data.classifier_id})
-            if not classifier_id:
-                return response_handler.create_error_response_v1(
-                    error_code=ErrorCode.INVALID_PARAMS,
-                    error_string="The provided classifier ID does not exist.",
-                    http_status_code=400
-                )
-
-    if existing_rank is None:
+    if not existing_rank:
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.ELEMENT_NOT_FOUND, 
             error_string="rank not found.", 
-            http_status_code=404,            
+            http_status_code=404,
         )
 
-    # Check if the rank is deprecated
     if existing_rank.get("deprecated", False):
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.INVALID_PARAMS, 
             error_string="Cannot modify a deprecated rank.", 
             http_status_code=400,
-            
         )
 
-    # Prepare update data
     update_fields = {k: v for k, v in update_data.dict().items() if v is not None}
 
-    if not update_fields:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.INVALID_PARAMS, 
-            error_string="No fields to update.", 
-            http_status_code=400,
-            
+    if update_data.classifier_id:
+        classifier_info = request.app.classifier_models_collection.find_one(
+            {"classifier_id": update_data.classifier_id},
+            {"model_path": 1}
         )
+        if not classifier_info:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string="The provided classifier ID does not exist.",
+                http_status_code=400
+            )
+        update_fields['model_path'] = classifier_info.get("model_path")
 
-    # Check if rank_model_vector_index is being updated and if it's already in use
     if 'rank_model_vector_index' in update_fields:
         index_query = {"rank_model_vector_index": update_fields['rank_model_vector_index']}
-        existing_rank_model_with_index = request.app.rank_model_models_collection.find_one(index_query)
-        if existing_rank_model_with_index and existing_rank_model_with_index['rank_model_id'] != rank_model_id:
+        if request.app.rank_model_models_collection.find_one(index_query, {"rank_model_id": 1})['rank_model_id'] != rank_model_id:
             return response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS, 
-                error_string="rank vector index already in use.", 
+                error_string="rank vector index already in use.",
                 http_status_code=400,
-                
             )
 
-    # Update the rank model
     request.app.rank_model_models_collection.update_one(query, {"$set": update_fields})
 
-    # Retrieve the updated rank
     updated_rank = request.app.rank_model_models_collection.find_one(query)
-
-    # Serialize ObjectId to string
     updated_rank = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_rank.items()}
 
-    # Return the updated rank object
     return response_handler.create_success_response_v1(
-                                                       response_data=updated_rank, 
-                                                       http_status_code=200,
-                                                       )
+        response_data=updated_rank, 
+        http_status_code=200,
+    )
 
 
 
