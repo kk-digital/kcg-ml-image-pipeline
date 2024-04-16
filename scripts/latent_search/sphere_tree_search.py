@@ -110,6 +110,12 @@ class RapidlyExploringTreeSearch:
         min_vector = torch.tensor(data_dict["min"], device=self.device, dtype=torch.float32).unsqueeze(0)
         covariance_matrix = torch.tensor(data_dict["cov_matrix"], device=self.device, dtype=torch.float32)
 
+        print(mean_vector.shape)
+        print(std_vector.shape)
+        print(max_vector.shape)
+        print(min_vector.shape)
+        print(covariance_matrix.shape)
+
         return mean_vector, std_vector, max_vector, min_vector, covariance_matrix
     
     def get_classifier_model(self, tag_name):
@@ -195,7 +201,7 @@ class RapidlyExploringTreeSearch:
 
         # generate covariance matrix
         # covariance_matrix = torch.diag((self.clip_std.pow(2) * jump_distance).squeeze(0))
-        covariance_matrix = torch.nan_to_num(self.covariance_matrix) * jump_distance
+        covariance_matrix = self.covariance_matrix * jump_distance
         
         # Initialize tqdm
         pbar = tqdm(total=max_nodes)
