@@ -1918,3 +1918,28 @@ async def get_job_by_job_id(request: Request, job_id: str, fields: List[str] = Q
             error_string="Job not found",
             http_status_code=404
         )
+
+
+@router.get("/queue/image-generation/count-non-empty-task-attributes", 
+            response_model=StandardSuccessResponseV1[dict],
+            status_code=200,
+            tags=["image-generation"],
+            description="Counts the number of jobs where task_attributes_dict is not empty.",
+            responses=ApiResponseHandlerV1.listErrors([422, 500]))
+async def count_non_empty_task_attributes(request: Request, task_type: str = "image_generation_task"):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Count documents where task_attributes_dict is not empty
+        count = request.app.completed_jobs_collection.count_documents({
+            'task_type': task_type, 
+            'task_attributes_dict': {'$exists': True, '$ne': {}}
+        })
+
+        return response_handler.create_success_response_v1(response_data={"count": count}, http_status_code=200)
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=f"Failed to count documents: {str(e)}",
+            http_status_code=500
+        )
