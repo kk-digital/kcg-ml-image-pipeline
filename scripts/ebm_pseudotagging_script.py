@@ -548,7 +548,7 @@ class EBM_Single_Class:
 
     # Via clip-H
     def classify(self, dataset_feature_vector):
-        print("Evaluate energy...")
+        #print("Evaluate energy...")
         #print("da vector ", dataset_feature_vector)
         energy = self.model.cnn(dataset_feature_vector.unsqueeze(0).to(self.model.device)).cpu()
         return energy
@@ -593,8 +593,8 @@ def get_file_paths_and_hashes_uuid(dataset,num_samples):
         uuid =[job['uuid'] for job in jobs] 
         #image_hashes=[job['image_hash'] for job in jobs]
 
-        for i in  range(len(file_paths)):
-            print("Path : ", file_paths[i], " Hash : ", hashes[i], " UUID : ",uuid[i])
+        # for i in  range(len(file_paths)):
+        #     print("Path : ", file_paths[i], " Hash : ", hashes[i], " UUID : ",uuid[i])
         
         return file_paths, hashes,uuid
 
@@ -656,7 +656,7 @@ def get_clip_embeddings_by_path(images_paths,label_value):
 
     # Create labels
     data_occcult_clips = [(clip, label_value) for clip in ocult_clips]
-    print("Clip embeddings array lenght : ",len(data_occcult_clips))
+    #print("Clip embeddings array lenght : ",len(data_occcult_clips))
 
     # Split
 
@@ -702,7 +702,7 @@ def process_and_sort_dataset_with_hashes_uui_v2(images_paths, hashes,uuid, model
     # Process each image path
     for i in range(len(images_paths)):
         # Extract embedding and image tensor from the image path
-        print(images_paths[i])
+        #print(images_paths[i])
         image, embedding = get_clip_and_image_from_path(images_paths[i])
         
         # Compute the score by passing the image tensor through the model
