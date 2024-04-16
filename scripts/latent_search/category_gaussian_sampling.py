@@ -18,8 +18,8 @@ base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 from data_loader.utils import get_object
-from training_worker.sampling.models.uniform_sampling_regression_fc import SamplingFCRegressionNetwork
-from training_worker.sampling.models.directional_uniform_sampling_regression_fc import DirectionalSamplingFCRegressionNetwork
+from training_worker.sampling.models.gaussian_sampling_regression_fc import SamplingFCRegressionNetwork
+from training_worker.sampling.models.directional_gaussian_sampling_regression_fc import DirectionalSamplingFCRegressionNetwork
 from training_worker.scoring.models.scoring_fc import ScoringFCNetwork
 from training_worker.classifiers.models.elm_regression import ELMRegression
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
@@ -101,21 +101,21 @@ class SphereSamplingGenerator:
 
             # get classifier model for selected tag
             self.classifier_model= self.get_classifier_model(self.tag_name)
-
-            # load the sphere average score model
-            if self.sphere_type=="uniform":
+            # get the sphere average score model
+            if self.sphere_type == "spherical":
                 self.sphere_scoring_model= SamplingFCRegressionNetwork(minio_client=self.minio_client, dataset=dataset)
                 self.sphere_scoring_model.load_model()
-                # get min and max radius values
-                self.min_radius= self.sphere_scoring_model.min_radius.item()
-                self.max_radius= self.sphere_scoring_model.max_radius.item()
 
-            elif self.sphere_type=="directional":
+                # get min and max variance(float)
+                self.feature_max_value= self.sphere_scoring_model.feature_max_value.item()
+                self.feature_min_value= self.sphere_scoring_model.feature_min_value.item()
+            elif self.sphere_type == "directional":
                 self.sphere_scoring_model= DirectionalSamplingFCRegressionNetwork(minio_client=self.minio_client, dataset=dataset)
                 self.sphere_scoring_model.load_model()
-                # get min and max radius values
-                self.min_radius= torch.tensor(self.sphere_scoring_model.max_scaling_factors).to(device=self.device)
-                self.max_radius= torch.tensor(self.sphere_scoring_model.min_scaling_factors).to(device=self.device)
+
+                # get min and max directional variance(vector)
+                self.feature_max_value= torch.tensor(self.sphere_scoring_model.feature_max_value, device=self.device)
+                self.feature_min_value= torch.tensor(self.sphere_scoring_model.feature_min_value, device=self.device)
 
             # get distribution of clip vectors for the dataset
             self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
