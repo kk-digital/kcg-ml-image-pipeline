@@ -14,6 +14,7 @@ sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 from data_loader.utils import get_object
 from training_worker.sampling.models.directional_uniform_sampling_regression_fc import DirectionalSamplingFCRegressionNetwork
+from training_worker.scoring.models.scoring_fc import ScoringFCNetwork
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 from training_worker.classifiers.models.elm_regression import ELMRegression
 from training_worker.scoring.models.classifier_fc import ClassifierFCNetwork
@@ -86,12 +87,15 @@ class RapidlyExploringTreeSearch:
         self.sphere_scoring_model= DirectionalSamplingFCRegressionNetwork(minio_client=self.minio_client, dataset=dataset)
         self.sphere_scoring_model.load_model()
 
+        self.scoring_model= ScoringFCNetwork(minio_client=self.minio_client, dataset=dataset)
+        self.scoring_model.load_model()
+
         # get classifier model for selected tag
         self.classifier_model= ClassifierFCNetwork(minio_client=self.minio_client, tag_name=tag_name)
         self.classifier_model.load_model()
 
         # get distribution of clip vectors for the dataset
-        self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
+        self.clip_mean , self.clip_std, self.clip_max, self.clip_min, self.covariance_matrix= self.get_clip_distribution()
         self.min_radius= torch.tensor(self.sphere_scoring_model.min_scaling_factors).to(device=self.device)
         self.max_radius= torch.tensor(self.sphere_scoring_model.max_scaling_factors).to(device=self.device)
     
@@ -100,12 +104,13 @@ class RapidlyExploringTreeSearch:
         data_dict = msgpack.unpackb(data)
 
         # Convert to PyTorch tensors
-        mean_vector = torch.tensor(data_dict["mean"], device=self.device, dtype=torch.float32)
-        std_vector = torch.tensor(data_dict["std"], device=self.device, dtype=torch.float32)
-        max_vector = torch.tensor(data_dict["max"], device=self.device, dtype=torch.float32)
-        min_vector = torch.tensor(data_dict["min"], device=self.device, dtype=torch.float32)
+        mean_vector = torch.tensor(data_dict["mean"], device=self.device, dtype=torch.float32).unsqueeze(0)
+        std_vector = torch.tensor(data_dict["std"], device=self.device, dtype=torch.float32).unsqueeze(0)
+        max_vector = torch.tensor(data_dict["max"], device=self.device, dtype=torch.float32).unsqueeze(0)
+        min_vector = torch.tensor(data_dict["min"], device=self.device, dtype=torch.float32).unsqueeze(0)
+        covariance_matrix = torch.tensor(data_dict["cov_matrix"], device=self.device, dtype=torch.float32)
 
-        return mean_vector, std_vector, max_vector, min_vector
+        return mean_vector, std_vector, max_vector, min_vector, covariance_matrix
     
     def get_classifier_model(self, tag_name):
         input_path = f"{self.dataset}/models/classifiers/{tag_name}/"
@@ -154,7 +159,9 @@ class RapidlyExploringTreeSearch:
         return sphere_centers
 
     def score_points(self, points):
-        scores= self.sphere_scoring_model.predict(points, batch_size=1000)
+        dim= points.size(1)//2
+        points = points[:,:dim]
+        scores= self.scoring_model.predict(points, batch_size=1000)
         return scores
     
     def classifiy_points(self, points):
@@ -187,7 +194,8 @@ class RapidlyExploringTreeSearch:
         all_ranking_scores = torch.tensor([], dtype=torch.float32, device=self.device)
 
         # generate covariance matrix
-        covariance_matrix = torch.diag((self.clip_std * jump_distance).squeeze(0))
+        # covariance_matrix = torch.diag((self.clip_std.pow(2) * jump_distance).squeeze(0))
+        covariance_matrix = torch.nan_to_num(self.covariance_matrix) * jump_distance
         
         # Initialize tqdm
         pbar = tqdm(total=max_nodes)
