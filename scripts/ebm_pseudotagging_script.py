@@ -970,7 +970,7 @@ if filtered_dict:
         tag_id = filtered_dict["tag_id"][i]
         model_path = filtered_dict["model_path"][i]
         print(f"Now tagging using Classifier : Classifier ID: {classifier_id}, Tag ID: {tag_id}, Model Path: {model_path}")
-        tag_images_v2(dataset_name = "environmental", number_of_samples = 20000, number_of_images_to_tag = 3 ,model_name = model_path,model_id =classifier_id )
+        tag_images_v2(dataset_name = "environmental", number_of_samples = 60000, number_of_images_to_tag = 10 ,model_name = model_path,model_id =classifier_id )
         #tag_images(dataset_name = "environmental", number_of_samples = 20000, number_of_images_to_tag = 3 ,tag_name ="topic-aquatic",model_id = 88)
 else:
     print("No filtered data found.")
