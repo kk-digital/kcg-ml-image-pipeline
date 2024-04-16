@@ -571,8 +571,8 @@ import logging
 @router.post("/pseudotag-classifier-scores/batch-update-task-type", 
              response_model=StandardSuccessResponseV1[dict],
              responses=ApiResponseHandlerV1.listErrors([500]))
-async def batch_update_classifier_scores_with_task_type(request: Request):
-    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+def batch_update_classifier_scores_with_task_type(request: Request):
+    api_response_handler = ApiResponseHandlerV1(request)
     
     try:
         # Setup a basic logger
@@ -581,7 +581,7 @@ async def batch_update_classifier_scores_with_task_type(request: Request):
 
         # Cursor for iterating over all scores in the image_classifier_scores_collection
         scores_cursor = request.app.image_classifier_scores_collection.find({})
-        total_scores = await request.app.image_classifier_scores_collection.count_documents({})
+        total_scores =  request.app.image_classifier_scores_collection.count_documents({})
         updated_count = 0
 
         logger.info("Starting batch update of task types...")
