@@ -565,6 +565,8 @@ async def list_image_scores(
         http_status_code=200
     )
 
+import logging
+
 
 @router.post("/pseudotag-classifier-scores/batch-update-task-type", 
              response_model=StandardSuccessResponseV1[dict],
@@ -573,10 +575,17 @@ async def batch_update_classifier_scores_with_task_type(request: Request):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     
     try:
+        # Setup a basic logger
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger()
+
         # Cursor for iterating over all scores in the image_classifier_scores_collection
         scores_cursor = request.app.image_classifier_scores_collection.find({})
+        total_scores = await request.app.image_classifier_scores_collection.count_documents({})
         updated_count = 0
 
+        logger.info("Starting batch update of task types...")
+        
         for score in scores_cursor:
             # Fetch corresponding job using the UUID
             job = request.app.completed_jobs_collection.find_one({"uuid": score["uuid"]}, {"task_type": 1})
@@ -588,18 +597,21 @@ async def batch_update_classifier_scores_with_task_type(request: Request):
                 )
                 if update_result.modified_count > 0:
                     updated_count += 1
+                    logger.info(f"Updated {updated_count}/{total_scores} with new task type: {job['task_type']}")
 
+        logger.info("Completed batch update.")
         return api_response_handler.create_success_response_v1(
             response_data={"updated_count": updated_count},
             http_status_code=200
         )
     
     except Exception as e:
+        logger.error(f"Batch update failed: {str(e)}")
         return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR, 
             error_string=f"Failed to batch update classifier scores: {str(e)}",
             http_status_code=500
-        )    
+        )
 
 @router.get("/image-classifier-scores/count", 
             response_model=StandardSuccessResponseV1[int],
