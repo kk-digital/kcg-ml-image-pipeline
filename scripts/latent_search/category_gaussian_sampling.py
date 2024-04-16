@@ -24,6 +24,7 @@ from training_worker.scoring.models.scoring_fc import ScoringFCNetwork
 from training_worker.classifiers.models.elm_regression import ELMRegression
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 from utility.minio import cmd
+from training_worker.scoring.models.classifier_fc import ClassifierFCNetwork
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -100,7 +101,10 @@ class SphereSamplingGenerator:
             self.scoring_model.load_model()
 
             # get classifier model for selected tag
-            self.classifier_model= self.get_classifier_model(self.tag_name)
+            # get classifier model for selected tag
+            self.classifier_model=ClassifierFCNetwork(minio_client=self.minio_client, tag_name=tag_name)
+
+            self.classifier_model.load_model()
             # get the sphere average score model
             if self.sphere_type == "spherical":
                 self.sphere_scoring_model= SamplingFCRegressionNetwork(minio_client=self.minio_client, dataset=dataset)
