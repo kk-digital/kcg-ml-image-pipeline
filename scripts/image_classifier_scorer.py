@@ -365,12 +365,9 @@ class ImageScorer:
             for pair in hash_score_pairs:
                 # upload score
                 score_data = {
-                    "uuid": job_uuids_hash_dict[pair[0]],
+                    "job_uuid": job_uuids_hash_dict[pair[0]],
                     "classifier_id": self.classifier_id,
-                    "classifier_name": self.model_name,
-                    "image_hash": pair[0],
                     "score": pair[1],
-                    "tag_id": self.tag_id
                 }
                 futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data))
 

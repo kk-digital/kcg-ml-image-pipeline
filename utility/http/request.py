@@ -177,7 +177,7 @@ def http_add_score(score_data):
     return None
 
 def http_add_classifier_score(score_data):
-    url = SERVER_ADDRESS + "/classifier-score/set-image-classifier-score"
+    url = SERVER_ADDRESS + "/pseudotag-classifier-scores/set-image-classifier-score"
     headers = {"Content-type": "application/json"}  # Setting content type header to indicate sending JSON data
     response = None
     try:
