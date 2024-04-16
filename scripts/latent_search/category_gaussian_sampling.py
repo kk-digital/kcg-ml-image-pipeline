@@ -46,6 +46,7 @@ def parse_args():
     parser.add_argument('--sampling-policy', type=str, default="spherical-gaussian-top-k-sphere-sampling")
     parser.add_argument('--optimize-spheres', action='store_true', default=False)
     parser.add_argument('--optimize-samples', action='store_true', default=False)
+    parser.add_argument('--only-top-k-spheres', action='store_true', default=False)
 
     return parser.parse_args()
 
@@ -67,6 +68,7 @@ class SphereSamplingGenerator:
                 save_csv=False,
                 optimize_spheres=False,
                 optimize_samples=False,
+                only_top_k_spheres=False,
                 ):
             
             self.dataset= dataset
@@ -84,6 +86,7 @@ class SphereSamplingGenerator:
             self.sampling_policy= sampling_policy
             self.optimize_spheres= optimize_spheres
             self.optimize_samples= optimize_samples
+            self.only_top_k_spheres = only_top_k_spheres
 
             # get minio client
             self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
@@ -255,9 +258,7 @@ class SphereSamplingGenerator:
                 # Collect generated vectors and optionally calculate scores
                 clip_vectors = torch.cat((clip_vectors, point.unsqueeze(0)), dim=0)
         # get sampled datapoint scores
-        classifier_scores = self.classifier_model.model(clip_vectors)
-        quality_scores = self.scoring_model.model(clip_vectors)
-        scores = classifier_scores + quality_scores
+        scores = self.scoring_model.model(clip_vectors)
         # get top scoring datapoints
         _, sorted_indices = torch.sort(scores.squeeze(), descending=True)
         # filter with penalty
@@ -392,11 +393,14 @@ class SphereSamplingGenerator:
         # if(self.optimize_samples):
         #     clip_vectors = self.optimize_datapoints(clip_vectors, self.scoring_model)
 
-        # generate clip vectors
-        if self.sphere_type == "spherical":
-            clip_vectors= self.sample_clip_vectors_with_spherical(num_samples=num_images)
-        elif self.sphere_type == 'directional':
+       # generate clip vectors
+        if self.only_top_k_spheres:
             clip_vectors= self.sample_clip_vectors_with_directional(num_samples=num_images)
+        else:
+            if self.sphere_type == "spherical":
+                clip_vectors= self.sample_clip_vectors_with_spherical(num_samples=num_images)
+            elif self.sphere_type == 'directional':
+                clip_vectors= self.sample_clip_vectors_with_directional(num_samples=num_images)
 
         df_data=[]
 
@@ -468,7 +472,8 @@ def main():
                                         send_job= args.send_job,
                                         save_csv= args.save_csv,
                                         optimize_spheres= args.optimize_spheres,
-                                        optimize_samples= args.optimize_samples)
+                                        optimize_samples= args.optimize_samples, 
+                                        only_top_k_spheres = args.only_top_k_spheres)
 
     generator.generate_images(num_images=args.num_images)
 
