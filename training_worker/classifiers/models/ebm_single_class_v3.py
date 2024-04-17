@@ -404,11 +404,19 @@ class EBM_Single_Class:
 
 
         # new addition same input size
-        min_data_size = min(len(target_paths), len(adv_paths))
-        print(f"the minimum is {min}, of  target: {len(target_paths)} and adv: {len(adv_paths)} ")
-        target_paths = random.sample(target_paths, min_data_size)
-        adv_paths = random.sample(adv_paths, min_data_size)
+        # min_data_size = min(len(target_paths), len(adv_paths))
+        # print(f"the minimum is {min}, of  target: {len(target_paths)} and adv: {len(adv_paths)} ")
+        # target_paths = random.sample(target_paths, min_data_size)
+        # adv_paths = random.sample(adv_paths, min_data_size)
         # new addition same input size
+
+
+
+        # minimize dataset
+
+        target_paths = random.sample(target_paths, 60)
+        
+        # minimize dataset
 
 
         print("target_paths lenght : ", len(target_paths))
@@ -1299,8 +1307,8 @@ def plot_samples_hashless_binning(loaded_model,dataset_name, number_of_samples,t
     # Tag the images
 
 
-    offset = 200
-    offset_addition = 200
+    offset = int(number_of_samples/16)
+    offset_addition = offset
 
     selected_structure_first_50 = sorted_images_and_hashes[:offset] 
     selected_structure_first_50 = random.sample(selected_structure_first_50, min(len(selected_structure_first_50),52))
@@ -1572,31 +1580,31 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 
 
-plot_samples_hashless_binning(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 3200,tag_name =tag_name_x)
+# plot_samples_hashless_binning(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 3200,tag_name =tag_name_x)
 
 
 ############################ Train ########################
 
 
 
-# defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
-#                             minio_secret_key= "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
-#                             dataset= "environmental",
-#                             class_name= "defect-color-over-saturated" ,
-#                             model = None,
-#                             save_name = "bla",
-#                             class_id =  get_tag_id_by_name("defect-color-over-saturated"),
-#                             training_batch_size=64,
-#                             num_samples= 32000,
-#                             epochs= 20,
-#                             learning_rate= 0.001)
+defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
+                            minio_secret_key= "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+                            dataset= "environmental",
+                            class_name= "defect-color-over-saturated" ,
+                            model = None,
+                            save_name = "bla",
+                            class_id =  get_tag_id_by_name("defect-color-over-saturated"),
+                            training_batch_size=64,
+                            num_samples= 32000,
+                            epochs= 20,
+                            learning_rate= 0.001)
 
 
-# defect_test.train_v2()
+defect_test.train_v2()
 
 
-# defect_test.load_model_from_minio(minio_client , dataset_name = "environmental", tag_name ="defect-color-over-saturated", model_type = "defect-color-over-saturated")
-# plot_samples_hashless(loaded_model = defect_test, dataset_name = "environmental", number_of_samples = 40000,tag_name ="defect-color-over-saturated")
+defect_test.load_model_from_minio(minio_client , dataset_name = "environmental", tag_name ="defect-color-over-saturated", model_type = "defect-color-over-saturated")
+plot_samples_hashless(loaded_model = defect_test, dataset_name = "environmental", number_of_samples = 40000,tag_name ="defect-color-over-saturated")
 
 
 
