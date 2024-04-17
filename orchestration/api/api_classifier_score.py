@@ -643,3 +643,28 @@ async def count_classifier_scores(request: Request):
             error_string=str(e),
             http_status_code=500
         )       
+
+
+@router.get("/image-classifier-scores/count-task-type", 
+            response_model=StandardSuccessResponseV1[dict],
+            status_code=200,
+            tags=["image-classifier-scores"],
+            description="Counts the number of documents in the image classifier scores collection that contain the 'task_type' field",
+            responses=ApiResponseHandlerV1.listErrors([500]))
+async def count_classifier_scores(request: Request):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Count documents that include the 'task_type' field
+        count = request.app.image_classifier_scores_collection.count_documents({"task_type": {"$exists": True}})
+
+        return api_response_handler.create_success_response_v1(
+            response_data={"count": count},
+            http_status_code=200  
+        )
+    
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500
+        )
