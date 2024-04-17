@@ -1425,8 +1425,8 @@ defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
                             model = None,
                             save_name = "bla",
                             class_id =  get_tag_id_by_name("defect-color-over-saturated"),
-                            training_batch_size=16,
-                            num_samples= 32,
+                            training_batch_size=64,
+                            num_samples= 32000,
                             epochs= 20,
                             learning_rate= 0.001)
 
@@ -1435,7 +1435,7 @@ defect_test.train_v2()
 
 
 defect_test.load_model_from_minio(minio_client , dataset_name = "environmental", tag_name ="defect-color-over-saturated", model_type = "defect-color-over-saturated")
-plot_samples_hashless(loaded_model = defect_test, dataset_name = "environmental", number_of_samples = 30000,tag_name ="defect-color-over-saturated")
+plot_samples_hashless(loaded_model = defect_test, dataset_name = "environmental", number_of_samples = 40000,tag_name ="defect-color-over-saturated")
 
 
 
