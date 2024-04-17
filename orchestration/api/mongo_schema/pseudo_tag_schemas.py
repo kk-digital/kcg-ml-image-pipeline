@@ -5,6 +5,7 @@ from datetime import datetime
 
 class ImagePseudoTag(BaseModel):
         uuid: Union[str, None]
+        task_type: str
         classifier_id: int
         image_hash: str
         tag_id: int
@@ -14,6 +15,7 @@ class ImagePseudoTag(BaseModel):
         def to_dict(self):
             return {
                 "uuid": self.uuid,
+                "task_type": self.task_type,
                 "classifier_id": self.classifier_id,
                 "image_hash": self.image_hash,
                 "tag_id": self.tag_id,

@@ -6,6 +6,9 @@ from typing import Union
 from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandlerV1, ErrorCode, StandardSuccessResponseV1, WasPresentResponse, VectorIndexUpdateRequest, PseudoTagIdResponse, TagCountResponse, ListImageTag
 import traceback
 from bson import ObjectId
+import logging
+from typing import Optional
+
 
 
 router = APIRouter()
@@ -156,6 +159,7 @@ async def add_pseudo_tag_to_image(request: Request, pseudo_tag: ImagePseudoTagRe
                 error_string="The provided UUID does not have an associated image hash.",
                 http_status_code=404)
         image_hash = job_data['task_output_file_dict']['output_file_hash']
+        task_type = job_data['task_type']
 
         # Fetch tag_id from classifier_models_collection using classifier_id
         classifier_data = request.app.classifier_models_collection.find_one({"classifier_id": pseudo_tag.classifier_id})
@@ -164,6 +168,7 @@ async def add_pseudo_tag_to_image(request: Request, pseudo_tag: ImagePseudoTagRe
                 error_code=ErrorCode.INVALID_PARAMS,
                 error_string="The provided classifier ID does not have an associated tag ID.",
                 http_status_code=404)
+        
         tag_id = classifier_data['tag_id']
 
         # Check for existing pseudo tag
@@ -194,6 +199,7 @@ async def add_pseudo_tag_to_image(request: Request, pseudo_tag: ImagePseudoTagRe
         # Add new pseudo tag
         new_pseudo_tag_data = {
             "uuid": pseudo_tag.uuid,
+            "task_type": task_type,
             "classifier_id": pseudo_tag.classifier_id,
             "tag_id": tag_id,
             "image_hash": image_hash,
@@ -298,4 +304,115 @@ def get_all_pseudo_tagged_images(request: Request):
             http_status_code=500)
 
 
+@router.post("/pseudotag/batch-update-task-type", 
+             response_model=StandardSuccessResponseV1[dict],
+             responses=ApiResponseHandlerV1.listErrors([500]))
+def batch_update_classifier_scores_with_task_type(request: Request):
+    api_response_handler = ApiResponseHandlerV1(request)
+    
+    try:
+        # Setup a basic logger
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger()
 
+        # Count total scores for logging progress
+        total_scores = request.app.pseudo_tag_images_collection.count_documents({})
+        logger.info(f"Total scores to update: {total_scores}")
+
+        # Cursor for iterating over all scores in the image_classifier_scores_collection
+        scores_cursor = request.app.pseudo_tag_images_collection.find({})
+        
+        updated_count = 0
+
+        logger.info("Starting batch update of task types...")
+        
+        for score in scores_cursor:
+            logger.info(f"Processing score with ID: {score['_id']}")  # Log the ID of the score being processed
+
+            # Fetch corresponding job using the UUID
+            job = request.app.completed_jobs_collection.find_one({"uuid": score["uuid"]}, {"task_type": 1})
+            
+            if job:
+                logger.info(f"Found job with task type: {job.get('task_type', 'No task type found')}")
+                
+                if 'task_type' in job:
+                    # Update the score document with the task_type
+                    update_result = request.app.pseudo_tag_images_collection.update_one(
+                        {"_id": score["_id"]},
+                        {"$set": {"task_type": job['task_type']}}
+                    )
+                    if update_result.modified_count > 0:
+                        updated_count += 1
+                        logger.info(f"Updated {updated_count}/{total_scores} with new task type: {job['task_type']}")
+            else:
+                logger.warning(f"No job found for score with UUID: {score['uuid']}")
+
+        logger.info("Completed batch update.")
+        return api_response_handler.create_success_response_v1(
+            response_data={"updated_count": updated_count},
+            http_status_code=200
+        )
+    
+    except Exception as e:
+        logger.error(f"Batch update failed: {str(e)}")
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=f"Failed to batch update classifier scores: {str(e)}",
+            http_status_code=500
+        )
+
+
+@router.get("/pseudotag/list-images-by-scores", 
+            description="List image scores based on classifier",
+            tags=["pseudo_tags"],  
+            response_model=StandardSuccessResponseV1[ListImagePseudoTag],  
+            responses=ApiResponseHandlerV1.listErrors([400, 422]))
+async def list_image_scores(
+    request: Request,
+    classifier_id: Optional[int] = Query(None, description="Filter by classifier ID"),
+    min_score: Optional[float] = Query(None, description="Minimum score"),
+    max_score: Optional[float] = Query(None, description="Maximum score"),
+    limit: int = Query(10, description="Limit on the number of results returned"),
+    offset: int = Query(0, description="Offset for pagination"),
+    order: str = Query("desc", description="Sort order: 'asc' for ascending, 'desc' for descending"),
+    random_sampling: bool = Query(True, description="Enable random sampling")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    # Build the query based on provided filters
+    query = {}
+    if classifier_id is not None:
+        query["classifier_id"] = classifier_id
+    if min_score is not None and max_score is not None:
+        query["score"] = {"$gte": min_score, "$lte": max_score}
+    elif min_score is not None:
+        query["score"] = {"$gte": min_score}
+    elif max_score is not None:
+        query["score"] = {"$lte": max_score}
+
+    # Modify behavior based on random_sampling parameter
+    if random_sampling:
+        # Fetch data without sorting when random_sampling is True
+        cursor = request.app.pseudo_tag_images_collection.aggregate([
+            {"$match": query},
+            {"$sample": {"size": limit}}  # Use the MongoDB $sample operator for random sampling
+        ])
+    else:
+        # Determine sort order and fetch sorted data when random_sampling is False
+        sort_order = 1 if order == "asc" else -1
+        cursor = request.app.pseudo_tag_images_collection.find(query).sort([("score", sort_order)]).skip(offset).limit(limit)
+    
+    scores_data = list(cursor)
+
+    # Remove _id in response data
+    for score in scores_data:
+        score.pop('_id', None)
+
+    # Prepare the data for the response
+    images_data = ListImagePseudoTag(images=[ImagePseudoTag(**doc).to_dict() for doc in scores_data]).dict()
+
+    # Return the fetched data with a success response
+    return response_handler.create_success_response_v1(
+        response_data=images_data, 
+        http_status_code=200
+    )    
