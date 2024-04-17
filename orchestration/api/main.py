@@ -205,6 +205,11 @@ def startup_db_client():
     app.pseudo_tag_categories_collection = app.mongodb_db["pseudo_tag_categories"]
     app.uuid_pseudo_tag_count_collection = app.mongodb_db["pseudo_tag_count"]
 
+    pseudo_tag_uuid_index=[
+    ('uuid', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.pseudo_tag_images_collection ,pseudo_tag_uuid_index, 'pseudo_tag_uuid_index')
+
     #classifier
     app.classifier_models_collection = app.mongodb_db["classifier_models"]
 

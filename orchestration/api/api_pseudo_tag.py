@@ -311,41 +311,34 @@ def batch_update_classifier_scores_with_task_type(request: Request):
     api_response_handler = ApiResponseHandlerV1(request)
     
     try:
-        # Setup a basic logger
         logging.basicConfig(level=logging.INFO)
         logger = logging.getLogger()
 
-        # Count total scores for logging progress
-        total_scores = request.app.pseudo_tag_images_collection.count_documents({})
+        # Cursor for iterating over all scores where 'task_type' is not already set
+        scores_cursor = request.app.pseudo_tag_images_collection.find({"task_type": {"$exists": False}})
+        total_scores = scores_cursor.count()
         logger.info(f"Total scores to update: {total_scores}")
 
-        # Cursor for iterating over all scores in the image_classifier_scores_collection
-        scores_cursor = request.app.pseudo_tag_images_collection.find({})
-        
         updated_count = 0
-
         logger.info("Starting batch update of task types...")
         
         for score in scores_cursor:
-            logger.info(f"Processing score with ID: {score['_id']}")  # Log the ID of the score being processed
+            logger.info(f"Processing score with ID: {score['_id']}")
 
-            # Fetch corresponding job using the UUID
+            # Fetch corresponding job using the UUID to get the 'task_type'
             job = request.app.completed_jobs_collection.find_one({"uuid": score["uuid"]}, {"task_type": 1})
             
-            if job:
-                logger.info(f"Found job with task type: {job.get('task_type', 'No task type found')}")
+            if job and 'task_type' in job:
+                logger.info(f"Found job with task type: {job['task_type']}")
                 
-                if 'task_type' in job:
-                    # Update the score document with the task_type
-                    update_result = request.app.pseudo_tag_images_collection.update_one(
-                        {"_id": score["_id"]},
-                        {"$set": {"task_type": job['task_type']}}
-                    )
-                    if update_result.modified_count > 0:
-                        updated_count += 1
-                        logger.info(f"Updated {updated_count}/{total_scores} with new task type: {job['task_type']}")
-            else:
-                logger.warning(f"No job found for score with UUID: {score['uuid']}")
+                # Update the score document with the 'task_type'
+                update_result = request.app.pseudo_tag_images_collection.update_one(
+                    {"_id": score["_id"]},
+                    {"$set": {"task_type": job['task_type']}}
+                )
+                if update_result.modified_count > 0:
+                    updated_count += 1
+                    logger.info(f"Updated {updated_count}/{total_scores} with new task type: {job['task_type']}")
 
         logger.info("Completed batch update.")
         return api_response_handler.create_success_response_v1(
