@@ -1363,46 +1363,92 @@ def get_file_paths(dataset,num_samples):
         return file_paths
 
 
-#EBM
-args = parse_args()
-original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
-                            minio_secret_key=args.minio_secret_key,
-                            dataset= args.dataset,
-                            class_name= "topic-aquatic" ,
+
+
+
+
+
+
+
+
+
+# #EBM
+# args = parse_args()
+# original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
+#                             minio_secret_key=args.minio_secret_key,
+#                             dataset= args.dataset,
+#                             class_name= "topic-aquatic" ,
+#                             model = None,
+#                             save_name = args.save_name,
+#                             class_id =  get_tag_id_by_name(args.class_name),
+#                             training_batch_size=args.training_batch_size,
+#                             num_samples= args.num_samples,
+#                             epochs= args.epochs,
+#                             learning_rate= args.learning_rate)
+
+# #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# # Load the last occult trained model
+
+# tag_name_x = "topic-space" #"topic-aquatic" #"topic-desert"
+# original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =tag_name_x, model_type = "energy-based-model")
+
+
+
+# # ELM
+# from training_worker.classifiers.models.elm_regression import ELMRegression
+# # elm_model = ELMRegression()
+# #def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
+
+# elm_model, _ = load_model_elm(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = tag_name_x, model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
+
+
+# # 4 Iso 
+# # 18 Forest
+# # 35 cyber
+# #plot_samples_hashless_from_target_dataset(original_model, 35 ,tag_name = tag_name_x)
+# # plot_samples_hashless_from_target_dataset(elm_model, 35 ,tag_name = tag_name_x)
+
+# plot_samples_hashless(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
+# #plot_samples_hashless(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
+
+
+
+
+############################# Train ########################
+
+
+
+defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
+                            minio_secret_key= "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+                            dataset= "environmental",
+                            class_name= "defect-color-over-saturated" ,
                             model = None,
-                            save_name = args.save_name,
-                            class_id =  get_tag_id_by_name(args.class_name),
-                            training_batch_size=args.training_batch_size,
-                            num_samples= args.num_samples,
-                            epochs= args.epochs,
-                            learning_rate= args.learning_rate)
-
-#original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-# Load the last occult trained model
-
-tag_name_x = "topic-space" #"topic-aquatic" #"topic-desert"
-original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =tag_name_x, model_type = "energy-based-model")
+                            save_name = "bla",
+                            class_id =  get_tag_id_by_name("defect-color-over-saturated"),
+                            training_batch_size=16,
+                            num_samples= 32,
+                            epochs= 20,
+                            learning_rate= 0.001)
 
 
-
-# ELM
-from training_worker.classifiers.models.elm_regression import ELMRegression
-# elm_model = ELMRegression()
-#def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
-
-elm_model, _ = load_model_elm(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = tag_name_x, model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
+defect_test.train()
 
 
-# 4 Iso 
-# 18 Forest
-# 35 cyber
-#plot_samples_hashless_from_target_dataset(original_model, 35 ,tag_name = tag_name_x)
-# plot_samples_hashless_from_target_dataset(elm_model, 35 ,tag_name = tag_name_x)
-
-plot_samples_hashless(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
-#plot_samples_hashless(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
+defect_test.load_model_from_minio(minio_client , dataset_name = "environmental", tag_name ="defect-color-over-saturated", model_type = "defect-color-over-saturated")
+plot_samples_hashless(loaded_model = defect_test, dataset_name = "environmental", number_of_samples = 30000,tag_name ="defect-color-over-saturated")
 
 
+
+
+
+
+
+
+
+
+
+
+####################################################
 
 
 # class_names = get_unique_tag_names()
