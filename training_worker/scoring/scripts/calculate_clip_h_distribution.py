@@ -61,7 +61,7 @@ def main():
                 clip_vectors.append(clip_vector[0])
             except Exception as e:
                 print(f"an error occured: {e}")
-
+       
         # Convert list of vectors into a numpy array for easier computation
         clip_vectors_np = np.array(clip_vectors)
 
