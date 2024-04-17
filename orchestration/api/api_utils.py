@@ -18,7 +18,7 @@ import os
 from urllib.parse import urlparse
 
 class DatasetResponse(BaseModel):
-    dataset: List[str]
+    datasets: List[str]
 
 class SeqIdResponse(BaseModel):
     sequential_ids : List[str]
@@ -33,6 +33,10 @@ class SetRateResponse(BaseModel):
     dataset_rate: float
     relevance_model: str
     ranking_model: str
+
+class ResponseRelevanceModel(BaseModel):
+    last_update: datetime
+    relevance_model: str
 
 class SetHourlyResponse(BaseModel):
     dataset: str
