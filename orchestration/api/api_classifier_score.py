@@ -437,30 +437,30 @@ async def set_image_classifier_score(request: Request, classifier_score: Classif
              )
 async def set_image_classifier_score_list(request: Request, classifier_score_list: List[ClassifierScoreRequest]):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
-    print(classifier_score_list)
     new_score_data_list = []
     try:
         for classifier_score in classifier_score_list:
             # Fetch image_hash from completed_jobs_collection
-            job_data = request.app.completed_jobs_collection.find_one({"uuid": classifier_score.job_uuid}, {"task_output_file_dict.output_file_hash": 1})
-            if not job_data or 'task_output_file_dict' not in job_data or 'output_file_hash' not in job_data['task_output_file_dict']:
-                return api_response_handler.create_error_response_v1(
-                    error_code=ErrorCode.INVALID_PARAMS,
-                    error_string="The provided UUID does not have an associated image hash.",
-                    http_status_code=404
-                )
-            image_hash = job_data['task_output_file_dict']['output_file_hash']
+            # job_data = request.app.completed_jobs_collection.find_one({"uuid": classifier_score.job_uuid}, {"task_output_file_dict.output_file_hash": 1})
+            # if not job_data or 'task_output_file_dict' not in job_data or 'output_file_hash' not in job_data['task_output_file_dict']:
+            #     return api_response_handler.create_error_response_v1(
+            #         error_code=ErrorCode.INVALID_PARAMS,
+            #         error_string="The provided UUID does not have an associated image hash.",
+            #         http_status_code=404
+            #     )
+            # image_hash = job_data['task_output_file_dict']['output_file_hash']
 
-            # Fetch tag_id from classifier_models_collection
-            classifier_data = request.app.classifier_models_collection.find_one({"classifier_id": classifier_score.classifier_id}, {"tag_id": 1})
-            if not classifier_data:
-                return api_response_handler.create_error_response_v1(
-                    error_code=ErrorCode.INVALID_PARAMS,
-                    error_string="The provided classifier ID does not exist.",
-                    http_status_code=404
-                )
-            tag_id = classifier_data['tag_id']
-
+            # # Fetch tag_id from classifier_models_collection
+            # classifier_data = request.app.classifier_models_collection.find_one({"classifier_id": classifier_score.classifier_id}, {"tag_id": 1})
+            # if not classifier_data:
+            #     return api_response_handler.create_error_response_v1(
+            #         error_code=ErrorCode.INVALID_PARAMS,
+            #         error_string="The provided classifier ID does not exist.",
+            #         http_status_code=404
+            #     )
+            # tag_id = classifier_data['tag_id']
+            tag_id = 0
+            image_hash = '123'
             
             query = {
                 "classifier_id": classifier_score.classifier_id,
@@ -491,9 +491,11 @@ async def set_image_classifier_score_list(request: Request, classifier_score_lis
                 insert_result = request.app.image_classifier_scores_collection.insert_one(new_score_data)
                 new_score_data['_id'] = str(insert_result.inserted_id)
 
-                new_score_data_list = new_score_data_list.append(new_score_data)
+                new_score_data_list.append(new_score_data)
         return api_response_handler.create_success_response_v1(
-            response_data=new_score_data_list,
+            response_data={
+                "data":new_score_data_list
+            },
             http_status_code=200  
         )
     

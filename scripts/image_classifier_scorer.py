@@ -27,7 +27,8 @@ from utility.minio import cmd
 class ImageScorer:
     def __init__(self,
                  minio_client,
-                 dataset_name="characters"):
+                 dataset_name="characters",
+                 batch_size=100):
         self.minio_client = minio_client
         self.model = None
         self.dataset = dataset_name
@@ -40,7 +41,7 @@ class ImageScorer:
         
         self.classifier_id_list = request.http_get_classifier_model_list()
 
-        self.batch_size = 100
+        self.batch_size = batch_size
 
         if torch.cuda.is_available():
             device = 'cuda'
@@ -52,6 +53,8 @@ class ImageScorer:
         print("device=", self.device)
 
     def load_model(self, classifier_model_info):
+        print("loading model...")
+
         self.tag_id = classifier_model_info["tag_id"]
         self.classifier_id = classifier_model_info["classifier_id"]
         self.model_name = classifier_model_info["classifier_name"]
@@ -402,7 +405,7 @@ class ImageScorer:
         with ThreadPoolExecutor(max_workers=50) as executor:
             futures = []
             len_hash_score_pairs = len(hash_score_pairs)
-            for start_index in range(0, len_hash_score_pairs, self.batch_size):
+            for start_index in tqdm(range(0, len_hash_score_pairs, self.batch_size)):
                 pairs = hash_score_pairs[start_index:min(start_index+self.batch_size, len_hash_score_pairs)]
                 score_data_list = []
                 for pair in pairs:
@@ -414,7 +417,7 @@ class ImageScorer:
                     })
                 futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data_list))
 
-            for _ in tqdm(as_completed(futures), total=len(hash_score_pairs)):
+            for _ in tqdm(as_completed(futures), total=len(hash_score_pairs)//self.batch_size + 1):
                 continue
 
     def get_classifier_id_and_name(self, classifier_file_path):
@@ -623,13 +626,15 @@ def parse_args():
 
 
 def run_image_scorer(minio_client,
-                     dataset_name):
+                     dataset_name,
+                     batch_size):
     start_time = time.time()
     # remove
     print("run_image_scorer")
 
     scorer = ImageScorer(minio_client=minio_client,
-                         dataset_name=dataset_name)
+                         dataset_name=dataset_name,
+                         batch_size=batch_size)
 
 
     classifier_model_list = request.http_get_classifier_model_list()
@@ -656,19 +661,15 @@ def run_image_scorer(minio_client,
 
 
 def main():
-    # args = parse_args()
-    dataset_name = "environmental"
-    minio_client = cmd.get_minio_client(minio_access_key="v048BpXpWrsVIHUfdAix",
-                                        minio_secret_key="4TFS20qkxVuX2HaC8ezAgG7GaDlVI1TqSPs0BKyu",
-                                        minio_ip_addr="103.20.60.90:9000")
-    # dataset_name = args.dataset_name
+    args = parse_args()
+    dataset_name = args.dataset_name
     
-    # minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key,
-    #                                     minio_secret_key=args.minio_secret_key,
-    #                                     minio_ip_addr=args.minio_addr)
+    minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key,
+                                        minio_secret_key=args.minio_secret_key,
+                                        minio_ip_addr=args.minio_addr)
 
     if dataset_name != "all":
-        run_image_scorer(minio_client, dataset_name)
+        run_image_scorer(minio_client, dataset_name, args.batch_size)
     else:
         # if all, train models for all existing datasets
         # get dataset name list
