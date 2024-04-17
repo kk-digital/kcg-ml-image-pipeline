@@ -1299,75 +1299,89 @@ def plot_samples_hashless_binning(loaded_model,dataset_name, number_of_samples,t
     # Tag the images
 
 
-    offset = 2000
-    offset_addition = 2000
+    offset = 200
+    offset_addition = 200
 
     selected_structure_first_50 = sorted_images_and_hashes[:offset] 
-    selected_structure_first_50 = random.sample(selected_structure_first_50, 52)
+    selected_structure_first_50 = random.sample(selected_structure_first_50, min(len(selected_structure_first_50),52))
 
 
     selected_structure_second_50 = sorted_images_and_hashes[offset:offset+offset_addition]
     offset = offset + offset_addition
-    selected_structure_second_50 = random.sample(selected_structure_second_50, 52)
+    print(f"offset is {offset}")
+    selected_structure_second_50 = random.sample(selected_structure_second_50, min(len(selected_structure_second_50),52))
 
 
 
     selected_structure_third_50 = sorted_images_and_hashes[offset:+offset_addition]
     offset = offset + offset_addition
-    selected_structure_third_50 = random.sample(selected_structure_third_50, 52)
+    print(f"offset is {offset}")
+    selected_structure_third_50 = random.sample(selected_structure_third_50, min(len(selected_structure_third_50),52))
 
 
     tier4 = sorted_images_and_hashes[offset:+offset_addition]
     offset = offset + offset_addition
-    tier4 = random.sample(tier4, 52)
+    print(f"offset is {offset}")
+    tier4 = random.sample(tier4,min(len(tier4),52))
 
 
     tier5 = sorted_images_and_hashes[offset:+offset_addition]
     offset = offset + offset_addition
-    tier5 = random.sample(tier5, 52)
+    print(f"offset is {offset}")
+    tier5 = random.sample(tier5, min(len(tier5),52))
 
     tier6 = sorted_images_and_hashes[offset:+offset_addition]
     offset = offset + offset_addition
-    tier6 = random.sample(tier6, 52)
+    print(f"offset is {offset}")
+    tier6 = random.sample(tier6, min(len(tier6),52))
 
     tier7 = sorted_images_and_hashes[offset:+offset_addition]
     offset = offset + offset_addition
-    tier7 = random.sample(tier7, 52)
+    print(f"offset is {offset}")
+    tier7 = random.sample(tier7, min(len(tier7),52))
 
     tier8 = sorted_images_and_hashes[offset:+offset_addition]
     offset = offset + offset_addition
-    tier8 = random.sample(tier8, 52)
+    print(f"offset is {offset}")
+    tier8 = random.sample(tier8, min(len(tier8),52))
 
     tier9 = sorted_images_and_hashes[offset:+offset_addition]
     offset = offset + offset_addition
-    tier9 = random.sample(tier9, 52)
+    print(f"offset is {offset}")
+    tier9 = random.sample(tier9, min(len(tier9),52))
 
     tier10 = sorted_images_and_hashes[offset:+offset_addition]
     offset = offset + offset_addition
-    tier10 = random.sample(tier10, 52)
+    print(f"offset is {offset}")
+    tier10 = random.sample(tier10, min(len(tier10),52))
 
     tier11 = sorted_images_and_hashes[offset:+offset_addition]
     offset = offset + offset_addition
-    tier11 = random.sample(tier11, 52)
+    print(f"offset is {offset}")
+    tier11 = random.sample(tier11, min(len(tier11),52))
 
     tier12 = sorted_images_and_hashes[offset:+offset_addition]
     offset = offset + offset_addition
-    tier12 = random.sample(tier12, 52)
+    print(f"offset is {offset}")
+    tier12 = random.sample(tier12, min(len(tier12),52))
 
     tier13 = sorted_images_and_hashes[offset:+offset_addition]
     offset = offset + offset_addition
-    tier13 = random.sample(tier13, 52)
+    print(f"offset is {offset}")
+    tier13 = random.sample(tier13, min(len(tier13),52))
 
     tier14 = sorted_images_and_hashes[offset:+offset_addition]
     offset = offset + offset_addition
-    tier14 = random.sample(tier14, 52)
+    print(f"offset is {offset}")
+    tier14 = random.sample(tier14, min(len(tier14),52))
 
     tier15 = sorted_images_and_hashes[offset:+offset_addition]
     offset = offset + offset_addition
-    tier15 = random.sample(tier15, 52)
+    print(f"offset is {offset}")
+    tier15 = random.sample(tier15, min(len(tier15),52))
 
     tier16 = sorted_images_and_hashes[offset:+offset_addition]
-    tier16 = random.sample(tier16, 52)
+    tier16 = random.sample(tier16, min(len(tier16),52))
 
 
     #tag_image(file_hash,tag_id,user)
@@ -1558,31 +1572,31 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 
 
-#plot_samples_hashless_binning(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 32000,tag_name =tag_name_x)
+plot_samples_hashless_binning(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 3200,tag_name =tag_name_x)
 
 
 ############################ Train ########################
 
 
 
-defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
-                            minio_secret_key= "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
-                            dataset= "environmental",
-                            class_name= "defect-color-over-saturated" ,
-                            model = None,
-                            save_name = "bla",
-                            class_id =  get_tag_id_by_name("defect-color-over-saturated"),
-                            training_batch_size=64,
-                            num_samples= 32000,
-                            epochs= 20,
-                            learning_rate= 0.001)
+# defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
+#                             minio_secret_key= "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+#                             dataset= "environmental",
+#                             class_name= "defect-color-over-saturated" ,
+#                             model = None,
+#                             save_name = "bla",
+#                             class_id =  get_tag_id_by_name("defect-color-over-saturated"),
+#                             training_batch_size=64,
+#                             num_samples= 32000,
+#                             epochs= 20,
+#                             learning_rate= 0.001)
 
 
-defect_test.train_v2()
+# defect_test.train_v2()
 
 
-defect_test.load_model_from_minio(minio_client , dataset_name = "environmental", tag_name ="defect-color-over-saturated", model_type = "defect-color-over-saturated")
-plot_samples_hashless(loaded_model = defect_test, dataset_name = "environmental", number_of_samples = 40000,tag_name ="defect-color-over-saturated")
+# defect_test.load_model_from_minio(minio_client , dataset_name = "environmental", tag_name ="defect-color-over-saturated", model_type = "defect-color-over-saturated")
+# plot_samples_hashless(loaded_model = defect_test, dataset_name = "environmental", number_of_samples = 40000,tag_name ="defect-color-over-saturated")
 
 
 
