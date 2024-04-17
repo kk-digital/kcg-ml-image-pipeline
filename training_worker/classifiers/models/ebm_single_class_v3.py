@@ -414,8 +414,8 @@ class EBM_Single_Class:
         print("target_paths lenght : ", len(target_paths))
         print("adv_paths lenght : ", len(adv_paths))
         
-        for path in target_paths:
-            print(" Path t :", path)
+        # for path in target_paths:
+        #     print(" Path t :", path)
         # for path in adv_paths:
         #     print(" Path adv :", path)
         #Create dataloader of target class
