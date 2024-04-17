@@ -1273,6 +1273,141 @@ def plot_samples_hashless(loaded_model,dataset_name, number_of_samples,tag_name)
 
 
 
+import random
+def plot_samples_hashless_binning(loaded_model,dataset_name, number_of_samples,tag_name):
+
+    images_paths = get_file_paths(dataset_name,number_of_samples)
+    
+    # Process the images
+    sorted_images_and_hashes = process_and_sort_dataset(images_paths, loaded_model) 
+
+    rank = 1
+    for image in sorted_images_and_hashes:
+        #
+        print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2])
+        rank += 0
+    # Tag the images
+
+
+    offset = 2000
+    offset_addition = 2000
+
+    selected_structure_first_50 = sorted_images_and_hashes[:offset] 
+    selected_structure_first_50 = random.sample(selected_structure_first_50, 52)
+
+
+    selected_structure_second_50 = sorted_images_and_hashes[offset:offset+offset_addition]
+    offset = offset + offset_addition
+    selected_structure_second_50 = random.sample(selected_structure_second_50, 52)
+
+
+
+    selected_structure_third_50 = sorted_images_and_hashes[offset:+offset_addition]
+    offset = offset + offset_addition
+    selected_structure_third_50 = random.sample(selected_structure_third_50, 52)
+
+
+    tier4 = sorted_images_and_hashes[offset:+offset_addition]
+    offset = offset + offset_addition
+    tier4 = random.sample(tier4, 52)
+
+
+    tier5 = sorted_images_and_hashes[offset:+offset_addition]
+    offset = offset + offset_addition
+    tier5 = random.sample(tier5, 52)
+
+    tier6 = sorted_images_and_hashes[offset:+offset_addition]
+    offset = offset + offset_addition
+    tier6 = random.sample(tier6, 52)
+
+    tier7 = sorted_images_and_hashes[offset:+offset_addition]
+    offset = offset + offset_addition
+    tier7 = random.sample(tier7, 52)
+
+    tier8 = sorted_images_and_hashes[offset:+offset_addition]
+    offset = offset + offset_addition
+    tier8 = random.sample(tier8, 52)
+
+    tier9 = sorted_images_and_hashes[offset:+offset_addition]
+    offset = offset + offset_addition
+    tier9 = random.sample(tier9, 52)
+
+    tier10 = sorted_images_and_hashes[offset:+offset_addition]
+    offset = offset + offset_addition
+    tier10 = random.sample(tier10, 52)
+
+    tier11 = sorted_images_and_hashes[offset:+offset_addition]
+    offset = offset + offset_addition
+    tier11 = random.sample(tier11, 52)
+
+    tier12 = sorted_images_and_hashes[offset:+offset_addition]
+    offset = offset + offset_addition
+    tier12 = random.sample(tier12, 52)
+
+    tier13 = sorted_images_and_hashes[offset:+offset_addition]
+    offset = offset + offset_addition
+    tier13 = random.sample(tier13, 52)
+
+    tier14 = sorted_images_and_hashes[offset:+offset_addition]
+    offset = offset + offset_addition
+    tier14 = random.sample(tier14, 52)
+
+    tier15 = sorted_images_and_hashes[offset:+offset_addition]
+    offset = offset + offset_addition
+    tier15 = random.sample(tier15, 52)
+
+    tier16 = sorted_images_and_hashes[offset:+offset_addition]
+    tier16 = random.sample(tier16, 52)
+
+
+    #tag_image(file_hash,tag_id,user)
+
+    
+    plot_name1 = tag_name + "_tier1_hs"
+    plot_name2 = tag_name + "_tier2_hs"
+    plot_name3  = tag_name + "_tier3_hs"
+    plot_name4 = tag_name + "_tier4_hs"
+    plot_name5 = tag_name + "_tier5_hs"
+    plot_name6  = tag_name + "_tier6_hs"
+    plot_name7 = tag_name + "_tier7_hs"
+    plot_name8  = tag_name + "_tier8_hs"
+    plot_name9  = tag_name + "_tier9_hs"
+
+    plot_name10 = tag_name + "_tier10_hs"
+    plot_name11  = tag_name + "_tier11_hs"
+    plot_name12  = tag_name + "_tier12_hs"
+
+
+    plot_name13 = tag_name + "_tier13_hs"
+    plot_name14  = tag_name + "_tier14_hs"
+    plot_name15  = tag_name + "_tier15_hs"
+
+    plot_name16  = tag_name + "_tier16_hs"
+
+    plot_images_with_scores_hasheless(selected_structure_first_50,plot_name1)
+    plot_images_with_scores_hasheless(selected_structure_second_50,plot_name2)
+    plot_images_with_scores_hasheless(selected_structure_third_50,plot_name3)
+
+    plot_images_with_scores_hasheless(tier4,plot_name4)
+    plot_images_with_scores_hasheless(tier5,plot_name5)
+    plot_images_with_scores_hasheless(tier6,plot_name6)
+    plot_images_with_scores_hasheless(tier7,plot_name7)
+    plot_images_with_scores_hasheless(tier8,plot_name8)
+    plot_images_with_scores_hasheless(tier9,plot_name9)
+
+    plot_images_with_scores_hasheless(tier10,plot_name10)
+    plot_images_with_scores_hasheless(tier11,plot_name11)
+    plot_images_with_scores_hasheless(tier12,plot_name12)
+
+    
+    plot_images_with_scores_hasheless(tier13,plot_name13)
+    plot_images_with_scores_hasheless(tier14,plot_name14)
+    plot_images_with_scores_hasheless(tier15,plot_name15)
+
+
+    plot_images_with_scores_hasheless(tier16,plot_name16)
+
+
 def plot_samples_hashless_from_target_dataset(loaded_model, tag_id ,tag_name):
 
     images_paths = get_tag_jobs(tag_id)
@@ -1372,70 +1507,72 @@ def get_file_paths(dataset,num_samples):
 
 
 
-# # #EBM
-# args = parse_args()
-# original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
-#                             minio_secret_key=args.minio_secret_key,
-#                             dataset= args.dataset,
-#                             class_name= "topic-aquatic" ,
-#                             model = None,
-#                             save_name = args.save_name,
-#                             class_id =  get_tag_id_by_name(args.class_name),
-#                             training_batch_size=args.training_batch_size,
-#                             num_samples= args.num_samples,
-#                             epochs= args.epochs,
-#                             learning_rate= args.learning_rate)
+# #EBM
+args = parse_args()
+original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
+                            minio_secret_key=args.minio_secret_key,
+                            dataset= args.dataset,
+                            class_name= "topic-aquatic" ,
+                            model = None,
+                            save_name = args.save_name,
+                            class_id =  get_tag_id_by_name(args.class_name),
+                            training_batch_size=args.training_batch_size,
+                            num_samples= args.num_samples,
+                            epochs= args.epochs,
+                            learning_rate= args.learning_rate)
 
-# #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-# # Load the last occult trained model
+#original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# Load the last occult trained model
 
-# tag_name_x = "topic-space" #"topic-aquatic" #"topic-desert"
-# original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =tag_name_x, model_type = "energy-based-model")
-
-
-
-# # ELM
-# from training_worker.classifiers.models.elm_regression import ELMRegression
-# # elm_model = ELMRegression()
-# #def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
-
-# elm_model, _ = load_model_elm(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = tag_name_x, model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
+tag_name_x = "topic-space" #"topic-aquatic" #"topic-desert"
+original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =tag_name_x, model_type = "energy-based-model")
 
 
-# # 4 Iso 
-# # 18 Forest
-# # 35 cyber
-# #plot_samples_hashless_from_target_dataset(original_model, 35 ,tag_name = tag_name_x)
-# # plot_samples_hashless_from_target_dataset(elm_model, 35 ,tag_name = tag_name_x)
 
-# #plot_samples_hashless(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
-# plot_samples_hashless(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
+# ELM
+from training_worker.classifiers.models.elm_regression import ELMRegression
+# elm_model = ELMRegression()
+#def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
+
+elm_model, _ = load_model_elm(device = original_model.device, minio_client = minio_client, model_dataset = "environmental",scoring_model = 'score' ,tag_name = tag_name_x, model_type = "elm-regression-clip-h", not_include= 'batatatatatata')
 
 
+# 4 Iso 
+# 18 Forest
+# 35 cyber
+#plot_samples_hashless_from_target_dataset(original_model, 35 ,tag_name = tag_name_x)
+# plot_samples_hashless_from_target_dataset(elm_model, 35 ,tag_name = tag_name_x)
+
+#plot_samples_hashless(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
+#plot_samples_hashless(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
+
+
+
+plot_samples_hashless_binning(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 32000,tag_name =tag_name_x)
 
 
 ############################ Train ########################
 
 
 
-defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
-                            minio_secret_key= "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
-                            dataset= "environmental",
-                            class_name= "defect-color-over-saturated" ,
-                            model = None,
-                            save_name = "bla",
-                            class_id =  get_tag_id_by_name("defect-color-over-saturated"),
-                            training_batch_size=64,
-                            num_samples= 32000,
-                            epochs= 20,
-                            learning_rate= 0.001)
+# defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
+#                             minio_secret_key= "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
+#                             dataset= "environmental",
+#                             class_name= "defect-color-over-saturated" ,
+#                             model = None,
+#                             save_name = "bla",
+#                             class_id =  get_tag_id_by_name("defect-color-over-saturated"),
+#                             training_batch_size=64,
+#                             num_samples= 32000,
+#                             epochs= 20,
+#                             learning_rate= 0.001)
 
 
-defect_test.train_v2()
+# defect_test.train_v2()
 
 
-defect_test.load_model_from_minio(minio_client , dataset_name = "environmental", tag_name ="defect-color-over-saturated", model_type = "defect-color-over-saturated")
-plot_samples_hashless(loaded_model = defect_test, dataset_name = "environmental", number_of_samples = 40000,tag_name ="defect-color-over-saturated")
+# defect_test.load_model_from_minio(minio_client , dataset_name = "environmental", tag_name ="defect-color-over-saturated", model_type = "defect-color-over-saturated")
+# plot_samples_hashless(loaded_model = defect_test, dataset_name = "environmental", number_of_samples = 40000,tag_name ="defect-color-over-saturated")
 
 
 
