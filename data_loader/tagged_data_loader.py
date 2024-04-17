@@ -64,9 +64,9 @@ class TaggedDatasetLoader:
 
     def get_tagged_data(self, path, index=0):
         input_type_extension = "-text-embedding.msgpack"
-        if self.input_type == constants.CLIP:
+        if self.input_type == [constants.CLIP, constants.CLIP_WITH_LENGTH]:
             input_type_extension = "_clip.msgpack"
-        elif self.input_type == constants.KANDINSKY_CLIP:
+        elif self.input_type in [constants.KANDINSKY_CLIP, constants.KANDINSKY_CLIP_WITH_LENGTH]:
             input_type_extension = "_clip_kandinsky.msgpack"
         elif self.input_type in [constants.EMBEDDING, constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE]:
             # replace with new /embeddings
@@ -100,6 +100,10 @@ class TaggedDatasetLoader:
 
         features_vector = np.array(features_vector, dtype=np.float32)
         features_vector = torch.tensor(features_vector).to(torch.float)
+
+        if self.input_type in [constants.KANDINSKY_CLIP_WITH_LENGTH, constants.CLIP_WITH_LENGTH]:
+            vector_length= np.linalg.norm(features_vector, axis=1).unsqueeze(0)
+            features_vector= torch.cat([features_vector,vector_length], dim=1)
 
         # concatenate if len more than 2
         features_vector = features_vector.reshape(1, -1)
@@ -202,9 +206,6 @@ class TaggedDatasetLoader:
         # load proper input type: either clip image embedding or text embedding
         positive_tagged_features = self.load_data(positive_tagged_dataset)
         negative_tagged_features = self.load_data(negative_tagged_dataset)
-
-        print(positive_tagged_features[0])
-        print(negative_tagged_features[0])
 
         (self.positive_training_features,
          self.positive_validation_features) = self.separate_training_and_validation_features(positive_tagged_features)

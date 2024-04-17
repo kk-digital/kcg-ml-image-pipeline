@@ -38,10 +38,12 @@ def train_classifier(minio_ip_addr=None,
         raise Exception("input type is not supported: {}".format(input_type))
 
     input_shape = 2 * 768
-    if input_type in [constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE, constants.CLIP]:
+    if input_type in [constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE, constants.CLIP, constants.CLIP_WITH_LENGTH]:
         input_shape = 768
     if input_type in [constants.KANDINSKY_CLIP]:
         input_shape = 1280
+    if input_type in [constants.KANDINSKY_CLIP_WITH_LENGTH]:
+        input_shape = 1281
 
     # load data
     tag_loader = TaggedDatasetLoader(minio_ip_addr=minio_ip_addr,
