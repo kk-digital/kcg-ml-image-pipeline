@@ -1380,7 +1380,7 @@ original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
 #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
 
-tag_name_x = "topic-aquatic" #"topic-aquatic" #"topic-desert"
+tag_name_x = "topic-space" #"topic-aquatic" #"topic-desert"
 original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =tag_name_x, model_type = "energy-based-model")
 
 
@@ -1399,8 +1399,8 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 #plot_samples_hashless_from_target_dataset(original_model, 35 ,tag_name = tag_name_x)
 # plot_samples_hashless_from_target_dataset(elm_model, 35 ,tag_name = tag_name_x)
 
-#plot_samples_hashless(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
-plot_samples_hashless(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
+plot_samples_hashless(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
+#plot_samples_hashless(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 30000,tag_name =tag_name_x)
 
 
 
