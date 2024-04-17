@@ -1313,74 +1313,74 @@ def plot_samples_hashless_binning(loaded_model,dataset_name, number_of_samples,t
 
 
 
-    selected_structure_third_50 = sorted_images_and_hashes[offset:+offset_addition]
+    selected_structure_third_50 = sorted_images_and_hashes[offset:offset+offset_addition]
     offset = offset + offset_addition
     print(f"offset is {offset}")
     selected_structure_third_50 = random.sample(selected_structure_third_50, min(len(selected_structure_third_50),52))
 
 
-    tier4 = sorted_images_and_hashes[offset:+offset_addition]
+    tier4 = sorted_images_and_hashes[offset:offset+offset_addition]
     offset = offset + offset_addition
     print(f"offset is {offset}")
     tier4 = random.sample(tier4,min(len(tier4),52))
 
 
-    tier5 = sorted_images_and_hashes[offset:+offset_addition]
+    tier5 = sorted_images_and_hashes[offset:offset+offset_addition]
     offset = offset + offset_addition
     print(f"offset is {offset}")
     tier5 = random.sample(tier5, min(len(tier5),52))
 
-    tier6 = sorted_images_and_hashes[offset:+offset_addition]
+    tier6 = sorted_images_and_hashes[offset:offset+offset_addition]
     offset = offset + offset_addition
     print(f"offset is {offset}")
     tier6 = random.sample(tier6, min(len(tier6),52))
 
-    tier7 = sorted_images_and_hashes[offset:+offset_addition]
+    tier7 = sorted_images_and_hashes[offset:offset+offset_addition]
     offset = offset + offset_addition
     print(f"offset is {offset}")
     tier7 = random.sample(tier7, min(len(tier7),52))
 
-    tier8 = sorted_images_and_hashes[offset:+offset_addition]
+    tier8 = sorted_images_and_hashes[offset:offset+offset_addition]
     offset = offset + offset_addition
     print(f"offset is {offset}")
     tier8 = random.sample(tier8, min(len(tier8),52))
 
-    tier9 = sorted_images_and_hashes[offset:+offset_addition]
+    tier9 = sorted_images_and_hashes[offset:offset+offset_addition]
     offset = offset + offset_addition
     print(f"offset is {offset}")
     tier9 = random.sample(tier9, min(len(tier9),52))
 
-    tier10 = sorted_images_and_hashes[offset:+offset_addition]
+    tier10 = sorted_images_and_hashes[offset:offset+offset_addition]
     offset = offset + offset_addition
     print(f"offset is {offset}")
     tier10 = random.sample(tier10, min(len(tier10),52))
 
-    tier11 = sorted_images_and_hashes[offset:+offset_addition]
+    tier11 = sorted_images_and_hashes[offset:offset+offset_addition]
     offset = offset + offset_addition
     print(f"offset is {offset}")
     tier11 = random.sample(tier11, min(len(tier11),52))
 
-    tier12 = sorted_images_and_hashes[offset:+offset_addition]
+    tier12 = sorted_images_and_hashes[offset:offset+offset_addition]
     offset = offset + offset_addition
     print(f"offset is {offset}")
     tier12 = random.sample(tier12, min(len(tier12),52))
 
-    tier13 = sorted_images_and_hashes[offset:+offset_addition]
+    tier13 = sorted_images_and_hashes[offset:offset+offset_addition]
     offset = offset + offset_addition
     print(f"offset is {offset}")
     tier13 = random.sample(tier13, min(len(tier13),52))
 
-    tier14 = sorted_images_and_hashes[offset:+offset_addition]
+    tier14 = sorted_images_and_hashes[offset:offset+offset_addition]
     offset = offset + offset_addition
     print(f"offset is {offset}")
     tier14 = random.sample(tier14, min(len(tier14),52))
 
-    tier15 = sorted_images_and_hashes[offset:+offset_addition]
+    tier15 = sorted_images_and_hashes[offset:offset+offset_addition]
     offset = offset + offset_addition
     print(f"offset is {offset}")
     tier15 = random.sample(tier15, min(len(tier15),52))
 
-    tier16 = sorted_images_and_hashes[offset:+offset_addition]
+    tier16 = sorted_images_and_hashes[offset:offset+offset_addition]
     tier16 = random.sample(tier16, min(len(tier16),52))
 
 
