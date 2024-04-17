@@ -275,7 +275,7 @@ def startup_db_client():
 
     # index for score in image_classifier_scores
     classifier_image_score_index=[
-    ('image_hash', pymongo.ASCENDING),
+    ('score', pymongo.ASCENDING),
     ]
     create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_score_index, 'classifier_image_score_index')
     
