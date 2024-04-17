@@ -404,10 +404,10 @@ class EBM_Single_Class:
 
 
         # new addition same input size
-        min = min(len(target_paths), len(adv_paths))
-        print(f"the minimum is {min}")
-        target_paths = random.sample(target_paths, min)
-        adv_paths = random.sample(adv_paths, min)
+        min_data_size = min(len(target_paths), len(adv_paths))
+        print(f"the minimum is {min}, of  target: {len(target_paths)} and adv: {len(adv_paths)} ")
+        target_paths = random.sample(target_paths, min_data_size)
+        adv_paths = random.sample(adv_paths, min_data_size)
         # new addition same input size
 
 
