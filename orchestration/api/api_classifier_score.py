@@ -1,6 +1,6 @@
 from fastapi import Request, APIRouter, Query
 from .api_utils import ErrorCode, WasPresentResponse, ApiResponseHandlerV1, StandardSuccessResponseV1
-from orchestration.api.mongo_schemas import ClassifierScore, ListClassifierScore, ClassifierScoreRequest, ClassifierScoreV1, ListClassifierScore1
+from orchestration.api.mongo_schemas import ClassifierScore, ListClassifierScore, ClassifierScoreRequest, ClassifierScoreV1, ListClassifierScore1, ListClassifierScoreV2, ClassifierScoreV2
 from fastapi.encoders import jsonable_encoder
 import uuid
 from typing import Optional
@@ -513,7 +513,7 @@ async def list_image_scores(
 @router.get("/pseudotag-classifier-scores/list-images-by-scores-v1", 
             description="List image scores based on classifier",
             tags=["pseudotag-classifier-scores"],  
-            response_model=StandardSuccessResponseV1[ListClassifierScore1],  
+            #response_model=StandardSuccessResponseV1[ListClassifierScore1],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 async def list_image_scores(
     request: Request,
@@ -557,7 +557,7 @@ async def list_image_scores(
         score.pop('_id', None)
 
     # Prepare the data for the response
-    images_data = ListClassifierScore1(images=[ClassifierScoreV1(**doc).to_dict() for doc in scores_data]).dict()
+    images_data = ListClassifierScoreV2(images=[ClassifierScoreV2(**doc).to_dict() for doc in scores_data]).dict()
 
     # Return the fetched data with a success response
     return response_handler.create_success_response_v1(
