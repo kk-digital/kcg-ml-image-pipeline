@@ -203,8 +203,8 @@ class TaggedDatasetLoader:
         positive_tagged_features = self.load_data(positive_tagged_dataset)
         negative_tagged_features = self.load_data(negative_tagged_dataset)
 
-        print(positive_tagged_features.shape)
-        print(negative_tagged_features.shape)
+        print(positive_tagged_features[0].shape)
+        print(negative_tagged_features[0].shape)
 
         (self.positive_training_features,
          self.positive_validation_features) = self.separate_training_and_validation_features(positive_tagged_features)
