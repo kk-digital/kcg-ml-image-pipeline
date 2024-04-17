@@ -234,45 +234,90 @@ class ImageScorer:
         with torch.no_grad():
             count=0
             weird_count = 0
-            for data in tqdm(features_data):
+            batch_size = 100
+            len_features_data = len(features_data)
+            for start_index in range(0, len_features_data, batch_size):
+                data = features_data[start_index:min(start_index + batch_size, len_features_data)]
+                image_path = image_paths[start_index:min(start_index + batch_size, len_features_data)]
                 try:
                     if self.model_input_type == "embedding":
-                        positive_embedding_array = data[1].to(self.device)
-                        negative_embedding_array = data[2].to(self.device)
-                        image_hash = data[0]
+                        positive_embedding_array = data[:][1].to(self.device)
+                        negative_embedding_array = data[:][2].to(self.device)
+                        image_hash = data[:][0]
 
                         score = self.model.classify_pooled_embeddings(positive_embedding_array, negative_embedding_array)
-
                     elif self.model_input_type == "embedding-positive":
-                        positive_embedding_array = data[1].to(self.device)
-                        image_hash = data[0]
+                        positive_embedding_array = data[:][1].to(self.device)
+                        image_hash = data[:][0]
 
                         score = self.model.predict_positive_or_negative_only_pooled(positive_embedding_array)
-
                     elif self.model_input_type == "embedding-negative":
-                        negative_embedding_array = data[1].to(self.device)
-                        image_hash = data[0]
-                        score = self.model.predict_positive_or_negative_only_pooled(negative_embedding_array)
+                        negative_embedding_array = data[:][1].to(self.device)
+                        image_hash = data[:][0]
 
+                        score = self.model.predict_positive_or_negative_only_pooled(negative_embedding_array)
                     elif self.model_input_type == "clip":
-                            clip_feature_vector = data[1].to(self.device)
-                            image_hash = data[0]
-                            score = self.model.classify(clip_feature_vector)
+                        clip_feature_vector = data[:][1].to(self.device)
+                        image_hash = data[:][0]
+
+                        score = self.model.classify(clip_feature_vector)
                 except Exception as e:
                     print(f"Skipping vector due to error: {e}")
                     continue
-                if score > 100000.0 or score < -100000.0:
+                
+                # print the image path and score where score is too much or too small
+                invalid_mask = score[(score > 100000.0) | (score < -100000.0)]
+                if len(score[invalid_mask]) > 0:
                     print("score more than or less than 100k and -100k")
-                    print("Score=", score)
-                    print("image path=", image_paths[count])
-                    weird_count += 1
-                    continue
+                    print("image path and score")
+                    print(torch.cat((score[invalid_mask].reshape(-1, 1), image_path[invalid_mask].reshape(-1, 1))))
+                    weird_count += len(score[invalid_mask])
+                    
+                hash_score_pairs.extend(list(zip(image_hash.tolist(), score.tolist())))
 
-                hash_score_pairs.append((image_hash, score.item()))
                 # add job uuids to dict
-                job_uuids_hash_dict[image_hash] = data[3]
+                for j in range(len(image_hash)):
+                    image_hash_str = str(image_hash[j].item())
+                    job_uuids_hash_dict[image_hash_str] = score[j].item()
+            # for data in tqdm(features_data):
+            #     try:
+            #         if self.model_input_type == "embedding":
+            #             positive_embedding_array = data[1].to(self.device)
+            #             negative_embedding_array = data[2].to(self.device)
+            #             image_hash = data[0]
 
-                count += 1
+            #             score = self.model.classify_pooled_embeddings(positive_embedding_array, negative_embedding_array)
+
+            #         elif self.model_input_type == "embedding-positive":
+            #             positive_embedding_array = data[1].to(self.device)
+            #             image_hash = data[0]
+
+            #             score = self.model.predict_positive_or_negative_only_pooled(positive_embedding_array)
+
+            #         elif self.model_input_type == "embedding-negative":
+            #             negative_embedding_array = data[1].to(self.device)
+            #             image_hash = data[0]
+            #             score = self.model.predict_positive_or_negative_only_pooled(negative_embedding_array)
+
+            #         elif self.model_input_type == "clip":
+            #                 clip_feature_vector = data[1].to(self.device)
+            #                 image_hash = data[0]
+            #                 score = self.model.classify(clip_feature_vector)
+            #     except Exception as e:
+            #         print(f"Skipping vector due to error: {e}")
+            #         continue
+            #     if score > 100000.0 or score < -100000.0:
+            #         print("score more than or less than 100k and -100k")
+            #         print("Score=", score)
+            #         print("image path=", image_paths[count])
+            #         weird_count += 1
+            #         continue
+
+            #     hash_score_pairs.append((image_hash, score.item()))
+            #     # add job uuids to dict
+            #     job_uuids_hash_dict[image_hash] = data[3]
+
+            #     count += 1
 
         print("Weird scores count = ", weird_count)
 
