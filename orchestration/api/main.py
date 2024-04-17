@@ -159,6 +159,12 @@ def startup_db_client():
     ]
     create_index_if_not_exists(app.pending_jobs_collection ,pending_jobs_task_type_index, 'pending_jobs_task_type_index')
 
+    completed_jobs_uuid_index=[
+    ('uuid', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.completed_jobs_collection ,completed_jobs_uuid_index, 'completed_jobs_uuid_index')
+
+
     app.failed_jobs_collection = app.mongodb_db["failed-jobs"]
 
     #inpainting jobs
@@ -254,6 +260,11 @@ def startup_db_client():
     ('tag_id', pymongo.ASCENDING)
     ]
     create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_classifier_index, 'classifier_image_classifier_index')
+
+    classifier_image_uuid_index=[
+    ('uuid', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_uuid_index, 'classifier_image_uuid_index')
 
 
     # sigma scores
