@@ -580,8 +580,6 @@ def batch_update_classifier_scores_with_task_type(request: Request):
 
         # Cursor for iterating over all scores where 'task_type' is not already set
         scores_cursor = request.app.image_classifier_scores_collection.find({"task_type": {"$exists": False}})
-        total_scores = scores_cursor.count()
-        logger.info(f"Total scores to update: {total_scores}")
 
         updated_count = 0
         logger.info("Starting batch update of task types...")
@@ -602,7 +600,7 @@ def batch_update_classifier_scores_with_task_type(request: Request):
                 )
                 if update_result.modified_count > 0:
                     updated_count += 1
-                    logger.info(f"Updated {updated_count}/{total_scores} with new task type: {job['task_type']}")
+                    logger.info(f"Updated with new task type: {job['task_type']}")
 
         logger.info("Completed batch update.")
         return api_response_handler.create_success_response_v1(
