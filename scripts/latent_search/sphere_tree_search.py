@@ -91,10 +91,8 @@ class RapidlyExploringTreeSearch:
         self.scoring_model.load_model()
 
         # get classifier model for selected tag
-        # self.classifier_model= ClassifierFCNetwork(minio_client=self.minio_client, tag_name=tag_name)
-        # self.classifier_model.load_model()
-
-        self.classifier_model= self.get_classifier_model(tag_name=tag_name)
+        self.classifier_model= ClassifierFCNetwork(minio_client=self.minio_client, tag_name=tag_name)
+        self.classifier_model.load_model()
 
         # get distribution of clip vectors for the dataset
         self.clip_mean , self.clip_std, self.clip_max, self.clip_min, self.covariance_matrix= self.get_clip_distribution()
@@ -169,9 +167,7 @@ class RapidlyExploringTreeSearch:
     def classifiy_points(self, points):
         dim= points.size(1)//2
         points = points[:,:dim]
-        vector_length= torch.norm(points, dim=1).unsqueeze(1)
-        points= torch.cat([points , vector_length], dim=1)
-        scores= self.classifier_model.classify(points).to(device=self.device)
+        scores= self.classifier_model.predict(points, batch_size=points.size(0)).to(device=self.device)
         return scores
     
     def rank_points(self, spheres):
