@@ -91,8 +91,10 @@ class RapidlyExploringTreeSearch:
         self.scoring_model.load_model()
 
         # get classifier model for selected tag
-        self.classifier_model= ClassifierFCNetwork(minio_client=self.minio_client, tag_name=tag_name)
-        self.classifier_model.load_model()
+        # self.classifier_model= ClassifierFCNetwork(minio_client=self.minio_client, tag_name=tag_name)
+        # self.classifier_model.load_model()
+
+        self.classifier_model= self.get_classifier_model(tag_name=tag_name)
 
         # get distribution of clip vectors for the dataset
         self.clip_mean , self.clip_std, self.clip_max, self.clip_min, self.covariance_matrix= self.get_clip_distribution()
@@ -114,7 +116,7 @@ class RapidlyExploringTreeSearch:
     
     def get_classifier_model(self, tag_name):
         input_path = f"{self.dataset}/models/classifiers/{tag_name}/"
-        file_suffix = "elm-regression-clip-h.safetensors"
+        file_suffix = "elm-regression-clip-h-with-length.safetensors"
 
         # Use the MinIO client's list_objects method directly with recursive=True
         model_files = [obj.object_name for obj in self.minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix)]
@@ -167,7 +169,9 @@ class RapidlyExploringTreeSearch:
     def classifiy_points(self, points):
         dim= points.size(1)//2
         points = points[:,:dim]
-        scores= self.classifier_model.predict(points, batch_size=points.size(0)).to(device=self.device)
+        vector_length= torch.norm(points, dim=1).unsqueeze(1)
+        points= torch.cat([points , vector_length], dim=1)
+        scores= self.classifier_model.classify(points).to(device=self.device)
         return scores
     
     def rank_points(self, spheres):
