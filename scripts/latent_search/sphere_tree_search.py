@@ -154,7 +154,7 @@ class RapidlyExploringTreeSearch:
 
         return clip_vectors
 
-    def filter_defects(self, points, defect_threshold=0.6):
+    def filter_defects(self, points, defect_threshold=0.4):
         # get defect scores
         scores= self.defect_model.predict(points, batch_size=points.size(0)).to(device=self.device).squeeze(1)
         # filter for indices of elements that aren't defective
@@ -211,7 +211,7 @@ class RapidlyExploringTreeSearch:
                     # skip if all nearest points are defective
                     if len(nearest_points)==0:
                         continue
-                    
+
                 # Score these points
                 ranks, classifier_scores, ranking_scores = self.rank_points(nearest_points)
 
