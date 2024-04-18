@@ -148,7 +148,7 @@ class RapidlyExploringTreeSearch:
         
         return clip_model
     
-    def setup_faiss(all_nodes):
+    def setup_faiss(self, all_nodes):
         # Assuming all_nodes is a list of torch tensors (nodes)
         dimension = all_nodes[0].size(0)
         num_nodes = len(all_nodes)
@@ -160,7 +160,7 @@ class RapidlyExploringTreeSearch:
 
         return faiss_index
 
-    def compute_distances(faiss_index, nodes):
+    def compute_distances(self, faiss_index, nodes):
         # Convert new_points to numpy float32 array
         new_points = nodes.cpu().numpy().astype('float32')
         # Compute distances to all existing nodes
