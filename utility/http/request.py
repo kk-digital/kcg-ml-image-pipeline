@@ -477,10 +477,10 @@ def http_get_random_image_by_date(dataset, size, start_date=None, end_date=None)
     url = SERVER_ADDRESS + endpoint_url
     try:
         response = requests.get(url)
+        print(response)
 
         if response.status_code == 200:
             data_json = response.json()
-            print(data_json)
             return data_json
 
     except Exception as e:
