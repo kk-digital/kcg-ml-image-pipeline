@@ -95,7 +95,9 @@ class TaggedDatasetLoader:
             features_vector.extend(features_data["positive_embedding"]["__ndarray__"])
         if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_NEGATIVE]:
             features_vector.extend(features_data["negative_embedding"]["__ndarray__"])
-        if self.input_type in [constants.CLIP, constants.KANDINSKY_CLIP]:
+        if self.input_type in [constants.CLIP, constants.KANDINSKY_CLIP, 
+                               constants.KANDINSKY_CLIP_WITH_LENGTH,
+                               constants.CLIP_WITH_LENGTH]:
             features_vector.extend(features_data["clip-feature-vector"])
 
         features_vector = np.array(features_vector, dtype=np.float32)
