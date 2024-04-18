@@ -18,6 +18,7 @@ from utility.minio import cmd
 from utility.path import separate_bucket_and_file_path
 from training_worker.ab_ranking.model.ab_ranking_elm_v1 import ABRankingELMModel
 from training_worker.classifiers.models.elm_regression import ELMRegression
+from training_worker.ab_ranking.model import constants
 
 API_URL="http://192.168.3.1:8111"
 
@@ -84,9 +85,9 @@ class KandinskyDatasetLoader:
 
         return ranking_model
     
-    def get_classifier_model(self, tag_name):
+    def get_classifier_model(self, tag_name, input_type):
         input_path = f"{self.dataset}/models/classifiers/{tag_name}/"
-        file_suffix = "elm-regression-clip-h.safetensors"
+        file_suffix = f"elm-regression-{input_type}.safetensors"
 
         # Use the MinIO client's list_objects method directly with recursive=True
         model_files = [obj.object_name for obj in self.minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix)]
@@ -158,8 +159,8 @@ class KandinskyDatasetLoader:
         
         return feature_vectors, scores
     
-    def load_classifier_scores(self, tag_name, batch_size):
-        classifier= self.get_classifier_model(tag_name)
+    def load_classifier_scores(self, tag_name, batch_size, input_type=constants.KANDINSKY_CLIP):
+        classifier= self.get_classifier_model(tag_name, input_type)
         jobs= self.load_kandinsky_jobs()
         feature_vectors=[]
         scores=[]
@@ -188,6 +189,11 @@ class KandinskyDatasetLoader:
                 output_batch.append(output_clip_vector)
                 if len(input_batch) == batch_size:
                     output_features= torch.stack(output_batch, dim=0).squeeze(1).to(device=self.device)
+                    # add vector length if input type includes it
+                    if input_type== constants.KANDINSKY_CLIP_WITH_LENGTH:
+                        vector_length= torch.norm(output_features, dim=1).unsqueeze(1)
+                        output_features= torch.cat([output_features , vector_length], dim=1)
+
                     output_clip_scores = classifier.classify(output_features).squeeze(1).tolist()
                     scores.extend(output_clip_scores)
                     feature_vectors.extend(input_batch)

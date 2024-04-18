@@ -19,6 +19,7 @@ def parse_args():
     parser.add_argument('--minio-access-key', type=str, help='Minio access key')
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--tag-name', type=str, help='Name of the tag to generate for', default="topic-forest")
+    parser.add_argument('--input-type', type=str, help='Input type of the classifier model', default="clip-h")
     parser.add_argument('--classifier-batch-size', type=int, default=1000)
     parser.add_argument('--training-batch-size', type=int, default=256)
     parser.add_argument('--epochs', type=int, default=10)
@@ -32,6 +33,7 @@ class ABRankingFcTrainingPipeline:
                     minio_access_key,
                     minio_secret_key,
                     tag_name,
+                    input_type,
                     classifier_batch_size=1000,
                     training_batch_size=256,
                     learning_rate=0.001,
@@ -53,13 +55,16 @@ class ABRankingFcTrainingPipeline:
         self.classifier_batch_size= classifier_batch_size
         self.learning_rate= learning_rate
         self.epochs= epochs
+        self.input_type= input_type 
 
         self.dataloader= KandinskyDatasetLoader(minio_client=self.minio_client,
                                                 dataset="environmental")
 
     def train(self):
         # load the training dataset
-        inputs, outputs= self.dataloader.load_classifier_scores(self.tag_name, batch_size=self.classifier_batch_size)
+        inputs, outputs= self.dataloader.load_classifier_scores(self.tag_name, 
+                                                                batch_size=self.classifier_batch_size,
+                                                                input_type=self.input_type)
         
         # training and saving the model
         print(f"training an fc model for the {self.tag_name} tag")
@@ -74,6 +79,7 @@ def main():
         training_pipeline=ABRankingFcTrainingPipeline(minio_access_key=args.minio_access_key,
                                     minio_secret_key=args.minio_secret_key,
                                     tag_name= args.tag_name,
+                                    input_type= args.input_type,
                                     classifier_batch_size=args.classifier_batch_size,
                                     training_batch_size=args.training_batch_size,
                                     epochs= args.epochs,
@@ -93,6 +99,7 @@ def main():
                 training_pipeline=ABRankingFcTrainingPipeline(minio_access_key=args.minio_access_key,
                                     minio_secret_key=args.minio_secret_key,
                                     tag_name= tag_name,
+                                    input_type= args.input_type,
                                     classifier_batch_size=args.classifier_batch_size,
                                     training_batch_size=args.training_batch_size,
                                     epochs= args.epochs,
