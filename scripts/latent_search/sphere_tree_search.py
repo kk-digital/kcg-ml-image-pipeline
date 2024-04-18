@@ -203,7 +203,6 @@ class RapidlyExploringTreeSearch:
             next_generation = []
             
             for point in current_generation:
-                # point= point.unsqueeze(0)
                 # Find nearest k points to the current point
                 nearest_points = self.find_nearest_points(point, nodes_per_iteration, covariance_matrix)
                 # Filter defective points
@@ -212,14 +211,10 @@ class RapidlyExploringTreeSearch:
                     # skip if all nearest points are defective
                     if len(nearest_points)==0:
                         continue
-
-                print("nearest points shape: ", nearest_points.shape)
-
+                    
                 # Score these points
                 ranks, classifier_scores, ranking_scores = self.rank_points(nearest_points)
 
-                print("all classifier scores shape: ", all_classifier_scores.shape)
-                print("classifier scores shape: ", classifier_scores.shape)    
                 # Select top n points based on scores
                 _, sorted_indices = torch.sort(ranks, descending=True)
                 top_points = nearest_points[sorted_indices[:branches_per_iteration]]
