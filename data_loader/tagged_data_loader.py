@@ -102,8 +102,8 @@ class TaggedDatasetLoader:
         features_vector = torch.tensor(features_vector).to(torch.float)
 
         if self.input_type in [constants.KANDINSKY_CLIP_WITH_LENGTH, constants.CLIP_WITH_LENGTH]:
-            vector_length= torch.linalg.norm(features_vector, axis=0)
-            features_vector= torch.cat([features_vector,vector_length], dim=0)
+            vector_length= torch.linalg.norm(features_vector)
+            features_vector= torch.cat([features_vector , vector_length])
 
         # concatenate if len more than 2
         features_vector = features_vector.reshape(1, -1)
