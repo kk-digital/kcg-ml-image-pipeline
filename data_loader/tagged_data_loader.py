@@ -64,7 +64,7 @@ class TaggedDatasetLoader:
 
     def get_tagged_data(self, path, index=0):
         input_type_extension = "-text-embedding.msgpack"
-        if self.input_type == [constants.CLIP, constants.CLIP_WITH_LENGTH]:
+        if self.input_type in [constants.CLIP, constants.CLIP_WITH_LENGTH]:
             input_type_extension = "_clip.msgpack"
         elif self.input_type in [constants.KANDINSKY_CLIP, constants.KANDINSKY_CLIP_WITH_LENGTH]:
             input_type_extension = "_clip_kandinsky.msgpack"
