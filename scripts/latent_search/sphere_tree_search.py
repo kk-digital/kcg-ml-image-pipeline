@@ -203,7 +203,7 @@ class RapidlyExploringTreeSearch:
             next_generation = []
             
             for point in current_generation:
-                point= point.unsqueeze(0)
+                # point= point.unsqueeze(0)
                 # Find nearest k points to the current point
                 nearest_points = self.find_nearest_points(point, nodes_per_iteration, covariance_matrix)
                 # Filter defective points
