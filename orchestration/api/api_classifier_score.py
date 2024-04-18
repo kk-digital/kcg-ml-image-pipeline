@@ -1,6 +1,6 @@
 from fastapi import Request, APIRouter, Query
 from .api_utils import ErrorCode, WasPresentResponse, ApiResponseHandlerV1, StandardSuccessResponseV1
-from orchestration.api.mongo_schemas import ClassifierScore, ListClassifierScore, ClassifierScoreRequest, ClassifierScoreV1, ListClassifierScore1, ListClassifierScoreV2, ClassifierScoreV2
+from orchestration.api.mongo_schemas import ClassifierScore, ListClassifierScore, ClassifierScoreRequest, ClassifierScoreV1, ListClassifierScore1
 from fastapi.encoders import jsonable_encoder
 import uuid
 from typing import Optional
@@ -512,8 +512,8 @@ async def list_image_scores(
 
 @router.get("/pseudotag-classifier-scores/list-images-by-scores-v1", 
             description="List image scores based on classifier",
-            tags=["pseudotag-classifier-scores"],  
-            #response_model=StandardSuccessResponseV1[ListClassifierScore1],  
+            tags=["deprecated2"],  
+            response_model=StandardSuccessResponseV1[ListClassifierScore1],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 async def list_image_scores(
     request: Request,
@@ -557,7 +557,7 @@ async def list_image_scores(
         score.pop('_id', None)
 
     # Prepare the data for the response
-    images_data = ListClassifierScoreV2(images=[ClassifierScoreV2(**doc).to_dict() for doc in scores_data]).dict()
+    images_data = ListClassifierScore1(images=[ClassifierScoreV1(**doc).to_dict() for doc in scores_data]).dict()
 
     # Return the fetched data with a success response
     return response_handler.create_success_response_v1(
@@ -666,3 +666,64 @@ async def count_classifier_scores(request: Request):
             error_string=str(e),
             http_status_code=500
         )
+    
+
+
+@router.get("/pseudotag-classifier-scores/list-images-by-scores-v2", 
+            description="List image scores based on classifier",
+            tags=["pseudotag-classifier-scores"],  
+            response_model=StandardSuccessResponseV1[ListClassifierScore1],  
+            responses=ApiResponseHandlerV1.listErrors([400, 422]))
+async def list_image_scores(
+    request: Request,
+    classifier_id: Optional[int] = Query(None, description="Filter by classifier ID"),
+    task_type: Optional[str] = Query(None, description="Filter by task_type"),
+    min_score: Optional[float] = Query(None, description="Minimum score"),
+    max_score: Optional[float] = Query(None, description="Maximum score"),
+    limit: int = Query(10, description="Limit on the number of results returned"),
+    offset: int = Query(0, description="Offset for pagination"),
+    order: str = Query("desc", description="Sort order: 'asc' for ascending, 'desc' for descending"),
+    random_sampling: bool = Query(True, description="Enable random sampling")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    # Build the query based on provided filters
+    query = {}
+    if classifier_id is not None:
+        query["classifier_id"] = classifier_id
+    if task_type is not None:
+        query["task_type"] = task_type
+    if min_score is not None and max_score is not None:
+        query["score"] = {"$gte": min_score, "$lte": max_score}
+    elif min_score is not None:
+        query["score"] = {"$gte": min_score}
+    elif max_score is not None:
+        query["score"] = {"$lte": max_score}
+
+    # Modify behavior based on random_sampling parameter
+    if random_sampling:
+        # Fetch data without sorting when random_sampling is True
+        cursor = request.app.image_classifier_scores_collection.aggregate([
+            {"$match": query},
+            {"$sample": {"size": limit}}  # Use the MongoDB $sample operator for random sampling
+        ])
+    else:
+        # Determine sort order and fetch sorted data when random_sampling is False
+        sort_order = 1 if order == "asc" else -1
+        cursor = request.app.image_classifier_scores_collection.find(query).sort([("score", sort_order)]).skip(offset).limit(limit)
+    
+    scores_data = list(cursor)
+
+    # Remove _id in response data
+    for score in scores_data:
+        score.pop('_id', None)
+
+    # Prepare the data for the response
+    images_data = ListClassifierScore1(images=[ClassifierScoreV1(**doc).to_dict() for doc in scores_data]).dict()
+
+    # Return the fetched data with a success response
+    return response_handler.create_success_response_v1(
+        response_data=images_data, 
+        http_status_code=200
+    )
+   
