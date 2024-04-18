@@ -37,7 +37,7 @@ from orchestration.api.api_server_utility import router as server_utility_router
 from orchestration.api.api_classifier_score import router as classifier_score_router
 from orchestration.api.api_classifier import router as classifier_router
 from orchestration.api.api_ab_rank import router as ab_rank_router
-from orchestration.api.api_rank import router as rank_router
+from orchestration.api.api_rank_active_learning import router as rank_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
