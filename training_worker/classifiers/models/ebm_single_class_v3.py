@@ -414,7 +414,7 @@ class EBM_Single_Class:
 
         # minimize dataset
 
-        target_paths = random.sample(target_paths, 240)
+        target_paths = random.sample(target_paths, 120)
         
         # minimize dataset
 
@@ -1590,7 +1590,7 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
                             minio_secret_key= "2LZ6pqIGOiZGcjPTR6DZPlElWBkRTkaLkyLIBt4V",
                             dataset= "environmental",
-                            class_name= "defect-color-over-saturated" ,
+                            class_name= "defect-color-over-saturated",
                             model = None,
                             save_name = "bla",
                             class_id =  get_tag_id_by_name("defect-color-over-saturated"),
