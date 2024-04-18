@@ -151,7 +151,6 @@ class RapidlyExploringTreeSearch:
     def setup_faiss(self, all_nodes):
         # Assuming all_nodes is a list of torch tensors (nodes)
         dimension = all_nodes[0].size(0)
-        num_nodes = len(all_nodes)
         faiss_index = faiss.IndexFlatL2(dimension)  # L2 distance for nearest neighbor search
 
         # Convert all_nodes to a contiguous array of float32, required by FAISS
@@ -162,7 +161,7 @@ class RapidlyExploringTreeSearch:
 
     def compute_distances(self, faiss_index, nodes):
         # Convert new_points to numpy float32 array
-        new_points = nodes.cpu().numpy().astype('float32')
+        nodes = nodes.cpu().numpy().astype('float32')
         # Compute distances to all existing nodes
         distances, indices = faiss_index.search(nodes, 1)  # Find the nearest node
         return distances
