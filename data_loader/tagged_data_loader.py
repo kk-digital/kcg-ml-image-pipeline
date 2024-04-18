@@ -190,7 +190,7 @@ class TaggedDatasetLoader:
         # get dataset name from a sample path
         splits = positive_tagged_dataset[0].split("/")
         dataset_name = splits[1]
-        self.dataset_name = dataset_name
+        self.dataset_name = "environmental"
 
         # get random images for negatives
         # get from environmental for now

@@ -21,6 +21,7 @@ from training_worker.sampling.models.uniform_sampling_regression_fc import Sampl
 from training_worker.sampling.models.directional_uniform_sampling_regression_fc import DirectionalSamplingFCRegressionNetwork
 from training_worker.scoring.models.scoring_fc import ScoringFCNetwork
 from training_worker.classifiers.models.elm_regression import ELMRegression
+from training_worker.scoring.models.classifier_fc import ClassifierFCNetwork
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 from utility.minio import cmd
 
@@ -99,7 +100,7 @@ class SphereSamplingGenerator:
             self.scoring_model.load_model()
 
             # get classifier model for selected tag
-            self.classifier_model= self.get_classifier_model(self.tag_name)
+            self.classifier_model= ClassifierFCNetwork(minio_client=self.minio_client, tag_name=tag_name)
 
             # load the sphere average score model
             if self.sphere_type=="uniform":

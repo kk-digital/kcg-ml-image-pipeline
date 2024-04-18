@@ -18,7 +18,7 @@ import os
 from urllib.parse import urlparse
 
 class DatasetResponse(BaseModel):
-    dataset: List[str]
+    datasets: List[str]
 
 class SeqIdResponse(BaseModel):
     sequential_ids : List[str]
@@ -33,6 +33,10 @@ class SetRateResponse(BaseModel):
     dataset_rate: float
     relevance_model: str
     ranking_model: str
+
+class ResponseRelevanceModel(BaseModel):
+    last_update: datetime
+    relevance_model: str
 
 class SetHourlyResponse(BaseModel):
     dataset: str
@@ -439,3 +443,7 @@ def find_or_create_next_folder_and_index(client: Minio, bucket: str, base_folder
             return f"{base_folder}/0001", 0
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"MinIO error: {e}")
+    
+
+class CountLastHour(BaseModel):
+    jobs_count_last_n_hour: dict
