@@ -202,7 +202,7 @@ class TaggedDatasetLoader:
         # get random images for negatives
         # get from environmental for now
         # Format today's date as a string
-        today = datetime.now().strftime('%Y-%m-%d')
+        today = datetime.now()
 
         # Subtract one day to today's date and format as a string
         end_date = (today - timedelta(days=1)).strftime('%Y-%m-%d')
