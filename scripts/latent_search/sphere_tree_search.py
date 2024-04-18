@@ -158,7 +158,7 @@ class RapidlyExploringTreeSearch:
         # get defect scores
         scores= self.defect_model.predict(points, batch_size=points.size(0)).to(device=self.device).squeeze(1)
         # filter for indices of elements that aren't defective
-        filtered_indices= scores.where(scores<defect_threshold)[0]
+        filtered_indices= torch.where(scores<defect_threshold)[0]
         # filter datapoints
         filtered_points= points[filtered_indices]
 
