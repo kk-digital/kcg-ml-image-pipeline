@@ -207,7 +207,7 @@ class KandinskyDatasetLoader:
             
             index+=1
 
-            if index>1000:
+            if index>2000:
                 print(scores)
                 break
 
