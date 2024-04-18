@@ -467,7 +467,7 @@ def http_get_random_image_list(dataset, size):
 
 
 def http_get_random_image_by_date(dataset, size, start_date=None, end_date=None):
-    endpoint_url= "/image/get_random_image_by_date_range/dataset={}&size={}".format(dataset, size)
+    endpoint_url= "/image/get_random_image_by_date_range?dataset={}&size={}".format(dataset, size)
 
     if start_date:
         endpoint_url+= f"&start_date={start_date}"
