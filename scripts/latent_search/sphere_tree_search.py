@@ -213,9 +213,13 @@ class RapidlyExploringTreeSearch:
                     if len(nearest_points)==0:
                         continue
 
+                print("nearest points shape: ", nearest_points.shape)
+
                 # Score these points
                 ranks, classifier_scores, ranking_scores = self.rank_points(nearest_points)
-                
+
+                print("all classifier scores shape: ", all_classifier_scores.shape)
+                print("classifier scores shape: ", classifier_scores.shape)    
                 # Select top n points based on scores
                 _, sorted_indices = torch.sort(ranks, descending=True)
                 top_points = nearest_points[sorted_indices[:branches_per_iteration]]
