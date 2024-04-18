@@ -8,6 +8,7 @@ import torch
 import msgpack
 from tqdm import tqdm
 import torch.optim as optim
+import faiss
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -101,6 +102,7 @@ class RapidlyExploringTreeSearch:
 
         # get distribution of clip vectors for the dataset
         self.clip_mean , self.clip_std, self.clip_max, self.clip_min, self.covariance_matrix= self.get_clip_distribution()
+
     
     def get_clip_distribution(self):
         data = get_object(self.minio_client, f"{self.dataset}/output/stats/clip_stats.msgpack")
@@ -146,6 +148,25 @@ class RapidlyExploringTreeSearch:
         
         return clip_model
     
+    def setup_faiss(all_nodes):
+        # Assuming all_nodes is a list of torch tensors (nodes)
+        dimension = all_nodes[0].size(0)
+        num_nodes = len(all_nodes)
+        faiss_index = faiss.IndexFlatL2(dimension)  # L2 distance for nearest neighbor search
+
+        # Convert all_nodes to a contiguous array of float32, required by FAISS
+        node_matrix = torch.stack(all_nodes).cpu().numpy().astype('float32')
+        faiss_index.add(node_matrix)  # Adding all nodes to the FAISS index
+
+        return faiss_index
+
+    def compute_distances(faiss_index, nodes):
+        # Convert new_points to numpy float32 array
+        new_points = nodes.cpu().numpy().astype('float32')
+        # Compute distances to all existing nodes
+        distances, indices = faiss_index.search(nodes, 1)  # Find the nearest node
+        return distances
+
     def find_nearest_points(self, point, num_samples, covariance_matrix):
         # Sampling from a multivariate Gaussian distribution
         distribution = torch.distributions.MultivariateNormal(point, covariance_matrix)
@@ -172,10 +193,15 @@ class RapidlyExploringTreeSearch:
         scores= self.classifier_model.predict(points, batch_size=points.size(0)).to(device=self.device)
         return scores
     
-    def rank_points(self, spheres):
+    def rank_points(self, nodes, faiss_index):
         # calculate ranking and classifier scores
-        classifier_scores = self.classifiy_points(spheres).squeeze(1)
-        ranking_scores = self.score_points(spheres).squeeze(1)
+        classifier_scores = self.classifiy_points(nodes).squeeze(1)
+        ranking_scores = self.score_points(nodes).squeeze(1)
+
+        # Distance metric
+        distances = self.compute_distances(faiss_index, nodes)
+        distance_scores = torch.tensor(distances.squeeze(), device=self.device)
+        distance_scores = torch.softmax(distance_scores, dim=0)  # Normalize and invert distances
 
         # increase classifier scores with a threshold
         classifier_scores= torch.where(classifier_scores>0.6, torch.tensor(1), classifier_scores)
@@ -183,13 +209,15 @@ class RapidlyExploringTreeSearch:
         # combine scores
         classifier_ranks= torch.softmax(classifier_scores, dim=0) 
         quality_ranks=  torch.softmax(ranking_scores, dim=0)
-        ranks= torch.min(classifier_ranks , quality_ranks)
+        ranks= torch.min(classifier_ranks , quality_ranks) * distance_scores  # Factor in distances
 
         return ranks, classifier_scores, ranking_scores 
 
     def expand_tree(self, nodes_per_iteration, branches_per_iteration, max_nodes, top_k, jump_distance, num_images):
         current_generation = [self.clip_mean.squeeze()]
-        all_nodes = []
+        all_nodes = [self.clip_mean.squeeze()]
+        faiss_index = self.setup_faiss(all_nodes)
+
         all_classifier_scores = torch.tensor([], dtype=torch.float32, device=self.device)
         all_ranking_scores = torch.tensor([], dtype=torch.float32, device=self.device)
 
@@ -213,7 +241,7 @@ class RapidlyExploringTreeSearch:
                         continue
 
                 # Score these points
-                ranks, classifier_scores, ranking_scores = self.rank_points(nearest_points)
+                ranks, classifier_scores, ranking_scores = self.rank_points(nearest_points, faiss_index)
 
                 # Select top n points based on scores
                 _, sorted_indices = torch.sort(ranks, descending=True)
@@ -232,6 +260,9 @@ class RapidlyExploringTreeSearch:
                 pbar.update(nodes_per_iteration)
                 if nodes > max_nodes:
                     break
+
+                for node in next_generation:
+                    faiss_index.add(node.cpu().numpy().astype('float32')[None, :])  # Update FAISS index
             
             # Prepare for the next iteration
             current_generation = next_generation
