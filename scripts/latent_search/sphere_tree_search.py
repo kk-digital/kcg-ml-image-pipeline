@@ -210,7 +210,7 @@ class RapidlyExploringTreeSearch:
                 if self.defect_model:
                     nearest_points= self.filter_defects(nearest_points)
                     # skip if all nearest points are defective
-                    if len(nearest_points==0):
+                    if len(nearest_points)==0:
                         continue
 
                 # Score these points
