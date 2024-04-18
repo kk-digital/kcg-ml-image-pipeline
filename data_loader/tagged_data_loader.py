@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import sys
 import os
 import json
@@ -200,7 +201,13 @@ class TaggedDatasetLoader:
 
         # get random images for negatives
         # get from environmental for now
-        random_image_list = request.http_get_random_image_list("environmental", len(positive_tagged_dataset) * self.epochs)
+        # Format today's date as a string
+        today = datetime.now().strftime('%Y-%m-%d')
+
+        # Subtract one day to today's date and format as a string
+        end_date = (today - timedelta(days=1)).strftime('%Y-%m-%d')
+
+        random_image_list = request.http_get_random_image_by_date(dataset="environmental", size=len(positive_tagged_dataset) * self.epochs, end_date=end_date)
         # get paths only
         for image_data in random_image_list:
             negative_tagged_dataset.append(image_data["task_output_file_dict"]["output_file_path"])

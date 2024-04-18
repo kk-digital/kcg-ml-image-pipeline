@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import requests
 import json
 
@@ -464,3 +465,22 @@ def http_get_random_image_list(dataset, size):
     except Exception as e:
         print('request exception ', e)
 
+
+def http_get_random_image_by_date(dataset, size, start_date=None, end_date=None):
+    endpoint_url= "/image/get_random_image_by_date_range/dataset={}&size={}".format(dataset, size)
+
+    if start_date:
+        endpoint_url+= f"&start_date={start_date}"
+    if end_date:
+        endpoint_url+= f"&end_date={end_date}"
+
+    url = SERVER_ADDRESS + endpoint_url
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json["images"]
+
+    except Exception as e:
+        print('request exception ', e)
