@@ -97,7 +97,7 @@ class DirectionalSamplingFCRegressionNetwork(nn.Module):
         self.dataloader.load_dataset()
         
         criterion = nn.L1Loss()  # Define the loss function
-        optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)  # Define the optimizer
+        optimizer = optim.Adam(self.parameters(), lr=learning_rate)  # Define the optimizer
 
         # save loss for each epoch and features
         train_loss=[]

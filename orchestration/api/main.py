@@ -271,6 +271,29 @@ def startup_db_client():
     ]
     create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_classifier_index, 'classifier_image_classifier_index')
 
+    # index for classifier_id in image_classifier_scores
+    classifier_image_classifier_id_index=[
+    ('classifier_id', pymongo.ASCENDING),
+    ]
+    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_classifier_id_index, 'classifier_image_classifier_id_index')
+
+    # index for tag_id in image_classifier_scores
+    classifier_image_tag_id_index=[
+    ('tag_id', pymongo.ASCENDING),
+    ]
+    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_tag_id_index, 'classifier_image_tag_id_index')
+
+    # index for image_hash in image_classifier_scores
+    classifier_image_hash_index=[
+    ('image_hash', pymongo.ASCENDING),
+    ]
+    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_hash_index, 'classifier_image_image_hash_index')
+
+    # index for score in image_classifier_scores
+    classifier_image_score_index=[
+    ('score', pymongo.ASCENDING),
+    ]
+    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_score_index, 'classifier_image_score_index')
     classifier_image_uuid_index=[
     ('uuid', pymongo.ASCENDING)
     ]

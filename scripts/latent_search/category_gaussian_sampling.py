@@ -18,12 +18,13 @@ base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 from data_loader.utils import get_object
-from training_worker.sampling.models.uniform_sampling_regression_fc import SamplingFCRegressionNetwork
-from training_worker.sampling.models.directional_uniform_sampling_regression_fc import DirectionalSamplingFCRegressionNetwork
+from training_worker.sampling.models.gaussian_sampling_regression_fc import SamplingFCRegressionNetwork
+from training_worker.sampling.models.directional_gaussian_sampling_regression_fc import DirectionalSamplingFCRegressionNetwork
 from training_worker.scoring.models.scoring_fc import ScoringFCNetwork
 from training_worker.classifiers.models.elm_regression import ELMRegression
 from kandinsky_worker.image_generation.img2img_generator import generate_img2img_generation_jobs_with_kandinsky
 from utility.minio import cmd
+from training_worker.scoring.models.classifier_fc import ClassifierFCNetwork
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -45,6 +46,7 @@ def parse_args():
     parser.add_argument('--sampling-policy', type=str, default="spherical-gaussian-top-k-sphere-sampling")
     parser.add_argument('--optimize-spheres', action='store_true', default=False)
     parser.add_argument('--optimize-samples', action='store_true', default=False)
+    parser.add_argument('--only-top-k-spheres', action='store_true', default=False)
 
     return parser.parse_args()
 
@@ -66,6 +68,7 @@ class SphereSamplingGenerator:
                 save_csv=False,
                 optimize_spheres=False,
                 optimize_samples=False,
+                only_top_k_spheres=False,
                 ):
             
             self.dataset= dataset
@@ -83,6 +86,7 @@ class SphereSamplingGenerator:
             self.sampling_policy= sampling_policy
             self.optimize_spheres= optimize_spheres
             self.optimize_samples= optimize_samples
+            self.only_top_k_spheres = only_top_k_spheres
 
             # get minio client
             self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
@@ -100,22 +104,25 @@ class SphereSamplingGenerator:
             self.scoring_model.load_model()
 
             # get classifier model for selected tag
-            self.classifier_model= self.get_classifier_model(self.tag_name)
+            # get classifier model for selected tag
+            self.classifier_model=ClassifierFCNetwork(minio_client=self.minio_client, tag_name=tag_name)
 
-            # load the sphere average score model
-            if self.sphere_type=="uniform":
+            self.classifier_model.load_model()
+            # get the sphere average score model
+            if self.sphere_type == "spherical":
                 self.sphere_scoring_model= SamplingFCRegressionNetwork(minio_client=self.minio_client, dataset=dataset)
                 self.sphere_scoring_model.load_model()
-                # get min and max radius values
-                self.min_radius= self.sphere_scoring_model.min_radius.item()
-                self.max_radius= self.sphere_scoring_model.max_radius.item()
 
-            elif self.sphere_type=="directional":
+                # get min and max variance(float)
+                self.feature_max_value= self.sphere_scoring_model.feature_max_value.item()
+                self.feature_min_value= self.sphere_scoring_model.feature_min_value.item()
+            elif self.sphere_type == "directional":
                 self.sphere_scoring_model= DirectionalSamplingFCRegressionNetwork(minio_client=self.minio_client, dataset=dataset)
                 self.sphere_scoring_model.load_model()
-                # get min and max radius values
-                self.min_radius= torch.tensor(self.sphere_scoring_model.max_scaling_factors).to(device=self.device)
-                self.max_radius= torch.tensor(self.sphere_scoring_model.min_scaling_factors).to(device=self.device)
+
+                # get min and max directional variance(vector)
+                self.feature_max_value= torch.tensor(self.sphere_scoring_model.feature_max_value, device=self.device)
+                self.feature_min_value= torch.tensor(self.sphere_scoring_model.feature_min_value, device=self.device)
 
             # get distribution of clip vectors for the dataset
             self.clip_mean , self.clip_std, self.clip_max, self.clip_min= self.get_clip_distribution()
@@ -156,11 +163,10 @@ class SphereSamplingGenerator:
         data_dict = msgpack.unpackb(data)
 
         # Convert to PyTorch tensors
-        mean_vector = torch.tensor(data_dict["mean"][0], device=self.device, dtype=torch.float32)
-        std_vector = torch.tensor(data_dict["std"][0], device=self.device, dtype=torch.float32)
-        max_vector = torch.tensor(data_dict["max"][0], device=self.device, dtype=torch.float32)
-        min_vector = torch.tensor(data_dict["min"][0], device=self.device, dtype=torch.float32)
-
+        mean_vector = torch.tensor(data_dict["mean"], device=self.device, dtype=torch.float32)
+        std_vector = torch.tensor(data_dict["std"], device=self.device, dtype=torch.float32)
+        max_vector = torch.tensor(data_dict["max"], device=self.device, dtype=torch.float32)
+        min_vector = torch.tensor(data_dict["min"], device=self.device, dtype=torch.float32)
         return mean_vector, std_vector, max_vector, min_vector
 
     def generate_spheres(self):
@@ -175,11 +181,13 @@ class SphereSamplingGenerator:
             
             spheres = torch.cat([sphere_centers, gaussian_features.unsqueeze(1)], dim=1)
         elif self.sphere_type == 'directional':
-            dim = sphere_centers.size(1)
+            dim = len(self.feature_max_value)
             gaussian_features = torch.empty(0, dim, device=self.device)
             gaussian_features = torch.rand(num_spheres, dim, device=self.device) * (self.feature_max_value - self.feature_min_value) + self.feature_min_value
 
             spheres = torch.cat([sphere_centers, torch.abs(gaussian_features)], dim=1)
+            print(self.clip_mean)
+            print(spheres.size(), "------------->sphere ")
         return spheres
     
     def rank_and_optimize_spheres(self):
@@ -191,7 +199,7 @@ class SphereSamplingGenerator:
         for sphere in tqdm(generated_spheres):
             feature_vector= sphere[:1280]
             with torch.no_grad():
-                score= self.classifier_model.classify(feature_vector.unsqueeze(0)).to(device=self.device)
+                score= self.classifier_model.model(feature_vector.unsqueeze(0)).to(device=self.device)
                 classifier_scores.append(score.unsqueeze(0))
         
         scores= torch.cat(classifier_scores, dim=0)
@@ -200,8 +208,9 @@ class SphereSamplingGenerator:
         sorted_indexes = torch.argsort(scores.squeeze(), descending=True)[:int(self.total_spheres * self.top_k)]
         top_spheres = generated_spheres[sorted_indexes]
         # select n random spheres from the top k spheres
-        indices = torch.randperm(top_spheres.size(0))[:self.selected_spheres]
-        selected_spheres = top_spheres[indices]
+        # indices = torch.randperm(top_spheres.size(0))[:self.selected_spheres]
+        # selected_spheres = top_spheres[indices]
+        selected_spheres = top_spheres[:self.selected_spheres]
 
         # Optimization step
         if(self.optimize_spheres):
@@ -250,7 +259,7 @@ class SphereSamplingGenerator:
                 # Collect generated vectors and optionally calculate scores
                 clip_vectors = torch.cat((clip_vectors, point.unsqueeze(0)), dim=0)
         # get sampled datapoint scores
-        scores = self.scoring_model.predict(clip_vectors, batch_size= self.batch_size)
+        scores = self.scoring_model.model(clip_vectors)
         # get top scoring datapoints
         _, sorted_indices = torch.sort(scores.squeeze(), descending=True)
         # filter with penalty
@@ -299,7 +308,9 @@ class SphereSamplingGenerator:
             # Collect generated vectors and optionally calculate scores
             clip_vectors = torch.cat((clip_vectors, Y), dim=0)
         # get sampled datapoint scores
-        scores = self.scoring_model.predict(clip_vectors)
+        classifier_scores = self.classifier_model.model(clip_vectors)
+        quality_scores = self.scoring_model.model(clip_vectors)
+        scores = classifier_scores + quality_scores
         # get top scoring datapoints
         _, sorted_indices = torch.sort(scores.squeeze(), descending=True)
 
@@ -345,13 +356,14 @@ class SphereSamplingGenerator:
                 feature_vectors= batch_embeddings[:,:dim]
                 classifier_scores = []
                 for vector in feature_vectors:
-                    score= self.classifier_model.classify(vector.unsqueeze(0)).to(device=self.device)
+                    score= self.classifier_model.model(vector.unsqueeze(0)).to(device=self.device)
                     classifier_scores.append(score.unsqueeze(0))
                 
                 classifier_scores= torch.cat(classifier_scores, dim=0)
 
                 # Calculate the loss for each embedding in the batch
-                score_losses = -scores.squeeze() - classifier_scores.squeeze()
+                # score_losses = -scores.squeeze() - classifier_scores.squeeze()
+                score_losses = - classifier_scores.squeeze()
 
                 # Calculate the total loss for the batch
                 total_loss = score_losses.mean()
@@ -383,11 +395,14 @@ class SphereSamplingGenerator:
         # if(self.optimize_samples):
         #     clip_vectors = self.optimize_datapoints(clip_vectors, self.scoring_model)
 
-        # generate clip vectors
-        if self.sphere_type == "spherical":
-            clip_vectors= self.sample_clip_vectors_with_spherical(num_samples=num_images)
-        elif self.sphere_type == 'directional':
+       # generate clip vectors
+        if self.only_top_k_spheres:
             clip_vectors= self.sample_clip_vectors_with_directional(num_samples=num_images)
+        else:
+            if self.sphere_type == "spherical":
+                clip_vectors= self.sample_clip_vectors_with_spherical(num_samples=num_images)
+            elif self.sphere_type == 'directional':
+                clip_vectors= self.sample_clip_vectors_with_directional(num_samples=num_images)
 
         df_data=[]
 
@@ -459,7 +474,8 @@ def main():
                                         send_job= args.send_job,
                                         save_csv= args.save_csv,
                                         optimize_spheres= args.optimize_spheres,
-                                        optimize_samples= args.optimize_samples)
+                                        optimize_samples= args.optimize_samples, 
+                                        only_top_k_spheres = args.only_top_k_spheres)
 
     generator.generate_images(num_images=args.num_images)
 
