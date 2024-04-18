@@ -512,7 +512,7 @@ async def list_image_scores(
 
 @router.get("/pseudotag-classifier-scores/list-images-by-scores-v1", 
             description="List image scores based on classifier",
-            tags=["pseudotag-classifier-scores"],  
+            tags=["deprecated2"],  
             response_model=StandardSuccessResponseV1[ListClassifierScore1],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
 async def list_image_scores(
@@ -575,41 +575,32 @@ def batch_update_classifier_scores_with_task_type(request: Request):
     api_response_handler = ApiResponseHandlerV1(request)
     
     try:
-        # Setup a basic logger
         logging.basicConfig(level=logging.INFO)
         logger = logging.getLogger()
 
-        # Count total scores for logging progress
-        total_scores = request.app.image_classifier_scores_collection.count_documents({})
-        logger.info(f"Total scores to update: {total_scores}")
+        # Cursor for iterating over all scores where 'task_type' is not already set
+        scores_cursor = request.app.image_classifier_scores_collection.find({"task_type": {"$exists": False}})
 
-        # Cursor for iterating over all scores in the image_classifier_scores_collection
-        scores_cursor = request.app.image_classifier_scores_collection.find({})
-        
         updated_count = 0
-
         logger.info("Starting batch update of task types...")
         
         for score in scores_cursor:
-            logger.info(f"Processing score with ID: {score['_id']}")  # Log the ID of the score being processed
+            logger.info(f"Processing score with ID: {score['_id']}")
 
-            # Fetch corresponding job using the UUID
+            # Fetch corresponding job using the UUID to get the 'task_type'
             job = request.app.completed_jobs_collection.find_one({"uuid": score["uuid"]}, {"task_type": 1})
             
-            if job:
-                logger.info(f"Found job with task type: {job.get('task_type', 'No task type found')}")
+            if job and 'task_type' in job:
+                logger.info(f"Found job with task type: {job['task_type']}")
                 
-                if 'task_type' in job:
-                    # Update the score document with the task_type
-                    update_result = request.app.image_classifier_scores_collection.update_one(
-                        {"_id": score["_id"]},
-                        {"$set": {"task_type": job['task_type']}}
-                    )
-                    if update_result.modified_count > 0:
-                        updated_count += 1
-                        logger.info(f"Updated {updated_count}/{total_scores} with new task type: {job['task_type']}")
-            else:
-                logger.warning(f"No job found for score with UUID: {score['uuid']}")
+                # Update the score document with the 'task_type'
+                update_result = request.app.image_classifier_scores_collection.update_one(
+                    {"_id": score["_id"]},
+                    {"$set": {"task_type": job['task_type']}}
+                )
+                if update_result.modified_count > 0:
+                    updated_count += 1
+                    logger.info(f"Updated with new task type: {job['task_type']}")
 
         logger.info("Completed batch update.")
         return api_response_handler.create_success_response_v1(
@@ -624,6 +615,7 @@ def batch_update_classifier_scores_with_task_type(request: Request):
             error_string=f"Failed to batch update classifier scores: {str(e)}",
             http_status_code=500
         )
+
 
 
 @router.get("/image-classifier-scores/count", 
@@ -649,3 +641,89 @@ async def count_classifier_scores(request: Request):
             error_string=str(e),
             http_status_code=500
         )       
+
+
+@router.get("/image-classifier-scores/count-task-type", 
+            response_model=StandardSuccessResponseV1[dict],
+            status_code=200,
+            tags=["image-classifier-scores"],
+            description="Counts the number of documents in the image classifier scores collection that contain the 'task_type' field",
+            responses=ApiResponseHandlerV1.listErrors([500]))
+async def count_classifier_scores(request: Request):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Count documents that include the 'task_type' field
+        count = request.app.image_classifier_scores_collection.count_documents({"task_type": {"$exists": True}})
+
+        return api_response_handler.create_success_response_v1(
+            response_data={"count": count},
+            http_status_code=200  
+        )
+    
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500
+        )
+    
+
+
+@router.get("/pseudotag-classifier-scores/list-images-by-scores-v2", 
+            description="List image scores based on classifier",
+            tags=["pseudotag-classifier-scores"],  
+            response_model=StandardSuccessResponseV1[ListClassifierScore1],  
+            responses=ApiResponseHandlerV1.listErrors([400, 422]))
+async def list_image_scores(
+    request: Request,
+    classifier_id: Optional[int] = Query(None, description="Filter by classifier ID"),
+    task_type: Optional[str] = Query(None, description="Filter by task_type"),
+    min_score: Optional[float] = Query(None, description="Minimum score"),
+    max_score: Optional[float] = Query(None, description="Maximum score"),
+    limit: int = Query(10, description="Limit on the number of results returned"),
+    offset: int = Query(0, description="Offset for pagination"),
+    order: str = Query("desc", description="Sort order: 'asc' for ascending, 'desc' for descending"),
+    random_sampling: bool = Query(True, description="Enable random sampling")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    # Build the query based on provided filters
+    query = {}
+    if classifier_id is not None:
+        query["classifier_id"] = classifier_id
+    if task_type is not None:
+        query["task_type"] = task_type
+    if min_score is not None and max_score is not None:
+        query["score"] = {"$gte": min_score, "$lte": max_score}
+    elif min_score is not None:
+        query["score"] = {"$gte": min_score}
+    elif max_score is not None:
+        query["score"] = {"$lte": max_score}
+
+    # Modify behavior based on random_sampling parameter
+    if random_sampling:
+        # Fetch data without sorting when random_sampling is True
+        cursor = request.app.image_classifier_scores_collection.aggregate([
+            {"$match": query},
+            {"$sample": {"size": limit}}  # Use the MongoDB $sample operator for random sampling
+        ])
+    else:
+        # Determine sort order and fetch sorted data when random_sampling is False
+        sort_order = 1 if order == "asc" else -1
+        cursor = request.app.image_classifier_scores_collection.find(query).sort([("score", sort_order)]).skip(offset).limit(limit)
+    
+    scores_data = list(cursor)
+
+    # Remove _id in response data
+    for score in scores_data:
+        score.pop('_id', None)
+
+    # Prepare the data for the response
+    images_data = ListClassifierScore1(images=[ClassifierScoreV1(**doc).to_dict() for doc in scores_data]).dict()
+
+    # Return the fetched data with a success response
+    return response_handler.create_success_response_v1(
+        response_data=images_data, 
+        http_status_code=200
+    )
+   

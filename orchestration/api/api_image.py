@@ -985,10 +985,10 @@ async def upload_image_v1(request: Request,
             http_status_code=500, 
         )
     
-@router.get("/static/images-v1/{file_path:path}",
-            description="Get image data by file path",
+@router.get("/static/images/get-image-by-path/{file_path:path}",
+            description="Get image by file path",
             status_code=200,
-            responses=ApiResponseHandlerV1.listErrors([404, 500]))
+            responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
 async def get_image_data_by_filepath_2(request: Request, file_path: str):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
@@ -1016,10 +1016,10 @@ async def get_image_data_by_filepath_2(request: Request, file_path: str):
         )    
 
 
-@router.get("/get-image-by-job-uuid-v1/{job_uuid}",
+@router.get("/static/images/get-image-by-job-uuid-v1/{job_uuid}",
             description="Fetch image by job UUID",
             status_code=200,
-            responses=ApiResponseHandlerV1.listErrors([404, 500]))
+            responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
 async def get_image_by_job_uuid(request: Request, job_uuid: str):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:

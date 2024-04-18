@@ -48,6 +48,9 @@ class Task(BaseModel):
         return value
 
 
+class ListTask(BaseModel):
+    jobs: List[Task]
+
 class KandinskyTask(BaseModel):
     job: Task # task data
     positive_embedding: list
@@ -252,6 +255,7 @@ class ClassifierScore(BaseModel):
             "score": self.score,
         }
 
+
 class ClassifierScoreV1(BaseModel):
     uuid: Union[str, None]
     task_type: str
@@ -424,3 +428,21 @@ class Worker(BaseModel):
     
 class ListWorker(BaseModel):
     worker: List[Worker]    
+
+
+class SigmaScoreResponse(BaseModel):
+    job_uuid: str
+    file_hash: str
+    file_path: str
+    clip_sigma_score: float
+
+    def to_dict(self):
+        return{
+            "job_uuid": self.job_uuid,
+            "file_hash": self.file_hash,
+            "file_path": self.file_path,
+            "clip_sigma_score": self.clip_sigma_score
+        }
+
+class ListSigmaScoreResponse(BaseModel):
+    job_info: List[SigmaScoreResponse]
