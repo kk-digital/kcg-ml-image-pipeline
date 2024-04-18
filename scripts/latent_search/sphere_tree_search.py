@@ -27,6 +27,7 @@ def parse_args():
         parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
         parser.add_argument('--dataset', type=str, help='Name of the dataset', default="environmental")
         parser.add_argument('--tag-name', type=str, help='Name of the tag to generate for', default="topic-forest")
+        parser.add_argument('--defect-tag', type=str, help='Use this tag for filtering defects', default=None)
         parser.add_argument('--num-images', type=int, help='Number of images to generate', default=100)
         parser.add_argument('--nodes-per-iteration', type=int, help='Number of nodes to evaluate each iteration', default=1000)
         parser.add_argument('--branches-per-iteration', type=int, help='Number of branches to expand each iteration', default=10)
@@ -59,7 +60,8 @@ class RapidlyExploringTreeSearch:
                  save_csv,
                  optimize_samples,
                  ranking_weight,
-                 classifier_weight):
+                 classifier_weight,
+                 defect_tag=None):
         
         # parameters
         self.dataset= dataset  
@@ -84,9 +86,6 @@ class RapidlyExploringTreeSearch:
             device = 'cpu'
         self.device = torch.device(device)
 
-        self.sphere_scoring_model= DirectionalSamplingFCRegressionNetwork(minio_client=self.minio_client, dataset=dataset)
-        self.sphere_scoring_model.load_model()
-
         self.scoring_model= ScoringFCNetwork(minio_client=self.minio_client, dataset=dataset)
         self.scoring_model.load_model()
 
@@ -94,10 +93,14 @@ class RapidlyExploringTreeSearch:
         self.classifier_model= ClassifierFCNetwork(minio_client=self.minio_client, tag_name=tag_name)
         self.classifier_model.load_model()
 
+        # get classifier model for the defect tag
+        self.defect_model= None
+        if defect_tag:
+            self.defect_model= ClassifierFCNetwork(minio_client=self.minio_client, tag_name=defect_tag)
+            self.defect_model.load_model()
+
         # get distribution of clip vectors for the dataset
         self.clip_mean , self.clip_std, self.clip_max, self.clip_min, self.covariance_matrix= self.get_clip_distribution()
-        self.min_radius= torch.tensor(self.sphere_scoring_model.min_scaling_factors).to(device=self.device)
-        self.max_radius= torch.tensor(self.sphere_scoring_model.max_scaling_factors).to(device=self.device)
     
     def get_clip_distribution(self):
         data = get_object(self.minio_client, f"{self.dataset}/output/stats/clip_stats.msgpack")
@@ -143,30 +146,29 @@ class RapidlyExploringTreeSearch:
         
         return clip_model
     
-    def find_nearest_points(self, sphere, num_samples, covariance_matrix):
-        dim= sphere.size(1)//2
-        point = sphere[:,:dim].squeeze(0)
-        
+    def find_nearest_points(self, point, num_samples, covariance_matrix):
         # Sampling from a multivariate Gaussian distribution
         distribution = torch.distributions.MultivariateNormal(point, covariance_matrix)
         clip_vectors = distribution.sample((num_samples,))
         clip_vectors = torch.clamp(clip_vectors, self.clip_min, self.clip_max)
 
-        # sample random scaling factors
-        radii= torch.rand(num_samples, len(self.max_radius), device=self.device) * (self.max_radius - self.min_radius) + self.min_radius
-        sphere_centers= torch.cat([clip_vectors, radii], dim=1)
+        return clip_vectors
 
-        return sphere_centers
+    def filter_defects(self, points, defect_threshold=0.6):
+        # get defect scores
+        scores= self.defect_model.predict(points, batch_size=points.size(0)).to(device=self.device).squeeze(1)
+        # filter for indices of elements that aren't defective
+        filtered_indices= scores.where(scores<defect_threshold)[0]
+        # filter datapoints
+        filtered_points= points[filtered_indices]
+
+        return filtered_points
 
     def score_points(self, points):
-        dim= points.size(1)//2
-        points = points[:,:dim]
         scores= self.scoring_model.predict(points, batch_size=1000)
         return scores
     
     def classifiy_points(self, points):
-        dim= points.size(1)//2
-        points = points[:,:dim]
         scores= self.classifier_model.predict(points, batch_size=points.size(0)).to(device=self.device)
         return scores
     
@@ -186,9 +188,7 @@ class RapidlyExploringTreeSearch:
         return ranks, classifier_scores, ranking_scores 
 
     def expand_tree(self, nodes_per_iteration, branches_per_iteration, max_nodes, top_k, jump_distance, num_images):
-        radius= torch.rand(1, len(self.max_radius), device=self.device) * (self.max_radius - self.min_radius) + self.min_radius
-        sphere= torch.cat([self.clip_mean, radius], dim=1)
-        current_generation = [sphere.squeeze()]
+        current_generation = [self.clip_mean.squeeze()]
         all_nodes = []
         all_classifier_scores = torch.tensor([], dtype=torch.float32, device=self.device)
         all_ranking_scores = torch.tensor([], dtype=torch.float32, device=self.device)
@@ -206,7 +206,13 @@ class RapidlyExploringTreeSearch:
                 point= point.unsqueeze(0)
                 # Find nearest k points to the current point
                 nearest_points = self.find_nearest_points(point, nodes_per_iteration, covariance_matrix)
-                
+                # Filter defective points
+                if self.defect_model:
+                    nearest_points= self.filter_defects(nearest_points)
+                    # skip if all nearest points are defective
+                    if len(nearest_points==0):
+                        continue
+
                 # Score these points
                 ranks, classifier_scores, ranking_scores = self.rank_points(nearest_points)
                 
@@ -265,10 +271,10 @@ class RapidlyExploringTreeSearch:
                 optimizer.zero_grad()
 
                 # Compute ranking scores for the current batch of embeddings
-                ranking_scores = self.sphere_scoring_model.model(batch_embeddings).squeeze()
+                ranking_scores = self.scoring_model.model(batch_embeddings).squeeze()
                 
                 # Compute classifier scores for the current batch of embeddings
-                classifier_scores = self.classifier_model.model(batch_embeddings[:,:1280]).squeeze()
+                classifier_scores = self.classifier_model.model(batch_embeddings).squeeze()
                 
                 # Calculate the total loss for the batch
                 total_loss = - (self.ranking_weight * ranking_scores.mean()) - (self.classifier_weight * classifier_scores.mean())
@@ -283,13 +289,12 @@ class RapidlyExploringTreeSearch:
         return batch_embeddings
 
     def generate_images(self, nodes_per_iteration, branches_per_iteration, max_nodes, top_k, jump_distance, num_images):
-        spheres= self.expand_tree(nodes_per_iteration, branches_per_iteration, max_nodes, top_k, jump_distance, num_images)
+        clip_vectors= self.expand_tree(nodes_per_iteration, branches_per_iteration, max_nodes, top_k, jump_distance, num_images)
 
         # Optimization step
         if(self.optimize_samples):
-            spheres = self.optimize_datapoints(spheres)
+            clip_vectors = self.optimize_datapoints(clip_vectors)
         
-        clip_vectors = spheres[:,:1280]
         df_data=[]
 
         for clip_vector in clip_vectors:
@@ -356,7 +361,8 @@ def main():
                                         save_csv= args.save_csv,
                                         optimize_samples= args.optimize_samples,
                                         ranking_weight= args.ranking_weight,
-                                        classifier_weight= args.classifier_weight)
+                                        classifier_weight= args.classifier_weight,
+                                        defect_tag= args.defect_tag)
 
     generator.generate_images(nodes_per_iteration=args.nodes_per_iteration,
                           branches_per_iteration=args.branches_per_iteration,
