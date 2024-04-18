@@ -167,6 +167,8 @@ class KandinskyDatasetLoader:
 
         input_batch=[]
         output_batch=[]
+
+        index=0
         print("Loading input clip vectors and sigma scores for each job")
         for job in tqdm(jobs):
             try:
@@ -202,6 +204,12 @@ class KandinskyDatasetLoader:
 
             except Exception as e:
                 print(f"An error occured {e}")
+            
+            index+=1
+
+            if index>1000:
+                print(scores)
+                break
 
         return feature_vectors, scores
 
