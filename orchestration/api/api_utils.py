@@ -443,3 +443,7 @@ def find_or_create_next_folder_and_index(client: Minio, bucket: str, base_folder
             return f"{base_folder}/0001", 0
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"MinIO error: {e}")
+    
+
+class CountLastHour(BaseModel):
+    jobs_count_last_n_hour: dict
