@@ -208,7 +208,6 @@ class TaggedDatasetLoader:
         end_date = (today - timedelta(days=1)).strftime('%Y-%m-%d')
 
         random_image_list = request.http_get_random_image_by_date(dataset="environmental", size=len(positive_tagged_dataset) * self.epochs, end_date=end_date)
-        print(random_image_list)
         # get paths only
         for image_data in random_image_list:
             negative_tagged_dataset.append(image_data["task_output_file_dict"]["output_file_path"])
