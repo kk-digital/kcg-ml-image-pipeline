@@ -124,8 +124,9 @@ class KandinskyDatasetLoader:
 
         return jobs
     
-    def load_clip_vector_data(self):
+    def load_clip_vector_data(self, limit=-1):
         jobs= self.load_kandinsky_jobs()
+        jobs= jobs[:min(limit, len(jobs))]
         feature_vectors=[]
         scores=[]
         
