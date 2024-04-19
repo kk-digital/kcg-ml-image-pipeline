@@ -148,7 +148,7 @@ class RapidlyExploringTreeSearch:
         
         return clip_model
 
-    def min_max_normalize_scores(scores):
+    def min_max_normalize_scores(self, scores):
         min_val = torch.min(scores)
         max_val = torch.max(scores)
         normalized_tensor = (scores - min_val) / (max_val - min_val)
