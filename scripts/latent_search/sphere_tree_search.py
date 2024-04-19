@@ -151,13 +151,18 @@ class RapidlyExploringTreeSearch:
     def setup_faiss(self, all_nodes):
         # Assuming all_nodes is a list of torch tensors (nodes)
         dimension = all_nodes[0].size(0)
-        res = faiss.StandardGpuResources()
-        index = faiss.IndexFlatL2(dimension)  # L2 distance for nearest neighbor search
-        faiss_index = faiss.index_cpu_to_gpu(res, 0, index)
+        num_clusters = 50  # how many cells
+        quantizer = faiss.IndexFlatL2(dimension)
+        faiss_index = faiss.IndexIVFFlat(quantizer, dimension, num_clusters, faiss.METRIC_L2)
+        
+        if torch.cuda.is_available():
+            res = faiss.StandardGpuResources()
+            faiss_index = faiss.index_cpu_to_gpu(res, 0, faiss_index)
 
         # Convert all_nodes to a contiguous array of float32, required by FAISS
         node_matrix = torch.stack(all_nodes).cpu().numpy().astype('float32')
-        faiss_index.add(node_matrix)  # Adding all nodes to the FAISS index
+        faiss_index.train(node_matrix)
+        faiss_index.add(node_matrix)
 
         return faiss_index
 
