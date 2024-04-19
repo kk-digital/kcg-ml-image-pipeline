@@ -553,7 +553,7 @@ def update_completed_jobs_for_safe_delete(request: Request):
                     {"uuid": task_uuid},
                     {
                         "$set": {
-                            "safe_to_delete": 1
+                            "safe-to-delete": 1
                         }
                     }
                 )
