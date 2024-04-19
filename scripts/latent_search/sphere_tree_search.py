@@ -216,8 +216,8 @@ class RapidlyExploringTreeSearch:
         classifier_scores= torch.where(classifier_scores>0.6, torch.tensor(1), classifier_scores)
 
         # combine scores
-        classifier_ranks= self.min_max_normalize_scores(classifier_scores, dim=0) 
-        quality_ranks=  self.min_max_normalize_scores(ranking_scores, dim=0)
+        classifier_ranks= self.min_max_normalize_scores(classifier_scores) 
+        quality_ranks=  self.min_max_normalize_scores(ranking_scores)
         ranks= torch.min(classifier_ranks , quality_ranks)  # Factor in distances
 
         return ranks, classifier_scores, ranking_scores 
@@ -282,8 +282,8 @@ class RapidlyExploringTreeSearch:
         pbar.close()
         
         # After the final iteration, choose the top n highest scoring points overall
-        classifier_ranks= self.min_max_normalize_scores(all_classifier_scores, dim=0) 
-        quality_ranks= self.min_max_normalize_scores(all_ranking_scores, dim=0)
+        classifier_ranks= self.min_max_normalize_scores(all_classifier_scores) 
+        quality_ranks= self.min_max_normalize_scores(all_ranking_scores)
 
         all_ranks= torch.min(classifier_ranks , quality_ranks)
         values, sorted_indices = torch.sort(all_ranks, descending=True)
