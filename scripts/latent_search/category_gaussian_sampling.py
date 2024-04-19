@@ -47,7 +47,7 @@ def parse_args():
     parser.add_argument('--optimize-spheres', action='store_true', default=False)
     parser.add_argument('--optimize-samples', action='store_true', default=False)
     parser.add_argument('--only-top-k-spheres', action='store_true', default=False)
-    parser.add_argument('--penalty', type=10, default=10)
+    parser.add_argument('--penalty', type=int, default=10)
 
     return parser.parse_args()
 
