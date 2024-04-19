@@ -414,7 +414,7 @@ class EBM_Single_Class:
 
         # minimize dataset
 
-        target_paths = random.sample(target_paths, 480)
+        target_paths = random.sample(target_paths, 240)
         
         # minimize dataset
 
@@ -1556,7 +1556,7 @@ original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
 #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
 
-tag_name_x = "topic-desert" #"topic-aquatic" #"topic-desert"
+tag_name_x = "topic-aquatic" #"topic-aquatic" #"topic-desert"
 original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =tag_name_x, model_type = "energy-based-model")
 
 
@@ -1581,8 +1581,8 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 # next elm
 
-#plot_samples_hashless_binning(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 32000,tag_name =tag_name_x)
-plot_samples_hashless_binning(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 32000,tag_name =tag_name_x)
+plot_samples_hashless_binning(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 32000,tag_name =tag_name_x)
+#plot_samples_hashless_binning(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 32000,tag_name =tag_name_x)
 ############################ Train ########################
 
 
