@@ -267,8 +267,10 @@ class RapidlyExploringTreeSearch:
                 if nodes > max_nodes:
                     break
 
-                for node in next_generation:
-                    faiss_index.add(node.cpu().numpy().astype('float32')[None, :])  # Update FAISS index
+                # add selected points to the index
+                current_nodes=top_points.cpu().numpy().astype('float32')
+                faiss_index.train(current_nodes)
+                faiss_index.add(current_nodes) 
             
             # Prepare for the next iteration
             current_generation = next_generation
