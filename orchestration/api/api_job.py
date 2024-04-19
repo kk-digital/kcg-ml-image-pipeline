@@ -530,7 +530,8 @@ def update_completed_jobs_with_better_name(request: Request, task_type_mapping: 
 @router.put("/queue/image-generation/update-completed-job-for-safe-delete", response_class=PrettyJSONResponse)
 def update_completed_jobs_for_safe_delete(request: Request):
     # Use the limit parameter in the find query to limit the results
-    total_count_updated = 0
+    total_count_no_tag = 0
+    total_count_no_rank = 0
     
     completed_jobs = request.app.completed_jobs_collection.find({})
 
@@ -548,6 +549,12 @@ def update_completed_jobs_for_safe_delete(request: Request):
         if tag_list_response["request_error_code"] == 0 and ranking_list_response["request_error_code" == 0]:
             tag_count = len(tag_list_response["response"]["tags"])
             ranking_count = ranking_list_response["response"]["count"]
+
+            if tag_count == 0:
+                total_count_no_tag += 1
+            if ranking_count == 0:
+                total_count_no_rank += 1
+
             if tag_count == 0 and ranking_count == 0:
                 request.app.completed_jobs_collection.update_many(
                     {"uuid": task_uuid},
@@ -557,9 +564,11 @@ def update_completed_jobs_for_safe_delete(request: Request):
                         }
                     }
                 )
-                total_count_updated += 1
             
-    return total_count_updated
+    return {
+        total_count_no_tag: total_count_no_tag,
+        total_count_no_rank: total_count_no_rank
+    }
 
 
 @router.put("/queue/image-generation/update-completed", description="Update in progress job and mark as completed.")
