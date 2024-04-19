@@ -100,13 +100,17 @@ class ImageScorer:
         return True
 
     def get_paths(self):
+        self.datasets = ["environmental"]
         print("Getting paths for dataset: {}...".format(self.datasets))
         if self.model_input_type in self.image_paths_cache:
+            print("Getted paths from cache")
             return self.image_paths_cache[self.model_input_type]
         
         all_objects = []
         for dataset in self.datasets:
+            print("Getting paths for dataset: {}...".format(dataset))
             all_objects.extend(cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', dataset))
+            print("Getted paths for dataset: {}...".format(dataset))
 
         # Depending on the model type, choose the appropriate msgpack files
         file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "embedding.msgpack"
@@ -406,7 +410,7 @@ def run_image_scorer(minio_client,
 
 
     classifier_model_list = request.http_get_classifier_model_list()
-    classifier_model = random.choice(classifier_model_list)
+    classifier_model = classifier_model_list[0]
     
     try:
         is_loaded = scorer.load_model(classifier_model_info=classifier_model)
@@ -415,19 +419,26 @@ def run_image_scorer(minio_client,
     if not is_loaded:
         return
     
-    print("Getting paths of clip vector is getting...")
     paths = scorer.get_paths()
-    len_paths = len(paths)
+    list_load_clip_vecotr_count = []
+    if len(paths) > 1024:
+        list_load_clip_vecotr_count.append(1024)
+    else:
+        list_load_clip_vecotr_count.append(len(paths))
+    
+    for i in range(0, min((len(paths) - increment), 500000), increment):
+        list_load_clip_vecotr_count.append(increment * (i + 1))
+
     print("Getting paths of clip vector is done!")
     monitor_loading = []
     monitor_scoring = []
     monitor_uploading = []
 
-    for start_index in range(0, len_paths - increment, increment):
-        
-        paths_batch = paths[max(start_index, 1024):start_index + batch_size]
+    for start_index in list_load_clip_vecotr_count:
+        paths_batch = paths[:start_index]
 
         # Record the runtime to load clip vectors
+        print("loading clip vectors")
         start_time = time.time()
         features_data, image_paths = scorer.get_all_feature_pairs(paths_batch)
         end_time = time.time()
@@ -435,49 +446,59 @@ def run_image_scorer(minio_client,
         monitor_loading.append(time_elapsed)
 
         # Record the runtime to score clip vectors
+        print("scoring clip vectors")
         start_time = time.time()
         hash_score_pairs, image_paths, job_uuids_hash_dict = scorer.get_scores(features_data, image_paths)
         end_time = time.time()
+        time_elapsed = end_time - start_time
         monitor_scoring.append(time_elapsed)
-        print("Successfully calculated")
 
         # Record the runtime to upload scores
         start_time = time.time()
         scorer.upload_scores(hash_score_pairs, job_uuids_hash_dict)
         end_time = time.time()
-        time_elapsed = time.time() - start_time
+        time_elapsed = end_time - start_time
         monitor_uploading.append(time_elapsed)
-        print("Dataset: {}: Total Time elapsed: {}s".format(dataset_names, format(time_elapsed, ".2f")))
+
+
+        print("{} clip vectors: Total Time elapsed: {}s".format(start_index, format(time_elapsed, ".2f")))
 
     # graph
-    fig, axs = plt.plot(figsize=(5, 4))
     # set title of graph
     plt.title("Monitoring image classifier score")
     fig_report_text = ("Batch_size = {}\n"
                        .format(batch_size))
     #info text about the model
-    plt.figtext(0.02, 0.7, fig_report_text)
-    # plot loading time
-    axs.plot(range(1024, len(monitor_loading + 1) * increment, increment), monitor_loading, label="Loading time")
-    # plot scoring time
-    axs.plot(range(1024, len(monitor_loading + 1) * increment, increment), monitor_loading, label="Scoring time")
-    # plot uploading time
-    axs.plot(range(1024, len(monitor_loading + 1) * increment, increment), monitor_loading, label="uploading time")
+    plt.figtext(0.02, 0.4, fig_report_text)
 
-    axs.set_xlabel("Batch Size")
+    fig, axs = plt.subplots(figsize=(12, 10))
+    
+    # plot loading time
+    axs.plot(list_load_clip_vecotr_count, monitor_loading, label="Loading time")
+    axs.scatter(list_load_clip_vecotr_count, monitor_loading, label="Loading time", alpha=0.5)
+    axs.set_xticks(list_load_clip_vecotr_count)
+    # plot scoring time
+    axs.plot(list_load_clip_vecotr_count, monitor_scoring, label="Scoring time")
+    axs.scatter(list_load_clip_vecotr_count, monitor_scoring, label="Scoring time", alpha=0.5)
+    axs.set_xticks(list_load_clip_vecotr_count)
+    # plot uploading time
+    axs.plot(list_load_clip_vecotr_count, monitor_uploading, label="uploading time")
+    axs.scatter(list_load_clip_vecotr_count, monitor_uploading, label="ploading time", alpha=0.5)
+    axs.set_xticks(list_load_clip_vecotr_count)
+
+    axs.set_xlabel("Count of clip vectors")
     axs.set_ylabel("Time (s)")
 
     axs.legend()
 
     fig.savefig("output/monitor_image_classifier_scorer.png", format="png")
-
+    print("Saved graph successfully!")
     
 def parse_args():
     parser = argparse.ArgumentParser(description="Embedding Scorer")
     parser.add_argument('--minio-addr', required=False, help='Minio server address', default="192.168.3.5:9000")
     parser.add_argument('--minio-access-key', required=False, help='Minio access key')
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
-    parser.add_argument('--dataset-name', required=True, help='Name of the dataset for embeddings')
     parser.add_argument('--batch-size', required=False, default=100, type=int, help='Name of the dataset for embeddings')
     parser.add_argument('--increment', required=False, default=10000, type=int, help='Name of the dataset for embeddings')
     args = parser.parse_args()
@@ -486,7 +507,6 @@ def parse_args():
 
 def main():
     args = parse_args()
-    dataset_name = args.dataset_name
     
     minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key,
                                         minio_secret_key=args.minio_secret_key,
@@ -494,10 +514,10 @@ def main():
 
     dataset_names = request.http_get_dataset_names()
     print("dataset names=", dataset_names)
-    try:
-        run_image_scorer(minio_client, dataset_names, args.batch_size, args.increment)
-    except Exception as e:
-        print("Error running image scorer for {}: {}".format(dataset_names, e))
+    # try:
+    run_image_scorer(minio_client, dataset_names, args.batch_size, args.increment)
+    # except Exception as e:
+        # print("Error running image scorer for {}: {}".format(dataset_names, e))
 
 
 if __name__ == "__main__":
