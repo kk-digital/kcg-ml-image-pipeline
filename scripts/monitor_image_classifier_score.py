@@ -14,6 +14,8 @@ from matplotlib.ticker import PercentFormatter
 from tqdm import tqdm
 import math
 from datetime import datetime
+import random
+
 base_directory = "./"
 sys.path.insert(0, base_directory)
 
@@ -27,11 +29,11 @@ from utility.minio import cmd
 class ImageScorer:
     def __init__(self,
                  minio_client,
-                 dataset_name="characters",
+                 dataset_names=[],
                  batch_size=100):
         self.minio_client = minio_client
         self.model = None
-        self.dataset = dataset_name
+        self.datasets = dataset_names
         self.model_name = None
         self.model_input_type = None
         self.model_input_type_list = ["embedding-negative", "embedding-positive", "embedding", "clip"]
@@ -49,7 +51,7 @@ class ImageScorer:
             device = 'cpu'
         self.device = torch.device(device)
 
-        print("Dataset=", self.dataset)
+        print("Dataset=", self.datasets)
         print("device=", self.device)
 
     def load_model(self, classifier_model_info):
@@ -98,10 +100,13 @@ class ImageScorer:
         return True
 
     def get_paths(self):
-        print("Getting paths for dataset: {}...".format(self.dataset))
+        print("Getting paths for dataset: {}...".format(self.datasets))
         if self.model_input_type in self.image_paths_cache:
             return self.image_paths_cache[self.model_input_type]
-        all_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', self.dataset)
+        
+        all_objects = []
+        for dataset in self.datasets:
+            all_objects.extend(cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', dataset))
 
         # Depending on the model type, choose the appropriate msgpack files
         file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "embedding.msgpack"
@@ -361,45 +366,6 @@ class ImageScorer:
 
         return hash_sigma_score_dict
 
-    def upload_csv(self,
-                   hash_score_pairs,
-                   hash_percentile_dict,
-                   hash_sigma_score_dict,
-                   image_paths,
-                   features_data_job_uuid_dict):
-        print("Saving data to csv...")
-        csv_data = []
-        csv_buffer = io.StringIO()
-        writer = csv.writer(csv_buffer)
-        writer.writerow((["Job UUID", "Image Hash", "Image Path", "Completed Time", "Generation Policy", "Positive Prompt", "Negative Prompt", "Score", "Percentile", "Sigma Score"]))
-
-        count = 0
-        for image_hash, score in hash_score_pairs:
-            job_uuid = "n/a"
-            generation_policy = "n/a"
-            completed_time = "n/a"
-            positive_prompt = "n/a"
-            negative_prompt = "n/a"
-            if image_hash in features_data_job_uuid_dict:
-                features_data = features_data_job_uuid_dict[image_hash]
-                job_uuid = features_data[0]
-                generation_policy = features_data[1]
-                completed_time = features_data[2]
-                positive_prompt = features_data[3]
-                negative_prompt = features_data[4]
-
-            row = [job_uuid, image_hash, image_paths[count], completed_time, generation_policy, positive_prompt, negative_prompt, score, hash_percentile_dict[image_hash], hash_sigma_score_dict[image_hash]]
-            writer.writerow(row)
-            csv_data.append(row)
-            count += 1
-
-        bytes_buffer = io.BytesIO(bytes(csv_buffer.getvalue(), "utf-8"))
-        # upload the csv
-        csv_path = os.path.join(self.dataset, "output/scores-csv", self.model_name.replace(".safetensors", ".csv"))
-        cmd.upload_data(self.minio_client, 'datasets', csv_path, bytes_buffer)
-
-        return csv_data
-
     def upload_scores(self, hash_score_pairs, job_uuids_hash_dict):
         print("Uploading scores to mongodb...")
         with ThreadPoolExecutor(max_workers=50) as executor:
@@ -426,193 +392,6 @@ class ImageScorer:
                 return classifier["classifier_id"], classifier["classifier_name"]
         return -1, ""
     
-    def upload_sigma_scores(self, hash_sigma_score_dict):
-        print("Uploading sigma scores to mongodb...")
-        with ThreadPoolExecutor(max_workers=50) as executor:
-            futures = []
-            for key, val in hash_sigma_score_dict.items():
-                # upload score
-                sigma_score_data = {
-                    "image_hash": key,
-                    "sigma_score": val,
-                }
-
-                futures.append(executor.submit(request.http_add_sigma_score, sigma_score_data=sigma_score_data))
-
-            for _ in tqdm(as_completed(futures), total=len(futures)):
-                continue
-
-    def upload_percentile(self, hash_percentile_dict):
-        print("Uploading percentiles to mongodb...")
-        with ThreadPoolExecutor(max_workers=50) as executor:
-            futures = []
-            for image_hash, percentile in hash_percentile_dict.items():
-                # upload percentile
-                percentile_data = {
-                    "image_hash": image_hash,
-                    "percentile": percentile,
-                }
-
-                futures.append(executor.submit(request.http_add_percentile, percentile_data=percentile_data))
-
-            for _ in tqdm(as_completed(futures), total=len(hash_percentile_dict)):
-                continue
-
-    def generate_graphs(self, hash_score_pairs, hash_percentile_dict, hash_sigma_score_dict):
-        # Initialize all graphs/subplots
-        plt.figure(figsize=(22, 20))
-        figure_shape = (4, 1)
-        percentile_graph = plt.subplot2grid(figure_shape, (0, 0), rowspan=1, colspan=1)
-        score_graph = plt.subplot2grid(figure_shape, (1, 0), rowspan=1, colspan=1)
-        sigma_score_graph = plt.subplot2grid(figure_shape, (2, 0), rowspan=1, colspan=1)
-        hist_sigma_score_graph = plt.subplot2grid(figure_shape, (3, 0), rowspan=1, colspan=1)
-
-        # percentiles
-        chronological_percentiles = []
-        for pair in hash_score_pairs:
-            chronological_percentiles.append(hash_percentile_dict[pair[0]])
-
-        x_axis_values = [i for i in range(len(hash_score_pairs))]
-        percentile_graph.scatter(x_axis_values, chronological_percentiles,
-                            label="Image Percentiles over time",
-                            c="#281ad9", s=15)
-
-        percentile_graph.set_xlabel("Time")
-        percentile_graph.set_ylabel("Percentile")
-        percentile_graph.set_title("Percentile vs Time")
-        percentile_graph.legend()
-        percentile_graph.autoscale(enable=True, axis='y')
-
-        # scores
-        chronological_scores = []
-        for pair in hash_score_pairs:
-            chronological_scores.append(pair[1])
-
-        score_graph.scatter(x_axis_values, chronological_scores,
-                                 label="Image Scores over time",
-                                 c="#281ad9", s=15)
-
-        score_graph.set_xlabel("Time")
-        score_graph.set_ylabel("Score")
-        score_graph.set_title("Score vs Time")
-        score_graph.legend()
-        score_graph.autoscale(enable=True, axis='y')
-
-        # sigma scores
-        chronological_sigma_scores = []
-        for pair in hash_score_pairs:
-            chronological_sigma_scores.append(hash_sigma_score_dict[pair[0]])
-
-        sigma_score_graph.scatter(x_axis_values, chronological_sigma_scores,
-                            label="Image Sigma Scores over time",
-                            c="#281ad9", s=15)
-
-        sigma_score_graph.set_xlabel("Time")
-        sigma_score_graph.set_ylabel("Sigma Score")
-        sigma_score_graph.set_title("Sigma Score vs Time")
-        sigma_score_graph.legend()
-        sigma_score_graph.autoscale(enable=True, axis='y')
-
-        # hist sigma scores
-        hist_sigma_score_graph.set_xlabel("Sigma Score")
-        hist_sigma_score_graph.set_ylabel("Frequency")
-        hist_sigma_score_graph.set_title("Sigma Scores Histogram")
-        hist_sigma_score_graph.hist(chronological_sigma_scores,
-                                    weights=np.ones(len(chronological_sigma_scores)) / len(
-                                        chronological_sigma_scores))
-        hist_sigma_score_graph.yaxis.set_major_formatter(PercentFormatter(1))
-
-        # Save figure
-        plt.suptitle('Dataset: {}\nModel: {}'.format(self.dataset, self.model_name), fontsize=20)
-
-        # plt.subplots_adjust(left=0.15, hspace=0.5)
-        # plt.savefig("./output/{}-{}-scores.jpg".format(self.model_name.replace(".safetensors", ""), self.dataset))
-        plt.show()
-        buf = BytesIO()
-        plt.savefig(buf, format='png')
-        buf.seek(0)
-
-        # upload the graph report
-        graph_name = "{}-{}.png".format(self.model_name.replace(".safetensors", ""), self.dataset)
-        graph_output = os.path.join(self.dataset, "output/scores-graph", graph_name)
-        cmd.upload_data(self.minio_client, 'datasets', graph_output, buf)
-
-    def generate_graphs_by_policy(self,
-                                  csv_data,
-                                  policy="top-k"):
-        # get scores for policy
-        scores = []
-        percentiles = []
-        sigma_scores = []
-        for row in csv_data:
-            row_policy = row[4]
-            if  row_policy == policy:
-                score = row[5]
-                scores.append(score)
-
-                percentile = row[6]
-                percentiles.append(percentile)
-
-                sigma_score = row[7]
-                sigma_scores.append(sigma_score)
-
-        # Initialize all graphs/subplots
-        plt.figure(figsize=(22, 20))
-        figure_shape = (3, 1)
-        percentile_graph = plt.subplot2grid(figure_shape, (0, 0), rowspan=1, colspan=1)
-        score_graph = plt.subplot2grid(figure_shape, (1, 0), rowspan=1, colspan=1)
-        sigma_score_graph = plt.subplot2grid(figure_shape, (2, 0), rowspan=1, colspan=1)
-
-        # percentiles
-        x_axis_values = [i for i in range(len(percentiles))]
-        percentile_graph.scatter(x_axis_values, percentiles,
-                            label="Image Percentiles over time",
-                            c="#281ad9", s=15)
-
-        percentile_graph.set_xlabel("Time")
-        percentile_graph.set_ylabel("Percentile")
-        percentile_graph.set_title("Percentile vs Time")
-        percentile_graph.legend()
-        percentile_graph.autoscale(enable=True, axis='y')
-
-        # scores
-        score_graph.scatter(x_axis_values, scores,
-                                 label="Image Scores over time",
-                                 c="#281ad9", s=15)
-
-        score_graph.set_xlabel("Time")
-        score_graph.set_ylabel("Score")
-        score_graph.set_title("Score vs Time")
-        score_graph.legend()
-        score_graph.autoscale(enable=True, axis='y')
-
-        # sigma scores
-
-        sigma_score_graph.scatter(x_axis_values, sigma_scores,
-                            label="Image Sigma Scores over time",
-                            c="#281ad9", s=15)
-
-        sigma_score_graph.set_xlabel("Time")
-        sigma_score_graph.set_ylabel("Sigma Score")
-        sigma_score_graph.set_title("Sigma Score vs Time")
-        sigma_score_graph.legend()
-        sigma_score_graph.autoscale(enable=True, axis='y')
-
-        # Save figure
-        plt.suptitle('Dataset: {}\nModel: {}\nPolicy: {}'.format(self.dataset, self.model_name, policy), fontsize=20)
-
-        # plt.subplots_adjust(left=0.15, hspace=0.5)
-        # plt.savefig("./output/{}-{}-scores.jpg".format(self.model_name.replace(".safetensors", ""), self.dataset))
-        plt.show()
-        buf = BytesIO()
-        plt.savefig(buf, format='png')
-        buf.seek(0)
-
-        # upload the graph report
-        graph_name = "{}-{}.png".format(self.model_name.replace(".safetensors", ""), self.dataset)
-        graph_output = os.path.join(self.dataset, "output/scores-graph", graph_name)
-        cmd.upload_data(self.minio_client, 'datasets', graph_output, buf)
-
 def parse_args():
     parser = argparse.ArgumentParser(description="Embedding Scorer")
     parser.add_argument('--minio-addr', required=False, help='Minio server address', default="192.168.3.5:9000")
@@ -626,38 +405,58 @@ def parse_args():
 
 
 def run_image_scorer(minio_client,
-                     dataset_name,
+                     dataset_names,
                      batch_size):
     start_time = time.time()
     # remove
     print("run_image_scorer")
 
     scorer = ImageScorer(minio_client=minio_client,
-                         dataset_name=dataset_name,
+                         dataset_names=dataset_names,
                          batch_size=batch_size)
 
 
     classifier_model_list = request.http_get_classifier_model_list()
+    classifier_model = random.choice(classifier_model_list)
     
-    for classifier_model in classifier_model_list:
-        try:
-            is_loaded = scorer.load_model(classifier_model_info=classifier_model)
-        except Exception as e:
-            print("Failed loading model, {}".format(classifier_model["model_path"]), e)
-            continue
-        if not is_loaded:
-            continue
+    try:
+        is_loaded = scorer.load_model(classifier_model_info=classifier_model)
+    except Exception as e:
+        print("Failed loading model, {}".format(classifier_model["model_path"]), e)
+    if not is_loaded:
+        return
+    
+    print("Getting paths of clip vector is getting...")
+    paths = scorer.get_paths()
+    len_paths = len(paths)
+    print("Getting paths of clip vector is done!")
+    monitor_loading = []
+    monitor_scoring = []
+    monitor_uploading = []
+    
+    for start_index in range(0, len_paths - batch_size, batch_size):
 
-        paths = scorer.get_paths()
-        print(paths)
-        features_data, image_paths = scorer.get_all_feature_pairs(paths)
-        
+        paths_batch = paths[start_index:start_index + batch_size]
+
+        # Record the runtime to load feature
+        start_time = time.time()
+        features_data, image_paths = scorer.get_all_feature_pairs(paths_batch)
+        end_time = time.time()
+        time_elapsed = end_time - start_time
+        monitor_loading.append(time_elapsed)
+
+        start_time = time.time()
         hash_score_pairs, image_paths, job_uuids_hash_dict = scorer.get_scores(features_data, image_paths)
+        end_time = time.time()
+        monitor_scoring.append(time_elapsed)
         print("Successfully calculated")
-        scorer.upload_scores(hash_score_pairs, job_uuids_hash_dict)
 
-    time_elapsed = time.time() - start_time
-    print("Dataset: {}: Total Time elapsed: {}s".format(dataset_name, format(time_elapsed, ".2f")))   
+        start_time = time.time()
+        scorer.upload_scores(hash_score_pairs, job_uuids_hash_dict)
+        end_time = time.time()
+        time_elapsed = time.time() - start_time
+        monitor_uploading.append(time_elapsed)
+        print("Dataset: {}: Total Time elapsed: {}s".format(dataset_names, format(time_elapsed, ".2f")))
 
 
 def main():
@@ -668,18 +467,12 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
 
-    if dataset_name != "all":
-        run_image_scorer(minio_client, dataset_name, args.batch_size)
-    else:
-        # if all, train models for all existing datasets
-        # get dataset name list
-        dataset_names = request.http_get_dataset_names()
-        print("dataset names=", dataset_names)
-        for dataset in dataset_names:
-            try:
-                run_image_scorer(minio_client, dataset)
-            except Exception as e:
-                print("Error running image scorer for {}: {}".format(dataset, e))
+    dataset_names = request.http_get_dataset_names()
+    print("dataset names=", dataset_names)
+    try:
+        run_image_scorer(minio_client, dataset_names, args.batch_size)
+    except Exception as e:
+        print("Error running image scorer for {}: {}".format(dataset_names, e))
 
 
 if __name__ == "__main__":
