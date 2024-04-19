@@ -391,22 +391,11 @@ class ImageScorer:
             if classifier["model_path"] == classifier_file_path:
                 return classifier["classifier_id"], classifier["classifier_name"]
         return -1, ""
-    
-def parse_args():
-    parser = argparse.ArgumentParser(description="Embedding Scorer")
-    parser.add_argument('--minio-addr', required=False, help='Minio server address', default="192.168.3.5:9000")
-    parser.add_argument('--minio-access-key', required=False, help='Minio access key')
-    parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
-    parser.add_argument('--dataset-name', required=True, help='Name of the dataset for embeddings')
-    parser.add_argument('--batch-size', required=False, default=100, type=int, help='Name of the dataset for embeddings')
-
-    args = parser.parse_args()
-    return args
-
 
 def run_image_scorer(minio_client,
                      dataset_names,
-                     batch_size):
+                     batch_size,
+                     increment):
     start_time = time.time()
     # remove
     print("run_image_scorer")
@@ -433,30 +422,66 @@ def run_image_scorer(minio_client,
     monitor_loading = []
     monitor_scoring = []
     monitor_uploading = []
-    
-    for start_index in range(0, len_paths - batch_size, batch_size):
 
-        paths_batch = paths[start_index:start_index + batch_size]
+    for start_index in range(0, len_paths - increment, increment):
+        
+        paths_batch = paths[max(start_index, 1024):start_index + batch_size]
 
-        # Record the runtime to load feature
+        # Record the runtime to load clip vectors
         start_time = time.time()
         features_data, image_paths = scorer.get_all_feature_pairs(paths_batch)
         end_time = time.time()
         time_elapsed = end_time - start_time
         monitor_loading.append(time_elapsed)
 
+        # Record the runtime to score clip vectors
         start_time = time.time()
         hash_score_pairs, image_paths, job_uuids_hash_dict = scorer.get_scores(features_data, image_paths)
         end_time = time.time()
         monitor_scoring.append(time_elapsed)
         print("Successfully calculated")
 
+        # Record the runtime to upload scores
         start_time = time.time()
         scorer.upload_scores(hash_score_pairs, job_uuids_hash_dict)
         end_time = time.time()
         time_elapsed = time.time() - start_time
         monitor_uploading.append(time_elapsed)
         print("Dataset: {}: Total Time elapsed: {}s".format(dataset_names, format(time_elapsed, ".2f")))
+
+    # graph
+    fig, axs = plt.plot(figsize=(5, 4))
+    # set title of graph
+    plt.title("Monitoring image classifier score")
+    fig_report_text = ("Batch_size = {}\n"
+                       .format(batch_size))
+    #info text about the model
+    plt.figtext(0.02, 0.7, fig_report_text)
+    # plot loading time
+    axs.plot(range(1024, len(monitor_loading + 1) * increment, increment), monitor_loading, label="Loading time")
+    # plot scoring time
+    axs.plot(range(1024, len(monitor_loading + 1) * increment, increment), monitor_loading, label="Scoring time")
+    # plot uploading time
+    axs.plot(range(1024, len(monitor_loading + 1) * increment, increment), monitor_loading, label="uploading time")
+
+    axs.set_xlabel("Batch Size")
+    axs.set_ylabel("Time (s)")
+
+    axs.legend()
+
+    fig.savefig("output/monitor_image_classifier_scorer.png", format="png")
+
+    
+def parse_args():
+    parser = argparse.ArgumentParser(description="Embedding Scorer")
+    parser.add_argument('--minio-addr', required=False, help='Minio server address', default="192.168.3.5:9000")
+    parser.add_argument('--minio-access-key', required=False, help='Minio access key')
+    parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
+    parser.add_argument('--dataset-name', required=True, help='Name of the dataset for embeddings')
+    parser.add_argument('--batch-size', required=False, default=100, type=int, help='Name of the dataset for embeddings')
+    parser.add_argument('--increment', required=False, default=10000, type=int, help='Name of the dataset for embeddings')
+    args = parser.parse_args()
+    return args
 
 
 def main():
@@ -470,7 +495,7 @@ def main():
     dataset_names = request.http_get_dataset_names()
     print("dataset names=", dataset_names)
     try:
-        run_image_scorer(minio_client, dataset_names, args.batch_size)
+        run_image_scorer(minio_client, dataset_names, args.batch_size, args.increment)
     except Exception as e:
         print("Error running image scorer for {}: {}".format(dataset_names, e))
 

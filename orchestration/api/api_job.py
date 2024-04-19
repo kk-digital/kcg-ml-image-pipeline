@@ -18,6 +18,8 @@ import paramiko
 from typing import Optional, Dict
 import csv
 from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, AddJob, WasPresentResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, CountLastHour, CountResponse
+from .api_tag import get_tag_list_for_image_v1
+from .api_ranking import get_image_rank_use_count_v1
 from pymongo import UpdateMany, ASCENDING, DESCENDING
 from bson import ObjectId
 
@@ -522,6 +524,41 @@ def update_completed_jobs_with_better_name(request: Request, task_type_mapping: 
         )
         total_count_updated += result.matched_count
     
+    return total_count_updated
+
+
+@router.put("/queue/image-generation/update-completed-job-for-safe-delete", response_class=PrettyJSONResponse)
+def update_completed_jobs_for_safe_delete(request: Request):
+    # Use the limit parameter in the find query to limit the results
+    total_count_updated = 0
+    
+    completed_jobs = request.app.completed_jobs_collection.find({})
+
+    request.app.completed_jobs_collection.update_many({}, {
+        "$set": {
+            "safe_to_delete": 0
+        }
+    })
+
+    for completed_job in completed_jobs:
+        task_uuid = completed_job["uuid"]
+        image_hash = completed_job["task_output_file_dict"]["output_file_hash"]
+        tag_list_response = get_tag_list_for_image_v1(request, image_hash)
+        ranking_list_response = get_image_rank_use_count_v1(request, image_hash)
+        if tag_list_response["request_error_code"] == 0 and ranking_list_response["request_error_code" == 0]:
+            tag_count = len(tag_list_response["response"]["tags"])
+            ranking_count = ranking_list_response["response"]["count"]
+            if tag_count == 0 and ranking_count == 0:
+                request.app.completed_jobs_collection.update_many(
+                    {"uuid": task_uuid},
+                    {
+                        "$set": {
+                            "safe_to_delete": 1
+                        }
+                    }
+                )
+                total_count_updated += 1
+            
     return total_count_updated
 
 
