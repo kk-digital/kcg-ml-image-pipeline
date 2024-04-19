@@ -147,7 +147,13 @@ class RapidlyExploringTreeSearch:
         print(f"Model loaded for tag: {model_info}")
         
         return clip_model
-    
+
+    def min_max_normalize_scores(scores):
+        min_val = torch.min(scores)
+        max_val = torch.max(scores)
+        normalized_tensor = (scores - min_val) / (max_val - min_val)
+        return normalized_tensor
+
     def setup_faiss(self, all_nodes):
         # Assuming all_nodes is a list of torch tensors (nodes)
         dimension = all_nodes[0].size(0)
@@ -202,16 +208,16 @@ class RapidlyExploringTreeSearch:
         ranking_scores = self.score_points(nodes).squeeze(1)
 
         # Distance metric
-        distances = self.compute_distances(faiss_index, nodes)
-        distance_scores = torch.tensor(distances.squeeze(), device=self.device)
-        distance_scores = torch.softmax(distance_scores, dim=0)  # Normalize and invert distances
+        # distances = self.compute_distances(faiss_index, nodes)
+        # distance_scores = torch.tensor(distances.squeeze(), device=self.device)
+        # distance_scores = torch.softmax(distance_scores, dim=0)  # Normalize and invert distances
 
         # increase classifier scores with a threshold
         classifier_scores= torch.where(classifier_scores>0.6, torch.tensor(1), classifier_scores)
 
         # combine scores
-        classifier_ranks= torch.softmax(classifier_scores, dim=0) 
-        quality_ranks=  torch.softmax(ranking_scores, dim=0)
+        classifier_ranks= self.min_max_normalize_scores(classifier_scores, dim=0) 
+        quality_ranks=  self.min_max_normalize_scores(ranking_scores, dim=0)
         ranks= torch.min(classifier_ranks , quality_ranks)  # Factor in distances
 
         return ranks, classifier_scores, ranking_scores 
@@ -276,8 +282,8 @@ class RapidlyExploringTreeSearch:
         pbar.close()
         
         # After the final iteration, choose the top n highest scoring points overall
-        classifier_ranks= torch.softmax(all_classifier_scores, dim=0) 
-        quality_ranks= torch.softmax(all_ranking_scores, dim=0)
+        classifier_ranks= self.min_max_normalize_scores(all_classifier_scores, dim=0) 
+        quality_ranks= self.min_max_normalize_scores(all_ranking_scores, dim=0)
 
         all_ranks= torch.min(classifier_ranks , quality_ranks)
         values, sorted_indices = torch.sort(all_ranks, descending=True)
