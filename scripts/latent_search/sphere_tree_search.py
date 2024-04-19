@@ -151,9 +151,11 @@ class RapidlyExploringTreeSearch:
     def setup_faiss(self, all_nodes):
         # Assuming all_nodes is a list of torch tensors (nodes)
         dimension = all_nodes[0].size(0)
-        num_clusters = 50  # how many cells
-        quantizer = faiss.IndexFlatL2(dimension)
-        faiss_index = faiss.IndexIVFFlat(quantizer, dimension, num_clusters, faiss.METRIC_L2)
+        # num_clusters = 50  # how many cells
+        # quantizer = faiss.IndexFlatL2(dimension)
+        # faiss_index = faiss.IndexIVFFlat(quantizer, dimension, num_clusters, faiss.METRIC_L2)
+
+        faiss_index = faiss.IndexFlatL2(dimension)
         
         if torch.cuda.is_available():
             res = faiss.StandardGpuResources()
@@ -161,7 +163,7 @@ class RapidlyExploringTreeSearch:
 
         # Convert all_nodes to a contiguous array of float32, required by FAISS
         node_matrix = torch.stack(all_nodes).cpu().numpy().astype('float32')
-        faiss_index.train(node_matrix)
+        # faiss_index.train(node_matrix)
         faiss_index.add(node_matrix)
 
         return faiss_index
@@ -269,7 +271,7 @@ class RapidlyExploringTreeSearch:
 
                 # add selected points to the index
                 current_nodes=top_points.cpu().numpy().astype('float32')
-                faiss_index.train(current_nodes)
+                # faiss_index.train(current_nodes)
                 faiss_index.add(current_nodes) 
             
             # Prepare for the next iteration
