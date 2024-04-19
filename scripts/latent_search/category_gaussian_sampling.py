@@ -47,6 +47,7 @@ def parse_args():
     parser.add_argument('--optimize-spheres', action='store_true', default=False)
     parser.add_argument('--optimize-samples', action='store_true', default=False)
     parser.add_argument('--only-top-k-spheres', action='store_true', default=False)
+    parser.add_argument('--penalty', type=10, default=10)
 
     return parser.parse_args()
 
@@ -69,6 +70,7 @@ class SphereSamplingGenerator:
                 optimize_spheres=False,
                 optimize_samples=False,
                 only_top_k_spheres=False,
+                penalty = 10
                 ):
             
             self.dataset= dataset
@@ -87,6 +89,7 @@ class SphereSamplingGenerator:
             self.optimize_spheres= optimize_spheres
             self.optimize_samples= optimize_samples
             self.only_top_k_spheres = only_top_k_spheres
+            self.penalty = penalty
 
             # get minio client
             self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
@@ -475,7 +478,8 @@ def main():
                                         save_csv= args.save_csv,
                                         optimize_spheres= args.optimize_spheres,
                                         optimize_samples= args.optimize_samples, 
-                                        only_top_k_spheres = args.only_top_k_spheres)
+                                        only_top_k_spheres = args.only_top_k_spheres,
+                                        penalty = args.penalty)
 
     generator.generate_images(num_images=args.num_images)
 
