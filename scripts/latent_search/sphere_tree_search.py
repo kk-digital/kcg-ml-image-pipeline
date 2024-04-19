@@ -212,7 +212,7 @@ class RapidlyExploringTreeSearch:
         # combine scores
         classifier_ranks= torch.softmax(classifier_scores, dim=0) 
         quality_ranks=  torch.softmax(ranking_scores, dim=0)
-        ranks= torch.min(classifier_ranks , quality_ranks, distance_scores)  # Factor in distances
+        ranks= torch.min(classifier_ranks , quality_ranks)  # Factor in distances
 
         return ranks, classifier_scores, ranking_scores 
 
