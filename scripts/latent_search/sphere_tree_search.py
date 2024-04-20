@@ -205,7 +205,21 @@ class RapidlyExploringTreeSearch:
         scores= self.classifier_model.predict(points, batch_size=points.size(0))
         return scores.detach().cpu()
     
-    def rank_points(self, nodes):
+    def rank_points_by_distance(self, nodes, faiss_index):
+        # calculate ranking and classifier scores
+        classifier_scores = self.classifiy_points(nodes).squeeze(1)
+        ranking_scores = self.score_points(nodes).squeeze(1)
+
+        # increase classifier scores with a threshold
+        classifier_scores= torch.where(classifier_scores>0.6, torch.tensor(1), classifier_scores)
+
+        # rank by distance
+        distances = self.compute_distances(faiss_index, nodes)
+        distance_scores = torch.tensor(distances.squeeze())
+
+        return distance_scores, classifier_scores, ranking_scores
+
+    def rank_points_by_quality(self, nodes):
         # calculate ranking and classifier scores
         classifier_scores = self.classifiy_points(nodes).squeeze(1)
         ranking_scores = self.score_points(nodes).squeeze(1)
@@ -216,7 +230,7 @@ class RapidlyExploringTreeSearch:
         # combine scores
         classifier_ranks= self.min_max_normalize_scores(classifier_scores) 
         quality_ranks=  self.min_max_normalize_scores(ranking_scores)
-        ranks= torch.min(classifier_ranks , quality_ranks)  # Factor in distances
+        ranks= torch.min(classifier_ranks , quality_ranks)
 
         return ranks, classifier_scores, ranking_scores 
 
@@ -248,7 +262,7 @@ class RapidlyExploringTreeSearch:
                         continue
 
                 # Score these points
-                ranks, classifier_scores, ranking_scores = self.rank_points(nearest_points, faiss_index)
+                ranks, classifier_scores, ranking_scores = self.rank_points_by_distance(nearest_points, faiss_index)
 
                 # Select top n points based on scores
                 _, sorted_indices = torch.sort(ranks, descending=True)
