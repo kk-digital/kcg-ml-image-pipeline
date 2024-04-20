@@ -32,7 +32,7 @@ def parse_args():
         parser.add_argument('--num-images', type=int, help='Number of images to generate', default=100)
         parser.add_argument('--nodes-per-iteration', type=int, help='Number of nodes to evaluate each iteration', default=1000)
         parser.add_argument('--branches-per-iteration', type=int, help='Number of branches to expand each iteration', default=10)
-        parser.add_argument('--top-k', type=float, default=0.01)
+        parser.add_argument('--top-k', type=float, default=1)
         parser.add_argument('--max-nodes', type=int, help='Number of maximum nodes', default=1e+7)
         parser.add_argument('--jump-distance', type=float, help='Jump distance for each node', default=0.01)
         parser.add_argument('--batch-size', type=int, help='Inference batch size used by the scoring model', default=256)
@@ -42,8 +42,8 @@ def parse_args():
         parser.add_argument('--save-csv', action='store_true', default=False)
         parser.add_argument('--sampling-policy', type=str, default="rapidly_exploring_tree_search")
         parser.add_argument('--optimize-samples', action='store_true', default=False)
-        parser.add_argument('--classifier-weight', type=float, default=1)
-        parser.add_argument('--ranking-weight', type=float, default=0)
+        parser.add_argument('--classifier-weight', type=float, default=0.5)
+        parser.add_argument('--ranking-weight', type=float, default=0.5)
 
         return parser.parse_args()
 
@@ -228,9 +228,9 @@ class RapidlyExploringTreeSearch:
         classifier_scores= torch.where(classifier_scores>0.6, torch.tensor(1), classifier_scores)
 
         # combine scores
-        classifier_ranks= self.min_max_normalize_scores(classifier_scores) 
-        quality_ranks=  self.min_max_normalize_scores(ranking_scores)
-        ranks= torch.min(classifier_ranks , quality_ranks)
+        classifier_ranks= self.classifier_weight * self.min_max_normalize_scores(classifier_scores) 
+        quality_ranks= self.ranking_weight * self.min_max_normalize_scores(ranking_scores)
+        ranks= classifier_ranks + quality_ranks
 
         return ranks, classifier_scores, ranking_scores 
 
@@ -262,7 +262,10 @@ class RapidlyExploringTreeSearch:
                         continue
 
                 # Score these points
-                ranks, classifier_scores, ranking_scores = self.rank_points_by_distance(nearest_points, faiss_index)
+                if self.sampling_policy == "rapidly_exploring_tree_search":
+                    ranks, classifier_scores, ranking_scores = self.rank_points_by_distance(nearest_points, faiss_index)
+                elif self.sampling_policy == "jump_point_tree_search":
+                    ranks, classifier_scores, ranking_scores = self.rank_points_by_quality(nearest_points, faiss_index)
 
                 # Select top n points based on scores
                 _, sorted_indices = torch.sort(ranks, descending=True)
@@ -293,10 +296,10 @@ class RapidlyExploringTreeSearch:
         pbar.close()
         
         # After the final iteration, choose the top n highest scoring points overall
-        classifier_ranks= self.min_max_normalize_scores(all_classifier_scores) 
-        quality_ranks= self.min_max_normalize_scores(all_ranking_scores)
+        classifier_ranks= self.classifier_weight * self.min_max_normalize_scores(all_classifier_scores) 
+        quality_ranks= self.ranking_weight * self.min_max_normalize_scores(all_ranking_scores)
 
-        all_ranks= torch.min(classifier_ranks , quality_ranks)
+        all_ranks= classifier_ranks + quality_ranks
         values, sorted_indices = torch.sort(all_ranks, descending=True)
         final_top_points = torch.stack(all_nodes, dim=0)[sorted_indices[:int(num_images/top_k)]]
 
