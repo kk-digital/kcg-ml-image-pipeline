@@ -182,5 +182,6 @@ def train_classifier(minio_ip_addr=None,
                                                     creation_time=date_now)
     cmd.upload_data(tag_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
 
-    # add model card
-    request.http_add_classifier_model(model_card)
+    # save model to mongodb if its input type is clip-h
+    if(input_type==constants.KANDINSKY_CLIP):
+        request.http_add_classifier_model(model_card)
