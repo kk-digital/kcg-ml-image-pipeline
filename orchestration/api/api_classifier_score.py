@@ -1,5 +1,5 @@
 from fastapi import Request, APIRouter, Query
-from .api_utils import ErrorCode, WasPresentResponse, ApiResponseHandlerV1, StandardSuccessResponseV1
+from .api_utils import PrettyJSONResponse, ErrorCode, WasPresentResponse, ApiResponseHandlerV1, StandardSuccessResponseV1
 from orchestration.api.mongo_schemas import ClassifierScore, ListClassifierScore, ClassifierScoreRequest, ClassifierScoreV1, ListClassifierScore1
 from fastapi.encoders import jsonable_encoder
 import uuid
@@ -811,4 +811,27 @@ async def list_image_scores(
         response_data=images_data, 
         http_status_code=200
     )
+
+@router.delete("/pseudotag-classifier-scores/delete-unecessary-classifier-scores", 
+             response_class=PrettyJSONResponse)
+async def delete_classifier_scores(request: Request):
+    filter_jobs = {
+        "task_input_dict.dataset": {"$ne": "environmental"}
+    }
+    jobs = request.app.completed_jobs_collection.find(filter_jobs)
+
+    # Extract UUIDs from these jobs
+    uuids_to_delete = [job['uuid'] for job in jobs]
+
+    if not uuids_to_delete:
+        return {"message": "No classifier scores to delete based on the criteria"}
+
+    # Delete classifier scores that have a UUID in the list from completed jobs
+    delete_result = request.app.image_classifier_scores_collection.delete_many({
+        "uuid": {"$in": uuids_to_delete}
+    })
+
+    return {
+        "message": f"Deleted {delete_result.deleted_count} classifier scores for irrelevant datasets"
+    }
    
