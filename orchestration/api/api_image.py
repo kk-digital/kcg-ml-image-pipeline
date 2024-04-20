@@ -257,7 +257,7 @@ def get_random_image_date_range(
         if min_score is not None:
             classifier_query['score'] = {'$gte': min_score}
             # Fetch image hashes from classifier_scores collection that match the criteria
-            classifier_scores = request.app.classifier_scores_collection.find(classifier_query)
+            classifier_scores = request.app.image_classifier_scores_collection.find(classifier_query)
             if classifier_scores is None:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
