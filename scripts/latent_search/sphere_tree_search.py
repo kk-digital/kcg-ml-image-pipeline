@@ -109,11 +109,11 @@ class RapidlyExploringTreeSearch:
         data_dict = msgpack.unpackb(data)
 
         # Convert to PyTorch tensors
-        mean_vector = torch.tensor(data_dict["mean"], device=self.device, dtype=torch.float32).unsqueeze(0)
-        std_vector = torch.tensor(data_dict["std"], device=self.device, dtype=torch.float32).unsqueeze(0)
-        max_vector = torch.tensor(data_dict["max"], device=self.device, dtype=torch.float32).unsqueeze(0)
-        min_vector = torch.tensor(data_dict["min"], device=self.device, dtype=torch.float32).unsqueeze(0)
-        covariance_matrix = torch.tensor(data_dict["cov_matrix"], device=self.device, dtype=torch.float32)
+        mean_vector = torch.tensor(data_dict["mean"], dtype=torch.float32).unsqueeze(0)
+        std_vector = torch.tensor(data_dict["std"], dtype=torch.float32).unsqueeze(0)
+        max_vector = torch.tensor(data_dict["max"], dtype=torch.float32).unsqueeze(0)
+        min_vector = torch.tensor(data_dict["min"], dtype=torch.float32).unsqueeze(0)
+        covariance_matrix = torch.tensor(data_dict["cov_matrix"], dtype=torch.float32)
 
         return mean_vector, std_vector, max_vector, min_vector, covariance_matrix
     
@@ -185,32 +185,30 @@ class RapidlyExploringTreeSearch:
         return clip_vectors
 
     def filter_defects(self, points, defect_threshold=0.6):
+        points= points.to(device=self.device)
         # get defect scores
-        scores= self.defect_model.predict(points, batch_size=points.size(0)).to(device=self.device).squeeze(1)
+        scores= self.defect_model.predict(points, batch_size=points.size(0)).squeeze(1)
         # filter for indices of elements that aren't defective
         filtered_indices= torch.where(scores<defect_threshold)[0]
         # filter datapoints
         filtered_points= points[filtered_indices]
 
-        return filtered_points
+        return filtered_points.detach().cpu()
 
     def score_points(self, points):
+        points= points.to(device=self.device)
         scores= self.scoring_model.predict(points, batch_size=1000)
-        return scores
+        return scores.detach().cpu()
     
     def classifiy_points(self, points):
-        scores= self.classifier_model.predict(points, batch_size=points.size(0)).to(device=self.device)
-        return scores
+        points= points.to(device=self.device)
+        scores= self.classifier_model.predict(points, batch_size=points.size(0))
+        return scores.detach().cpu()
     
-    def rank_points(self, nodes, faiss_index):
+    def rank_points(self, nodes):
         # calculate ranking and classifier scores
         classifier_scores = self.classifiy_points(nodes).squeeze(1)
         ranking_scores = self.score_points(nodes).squeeze(1)
-
-        # Distance metric
-        # distances = self.compute_distances(faiss_index, nodes)
-        # distance_scores = torch.tensor(distances.squeeze(), device=self.device)
-        # distance_scores = torch.softmax(distance_scores, dim=0)  # Normalize and invert distances
 
         # increase classifier scores with a threshold
         classifier_scores= torch.where(classifier_scores>0.6, torch.tensor(1), classifier_scores)
@@ -227,8 +225,8 @@ class RapidlyExploringTreeSearch:
         all_nodes = [self.clip_mean.squeeze()]
         faiss_index = self.setup_faiss(all_nodes)
 
-        all_classifier_scores = torch.tensor([], dtype=torch.float32, device=self.device)
-        all_ranking_scores = torch.tensor([], dtype=torch.float32, device=self.device)
+        all_classifier_scores = torch.tensor([], dtype=torch.float32)
+        all_ranking_scores = torch.tensor([], dtype=torch.float32)
 
         # generate covariance matrix
         covariance_matrix = torch.diag((self.clip_std.pow(2) * jump_distance).squeeze(0))
@@ -272,7 +270,6 @@ class RapidlyExploringTreeSearch:
 
                 # add selected points to the index
                 current_nodes=top_points.cpu().numpy().astype('float32')
-                # faiss_index.train(current_nodes)
                 faiss_index.add(current_nodes) 
             
             # Prepare for the next iteration
