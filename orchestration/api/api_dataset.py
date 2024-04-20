@@ -779,7 +779,7 @@ async def get_datasets(request: Request):
             response_model=StandardSuccessResponseV1[SeqIdResponse],  
             tags=["dataset"],
             responses=ApiResponseHandlerV1.listErrors([400,422, 500]))
-async def get_sequential_id(request: Request, dataset: str = Query(..., description="Name of the dataset"), amount: int = Query(default=1, ge=1)):
+async def get_sequential_id_1(request: Request, dataset: str = Query(..., description="Name of the dataset"), amount: int = Query(default=1, ge=1)):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     sequential_id_arr = []
 
