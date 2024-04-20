@@ -37,6 +37,7 @@ from orchestration.api.api_server_utility import router as server_utility_router
 from orchestration.api.api_classifier_score import router as classifier_score_router
 from orchestration.api.api_classifier import router as classifier_router
 from orchestration.api.api_ab_rank import router as ab_rank_router
+from orchestration.api.api_rank_active_learning import router as rank_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -78,6 +79,7 @@ app.include_router(server_utility_router)
 app.include_router(classifier_score_router)
 app.include_router(classifier_router)
 app.include_router(ab_rank_router)
+app.include_router(rank_router)
 
 
 
@@ -159,6 +161,12 @@ def startup_db_client():
     ]
     create_index_if_not_exists(app.pending_jobs_collection ,pending_jobs_task_type_index, 'pending_jobs_task_type_index')
 
+    completed_jobs_uuid_index=[
+    ('uuid', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.completed_jobs_collection ,completed_jobs_uuid_index, 'completed_jobs_uuid_index')
+
+
     app.failed_jobs_collection = app.mongodb_db["failed-jobs"]
 
     #inpainting jobs
@@ -199,6 +207,11 @@ def startup_db_client():
     app.pseudo_tag_categories_collection = app.mongodb_db["pseudo_tag_categories"]
     app.uuid_pseudo_tag_count_collection = app.mongodb_db["pseudo_tag_count"]
 
+    pseudo_tag_uuid_index=[
+    ('uuid', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.pseudo_tag_images_collection ,pseudo_tag_uuid_index, 'pseudo_tag_uuid_index')
+
     #classifier
     app.classifier_models_collection = app.mongodb_db["classifier_models"]
 
@@ -228,6 +241,9 @@ def startup_db_client():
     app.active_learning_policies_collection = app.mongodb_db["active-learning-policies"]
     app.active_learning_queue_pairs_collection = app.mongodb_db["queue-pairs"]
 
+    # rank active learning
+    app.rank_active_learning_pairs_collection = app.mongodb_db["rank_pairs"]
+
     scores_index=[
     ('model_id', pymongo.ASCENDING), 
     ('score', pymongo.ASCENDING)
@@ -254,6 +270,34 @@ def startup_db_client():
     ('tag_id', pymongo.ASCENDING)
     ]
     create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_classifier_index, 'classifier_image_classifier_index')
+
+    # index for classifier_id in image_classifier_scores
+    classifier_image_classifier_id_index=[
+    ('classifier_id', pymongo.ASCENDING),
+    ]
+    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_classifier_id_index, 'classifier_image_classifier_id_index')
+
+    # index for tag_id in image_classifier_scores
+    classifier_image_tag_id_index=[
+    ('tag_id', pymongo.ASCENDING),
+    ]
+    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_tag_id_index, 'classifier_image_tag_id_index')
+
+    # index for image_hash in image_classifier_scores
+    classifier_image_hash_index=[
+    ('image_hash', pymongo.ASCENDING),
+    ]
+    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_hash_index, 'classifier_image_image_hash_index')
+
+    # index for score in image_classifier_scores
+    classifier_image_score_index=[
+    ('score', pymongo.ASCENDING),
+    ]
+    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_score_index, 'classifier_image_score_index')
+    classifier_image_uuid_index=[
+    ('uuid', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_uuid_index, 'classifier_image_uuid_index')
 
 
     # sigma scores

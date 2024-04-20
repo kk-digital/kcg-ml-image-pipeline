@@ -17,7 +17,62 @@ from datetime import datetime
 import os
 from urllib.parse import urlparse
 
+class DatasetResponse(BaseModel):
+    datasets: List[str]
 
+class SeqIdResponse(BaseModel):
+    sequential_ids : List[str]
+    
+class SeqIdDatasetResponse(BaseModel):
+    dataset: str
+    sequential_id: int
+
+class SetRateResponse(BaseModel):
+    dataset: str
+    last_update: datetime
+    dataset_rate: float
+    relevance_model: str
+    ranking_model: str
+
+class ResponseRelevanceModel(BaseModel):
+    last_update: datetime
+    relevance_model: str
+
+class SetHourlyResponse(BaseModel):
+    dataset: str
+    last_update: datetime
+    hourly_limit: int
+    relevance_model: str
+    ranking_model: str
+
+class HourlyResponse(BaseModel):
+    hourly_limit: str
+
+class RateResponse(BaseModel):
+    dataset_rate: str
+
+class FilePathResponse(BaseModel):
+    file_path: str
+
+class ListFilePathResponse(BaseModel):
+    file_paths: List[FilePathResponse]
+
+class DatasetConfig(BaseModel):
+    dataset_name: str
+    last_update: datetime
+    dataset_rate: str
+    relevance_model: str
+    ranking_model: str
+    hourly_limit: str
+    top_k: str
+    generation_policy: str
+
+class RankinModelResponse(BaseModel):
+    last_update: datetime
+    ranking_model: str
+
+class ListDatasetConfig(BaseModel):
+    configs: List[DatasetConfig]
 
 class SingleModelResponse(BaseModel):
     model_name: str
@@ -388,3 +443,7 @@ def find_or_create_next_folder_and_index(client: Minio, bucket: str, base_folder
             return f"{base_folder}/0001", 0
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"MinIO error: {e}")
+    
+
+class CountLastHour(BaseModel):
+    jobs_count_last_n_hour: dict

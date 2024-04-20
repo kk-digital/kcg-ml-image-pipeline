@@ -1,7 +1,7 @@
 from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException, Query
 from typing import List, Dict
-from .mongo_schemas import Classifier, RequestClassifier, ListClassifier
+from .mongo_schemas import Classifier, RequestClassifier, ListClassifier, UpdateClassifier
 from typing import Union
 from .api_utils import PrettyJSONResponse, validate_date_format, ApiResponseHandler, ErrorCode, StandardSuccessResponseV1, ApiResponseHandlerV1, WasPresentResponse
 import traceback
@@ -118,31 +118,6 @@ async def list_classifiers(request: Request):
         print(f"Error: {str(e)}")
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
 
-@router.delete("/classifier/remove-classifier-with-id", 
-               tags=["deprecated2"],
-               description="deprecated, replaced with /pseudotag-classifiers/remove-classifier-with-id",
-               responses=ApiResponseHandlerV1.listErrors([400, 404, 500]))
-async def delete_classifier(request: Request, classifier_id: int ):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-
-    # Attempt to delete the classifier with the specified classifier_id
-    delete_result = request.app.classifier_models_collection.delete_one({"classifier_id": classifier_id})
-
-    # Check if a document was deleted
-    if delete_result.deleted_count == 0:
-        # No document was found with the provided classifier_id, so nothing was deleted
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.ELEMENT_NOT_FOUND,
-            error_string=f"No classifier found with classifier_id {classifier_id}.",
-            http_status_code=404
-        )
-
-    # If a document was successfully deleted
-    return response_handler.create_success_response_v1(
-        response_data={"message": f"Classifier with classifier_id {classifier_id} was successfully deleted."},
-        http_status_code=200
-    )
-
 
 
 # Updated apis
@@ -174,7 +149,6 @@ async def create_classifier(request: Request, request_classifier_data: RequestCl
         full_classifier_data = Classifier(
             classifier_id=new_classifier_id,
             classifier_name=request_classifier_data.classifier_name,
-            tag_id=request_classifier_data.tag_id,
             model_sequence_number=new_model_sequence_number,
             latest_model=request_classifier_data.latest_model,
             model_path=request_classifier_data.model_path,
@@ -201,7 +175,7 @@ async def create_classifier(request: Request, request_classifier_data: RequestCl
              response_model=StandardSuccessResponseV1[Classifier],
              description="Updates an existing classifier model",
              responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
-async def update_classifier(request: Request, classifier_id: int, update_data: RequestClassifier):
+async def update_classifier(request: Request, classifier_id: int, update_data: UpdateClassifier):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
@@ -283,28 +257,3 @@ async def list_classifiers(request: Request):
         print(f"Error: {str(e)}")
         return response_handler.create_error_response_v1(error_code=ErrorCode.OTHER_ERROR, error_string="Internal server error", http_status_code=500)
 
-
-@router.delete("/pseudotag-classifiers/remove-classifier-with-id", 
-               tags=["pseudotag classifier"],
-               response_model=StandardSuccessResponseV1[WasPresentResponse], 
-               description="Deletes a classifier model by its classifier_id",
-               responses=ApiResponseHandlerV1.listErrors([400, 404, 422, 500]))
-async def delete_classifier(request: Request, classifier_id: int ):
-    response_handler = await ApiResponseHandlerV1.createInstance(request)
-
-    # Attempt to delete the classifier with the specified classifier_id
-    delete_result = request.app.classifier_models_collection.delete_one({"classifier_id": classifier_id})
-
-    # Check if a document was deleted
-    if delete_result.deleted_count == 0:
-        # No document was found with the provided classifier_id, so nothing was deleted
-        return response_handler.create_success_delete_response_v1(
-            False,
-            http_status_code=200
-        )
-
-    # If a document was successfully deleted
-    return response_handler.create_success_delete_response_v1(
-        True,
-        http_status_code=200
-    )

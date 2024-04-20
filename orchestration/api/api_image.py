@@ -984,3 +984,82 @@ async def upload_image_v1(request: Request,
             error_string="Internal server error",
             http_status_code=500, 
         )
+    
+@router.get("/static/images/get-image-by-path/{file_path:path}",
+            description="Get image by file path",
+            status_code=200,
+            responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
+async def get_image_data_by_filepath_2(request: Request, file_path: str):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        bucket_name, file_path = separate_bucket_and_file_path(file_path)  
+        file_path = file_path.replace("\\", "/")
+        image_data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, file_path)
+
+        if image_data is None:
+            # Utilize the response handler for standardized error response
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Image with this path doesn't exist",
+                http_status_code=404
+            )
+
+        # Directly return the image data with the appropriate media type
+        content = image_data.read()
+        return Response(content=content, media_type="image/jpeg")
+    except Exception as e:
+        # Utilize the response handler for other exceptions
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )    
+
+
+@router.get("/static/images/get-image-by-job-uuid-v1/{job_uuid}",
+            description="Fetch image by job UUID",
+            status_code=200,
+            responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
+async def get_image_by_job_uuid(request: Request, job_uuid: str):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        job = request.app.completed_jobs_collection.find_one({"uuid": job_uuid})
+        if not job:
+            # Job not found
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Job not found",
+                http_status_code=404
+            )
+
+        output_file_path = job.get("task_output_file_dict", {}).get("output_file_path")
+        if not output_file_path:
+            # Output file path missing
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Image with this path doesn't exist",
+                http_status_code=404
+            )
+
+        bucket_name, file_path = separate_bucket_and_file_path(output_file_path) 
+        file_path = file_path.replace("\\", "/")
+        image_data = cmd.get_file_from_minio(request.app.minio_client, bucket_name, file_path)
+
+        if image_data is None:
+            # Image not found in MinIO
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string="Image with this path doesn't exist",
+                http_status_code=404
+            )
+
+        content = image_data.read()
+        original_filename = os.path.basename(output_file_path)
+        headers = {"Content-Disposition": f"attachment; filename={original_filename}"}
+        return Response(content=content, media_type="image/jpeg", headers=headers)
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )        

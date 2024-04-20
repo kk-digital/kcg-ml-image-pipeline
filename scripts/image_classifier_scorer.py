@@ -27,7 +27,8 @@ from utility.minio import cmd
 class ImageScorer:
     def __init__(self,
                  minio_client,
-                 dataset_name="characters"):
+                 dataset_name="characters",
+                 batch_size=100):
         self.minio_client = minio_client
         self.model = None
         self.dataset = dataset_name
@@ -40,6 +41,8 @@ class ImageScorer:
         
         self.classifier_id_list = request.http_get_classifier_model_list()
 
+        self.batch_size = batch_size
+
         if torch.cuda.is_available():
             device = 'cuda'
         else:
@@ -50,6 +53,8 @@ class ImageScorer:
         print("device=", self.device)
 
     def load_model(self, classifier_model_info):
+        print("loading model...")
+
         self.tag_id = classifier_model_info["tag_id"]
         self.classifier_id = classifier_model_info["classifier_id"]
         self.model_name = classifier_model_info["classifier_name"]
@@ -234,45 +239,82 @@ class ImageScorer:
         with torch.no_grad():
             count=0
             weird_count = 0
-            for data in tqdm(features_data):
+            len_features_data = len(features_data)
+            for start_index in range(0, len_features_data, self.batch_size):
+                data = features_data[start_index:min(start_index + self.batch_size, len_features_data)]
+                image_path = image_paths[start_index:min(start_index + self.batch_size, len_features_data)]
                 try:
                     if self.model_input_type == "embedding":
-                        positive_embedding_array = data[1].to(self.device)
-                        negative_embedding_array = data[2].to(self.device)
-                        image_hash = data[0]
+                        positive_embedding_array = []
+                        negative_embedding_array = []
+                        image_hash = []
 
-                        score = self.model.classify_pooled_embeddings(positive_embedding_array, negative_embedding_array)
+                        for i in len(data):
+                            positive_embedding_array.append(data[i][1])
+                            negative_embedding_array.append(data[i][2])
+                            image_hash.append(data[i][0])
+                        
+                        positive_embedding_array = torch.cat(positive_embedding_array.squeeze(), dim=0).to(self.device)
+                        negative_embedding_array = torch.cat(negative_embedding_array.squeeze(), dim=0).to(self.device)
+
+                        score = self.model.classify_pooled_embeddings(positive_embedding_array, negative_embedding_array).squeeze()
 
                     elif self.model_input_type == "embedding-positive":
-                        positive_embedding_array = data[1].to(self.device)
-                        image_hash = data[0]
+                        positive_embedding_array = []
+                        image_hash = []
 
-                        score = self.model.predict_positive_or_negative_only_pooled(positive_embedding_array)
+                        for i in range(0, len(data)):
+                            positive_embedding_array.append(data[i][1])
+                            image_hash.append(data[i][0])
+                        
+                        positive_embedding_array = torch.cat(positive_embedding_array, dim=0).to(self.device)
 
+                        score = self.model.predict_positive_or_negative_only_pooled(positive_embedding_array).squeeze()
                     elif self.model_input_type == "embedding-negative":
-                        negative_embedding_array = data[1].to(self.device)
-                        image_hash = data[0]
-                        score = self.model.predict_positive_or_negative_only_pooled(negative_embedding_array)
+                        negative_embedding_array = []
+                        image_hash = []
 
+                        for i in range(0, len(data)):
+                            negative_embedding_array.append(data[i][2])
+                            image_hash.append(data[i][0])
+                        
+                        negative_embedding_array = torch.cat(negative_embedding_array, dim=0).to(self.device)
+
+                        score = self.model.predict_positive_or_negative_only_pooled(negative_embedding_array).squeeze()
                     elif self.model_input_type == "clip":
-                            clip_feature_vector = data[1].to(self.device)
-                            image_hash = data[0]
-                            score = self.model.classify(clip_feature_vector)
+                         
+                        clip_feature_vector = []
+                        image_hash = []
+
+                        for i in range(0, len(data)):
+                            clip_feature_vector.append(data[i][1])
+                            image_hash.append(data[i][0])
+                        
+                        clip_feature_vector = torch.cat(clip_feature_vector, dim=0).to(self.device)
+
+                        score = self.model.classify(clip_feature_vector).squeeze()
                 except Exception as e:
                     print(f"Skipping vector due to error: {e}")
                     continue
-                if score > 100000.0 or score < -100000.0:
+                
+                # print the image path and score where score is too much or too small
+                invalid_mask = torch.where(score > 0.5)[0].tolist()
+
+                if len(invalid_mask) > 0:
                     print("score more than or less than 100k and -100k")
-                    print("Score=", score)
-                    print("image path=", image_paths[count])
-                    weird_count += 1
-                    continue
+                    print("image path and score")
+                    invalid_score = score[invalid_mask].tolist()
+                    invalid_image_path = [image_path[i] for i in invalid_mask]
+                    print(list(zip(invalid_image_path, invalid_score)))
 
-                hash_score_pairs.append((image_hash, score.item()))
+                    weird_count += len(score[invalid_mask])
+                    
+                hash_score_pairs.extend(list(zip(image_hash, score.tolist())))
+
                 # add job uuids to dict
-                job_uuids_hash_dict[image_hash] = data[3]
-
-                count += 1
+                for j in range(len(image_hash)):
+                    image_hash_str = str(image_hash[j])
+                    job_uuids_hash_dict[image_hash_str] = data[j][3]
 
         print("Weird scores count = ", weird_count)
 
@@ -362,19 +404,20 @@ class ImageScorer:
         print("Uploading scores to mongodb...")
         with ThreadPoolExecutor(max_workers=50) as executor:
             futures = []
-            for pair in hash_score_pairs:
-                # upload score
-                score_data = {
-                    "uuid": job_uuids_hash_dict[pair[0]],
-                    "classifier_id": self.classifier_id,
-                    "classifier_name": self.model_name,
-                    "image_hash": pair[0],
-                    "score": pair[1],
-                    "tag_id": self.tag_id
-                }
-                futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data))
+            len_hash_score_pairs = len(hash_score_pairs)
+            for start_index in tqdm(range(0, len_hash_score_pairs, self.batch_size)):
+                pairs = hash_score_pairs[start_index:min(start_index+self.batch_size, len_hash_score_pairs)]
+                score_data_list = []
+                for pair in pairs:
+                    # upload score
+                    score_data_list.append({
+                        "job_uuid": job_uuids_hash_dict[pair[0]],
+                        "classifier_id": self.classifier_id,
+                        "score": pair[1],
+                    })
+                futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data_list))
 
-            for _ in tqdm(as_completed(futures), total=len(hash_score_pairs)):
+            for _ in tqdm(as_completed(futures), total=len(hash_score_pairs)//self.batch_size + 1):
                 continue
 
     def get_classifier_id_and_name(self, classifier_file_path):
@@ -576,19 +619,22 @@ def parse_args():
     parser.add_argument('--minio-access-key', required=False, help='Minio access key')
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
     parser.add_argument('--dataset-name', required=True, help='Name of the dataset for embeddings')
+    parser.add_argument('--batch-size', required=False, default=100, type=int, help='Name of the dataset for embeddings')
 
     args = parser.parse_args()
     return args
 
 
 def run_image_scorer(minio_client,
-                     dataset_name):
+                     dataset_name,
+                     batch_size):
     start_time = time.time()
     # remove
     print("run_image_scorer")
 
     scorer = ImageScorer(minio_client=minio_client,
-                         dataset_name=dataset_name)
+                         dataset_name=dataset_name,
+                         batch_size=batch_size)
 
 
     classifier_model_list = request.http_get_classifier_model_list()
@@ -616,15 +662,14 @@ def run_image_scorer(minio_client,
 
 def main():
     args = parse_args()
-
     dataset_name = args.dataset_name
-
+    
     minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key,
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
 
     if dataset_name != "all":
-        run_image_scorer(minio_client, dataset_name)
+        run_image_scorer(minio_client, dataset_name, args.batch_size)
     else:
         # if all, train models for all existing datasets
         # get dataset name list

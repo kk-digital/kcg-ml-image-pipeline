@@ -8,7 +8,7 @@ from utility.path import separate_bucket_and_file_path
 from utility.minio import cmd
 import uuid
 from datetime import datetime, timedelta
-from orchestration.api.mongo_schemas import KandinskyTask, Task
+from orchestration.api.mongo_schemas import KandinskyTask, Task, ListSigmaScoreResponse, ListTask
 from orchestration.api.api_dataset import get_sequential_id
 import pymongo
 from .api_utils import PrettyJSONResponse
@@ -17,7 +17,7 @@ import json
 import paramiko
 from typing import Optional, Dict
 import csv
-from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, AddJob, WasPresentResponse
+from .api_utils import ApiResponseHandler, ErrorCode, StandardSuccessResponse, AddJob, WasPresentResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, CountLastHour, CountResponse
 from pymongo import UpdateMany, ASCENDING, DESCENDING
 from bson import ObjectId
 
@@ -64,55 +64,6 @@ def get_job(request: Request, task_type=None, model_type="sd_1_5"):
     
     return job
 
-@router.get("/queue/image-generation/job",
-            status_code=200,
-            tags=["jobs"],
-            description="add job in in-progress",
-            response_model=StandardSuccessResponse[Task],
-            responses=ApiResponseHandler.listErrors([400, 422, 500]))
-def get_job(request: Request, task_type: str = None):
-    api_response_handler = ApiResponseHandler(request)
-    try:
-        query = {}
-        if task_type is not None:
-            query = {"task_type": task_type}
-
-        # Query to find the n newest elements based on the task_creation_time
-        job = request.app.pending_jobs_collection.find_one(query, sort=[("task_creation_time", pymongo.ASCENDING)])
-
-        if job is None:
-            # Use ApiResponseHandler for standardized error response
-            return api_response_handler.create_error_response(
-                error_code=ErrorCode.INVALID_PARAMS,
-                error_string="No job found.",
-                http_status_code=400
-            )
-
-        # Proceed to delete from pending and add to in-progress collections
-        request.app.pending_jobs_collection.delete_one({"uuid": job["uuid"]})
-        request.app.in_progress_jobs_collection.insert_one(job)
-
-        # Remove the auto-generated '_id' field
-        job.pop('_id', None)
-
-        # Convert datetime fields to ISO 8601 string format
-        if 'task_creation_time' in job and isinstance(job['task_creation_time'], datetime):
-            job['task_creation_time'] = job['task_creation_time'].isoformat()
-
-
-        # Use ApiResponseHandler for standardized success response
-        return api_response_handler.create_success_response(
-            response_data=job,
-            http_status_code=200
-        )
-
-    except Exception as e:
-        # Log the error and return a standardized error response
-        return api_response_handler.create_error_response(
-            ErrorCode.OTHER_ERROR,
-            str(e),
-            500
-        )
 
 
  # --------------------- Add ---------------------------
@@ -188,48 +139,7 @@ def encode_ndarray(obj):
     return obj
 
 
-@router.post("/queue/image-generation", 
-             description="Add a job to db",
-             status_code=200,
-             tags=["jobs"],
-             response_model=StandardSuccessResponse[AddJob],
-             responses=ApiResponseHandler.listErrors([500]))
-def add_job(request: Request, task: Task):
-    api_response_handler = ApiResponseHandler(request)
-    try:
-        if task.uuid in ["", None]:
-            # Generate UUID since it's empty
-            task.uuid = str(uuid.uuid4())
 
-        # Add task creation time
-        task.task_creation_time = datetime.now()
-
-        # Check if file_path is blank and dataset is provided
-        if (task.task_input_dict is None or "file_path" not in task.task_input_dict or task.task_input_dict["file_path"] in ['', "[auto]", "[default]"]) and "dataset" in task.task_input_dict:
-            dataset_name = task.task_input_dict["dataset"]
-            sequential_id_arr = get_sequential_id(request, dataset=dataset_name)
-            new_file_path = "{}.jpg".format(sequential_id_arr[0])
-            task.task_input_dict["file_path"] = new_file_path
-
-        # Insert task into pending_jobs_collection
-        request.app.pending_jobs_collection.insert_one(task.dict())
-
-
-        # Convert datetime to ISO 8601 formatted string for JSON serialization
-        creation_time_iso = task.task_creation_time.isoformat() if task.task_creation_time else None
-        # Use ApiResponseHandler for standardized success response
-        return api_response_handler.create_success_response(
-            response_data={"uuid": task.uuid, "creation_time": creation_time_iso},
-            http_status_code=200
-        )
-
-    except Exception as e:
-        # Log the error and return a standardized error response
-        return api_response_handler.create_error_response(
-            ErrorCode.OTHER_ERROR,
-            str(e),
-            500
-        )
 
 
 @router.get("/queue/image-generation/get-jobs-count-last-hour")
@@ -317,65 +227,12 @@ def clear_all_pending_jobs(request: Request):
 
     return True
 
-@router.delete("/queue/image-generation/clear-pending", status_code=200)
-def clear_pending_jobs_by_task_type(task_type: str, request: Request) -> Dict[str, str]:
-    # Perform deletion of pending jobs by the specified task_type
-    deletion_result = request.app.pending_jobs_collection.delete_many({"task_type": task_type})
-
-    # Return a response indicating how many documents were deleted
-    return {"message": f"Deleted {deletion_result.deleted_count} pending jobs with task_type '{task_type}'."}
-
-
-@router.delete("/queue/image-generation/all-pending",
-               description="remove all pending jobs",
-               response_model=StandardSuccessResponse[WasPresentResponse],
-               tags=["jobs"],
-               responses=ApiResponseHandler.listErrors([500]))
-def clear_all_pending_jobs(request: Request):
-    api_response_handler = ApiResponseHandler(request)
-    try:
-        was_present = request.app.pending_jobs_collection.count_documents({}) > 0
-        request.app.pending_jobs_collection.delete_many({})
-
-        return api_response_handler.create_success_response(
-            response_data={"wasPresent": was_present},
-            http_status_code=200
-        )
-    except Exception as e:
-        return api_response_handler.create_error_response(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )
     
-
 @router.delete("/queue/image-generation/clear-all-in-progress")
 def clear_all_in_progress_jobs(request: Request):
     request.app.in_progress_jobs_collection.delete_many({})
 
     return True
-
-@router.delete("/queue/image-generation/all-in-progress",
-               description="remove all in-progress jobs",
-               response_model=StandardSuccessResponse[WasPresentResponse],
-               tags=["jobs"],
-               responses=ApiResponseHandler.listErrors([500]))
-def clear_all_in_progress_jobs(request: Request):
-    api_response_handler = ApiResponseHandler(request)
-    try:
-        was_present = request.app.in_progress_jobs_collection.count_documents({}) > 0
-        request.app.in_progress_jobs_collection.delete_many({})
-
-        return api_response_handler.create_success_response(
-            response_data={"wasPresent": was_present},
-            http_status_code=200
-        )
-    except Exception as e:
-        return api_response_handler.create_error_response(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )
 
 
 @router.delete("/queue/image-generation/clear-all-failed")
@@ -383,28 +240,6 @@ def clear_all_failed_jobs(request: Request):
     request.app.failed_jobs_collection.delete_many({})
 
     return True
-
-@router.delete("/queue/image-generation/all-failed",
-               description="remove all failed jobs",
-               response_model=StandardSuccessResponse[WasPresentResponse],
-               tags=["jobs"],
-               responses=ApiResponseHandler.listErrors([500]))
-def clear_all_in_progress_jobs(request: Request):
-    api_response_handler = ApiResponseHandler(request)
-    try:
-        was_present = request.app.failed_jobs_collection.count_documents({}) > 0
-        request.app.failed_jobs_collection.delete_many({})
-
-        return api_response_handler.create_success_response(
-            response_data={"wasPresent": was_present},
-            http_status_code=200
-        )
-    except Exception as e:
-        return api_response_handler.create_error_response(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )
 
 
 @router.delete("/queue/image-generation/clear-all-completed")
@@ -414,28 +249,6 @@ def clear_all_completed_jobs(request: Request):
     return True
 
 
-@router.delete("/queue/image-generation/all-completed",
-               description="remove all completed jobs",
-               response_model=StandardSuccessResponse[WasPresentResponse],
-               tags=["jobs"],
-               responses=ApiResponseHandler.listErrors([500]))
-def clear_all_in_progress_jobs(request: Request):
-    api_response_handler = ApiResponseHandler(request)
-    try:
-        was_present = request.app.completed_jobs_collection.count_documents({}) > 0
-        request.app.completed_jobs_collection.delete_many({})
-
-        return api_response_handler.create_success_response(
-            response_data={"wasPresent": was_present},
-            http_status_code=200
-        )
-    except Exception as e:
-        return api_response_handler.create_error_response(
-            error_code=ErrorCode.OTHER_ERROR,
-            error_string=str(e),
-            http_status_code=500
-        )
-
 @router.delete("/queue/image-generation/delete-completed")
 def delete_completed_job(request: Request, uuid):
     query = {"uuid": uuid}
@@ -443,8 +256,8 @@ def delete_completed_job(request: Request, uuid):
 
     return True
 
-@router.delete("/queue/image-generation/completed",
-               description="remove all pending jobs",
+@router.delete("/queue/image-generation/delete-completed-by-uuid",
+               description="remove completed job with uuid",
                response_model=StandardSuccessResponse[WasPresentResponse],
                tags=["jobs"],
                responses=ApiResponseHandler.listErrors([500]))
@@ -1298,3 +1111,809 @@ async def find_last_duplicate_uuid(request: Request):
         raise HTTPException(status_code=404, detail="No duplicated UUID found for the specified task type.")
 
     return duplicated_job
+
+
+# New apis
+
+
+@router.get("/queue/image-generation/move-job-to-in-progress",
+            status_code=200,
+            tags=["jobs-standardized"],
+            description="add job in in-progress",
+            response_model=StandardSuccessResponseV1[Task],
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def get_job(request: Request, task_type=None, model_type="sd_1_5"):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    base_query = {}
+    if task_type:
+        base_query["task_type"] = task_type
+    if model_type:
+        base_query["task_type"] = {"$regex": model_type} 
+    
+    # Prioritize jobs where task_input_dict.dataset is "variants"
+    priority_query = base_query.copy()
+    priority_query["task_input_dict.dataset"] = {"$in": ["variants", "test-generations"]}
+    
+    job = request.app.pending_jobs_collection.find_one(priority_query, sort=[("task_creation_time", pymongo.ASCENDING)])
+    
+    # If no priority job is found, fallback to the base query
+    if job is None:
+        job = request.app.pending_jobs_collection.find_one(base_query, sort=[("task_creation_time", pymongo.ASCENDING)])
+
+    if job is None:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND,
+            error_string="job not found",
+            http_status_code=404
+        )
+
+    # Proceed with the rest of the endpoint as before
+    request.app.pending_jobs_collection.delete_one({"uuid": job["uuid"]})
+    job.pop('_id', None)
+    job["task_start_time"] = datetime.now().isoformat()
+    request.app.in_progress_jobs_collection.insert_one(job)
+    job = convert_objectid_to_str(job)
+    
+    return api_response_handler.create_success_response_v1(
+                response_data=job,
+                http_status_code=200
+            )
+    
+
+@router.post("/queue/image-generation/add-v1", 
+             description="Add image generation job: pending queue, auto UUID, path generation",
+             status_code=200,
+             tags=["jobs-standardized"],
+             response_model=StandardSuccessResponseV1[AddJob],
+             responses=ApiResponseHandlerV1.listErrors([422, 500]))
+async def add_job(request: Request, task: Task):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        if task.uuid in ["", None]:
+            # Generate UUID since it's empty
+            task.uuid = str(uuid.uuid4())
+
+        # Add task creation time
+        task.task_creation_time = datetime.now()
+
+        # Check if file_path is blank and dataset is provided
+        if (task.task_input_dict is None or "file_path" not in task.task_input_dict or task.task_input_dict["file_path"] in ['', "[auto]", "[default]"]) and "dataset" in task.task_input_dict:
+            dataset_name = task.task_input_dict["dataset"]
+            sequential_id_arr = get_sequential_id(request, dataset=dataset_name)
+            new_file_path = "{}.jpg".format(sequential_id_arr[0])
+            task.task_input_dict["file_path"] = new_file_path
+
+        # Insert task into pending_jobs_collection
+        request.app.pending_jobs_collection.insert_one(task.dict())
+
+
+        # Convert datetime to ISO 8601 formatted string for JSON serialization
+        creation_time_iso = task.task_creation_time.isoformat() if task.task_creation_time else None
+        # Use ApiResponseHandler for standardized success response
+        return api_response_handler.create_success_response_v1(
+            response_data={"uuid": task.uuid, "creation_time": creation_time_iso},
+            http_status_code=200
+        )
+
+    except Exception as e:
+        # Log the error and return a standardized error response
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+
+
+@router.post("/queue/image-generation/add-kandinsky-v1", 
+             description="Add a kandinsky job to db",
+             status_code=200,
+             tags=["jobs-standardized"],
+             response_model=StandardSuccessResponseV1[AddJob],
+             responses=ApiResponseHandlerV1.listErrors([422, 500]))
+async def add_job(request: Request, kandinsky_task: KandinskyTask):
+    try:
+        api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+        task= kandinsky_task.job
+
+        if task.uuid in ["", None]:
+            # generate since its empty
+            task.uuid = str(uuid.uuid4())
+
+        # add task creation time
+        task.task_creation_time = datetime.now()
+
+        # check if file_path is blank
+        if (task.task_input_dict is None or "file_path" not in task.task_input_dict or task.task_input_dict["file_path"] in [
+            '', "[auto]", "[default]"]) and "dataset" in task.task_input_dict:
+            dataset_name = task.task_input_dict["dataset"]
+            # get file path
+            sequential_id_arr = get_sequential_id(request, dataset=dataset_name)
+            new_file_path = "{}.jpg".format(sequential_id_arr[0])
+            task.task_input_dict["file_path"] = new_file_path
+        
+        # upload input image embeddings to minIO
+        image_embedding_data={
+            "job_uuid": task.uuid,
+            "dataset": task.task_input_dict["dataset"],
+            "image_embedding": kandinsky_task.positive_embedding,
+            "negative_image_embedding": kandinsky_task.negative_embedding
+        }
+        
+        output_file_path = os.path.join(task.task_input_dict["dataset"], task.task_input_dict['file_path'])
+        image_embeddings_path = output_file_path.replace(".jpg", "_embedding.msgpack")
+
+        msgpack_string = msgpack.packb(image_embedding_data, default=encode_ndarray, use_bin_type=True, use_single_float=True)
+
+        buffer = io.BytesIO()
+        buffer.write(msgpack_string)
+        buffer.seek(0)
+
+        cmd.upload_data(request.app.minio_client, "datasets", image_embeddings_path, buffer) 
+
+        request.app.pending_jobs_collection.insert_one(task.to_dict())
+
+        creation_time_iso = task.task_creation_time.isoformat() if task.task_creation_time else None
+
+        return api_response_handler.create_success_response_v1(
+            response_data={"uuid": task.uuid, "creation_time": creation_time_iso},
+            http_status_code=200
+        )
+    
+    except Exception as e:
+        # Log the error and return a standardized error response
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+ 
+@router.get("/queue/image-generation/get-jobs-count-last-n-hours-v1",
+            tags=["jobs-standardized"],
+            response_model=StandardSuccessResponseV1[CountLastHour],
+            status_code = 200,
+            description="Get the count of image generation jobs in the last N hours for a specific dataset",
+            responses=ApiResponseHandlerV1.listErrors([500]))
+async def get_jobs_count_last_n_hour(request: Request, dataset: str, hours: int):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Calculate the timestamp for N hours ago
+        current_time = datetime.now()
+        time_ago = current_time - timedelta(hours=hours)
+
+        # Query the collection to count the documents created in the last N hours
+        pending_query = {"task_input_dict.dataset": dataset, "task_creation_time": {"$gte": time_ago}}
+        in_progress_query = {"task_input_dict.dataset": dataset, "task_creation_time": {"$gte": time_ago}}
+        completed_query = {"task_input_dict.dataset": dataset, "task_completion_time": {"$gte": time_ago.strftime('%Y-%m-%d %H:%M:%S')}}
+
+        count = 0
+
+        # Take into account pending & in progress & completed jobs
+        pending_count = request.app.pending_jobs_collection.count_documents(pending_query)
+        in_progress_count = request.app.in_progress_jobs_collection.count_documents(in_progress_query)
+        completed_count = request.app.completed_jobs_collection.count_documents(completed_query)
+
+
+        counts = {
+        "pending_count": pending_count,
+        "in_progress_count": in_progress_count,
+        "completed_count": completed_count
+    }
+
+        return response_handler.create_success_response_v1(
+            response_data={"jobs_count_last_n_hour": counts},  # Ensure this matches your actual response structure
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=f"Failed to get jobs count for the last {hours} hours: {str(e)}",
+            http_status_code=500
+        )
+
+
+@router.delete("/queue/image-generation/remove-all-pending-jobs",
+               description="remove all pending jobs",
+               status_code = 200,
+               response_model=StandardSuccessResponseV1[WasPresentResponse],
+               tags=["jobs-standardized"],
+               responses=ApiResponseHandlerV1.listErrors([500]))
+def clear_all_pending_jobs(request: Request):
+    api_response_handler = ApiResponseHandlerV1(request)
+    try:
+        was_present = request.app.pending_jobs_collection.count_documents({}) > 0
+        request.app.pending_jobs_collection.delete_many({})
+
+        return api_response_handler.create_success_response_v1(
+            response_data={"wasPresent": was_present},
+            http_status_code=200
+        )
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+    
+
+@router.delete("/queue/image-generation/remove-all-in-progress-jobs",
+               description="remove all in-progress jobs",
+               status_code = 200,
+               response_model=StandardSuccessResponseV1[WasPresentResponse],
+               tags=["jobs-standardized"],
+               responses=ApiResponseHandlerV1.listErrors([500]))
+def clear_all_in_progress_jobs(request: Request):
+    api_response_handler = ApiResponseHandlerV1(request)
+    try:
+        was_present = request.app.in_progress_jobs_collection.count_documents({}) > 0
+        request.app.in_progress_jobs_collection.delete_many({})
+
+        return api_response_handler.create_success_response_v1(
+            response_data={"wasPresent": was_present},
+            http_status_code=200
+        )
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+    
+
+@router.delete("/queue/image-generation/remove-all-failed-jobs",
+               description="remove all failed jobs",
+               status_code = 200,
+               response_model=StandardSuccessResponseV1[WasPresentResponse],
+               tags=["jobs-standardized"],
+               responses=ApiResponseHandlerV1.listErrors([500]))
+def clear_all_in_progress_jobs(request: Request):
+    api_response_handler = ApiResponseHandlerV1(request)
+    try:
+        was_present = request.app.failed_jobs_collection.count_documents({}) > 0
+        request.app.failed_jobs_collection.delete_many({})
+
+        return api_response_handler.create_success_response_v1(
+            response_data={"wasPresent": was_present},
+            http_status_code=200
+        )
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )
+    
+    
+@router.delete("/queue/image-generation/remove-all-completed-jobs",
+               description="remove all completed jobs",
+               status_code = 200,
+               response_model=StandardSuccessResponseV1[WasPresentResponse],
+               tags=["jobs-standardized"],
+               responses=ApiResponseHandler.listErrors([500]))
+def clear_all_in_progress_jobs(request: Request):
+    api_response_handler = ApiResponseHandlerV1(request)
+    try:
+        was_present = request.app.completed_jobs_collection.count_documents({}) > 0
+        request.app.completed_jobs_collection.delete_many({})
+
+        return api_response_handler.create_success_response_v1(
+            response_data={"wasPresent": was_present},
+            http_status_code=200
+        )
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )    
+    
+
+@router.get("/queue/image-generation/list-pending-jobs", 
+            response_model=StandardSuccessResponseV1[ListTask],
+            status_code = 200,
+            tags=["jobs-standardized"])
+async def get_list_pending_jobs(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    jobs = list(request.app.pending_jobs_collection.find({}))
+
+    for job in jobs:
+        job.pop('_id', None)
+
+    return response_handler.create_success_response_v1(response_data={"jobs": jobs}, http_status_code=200)
+
+
+@router.get("/queue/image-generation/list-in-progress-jobs", 
+            response_model=StandardSuccessResponseV1[ListTask],
+            status_code = 200,
+            tags=["jobs-standardized"])
+async def get_list_in_progress_jobs(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    jobs = list(request.app.in_progress_jobs_collection.find({}))
+
+    for job in jobs:
+        job.pop('_id', None)
+
+    return response_handler.create_success_response_v1(response_data={"jobs": jobs}, http_status_code=200)
+
+
+@router.get("/queue/image-generation/list-completed-jobs", 
+            response_model=StandardSuccessResponseV1[ListTask],
+            status_code=200,
+            tags=["jobs-standardized"],
+            summary="List completed jobs with optional filters for task type and dataset")
+async def get_list_completed_jobs(
+    request: Request,
+    task_type: Optional[str] = Query(None, description="Filter jobs by task type"),
+    dataset: Optional[str] = Query(None, description="Filter jobs by dataset"),
+    limit: int = Query(10, description="Limit on the number of results returned", alias="limit")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    
+    # Build the MongoDB query based on provided filters
+    query = {}
+    if task_type:
+        query["task_type"] = task_type
+    if dataset:
+        query["task_input_dict.dataset"] = dataset
+
+    # Retrieve jobs from the completed jobs collection based on the constructed query and limit
+    jobs = list(request.app.completed_jobs_collection.find(query).limit(limit))
+
+    # Remove MongoDB's internal '_id' field from the output
+    for job in jobs:
+        job.pop('_id', None)
+
+    return response_handler.create_success_response_v1(response_data={"jobs": jobs}, http_status_code=200)
+
+@router.get("/queue/image-generation/list-failed-jobs", 
+            response_model=StandardSuccessResponseV1[ListTask],
+            status_code = 200,
+            tags=["jobs-standardized"])
+async def get_list_failed_jobs(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    jobs = list(request.app.failed_jobs_collection.find({}))
+
+    for job in jobs:
+        job.pop('_id', None)
+
+    return response_handler.create_success_response_v1(response_data={"jobs": jobs}, http_status_code=200)
+
+
+@router.get("/queue/image-generation/list-completed-by-dataset-and-task-type-v1", 
+            response_model=StandardSuccessResponseV1[ListTask],
+            status_code = 200,
+            tags=["jobs-standardized"])
+async def get_list_completed_jobs_by_dataset_and_task_type(request: Request, dataset: str, task_type: str):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    jobs = list(request.app.completed_jobs_collection.find({"task_input_dict.dataset": dataset, "task_type": task_type}))
+
+    job_data = []
+    for job in jobs:
+        job_uuid = job.get("uuid")
+        file_path = job.get("task_output_file_dict", {}).get("output_file_path")
+
+        if not job_uuid or not file_path:
+            continue
+
+        job_info = {
+            "job_uuid": job_uuid,
+            "file_path": file_path
+        }
+
+        job_data.append(job_info)
+
+    return response_handler.create_success_response_v1(response_data={"jobs": job_data}, http_status_code=200)
+
+
+@router.get("/queue/image-generation/list-completed-jobs-ordered-by-dataset", 
+            response_model=StandardSuccessResponseV1[ListSigmaScoreResponse],
+            tags=["jobs-standardized"],
+            status_code = 200,
+            description="list completed jobs by date",
+            responses=ApiResponseHandlerV1.listErrors([422, 500]))
+async def get_list_completed_jobs_by_date(
+    request: Request,
+    start_date: str = Query(..., description="Start date for filtering jobs"), 
+    end_date: str = Query(..., description="End date for filtering jobs"),
+    min_clip_sigma_score: Optional[float] = Query(None, description="Minimum CLIP sigma score to filter jobs")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        print(f"Start Date: {start_date}, End Date: {end_date}")
+
+        query = {
+            "task_creation_time": {
+                "$gte": start_date,
+                "$lt": end_date
+            }
+        }
+
+        # Add condition to filter by min_clip_sigma_score if provided
+        if min_clip_sigma_score is not None:
+            query["task_attributes_dict.image_clip_sigma_score"] = {"$gte": min_clip_sigma_score}
+
+        jobs = list(request.app.completed_jobs_collection.find(query))
+
+        datasets = {}
+        for job in jobs:
+            dataset_name = job.get("task_input_dict", {}).get("dataset")
+            job_uuid = job.get("uuid")
+            file_hash = job.get('task_output_file_dict', {}).get('output_file_hash') 
+            file_path = job.get("task_output_file_dict", {}).get("output_file_path")
+            clip_sigma_score = job.get("task_attributes_dict", {}).get("image_clip_sigma_score")
+
+            if not dataset_name or not job_uuid or not file_path:
+                continue
+
+            if dataset_name not in datasets:
+                datasets[dataset_name] = []
+
+            job_info = {
+                "job_uuid": job_uuid,
+                "file_hash": file_hash,
+                "file_path": file_path, 
+                "clip_sigma_score": clip_sigma_score
+            }
+
+            datasets[dataset_name].append(job_info)
+
+        return response_handler.create_success_response_v1(response_data={"job_info": datasets}, http_status_code=200)
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=f"Failed to list jobs by date: {str(e)}",
+            http_status_code=500
+        )
+
+
+@router.get("/queue/image-generation/list-by-dataset-v1", 
+            response_model=StandardSuccessResponseV1[ListSigmaScoreResponse],
+            tags=["jobs-standardized"],
+            description="list completed jobs by dataset",
+            responses=ApiResponseHandlerV1.listErrors([422, 500])
+            )
+async def get_list_completed_jobs_by_dataset(
+    request: Request,
+    dataset: str= Query(..., description="Dataset name"),  
+    model_type: str= Query("elm-v1", description="Model type, elm-v1 or linear"),  
+    min_clip_sigma_score: Optional[float] = Query(None, description="Minimum CLIP sigma score to filter jobs"),
+    size: int = Query(1, description="Number of images to return")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        query = {
+            "task_input_dict.dataset": dataset
+        }
+
+        # Add condition to filter by min_clip_sigma_score if provided
+        if min_clip_sigma_score is not None:
+            query[f"task_attributes_dict.{model_type}.image_clip_sigma_score"] = {"$gte": min_clip_sigma_score}
+
+        # Use $match and $sample to filter documents based on query and randomly select a specified size of documents
+        documents = request.app.completed_jobs_collection.aggregate([
+            {"$match": query},
+            {"$sample": {"size": size}}
+        ])
+
+        # Convert cursor type to list
+        jobs = list(documents)    
+
+        datasets = []
+        for job in jobs:
+            job_uuid = job.get("uuid")
+            file_hash = job.get('task_output_file_dict', {}).get('output_file_hash')  
+            file_path = job.get("task_output_file_dict", {}).get("output_file_path")
+            clip_sigma_score = job.get("task_attributes_dict",{}).get(model_type, {}).get("image_clip_sigma_score")
+
+            if not job_uuid or not file_path:
+                continue
+
+            job_info = {
+                "job_uuid": job_uuid,
+                "image_hash": file_hash,
+                "file_path": file_path, 
+                "clip_sigma_score": clip_sigma_score
+            }
+
+            datasets.append(job_info)
+
+        return response_handler.create_success_response_v1(response_data={"jobs": datasets}, http_status_code=200)
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=f"Failed to list jobs by dataset: {str(e)}",
+            http_status_code=500
+        )        
+    
+
+@router.get("/queue/image-generation/get-completed-jobs-count", 
+            response_model=StandardSuccessResponseV1[CountResponse],
+            status_code=200,
+            tags=["jobs-standardized"],
+            description="Count the number of completed jobs optionally filtered by dataset.",
+            responses=ApiResponseHandlerV1.listErrors([422]))
+async def count_completed(request: Request, dataset: Optional[str] = None):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    query = {'task_input_dict.dataset': dataset} if dataset else {}
+    count = request.app.completed_jobs_collection.count_documents(query)
+    
+    return response_handler.create_success_response_v1(response_data={"count": count}, http_status_code=200)
+
+@router.get("/queue/image-generation/get-pending-jobs-count", 
+            response_model=StandardSuccessResponseV1[CountResponse],
+            status_code=200,
+            tags=["jobs-standardized"],
+            description="Count the number of pending jobs optionally filtered by dataset.",
+            responses=ApiResponseHandlerV1.listErrors([422]))
+async def count_pending(request: Request, dataset: Optional[str] = None):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    query = {'task_input_dict.dataset': dataset} if dataset else {}
+    count = request.app.pending_jobs_collection.count_documents(query)
+    
+    return response_handler.create_success_response_v1(response_data={"count": count}, http_status_code=200)
+
+
+@router.get("/queue/image-generation/get-in-progress-jobs-count", 
+            response_model=StandardSuccessResponseV1[CountResponse],
+            status_code=200,
+            tags=["jobs-standardized"],
+            description="Count the number of in-progress jobs optionally filtered by dataset.",
+            responses=ApiResponseHandlerV1.listErrors([422]))
+async def count_in_progress(request: Request, dataset: Optional[str] = None):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    query = {'task_input_dict.dataset': dataset} if dataset else {}
+    count = request.app.in_progress_jobs_collection.count_documents(query)
+    
+    return response_handler.create_success_response_v1(response_data={"count": count}, http_status_code=200)
+
+@router.get("/queue/image-generation/get-failed-jobs-count", 
+            response_model=StandardSuccessResponseV1[CountResponse],
+            description="count jobs in failed collection",
+            status_code = 200,
+            tags=["jobs-standardized"])
+async def get_failed_job_count(request: Request,  dataset: Optional[str] = None):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    query = {'task_input_dict.dataset': dataset} if dataset else {}
+    count = request.app.failed_jobs_collection.count_documents(query)
+
+    return response_handler.create_success_response_v1(response_data={"count": count}, http_status_code=200)
+
+@router.get("/queue/image-generation/count-by-task-type-v1", 
+            response_model=StandardSuccessResponseV1[dict],
+            status_code=200,
+            tags=["jobs-standardized"],
+            description="Count the number of jobs by task type.",
+            responses=ApiResponseHandlerV1.listErrors([422]))
+async def count_by_task_type(request: Request, task_type: str = "image_generation_task"):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    count = request.app.completed_jobs_collection.count_documents({'task_type': task_type})
+    
+    documents = request.app.completed_jobs_collection.find({'task_type': task_type})
+    documents_list = [{k: str(v) if isinstance(v, ObjectId) else v for k, v in doc.items()} for doc in documents]
+    
+    return response_handler.create_success_response_v1(response_data={"count": count, "documents": documents_list}, http_status_code=200)
+
+    
+
+@router.put("/queue/image-generation/set-in-progress-job-as-completed", 
+            response_model=StandardSuccessResponseV1[bool],
+            status_code=200,
+            tags=["jobs-standardized"],
+            description="Update an in-progress job and mark as completed.",
+            responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
+async def update_job_completed(request: Request, task: Task):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        job = request.app.in_progress_jobs_collection.find_one({"uuid": task.uuid})
+        if job is None:
+            return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+            error_string=f"job not found",
+            http_status_code=404
+        )
+        
+        request.app.completed_jobs_collection.insert_one(task.to_dict())
+        request.app.in_progress_jobs_collection.delete_one({"uuid": task.uuid})
+
+        return response_handler.create_success_response_v1(response_data={"done": True}, http_status_code=200)
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=f"Failed to update job as completed: {str(e)}",
+            http_status_code=500
+        )
+
+
+@router.put("/queue/image-generation/set-in-progress-job-as-failed", 
+            response_model=StandardSuccessResponseV1[bool],
+            status_code=200,
+            tags=["jobs-standardized"],
+            description="Update an in-progress job and mark as failed.",
+            responses=ApiResponseHandlerV1.listErrors([422, 500]))
+async def update_job_failed(request: Request, task: Task):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        job = request.app.in_progress_jobs_collection.find_one({"uuid": task.uuid})
+        if job is None:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+                error_string=f"job not found",
+                http_status_code=404
+            )
+
+        request.app.failed_jobs_collection.insert_one(task.to_dict())
+        request.app.in_progress_jobs_collection.delete_one({"uuid": task.uuid})
+
+        return response_handler.create_success_response_v1(response_data={"done": True}, http_status_code=200)
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=f"Failed to update job as failed: {str(e)}",
+            http_status_code=500
+        )
+
+@router.delete("/queue/image-generation/remove-all-orphaned-completed-jobs", 
+               response_model=StandardSuccessResponseV1[CountResponse],
+               status_code=200,
+               tags=["jobs-standardized"],
+               description="Removes completed jobs with missing output files.",
+               responses=ApiResponseHandlerV1.listErrors([422, 500]))
+async def cleanup_completed_and_orphaned_jobs(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        jobs = request.app.completed_jobs_collection.find({})
+        count_removed = 0
+        for job in jobs:
+            try:
+                file_path = job['task_output_file_dict']['output_file_path']
+                bucket_name, file_path = separate_bucket_and_file_path(file_path)
+                file_exists = cmd.is_object_exists(request.app.minio_client, bucket_name, file_path)
+            except Exception:
+                file_exists = False
+
+            if not file_exists:
+                request.app.completed_jobs_collection.delete_one({"uuid": job['uuid']})
+                count_removed += 1  
+
+        # Using WasPresentResponse model to indicate if any jobs were removed
+        was_present = count_removed > 0
+        return response_handler.create_success_response_v1(
+            response_data={ "count": count_removed},
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=f"Failed to cleanup completed and orphaned jobs: {str(e)}",
+            http_status_code=500
+        )
+
+@router.get("/job/get-completed-job-by-hash-v1", 
+            response_model=StandardSuccessResponseV1[dict],
+            status_code=200,
+            tags=["jobs-standardized"],
+            description="Retrieves a completed job by its output file hash.",
+            responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
+async def get_completed_job_by_hash(request: Request, image_hash: str):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    job = request.app.completed_jobs_collection.find_one({"task_output_file_dict.output_file_hash": image_hash})
+
+    if job is None:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+            error_string="Job not found",
+            http_status_code=404)
+
+    job.pop('_id', None)
+    return response_handler.create_success_response_v1(response_data=job, http_status_code=200)
+
+
+@router.get("/job/get-completed-job-by-uuid", 
+            response_model=StandardSuccessResponseV1[dict],
+            status_code=200,
+            tags=["jobs-standardized"],
+            description="Retrieves a job by its UUID.",
+            responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
+async def get_job_by_uuid(request: Request, uuid: str):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    job = request.app.completed_jobs_collection.find_one({"uuid": uuid})
+
+    if job is None:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+            error_string="Job not found",
+            http_status_code=404)
+
+    job.pop('_id', None)
+    return response_handler.create_success_response_v1(response_data=job, http_status_code=200)
+
+@router.get("/job/list-completed-jobs-by-uuid", 
+            response_model=StandardSuccessResponseV1[ListTask],
+            status_code=200,
+            tags=["jobs-standardized"],
+            description="Retrieves multiple jobs by their UUIDs.",
+            responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
+async def get_jobs_by_uuids(request: Request, uuids: List[str] = Query(...)):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    jobs_cursor = request.app.completed_jobs_collection.find({"uuid": {"$in": uuids}})
+
+    jobs = list(jobs_cursor)
+    if not jobs:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+            error_string="Jobs not found",
+            http_status_code=404)
+
+    for job in jobs:
+        job.pop('_id', None)
+
+    return response_handler.create_success_response_v1(response_data={"jobs": jobs}, http_status_code=200)
+
+
+@router.get("/get-image-generation/by-hash-v1/{image_hash}", 
+            response_model=StandardSuccessResponseV1[dict],
+            status_code=200,
+            tags=["jobs-standardized"],
+            description="Retrieves a job by its image hash.",
+            responses=ApiResponseHandlerV1.listErrors([404, 500]))
+async def get_job_by_image_hash(request: Request, image_hash: str, fields: List[str] = Query(None)):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    projection = {field: 1 for field in fields} if fields else {}
+    projection['_id'] = 0  # Exclude the _id field
+
+    job = request.app.completed_jobs_collection.find_one({"task_output_file_dict.output_file_hash": image_hash}, projection)
+    if job:
+        return response_handler.create_success_response_v1(response_data=job, http_status_code=200)
+    else:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+            error_string="Job not found",
+            http_status_code=404
+        )
+
+@router.get("/get-image-generation/by-job-id-v1/{job_id}", 
+            response_model=StandardSuccessResponseV1[dict],
+            status_code=200,
+            tags=["jobs-standardized"],
+            description="Retrieves a job by its job ID.",
+            responses=ApiResponseHandlerV1.listErrors([404, 500]))
+async def get_job_by_job_id(request: Request, job_id: str, fields: List[str] = Query(None)):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    projection = {field: 1 for field in fields} if fields else {}
+    projection['_id'] = 0  # Exclude the _id field
+
+    job = request.app.completed_jobs_collection.find_one({"uuid": job_id}, projection)
+    if job:
+        return response_handler.create_success_response_v1(response_data=job, http_status_code=200)
+    else:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.ELEMENT_NOT_FOUND, 
+            error_string="Job not found",
+            http_status_code=404
+        )
+
+
+@router.get("/queue/image-generation/count-non-empty-task-attributes", 
+            response_model=StandardSuccessResponseV1[dict],
+            status_code=200,
+            tags=["image-generation"],
+            description="Counts the number of jobs where task_attributes_dict is not empty.",
+            responses=ApiResponseHandlerV1.listErrors([422, 500]))
+async def count_non_empty_task_attributes(request: Request, task_type: str = "image_generation_task"):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Count documents where task_attributes_dict is not empty
+        count = request.app.completed_jobs_collection.count_documents({
+            'task_type': task_type, 
+            'task_attributes_dict': {'$exists': True, '$ne': {}}
+        })
+
+        return response_handler.create_success_response_v1(response_data={"count": count}, http_status_code=200)
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=f"Failed to count documents: {str(e)}",
+            http_status_code=500
+        )

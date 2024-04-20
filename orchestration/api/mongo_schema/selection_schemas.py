@@ -32,6 +32,9 @@ class Selection(BaseModel):
 class ListSelection(BaseModel):
     ranking_data: List[Selection]
 
+class ListRankingSelection(BaseModel):
+    datapoints: List[Selection]
+
 
 class RelevanceSelection(BaseModel):
     username: str
@@ -48,3 +51,7 @@ class RelevanceSelection(BaseModel):
             "relevance": self.relevance,
             "datetime": self.datetime,
         }
+    
+class ListRelevanceSelection(BaseModel):
+    datapoints: List[RelevanceSelection]
+

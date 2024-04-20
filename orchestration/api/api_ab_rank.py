@@ -22,6 +22,16 @@ router = APIRouter()
 async def add_new_rank_model_model(request: Request, rank_model_data: RankRequest):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
+
+        classifier_info = request.app.classifier_models_collection.find_one({"classifier_id": rank_model_data.classifier_id})
+        if not classifier_info:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string="The provided classifier ID does not exist.",
+                http_status_code=400
+            )
+            
+
         # Check for existing rank_model_category_id
         if rank_model_data.rank_model_category_id is not None:
             existing_category = request.app.rank_model_categories_collection.find_one(
@@ -66,6 +76,7 @@ async def add_new_rank_model_model(request: Request, rank_model_data: RankReques
         new_rank = {
             "rank_model_id": new_rank_model_id,
             "rank_model_string": rank_model_data.rank_model_string,
+            "classifier_id": rank_model_data.classifier_id,
             "rank_model_category_id": rank_model_data.rank_model_category_id,
             "rank_model_description": rank_model_data.rank_model_description,
             "rank_model_vector_index": rank_model_data.rank_model_vector_index if rank_model_data.rank_model_vector_index is not None else -1,
@@ -109,59 +120,51 @@ async def update_rank_model_model(request: Request, rank_model_id: int, update_d
     query = {"rank_model_id": rank_model_id}
     existing_rank = request.app.rank_model_models_collection.find_one(query)
 
-    if existing_rank is None:
+    if not existing_rank:
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.ELEMENT_NOT_FOUND, 
             error_string="rank not found.", 
-            http_status_code=404,            
+            http_status_code=404,
         )
 
-    # Check if the rank is deprecated
     if existing_rank.get("deprecated", False):
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.INVALID_PARAMS, 
             error_string="Cannot modify a deprecated rank.", 
             http_status_code=400,
-            
         )
 
-    # Prepare update data
     update_fields = {k: v for k, v in update_data.dict().items() if v is not None}
 
-    if not update_fields:
-        return response_handler.create_error_response_v1(
-            error_code=ErrorCode.INVALID_PARAMS, 
-            error_string="No fields to update.", 
-            http_status_code=400,
-            
+    if update_data.classifier_id:
+        classifier_info = request.app.classifier_models_collection.find_one(
+            {"classifier_id": update_data.classifier_id}
         )
-
-    # Check if rank_model_vector_index is being updated and if it's already in use
-    if 'rank_model_vector_index' in update_fields:
-        index_query = {"rank_model_vector_index": update_fields['rank_model_vector_index']}
-        existing_rank_model_with_index = request.app.rank_model_models_collection.find_one(index_query)
-        if existing_rank_model_with_index and existing_rank_model_with_index['rank_model_id'] != rank_model_id:
+        if not classifier_info:
             return response_handler.create_error_response_v1(
-                error_code=ErrorCode.INVALID_PARAMS, 
-                error_string="rank vector index already in use.", 
-                http_status_code=400,
-                
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string="The provided classifier ID does not exist.",
+                http_status_code=400
             )
 
-    # Update the rank model
+    if 'rank_model_vector_index' in update_fields:
+        index_query = {"rank_model_vector_index": update_fields['rank_model_vector_index']}
+        if request.app.rank_model_models_collection.find_one(index_query, {"rank_model_id": 1})['rank_model_id'] != rank_model_id:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS, 
+                error_string="rank vector index already in use.",
+                http_status_code=400,
+            )
+
     request.app.rank_model_models_collection.update_one(query, {"$set": update_fields})
 
-    # Retrieve the updated rank
     updated_rank = request.app.rank_model_models_collection.find_one(query)
-
-    # Serialize ObjectId to string
     updated_rank = {k: str(v) if isinstance(v, ObjectId) else v for k, v in updated_rank.items()}
 
-    # Return the updated rank object
     return response_handler.create_success_response_v1(
-                                                       response_data=updated_rank, 
-                                                       http_status_code=200,
-                                                       )
+        response_data=updated_rank, 
+        http_status_code=200,
+    )
 
 
 
@@ -169,7 +172,7 @@ async def update_rank_model_model(request: Request, rank_model_id: int, update_d
              status_code=200,
              tags=["ab-rank"],
              response_model=StandardSuccessResponseV1[RankedSelection],
-             responses=ApiResponseHandlerV1.listErrors([400, 422, 500]),
+             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]),
              description="Updates image pair ranking with a new rank model ID")
 async def update_rank_model_in_image_pairs(
         request: Request, 
@@ -186,14 +189,22 @@ async def update_rank_model_in_image_pairs(
 
         if result.modified_count == 0:
             # Handle the case where no documents are updated
-            raise HTTPException(status_code=404, detail="No matching image pairs found.")
+            return response_handler.create_error_response_v1(
+                error_code="No matching image pairs found.",
+                error_string=str(e),
+                http_status_code=404,
+            )
 
         # Fetching an example document to use its structure for the response
         # Note: This fetch is for illustrative purposes; adapt as necessary
         document = request.app.image_pair_ranking_collection.find_one({"file_name": file_name})
 
         if not document:
-            raise HTTPException(status_code=404, detail="Document not found after update.")
+            return response_handler.create_error_response_v1(
+                error_code="Document not found after update.",
+                error_string=str(e),
+                http_status_code=404,
+            )
 
         # Reconstruct the document with rank_model_id first
         document_with_rank_first = {"rank_model_id": rank_model_id, **document}
@@ -204,7 +215,7 @@ async def update_rank_model_in_image_pairs(
         # Return the modified document as a response
         return response_handler.create_success_response_v1( 
             response_data=document_with_rank_first,
-            http_status_code=201)
+            http_status_code=200)
 
     except Exception as e:
         return response_handler.create_error_response_v1(
@@ -314,26 +325,27 @@ def get_rank_model_list_for_image(request: Request, file_hash: str):
         ranks_list = []
         for rank_model_data in image_ranks_cursor:
             # Find the rank model
-            rank_model_model = request.app.rank_model_models_collection.find_one({"rank_model_id": rank_model_data["rank_model_id"]})
-            if rank_model_model:
+            rank_models = request.app.rank_model_models_collection.find_one({"rank_model_id": rank_model_data["rank_model_id"]})
+            if rank_models:
                 # Find the rank category and determine if it's deprecated
-                category = request.app.rank_model_categories_collection.find_one({"rank_model_category_id": rank_model_model.get("rank_model_category_id")})
+                category = request.app.rank_model_categories_collection.find_one({"rank_model_category_id": rank_models.get("rank_model_category_id")})
                 deprecated_rank_model_category = category['deprecated'] if category else False
                 
                 # Create a dictionary representing rankmodel with  deprecated_rank_model_category
-                rank_model_model_dict = {
-                    "rank_model_id": rank_model_model["rank_model_id"],
-                    "rank_model_string": rank_model_model["rank_model_string"],
-                    "rank_model_category_id": rank_model_model.get("rank_model_category_id"),
-                    "rank_model_description": rank_model_model["rank_model_description"],
-                    "rank_model_vector_index": rank_model_model.get("rank_model_vector_index", -1),
-                    "deprecated": rank_model_model.get("deprecated", False),
+                rank_models_dict = {
+                    "rank_model_id": rank_models["rank_model_id"],
+                    "rank_model_string": rank_models["rank_model_string"],
+                    "classifier_id": rank_models["classifier_id"],
+                    "rank_model_category_id": rank_models.get("rank_model_category_id"),
+                    "rank_model_description": rank_models["rank_model_description"],
+                    "rank_model_vector_index": rank_models.get("rank_model_vector_index", -1),
+                    "deprecated": rank_models.get("deprecated", False),
                     "deprecated_rank_model_category": deprecated_rank_model_category,
-                    "user_who_created": rank_model_model["user_who_created"],
-                    "creation_time": rank_model_model.get("creation_time", None)
+                    "user_who_created": rank_models["user_who_created"],
+                    "creation_time": rank_models.get("creation_time", None)
                 }
 
-                ranks_list.append(rank_model_model_dict)
+                ranks_list.append(rank_models_dict)
         
         # Return the list of ranks including 'deprecated_rank_model_category'
         return response_handler.create_success_response_v1(
@@ -836,3 +848,37 @@ def update_rank_model_category_deprecated_status(request: Request, rank_model_ca
         response_data= updated_rank_model_category, 
         http_status_code=200,
     )
+
+@router.delete("/rank-models/remove-all-model-paths", 
+               response_model=StandardSuccessResponseV1[dict],
+               status_code=200,
+               tags=["rank-model-management"],
+               description="Removes the model_path field from all rank models",
+               responses=ApiResponseHandlerV1.listErrors([400, 500]))
+async def remove_all_model_paths(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Remove the model_path field from all documents in the collection
+        update_result = request.app.rank_model_models_collection.update_many(
+            {},  # This empty query matches all documents
+            {"$unset": {"model_path": ""}}  # Remove the model_path field
+        )
+
+        if update_result.modified_count == 0:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string="No documents were updated, possibly they already lack a model_path.",
+                http_status_code=404
+            )
+
+        return response_handler.create_success_response_v1(
+            response_data={"updated_count": update_result.modified_count},
+            http_status_code=200
+        )
+    
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f"Failed to remove model_path from all documents: {str(e)}",
+            http_status_code=500
+        )
