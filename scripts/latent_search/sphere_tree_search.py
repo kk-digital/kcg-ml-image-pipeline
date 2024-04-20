@@ -32,7 +32,7 @@ def parse_args():
         parser.add_argument('--num-images', type=int, help='Number of images to generate', default=100)
         parser.add_argument('--nodes-per-iteration', type=int, help='Number of nodes to evaluate each iteration', default=1000)
         parser.add_argument('--branches-per-iteration', type=int, help='Number of branches to expand each iteration', default=10)
-        parser.add_argument('--top-k', type=float, default=0.01)
+        parser.add_argument('--top-k', type=float, default=1)
         parser.add_argument('--max-nodes', type=int, help='Number of maximum nodes', default=1e+7)
         parser.add_argument('--jump-distance', type=float, help='Jump distance for each node', default=0.01)
         parser.add_argument('--batch-size', type=int, help='Inference batch size used by the scoring model', default=256)
@@ -42,8 +42,8 @@ def parse_args():
         parser.add_argument('--save-csv', action='store_true', default=False)
         parser.add_argument('--sampling-policy', type=str, default="rapidly_exploring_tree_search")
         parser.add_argument('--optimize-samples', action='store_true', default=False)
-        parser.add_argument('--classifier-weight', type=float, default=1)
-        parser.add_argument('--ranking-weight', type=float, default=0)
+        parser.add_argument('--classifier-weight', type=float, default=0.5)
+        parser.add_argument('--ranking-weight', type=float, default=0.5)
 
         return parser.parse_args()
 
@@ -109,11 +109,11 @@ class RapidlyExploringTreeSearch:
         data_dict = msgpack.unpackb(data)
 
         # Convert to PyTorch tensors
-        mean_vector = torch.tensor(data_dict["mean"], device=self.device, dtype=torch.float32).unsqueeze(0)
-        std_vector = torch.tensor(data_dict["std"], device=self.device, dtype=torch.float32).unsqueeze(0)
-        max_vector = torch.tensor(data_dict["max"], device=self.device, dtype=torch.float32).unsqueeze(0)
-        min_vector = torch.tensor(data_dict["min"], device=self.device, dtype=torch.float32).unsqueeze(0)
-        covariance_matrix = torch.tensor(data_dict["cov_matrix"], device=self.device, dtype=torch.float32)
+        mean_vector = torch.tensor(data_dict["mean"], dtype=torch.float32).unsqueeze(0)
+        std_vector = torch.tensor(data_dict["std"], dtype=torch.float32).unsqueeze(0)
+        max_vector = torch.tensor(data_dict["max"], dtype=torch.float32).unsqueeze(0)
+        min_vector = torch.tensor(data_dict["min"], dtype=torch.float32).unsqueeze(0)
+        covariance_matrix = torch.tensor(data_dict["cov_matrix"], dtype=torch.float32)
 
         return mean_vector, std_vector, max_vector, min_vector, covariance_matrix
     
@@ -185,50 +185,71 @@ class RapidlyExploringTreeSearch:
         return clip_vectors
 
     def filter_defects(self, points, defect_threshold=0.6):
+        points= points.to(device=self.device)
         # get defect scores
-        scores= self.defect_model.predict(points, batch_size=points.size(0)).to(device=self.device).squeeze(1)
+        scores= self.defect_model.predict(points, batch_size=points.size(0)).squeeze(1)
         # filter for indices of elements that aren't defective
         filtered_indices= torch.where(scores<defect_threshold)[0]
         # filter datapoints
         filtered_points= points[filtered_indices]
 
-        return filtered_points
+        return filtered_points.detach().cpu()
 
     def score_points(self, points):
+        points= points.to(device=self.device)
         scores= self.scoring_model.predict(points, batch_size=1000)
-        return scores
+        return scores.detach().cpu()
     
     def classifiy_points(self, points):
-        scores= self.classifier_model.predict(points, batch_size=points.size(0)).to(device=self.device)
-        return scores
+        points= points.to(device=self.device)
+        scores= self.classifier_model.predict(points, batch_size=points.size(0))
+        return scores.detach().cpu()
     
-    def rank_points(self, nodes, faiss_index):
+    def rank_points_by_distance(self, nodes, faiss_index):
         # calculate ranking and classifier scores
         classifier_scores = self.classifiy_points(nodes).squeeze(1)
         ranking_scores = self.score_points(nodes).squeeze(1)
 
-        # Distance metric
-        # distances = self.compute_distances(faiss_index, nodes)
-        # distance_scores = torch.tensor(distances.squeeze(), device=self.device)
-        # distance_scores = torch.softmax(distance_scores, dim=0)  # Normalize and invert distances
-
         # increase classifier scores with a threshold
         classifier_scores= torch.where(classifier_scores>0.6, torch.tensor(1), classifier_scores)
 
+        # rank by distance
+        distances = self.compute_distances(faiss_index, nodes)
+        distance_scores = torch.tensor(distances.squeeze())
+
+        return distance_scores, classifier_scores, ranking_scores
+
+    def rank_points_by_quality(self, nodes):
+        # calculate ranking and classifier scores
+        if self.classifier_weight!=0:
+            classifier_scores = self.classifiy_points(nodes).squeeze(1)
+            # increase classifier scores with a threshold
+            classifier_scores= torch.where(classifier_scores>0.6, torch.tensor(1), classifier_scores)
+        if self.ranking_weight!=0:
+            ranking_scores = self.score_points(nodes).squeeze(1)
+
         # combine scores
-        classifier_ranks= self.min_max_normalize_scores(classifier_scores) 
-        quality_ranks=  self.min_max_normalize_scores(ranking_scores)
-        ranks= torch.min(classifier_ranks , quality_ranks)  # Factor in distances
+        if self.ranking_weight!=0 and self.classifier_weight!=0:
+            classifier_ranks= self.classifier_weight * self.min_max_normalize_scores(classifier_scores) 
+            quality_ranks= self.ranking_weight * self.min_max_normalize_scores(ranking_scores)
+            ranks= classifier_ranks + quality_ranks
+        elif self.ranking_weight!=0:
+            quality_ranks= self.min_max_normalize_scores(ranking_scores)
+            ranks= quality_ranks
+        elif self.classifier_weight!=0:
+            classifier_ranks= self.min_max_normalize_scores(classifier_scores)
+            ranks= quality_ranks
 
         return ranks, classifier_scores, ranking_scores 
 
     def expand_tree(self, nodes_per_iteration, branches_per_iteration, max_nodes, top_k, jump_distance, num_images):
         current_generation = [self.clip_mean.squeeze()]
         all_nodes = [self.clip_mean.squeeze()]
-        faiss_index = self.setup_faiss(all_nodes)
+        if self.sampling_policy=="rapidly_exploring_tree_search":
+            faiss_index = self.setup_faiss(all_nodes)
 
-        all_classifier_scores = torch.tensor([], dtype=torch.float32, device=self.device)
-        all_ranking_scores = torch.tensor([], dtype=torch.float32, device=self.device)
+        all_classifier_scores = torch.tensor([], dtype=torch.float32)
+        all_ranking_scores = torch.tensor([], dtype=torch.float32)
 
         # generate covariance matrix
         covariance_matrix = torch.diag((self.clip_std.pow(2) * jump_distance).squeeze(0))
@@ -250,18 +271,23 @@ class RapidlyExploringTreeSearch:
                         continue
 
                 # Score these points
-                ranks, classifier_scores, ranking_scores = self.rank_points(nearest_points, faiss_index)
+                if self.sampling_policy == "rapidly_exploring_tree_search":
+                    ranks, classifier_scores, ranking_scores = self.rank_points_by_distance(nearest_points, faiss_index)
+                elif self.sampling_policy == "jump_point_tree_search":
+                    ranks, classifier_scores, ranking_scores = self.rank_points_by_quality(nearest_points)
 
                 # Select top n points based on scores
                 _, sorted_indices = torch.sort(ranks, descending=True)
                 top_points = nearest_points[sorted_indices[:branches_per_iteration]]
-                top_classifier_scores = classifier_scores[sorted_indices[:branches_per_iteration]]
-                top_classifier_scores= torch.where(top_classifier_scores>0.6, torch.tensor(1), top_classifier_scores)
-                top_ranking_scores = ranking_scores[sorted_indices[:branches_per_iteration]]
+                if self.classifier_weight!=0:
+                    top_classifier_scores = classifier_scores[sorted_indices[:branches_per_iteration]]
+                    top_classifier_scores= torch.where(top_classifier_scores>0.6, torch.tensor(1), top_classifier_scores)
+                    all_classifier_scores = torch.cat((all_classifier_scores, top_classifier_scores), dim=0)
+                if self.ranking_weight!=0:   
+                    top_ranking_scores = ranking_scores[sorted_indices[:branches_per_iteration]]
+                    all_ranking_scores = torch.cat((all_ranking_scores, top_ranking_scores), dim=0)
 
                 # Keep track of all nodes and their scores for selection later
-                all_classifier_scores = torch.cat((all_classifier_scores, top_classifier_scores), dim=0)
-                all_ranking_scores = torch.cat((all_ranking_scores, top_ranking_scores), dim=0)
                 all_nodes.extend(top_points)
 
                 next_generation.extend(top_points)
@@ -272,8 +298,8 @@ class RapidlyExploringTreeSearch:
 
                 # add selected points to the index
                 current_nodes=top_points.cpu().numpy().astype('float32')
-                # faiss_index.train(current_nodes)
-                faiss_index.add(current_nodes) 
+                if self.sampling_policy=="rapidly_exploring_tree_search":
+                    faiss_index.add(current_nodes) 
             
             # Prepare for the next iteration
             current_generation = next_generation
@@ -282,10 +308,18 @@ class RapidlyExploringTreeSearch:
         pbar.close()
         
         # After the final iteration, choose the top n highest scoring points overall
-        classifier_ranks= self.min_max_normalize_scores(all_classifier_scores) 
-        quality_ranks= self.min_max_normalize_scores(all_ranking_scores)
+        if self.classifier_weight!=0:
+            classifier_ranks= self.classifier_weight * self.min_max_normalize_scores(all_classifier_scores)
+        if self.ranking_weight!=0: 
+            quality_ranks= self.ranking_weight * self.min_max_normalize_scores(all_ranking_scores)
 
-        all_ranks= torch.min(classifier_ranks , quality_ranks)
+        if self.classifier_weight!=0 and self.ranking_weight!=0:
+            all_ranks= classifier_ranks + quality_ranks
+        elif self.classifier_weight!=0:
+            all_ranks= classifier_ranks
+        elif self.ranking_weight!=0:
+            all_ranks= quality_ranks
+    
         values, sorted_indices = torch.sort(all_ranks, descending=True)
         final_top_points = torch.stack(all_nodes, dim=0)[sorted_indices[:int(num_images/top_k)]]
 
