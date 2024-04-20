@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import sys
 import os
 import json
@@ -64,9 +65,9 @@ class TaggedDatasetLoader:
 
     def get_tagged_data(self, path, index=0):
         input_type_extension = "-text-embedding.msgpack"
-        if self.input_type == constants.CLIP:
+        if self.input_type in [constants.CLIP, constants.CLIP_WITH_LENGTH]:
             input_type_extension = "_clip.msgpack"
-        elif self.input_type == constants.KANDINSKY_CLIP:
+        elif self.input_type in [constants.KANDINSKY_CLIP, constants.KANDINSKY_CLIP_WITH_LENGTH]:
             input_type_extension = "_clip_kandinsky.msgpack"
         elif self.input_type in [constants.EMBEDDING, constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE]:
             # replace with new /embeddings
@@ -95,11 +96,17 @@ class TaggedDatasetLoader:
             features_vector.extend(features_data["positive_embedding"]["__ndarray__"])
         if self.input_type in [constants.EMBEDDING, constants.EMBEDDING_NEGATIVE]:
             features_vector.extend(features_data["negative_embedding"]["__ndarray__"])
-        if self.input_type in [constants.CLIP, constants.KANDINSKY_CLIP]:
+        if self.input_type in [constants.CLIP, constants.KANDINSKY_CLIP, 
+                               constants.KANDINSKY_CLIP_WITH_LENGTH,
+                               constants.CLIP_WITH_LENGTH]:
             features_vector.extend(features_data["clip-feature-vector"])
 
         features_vector = np.array(features_vector, dtype=np.float32)
         features_vector = torch.tensor(features_vector).to(torch.float)
+
+        if self.input_type in [constants.KANDINSKY_CLIP_WITH_LENGTH, constants.CLIP_WITH_LENGTH] and len(features_vector)!= 0:
+            vector_length= torch.norm(features_vector, dim=1).unsqueeze(1)
+            features_vector= torch.cat([features_vector , vector_length], dim=1)
 
         # concatenate if len more than 2
         features_vector = features_vector.reshape(1, -1)
@@ -194,7 +201,13 @@ class TaggedDatasetLoader:
 
         # get random images for negatives
         # get from environmental for now
-        random_image_list = request.http_get_random_image_list("environmental", len(positive_tagged_dataset) * self.epochs)
+        # Format today's date as a string
+        today = datetime.now()
+
+        # Subtract one day to today's date and format as a string
+        end_date = (today - timedelta(days=1)).strftime('%Y-%m-%d')
+
+        random_image_list = request.http_get_random_image_by_date(dataset="environmental", size=len(positive_tagged_dataset) * self.epochs, end_date=end_date)
         # get paths only
         for image_data in random_image_list:
             negative_tagged_dataset.append(image_data["task_output_file_dict"]["output_file_path"])
@@ -202,6 +215,7 @@ class TaggedDatasetLoader:
         # load proper input type: either clip image embedding or text embedding
         positive_tagged_features = self.load_data(positive_tagged_dataset)
         negative_tagged_features = self.load_data(negative_tagged_dataset)
+
         (self.positive_training_features,
          self.positive_validation_features) = self.separate_training_and_validation_features(positive_tagged_features)
         (self.negative_training_features_pool,
