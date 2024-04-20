@@ -237,7 +237,8 @@ class RapidlyExploringTreeSearch:
     def expand_tree(self, nodes_per_iteration, branches_per_iteration, max_nodes, top_k, jump_distance, num_images):
         current_generation = [self.clip_mean.squeeze()]
         all_nodes = [self.clip_mean.squeeze()]
-        faiss_index = self.setup_faiss(all_nodes)
+        if self.sampling_policy=="rapidly_exploring_tree_search":
+            faiss_index = self.setup_faiss(all_nodes)
 
         all_classifier_scores = torch.tensor([], dtype=torch.float32)
         all_ranking_scores = torch.tensor([], dtype=torch.float32)
@@ -265,7 +266,7 @@ class RapidlyExploringTreeSearch:
                 if self.sampling_policy == "rapidly_exploring_tree_search":
                     ranks, classifier_scores, ranking_scores = self.rank_points_by_distance(nearest_points, faiss_index)
                 elif self.sampling_policy == "jump_point_tree_search":
-                    ranks, classifier_scores, ranking_scores = self.rank_points_by_quality(nearest_points, faiss_index)
+                    ranks, classifier_scores, ranking_scores = self.rank_points_by_quality(nearest_points)
 
                 # Select top n points based on scores
                 _, sorted_indices = torch.sort(ranks, descending=True)
@@ -287,7 +288,8 @@ class RapidlyExploringTreeSearch:
 
                 # add selected points to the index
                 current_nodes=top_points.cpu().numpy().astype('float32')
-                faiss_index.add(current_nodes) 
+                if self.sampling_policy=="rapidly_exploring_tree_search":
+                    faiss_index.add(current_nodes) 
             
             # Prepare for the next iteration
             current_generation = next_generation
