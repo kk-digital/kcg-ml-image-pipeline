@@ -1518,6 +1518,49 @@ def plot_samples_hashless_from_target_dataset(loaded_model, tag_id ,tag_name):
     # plot_images_with_scores_hasheless(tier15,plot_name15)
 
 
+def plot_samples_graph(loaded_model,dataset_name, number_of_samples,tag_name):
+
+    images_paths = get_file_paths(dataset_name,number_of_samples)
+    
+    # Process the images
+    sorted_images_and_hashes = process_and_sort_dataset(images_paths, loaded_model) 
+
+    rank = 1
+    ranks = []  # List to store ranks
+    scores = []  # List to store scores
+
+    for image in sorted_images_and_hashes:
+        #
+        print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2])
+        ranks.append(rank)
+        scores.append(image[2])
+        rank += 1
+    # Tag the images
+
+    # Plotting the graph
+    plt.figure(figsize=(8, 6))
+    plt.plot(ranks, scores, marker='o')
+    plt.xlabel('Rank')
+    plt.ylabel('Score')
+    plt.title('Sample Graph: Rank vs Score')
+    plt.grid(True)
+    plt.savefig("output/rank.png")
+
+    # Save the figure to a file
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+
+    # upload the graph report
+    minio_path="environmental/output/my_tests"
+    minio_path= minio_path + "/ranking_distribution_"+ tag_name + '_' +date_now+".png"
+    cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+    # Remove the temporary file
+    os.remove("output/rank.png")
+    # Clear the current figure
+    plt.clf()
+
+
 def get_file_paths(dataset,num_samples):
         
         response = requests.get(f'{API_URL}/queue/image-generation/list-by-dataset?dataset={dataset}&size={num_samples}')
@@ -1556,7 +1599,7 @@ original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
 #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
 
-tag_name_x = "defect-color-too-dark" #"content-has-waifu" #"concept-occult" #"topic-aquatic" #"topic-aquatic" #"topic-desert"
+tag_name_x = "topic-aquatic"  #"defect-color-too-dark" #"content-has-waifu" #"concept-occult" #"topic-aquatic" #"topic-aquatic" #"topic-desert"
 original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =tag_name_x, model_type = "energy-based-model")
 
 
@@ -1581,8 +1624,15 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 # next elm
 
+
+
+
 #plot_samples_hashless_binning(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x)
-plot_samples_hashless_binning(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 32000,tag_name =tag_name_x)
+#plot_samples_hashless_binning(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 32000,tag_name =tag_name_x)
+
+
+plot_samples_graph(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x)
+
 ############################ Train ########################
 
 
