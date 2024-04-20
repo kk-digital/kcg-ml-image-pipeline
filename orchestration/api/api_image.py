@@ -256,9 +256,12 @@ def get_random_image_date_range(
         classifier_query = {'classifier_id': classifier_id}
         if min_score is not None:
             classifier_query['score'] = {'$gte': min_score}
-        else:
             # Fetch image hashes from classifier_scores collection that match the criteria
             classifier_scores = request.app.classifier_scores_collection.find(classifier_query)
+            if classifier_scores is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="The relevance classifier model has no scores.")
             image_hashes = [score['image_hash'] for score in classifier_scores]
             query['task_output_file_dict.output_file_hash'] = {'$in': image_hashes}
 
