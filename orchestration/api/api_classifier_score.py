@@ -823,9 +823,6 @@ async def delete_classifier_scores(request: Request):
     # Extract UUIDs from these jobs
     uuids_to_delete = [job['uuid'] for job in jobs]
 
-    if not uuids_to_delete:
-        return {"message": "No classifier scores to delete based on the criteria"}
-
     # Delete classifier scores that have a UUID in the list from completed jobs
     delete_result = request.app.image_classifier_scores_collection.delete_many({
         "uuid": {"$in": uuids_to_delete}
