@@ -1542,7 +1542,7 @@ def plot_samples_graph(loaded_model,dataset_name, number_of_samples,tag_name):
     plt.plot(ranks, scores, marker='o')
     plt.xlabel('Rank')
     plt.ylabel('Score')
-    plt.title('Sample Graph: Rank vs Score')
+    plt.title(f'Sample Graph: Rank vs Score for {tag_name}')
     plt.grid(True)
     plt.savefig("output/rank.png")
 
@@ -1599,7 +1599,7 @@ original_model=EBM_Single_Class(minio_access_key=args.minio_access_key,
 #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
 # Load the last occult trained model
 
-tag_name_x = "topic-aquatic"  #"defect-color-too-dark" #"content-has-waifu" #"concept-occult" #"topic-aquatic" #"topic-aquatic" #"topic-desert"
+tag_name_x = "concept-cybernetic"  #"defect-color-too-dark" #"content-has-waifu" #"concept-occult" #"topic-aquatic" #"topic-aquatic" #"topic-desert"
 original_model.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =tag_name_x, model_type = "energy-based-model")
 
 
@@ -1631,8 +1631,8 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 #plot_samples_hashless_binning(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 32000,tag_name =tag_name_x)
 
 
-#plot_samples_graph(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x)
-plot_samples_graph(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x)
+plot_samples_graph(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x)
+#plot_samples_graph(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x)
 ############################ Train ########################
 
 
