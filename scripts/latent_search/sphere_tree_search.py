@@ -221,16 +221,24 @@ class RapidlyExploringTreeSearch:
 
     def rank_points_by_quality(self, nodes):
         # calculate ranking and classifier scores
-        classifier_scores = self.classifiy_points(nodes).squeeze(1)
-        ranking_scores = self.score_points(nodes).squeeze(1)
-
-        # increase classifier scores with a threshold
-        classifier_scores= torch.where(classifier_scores>0.6, torch.tensor(1), classifier_scores)
+        if self.classifier_weight!=0:
+            classifier_scores = self.classifiy_points(nodes).squeeze(1)
+            # increase classifier scores with a threshold
+            classifier_scores= torch.where(classifier_scores>0.6, torch.tensor(1), classifier_scores)
+        if self.ranking_weight!=0:
+            ranking_scores = self.score_points(nodes).squeeze(1)
 
         # combine scores
-        classifier_ranks= self.classifier_weight * self.min_max_normalize_scores(classifier_scores) 
-        quality_ranks= self.ranking_weight * self.min_max_normalize_scores(ranking_scores)
-        ranks= classifier_ranks + quality_ranks
+        if self.ranking_weight!=0 and self.classifier_weight!=0:
+            classifier_ranks= self.classifier_weight * self.min_max_normalize_scores(classifier_scores) 
+            quality_ranks= self.ranking_weight * self.min_max_normalize_scores(ranking_scores)
+            ranks= classifier_ranks + quality_ranks
+        elif self.ranking_weight!=0:
+            quality_ranks= self.min_max_normalize_scores(ranking_scores)
+            ranks= quality_ranks
+        elif self.classifier_weight!=0:
+            classifier_ranks= self.min_max_normalize_scores(classifier_scores)
+            ranks= quality_ranks
 
         return ranks, classifier_scores, ranking_scores 
 
@@ -271,13 +279,15 @@ class RapidlyExploringTreeSearch:
                 # Select top n points based on scores
                 _, sorted_indices = torch.sort(ranks, descending=True)
                 top_points = nearest_points[sorted_indices[:branches_per_iteration]]
-                top_classifier_scores = classifier_scores[sorted_indices[:branches_per_iteration]]
-                top_classifier_scores= torch.where(top_classifier_scores>0.6, torch.tensor(1), top_classifier_scores)
-                top_ranking_scores = ranking_scores[sorted_indices[:branches_per_iteration]]
+                if self.classifier_weight!=0:
+                    top_classifier_scores = classifier_scores[sorted_indices[:branches_per_iteration]]
+                    top_classifier_scores= torch.where(top_classifier_scores>0.6, torch.tensor(1), top_classifier_scores)
+                    all_classifier_scores = torch.cat((all_classifier_scores, top_classifier_scores), dim=0)
+                if self.ranking_weight!=0:   
+                    top_ranking_scores = ranking_scores[sorted_indices[:branches_per_iteration]]
+                    all_ranking_scores = torch.cat((all_ranking_scores, top_ranking_scores), dim=0)
 
                 # Keep track of all nodes and their scores for selection later
-                all_classifier_scores = torch.cat((all_classifier_scores, top_classifier_scores), dim=0)
-                all_ranking_scores = torch.cat((all_ranking_scores, top_ranking_scores), dim=0)
                 all_nodes.extend(top_points)
 
                 next_generation.extend(top_points)
@@ -298,10 +308,18 @@ class RapidlyExploringTreeSearch:
         pbar.close()
         
         # After the final iteration, choose the top n highest scoring points overall
-        classifier_ranks= self.classifier_weight * self.min_max_normalize_scores(all_classifier_scores) 
-        quality_ranks= self.ranking_weight * self.min_max_normalize_scores(all_ranking_scores)
+        if self.classifier_weight!=0:
+            classifier_ranks= self.classifier_weight * self.min_max_normalize_scores(all_classifier_scores)
+        if self.ranking_weight!=0: 
+            quality_ranks= self.ranking_weight * self.min_max_normalize_scores(all_ranking_scores)
 
-        all_ranks= classifier_ranks + quality_ranks
+        if self.classifier_weight!=0 and self.ranking_weight!=0:
+            all_ranks= classifier_ranks + quality_ranks
+        elif self.classifier_weight!=0:
+            all_ranks= classifier_ranks
+        elif self.ranking_weight!=0:
+            all_ranks= quality_ranks
+    
         values, sorted_indices = torch.sort(all_ranks, descending=True)
         final_top_points = torch.stack(all_nodes, dim=0)[sorted_indices[:int(num_images/top_k)]]
 
