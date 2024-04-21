@@ -62,7 +62,7 @@ class ImageScorer:
         self.model_input_type = None
 
         for input_type in self.model_input_type_list:
-            if classifier_model_info["classifier_name"].endswith(input_type):
+            if str.endswith(classifier_model_info["classifier_name"], input_type):
                 self.model_input_type = input_type
                 break
         if self.model_input_type == None:
