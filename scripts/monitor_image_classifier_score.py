@@ -119,6 +119,13 @@ class ImageScorer:
 
         print("Total paths found=", len(type_paths))
         return type_paths
+    
+    # def get_paths_from_monodb(self):
+    #     print("Getting paths for dataset: {}...".format(self.datasets))
+    #     completed_jobs = []
+    #     file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "embedding.msgpack"
+    #     for dataset in self.datasets:
+    #         completed_jobs.extend(request.http_get_completed_job_by_dataset(dataset=dataset))
 
     def get_feature_data(self, job_uuids):
         data = request.http_get_completed_jobs_by_uuids(job_uuids)
@@ -417,7 +424,8 @@ def run_image_scorer(minio_client,
     start_time = time.time()
     paths = scorer.get_paths()
     end_time = time.time()
-    print("Getting paths of clip vector is done! Time elapsed = ", end_time - start_time)
+    time_elapsed_to_get_paths = end_time - start_time
+    print("Getting paths of clip vector is done! Time elapsed = ", time_elapsed_to_get_paths)
 
     # list of clip ve
     list_load_clip_vector_count = [1024]
@@ -456,13 +464,14 @@ def run_image_scorer(minio_client,
         monitor_uploading.append(time_elapsed)
 
 
-        print("{} clip vectors: Total Time elapsed: {}s".format(start_index, format(time_elapsed, ".2f")))
+        print("{} clip vectors: Total Time elapsed: {}s".format(clip_vector_count, format(time_elapsed, ".2f")))
 
     # graph
     # set title of graph
     plt.title("Monitoring image classifier score")
     fig_report_text = ("Batch_size = {}\n"
-                       .format(batch_size))
+                       "Elapsed time to get paths: {} seconds"
+                       .format(batch_size, time_elapsed_to_get_paths))
     #info text about the model
     plt.figtext(0.02,0.7, fig_report_text, bbox=dict(facecolor="white", alpha=0.5, pad=2))
 
@@ -491,8 +500,9 @@ def run_image_scorer(minio_client,
 
     axs.set_xlabel("Count of clip vectors")
     axs.set_ylabel("Time(s)")
-
     axs.legend()
+
+    plt.subplots_adjust(left=0.3)
 
     fig.savefig("output/monitor_image_classifier_scorer.png", format="png")
     print("Saved graph successfully!")
