@@ -401,15 +401,19 @@ def run_image_scorer(minio_client,
                          batch_size=batch_size)
 
     classifier_model_list = request.http_get_classifier_model_list()
-    classifier_model = classifier_model_list[1]
     
+    # load classifier_model
     is_loaded = False
-    try:
-        is_loaded = scorer.load_model(classifier_model_info=classifier_model)
-    except Exception as e:
-        print("Failed loading model, {}".format(classifier_model["model_path"]), e)
+    for classifier_model in classifier_model_list:
+        try:
+            is_loaded = scorer.load_model(classifier_model_info=classifier_model)
+        except Exception as e:
+            print("Failed loading model, {}".format(classifier_model["model_path"]), e)
+        if is_loaded:
+            break
     if not is_loaded:
         return
+    
     start_time = time.time()
     paths = scorer.get_paths()
     end_time = time.time()
