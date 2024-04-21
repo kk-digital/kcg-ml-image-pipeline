@@ -510,8 +510,8 @@ def run_image_scorer(minio_client,
              marker='o',
              markersize=3)
 
-    plt.set_xlabel("Count of clip vectors")
-    plt.set_ylabel("Time(s)")
+    plt.xlabel("Count of clip vectors")
+    plt.ylabel("Time(s)")
     plt.legend()
 
     plt.subplots_adjust(left=0.3)
