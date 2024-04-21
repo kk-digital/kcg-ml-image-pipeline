@@ -241,6 +241,8 @@ class ImageScorer:
 
             for future in tqdm(as_completed(futures), total=len(msgpack_paths)):
                 image_hash, image_path, first_feature, second_feature, index, job_uuid= future.result()
+                if image_hash is None:
+                    continue
                 features_data[index] = (image_hash,
                                         first_feature,
                                         second_feature,
