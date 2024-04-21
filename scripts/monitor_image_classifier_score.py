@@ -93,6 +93,7 @@ class ImageScorer:
                 classifier_model_info["classifier_name"])
             self.model = loaded_model
         else:
+            loaded_model = False
             print("Not support classifier model: {}".format(classifier_model_info["classifier_name"]))
 
         if not loaded_model:
@@ -400,7 +401,7 @@ def run_image_scorer(minio_client,
                          batch_size=batch_size)
 
     classifier_model_list = request.http_get_classifier_model_list()
-    classifier_model = classifier_model_list[0]
+    classifier_model = classifier_model_list[1]
     
     is_loaded = False
     try:
