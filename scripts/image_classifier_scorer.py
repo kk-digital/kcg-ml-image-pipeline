@@ -62,7 +62,7 @@ class ImageScorer:
         self.model_input_type = None
 
         for input_type in self.model_input_type_list:
-            if input_type in classifier_model_info["classifier_name"]:
+            if classifier_model_info["classifier_name"].endswith(input_type):
                 self.model_input_type = input_type
                 break
         if self.model_input_type == None:
@@ -104,7 +104,12 @@ class ImageScorer:
         all_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', f"{self.dataset}/0001")
 
         # Depending on the model type, choose the appropriate msgpack files
-        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "embedding.msgpack"
+        if self.model_input_type == "clip":
+            file_suffix = "_clip.msgpack"
+        elif self.model_input_type == "clip-h":
+            file_suffix = "_clip_kandinsky.msgpack"
+        else: 
+            file_suffix = "embedding.msgpack"
 
         # Filter the objects to get only those that end with the chosen suffix
         type_paths = [obj for obj in all_objects if obj.endswith(file_suffix)]
