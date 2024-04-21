@@ -485,38 +485,38 @@ def run_image_scorer(minio_client,
                        "Elapsed time to get paths: {} seconds"
                        .format(batch_size, time_elapsed_to_get_paths))
     #info text about the model
-    plt.figtext(0.02,0.7, fig_report_text, bbox=dict(facecolor="white", alpha=0.5, pad=2))
 
-    fig, axs = plt.subplots(figsize=(12, 10))
+    plt.figure(figsize=(10, 5))
+    plt.figtext(0.02,0.7, fig_report_text, bbox=dict(facecolor="white", alpha=0.5, pad=2))
     
     # plot loading time
-    axs.plot(list_load_clip_vector_count, 
+    plt.plot(list_load_clip_vector_count, 
              monitor_loading, 
              label="Loading time", 
              marker='o',
              markersize=3)
     
     # plot scoring time
-    axs.plot(list_load_clip_vector_count, 
+    plt.plot(list_load_clip_vector_count, 
              monitor_scoring,
              label="Scoring time",
              marker='o',
              markersize=3)
     
     # plot uploading time
-    axs.plot(list_load_clip_vector_count, 
+    plt.plot(list_load_clip_vector_count, 
              monitor_uploading, 
              label="Uploading time",
              marker='o',
              markersize=3)
 
-    axs.set_xlabel("Count of clip vectors")
-    axs.set_ylabel("Time(s)")
-    axs.legend()
+    plt.set_xlabel("Count of clip vectors")
+    plt.set_ylabel("Time(s)")
+    plt.legend()
 
     plt.subplots_adjust(left=0.3)
 
-    fig.savefig("output/{}_monitor_image_classifier_scorer.png".format(datetime.now()), format="png")
+    plt.savefig("output/{}_monitor_image_classifier_scorer.png".format(datetime.now()), format="png")
     print("Saved graph successfully!")
     
 def parse_args():
