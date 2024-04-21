@@ -504,7 +504,7 @@ async def list_image_scores(
 
     # Return the fetched data with a success response
     return response_handler.create_success_response_v1(
-        response_data=images_data, 
+        response_data={"scores": images_data}, 
         http_status_code=200
     )
 
@@ -561,7 +561,7 @@ async def list_image_scores(
 
     # Return the fetched data with a success response
     return response_handler.create_success_response_v1(
-        response_data=images_data, 
+        response_data={"scores": images_data}, 
         http_status_code=200
     )
 
@@ -723,7 +723,44 @@ async def list_image_scores(
 
     # Return the fetched data with a success response
     return response_handler.create_success_response_v1(
-        response_data=images_data, 
+        response_data={"scores":images_data}, 
         http_status_code=200
     )
    
+
+@router.get("/pseudotag-classifier-scores/get-classifier-score-list-for-image",
+            description="Get all scores for a specific image hash",
+            tags=["pseudotag-classifier-scores"],  
+            response_model=StandardSuccessResponseV1[ListClassifierScore1],
+            responses=ApiResponseHandlerV1.listErrors([404,422]))
+async def get_scores_by_image_hash(
+    request: Request,
+    image_hash: str = Query(..., description="The hash of the image to retrieve scores for")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    # Build the query to fetch scores by image_hash
+    query = {"image_hash": image_hash}
+
+    # Fetch data from the database
+    cursor = request.app.image_classifier_scores_collection.find(query)
+
+    # Check if any scores exist
+    if not cursor:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string="No scores found for the provided image hash",
+            http_status_code=404
+        ) 
+
+    scores_data = list(cursor)
+
+    # Remove '_id' from the response data
+    for score in scores_data:
+        score.pop('_id', None)
+
+    # Prepare and return the data for the response
+    return response_handler.create_success_response_v1(
+        response_data={"scores": scores_data},
+        http_status_code=200
+    )
