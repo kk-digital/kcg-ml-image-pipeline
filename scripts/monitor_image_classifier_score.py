@@ -26,6 +26,8 @@ from utility.http import model_training_request
 from utility.http import request
 from utility.minio import cmd
 
+from utility.path import separate_bucket_and_file_path
+
 class ImageScorer:
     def __init__(self,
                  minio_client,
@@ -106,7 +108,7 @@ class ImageScorer:
         all_objects = []
         
         # Depending on the model type, choose the appropriate msgpack files
-        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "embedding.msgpack"
+        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "_embedding.msgpack"
         
         for dataset in self.datasets:
             print("Getting paths for dataset: {}...".format(dataset))
@@ -123,7 +125,7 @@ class ImageScorer:
     def get_paths_from_monodb(self):
         print("Getting paths for dataset: {}...".format(self.datasets))
         completed_jobs = []
-        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "embedding.msgpack"
+        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "_embedding.msgpack"
         for dataset in self.datasets:
             completed_jobs.extend(request.http_get_completed_job_by_dataset(dataset=dataset))
             if len(completed_jobs) > 500000:
@@ -177,7 +179,8 @@ class ImageScorer:
 
     def get_feature_pair(self, path, index):
         # Updated bucket name to 'datasets'
-        msgpack_data = cmd.get_file_from_minio(self.minio_client, 'datasets', path)
+        _, file_path = separate_bucket_and_file_path(path)
+        msgpack_data = cmd.get_file_from_minio(self.minio_client, 'datasets', file_path)
         if not msgpack_data:
             print(f"No msgpack file found at path: {path}")
             return None, path, None, None, index, None
