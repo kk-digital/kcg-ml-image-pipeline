@@ -794,7 +794,7 @@ async def list_image_scores(
     # Modify behavior based on random_sampling parameter
     if random_sampling:
         # Apply some filtering before sampling
-        query_filter = {"$match": query}  # Add any filtering needed
+        query_filter = {"$match": query}  
         sampling_stage = {"$sample": {"size": limit}}  # Random sampling with a limit
         
         # Build the optimized pipeline

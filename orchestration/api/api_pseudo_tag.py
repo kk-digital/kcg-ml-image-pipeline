@@ -169,10 +169,11 @@ async def add_pseudo_tag_to_image(request: Request, pseudo_tag: ImagePseudoTagRe
                 error_string="The provided classifier ID does not have an associated tag ID.",
                 http_status_code=404)
         
+        classifier_id = classifier_data["classifier_id"]
         tag_id = classifier_data['tag_id']
 
         # Check for existing pseudo tag
-        existing_pseudo_tag = request.app.pseudo_tag_images_collection.find_one({"tag_id": tag_id, "image_hash": image_hash})
+        existing_pseudo_tag = request.app.pseudo_tag_images_collection.find_one({"classifier_id": classifier_id, "image_hash": image_hash})
         if existing_pseudo_tag:
             # Update the score if pseudo tag already exists
             request.app.pseudo_tag_images_collection.update_one(
