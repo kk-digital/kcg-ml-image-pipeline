@@ -120,12 +120,22 @@ class ImageScorer:
         print("Total paths found=", len(type_paths))
         return type_paths
     
-    # def get_paths_from_monodb(self):
-    #     print("Getting paths for dataset: {}...".format(self.datasets))
-    #     completed_jobs = []
-    #     file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "embedding.msgpack"
-    #     for dataset in self.datasets:
-    #         completed_jobs.extend(request.http_get_completed_job_by_dataset(dataset=dataset))
+    def get_paths_from_monodb(self):
+        print("Getting paths for dataset: {}...".format(self.datasets))
+        completed_jobs = []
+        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "embedding.msgpack"
+        for dataset in self.datasets:
+            completed_jobs.extend(request.http_get_completed_job_by_dataset(dataset=dataset))
+            if len(completed_jobs) > 500000:
+                break
+        image_paths = []
+        for job in completed_jobs:
+            try:
+                image_paths.append(job["task_output_file_dict"]["output_file_path"].replace(".jpg", file_suffix))
+            except Exception as e:
+                print("Error to get image path from mongodb: {}".format(e))
+
+        return image_paths
 
     def get_feature_data(self, job_uuids):
         data = request.http_get_completed_jobs_by_uuids(job_uuids)
