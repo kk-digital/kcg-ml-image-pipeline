@@ -30,7 +30,7 @@ def main():
     dataset_names = request.http_get_dataset_names()
     all_feature_vectors = []
 
-    list_clip_vector_num = [1024,]
+    list_clip_vector_num = [1024, 4096, 10000]
 
     for dataset_name in dataset_names:
         dataloader = KandinskyDatasetLoader(minio_client=minio_client, dataset=dataset_name)
