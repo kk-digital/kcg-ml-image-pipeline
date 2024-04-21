@@ -122,7 +122,7 @@ class ImageScorer:
         print("Total paths found=", len(type_paths))
         return type_paths
     
-    def get_paths_from_monodb(self):
+    def get_paths_from_mongodb(self):
         print("Getting paths for dataset: {}...".format(self.datasets))
         completed_jobs = []
         file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "_embedding.msgpack"
@@ -181,6 +181,7 @@ class ImageScorer:
     def get_feature_pair(self, path, index):
         # Updated bucket name to 'datasets'
         _, file_path = separate_bucket_and_file_path(path)
+        print("data file_path", file_path)
         msgpack_data = cmd.get_file_from_minio(self.minio_client, 'datasets', file_path)
         if not msgpack_data:
             print(f"No msgpack file found at path: {path}")
@@ -442,7 +443,7 @@ def run_image_scorer(minio_client,
     if database == 'minio':
         paths = scorer.get_paths()
     elif database == 'mongodb':
-        paths = scorer.get_paths_from_monodb()
+        paths = scorer.get_paths_from_mongodb()
     else:
         return None
     end_time = time.time()
