@@ -37,7 +37,7 @@ def main():
         if len(all_feature_vectors) > 500000:
             break
     
-    list_clip_vector_num = [1024, 4096, 500000]
+    list_clip_vector_num = [1024,]
     result = []
     for clip_vector_num in list_clip_vector_num:
         data = torch.tensor(all_feature_vectors[:clip_vector_num])
