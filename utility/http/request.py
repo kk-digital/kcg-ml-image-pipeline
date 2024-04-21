@@ -474,7 +474,7 @@ def http_get_completed_job_by_uuid(job_uuid):
     return None
 
 # Get completed job
-def http_get_completed_job_by_dataset(dataset, limit=0):
+def http_get_completed_job_by_dataset(dataset, limit=9999999):
     url = SERVER_ADDRESS + "/queue/image-generation/list-completed-jobs?dataset={}&limit={}".format(dataset, limit)
     response = None
 

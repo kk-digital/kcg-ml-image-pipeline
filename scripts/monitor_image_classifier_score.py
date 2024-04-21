@@ -125,7 +125,7 @@ class ImageScorer:
         completed_jobs = []
         file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "embedding.msgpack"
         for dataset in self.datasets:
-            completed_jobs.extend(request.http_get_completed_job_by_dataset(dataset=dataset, limit=10))
+            completed_jobs.extend(request.http_get_completed_job_by_dataset(dataset=dataset))
             if len(completed_jobs) > 500000:
                 break
         image_paths = []
@@ -482,7 +482,7 @@ def run_image_scorer(minio_client,
     # set title of graph
     plt.title("Monitoring image classifier score")
     fig_report_text = ("Batch_size = {}\n"
-                       "Elapsed time getting paths:\n\t{}s"
+                       "Elapsed time getting paths:\n    {}s"
                        .format(batch_size, format(time_elapsed_to_get_paths, ".2f")))
     #info text about the model
 
