@@ -410,7 +410,8 @@ class ImageScorer:
 def run_image_scorer(minio_client,
                      dataset_names,
                      batch_size,
-                     increment):
+                     increment,
+                     database):
     start_time = time.time()
     # remove
     print("run_image_scorer")
@@ -434,7 +435,10 @@ def run_image_scorer(minio_client,
         return
     
     start_time = time.time()
-    paths = scorer.get_paths()
+    if database == 'minio':
+        paths = scorer.get_paths()
+    else:
+        paths = scorer.get_paths_from_monodb()
     end_time = time.time()
     time_elapsed_to_get_paths = end_time - start_time
     print("Getting paths of clip vector is done! Time elapsed = ", time_elapsed_to_get_paths, ", number of paths = ", len(paths))
@@ -482,8 +486,8 @@ def run_image_scorer(minio_client,
     # set title of graph
     plt.title("Monitoring image classifier score")
     fig_report_text = ("Batch_size = {}\n"
-                       "Elapsed time getting paths:\n    {}s"
-                       .format(batch_size, format(time_elapsed_to_get_paths, ".2f")))
+                       "Elapsed time getting paths from {}:\n    {}s"
+                       .format(batch_size, database, format(time_elapsed_to_get_paths, ".2f")))
     #info text about the model
 
     plt.figure(figsize=(10, 5))
@@ -526,6 +530,7 @@ def parse_args():
     parser.add_argument('--minio-secret-key', required=False, help='Minio secret key')
     parser.add_argument('--batch-size', required=False, default=100, type=int, help='Name of the dataset for embeddings')
     parser.add_argument('--increment', required=False, default=10000, type=int, help='Name of the dataset for embeddings')
+    parser.add_argument('--database', type=str, default='minio', help='Name of the database to get paths')
     args = parser.parse_args()
     return args
 
@@ -540,7 +545,7 @@ def main():
     dataset_names = request.http_get_dataset_names()
     print("dataset names=", dataset_names)
     # try:
-    run_image_scorer(minio_client, dataset_names, args.batch_size, args.increment)
+    run_image_scorer(minio_client, dataset_names, args.batch_size, args.increment, args.database)
     # except Exception as e:
         # print("Error running image scorer for {}: {}".format(dataset_names, e))
 
