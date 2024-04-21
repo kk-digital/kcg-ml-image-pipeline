@@ -793,11 +793,15 @@ async def list_image_scores(
 
     # Modify behavior based on random_sampling parameter
     if random_sampling:
-        # Fetch data without sorting when random_sampling is True
-        cursor = request.app.image_classifier_scores_collection.aggregate([
-            {"$match": query},
-            {"$sample": {"size": limit}}  # Use the MongoDB $sample operator for random sampling
-        ])
+        # Apply some filtering before sampling
+        query_filter = {"$match": query}  # Add any filtering needed
+        sampling_stage = {"$sample": {"size": limit}}  # Random sampling with a limit
+        
+        # Build the optimized pipeline
+        pipeline = [query_filter, sampling_stage]
+
+        cursor = request.app.image_classifier_scores_collection.aggregate(pipeline)
+
     else:
         # Determine sort order and fetch sorted data when random_sampling is False
         sort_order = 1 if order == "asc" else -1
