@@ -127,7 +127,7 @@ class ImageScorer:
         completed_jobs = []
         file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "_embedding.msgpack"
         for dataset in self.datasets:
-            completed_jobs.extend(request.http_get_completed_job_by_dataset(dataset=dataset, limit=10))
+            completed_jobs.extend(request.http_get_completed_job_by_dataset(dataset=dataset))
             if len(completed_jobs) > 500000:
                 break
         image_paths = []
