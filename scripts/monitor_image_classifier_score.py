@@ -180,9 +180,8 @@ class ImageScorer:
 
     def get_feature_pair(self, path, index):
         # Updated bucket name to 'datasets'
-        _, file_path = separate_bucket_and_file_path(path)
-        print("data file_path", file_path)
-        msgpack_data = cmd.get_file_from_minio(self.minio_client, 'datasets', file_path)
+        _, path = separate_bucket_and_file_path(path)
+        msgpack_data = cmd.get_file_from_minio(self.minio_client, 'datasets', path)
         if not msgpack_data:
             print(f"No msgpack file found at path: {path}")
             return None, path, None, None, index, None
