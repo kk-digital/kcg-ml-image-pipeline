@@ -36,7 +36,7 @@ def main():
         dataloader = KandinskyDatasetLoader(minio_client=minio_client, dataset=dataset_name)
         feature_vectors, _= dataloader.load_clip_vector_data(limit=max(list_clip_vector_num))
         all_feature_vectors.extend(feature_vectors)
-        if len(all_feature_vectors) > max(list_clip_vector_num):
+        if len(all_feature_vectors) >= max(list_clip_vector_num):
             break
     
     result = []
