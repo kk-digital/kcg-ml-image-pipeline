@@ -192,9 +192,22 @@ class ImageScorer:
 
             # clip image hash isn't in clip.msgpack so get it from _data.msgpack
             data_msgpack = cmd.get_file_from_minio(self.minio_client, 'datasets',
-                                                   path.replace("clip.msgpack", "data.msgpack"))
+                                                   path.replace(f"clip.msgpack", "data.msgpack"))
             if not data_msgpack:
                 print("No msgpack file found at path: {}".format(path.replace("clip.msgpack", "data.msgpack")))
+                return None
+
+            data = msgpack.unpackb(data_msgpack.data)
+        
+        elif self.model_input_type == "clip-h":
+            clip_feature = data['clip-feature-vector']
+            first_feature = torch.tensor(np.array(clip_feature)).float()
+
+            # clip image hash isn't in clip.msgpack so get it from _data.msgpack
+            data_msgpack = cmd.get_file_from_minio(self.minio_client, 'datasets',
+                                                   path.replace(f"clip_kandinsky.msgpack", "data.msgpack"))
+            if not data_msgpack:
+                print("No msgpack file found at path: {}".format(path.replace("clip_kandinsky.msgpack", "data.msgpack")))
                 return None
 
             data = msgpack.unpackb(data_msgpack.data)
@@ -202,7 +215,7 @@ class ImageScorer:
         image_hash = data['file_hash']
         job_uuid = data['job_uuid']
 
-        if self.model_input_type == "clip":
+        if self.model_input_type in ["clip", "clip-h"]:
             image_path = data['file_path'].replace("_data.msgpack", ".jpg")
         else:
             image_path = data['file_path'].replace("_embedding.msgpack", ".jpg")
