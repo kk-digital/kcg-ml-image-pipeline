@@ -280,7 +280,7 @@ class ListClassifierScore(BaseModel):
     images: List[ClassifierScore]
 
 class ListClassifierScore1(BaseModel):
-    scores: List[ClassifierScoreV1]
+    images: List[ClassifierScoreV1]
 
 class ClassifierScoreRequest(BaseModel):
     job_uuid: Union[str, None]
