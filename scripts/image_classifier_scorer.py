@@ -299,7 +299,7 @@ class ImageScorer:
                         negative_embedding_array = torch.cat(negative_embedding_array, dim=0).to(self.device)
 
                         score = self.model.predict_positive_or_negative_only_pooled(negative_embedding_array).squeeze()
-                    elif self.model_input_type == "clip":
+                    elif self.model_input_type in ["clip", "clip-h"]:
                          
                         clip_feature_vector = []
                         image_hash = []
