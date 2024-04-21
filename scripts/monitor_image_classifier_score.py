@@ -437,8 +437,10 @@ def run_image_scorer(minio_client,
     start_time = time.time()
     if database == 'minio':
         paths = scorer.get_paths()
-    else:
+    elif database == 'mongodb':
         paths = scorer.get_paths_from_monodb()
+    else:
+        return None
     end_time = time.time()
     time_elapsed_to_get_paths = end_time - start_time
     print("Getting paths of clip vector is done! Time elapsed = ", time_elapsed_to_get_paths, ", number of paths = ", len(paths))
