@@ -9,6 +9,7 @@ sys.path.insert(0, os.getcwd())
 
 from data_loader.kandinsky_dataset_loader import KandinskyDatasetLoader
 from utility.minio import cmd
+from utility.http import request
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -16,7 +17,6 @@ def parse_args():
     parser.add_argument('--minio-access-key', type=str, help='Minio access key')
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--minio-addr', type=str, help='Minio address')
-    parser.add_argument('--dataset', default="environmental", type=str, help='Name of the dataset')
 
     return parser.parse_args()
 
@@ -27,13 +27,20 @@ def main():
     minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key,
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
+    dataset_names = request.http_get_dataset_names()
+    all_feature_vectors = []
+
+    for dataset_name in dataset_names:
+        dataloader = KandinskyDatasetLoader(minio_client=minio_client, dataset=dataset_name)
+        feature_vectors, _= dataloader.load_clip_vector_data(limit=500000)
+        all_feature_vectors.extend(feature_vectors)
+        if len(all_feature_vectors) > 500000:
+            break
     
-    dataloader = KandinskyDatasetLoader(minio_client=minio_client, dataset=args.dataset)
-    feature_vectors, scores= dataloader.load_clip_vector_data(limit=500000)
     list_clip_vector_num = [1024, 4096, 500000]
     result = []
     for clip_vector_num in list_clip_vector_num:
-        data = torch.tensor(feature_vectors[:clip_vector_num])
+        data = torch.tensor(all_feature_vectors[:clip_vector_num])
 
         d1 = mle_id(data, k=2)
         d2 = twonn_numpy(data.numpy(), return_xy=False)
