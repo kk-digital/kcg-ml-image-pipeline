@@ -34,7 +34,7 @@ class ImageScorer:
         self.dataset = dataset_name
         self.model_name = None
         self.model_input_type = None
-        self.model_input_type_list = ["embedding-negative", "embedding-positive", "embedding", "clip"]
+        self.model_input_type_list = ["embedding-negative", "embedding-positive", "embedding", "clip", "clip-h"]
 
         self.image_paths_cache = {}
         self.image_all_feature_pairs_cache = {}
