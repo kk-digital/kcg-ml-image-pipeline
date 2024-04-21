@@ -516,7 +516,7 @@ def run_image_scorer(minio_client,
 
     plt.subplots_adjust(left=0.3)
 
-    fig.savefig("output/monitor_image_classifier_scorer.png", format="png")
+    fig.savefig("output/{}_monitor_image_classifier_scorer.png".format(datetime.now()), format="png")
     print("Saved graph successfully!")
     
 def parse_args():
