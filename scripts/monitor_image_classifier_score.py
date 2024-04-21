@@ -134,7 +134,8 @@ class ImageScorer:
         for job in completed_jobs:
             try:
                 if job["task_output_file_dict"]["output_file_path"].endswith(".jpg"):
-                    image_paths.append(job["task_output_file_dict"]["output_file_path"].replace(".jpg", file_suffix))
+                    _, path = separate_bucket_and_file_path(job["task_output_file_dict"]["output_file_path"].replace(".jpg", file_suffix))
+                    image_paths.append(path)
             except Exception as e:
                 print("Error to get image path from mongodb: {}".format(e))
 
@@ -180,7 +181,6 @@ class ImageScorer:
 
     def get_feature_pair(self, path, index):
         # Updated bucket name to 'datasets'
-        _, path = separate_bucket_and_file_path(path)
         msgpack_data = cmd.get_file_from_minio(self.minio_client, 'datasets', path)
         if not msgpack_data:
             print(f"No msgpack file found at path: {path}")
