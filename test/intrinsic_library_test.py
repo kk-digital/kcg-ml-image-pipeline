@@ -30,14 +30,15 @@ def main():
     dataset_names = request.http_get_dataset_names()
     all_feature_vectors = []
 
+    list_clip_vector_num = [1024,]
+
     for dataset_name in dataset_names:
         dataloader = KandinskyDatasetLoader(minio_client=minio_client, dataset=dataset_name)
-        feature_vectors, _= dataloader.load_clip_vector_data(limit=500000)
+        feature_vectors, _= dataloader.load_clip_vector_data(limit=max(list_clip_vector_num))
         all_feature_vectors.extend(feature_vectors)
-        if len(all_feature_vectors) > 500000:
+        if len(all_feature_vectors) > max(list_clip_vector_num):
             break
     
-    list_clip_vector_num = [1024,]
     result = []
     for clip_vector_num in list_clip_vector_num:
         data = torch.tensor(all_feature_vectors[:clip_vector_num])
