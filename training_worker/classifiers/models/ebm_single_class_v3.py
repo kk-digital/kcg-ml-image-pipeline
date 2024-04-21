@@ -414,7 +414,7 @@ class EBM_Single_Class:
 
         # minimize dataset
 
-        target_paths = random.sample(target_paths, 240)
+        target_paths = random.sample(target_paths, 64)
         
         # minimize dataset
 
