@@ -100,25 +100,21 @@ class ImageScorer:
         return True
 
     def get_paths(self):
-        self.datasets = ["environmental"]
         print("Getting paths for dataset: {}...".format(self.datasets))
-        if self.model_input_type in self.image_paths_cache:
-            print("Getted paths from cache")
-            return self.image_paths_cache[self.model_input_type]
-        
+
         all_objects = []
+        
+        # Depending on the model type, choose the appropriate msgpack files
+        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "embedding.msgpack"
+        
         for dataset in self.datasets:
             print("Getting paths for dataset: {}...".format(dataset))
             all_objects.extend(cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', dataset))
-            print("Getted paths for dataset: {}...".format(dataset))
 
-        # Depending on the model type, choose the appropriate msgpack files
-        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "embedding.msgpack"
-
-        # Filter the objects to get only those that end with the chosen suffix
-        type_paths = [obj for obj in all_objects if obj.endswith(file_suffix)]
-
-        self.image_paths_cache[self.model_input_type] = type_paths
+            # Filter the objects to get only those that end with the chosen suffix
+            type_paths = [obj for obj in all_objects if obj.endswith(file_suffix)]
+            if len(type_paths) > 500000:
+                break
 
         print("Total paths found=", len(type_paths))
         return type_paths
@@ -215,10 +211,7 @@ class ImageScorer:
 
     def get_all_feature_pairs(self, msgpack_paths):
         print('Getting dataset features...')
-        
-        if self.model_input_type in self.image_all_feature_pairs_cache:
-            return self.image_all_feature_pairs_cache[self.model_input_type]
-
+    
         features_data = [None] * len(msgpack_paths)
         image_paths = [None] * len(msgpack_paths)
         with ThreadPoolExecutor(max_workers=10) as executor:
@@ -235,8 +228,6 @@ class ImageScorer:
                                         second_feature,
                                         job_uuid)
                 image_paths[index] = image_path
-
-        self.image_all_feature_pairs_cache[self.model_input_type] = (features_data, image_paths)
 
         return features_data, image_paths
 
@@ -408,7 +399,6 @@ def run_image_scorer(minio_client,
                          dataset_names=dataset_names,
                          batch_size=batch_size)
 
-
     classifier_model_list = request.http_get_classifier_model_list()
     classifier_model = classifier_model_list[0]
     
@@ -418,24 +408,23 @@ def run_image_scorer(minio_client,
         print("Failed loading model, {}".format(classifier_model["model_path"]), e)
     if not is_loaded:
         return
-    
+    start_time = time.time()
     paths = scorer.get_paths()
-    list_load_clip_vecotr_count = []
-    if len(paths) > 1024:
-        list_load_clip_vecotr_count.append(1024)
-    else:
-        list_load_clip_vecotr_count.append(len(paths))
-    
-    for i in range(0, min((len(paths) - increment), 500000), increment):
-        list_load_clip_vecotr_count.append(increment * (i + 1))
+    end_time = time.time()
+    print("Getting paths of clip vector is done! Time elapsed = ", end_time - start_time)
+
+    # list of clip ve
+    list_load_clip_vector_count = [1024]
+    for i in range(0, 500000, increment):
+        list_load_clip_vector_count.append(i)
 
     print("Getting paths of clip vector is done!")
     monitor_loading = []
     monitor_scoring = []
     monitor_uploading = []
 
-    for start_index in list_load_clip_vecotr_count:
-        paths_batch = paths[:start_index]
+    for clip_vector_count in list_load_clip_vector_count:
+        paths_batch = paths[:clip_vector_count]
 
         # Record the runtime to load clip vectors
         print("loading clip vectors")
@@ -469,25 +458,33 @@ def run_image_scorer(minio_client,
     fig_report_text = ("Batch_size = {}\n"
                        .format(batch_size))
     #info text about the model
-    plt.figtext(0.02, 0.4, fig_report_text)
+    plt.figtext(0.02,0.7, fig_report_text, bbox=dict(facecolor="white", alpha=0.5, pad=2))
 
     fig, axs = plt.subplots(figsize=(12, 10))
     
     # plot loading time
-    axs.plot(list_load_clip_vecotr_count, monitor_loading, label="Loading time")
-    axs.scatter(list_load_clip_vecotr_count, monitor_loading, label="Loading time", alpha=0.5)
-    axs.set_xticks(list_load_clip_vecotr_count)
+    axs.plot(list_load_clip_vector_count, 
+             monitor_loading, 
+             label="Loading time", 
+             marker='o',
+             markersize=3)
+    
     # plot scoring time
-    axs.plot(list_load_clip_vecotr_count, monitor_scoring, label="Scoring time")
-    axs.scatter(list_load_clip_vecotr_count, monitor_scoring, label="Scoring time", alpha=0.5)
-    axs.set_xticks(list_load_clip_vecotr_count)
+    axs.plot(list_load_clip_vector_count, 
+             monitor_scoring,
+             label="Scoring time",
+             marker='o',
+             markersize=3)
+    
     # plot uploading time
-    axs.plot(list_load_clip_vecotr_count, monitor_uploading, label="uploading time")
-    axs.scatter(list_load_clip_vecotr_count, monitor_uploading, label="ploading time", alpha=0.5)
-    axs.set_xticks(list_load_clip_vecotr_count)
+    axs.plot(list_load_clip_vector_count, 
+             monitor_uploading, 
+             label="Uploading time",
+             marker='o',
+             markersize=3)
 
     axs.set_xlabel("Count of clip vectors")
-    axs.set_ylabel("Time (s)")
+    axs.set_ylabel("Time(s)")
 
     axs.legend()
 
