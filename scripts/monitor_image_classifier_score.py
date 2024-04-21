@@ -133,7 +133,8 @@ class ImageScorer:
         image_paths = []
         for job in completed_jobs:
             try:
-                image_paths.append(job["task_output_file_dict"]["output_file_path"].replace(".jpg", file_suffix))
+                if job["task_output_file_dict"]["output_file_path"].endswith(".jpg"):
+                    image_paths.append(job["task_output_file_dict"]["output_file_path"].replace(".jpg", file_suffix))
             except Exception as e:
                 print("Error to get image path from mongodb: {}".format(e))
 
