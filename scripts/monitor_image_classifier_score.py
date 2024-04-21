@@ -121,7 +121,7 @@ class ImageScorer:
         return type_paths
     
     def get_paths_from_monodb(self):
-        print("Getting paths for dataset: {}...".format(self.datasets))
+        print("Getting paths for dataset: {}...".format(self.datasets, 10))
         completed_jobs = []
         file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "embedding.msgpack"
         for dataset in self.datasets:
@@ -434,7 +434,7 @@ def run_image_scorer(minio_client,
         return
     
     start_time = time.time()
-    paths = scorer.get_paths_from_monodb()
+    paths = scorer.get_paths()
     end_time = time.time()
     time_elapsed_to_get_paths = end_time - start_time
     print("Getting paths of clip vector is done! Time elapsed = ", time_elapsed_to_get_paths, ", number of paths = ", len(paths))
@@ -482,8 +482,8 @@ def run_image_scorer(minio_client,
     # set title of graph
     plt.title("Monitoring image classifier score")
     fig_report_text = ("Batch_size = {}\n"
-                       "Elapsed time to get paths: {} seconds"
-                       .format(batch_size, time_elapsed_to_get_paths))
+                       "Elapsed time getting paths:\n\t{}s"
+                       .format(batch_size, format(time_elapsed_to_get_paths, ".2f")))
     #info text about the model
 
     plt.figure(figsize=(10, 5))
