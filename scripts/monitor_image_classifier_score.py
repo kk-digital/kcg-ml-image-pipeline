@@ -437,7 +437,7 @@ def run_image_scorer(minio_client,
     paths = scorer.get_paths_from_monodb()
     end_time = time.time()
     time_elapsed_to_get_paths = end_time - start_time
-    print("Getting paths of clip vector is done! Time elapsed = ", time_elapsed_to_get_paths)
+    print("Getting paths of clip vector is done! Time elapsed = ", time_elapsed_to_get_paths, ", number of paths = ", len(paths))
 
     # list of clip ve
     list_load_clip_vector_count = [1024]
