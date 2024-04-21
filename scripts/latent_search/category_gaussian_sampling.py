@@ -366,7 +366,7 @@ class SphereSamplingGenerator:
 
                 # Calculate the loss for each embedding in the batch
                 # score_losses = -scores.squeeze() - classifier_scores.squeeze()
-                score_losses = - classifier_scores.squeeze()
+                score_losses = -scores.squeeze() - classifier_scores.squeeze()
 
                 # Calculate the total loss for the batch
                 total_loss = score_losses.mean()
