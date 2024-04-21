@@ -34,7 +34,7 @@ class ImageScorer:
         self.dataset = dataset_name
         self.model_name = None
         self.model_input_type = None
-        self.model_input_type_list = ["embedding-negative", "embedding-positive", "embedding", "clip", "clip-h"]
+        self.model_input_type_list = ["embedding-negative", "embedding-positive", "embedding", "clip-h", "clip"]
 
         self.image_paths_cache = {}
         self.image_all_feature_pairs_cache = {}
@@ -55,8 +55,6 @@ class ImageScorer:
     def load_model(self, classifier_model_info):
         print("loading model...")
 
-        print(classifier_model_info)
-
         self.tag_id = classifier_model_info["tag_id"]
         self.classifier_id = classifier_model_info["classifier_id"]
         self.model_name = classifier_model_info["classifier_name"]
@@ -64,7 +62,7 @@ class ImageScorer:
         self.model_input_type = None
 
         for input_type in self.model_input_type_list:
-            if classifier_model_info["classifier_name"].endswith(input_type):
+            if input_type in classifier_model_info["classifier_name"]:
                 self.model_input_type = input_type
                 break
         if self.model_input_type == None:
