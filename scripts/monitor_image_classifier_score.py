@@ -402,6 +402,7 @@ def run_image_scorer(minio_client,
     classifier_model_list = request.http_get_classifier_model_list()
     classifier_model = classifier_model_list[0]
     
+    is_loaded = False
     try:
         is_loaded = scorer.load_model(classifier_model_info=classifier_model)
     except Exception as e:
