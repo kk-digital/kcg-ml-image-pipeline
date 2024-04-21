@@ -265,7 +265,7 @@ class SphereSamplingGenerator:
         quality_scores = self.scoring_model.model(clip_vectors)
         classifier_scores = self.classifier_model.model(clip_vectors)
         scores = quality_scores + classifier_scores
-        
+
         # get top scoring datapoints
         _, sorted_indices = torch.sort(scores.squeeze(), descending=True)
         # filter with penalty
@@ -370,7 +370,7 @@ class SphereSamplingGenerator:
 
                 # Calculate the loss for each embedding in the batch
                 # score_losses = -scores.squeeze() - classifier_scores.squeeze()
-                score_losses = classifier_scores.squeeze()
+                score_losses =  - classifier_scores.squeeze()
 
                 # Calculate the total loss for the batch
                 total_loss = score_losses.mean()
