@@ -121,11 +121,11 @@ class ImageScorer:
         return type_paths
     
     def get_paths_from_monodb(self):
-        print("Getting paths for dataset: {}...".format(self.datasets, 10))
+        print("Getting paths for dataset: {}...".format(self.datasets))
         completed_jobs = []
         file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "embedding.msgpack"
         for dataset in self.datasets:
-            completed_jobs.extend(request.http_get_completed_job_by_dataset(dataset=dataset))
+            completed_jobs.extend(request.http_get_completed_job_by_dataset(dataset=dataset, limit=10))
             if len(completed_jobs) > 500000:
                 break
         image_paths = []
