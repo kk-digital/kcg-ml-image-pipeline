@@ -33,14 +33,14 @@ def main():
     list_clip_vector_num = [1024, 4096, 500000]
     result = []
     for clip_vector_num in list_clip_vector_num:
-        data = torch.tensor(feature_vectors)
+        data = torch.tensor(feature_vectors[:clip_vector_num])
 
         d1 = mle_id(data, k=2)
         d2 = twonn_numpy(data.numpy(), return_xy=False)
         d3 = twonn_pytorch(data, return_xy=False)
 
         result.append({
-            "number of clip vector": clip_vector_num,
+            "number of clip vector": data.size(0),
             "dimension": data.size(1),
             "mle_id": d1,
             "twonn_numpy": d2,
