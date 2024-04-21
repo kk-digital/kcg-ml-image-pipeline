@@ -29,7 +29,7 @@ def parse_args():
     return parser.parse_args()
 
 def get_job_list(dataset):
-    response = requests.get(f'{API_URL}/image_by_rank/image-list-sorted?dataset={dataset}&limit=4000000&model_type=elm-v1&score_field=image_clip_sigma_score&min_score=1')
+    response = requests.get(f'{API_URL}/image_by_rank/image-list-sorted?dataset={dataset}&limit=4000000&model_type=elm-v1&score_field=image_clip_sigma_score')
         
     jobs = json.loads(response.content)
 
@@ -41,7 +41,7 @@ def main():
     minio_client= cmd.get_minio_client(minio_access_key=args.minio_access_key,
                                        minio_secret_key=args.minio_secret_key)
     
-    datasets=["character", "environmental", "icons", "mech", "propaganda-poster", "waifu"]
+    datasets=["environmental", "character", "icons", "mech", "propaganda-poster", "waifu"]
     
     for dataset in datasets:
         print(f"fetching job data for {dataset}...........")
@@ -58,10 +58,10 @@ def main():
                 clip_path = file_path + "_clip_kandinsky.msgpack"
                 clip_data = get_object(minio_client, clip_path)
                 clip_vector = msgpack.unpackb(clip_data)['clip-feature-vector']
-                clip_vectors.append(clip_vector)
-            except:
-                print("an error occured")
-
+                clip_vectors.append(clip_vector[0])
+            except Exception as e:
+                print(f"an error occured: {e}")
+       
         # Convert list of vectors into a numpy array for easier computation
         clip_vectors_np = np.array(clip_vectors)
 
@@ -73,11 +73,15 @@ def main():
         max_vector = np.max(clip_vectors_np, axis=0)
         min_vector = np.min(clip_vectors_np, axis=0)
 
+        # calculate covariance matrix
+        covariance_matrix = np.cov(clip_vectors, rowvar=False)
+
         stats = {
             "mean": mean_vector.tolist(),
             "std": std_vector.tolist(),
             "max": max_vector.tolist(),
             "min": min_vector.tolist(),
+            "cov_matrix": covariance_matrix.tolist()
         }
 
         stats_msgpack = msgpack.packb(stats)

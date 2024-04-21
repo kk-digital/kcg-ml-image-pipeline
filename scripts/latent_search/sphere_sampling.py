@@ -34,6 +34,8 @@ def parse_args():
         parser.add_argument('--total-spheres', type=int, help='Number of random spheres to rank', default=500000)
         parser.add_argument('--selected-spheres', type=int, help='Number of spheres to sample from', default=10)
         parser.add_argument('--batch-size', type=int, help='Inference batch size used by the scoring model', default=256)
+        parser.add_argument('--steps', type=int, help='Optimization steps', default=200)
+        parser.add_argument('--learning-rate', type=float, help='Optimization learning rate', default=0.001)
         parser.add_argument('--send-job', action='store_true', default=False)
         parser.add_argument('--save-csv', action='store_true', default=False)
         parser.add_argument('--sampling-policy', type=str, default="top-k-sphere-sampling")
@@ -52,6 +54,8 @@ class SphereSamplingGenerator:
                 total_spheres,
                 selected_spheres,
                 batch_size,
+                steps,
+                learning_rate,
                 sampling_policy,
                 send_job=False,
                 save_csv=False,
@@ -68,6 +72,8 @@ class SphereSamplingGenerator:
             self.selected_spheres= selected_spheres
             self.selected_spheres= selected_spheres
             self.batch_size= batch_size
+            self.steps= steps
+            self.learning_rate= learning_rate
             self.sampling_policy= sampling_policy
             self.optimize_spheres= optimize_spheres
             self.optimize_samples= optimize_samples
@@ -133,7 +139,7 @@ class SphereSamplingGenerator:
         spheres = torch.cat([sphere_centers, radii], dim=1)
         return spheres
     
-    def rank_and_optimize_spheres(self):
+    def rank_and_optimize_spheres(self, num_images):
         generated_spheres = self.generate_spheres()
         
         # Predict average scores for each sphere
@@ -144,23 +150,15 @@ class SphereSamplingGenerator:
         sorted_indexes = torch.argsort(scores.squeeze(), descending=True)[:int(self.total_spheres * self.top_k)]
         top_spheres = generated_spheres[sorted_indexes]
         # select n random spheres from the top k spheres
-        indices = torch.randperm(top_spheres.size(0))[:self.selected_spheres]
+        indices = torch.randperm(top_spheres.size(0))[:num_images]
         selected_spheres = top_spheres[indices]
-
-        # evaluate distances
-        print("Before optimization:")
-        self.evaluate_distances(selected_spheres[:,:1280])
 
         # Optimization step
         if(self.optimize_spheres):
             selected_spheres = self.optimize_datapoints(selected_spheres, self.sphere_scoring_model)
             selected_spheres= torch.stack(selected_spheres)
-        
-        # evaluate distances after optimization
-        print("After optimization:")
-        self.evaluate_distances(selected_spheres[:,:1280])
 
-        return selected_spheres.squeeze(1)
+        return selected_spheres[:,:1280]
     
     def evaluate_distances(self, spheres):
         spheres = spheres.cpu().numpy()
@@ -282,9 +280,9 @@ class SphereSamplingGenerator:
             batch_embeddings = clip_vectors[start_idx:end_idx].clone().detach().requires_grad_(True)
             
             # Setup the optimizer for the current batch
-            optimizer = optim.Adam([batch_embeddings], lr=0.001)
+            optimizer = optim.Adam([batch_embeddings], lr=self.learning_rate)
             
-            for step in range(200):
+            for step in range(self.steps):
                 optimizer.zero_grad()
 
                 # Compute scores for the current batch of embeddings
@@ -311,10 +309,12 @@ class SphereSamplingGenerator:
     
     def generate_images(self, num_images):
         # generate clip vectors
-        if self.sphere_type=="uniform":
-            clip_vectors= self.uniform_sampling(num_samples=num_images)
-        elif self.sphere_type=="directional":
-            clip_vectors= self.directional_uniform_sampling(num_samples=num_images)
+        # if self.sphere_type=="uniform":
+        #     clip_vectors= self.uniform_sampling(num_samples=num_images)
+        # elif self.sphere_type=="directional":
+        #     clip_vectors= self.directional_uniform_sampling(num_samples=num_images)
+
+        clip_vectors= self.rank_and_optimize_spheres(num_images=num_images)
         
         # Optimization step
         if(self.optimize_samples):
@@ -383,6 +383,8 @@ def main():
                                         total_spheres= args.total_spheres,
                                         selected_spheres= args.selected_spheres,
                                         batch_size= args.batch_size,
+                                        steps= args.steps,
+                                        learning_rate= args.learning_rate,
                                         sampling_policy= args.sampling_policy,
                                         send_job= args.send_job,
                                         save_csv= args.save_csv,
