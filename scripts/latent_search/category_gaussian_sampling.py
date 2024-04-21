@@ -313,7 +313,8 @@ class SphereSamplingGenerator:
         # get sampled datapoint scores
         classifier_scores = self.classifier_model.model(clip_vectors)
         quality_scores = self.scoring_model.model(clip_vectors)
-        scores = classifier_scores + quality_scores
+        # scores = classifier_scores + quality_scores
+        scores = classifier_scores
         # get top scoring datapoints
         _, sorted_indices = torch.sort(scores.squeeze(), descending=True)
 
