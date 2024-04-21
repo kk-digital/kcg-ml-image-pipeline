@@ -116,7 +116,7 @@ class ImageScorer:
 
             # Filter the objects to get only those that end with the chosen suffix
             type_paths = [obj for obj in all_objects if obj.endswith(file_suffix)]
-            if len(type_paths) > 500000:
+            if len(type_paths) > 100000:
                 break
 
         print("Total paths found=", len(type_paths))
@@ -128,7 +128,7 @@ class ImageScorer:
         file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "_embedding.msgpack"
         for dataset in self.datasets:
             completed_jobs.extend(request.http_get_completed_job_by_dataset(dataset=dataset))
-            if len(completed_jobs) > 500000:
+            if len(completed_jobs) > 100000:
                 break
         image_paths = []
         for job in completed_jobs:
@@ -451,7 +451,7 @@ def run_image_scorer(minio_client,
 
     # list of clip ve
     list_load_clip_vector_count = [1024]
-    for i in range(increment, 500000, increment):
+    for i in range(increment, 100000, increment):
         list_load_clip_vector_count.append(i)
 
     print("Getting paths of clip vector is done!")
