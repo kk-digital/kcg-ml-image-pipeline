@@ -451,7 +451,7 @@ def run_image_scorer(minio_client,
 
     # list of clip ve
     list_load_clip_vector_count = [1024]
-    for i in range(0, 500000, increment):
+    for i in range(increment, 500000, increment):
         list_load_clip_vector_count.append(i)
 
     print("Getting paths of clip vector is done!")
