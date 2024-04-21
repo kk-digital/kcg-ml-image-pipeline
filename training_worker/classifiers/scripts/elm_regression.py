@@ -40,8 +40,12 @@ def train_classifier(minio_ip_addr=None,
     input_shape = 2 * 768
     if input_type in [constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE, constants.CLIP]:
         input_shape = 768
+    if input_type in [constants.CLIP_WITH_LENGTH]:
+        input_shape = 769
     if input_type in [constants.KANDINSKY_CLIP]:
         input_shape = 1280
+    if input_type in [constants.KANDINSKY_CLIP_WITH_LENGTH]:
+        input_shape = 1281
 
     # load data
     tag_loader = TaggedDatasetLoader(minio_ip_addr=minio_ip_addr,
@@ -178,5 +182,6 @@ def train_classifier(minio_ip_addr=None,
                                                     creation_time=date_now)
     cmd.upload_data(tag_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
 
-    # add model card
-    request.http_add_classifier_model(model_card)
+    # save model to mongodb if its input type is clip-h
+    if(input_type==constants.KANDINSKY_CLIP):
+        request.http_add_classifier_model(model_card)

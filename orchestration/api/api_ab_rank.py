@@ -23,7 +23,7 @@ async def add_new_rank_model_model(request: Request, rank_model_data: RankReques
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
 
-        classifier_info = request.app.classifier_models_collection.find_one({"classifier_id": rank_model_data.classifier_id}, {"model_path": 1})
+        classifier_info = request.app.classifier_models_collection.find_one({"classifier_id": rank_model_data.classifier_id})
         if not classifier_info:
             return response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS,
@@ -31,8 +31,6 @@ async def add_new_rank_model_model(request: Request, rank_model_data: RankReques
                 http_status_code=400
             )
             
-        model_path = classifier_info.get("model_path", None)  
-
 
         # Check for existing rank_model_category_id
         if rank_model_data.rank_model_category_id is not None:
@@ -79,7 +77,6 @@ async def add_new_rank_model_model(request: Request, rank_model_data: RankReques
             "rank_model_id": new_rank_model_id,
             "rank_model_string": rank_model_data.rank_model_string,
             "classifier_id": rank_model_data.classifier_id,
-            "model_path": model_path,
             "rank_model_category_id": rank_model_data.rank_model_category_id,
             "rank_model_description": rank_model_data.rank_model_description,
             "rank_model_vector_index": rank_model_data.rank_model_vector_index if rank_model_data.rank_model_vector_index is not None else -1,
@@ -141,8 +138,7 @@ async def update_rank_model_model(request: Request, rank_model_id: int, update_d
 
     if update_data.classifier_id:
         classifier_info = request.app.classifier_models_collection.find_one(
-            {"classifier_id": update_data.classifier_id},
-            {"model_path": 1}
+            {"classifier_id": update_data.classifier_id}
         )
         if not classifier_info:
             return response_handler.create_error_response_v1(
@@ -150,7 +146,6 @@ async def update_rank_model_model(request: Request, rank_model_id: int, update_d
                 error_string="The provided classifier ID does not exist.",
                 http_status_code=400
             )
-        update_fields['model_path'] = classifier_info.get("model_path")
 
     if 'rank_model_vector_index' in update_fields:
         index_query = {"rank_model_vector_index": update_fields['rank_model_vector_index']}
@@ -341,7 +336,6 @@ def get_rank_model_list_for_image(request: Request, file_hash: str):
                     "rank_model_id": rank_models["rank_model_id"],
                     "rank_model_string": rank_models["rank_model_string"],
                     "classifier_id": rank_models["classifier_id"],
-                    "model_path": rank_models["model_path"],
                     "rank_model_category_id": rank_models.get("rank_model_category_id"),
                     "rank_model_description": rank_models["rank_model_description"],
                     "rank_model_vector_index": rank_models.get("rank_model_vector_index", -1),
@@ -854,3 +848,37 @@ def update_rank_model_category_deprecated_status(request: Request, rank_model_ca
         response_data= updated_rank_model_category, 
         http_status_code=200,
     )
+
+@router.delete("/rank-models/remove-all-model-paths", 
+               response_model=StandardSuccessResponseV1[dict],
+               status_code=200,
+               tags=["rank-model-management"],
+               description="Removes the model_path field from all rank models",
+               responses=ApiResponseHandlerV1.listErrors([400, 500]))
+async def remove_all_model_paths(request: Request):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Remove the model_path field from all documents in the collection
+        update_result = request.app.rank_model_models_collection.update_many(
+            {},  # This empty query matches all documents
+            {"$unset": {"model_path": ""}}  # Remove the model_path field
+        )
+
+        if update_result.modified_count == 0:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.INVALID_PARAMS,
+                error_string="No documents were updated, possibly they already lack a model_path.",
+                http_status_code=404
+            )
+
+        return response_handler.create_success_response_v1(
+            response_data={"updated_count": update_result.modified_count},
+            http_status_code=200
+        )
+    
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f"Failed to remove model_path from all documents: {str(e)}",
+            http_status_code=500
+        )

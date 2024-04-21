@@ -299,6 +299,12 @@ def startup_db_client():
     ]
     create_index_if_not_exists(app.image_classifier_scores_collection , classifier_image_uuid_index, 'classifier_image_uuid_index')
 
+    classifier_task_score_index = [
+    ('classifier_id', pymongo.ASCENDING),
+    ('task_type', pymongo.ASCENDING),
+    ('score', pymongo.DESCENDING) 
+    ]
+    create_index_if_not_exists(app.image_classifier_scores_collection, classifier_task_score_index, 'classifier_task_score_index')
 
     # sigma scores
     app.image_sigma_scores_collection = app.mongodb_db["image-sigma-scores"]
