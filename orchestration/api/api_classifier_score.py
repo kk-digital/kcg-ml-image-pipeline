@@ -5,6 +5,8 @@ from fastapi.encoders import jsonable_encoder
 import uuid
 from typing import Optional
 from datetime import datetime
+import time
+
 
 
 router = APIRouter()
@@ -686,7 +688,9 @@ async def list_image_scores(
     random_sampling: bool = Query(True, description="Enable random sampling")
 ):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
+    start_time = time.time()  # Start time tracking
 
+    print("Building query...")
     # Build the query based on provided filters
     query = {}
     if classifier_id is not None:
@@ -700,6 +704,8 @@ async def list_image_scores(
     elif max_score is not None:
         query["score"] = {"$lte": max_score}
 
+    print("Query built. Time taken:", time.time() - start_time)
+
     # Modify behavior based on random_sampling parameter
     if random_sampling:
         # Fetch data without sorting when random_sampling is True
@@ -712,6 +718,8 @@ async def list_image_scores(
         sort_order = 1 if order == "asc" else -1
         cursor = request.app.image_classifier_scores_collection.find(query).sort([("score", sort_order)]).skip(offset).limit(limit)
     
+    print("Data fetched. Time taken:", time.time() - start_time)
+
     scores_data = list(cursor)
 
     # Remove _id in response data
@@ -720,6 +728,8 @@ async def list_image_scores(
 
     # Prepare the data for the response
     images_data = ListClassifierScore1(images=[ClassifierScoreV1(**doc).to_dict() for doc in scores_data]).dict()
+
+    print("Returning response. Total time:", time.time() - start_time)
 
     # Return the fetched data with a success response
     return response_handler.create_success_response_v1(
