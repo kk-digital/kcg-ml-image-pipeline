@@ -180,7 +180,7 @@ class ImageScorer:
         msgpack_data = cmd.get_file_from_minio(self.minio_client, 'datasets', path)
         if not msgpack_data:
             print(f"No msgpack file found at path: {path}")
-            return None, None, None, None, index
+            return None, path, None, None, index, None
 
         data = msgpack.unpackb(msgpack_data.data)
 
