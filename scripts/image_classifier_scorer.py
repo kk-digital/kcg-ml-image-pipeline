@@ -23,6 +23,7 @@ from training_worker.classifiers.models.logistic_regression import LogisticRegre
 from utility.http import model_training_request
 from utility.http import request
 from utility.minio import cmd
+from utility.path import separate_bucket_and_file_path
 
 class ImageScorer:
     def __init__(self,
@@ -97,22 +98,25 @@ class ImageScorer:
             return False
         return True
 
-    def get_paths(self):
+
+    
+    def get_paths_from_mongodb(self):
         print("Getting paths for dataset: {}...".format(self.dataset))
-        if self.model_input_type in self.image_paths_cache:
-            return self.image_paths_cache[self.model_input_type]
-        all_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', self.dataset)
+        completed_jobs = request.http_get_completed_job_by_dataset(dataset=self.dataset)
+        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "_embedding.msgpack"
 
-        # Depending on the model type, choose the appropriate msgpack files
-        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "embedding.msgpack"
+        image_paths = []
+        for job in completed_jobs:
+            try:
+                if job["task_output_file_dict"]["output_file_path"].endswith(".jpg"):
+                    _, path = separate_bucket_and_file_path(job["task_output_file_dict"]["output_file_path"].replace(".jpg", file_suffix))
+                    image_paths.append(path)
+            except Exception as e:
+                print("Error to get image path from mongodb: {}".format(e))
 
-        # Filter the objects to get only those that end with the chosen suffix
-        type_paths = [obj for obj in all_objects if obj.endswith(file_suffix)]
+        print("Total paths found=", len(image_paths))
+        return image_paths
 
-        self.image_paths_cache[self.model_input_type] = type_paths
-
-        print("Total paths found=", len(type_paths))
-        return type_paths
 
     def get_feature_data(self, job_uuids):
         data = request.http_get_completed_jobs_by_uuids(job_uuids)
@@ -648,7 +652,7 @@ def run_image_scorer(minio_client,
         if not is_loaded:
             continue
 
-        paths = scorer.get_paths()
+        paths = scorer.get_paths_from_mongodb()
         print(paths)
         features_data, image_paths = scorer.get_all_feature_pairs(paths)
         
