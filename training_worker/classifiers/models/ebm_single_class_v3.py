@@ -1769,11 +1769,11 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 model_list = []
 
-
+model_1_name = "concept-nature" # "concept-cybernetic" 
 model_1=EBM_Single_Class(minio_access_key=args.minio_access_key,
                             minio_secret_key=args.minio_secret_key,
                             dataset= args.dataset,
-                            class_name= "concept-cybernetic" ,
+                            class_name= model_1_name,
                             model = None,
                             save_name = args.save_name,
                             class_id =  get_tag_id_by_name(args.class_name),
@@ -1786,7 +1786,7 @@ model_1=EBM_Single_Class(minio_access_key=args.minio_access_key,
 # Load the last occult trained model
 
 
-model_1.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name ="concept-cybernetic", model_type = "energy-based-model")
+model_1.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =model_1_name, model_type = "energy-based-model")
 
 model_list.append(model_1)
 
