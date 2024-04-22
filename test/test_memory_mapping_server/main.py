@@ -68,7 +68,7 @@ def initialize():
 
     # Create memory-mapped array
     filename = 'clip_vectors.dat'
-    shape = (1000, 1280)
+    shape = (10000, 1280)
     dtype = np.float16
 
     with open(filename, 'w+b') as f:
