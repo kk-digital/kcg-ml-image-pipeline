@@ -46,13 +46,13 @@ def main(increment, max_num):
                     cache_info["count_requested"],
                     format_duration(sum(elapsed_time_list)),
                     format(sum(test_count_clip_vectors) / sum(elapsed_time_list), ".4f")
-                )))
+                )), fontsize=10)
     
     plt.plot(test_count_clip_vectors, elapsed_time_list, marker='o')
     plt.xlabel("Count of clip vectors")
     plt.ylabel("Elapsed time")
 
-    plt.subplots_adjust(left=0.3)
+    plt.subplots_adjust(left=0.4)
 
     plt.title("Test speed of loading from memory mapping file")
 
