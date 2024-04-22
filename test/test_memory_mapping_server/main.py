@@ -46,7 +46,7 @@ async def cache_info(request: Request):
     return {
         "data": {
             "num_clip_vectors_stored": len(request.app.mmapped_array),
-            "size_of_mem_mapped_file": request.app.mmapped_array.nbytes,
+            "size_of_mem_mapped_file": request.app.mmapped_array.nbytes / (1024.0**3),
             "count_requested": request.app.count_requested
         }
     }
