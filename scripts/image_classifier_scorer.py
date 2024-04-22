@@ -34,7 +34,7 @@ class ImageScorer:
         self.dataset = dataset_name
         self.model_name = None
         self.model_input_type = None
-        self.model_input_type_list = ["embedding-negative", "embedding-positive", "embedding", "clip"]
+        self.model_input_type_list = ["embedding-negative", "embedding-positive", "embedding", "clip-h", "clip"]
 
         self.image_paths_cache = {}
         self.image_all_feature_pairs_cache = {}
@@ -62,7 +62,7 @@ class ImageScorer:
         self.model_input_type = None
 
         for input_type in self.model_input_type_list:
-            if input_type in classifier_model_info["classifier_name"]:
+            if classifier_model_info["classifier_name"].endswith(input_type):
                 self.model_input_type = input_type
                 break
         if self.model_input_type == None:
@@ -104,7 +104,12 @@ class ImageScorer:
         all_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', self.dataset)
 
         # Depending on the model type, choose the appropriate msgpack files
-        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "embedding.msgpack"
+        if self.model_input_type == "clip":
+            file_suffix = "_clip.msgpack"
+        elif self.model_input_type == "clip-h":
+            file_suffix = "_clip_kandinsky.msgpack"
+        else: 
+            file_suffix = "embedding.msgpack"
 
         # Filter the objects to get only those that end with the chosen suffix
         type_paths = [obj for obj in all_objects if obj.endswith(file_suffix)]
@@ -187,9 +192,22 @@ class ImageScorer:
 
             # clip image hash isn't in clip.msgpack so get it from _data.msgpack
             data_msgpack = cmd.get_file_from_minio(self.minio_client, 'datasets',
-                                                   path.replace("clip.msgpack", "data.msgpack"))
+                                                   path.replace(f"clip.msgpack", "data.msgpack"))
             if not data_msgpack:
                 print("No msgpack file found at path: {}".format(path.replace("clip.msgpack", "data.msgpack")))
+                return None
+
+            data = msgpack.unpackb(data_msgpack.data)
+        
+        elif self.model_input_type == "clip-h":
+            clip_feature = data['clip-feature-vector']
+            first_feature = torch.tensor(np.array(clip_feature)).float()
+
+            # clip image hash isn't in clip.msgpack so get it from _data.msgpack
+            data_msgpack = cmd.get_file_from_minio(self.minio_client, 'datasets',
+                                                   path.replace(f"clip_kandinsky.msgpack", "data.msgpack"))
+            if not data_msgpack:
+                print("No msgpack file found at path: {}".format(path.replace("clip_kandinsky.msgpack", "data.msgpack")))
                 return None
 
             data = msgpack.unpackb(data_msgpack.data)
@@ -197,7 +215,7 @@ class ImageScorer:
         image_hash = data['file_hash']
         job_uuid = data['job_uuid']
 
-        if self.model_input_type == "clip":
+        if self.model_input_type in ["clip", "clip-h"]:
             image_path = data['file_path'].replace("_data.msgpack", ".jpg")
         else:
             image_path = data['file_path'].replace("_embedding.msgpack", ".jpg")
@@ -281,7 +299,7 @@ class ImageScorer:
                         negative_embedding_array = torch.cat(negative_embedding_array, dim=0).to(self.device)
 
                         score = self.model.predict_positive_or_negative_only_pooled(negative_embedding_array).squeeze()
-                    elif self.model_input_type == "clip":
+                    elif self.model_input_type in ["clip", "clip-h"]:
                          
                         clip_feature_vector = []
                         image_hash = []
@@ -404,20 +422,16 @@ class ImageScorer:
         print("Uploading scores to mongodb...")
         with ThreadPoolExecutor(max_workers=50) as executor:
             futures = []
-            len_hash_score_pairs = len(hash_score_pairs)
-            for start_index in tqdm(range(0, len_hash_score_pairs, self.batch_size)):
-                pairs = hash_score_pairs[start_index:min(start_index+self.batch_size, len_hash_score_pairs)]
-                score_data_list = []
-                for pair in pairs:
-                    # upload score
-                    score_data_list.append({
-                        "job_uuid": job_uuids_hash_dict[pair[0]],
-                        "classifier_id": self.classifier_id,
-                        "score": pair[1],
-                    })
-                futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data_list))
+            for pair in hash_score_pairs:
+                # upload score
+                score_data= {
+                    "job_uuid": job_uuids_hash_dict[pair[0]],
+                    "classifier_id": self.classifier_id,
+                    "score": pair[1],
+                }
+                futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data))
 
-            for _ in tqdm(as_completed(futures), total=len(hash_score_pairs)//self.batch_size + 1):
+            for _ in tqdm(as_completed(futures), total=len(hash_score_pairs)):
                 continue
 
     def get_classifier_id_and_name(self, classifier_file_path):
