@@ -60,10 +60,11 @@ def main():
 
         result.append({
             "number of clip vector": data.size(0),
+            "dimension of clip vector": data.size(1),
             "dimension": data.size(1),
             "mle_id": d1,
             "twonn_numpy": d2,
-            "twonn_pytorch": d3
+            "twonn_pytorch": d3,
         })
     print(result)
 
