@@ -136,20 +136,20 @@ class ImageScorer:
         else: 
             file_suffix = "_embedding.msgpack"
 
-        image_paths = []
+        data_paths = []
         for job in completed_jobs:
             try:
                 if job["task_output_file_dict"]["output_file_path"].endswith(".jpg"):
                     # Rename the jpg file name into appropriate msgpack file name
                     _, path = separate_bucket_and_file_path(job["task_output_file_dict"]["output_file_path"].replace(".jpg", file_suffix))
-                    image_paths.append(path)
+                    data_paths.append(path)
             except Exception as e:
                 print("Error to get image path from mongodb: {}".format(e))
         
-        self.image_paths_cache[self.model_input_type] = image_paths
+        self.data_paths_cache[self.model_input_type] = data_paths
 
-        print("Total paths found=", len(image_paths))
-        return image_paths
+        print("Total paths found=", len(data_paths))
+        return data_paths
         
 
     def get_feature_data(self, job_uuids):
