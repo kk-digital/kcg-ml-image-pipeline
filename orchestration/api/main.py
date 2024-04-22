@@ -250,11 +250,12 @@ def startup_db_client():
     app.image_hashes_collection = app.mongodb_db["image_hashes"]
 
     # Initialize next_image_global_id with the maximum value from the collection
-    image_hash_with_max_global_id = app.image_hashes_collection.find_one(sort=[("image_global_id", pymongo.DESCENDING)])["image_global_id"]
-    if image_hash_with_max_global_id:
-        app.max_image_global_id = image_hash_with_max_global_id["image_global_id"]
+    if app.image_hashes_collection is not None:
+        max_image_doc = app.image_hashes_collection.find_one(sort=[("image_global_id", pymongo.DESCENDING)])
+        app.max_image_global_id = max_image_doc["image_global_id"] if max_image_doc else 0
     else:
         app.max_image_global_id = 0
+        
     scores_index=[
     ('model_id', pymongo.ASCENDING), 
     ('score', pymongo.ASCENDING)
