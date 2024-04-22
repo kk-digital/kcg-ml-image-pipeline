@@ -131,11 +131,11 @@ class RapidlyExploringTreeSearch:
         data_dict = msgpack.unpackb(data)
 
         # Convert to PyTorch tensors
-        mean_vector = torch.tensor(data_dict["mean"], dtype=torch.float32).unsqueeze(0)
-        std_vector = torch.tensor(data_dict["std"], dtype=torch.float32).unsqueeze(0)
-        max_vector = torch.tensor(data_dict["max"], dtype=torch.float32).unsqueeze(0)
-        min_vector = torch.tensor(data_dict["min"], dtype=torch.float32).unsqueeze(0)
-        covariance_matrix = torch.tensor(data_dict["cov_matrix"], dtype=torch.float32)
+        mean_vector = torch.tensor(data_dict["mean"], dtype=torch.float32, device=self.device).unsqueeze(0)
+        std_vector = torch.tensor(data_dict["std"], dtype=torch.float32, device=self.device).unsqueeze(0)
+        max_vector = torch.tensor(data_dict["max"], dtype=torch.float32, device=self.device).unsqueeze(0)
+        min_vector = torch.tensor(data_dict["min"], dtype=torch.float32, device=self.device).unsqueeze(0)
+        covariance_matrix = torch.tensor(data_dict["cov_matrix"], dtype=torch.float32, device=self.device)
 
         return mean_vector, std_vector, max_vector, min_vector, covariance_matrix
     
@@ -270,8 +270,8 @@ class RapidlyExploringTreeSearch:
         if self.sampling_policy=="rapidly_exploring_tree_search":
             faiss_index = self.setup_faiss(all_nodes)
 
-        all_classifier_scores = torch.tensor([], dtype=torch.float32)
-        all_ranking_scores = torch.tensor([], dtype=torch.float32)
+        all_classifier_scores = torch.tensor([], dtype=torch.float32, device=self.device)
+        all_ranking_scores = torch.tensor([], dtype=torch.float32, device=self.device)
 
         # generate covariance matrix
         covariance_matrix = torch.diag((self.clip_std.pow(2) * jump_distance).squeeze(0))
@@ -387,8 +387,6 @@ class RapidlyExploringTreeSearch:
         minio_path=f"{self.dataset}/output/tree_search/graph.png"
         reducer = umap.UMAP(random_state=42)
         tree= torch.stack(tree).cpu().numpy()
-        print(tree.shape)
-        print(len(labels))
         umap_embeddings = reducer.fit_transform(tree)
 
         # Convert labels to categorical type for color mapping
