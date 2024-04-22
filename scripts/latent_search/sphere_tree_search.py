@@ -12,6 +12,7 @@ import faiss
 import umap
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -202,7 +203,7 @@ class RapidlyExploringTreeSearch:
         # Sampling from a multivariate Gaussian distribution
         distribution = torch.distributions.MultivariateNormal(point, covariance_matrix)
         clip_vectors = distribution.sample((num_samples,))
-        clip_vectors = torch.clamp(clip_vectors, self.clip_min, self.clip_max)
+        clip_vectors = torch.clamp(clip_vectors, self.clip_min, self.clip_max).to(self.device)
 
         return clip_vectors
 
@@ -215,17 +216,17 @@ class RapidlyExploringTreeSearch:
         # filter datapoints
         filtered_points= points[filtered_indices]
 
-        return filtered_points.detach().cpu()
+        return filtered_points
 
     def score_points(self, points):
         points= points.to(device=self.device)
         scores= self.scoring_model.predict(points, batch_size=1000)
-        return scores.detach().cpu()
+        return scores
     
     def classifiy_points(self, points):
         points= points.to(device=self.device)
         scores= self.classifier_model.predict(points, batch_size=points.size(0))
-        return scores.detach().cpu()
+        return scores
     
     def rank_points_by_distance(self, nodes, faiss_index):
         # calculate ranking and classifier scores
@@ -394,12 +395,17 @@ class RapidlyExploringTreeSearch:
         label_to_color = {label: idx for idx, label in enumerate(unique_labels)}
         color_labels = [label_to_color[label] for label in labels]
 
+        # Generate a color map with a distinct color for each unique label
+        colors = plt.cm.get_cmap('viridis', len(unique_labels))
+
         plt.figure(figsize=(10, 8))
         scatter = plt.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], c=color_labels, cmap='viridis', alpha=0.6)
-        # Create a color bar with label names
-        cbar = plt.colorbar(scatter, ticks=np.arange(len(unique_labels)))
-        cbar.ax.set_yticklabels(unique_labels)  # Set text labels for the color bar
-        cbar.set_label('Classifier Labels')
+
+        # Generate custom artist/legend pairs
+        legend_elements = [plt.Line2D([0], [0], marker='o', color='w', label=label,
+                                    markerfacecolor=colors(idx / len(unique_labels)), markersize=10)
+                        for idx, label in enumerate(unique_labels)]
+        plt.legend(handles=legend_elements, loc='best', title='Classifier Labels')
         
         plt.title('UMAP Projection of CLIP Vectors, Clustered by topic')
         plt.xlabel('UMAP Dimension 1')
