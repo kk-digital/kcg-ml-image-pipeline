@@ -13,8 +13,8 @@ def format_duration(seconds):
     minutes, seconds = divmod(remainder, 60)
     formatted_time = ""
     formatted_time += f"{hours}h " if hours > 0 else ""
-    formatted_time += f"{minutes}h " if minutes > 0 else ""
-    formatted_time += f"{seconds}h " if seconds > 0 else "0s"
+    formatted_time += f"{minutes}m " if minutes > 0 else ""
+    formatted_time += f"{seconds}s " if seconds > 0 else "0s"
     return formatted_time
 
 def main(increment, max_num):
