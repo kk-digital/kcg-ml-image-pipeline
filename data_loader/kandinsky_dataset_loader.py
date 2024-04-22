@@ -169,18 +169,17 @@ class KandinskyDatasetLoader:
         for job in tqdm(jobs):
 
             try:
-                path= job['file_path']
-                file_path = os.path.splitext(path)[0]
+                file_path= job['file_path']
+                file_path = os.path.splitext(file_path)[0] + "_vae_latent.msgpack"
 
-                clip_path = file_path + "_vae_latent.msgpack"
-                bucket, features_vector_path = separate_bucket_and_file_path(clip_path)
+                bucket, features_vector_path = separate_bucket_and_file_path(file_path)
 
                 features_data = get_object(self.minio_client, features_vector_path)
                 features = msgpack.unpackb(features_data)["latent_vector"]
                 features = torch.tensor(features)
                 latents.append(features)
             except Exception as e:
-                print(f"Error processing clip at path {path}: {e}")
+                print(f"Error processing clip at path {features_vector_path}: {e}")
 
         return latents, 
     
