@@ -533,7 +533,7 @@ def update_completed_jobs_for_safe_delete(request: Request):
     total_count_no_tag = 0
     total_count_no_rank = 0
     
-    completed_jobs = request.app.completed_jobs_collection.find({})
+    completed_jobs = list(request.app.completed_jobs_collection.find({}))
 
     request.app.completed_jobs_collection.update_many({}, {
         "$set": {
@@ -547,7 +547,7 @@ def update_completed_jobs_for_safe_delete(request: Request):
         tag_list_response = get_tag_list_for_image_v1(request, image_hash)
         ranking_list_response = get_image_rank_use_count_v1(request, image_hash)
         try:
-            if tag_list_response["request_error_code"] == 0 and ranking_list_response["request_error_code" == 0]:
+            if tag_list_response["request_error_code"] == 0 and ranking_list_response["request_error_code"] == 0:
                 tag_count = len(tag_list_response["response"]["tags"])
                 ranking_count = ranking_list_response["response"]["count"]
 
