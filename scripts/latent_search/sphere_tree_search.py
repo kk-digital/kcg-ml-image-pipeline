@@ -388,11 +388,12 @@ class RapidlyExploringTreeSearch:
         reducer = umap.UMAP(random_state=42)
         tree= torch.stack(tree).cpu().numpy()
         print(tree.shape)
+        print(len(labels))
         umap_embeddings = reducer.fit_transform(tree)
 
         # Convert labels to categorical type for color mapping
         unique_labels = np.unique(labels)
-        label_to_color = {label: idx for idx, label in enumerate(labels)}
+        label_to_color = {label: idx for idx, label in enumerate(unique_labels)}
         color_labels = [label_to_color[label] for label in labels]
 
         plt.figure(figsize=(10, 8))
