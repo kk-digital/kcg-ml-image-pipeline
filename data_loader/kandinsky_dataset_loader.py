@@ -176,7 +176,7 @@ class KandinskyDatasetLoader:
 
                 features_data = get_object(self.minio_client, features_vector_path)
                 features = msgpack.unpackb(features_data)["latent_vector"]
-                features = torch.tensor(features)
+                features = torch.tensor(features).to(device=self.device)
                 latents.append(features)
             except Exception as e:
                 print(f"Error processing clip at path {features_vector_path}: {e}")

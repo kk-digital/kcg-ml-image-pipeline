@@ -51,9 +51,12 @@ def main():
         if len(all_feature_vectors) >= max(list_clip_vector_num):
             break
     result = []
+
+    print("length", len(all_feature_vectors))
+
     for clip_vector_num in list_clip_vector_num:
         data = torch.tensor(all_feature_vectors[:clip_vector_num])
-
+        print("shape", data.size())
         d1 = mle_id(data, k=2)
         d2 = twonn_numpy(data.numpy(), return_xy=False)
         d3 = twonn_pytorch(data, return_xy=False)
