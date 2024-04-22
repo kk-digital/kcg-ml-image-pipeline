@@ -3,6 +3,7 @@ from typing import List, Union, Optional
 import json
 import re
 from typing import Union
+import bson
 
 class Task(BaseModel):
     task_type: str
@@ -255,6 +256,25 @@ class ClassifierScore(BaseModel):
             "score": self.score,
         }
 
+
+class ImageHash(BaseModel):
+    image_hash: str
+    image_global_id: int
+
+    def to_dict_for_mongodb(self):
+        return {
+            "image_hash": self.image_hash,
+            "image_global_id":  bson.int64.Int64(self.image_global_id)
+        }
+    
+    def to_dict(self):
+        return {
+            "image_hash": self.image_hash,
+            "image_global_id": self.image_global_id,
+        }
+
+class ImageHashRequest(BaseModel):
+    image_hash: str
 
 class ClassifierScoreV1(BaseModel):
     uuid: Union[str, None]
