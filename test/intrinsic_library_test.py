@@ -18,7 +18,7 @@ def parse_args():
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--minio-addr', type=str, help='Minio address')
     parser.add_argument('--data-type', type=str, default="clip", help='Data types to obtain intrinsic dimensions, for exmaple, clip and vae')
-
+    parser.add_argument('--num-vectors', type=int, default=1024, help="Number of vectors to get intrinsic dimensions")
     return parser.parse_args()
 
 def main():
@@ -31,7 +31,7 @@ def main():
     dataset_names = request.http_get_dataset_names()
     all_feature_vectors = []
 
-    list_clip_vector_num = [100000]
+    list_clip_vector_num = [args.num_vectors]
 
     for dataset_name in dataset_names:
         dataloader = KandinskyDatasetLoader(minio_client=minio_client, dataset=dataset_name)
