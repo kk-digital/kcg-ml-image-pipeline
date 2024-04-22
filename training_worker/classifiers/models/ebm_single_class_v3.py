@@ -1769,7 +1769,7 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 model_list = []
 
-model_1_name = "concept-nature" # "concept-cybernetic" 
+model_1_name = "concept-cybernetic"  # "concept-nature"
 model_1=EBM_Single_Class(minio_access_key=args.minio_access_key,
                             minio_secret_key=args.minio_secret_key,
                             dataset= args.dataset,
@@ -1813,7 +1813,7 @@ model_2.load_model_from_minio(minio_client, dataset_name = "environmental", tag_
 
 model_list.append(model_2)
 
-plot_samples_hashless_combination(loaded_model_list = model_list, dataset_name = "environmental", number_of_samples = 5000,tag_name ="Cybernetic_and_isometric")
+plot_samples_hashless_combination(loaded_model_list = model_list, dataset_name = "environmental", number_of_samples = 40000,tag_name ="Cybernetic_and_isometric")
 
 
 
