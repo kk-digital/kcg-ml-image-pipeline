@@ -17,7 +17,7 @@ def parse_args():
     parser.add_argument('--minio-access-key', type=str, help='Minio access key')
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--minio-addr', type=str, help='Minio address')
-    parser.add_argument('--data-type', type=str, default="clip" help='Data types to obtain intrinsic dimensions, for exmaple, clip and vae')
+    parser.add_argument('--data-type', type=str, default="clip", help='Data types to obtain intrinsic dimensions, for exmaple, clip and vae')
 
     return parser.parse_args()
 
@@ -35,7 +35,14 @@ def main():
 
     for dataset_name in dataset_names:
         dataloader = KandinskyDatasetLoader(minio_client=minio_client, dataset=dataset_name)
-        feature_vectors, _= dataloader.load_clip_vector_data(limit=max(list_clip_vector_num))
+
+        if args.data_type == "clip":
+            feature_vectors, _= dataloader.load_clip_vector_data(limit=max(list_clip_vector_num))
+        elif args.data_type == "vae":
+            feature_vectors = dataloader.load_latents(limit=max(list_clip_vector_num))
+        else:
+            print("No support data type {}".format(args.data_type))
+            return None
         all_feature_vectors.extend(feature_vectors)
         if len(all_feature_vectors) >= max(list_clip_vector_num):
             break
