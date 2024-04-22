@@ -386,7 +386,7 @@ class RapidlyExploringTreeSearch:
     def graph_datapoints(self, tree, labels):
         minio_path=f"{self.dataset}/output/tree_search/graph.png"
         reducer = umap.UMAP(random_state=42)
-        print(np.array(tree).shape)
+        print(tree[0].shape)
         umap_embeddings = reducer.fit_transform(tree)
 
         # Convert labels to categorical type for color mapping
