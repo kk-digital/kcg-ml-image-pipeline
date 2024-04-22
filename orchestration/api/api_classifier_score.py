@@ -886,3 +886,9 @@ async def delete_classifier_scores(request: Request):
         "message": f"Deleted {delete_result.deleted_count} classifier scores for irrelevant datasets"
     }
    
+
+@router.delete("/clean-classifier-score")
+def clear_classifier_scores(request: Request):
+    request.app.image_classifier_scores_collection.delete_many({})
+
+    return True
