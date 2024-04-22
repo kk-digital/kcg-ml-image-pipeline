@@ -108,8 +108,9 @@ class RapidlyExploringTreeSearch:
             self.defect_model.load_model()
 
         # load all topic classifiers
-        tag_names= request.http_get_tag_list()
+        tags= request.http_get_tag_list()
         tag_names= [tag for tag in tag_names if "topic" in tag]
+        print(tags, tag_names)
 
         self.classifier_models=[]
         for tag in tag_names:
