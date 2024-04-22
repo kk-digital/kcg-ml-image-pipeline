@@ -866,24 +866,15 @@ async def get_scores_by_image_hash(
     )
 
 
-@router.delete("/pseudotag-classifier-scores/delete-unecessary-classifier-scores", 
+@router.delete("/pseudotag-classifier-scores/delete-all-classifier-scores", 
+
              response_class=PrettyJSONResponse)
 async def delete_classifier_scores(request: Request):
-    filter_jobs = {
-        "task_input_dict.dataset": {"$ne": "environmental"}
-    }
-    jobs = request.app.completed_jobs_collection.find(filter_jobs)
-
-    # Extract UUIDs from these jobs
-    uuids_to_delete = [job['uuid'] for job in jobs]
-
-    # Delete classifier scores that have a UUID in the list from completed jobs
-    delete_result = request.app.image_classifier_scores_collection.delete_many({
-        "uuid": {"$in": uuids_to_delete}
-    })
+    # Delete all classifier scores
+    delete_result = request.app.image_classifier_scores_collection.delete_many({})
 
     return {
-        "message": f"Deleted {delete_result.deleted_count} classifier scores for irrelevant datasets"
+        "message": f"Deleted {delete_result.deleted_count} classifier scores"
     }
    
 
