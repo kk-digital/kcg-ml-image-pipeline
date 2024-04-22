@@ -34,17 +34,18 @@ def main(increment, max_num):
     if response.status_code == 200:
         cache_info = response.json()["data"]
 
+    total_elapsed_time = format_duration(int(sum(elapsed_time_list)))
     plt.figure(figsize=(10, 5))
     plt.figtext(0.02, 0.7, ("Number of clip vectors stored: {}\n"
                 "Size of memory mapped file: {}(GB)\n"
-                "Request Cound: {}\n"
+                "Request Count: {}\n"
                 "Total elapsed time: {}\n"
                 "clip vecotors/second: {}\n"
                 .format(
                     cache_info["num_clip_vectors_stored"], 
                     format(cache_info["size_of_mem_mapped_file"], ".4f"),
                     cache_info["count_requested"],
-                    format_duration(int(sum(elapsed_time_list))),
+                    total_elapsed_time,
                     format(sum(test_count_clip_vectors) / sum(elapsed_time_list), ".4f")
                 )), fontsize=10)
     
