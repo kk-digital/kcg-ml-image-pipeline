@@ -23,7 +23,6 @@ from training_worker.classifiers.models.logistic_regression import LogisticRegre
 from utility.http import model_training_request
 from utility.http import request
 from utility.minio import cmd
-from utility.path import separate_bucket_and_file_path
 
 class ImageScorer:
     def __init__(self,
@@ -92,7 +91,6 @@ class ImageScorer:
                 classifier_model_info["classifier_name"])
             self.model = loaded_model
         else:
-            loaded_model = False
             print("Not support classifier model: {}".format(classifier_model_info["classifier_name"]))
 
         if not loaded_model:
@@ -101,23 +99,22 @@ class ImageScorer:
 
 
     
-    def get_paths_from_mongodb(self):
+    def get_paths(self):
         print("Getting paths for dataset: {}...".format(self.dataset))
-        completed_jobs = request.http_get_completed_job_by_dataset(dataset=self.dataset)
-        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "_embedding.msgpack"
+        if self.model_input_type in self.image_paths_cache:
+            return self.image_paths_cache[self.model_input_type]
+        all_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', self.dataset)
 
-        image_paths = []
-        for job in completed_jobs:
-            try:
-                if job["task_output_file_dict"]["output_file_path"].endswith(".jpg"):
-                    _, path = separate_bucket_and_file_path(job["task_output_file_dict"]["output_file_path"].replace(".jpg", file_suffix))
-                    image_paths.append(path)
-            except Exception as e:
-                print("Error to get image path from mongodb: {}".format(e))
+        # Depending on the model type, choose the appropriate msgpack files
+        file_suffix = "_clip.msgpack" if self.model_input_type == "clip" else "embedding.msgpack"
 
-        print("Total paths found=", len(image_paths))
-        return image_paths
+        # Filter the objects to get only those that end with the chosen suffix
+        type_paths = [obj for obj in all_objects if obj.endswith(file_suffix)]
 
+        self.image_paths_cache[self.model_input_type] = type_paths
+
+        print("Total paths found=", len(type_paths))
+        return type_paths
 
     def get_feature_data(self, job_uuids):
         data = request.http_get_completed_jobs_by_uuids(job_uuids)
@@ -645,17 +642,15 @@ def run_image_scorer(minio_client,
     classifier_model_list = request.http_get_classifier_model_list()
     
     for classifier_model in classifier_model_list:
-        
         try:
             is_loaded = scorer.load_model(classifier_model_info=classifier_model)
         except Exception as e:
-            is_loaded = False
             print("Failed loading model, {}".format(classifier_model["model_path"]), e)
             continue
         if not is_loaded:
             continue
 
-        paths = scorer.get_paths_from_mongodb()
+        paths = scorer.get_paths()
         print(paths)
         features_data, image_paths = scorer.get_all_feature_pairs(paths)
         
