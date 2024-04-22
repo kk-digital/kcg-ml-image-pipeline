@@ -97,8 +97,6 @@ class ImageScorer:
             return False
         return True
 
-
-    
     def get_paths(self):
         print("Getting paths for dataset: {}...".format(self.dataset))
         if self.model_input_type in self.image_paths_cache:
