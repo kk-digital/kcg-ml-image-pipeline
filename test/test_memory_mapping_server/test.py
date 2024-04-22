@@ -44,7 +44,7 @@ def main(increment, max_num):
                     cache_info["num_clip_vectors_stored"], 
                     format(cache_info["size_of_mem_mapped_file"], ".4f"),
                     cache_info["count_requested"],
-                    format_duration(sum(elapsed_time_list)),
+                    format_duration(int(sum(elapsed_time_list))),
                     format(sum(test_count_clip_vectors) / sum(elapsed_time_list), ".4f")
                 )), fontsize=10)
     
