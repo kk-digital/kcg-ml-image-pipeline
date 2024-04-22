@@ -428,12 +428,12 @@ class ImageScorer:
                 # pairs = hash_score_pairs[start_index:min(start_index+self.batch_size, len_hash_score_pairs)]
                 score_data_list = []
                 # upload score
-                score_data_list.append({
+                score_data= {
                     "job_uuid": job_uuids_hash_dict[pair[0]],
                     "classifier_id": self.classifier_id,
                     "score": pair[1],
-                })
-                futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data_list))
+                }
+                futures.append(executor.submit(request.http_add_classifier_score, score_data=score_data))
 
             for _ in tqdm(as_completed(futures), total=len(hash_score_pairs)//self.batch_size + 1):
                 continue
