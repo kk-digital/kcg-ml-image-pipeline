@@ -392,7 +392,7 @@ class RapidlyExploringTreeSearch:
 
         # Convert labels to categorical type for color mapping
         unique_labels = np.unique(labels)
-        label_to_color = {label: idx for idx, label in enumerate(unique_labels)}
+        label_to_color = {label: idx for idx, label in enumerate(labels)}
         color_labels = [label_to_color[label] for label in labels]
 
         plt.figure(figsize=(10, 8))
