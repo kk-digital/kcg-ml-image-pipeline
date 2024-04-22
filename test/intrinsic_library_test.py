@@ -34,7 +34,11 @@ def main():
     list_clip_vector_num = [args.num_vectors]
 
     for dataset_name in dataset_names:
-        dataloader = KandinskyDatasetLoader(minio_client=minio_client, dataset=dataset_name)
+        try:
+            dataloader = KandinskyDatasetLoader(minio_client=minio_client, dataset=dataset_name)
+        except Exception as e:
+            print("Error in initializing kankinsky dataset loader:{}".format(e))
+            continue
 
         if args.data_type == "clip":
             feature_vectors, _= dataloader.load_clip_vector_data(limit=max(list_clip_vector_num))
@@ -46,7 +50,6 @@ def main():
         all_feature_vectors.extend(feature_vectors)
         if len(all_feature_vectors) >= max(list_clip_vector_num):
             break
-    
     result = []
     for clip_vector_num in list_clip_vector_num:
         data = torch.tensor(all_feature_vectors[:clip_vector_num])
