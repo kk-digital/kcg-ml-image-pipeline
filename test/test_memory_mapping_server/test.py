@@ -12,9 +12,9 @@ def format_duration(seconds):
     hours, remainder = divmod(seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
     formatted_time = ""
-    formatted_time += f"{hours}h "
-    formatted_time += f"{minutes}h "
-    formatted_time += f"{seconds}h "
+    formatted_time += f"{hours}h " if hours > 0 else ""
+    formatted_time += f"{minutes}h " if minutes > 0 else ""
+    formatted_time += f"{seconds}h " if seconds > 0 else "0s"
     return formatted_time
 
 def main(increment, max_num):
@@ -42,7 +42,7 @@ def main(increment, max_num):
                 "clip vecotors/second: {}\n"
                 .format(
                     cache_info["num_clip_vectors_stored"], 
-                    cache_info["size_of_mem_mapped_file"],
+                    format(cache_info["size_of_mem_mapped_file"], ".4f"),
                     cache_info["count_requested"],
                     format_duration(sum(elapsed_time_list)),
                     format(sum(test_count_clip_vectors) / sum(elapsed_time_list), ".4f")
