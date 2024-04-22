@@ -1769,7 +1769,7 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 model_list = []
 
-model_1_name = "concept-cybernetic"  # "concept-nature"
+model_1_name = "concept-nature"  # "concept-nature" "concept-cybernetic" 
 model_1=EBM_Single_Class(minio_access_key=args.minio_access_key,
                             minio_secret_key=args.minio_secret_key,
                             dataset= args.dataset,
@@ -1792,11 +1792,11 @@ model_list.append(model_1)
 
 
 
-
+model_2_name = "perspective-isometric" 
 model_2=EBM_Single_Class(minio_access_key=args.minio_access_key,
                             minio_secret_key=args.minio_secret_key,
                             dataset= args.dataset,
-                            class_name=  "perspective-isometric" ,
+                            class_name= model_2_name ,
                             model = None,
                             save_name = args.save_name,
                             class_id =  get_tag_id_by_name(args.class_name),
@@ -1809,11 +1809,13 @@ model_2=EBM_Single_Class(minio_access_key=args.minio_access_key,
 # Load the last occult trained model
 
 
-model_2.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name = "perspective-isometric", model_type = "energy-based-model")
+model_2.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name = model_2_name, model_type = "energy-based-model")
 
 model_list.append(model_2)
 
-plot_samples_hashless_combination(loaded_model_list = model_list, dataset_name = "environmental", number_of_samples = 40000,tag_name ="Cybernetic_and_isometric")
+tag_name_combined = f"{model_1_name}-and-{model_2_name}"
+
+plot_samples_hashless_combination(loaded_model_list = model_list, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_combined)
 
 
 
