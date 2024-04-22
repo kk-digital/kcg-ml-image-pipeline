@@ -408,12 +408,11 @@ class RapidlyExploringTreeSearch:
         plt.ylabel('UMAP Dimension 2')
 
         buffer = io.BytesIO()
-        plt.savefig("graph.png", buffer)
+        plt.savefig(buffer, format='png')
         buffer.seek(0)
 
         cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
         # Remove the temporary file
-        os.remove("graph.png")
     
     def optimize_datapoints(self, clip_vectors):
         # Calculate the total number of batches
