@@ -160,6 +160,30 @@ class KandinskyDatasetLoader:
         
         return feature_vectors, scores
     
+
+    def load_latents(self, limit=-1):
+        jobs= self.load_kandinsky_jobs()
+        jobs= jobs[:limit]
+        latents= []
+
+        for job in tqdm(jobs):
+
+            try:
+                path= job['file_path']
+                file_path = os.path.splitext(path)[0]
+
+                clip_path = file_path + "_vae_latent.msgpack"
+                bucket, features_vector_path = separate_bucket_and_file_path(clip_path)
+
+                features_data = get_object(self.minio_client, features_vector_path)
+                features = msgpack.unpackb(features_data)["latent_vector"]
+                features = torch.tensor(features)
+                latents.append(features)
+            except Exception as e:
+                print(f"Error processing clip at path {path}: {e}")
+
+        return latents, 
+    
     def load_classifier_scores(self, tag_name, batch_size, input_type=constants.KANDINSKY_CLIP):
         classifier= self.get_classifier_model(tag_name, input_type)
         jobs= self.load_kandinsky_jobs()
