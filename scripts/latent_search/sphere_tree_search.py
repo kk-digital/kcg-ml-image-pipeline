@@ -359,7 +359,7 @@ class RapidlyExploringTreeSearch:
     def label_nodes(self, tree):
         labels = []
         num_nodes= len(tree)
-        threshold= 0.6
+        threshold= 0.4
 
         for start_index in range(0, num_nodes, self.batch_size):
             end_index = min(start_index + self.batch_size, num_nodes)
