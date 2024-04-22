@@ -363,7 +363,7 @@ class RapidlyExploringTreeSearch:
 
         for start_index in range(0, num_nodes, self.batch_size):
             end_index = min(start_index + self.batch_size, num_nodes)
-            nodes = tree[start_index:end_index]
+            nodes = torch.stack(tree[start_index:end_index])
 
             max_scores = torch.full((self.batch_size,), fill_value=-float('inf'), dtype=torch.float32)
             max_labels = ["undefined"] * self.batch_size  # Initialize with 'undefined'
