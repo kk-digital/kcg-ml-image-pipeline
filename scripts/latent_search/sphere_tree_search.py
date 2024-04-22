@@ -109,7 +109,7 @@ class RapidlyExploringTreeSearch:
 
         # load all topic classifiers
         tags= request.http_get_tag_list()
-        tag_names= [tag['tag_string'] for tag in tags if "topic" in tag]
+        tag_names= [tag['tag_string'] for tag in tags if "topic" in tag['tag_string']]
         print(tag_names)
 
         self.classifier_models=[]
