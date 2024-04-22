@@ -56,7 +56,7 @@ def main(increment, max_num):
 
     plt.title("Test speed of loading from memory mapping file")
 
-    plt.savefig("{}_memory_mapping_server.png".format(datetime.now()))
+    plt.savefig("output/{}_memory_mapping_server.png".format(datetime.now()))
 
 
 def parse_args():
