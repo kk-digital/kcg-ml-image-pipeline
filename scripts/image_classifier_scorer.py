@@ -101,7 +101,7 @@ class ImageScorer:
         print("Getting paths for dataset: {}...".format(self.dataset))
         if self.model_input_type in self.image_paths_cache:
             return self.image_paths_cache[self.model_input_type]
-        all_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', self.dataset)
+        all_objects = cmd.get_list_of_objects_with_prefix(self.minio_client, 'datasets', f"{self.dataset}/0001")
 
         # Depending on the model type, choose the appropriate msgpack files
         if self.model_input_type == "clip":
