@@ -66,10 +66,11 @@ def initialize():
     # set the count of request as 0
     app.count_requested = 0
 
-    # Create memory-mapped array
-    filename = 'clip_vectors.dat'
     shape = (10000, 1280)
     dtype = np.float16
+
+    # Create memory-mapped array
+    filename = 'output/clip_vectors_().dat'.format(shape[0])
 
     with open(filename, 'w+b') as f:
         app.mmapped_array = np.memmap(f, dtype=dtype, mode='w+', shape=shape)
