@@ -9,6 +9,9 @@ import msgpack
 from tqdm import tqdm
 import torch.optim as optim
 import faiss
+import umap
+import numpy as np
+import matplotlib.pyplot as plt
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
@@ -20,6 +23,7 @@ from kandinsky_worker.image_generation.img2img_generator import generate_img2img
 from training_worker.classifiers.models.elm_regression import ELMRegression
 from training_worker.scoring.models.classifier_fc import ClassifierFCNetwork
 from utility.minio import cmd
+from utility.http import request
 
 def parse_args():
         parser = argparse.ArgumentParser()
@@ -44,6 +48,7 @@ def parse_args():
         parser.add_argument('--optimize-samples', action='store_true', default=False)
         parser.add_argument('--classifier-weight', type=float, default=0.5)
         parser.add_argument('--ranking-weight', type=float, default=0.5)
+        parser.add_argument('--graph-tree', action='store_true', default=False)
 
         return parser.parse_args()
 
@@ -62,6 +67,7 @@ class RapidlyExploringTreeSearch:
                  optimize_samples,
                  ranking_weight,
                  classifier_weight,
+                 graph_tree,
                  defect_tag=None):
         
         # parameters
@@ -76,6 +82,7 @@ class RapidlyExploringTreeSearch:
         self.optimize_samples= optimize_samples
         self.ranking_weight= ranking_weight
         self.classifier_weight= classifier_weight
+        self.graph_tree= graph_tree
         # get minio client
         self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
                                                 minio_secret_key=minio_secret_key)
@@ -99,6 +106,20 @@ class RapidlyExploringTreeSearch:
         if defect_tag:
             self.defect_model= ClassifierFCNetwork(minio_client=self.minio_client, tag_name=defect_tag)
             self.defect_model.load_model()
+
+        # load all topic classifiers
+        tag_names= request.http_get_tag_list()
+        tag_names= [tag for tag in tag_names if "topic" in tag]
+
+        self.classifier_models=[]
+        for tag in tag_names:
+            classifier_model= ClassifierFCNetwork(minio_client=self.minio_client, tag_name=tag)
+            model_loaded= classifier_model.load_model()
+            if model_loaded:
+                self.classifier_models.append({
+                    "model": classifier_model,
+                    "tag_name": tag
+                })
 
         # get distribution of clip vectors for the dataset
         self.clip_mean , self.clip_std, self.clip_max, self.clip_min, self.covariance_matrix= self.get_clip_distribution()
@@ -306,6 +327,11 @@ class RapidlyExploringTreeSearch:
         
         # Close the progress bar when done
         pbar.close()
+
+        # graph tree
+        if self.graph_tree:
+            labels= self.label_nodes(all_nodes)
+            self.graph_datapoints(all_nodes, labels)
         
         # After the final iteration, choose the top n highest scoring points overall
         if self.classifier_weight!=0:
@@ -328,6 +354,63 @@ class RapidlyExploringTreeSearch:
         selected_points = final_top_points[indices]
 
         return selected_points
+    
+    def label_nodes(self, tree):
+        labels = []
+        num_nodes= tree.size(0)
+        threshold= 0.6
+
+        for start_index in range(0, num_nodes, self.batch_size):
+            end_index = min(start_index + self.batch_size, num_nodes)
+            nodes = tree[start_index:end_index]
+
+            max_scores = torch.full((nodes.size(0),), fill_value=-float('inf'), dtype=torch.float32)
+            max_labels = ["undefined"] * nodes.size(0)  # Initialize with 'undefined'
+
+            # Process each batch with all classifiers
+            for model in self.classifier_models:
+                nodes = nodes.to(device=self.device)
+                scores = model["model"].predict(nodes, batch_size=nodes.size(0)).squeeze(1)
+
+                # Update labels based on scores
+                for i in range(scores.size(0)):
+                    if scores[i] > max_scores[i] and scores[i] > threshold:
+                        max_scores[i] = scores[i]
+                        max_labels[i] = model["tag_name"]  # Update label with the tag_name of the model
+
+            # Add the batch's labels to the overall list
+            labels.extend(max_labels)
+
+        return labels
+        
+    def graph_datapoints(self, tree, labels):
+        minio_path=f"{self.dataset}/output/tree_search/graph.png"
+        reducer = umap.UMAP(random_state=42)
+        umap_embeddings = reducer.fit_transform(tree)
+
+        # Convert labels to categorical type for color mapping
+        unique_labels = np.unique(labels)
+        label_to_color = {label: idx for idx, label in enumerate(unique_labels)}
+        color_labels = [label_to_color[label] for label in labels]
+
+        plt.figure(figsize=(10, 8))
+        scatter = plt.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], c=color_labels, cmap='viridis', alpha=0.6)
+        # Create a color bar with label names
+        cbar = plt.colorbar(scatter, ticks=np.arange(len(unique_labels)))
+        cbar.ax.set_yticklabels(unique_labels)  # Set text labels for the color bar
+        cbar.set_label('Classifier Labels')
+        
+        plt.title('UMAP Projection of CLIP Vectors, Clustered by topic')
+        plt.xlabel('UMAP Dimension 1')
+        plt.ylabel('UMAP Dimension 2')
+
+        buffer = io.BytesIO()
+        plt.savefig("graph.png", buffer)
+        buffer.seek(0)
+
+        cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
+        # Remove the temporary file
+        os.remove("graph.png")
     
     def optimize_datapoints(self, clip_vectors):
         # Calculate the total number of batches
@@ -437,6 +520,7 @@ def main():
                                         optimize_samples= args.optimize_samples,
                                         ranking_weight= args.ranking_weight,
                                         classifier_weight= args.classifier_weight,
+                                        graph_tree= args.graph_tree,
                                         defect_tag= args.defect_tag)
 
     generator.generate_images(nodes_per_iteration=args.nodes_per_iteration,
