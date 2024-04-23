@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, constr, validator, model_validator
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Dict
 import json
 import re
 from typing import Union
@@ -294,6 +294,16 @@ class ClassifierScoreV1(BaseModel):
             "tag_id": self.tag_id,
             "score": self.score,
             "creation_time" : self.creation_time
+        }
+
+class ExternalImageData(BaseModel):
+    source_image_dict: dict
+    task_attributs_dict: dict
+
+    def to_dict(self):
+        return {
+            "source_image_dict": self.source_image_dict,
+            "task_attributs_dict": self.task_attributs_dict
         }
     
 class ListClassifierScore(BaseModel):

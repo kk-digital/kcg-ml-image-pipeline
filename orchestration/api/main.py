@@ -39,6 +39,7 @@ from orchestration.api.api_classifier import router as classifier_router
 from orchestration.api.api_ab_rank import router as ab_rank_router
 from orchestration.api.api_rank_active_learning import router as rank_router
 from orchestration.api.api_image_hashes import router as image_hashes_router
+from orchestration.api.api_external_images import router as external_images_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -82,6 +83,7 @@ app.include_router(classifier_router)
 app.include_router(ab_rank_router)
 app.include_router(rank_router)
 app.include_router(image_hashes_router)
+app.include_router(external_images_router)
 
 
 
@@ -208,6 +210,9 @@ def startup_db_client():
     app.pseudo_tag_images_collection = app.mongodb_db["pseudo_tag_images"]
     app.pseudo_tag_categories_collection = app.mongodb_db["pseudo_tag_categories"]
     app.uuid_pseudo_tag_count_collection = app.mongodb_db["pseudo_tag_count"]
+
+    # external image collection
+    app.external_images_collection = app.mongodb_db["external_images"]
 
     pseudo_tag_uuid_index=[
     ('uuid', pymongo.ASCENDING)
