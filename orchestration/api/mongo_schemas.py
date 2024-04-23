@@ -272,6 +272,14 @@ class ImageHash(BaseModel):
             "image_hash": self.image_hash,
             "image_global_id": self.image_global_id,
         }
+    
+class ImageHashRequest(BaseModel):
+    image_hash: str
+
+    def to_dict(self):
+        return {
+            "image_hash": self.image_hash,
+        }
 
 class ClassifierScoreV1(BaseModel):
     uuid: Union[str, None]
