@@ -474,6 +474,27 @@ def http_get_completed_job_by_uuid(job_uuid):
 
     return None
 
+# Get completed job
+def http_get_completed_job_by_dataset(dataset, limit=9999999):
+    url = SERVER_ADDRESS + "/queue/image-generation/list-completed-jobs?dataset={}&limit={}".format(dataset, limit)
+    response = None
+
+    try:
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data_json = response.json()
+            return data_json["response"]["jobs"]
+
+    except Exception as e:
+        print('request exception ', e)
+
+    finally:
+        if response:
+            response.close()
+
+    return None
+
 # Get completed jobs
 def http_get_completed_jobs_by_uuids(job_uuids):
     count = 0

@@ -47,6 +47,7 @@ def parse_args():
     parser.add_argument('--optimize-spheres', action='store_true', default=False)
     parser.add_argument('--optimize-samples', action='store_true', default=False)
     parser.add_argument('--only-top-k-spheres', action='store_true', default=False)
+    parser.add_argument('--penalty', type=int, default=10)
 
     return parser.parse_args()
 
@@ -69,6 +70,7 @@ class SphereSamplingGenerator:
                 optimize_spheres=False,
                 optimize_samples=False,
                 only_top_k_spheres=False,
+                penalty = 10
                 ):
             
             self.dataset= dataset
@@ -87,6 +89,7 @@ class SphereSamplingGenerator:
             self.optimize_spheres= optimize_spheres
             self.optimize_samples= optimize_samples
             self.only_top_k_spheres = only_top_k_spheres
+            self.penalty = penalty
 
             # get minio client
             self.minio_client = cmd.get_minio_client(minio_access_key=minio_access_key,
@@ -259,7 +262,10 @@ class SphereSamplingGenerator:
                 # Collect generated vectors and optionally calculate scores
                 clip_vectors = torch.cat((clip_vectors, point.unsqueeze(0)), dim=0)
         # get sampled datapoint scores
-        scores = self.scoring_model.model(clip_vectors)
+        quality_scores = self.scoring_model.model(clip_vectors)
+        classifier_scores = self.classifier_model.model(clip_vectors)
+        scores = quality_scores + classifier_scores
+
         # get top scoring datapoints
         _, sorted_indices = torch.sort(scores.squeeze(), descending=True)
         # filter with penalty
@@ -310,7 +316,8 @@ class SphereSamplingGenerator:
         # get sampled datapoint scores
         classifier_scores = self.classifier_model.model(clip_vectors)
         quality_scores = self.scoring_model.model(clip_vectors)
-        scores = classifier_scores + quality_scores
+        # scores = classifier_scores + quality_scores
+        scores = classifier_scores
         # get top scoring datapoints
         _, sorted_indices = torch.sort(scores.squeeze(), descending=True)
 
@@ -362,8 +369,8 @@ class SphereSamplingGenerator:
                 classifier_scores= torch.cat(classifier_scores, dim=0)
 
                 # Calculate the loss for each embedding in the batch
-                # score_losses = -scores.squeeze() - classifier_scores.squeeze()
-                score_losses = - classifier_scores.squeeze()
+                score_losses = -scores.squeeze() - classifier_scores.squeeze()
+                # score_losses =  - classifier_scores.squeeze()
 
                 # Calculate the total loss for the batch
                 total_loss = score_losses.mean()
@@ -475,7 +482,8 @@ def main():
                                         save_csv= args.save_csv,
                                         optimize_spheres= args.optimize_spheres,
                                         optimize_samples= args.optimize_samples, 
-                                        only_top_k_spheres = args.only_top_k_spheres)
+                                        only_top_k_spheres = args.only_top_k_spheres,
+                                        penalty = args.penalty)
 
     generator.generate_images(num_images=args.num_images)
 
