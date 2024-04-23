@@ -273,9 +273,6 @@ class ImageHash(BaseModel):
             "image_global_id": self.image_global_id,
         }
 
-class ImageHashRequest(BaseModel):
-    image_hash: str
-
 class ClassifierScoreV1(BaseModel):
     uuid: Union[str, None]
     task_type: str
@@ -298,13 +295,14 @@ class ClassifierScoreV1(BaseModel):
 
 class ExternalImageData(BaseModel):
     source_image_dict: dict
-    task_attributs_dict: dict
+    task_attributes_dict: dict
 
     def to_dict(self):
         return {
             "source_image_dict": self.source_image_dict,
-            "task_attributs_dict": self.task_attributs_dict
+            "task_attributes_dict": self.task_attributes_dict
         }
+
     
 class ListClassifierScore(BaseModel):
     images: List[ClassifierScore]
