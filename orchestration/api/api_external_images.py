@@ -122,7 +122,7 @@ async def delete_external_image_data(request: Request, image_data: ExternalImage
         )
 
 
-@router.delete("/external-images/delete-external-image-list-by-image-hash-list", 
+@router.delete("/external-images/delete-external-image-list", 
             description="Delete a list of external image data",
             tags=["external-images"],  
             response_model=StandardSuccessResponseV1[int],  
