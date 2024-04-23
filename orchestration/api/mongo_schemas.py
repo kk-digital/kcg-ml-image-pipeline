@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field, constr, validator, model_validator
 from typing import List, Union, Optional, Dict
 import json
 import re
-from typing import Union
+from typing import Union, Tuple
 import bson
 
 class Task(BaseModel):
@@ -301,12 +301,32 @@ class ClassifierScoreV1(BaseModel):
             "creation_time" : self.creation_time
         }
 
+class ImageResolution(BaseModel):
+    x: int
+    y: int
+
+    def to_dict(self):
+        return {
+            "x": self.x,
+            "y": self.y
+        }
+    
 class ExternalImageData(BaseModel):
+    upload_date: Union[str, None] = None
+    image_hash: str
+    image_resolution: ImageResolution
+    image_format: str
+    file_path: str
     source_image_dict: dict
     task_attributes_dict: dict
 
     def to_dict(self):
         return {
+            "upload_date": self.upload_date,
+            "image_hash": self.image_hash,
+            "image_resolution": self.image_resolution.to_dict(),
+            "image_format": self.image_format,
+            "file_path": self.file_path,
             "source_image_dict": self.source_image_dict,
             "task_attributes_dict": self.task_attributes_dict
         }
