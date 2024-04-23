@@ -92,7 +92,7 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
         )
     
 @router.get("/external-images/get-external-image-list", 
-            description="Delete an external image data",
+            description="get list of external image data by image hash list",
             tags=["external-images"],  
             response_model=StandardSuccessResponseV1[List[ExternalImageData]],  
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
@@ -122,7 +122,7 @@ async def get_external_image_data_list(request: Request, image_hash_list: List[s
         )
     
 @router.get("/external-images/get-all-external-image-list", 
-            description="Delete an external image data",
+            description="get all external image data",
             tags=["external-images"],  
             response_model=StandardSuccessResponseV1[List[ExternalImageData]],  
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
