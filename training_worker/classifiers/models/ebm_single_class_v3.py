@@ -1792,7 +1792,7 @@ model_list.append(model_1)
 
 
 
-model_2_name =  "topic-forest"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
+model_2_name =  "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
 model_2=EBM_Single_Class(minio_access_key=args.minio_access_key,
                             minio_secret_key=args.minio_secret_key,
                             dataset= args.dataset,
