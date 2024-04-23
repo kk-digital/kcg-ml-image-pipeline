@@ -38,6 +38,7 @@ from orchestration.api.api_classifier_score import router as classifier_score_ro
 from orchestration.api.api_classifier import router as classifier_router
 from orchestration.api.api_ab_rank import router as ab_rank_router
 from orchestration.api.api_rank_active_learning import router as rank_router
+from orchestration.api.api_rank_active_learning_policy import router as rank_active_learning_policy_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -80,6 +81,7 @@ app.include_router(classifier_score_router)
 app.include_router(classifier_router)
 app.include_router(ab_rank_router)
 app.include_router(rank_router)
+app.include_router(rank_active_learning_policy_router)
 
 
 
@@ -243,6 +245,10 @@ def startup_db_client():
 
     # rank active learning
     app.rank_active_learning_pairs_collection = app.mongodb_db["rank_pairs"]
+
+    # rank active learning policy
+
+    app.rank_active_learning_policies_collection = app.mongodb_db["rank_active_learning_policy"]
 
     scores_index=[
     ('model_id', pymongo.ASCENDING), 

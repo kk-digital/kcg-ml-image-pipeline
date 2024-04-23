@@ -446,3 +446,30 @@ class SigmaScoreResponse(BaseModel):
 
 class ListSigmaScoreResponse(BaseModel):
     job_info: List[SigmaScoreResponse]
+
+class RankActiveLearningPolicy(BaseModel):
+    rank_active_learning_policy_id: Union[int, None] = None 
+    rank_active_learning_policy: str
+    rank_active_learning_policy_description: str
+    creation_time: Union[str, None] = None 
+
+    def to_dict(self):
+        return{
+            "rank_active_learning_policy_id": self.rank_active_learning_policy_id,
+            "rank_active_learning_policy": self.rank_active_learning_policy,
+            "rank_active_learning_policy_description": self.rank_active_learning_policy_description,
+            "creation_time": self.creation_time
+        }
+
+class ListRankActiveLearningPolicy(BaseModel):
+    policies: List[RankActiveLearningPolicy]
+
+class RequestRankActiveLearningPolicy(BaseModel):
+    rank_active_learning_policy: str
+    rank_active_learning_policy_description: str
+
+    def to_dict(self):
+        return{
+            "rank_active_learning_policy": self.rank_active_learning_policy,
+            "rank_active_learning_policy_description": self.rank_active_learning_policy_description,
+        }
