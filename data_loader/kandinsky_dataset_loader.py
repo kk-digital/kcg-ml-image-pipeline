@@ -175,6 +175,8 @@ class KandinskyDatasetLoader:
                 bucket, features_vector_path = separate_bucket_and_file_path(file_path)
 
                 features_data = get_object(self.minio_client, features_vector_path)
+                print("------------------->")
+                print(msgpack.unpackb(features_data))
                 features = msgpack.unpackb(features_data)["latent_vector"]
                 features = torch.tensor(features).to(device=self.device)
                 latents.append(features)
