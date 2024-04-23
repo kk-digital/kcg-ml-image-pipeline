@@ -127,11 +127,11 @@ async def delete_external_image_data(request: Request, image_hash:str ):
     
 
 @router.delete("/external-images/delete-external-image-list", 
-            description="Delete an external image data",
+            description="Delete an external image data list",
             tags=["external-images"],  
             response_model=StandardSuccessResponseV1[int],  
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
-async def delete_external_image_data(request: Request, image_hash_list:List[str] ):
+async def delete_external_image_data_list(request: Request, image_hash_list:List[str] ):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
     try:
