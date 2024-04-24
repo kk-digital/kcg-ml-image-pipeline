@@ -132,14 +132,10 @@ async def get_all_external_image_data_list(request: Request):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
 
-        all_image_data_list = list(request.app.external_images_collection.find_one({}, {"_id": 0}))
-    
-        list_external_images = []
-        for image_data in all_image_data_list:
-            list_external_images.append(image_data)
+        all_image_data_list = list(request.app.external_images_collection.find({}, {"_id": 0}))
 
         return api_response_handler.create_success_response_v1(
-            response_data={"data": list_external_images},
+            response_data={"data": all_image_data_list},
             http_status_code=200  
         )
     
