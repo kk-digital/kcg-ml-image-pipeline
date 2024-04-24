@@ -1,8 +1,9 @@
 from pydantic import BaseModel, Field, constr, validator, model_validator
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Dict
 import json
 import re
-from typing import Union
+from typing import Union, Tuple
+import bson
 
 class Task(BaseModel):
     task_type: str
@@ -256,6 +257,30 @@ class ClassifierScore(BaseModel):
         }
 
 
+class ImageHash(BaseModel):
+    image_hash: str
+    image_global_id: int
+
+    def to_dict_for_mongodb(self):
+        return {
+            "image_hash": self.image_hash,
+            "image_global_id":  bson.int64.Int64(self.image_global_id)
+        }
+    
+    def to_dict(self):
+        return {
+            "image_hash": self.image_hash,
+            "image_global_id": self.image_global_id,
+        }
+    
+class ImageHashRequest(BaseModel):
+    image_hash: str
+
+    def to_dict(self):
+        return {
+            "image_hash": self.image_hash,
+        }
+
 class ClassifierScoreV1(BaseModel):
     uuid: Union[str, None]
     task_type: str
@@ -275,6 +300,38 @@ class ClassifierScoreV1(BaseModel):
             "score": self.score,
             "creation_time" : self.creation_time
         }
+
+class ImageResolution(BaseModel):
+    width: int
+    height: int
+
+    def to_dict(self):
+        return {
+            "width": self.width,
+            "height": self.height
+        }
+    
+class ExternalImageData(BaseModel):
+    image_hash: str
+    dataset:str
+    image_resolution: ImageResolution
+    image_format: str
+    file_path: str
+    upload_date: Union[str, None] = None
+    source_image_dict: dict
+    task_attributes_dict: dict
+
+    def to_dict(self):
+        return {
+            "upload_date": self.upload_date,
+            "image_hash": self.image_hash,
+            "image_resolution": self.image_resolution.to_dict(),
+            "image_format": self.image_format,
+            "file_path": self.file_path,
+            "source_image_dict": self.source_image_dict,
+            "task_attributes_dict": self.task_attributes_dict
+        }
+
     
 class ListClassifierScore(BaseModel):
     images: List[ClassifierScore]

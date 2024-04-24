@@ -39,6 +39,8 @@ from orchestration.api.api_classifier import router as classifier_router
 from orchestration.api.api_ab_rank import router as ab_rank_router
 from orchestration.api.api_rank_active_learning import router as rank_router
 from orchestration.api.api_rank_active_learning_policy import router as rank_active_learning_policy_router
+from orchestration.api.api_image_hashes import router as image_hashes_router
+from orchestration.api.api_external_images import router as external_images_router
 from utility.minio import cmd
 
 config = dotenv_values("./orchestration/api/.env")
@@ -82,6 +84,8 @@ app.include_router(classifier_router)
 app.include_router(ab_rank_router)
 app.include_router(rank_router)
 app.include_router(rank_active_learning_policy_router)
+app.include_router(image_hashes_router)
+app.include_router(external_images_router)
 
 
 
@@ -209,6 +213,9 @@ def startup_db_client():
     app.pseudo_tag_categories_collection = app.mongodb_db["pseudo_tag_categories"]
     app.uuid_pseudo_tag_count_collection = app.mongodb_db["pseudo_tag_count"]
 
+    # external image collection
+    app.external_images_collection = app.mongodb_db["external_images"]
+
     pseudo_tag_uuid_index=[
     ('uuid', pymongo.ASCENDING)
     ]
@@ -246,6 +253,7 @@ def startup_db_client():
     # rank active learning
     app.rank_active_learning_pairs_collection = app.mongodb_db["rank_pairs"]
 
+
     # ranking data points
 
     app.ranking_datapoints_collection = app.mongodb_db["ranking_datapoints"]
@@ -253,6 +261,18 @@ def startup_db_client():
     # rank active learning policy
 
     app.rank_active_learning_policies_collection = app.mongodb_db["rank_active_learning_policy"]
+
+
+    # image hash
+    app.image_hashes_collection = app.mongodb_db["image_hashes"]
+
+    # Initialize next_image_global_id with the maximum value from the collection
+    if app.image_hashes_collection is not None:
+        max_image_doc = app.image_hashes_collection.find_one(sort=[("image_global_id", pymongo.DESCENDING)])
+        app.max_image_global_id = max_image_doc["image_global_id"] if max_image_doc else 0
+    else:
+        app.max_image_global_id = 0
+        
 
     scores_index=[
     ('model_id', pymongo.ASCENDING), 
@@ -340,6 +360,11 @@ def startup_db_client():
     ]
     create_index_if_not_exists(app.image_residuals_collection ,residuals_index, 'residuals_index')
     create_index_if_not_exists(app.image_residuals_collection ,hash_index, 'residual_hash_index')
+
+    image_hash_index = [
+        ('image_hash', pymongo.ASCENDING)
+    ]
+    create_index_if_not_exists(app.image_hashes_collection ,image_hash_index, 'image_hash_index')
 
     # percentiles
     app.image_percentiles_collection = app.mongodb_db["image-percentiles"]
