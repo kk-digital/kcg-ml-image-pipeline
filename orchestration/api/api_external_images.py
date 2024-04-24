@@ -1,5 +1,5 @@
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Body, Request
 from .api_utils import ApiResponseHandlerV1, StandardSuccessResponseV1, ErrorCode
 from .mongo_schemas import ExternalImageData, ImageHashRequest
 from typing import List
@@ -217,6 +217,50 @@ async def delete_external_image_data_list(request: Request, image_hash_list:List
             response_data={'deleted_count': deleted_count},
             http_status_code=200  
         )
+    
+    except Exception as e:
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string=str(e),
+            http_status_code=500
+        )
+    
+@router.patch("/external-images/add-task-attributes",
+              description="Add or update the task attributes of an external image",
+              tags=["external-images"],  
+              response_model=StandardSuccessResponseV1[int],  
+              responses=ApiResponseHandlerV1.listErrors([404, 500]))
+async def add_task_attributes(request: Request, image_hash: str, data_dict: dict = Body(...)):
+    api_response_handler = await ApiResponseHandlerV1.createInstance(request)
+     
+    try: 
+        image = request.app.external_images_collection.find_one(
+            {"image_hash": image_hash},
+        )
+
+        if image:
+            task_attributs_dict= image['task_attributes_dict']
+            for key, value in data_dict.items():
+                task_attributs_dict[key]= value
+
+            image = request.app.external_images_collection.find_one_and_update(
+                {"image_hash": image_hash},
+                {"$set": {"task_attributes_dict": task_attributs_dict}},
+                return_document=True
+            )
+
+            image.pop('_id', None)
+
+            return api_response_handler.create_success_response_v1(
+                response_data={"data": image},
+                http_status_code=200  
+            )       
+
+        else:
+            return api_response_handler.create_error_response_v1(
+                    error_code=ErrorCode.INVALID_PARAMS, 
+                    error_string="There is no external image data with image hash: {}".format(image_hash), 
+                    http_status_code=400)
     
     except Exception as e:
         return api_response_handler.create_error_response_v1(
