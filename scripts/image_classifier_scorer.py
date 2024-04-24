@@ -23,6 +23,7 @@ from training_worker.classifiers.models.logistic_regression import LogisticRegre
 from utility.http import model_training_request
 from utility.http import request
 from utility.minio import cmd
+from utility.path import separate_bucket_and_file_path
 
 class ImageScorer:
     def __init__(self,
@@ -118,6 +119,38 @@ class ImageScorer:
 
         print("Total paths found=", len(type_paths))
         return type_paths
+    
+    def get_paths_from_mongodb(self):
+        print("Getting paths for dataset: {}...".format(self.dataset))
+
+        if self.model_input_type in self.image_paths_cache:
+            return self.image_paths_cache[self.model_input_type]
+        
+        completed_jobs = request.http_get_completed_job_by_dataset(dataset=self.dataset)
+
+        # Depending on the model type, choose the appropriate msgpack files
+        if self.model_input_type == "clip":
+            file_suffix = "_clip.msgpack"
+        elif self.model_input_type == "clip-h":
+            file_suffix = "_clip_kandinsky.msgpack"
+        else: 
+            file_suffix = "_embedding.msgpack"
+
+        data_paths = []
+        for job in completed_jobs:
+            try:
+                if job["task_output_file_dict"]["output_file_path"].endswith(".jpg"):
+                    # Rename the jpg file name into appropriate msgpack file name
+                    _, path = separate_bucket_and_file_path(job["task_output_file_dict"]["output_file_path"].replace(".jpg", file_suffix))
+                    data_paths.append(path)
+            except Exception as e:
+                print("Error to get image path from mongodb: {}".format(e))
+        
+        self.data_paths_cache[self.model_input_type] = data_paths
+
+        print("Total paths found=", len(data_paths))
+        return data_paths
+        
 
     def get_feature_data(self, job_uuids):
         data = request.http_get_completed_jobs_by_uuids(job_uuids)
