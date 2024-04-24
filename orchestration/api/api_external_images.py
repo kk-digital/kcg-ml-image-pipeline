@@ -135,20 +135,20 @@ async def get_all_external_image_data_list(request: Request,
     try:
         query={}
         if dataset:
-            query['task_input_dict.dataset']= dataset
+            query['dataset']= dataset
         
         aggregation_pipeline = [{"$match": query}]
 
         if size:
             aggregation_pipeline.append({"$sample": {"size": size}})
 
-        all_image_data_list = list(request.app.external_images_collection.aggregate(aggregation_pipeline))
+        image_data_list = list(request.app.external_images_collection.aggregate(aggregation_pipeline))
 
-        for image_data in all_image_data_list:
+        for image_data in image_data_list:
             image_data.pop('_id', None)  # Remove the auto-generated field
 
         return api_response_handler.create_success_response_v1(
-            response_data={"data": all_image_data_list},
+            response_data={"data": image_data_list},
             http_status_code=200  
         )
     
