@@ -1,187 +1,273 @@
-import sys
-import os
-from datetime import datetime
-from pytz import timezone
+import torch
 import torch.nn as nn
+from datetime import datetime
+import os
+import sys
+import hashlib
+import time
+from os.path import basename
 from io import BytesIO
+import json
+from safetensors.torch import save as safetensors_save
+from safetensors.torch import load as safetensors_load
 
 base_directory = os.getcwd()
 sys.path.insert(0, base_directory)
 
-from data_loader.tagged_data_loader import TaggedDatasetLoader
 from utility.minio import cmd
-from utility.http import request
-from training_worker.ab_ranking.model import constants
-from training_worker.classifiers.models import elm_regression
-from training_worker.classifiers.models.reports.elm_train_graph_report import get_graph_report
-from training_worker.classifiers.models.reports.elm_train_txt_report import get_train_txt_report
-from training_worker.classifiers.models.reports.get_model_card import get_model_card_buf
+from data_loader.tagged_data_loader import TaggedDatasetLoader
+class ELMRegression():
+    def __init__(self, device=None):
+        self.model_type = 'elm-regression'
+        self.date = datetime.now().strftime("%Y-%m-%d")
+        self.tag_string = None
+        self.model_file_path = None
+        self.model_hash = None
 
-def train_classifier(minio_ip_addr=None,
-                     minio_access_key=None,
-                     minio_secret_key=None,
-                     input_type="embedding",
-                     tag_name=None,
-                     tag_id=None,
-                     hidden_layer_neuron_count=3000,
-                     pooling_strategy=constants.AVERAGE_POOLING,
-                     train_percent=0.9,
-                    ):
-    date_now = datetime.now(tz=timezone("Asia/Hong_Kong")).strftime('%Y-%m-%d')
-    print("Current datetime: {}".format(datetime.now(tz=timezone("Asia/Hong_Kong"))))
-    bucket_name = "datasets"
-    network_type = "elm-regression"
-    output_type = "score"
+        self._input_size = None
+        self._hidden_layer_neuron_count = None
+        self._output_size = None
 
-    # check input type
-    if input_type not in constants.ALLOWED_INPUT_TYPES:
-        raise Exception("input type is not supported: {}".format(input_type))
+        self._weight = None
+        self._beta = None
+        self._bias = None
 
-    input_shape = 2 * 768
-    if input_type in [constants.EMBEDDING_POSITIVE, constants.EMBEDDING_NEGATIVE, constants.CLIP]:
-        input_shape = 768
-    if input_type in [constants.CLIP_WITH_LENGTH]:
-        input_shape = 769
-    if input_type in [constants.KANDINSKY_CLIP]:
-        input_shape = 1280
-    if input_type in [constants.KANDINSKY_CLIP_WITH_LENGTH]:
-        input_shape = 1281
+        if not device and torch.cuda.is_available():
+            device = 'cuda'
+        else:
+            device = 'cpu'
 
-    # load data
-    tag_loader = TaggedDatasetLoader(minio_ip_addr=minio_ip_addr,
-                                     minio_access_key=minio_access_key,
-                                     minio_secret_key=minio_secret_key,
-                                     tag_name=tag_name,
-                                     input_type=input_type,
-                                     pooling_strategy=pooling_strategy,
-                                     train_percent=train_percent)
-    tag_loader.load_dataset()
+        self._device = torch.device(device)
 
-    # get dataset name
-    dataset_name = tag_loader.dataset_name
-    output_path = "{}/models/classifiers/{}".format(dataset_name, tag_name)
+        self._activation = nn.Sigmoid()
 
-    # mix training positive and negative
-    training_features, training_targets = tag_loader.get_shuffled_positive_and_negative_training()
+        self.loss_func_name = "mse"
+        self._loss = nn.MSELoss()
 
-    # mix validation positive and negative
-    validation_features, validation_targets = tag_loader.get_shuffled_positive_and_negative_validation()
+    def set_config(self, tag_string, input_size, hidden_layer_neuron_count, output_size=1, activation_func_name="sigmoid"):
+        self.tag_string = tag_string
+        self.model_file_path = ''
+        self.model_hash = ''
 
-    # get final filename
-    sequence = 0
-    filename = "{}-{:02}-{}-{}-{}-{}".format(date_now, sequence, tag_name, output_type, network_type, input_type)
+        self.activation_func_name = activation_func_name
+        self._activation = self.get_activation_func(activation_func_name)
 
-    # if exist, increment sequence
-    while True:
-        filename = "{}-{:02}-{}-{}-{}-{}".format(date_now, sequence, tag_name, output_type, network_type, input_type)
-        exists = cmd.is_object_exists(tag_loader.minio_client, bucket_name,
-                                      os.path.join(output_path, filename + ".safetensors"))
-        if not exists:
-            break
+        self._input_size = input_size
+        self._hidden_layer_neuron_count = hidden_layer_neuron_count
+        self._output_size = output_size
 
-        sequence += 1
+        self._weight = nn.init.uniform_(torch.empty(self._input_size, self._hidden_layer_neuron_count, device=self._device), a=-1.,
+                                       b=1.)
+        self._beta = nn.init.uniform_(torch.empty(self._hidden_layer_neuron_count, self._output_size, device=self._device), a=-1.,
+                                      b=1.)
+        self._bias = torch.zeros(self._hidden_layer_neuron_count, device=self._device)
 
-    # train model
-    classifier_model = elm_regression.ELMRegression()
-    classifier_model.set_config(tag_string=tag_name,
-                                input_size=input_shape,
-                                hidden_layer_neuron_count=hidden_layer_neuron_count,
-                                output_size=1,
-                                activation_func_name="sigmoid")
 
-    (train_pred,
-     training_loss,
-     training_accuracy,
-     validation_pred,
-     validation_loss,
-     validation_accuracy) = classifier_model.train(tag_loader=tag_loader)
+    def train(self,
+              tag_loader: TaggedDatasetLoader
+              ):
+        print("Training...")
 
-    # sigmoid
-    sigmoid = nn.Sigmoid()
-    sigmoid_pred = sigmoid(validation_pred)
-    sigmoid_train_pred = sigmoid(train_pred)
+        training_features, training_targets = tag_loader.get_shuffled_positive_and_negative_training()
+        validation_features, validation_targets = tag_loader.get_shuffled_positive_and_negative_validation()
 
-    # bce loss
-    bce_loss_func = nn.BCELoss()
-    bce_loss_training = bce_loss_func(sigmoid_train_pred.to('cpu'), training_targets)
-    bce_loss_validation = bce_loss_func(sigmoid_pred.to('cpu'), validation_targets)
+        training_feature_vector = training_features.to(self._device)
+        training_targets = training_targets.to(self._device)
+        validation_feature_vector = validation_features.to(self._device)
+        validation_targets = validation_targets.to(self._device)
 
-    # save model
-    # Upload model to minio
-    model_name = "{}.safetensors".format(filename)
-    model_output_path = os.path.join(output_path, model_name)
-    classifier_model.save_model(tag_loader.minio_client, bucket_name, model_output_path)
+        print("training feature vector shape=", training_feature_vector.shape)
+        print("_weight shape=",self._weight.shape)
+        time_started = time.time()
 
-    # upload the txt report
-    report_str = get_train_txt_report(model_class=classifier_model,
-                                      min_prediction_vector_before_sigmoid=min(validation_pred).item(),
-                                      max_prediction_vector_before_sigmoid=max(validation_pred).item(),
-                                      validation_predictions=sigmoid_pred,
-                                      mse_training_loss=training_loss,
-                                      training_accuracy=training_accuracy,
-                                      mse_validation_loss=validation_loss,
-                                      validation_accuracy=validation_accuracy,
-                                      bce_loss_training=bce_loss_training,
-                                      bce_loss_validation=bce_loss_validation,
-                                      training_percent=train_percent,
-                                      positive_dataset_total_size=tag_loader.positive_dataset_total_size,
-                                      negative_dataset_total_size=tag_loader.negative_dataset_total_size,
-                                      training_positive_size=tag_loader.training_positive_size,
-                                      validation_positive_size=tag_loader.validation_positive_size,
-                                      training_negative_size=tag_loader.training_negative_size,
-                                      validation_negative_size=tag_loader.validation_negative_size)
+        temp = training_feature_vector.mm(self._weight)
+        H = self._activation(torch.add(temp, self._bias))
 
-    report_name = "{}.txt".format(filename)
-    report_output_path = os.path.join(output_path, report_name)
-    report_buffer = BytesIO(report_str.encode(encoding='UTF-8'))
-    cmd.upload_data(tag_loader.minio_client, bucket_name, report_output_path, report_buffer)
+        H_pinv = torch.pinverse(H)
+        print("training targets shape=", training_targets.shape)
+        print("h pinv shape=", H_pinv.shape)
+        self._beta = H_pinv.mm(training_targets)
 
-    # save graph report
-    # upload the graph report
-    graph_buffer = get_graph_report(model_class=classifier_model,
-                                    train_predictions=sigmoid_train_pred.cpu().numpy(),
-                                    training_targets=training_targets.cpu().numpy(),
-                                    validation_predictions=sigmoid_pred.cpu().numpy(),
-                                    validation_targets=validation_targets.cpu().numpy(),
-                                    hidden_layer_neuron_count=hidden_layer_neuron_count,
-                                    date=date_now,
-                                    dataset_name=dataset_name,
-                                    network_type=network_type,
-                                    input_type=input_type,
-                                    input_shape=input_shape,
-                                    output_type=output_type,
-                                    tag_string=tag_name,
-                                    positive_dataset_total_size=tag_loader.positive_dataset_total_size,
-                                    negative_dataset_total_size=tag_loader.negative_dataset_total_size,
-                                    training_positive_size=tag_loader.training_positive_size,
-                                    validation_positive_size=tag_loader.validation_positive_size,
-                                    training_negative_size=tag_loader.training_negative_size,
-                                    validation_negative_size=tag_loader.validation_negative_size,
-                                    pooling_strategy=pooling_strategy,
-                                    training_accuracy=training_accuracy,
-                                    validation_accuracy=validation_accuracy,
-                                    mse_training_loss=training_loss,
-                                    mse_validation_loss=validation_loss,
-                                    min_prediction_vector_before_sigmoid=min(validation_pred).item(),
-                                    max_prediction_vector_before_sigmoid=max(validation_pred).item(),
-                                    bce_loss_training=bce_loss_training,
-                                    bce_loss_validation=bce_loss_validation,
-                                    )
-    graph_name = "{}.png".format(filename)
-    graph_output_path = os.path.join(output_path, graph_name)
-    cmd.upload_data(tag_loader.minio_client, bucket_name, graph_output_path, graph_buffer)
+        print("Finished training")
+        print("Elapsed time: {}".format(time.time() - time_started))
 
-    # get model card and upload
-    classifier_name="{}-{}-{}-{}".format(tag_name, output_type, network_type, input_type)
-    model_card_name = "{}.json".format(filename)
-    model_card_name_output_path = os.path.join(output_path, model_card_name)
-    model_card_buf, model_card = get_model_card_buf(classifier_name= classifier_name,
-                                                    tag_id= tag_id,
-                                                    latest_model= filename,
-                                                    model_path= model_output_path,
-                                                    creation_time=date_now)
-    cmd.upload_data(tag_loader.minio_client, bucket_name, model_card_name_output_path, model_card_buf)
+        # training loss and acc
+        train_pred, training_loss, training_accuracy = self.evaluate(training_feature_vector, training_targets,
+                                                                     threshold=0.5)
 
-    # save model to mongodb if its input type is clip-h
-    if(input_type==constants.KANDINSKY_CLIP):
-        request.http_add_classifier_model(model_card)
+        # validation loss and acc
+        validation_pred, validation_loss, validation_accuracy = self.evaluate(validation_feature_vector,
+                                                                              validation_targets,
+                                                                              threshold=0.5)
+
+        return train_pred, training_loss, training_accuracy, validation_pred, validation_loss, validation_accuracy
+
+
+    def classify(self, dataset_feature_vector):
+        # print("Classifying...")
+        dataset_feature_vector = dataset_feature_vector.to(self._device)
+        
+        h = self._activation(torch.add(dataset_feature_vector.mm(self._weight), self._bias))
+        out = h.mm(self._beta)
+
+        return out
+    
+    def classify_pooled_embeddings(self, positive_embedding_array, negative_embedding_array):
+        # Average pooling
+        embedding_array = torch.cat((positive_embedding_array, negative_embedding_array), dim=-1)
+        avg_pool = torch.nn.AvgPool2d(kernel_size=(77, 1))
+
+        embedding_array = avg_pool(embedding_array)
+        embedding_array = embedding_array.squeeze().unsqueeze(0)
+
+        return self.classify(embedding_array)
+    
+    def predict_positive_or_negative_only_pooled(self, embedding_array):
+        # Average pooling
+
+        avg_pool = torch.nn.AvgPool2d(kernel_size=(77, 1))
+
+        embedding_array = avg_pool(embedding_array)
+        embedding_array = embedding_array.squeeze().unsqueeze(0)
+
+        return self.classify(embedding_array)
+
+    def evaluate(self, validation_feature_vector, validation_targets, threshold=0.5):
+        print("Evaluating...")
+
+        predictions = self.classify(validation_feature_vector)
+
+        # calc loss
+        loss = self._loss(predictions, validation_targets)
+
+        # if > threshold, will become true, then .float() converts to 1
+        # true -> 1, false -> 0
+        y_pred_converted = (predictions > threshold).float()
+        validation_targets_converted = (validation_targets > threshold).float()
+
+        acc = torch.sum(y_pred_converted == validation_targets_converted).item() / len(validation_targets)
+
+        return predictions, loss, acc
+
+    def get_model_hash(self):
+        # TODO: make correction and verify better way to hash elm
+        # model hash is sha256. hash of the pth file or the serialization
+        model_str = str(self._weight) + str(self._beta) + str(self._bias)
+        self.model_hash = hashlib.sha256(model_str.encode()).hexdigest()
+        return self.model_hash
+
+    def to_safetensors(self):
+        # get model hash
+        model_hash = self.get_model_hash()
+
+        metadata = {
+            'model-type': self.model_type,
+            'tag-string': self.tag_string,
+            'model-file-path': self.model_file_path,
+            'model-hash': model_hash,
+            'date': self.date,
+            'input-size': "{}".format(self._input_size),
+            'hidden-layer-neuron-count': "{}".format(self._hidden_layer_neuron_count),
+            'output-size': "{}".format(self._output_size),
+            'activation-func': self.activation_func_name,
+            'loss-func': self.loss_func_name,
+        }
+
+        model_tensors = {
+            'weight': self._weight,
+            'beta': self._beta,
+            'bias': self._bias,
+        }
+
+        return model_tensors, metadata
+
+    def save_model(self, minio_client, datasets_bucket, model_output_path):
+        # Hashing the model with its current configuration
+        self.model_file_path = model_output_path
+
+        # Preparing the model to be saved
+        model, metadata = self.to_safetensors()
+
+        # Saving the model to minio
+        buffer = BytesIO()
+        safetensors_buffer = safetensors_save(tensors=model,
+                                              metadata=metadata)
+        buffer.write(safetensors_buffer)
+        buffer.seek(0)
+
+        # upload the model
+        cmd.upload_data(minio_client, datasets_bucket, model_output_path, buffer)
+
+    def load_safetensors(self, model_buffer):
+        data = model_buffer.read()
+        safetensors_data = safetensors_load(data)
+  
+        self._weight = safetensors_data['weight']
+        self._beta = safetensors_data['beta']
+        self._bias = safetensors_data['bias']
+
+        # load metadata
+        n_header = data[:8]
+        n = int.from_bytes(n_header, "little")
+        metadata_bytes = data[8: 8 + n]
+        header = json.loads(metadata_bytes)
+        model = header.get("__metadata__", {})
+
+        # Restoring model metadata
+        self.model_type = model['model-type']
+        self.tag_string = model['tag-string']
+        self.model_file_path = model['model-file-path']
+        self.model_hash = model['model-hash']
+        self.date = model['date']
+
+        self._input_size = model['input-size']
+        self._hidden_layer_neuron_count = model['hidden-layer-neuron-count']
+        self._output_size = model['output-size']
+
+        self.loss_func_name = model['loss-func']
+        self.activation_func_name = model['activation-func']
+        self._activation = self.get_activation_func(self.activation_func_name)
+
+    def load_model(self, minio_client, model_dataset, tag_name, model_type, scoring_model, not_include, device=None):
+        input_path = f"{model_dataset}/models/classifiers/{tag_name}/"
+        file_suffix = ".safetensors"
+
+        # Use the MinIO client's list_objects method directly with recursive=True
+        model_files = [obj.object_name for obj in minio_client.list_objects('datasets', prefix=input_path, recursive=True) if obj.object_name.endswith(file_suffix) and model_type in obj.object_name and scoring_model in obj.object_name and not_include not in obj.object_name ]
+        
+        if not model_files:
+            print(f"No .safetensors models found for tag: {tag_name}")
+            return None
+
+        # Assuming there's only one model per tag or choosing the first one
+        model_files.sort(reverse=True)
+        model_file = model_files[0]
+        print(f"Loading model: {model_file}")
+
+        return self.load_model_with_filename(minio_client, model_file, tag_name)
+    
+
+
+    
+    def load_model_with_filename(self, minio_client, model_file, model_info=None):
+        model_data = minio_client.get_object('datasets', model_file)
+        
+        clip_model = ELMRegression(device=self._device)
+        
+        # Create a BytesIO object from the model data
+        byte_buffer = BytesIO(model_data.data)
+        clip_model.load_safetensors(byte_buffer)
+
+        print(f"Model loaded for tag: {model_info}")
+        
+        return clip_model, basename(model_file)
+
+
+    def get_activation_func(self, activation_func_name):
+        if activation_func_name == "sigmoid":
+            return nn.Sigmoid()
+        elif activation_func_name == "relu":
+            return nn.ReLU()
+        # TODO: add more activation func
+        # elif activation_func_name == "sine":
+        #     return nn.SiLU
