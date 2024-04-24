@@ -213,6 +213,7 @@ class EBM_Single_Class:
                 save_name,
                 dataset,
                 class_id,
+                device = None,
                 # train_loader,
                 # val_loader,
                 # adv_loader,
