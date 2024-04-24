@@ -289,7 +289,7 @@ async def random_queue_pair(request: Request, rank_model_id : Optional[int] = No
              tags = ['Rank Active Learning'],
              response_model=StandardSuccessResponseV1[RankSelection],
              responses=ApiResponseHandlerV1.listErrors([404,422, 500]))
-async def add_datapoint_to_queue(request: Request, selection: RankSelection):
+async def add_datapoints(request: Request, selection: RankSelection):
     api_handler = await ApiResponseHandlerV1.createInstance(request)
     
     try:
@@ -298,6 +298,7 @@ async def add_datapoint_to_queue(request: Request, selection: RankSelection):
         {"rank_model_id": selection.rank_model_id}
         )
 
+        print(type(selection.rank_model_id))
         if not rank:
             return api_handler.create_error_response_v1(
                 error_code=ErrorCode.ELEMENT_NOT_FOUND,
@@ -305,9 +306,13 @@ async def add_datapoint_to_queue(request: Request, selection: RankSelection):
                 http_status_code=404
             )
         
+
         policy = request.app.rank_active_learning_policies_collection.find_one(
         {"rank_active_learning_policy_id": selection.rank_active_learning_policy_id}
     )
+        
+        print(type(selection.rank_active_learning_policy_id))
+
         if not policy:
             return api_handler.create_error_response_v1(
                 error_code=ErrorCode.ELEMENT_NOT_FOUND,
@@ -320,7 +325,8 @@ async def add_datapoint_to_queue(request: Request, selection: RankSelection):
         file_name = f"{current_time}-{selection.username}.json"
         dataset = selection.image_1_metadata.file_path.split('/')[1]
         selection.datetime = current_time
-        rank_model_string = selection.rank_model_string
+        rank_model_string = rank.get("rank_model_string", None)
+        rank_active_learning = policy.get("rank_active_learning", None)
 
         dict_data = selection.to_dict()
 
@@ -329,11 +335,13 @@ async def add_datapoint_to_queue(request: Request, selection: RankSelection):
             ("_id", ObjectId()),  # Generate new ObjectId
             ("file_name", file_name),
             ("dataset", dataset),
-            *dict_data.items()  # Unpack the rest of dict_data
+            *dict_data.items(), # Unpack the rest of dict_data
+            ('rank_model_string', rank_model_string),
+            ('rank_active_learning', rank_active_learning)
         ])
 
         # Insert the ordered data into MongoDB
-        request.app.rank_active_learning_pairs_collection.insert_one(mongo_data)
+        request.app.ranking_datapoints_collection.insert_one(mongo_data)
 
         # Prepare data for MinIO upload (excluding the '_id' field)
         minio_data = mongo_data.copy()
@@ -341,7 +349,7 @@ async def add_datapoint_to_queue(request: Request, selection: RankSelection):
         minio_data.pop("file_name")
         minio_data.pop("dataset")
         path = f"data/rank/{rank_model_string}"
-        full_path = os.path.join(dataset, path, file_name)
+        full_path = os.path.join("environmental", path, file_name)
         json_data = json.dumps(minio_data, indent=4).encode('utf-8')
         data = BytesIO(json_data)
 
@@ -363,3 +371,35 @@ async def add_datapoint_to_queue(request: Request, selection: RankSelection):
             error_string=str(e),
             http_status_code=500
         )
+
+@router.get("/rank-active-learning-queue/list-ranking-datapoint-from-mongo",
+            description="list active learning datapoints",
+            response_model=StandardSuccessResponseV1[ListRankSelection],
+            status_code=200,
+            tags=["Rank Active Learning"],  
+            responses=ApiResponseHandlerV1.listErrors([400, 422]))
+def get_image_rank_scores_by_model_id(request: Request):
+    api_response_handler = ApiResponseHandlerV1(request)
+    
+    # check if exist
+    items = list(request.app.ranking_datapoints_collection.find({}))
+    
+    if not items:
+        # If no items found, use ApiResponseHandler to return a standardized error response
+        return api_response_handler.create_error_response_v1(
+            error_code=ErrorCode.INVALID_PARAMS,
+            error_string="No scores found for specified model_id.",
+            http_status_code=400
+        )
+    
+    score_data = []
+    for item in items:
+        # remove the auto generated '_id' field
+        item.pop('_id', None)
+        score_data.append(item)
+    
+    # Return a standardized success response with the score data
+    return api_response_handler.create_success_response_v1(
+        response_data=score_data,
+        http_status_code=200
+    )

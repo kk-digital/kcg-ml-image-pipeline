@@ -246,6 +246,10 @@ def startup_db_client():
     # rank active learning
     app.rank_active_learning_pairs_collection = app.mongodb_db["rank_pairs"]
 
+    # ranking data points
+
+    app.ranking_datapoints_collection = app.mongodb_db["ranking_datapoints"]
+
     # rank active learning policy
 
     app.rank_active_learning_policies_collection = app.mongodb_db["rank_active_learning_policy"]
