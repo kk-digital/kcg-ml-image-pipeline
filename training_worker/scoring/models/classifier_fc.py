@@ -362,7 +362,7 @@ class ClassifierFCNetwork(nn.Module):
             model_file_data =cmd.get_file_from_minio(self.minio_client, 'datasets', most_recent_model)
         else:
             print("No .pth files found in the list.")
-            return None
+            return False
         
         print(most_recent_model)
 
@@ -376,6 +376,8 @@ class ClassifierFCNetwork(nn.Module):
         
         # Remove the temporary file
         os.remove(temp_file.name)
+
+        return True
 
     def save_model(self):
          # Save the model locally

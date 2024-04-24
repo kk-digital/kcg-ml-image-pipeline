@@ -302,21 +302,22 @@ class ClassifierScoreV1(BaseModel):
         }
 
 class ImageResolution(BaseModel):
-    x: int
-    y: int
+    width: int
+    height: int
 
     def to_dict(self):
         return {
-            "x": self.x,
-            "y": self.y
+            "width": self.width,
+            "height": self.height
         }
     
 class ExternalImageData(BaseModel):
-    upload_date: Union[str, None] = None
     image_hash: str
+    dataset:str
     image_resolution: ImageResolution
     image_format: str
     file_path: str
+    upload_date: Union[str, None] = None
     source_image_dict: dict
     task_attributes_dict: dict
 

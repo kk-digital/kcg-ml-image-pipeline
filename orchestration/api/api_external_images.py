@@ -29,6 +29,7 @@ async def add_external_image_data(request: Request, image_data: ExternalImageDat
             }, {
                 "$set": {
                     "upload_date": str(datetime.now()),
+                    "dataset": image_data.dataset,
                     "image_resolution": image_data.image_resolution.to_dict(),
                     "image_format": image_data.image_format,
                     "file_path": image_data.file_path,
@@ -71,6 +72,7 @@ async def add_external_image_data_list(request: Request, image_data_list: List[E
                 }, {
                     "$set": {
                         "upload_date": str(datetime.now()),
+                        "dataset": image_data.dataset,
                         "image_resolution": image_data.image_resolution.to_dict(),
                         "image_format": image_data.image_format,
                         "file_path": image_data.file_path,
