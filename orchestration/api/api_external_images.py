@@ -128,14 +128,27 @@ async def get_external_image_data_list(request: Request, image_hash_list: List[s
             tags=["external-images"],  
             response_model=StandardSuccessResponseV1[List[ExternalImageData]],  
             responses=ApiResponseHandlerV1.listErrors([404, 500]))
-async def get_all_external_image_data_list(request: Request):
+async def get_all_external_image_data_list(request: Request, 
+                                           dataset: str=None,
+                                           size: int=None):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
     try:
+        query={}
+        if dataset:
+            query['dataset']= dataset
+        
+        aggregation_pipeline = [{"$match": query}]
 
-        all_image_data_list = list(request.app.external_images_collection.find({}, {"_id": 0}))
+        if size:
+            aggregation_pipeline.append({"$sample": {"size": size}})
+
+        image_data_list = list(request.app.external_images_collection.aggregate(aggregation_pipeline))
+
+        for image_data in image_data_list:
+            image_data.pop('_id', None)  # Remove the auto-generated field
 
         return api_response_handler.create_success_response_v1(
-            response_data={"data": all_image_data_list},
+            response_data={"data": image_data_list},
             http_status_code=200  
         )
     
