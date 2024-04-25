@@ -177,8 +177,8 @@ class KandinskyDatasetLoader:
 
                 features_data = get_object(self.minio_client, input_vae_path)
                 print("------------------->")
-                print(msgpack.unpackb(features_data))
                 features = msgpack.unpackb(features_data)["latent_vector"]
+                print(features)
                 features = torch.tensor(features).to(device=self.device)
                 latents.append(features)
             except Exception as e:
