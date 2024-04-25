@@ -1,21 +1,22 @@
 import argparse
 import os
 import sys
+
 import torch
+import json
+
+import time
+from datetime import datetime
+
 from intrinsics_dimension import mle_id, twonn_numpy, twonn_pytorch
+
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 
 from data_loader.kandinsky_dataset_loader import KandinskyDatasetLoader
+
 from utility.minio import cmd
-from utility.http import request
-from utility.path import separate_bucket_and_file_path
-from data_loader.utils import get_object
-import time
-import msgpack
-import requests
-import json
 
 API_URL="http://192.168.3.1:8111"
 
@@ -25,67 +26,31 @@ def parse_args():
     parser.add_argument('--minio-access-key', type=str, help='Minio access key')
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--minio-addr', type=str, help='Minio address')
-    parser.add_argument('--data-type', type=str, default="clip", help='Data types to obtain intrinsic dimensions, for exmaple, clip and vae')
-    parser.add_argument('--num-vectors', type=int, default=1024, help="Number of vectors to get intrinsic dimensions")
+    parser.add_argument('--data-type-list', type=str, nargs='+', default=['clip'], help='Data types to obtain intrinsic dimensions, for exmaple, clip and vae')
+    parser.add_argument('--count-list', type=int, nargs='+', default=[100], help="list of count for getting intrinsic dimension")
     return parser.parse_args()
 
-def load_kandinsky_jobs(self, dataset):
-    print(f"Fetching kandinsky jobs for the {dataset} dataset")
-    response = requests.get(f'{API_URL}/queue/image-generation/list-completed-by-dataset-and-task-type?dataset={dataset}&task_type=img2img_generation_kandinsky')
-        
-    jobs = json.loads(response.content)
+def load_featurs_data(minio_client, data_type, max_count):
+    featurs_data = []
 
-    return jobs
+    try:
+        dataloader = KandinskyDatasetLoader(minio_client=minio_client)
+    except Exception as e:
+        print("Error in initializing kankinsky dataset loader:{}".format(e))
+        return
 
+    # get features data depends on data type
+    if data_type == "clip":
+        featurs_data, _ = dataloader.load_clip_vector_data(limit=max_count)
+    elif data_type == "vae":
+        featurs_data = dataloader.load_latents(limit=max_count)
+    else:
+        print("No support data type {}".format(data_type))
+        return featurs_data
+    
+    return featurs_data
+    
 
-def load_vectors(minio_client, dataset_names, vector_type="clip",  limit=1024):
-    num_loaded_vectors = 0
-
-    feature_vectors = []
-
-    for dataset_name in dataset_names:
-
-        if num_loaded_vectors >= limit:
-            break
-
-        # jobs = request.http_get_completed_job_by_dataset(dataset=dataset_name, limit=limit)
-        jobs = load_kandinsky_jobs(dataset_name)
-        for job in jobs:
-
-            if num_loaded_vectors >= limit:
-                break
-            
-            # path = job.get("task_output_file_dict", {}).get("output_file_path")
-            path = job['file_path']
-            if path:
-                if vector_type == "clip":
-                    path = path.replace(".jpg", "_embedding.msgpack")
-                    bucket, features_vector_path = separate_bucket_and_file_path(path)
-                    try:
-                        loaded_feature_vector = get_object(minio_client, features_vector_path)
-                        feature_vector_dict = msgpack.unpackb(loaded_feature_vector)
-
-                        feature_vectors.append(feature_vector_dict["image_embedding"])
-
-                        num_loaded_vectors += 1
-                    except Exception as e:
-                        print("Error in loading feature vector: {}, {}".format(features_vector_path, e))
-
-                elif vector_type == "vae":
-                    path = path.replace(".jpg", "_vae_latent.msgpack")
-                    bucket, features_vector_path = separate_bucket_and_file_path(path)
-                    try:
-                        feature_vector = get_object(minio_client, features_vector_path)
-                        print("----->", msgpack.unpackb(feature_vector))
-                        feature_vector = msgpack.unpackb(feature_vector)["latent_vector"]
-                        feature_vectors.append(feature_vector)
-
-                        num_loaded_vectors += 1
-                    except Exception as e:
-                        print("Error in loading feature vector: {}, {}".format(path, e))
-
-    return feature_vectors
-        
 def main():
     args = parse_args()
 
@@ -93,69 +58,63 @@ def main():
     minio_client = cmd.get_minio_client(minio_access_key=args.minio_access_key,
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
-    dataset_names = request.http_get_dataset_names()
-    all_feature_vectors = []
 
-    list_clip_vector_num = [args.num_vectors]
+    # testing number of clip vectors for example 100, 1000, 10000
+    count_list = args.count_list
+    # features data type
+    data_type_list = args.data_type_list
+    # max count of clip vectors for testing intrinsic dimension
+    max_count = max(count_list) * 2
 
-    for dataset_name in dataset_names:
-        try:
-            dataloader = KandinskyDatasetLoader(minio_client=minio_client, dataset=dataset_name)
-        except Exception as e:
-            print("Error in initializing kankinsky dataset loader:{}".format(e))
-            continue
+    # load feature data from environment dataset
+    feature_data = load_featurs_data(minio_client, args.data_type, max_count)
+    if len(feature_data) == 0:
+        raise Exception("Failed the loading of feature data")
 
-        if args.data_type == "clip":
-            feature_vectors, _= dataloader.load_clip_vector_data(limit=max(list_clip_vector_num))
-        elif args.data_type == "vae":
-            feature_vectors = dataloader.load_latents(limit=max(list_clip_vector_num))
-        else:
-            print("No support data type {}".format(args.data_type))
-            return None
-        all_feature_vectors.extend(feature_vectors)
-        print(len(all_feature_vectors), max(list_clip_vector_num))
-        if len(all_feature_vectors) >= max(list_clip_vector_num):
-            break
     result = []
+    for data_type in data_type_list:
 
-    print("length", len(all_feature_vectors))
+        for count in count_list:
 
-    for clip_vector_num in list_clip_vector_num:
-        data = torch.tensor(all_feature_vectors[:clip_vector_num])
+            # get specific count of data for gettting intrinsic dimension
+            data = torch.tensor(feature_data[:count])
 
-        # wrangle the latent vector [1, 4, 64, 64]
-        if args.data_type == "vae":
-            data = data.reshape((data.size(0), -1))
+            # wrangle the latent vector [1, 4, 64, 64]
+            if data_type == "vae":
+                data = data.reshape((data.size(0), -1))
 
-        start_time = time.time()
-        d1 = mle_id(data, k=2)
-        mle_elapsed_time = time.time() - start_time
-        start_time = time.time()
-        d2 = twonn_numpy(data.numpy(), return_xy=False)
-        twonn_numpy_elapsed_time = time.time() - start_time
-        start_time = time.time()
-        d3 = twonn_pytorch(data, return_xy=False)
-        twonn_pytorch_elapsed_time = time.time() - start_time
+            start_time = time.time()
+            dimension_by_mle = mle_id(data, k=2)
+            mle_elapsed_time = time.time() - start_time
 
-        result.append({
-            "number of clip vector": data.size(0),
-            "dimension of clip vector": data.size(1),
-            "dimension": data.size(1),
-            "mle_id": {
-                "intrinsic dimension": d1,
-                "elapsed time": mle_elapsed_time
-            },
-            "twonn_numpy": {
-                "intrinsic dimension": d2,
-                "elapsed time": twonn_numpy_elapsed_time,
-            },
-            "twonn_pytorch":{
-                "intrinsic dimension": d3,
-                "elapsed time": twonn_pytorch_elapsed_time,
-            }
-        })
-        
-    print(result)
+            start_time = time.time()
+            dimension_by_twonn_numpy = twonn_numpy(data.numpy(), return_xy=False)
+            twonn_numpy_elapsed_time = time.time() - start_time
+
+            start_time = time.time()
+            dimension_by_twonn_torch = twonn_pytorch(data, return_xy=False)
+            twonn_pytorch_elapsed_time = time.time() - start_time
+
+            result.append({
+                "Data type": "Clip vector" if data_type == "clip" else "VAE",
+                "Number of clip vector": data.size(0),
+                "Dimension of clip vector": data.size(1),
+                "mle_id": {
+                    "Intrinsic dimension": dimension_by_mle,
+                    "Elapsed time": mle_elapsed_time
+                },
+                "twonn_numpy": {
+                    "Intrinsic dimension": dimension_by_twonn_numpy,
+                    "Elapsed time": twonn_numpy_elapsed_time,
+                },
+                "twonn_pytorch":{
+                    "Intrinsic dimension": dimension_by_twonn_torch,
+                    "Elapsed time": twonn_pytorch_elapsed_time,
+                }
+            })
+
+    with open("output/{}_intrinsic_dimesion".format(datetime.now()), 'w') as file:
+        json.dump(result, file, indent=4)
 
 if __name__ == "__main__":
     main()
