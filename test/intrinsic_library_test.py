@@ -39,7 +39,7 @@ def parse_args():
 
 
 def format_duration(milliseconds):
-    return timedelta(microseconds=milliseconds).__str__
+    return timedelta(microseconds=milliseconds)
 
 def load_featurs_data(minio_client, data_type, max_count, dataset):
     featurs_data = []
