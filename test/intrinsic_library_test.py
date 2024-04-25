@@ -70,6 +70,8 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
 
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
     # testing number of clip vectors for example 100, 1000, 10000
     count_list = args.count_list
     # features data type
@@ -89,7 +91,7 @@ def main():
         for count in count_list:
 
             # get specific count of data for gettting intrinsic dimension
-            data = torch.tensor(feature_data[:count])
+            data = torch.tensor(feature_data[:count], device=device)
 
             # wrangle the latent vector [1, 4, 64, 64]
             if data_type == "vae":
@@ -127,7 +129,7 @@ def main():
                     }
                 })
 
-            elif args.library == Library.SCIPY.value:
+            elif args.library == Library.SCIKIT_DIMENSION.value:
                 pass
 
     with open("output/{}_intrinsic_dimesion.json".format(datetime.now()), 'w') as file:
