@@ -33,7 +33,7 @@ class ListSelection(BaseModel):
     ranking_data: List[Selection]
 
 class ListRankingSelection(BaseModel):
-    datapoints: List[Selection]
+    datapoints: List[str]
 
 
 class RelevanceSelection(BaseModel):
@@ -53,5 +53,5 @@ class RelevanceSelection(BaseModel):
         }
     
 class ListRelevanceSelection(BaseModel):
-    datapoints: List[RelevanceSelection]
+    datapoints: List[str]
 

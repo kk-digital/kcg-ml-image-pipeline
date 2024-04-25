@@ -61,11 +61,12 @@ class DatasetConfig(BaseModel):
     dataset_name: str
     last_update: datetime
     dataset_rate: str
-    relevance_model: str
+    relevance_model: str 
     ranking_model: str
     hourly_limit: str
     top_k: str
     generation_policy: str
+    relevance_threshold: int
 
 class RankinModelResponse(BaseModel):
     last_update: datetime

@@ -82,7 +82,6 @@ class ListRankActiveLearningPair(BaseModel):
 
 class RankSelection(BaseModel):
     rank_model_id: int
-    rank_model_string: str
     task: str
     username: str
     image_1_metadata: ImageMetadata
@@ -91,13 +90,11 @@ class RankSelection(BaseModel):
     selected_image_hash: Union[str, None] = None
     datetime: Union[str, None] = None
     training_mode: Union[str, None] = None
-    active_learning_policy_id: Union[int, None] = None
-    active_learning_policy: Union[str, None] = None
+    rank_active_learning_policy_id: int
 
     def to_dict(self):
         return {
             "rank_model_id": self.rank_model_id,
-            "rank_model_string": self.rank_model_string,
             "task": self.task,
             "username": self.username,
             "image_1_metadata": self.image_1_metadata.to_dict(),
@@ -106,8 +103,7 @@ class RankSelection(BaseModel):
             "selected_image_hash": self.selected_image_hash,
             "datetime": self.datetime,
             "training_mode": self.training_mode,
-            "active_learning_type": self.active_learning_policy_id,
-            "active_learning_policy": self.active_learning_policy,
+            "rank_active_learning_policy_id": self.rank_active_learning_policy_id,
         }
     
 class ListRankSelection(BaseModel):

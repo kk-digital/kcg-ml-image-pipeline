@@ -1,11 +1,13 @@
 from fastapi import Request, APIRouter, Query
-from .api_utils import PrettyJSONResponse, ErrorCode, WasPresentResponse, ApiResponseHandlerV1, StandardSuccessResponseV1
+from .api_utils import PrettyJSONResponse, ErrorCode, WasPresentResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, CountResponse
 from orchestration.api.mongo_schemas import ClassifierScore, ListClassifierScore, ClassifierScoreRequest, ClassifierScoreV1, ListClassifierScore1
 from fastapi.encoders import jsonable_encoder
 import uuid
 from typing import Optional
 from datetime import datetime
+import time
 from typing import List
+
 
 
 router = APIRouter()
@@ -587,7 +589,7 @@ async def list_image_scores(
 
     # Return the fetched data with a success response
     return response_handler.create_success_response_v1(
-        response_data=images_data, 
+        response_data={"images": images_data}, 
         http_status_code=200
     )
 
@@ -644,7 +646,7 @@ async def list_image_scores(
 
     # Return the fetched data with a success response
     return response_handler.create_success_response_v1(
-        response_data=images_data, 
+        response_data={"images": images_data}, 
         http_status_code=200
     )
 
@@ -653,6 +655,7 @@ import logging
 
 @router.post("/pseudotag-classifier-scores/batch-update-task-type", 
              response_model=StandardSuccessResponseV1[dict],
+             tags = ['deprecated2'],
              responses=ApiResponseHandlerV1.listErrors([500]))
 def batch_update_classifier_scores_with_task_type(request: Request):
     api_response_handler = ApiResponseHandlerV1(request)
@@ -701,10 +704,10 @@ def batch_update_classifier_scores_with_task_type(request: Request):
 
 
 
-@router.get("/image-classifier-scores/count", 
-            response_model=StandardSuccessResponseV1[int],
+@router.get("/pseudotag-classifier-scores/count-all-saved-scores", 
+            response_model=StandardSuccessResponseV1[CountResponse],
             status_code=200,
-            tags=["image-classifier-scores"],
+            tags=["pseudotag-classifier-scores"],
             description="Counts the number of documents in the image classifier scores collection",
             responses=ApiResponseHandlerV1.listErrors([500]))
 async def count_classifier_scores(request: Request):
@@ -729,7 +732,7 @@ async def count_classifier_scores(request: Request):
 @router.get("/image-classifier-scores/count-task-type", 
             response_model=StandardSuccessResponseV1[dict],
             status_code=200,
-            tags=["image-classifier-scores"],
+            tags=["deprecated2"],
             description="Counts the number of documents in the image classifier scores collection that contain the 'task_type' field",
             responses=ApiResponseHandlerV1.listErrors([500]))
 async def count_classifier_scores(request: Request):
@@ -769,7 +772,9 @@ async def list_image_scores(
     random_sampling: bool = Query(True, description="Enable random sampling")
 ):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
+    start_time = time.time()  # Start time tracking
 
+    print("Building query...")
     # Build the query based on provided filters
     query = {}
     if classifier_id is not None:
@@ -783,18 +788,26 @@ async def list_image_scores(
     elif max_score is not None:
         query["score"] = {"$lte": max_score}
 
+    print("Query built. Time taken:", time.time() - start_time)
+
     # Modify behavior based on random_sampling parameter
     if random_sampling:
-        # Fetch data without sorting when random_sampling is True
-        cursor = request.app.image_classifier_scores_collection.aggregate([
-            {"$match": query},
-            {"$sample": {"size": limit}}  # Use the MongoDB $sample operator for random sampling
-        ])
+        # Apply some filtering before sampling
+        query_filter = {"$match": query}  
+        sampling_stage = {"$sample": {"size": limit}}  # Random sampling with a limit
+        
+        # Build the optimized pipeline
+        pipeline = [query_filter, sampling_stage]
+
+        cursor = request.app.image_classifier_scores_collection.aggregate(pipeline)
+
     else:
         # Determine sort order and fetch sorted data when random_sampling is False
         sort_order = 1 if order == "asc" else -1
         cursor = request.app.image_classifier_scores_collection.find(query).sort([("score", sort_order)]).skip(offset).limit(limit)
     
+    print("Data fetched. Time taken:", time.time() - start_time)
+
     scores_data = list(cursor)
 
     # Remove _id in response data
@@ -804,13 +817,56 @@ async def list_image_scores(
     # Prepare the data for the response
     images_data = ListClassifierScore1(images=[ClassifierScoreV1(**doc).to_dict() for doc in scores_data]).dict()
 
+    print("Returning response. Total time:", time.time() - start_time)
+
     # Return the fetched data with a success response
     return response_handler.create_success_response_v1(
-        response_data=images_data, 
+        response_data={"images":images_data}, 
         http_status_code=200
     )
 
+   
+
+@router.get("/pseudotag-classifier-scores/get-classifier-score-list-for-image",
+            description="Get all scores for a specific image hash",
+            tags=["pseudotag-classifier-scores"],  
+            response_model=StandardSuccessResponseV1[ListClassifierScore1],
+            responses=ApiResponseHandlerV1.listErrors([404,422]))
+async def get_scores_by_image_hash(
+    request: Request,
+    image_hash: str = Query(..., description="The hash of the image to retrieve scores for")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+
+    # Build the query to fetch scores by image_hash
+    query = {"image_hash": image_hash}
+
+    # Fetch data from the database
+    cursor = request.app.image_classifier_scores_collection.find(query)
+
+    # Check if any scores exist
+    if not cursor:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR, 
+            error_string="No scores found for the provided image hash",
+            http_status_code=404
+        ) 
+
+    scores_data = list(cursor)
+
+    # Remove '_id' from the response data
+    for score in scores_data:
+        score.pop('_id', None)
+
+    # Prepare and return the data for the response
+    return response_handler.create_success_response_v1(
+        response_data={"images": scores_data},
+        http_status_code=200
+    )
+
+
 @router.delete("/pseudotag-classifier-scores/delete-all-classifier-scores", 
+
              response_class=PrettyJSONResponse)
 async def delete_classifier_scores(request: Request):
     # Delete all classifier scores
@@ -820,3 +876,9 @@ async def delete_classifier_scores(request: Request):
         "message": f"Deleted {delete_result.deleted_count} classifier scores"
     }
    
+
+@router.delete("/clean-classifier-score")
+def clear_classifier_scores(request: Request):
+    request.app.image_classifier_scores_collection.delete_many({})
+
+    return True

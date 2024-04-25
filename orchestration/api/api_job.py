@@ -1872,6 +1872,71 @@ async def get_job_by_image_hash(request: Request, image_hash: str, fields: List[
             http_status_code=404
         )
 
+
+@router.get("/get-image-generation/by-hash-v2/{image_hash}",
+            response_model=StandardSuccessResponseV1[dict],
+            status_code=200,
+            tags=["jobs-standardized"],
+            description="Retrieves a job by its image hash. Returns the full property path for clarity.",
+            responses=ApiResponseHandlerV1.listErrors([404, 500]),
+)
+async def get_job_by_image_hash(request: Request, image_hash: str, fields: List[str] = Query(None)):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    
+    try:
+        # Define a projection for MongoDB based on the requested fields
+        # The endpoint projection ensures full paths are specified
+        projection = {field: 1 for field in fields} if fields else {}
+        projection["_id"] = 0
+
+        # Query the database to retrieve the job
+        job = request.app.completed_jobs_collection.find_one(
+            {"task_output_file_dict.output_file_hash": image_hash}, projection
+        )
+
+        # Initialize response data
+        response_data = {}
+
+        # Populate the response data with the correct field paths
+        if job:
+            for field in fields:
+                # Access nested fields through a dynamic approach
+                path_parts = field.split('.')
+                current_data = job
+
+                # Traverse the nested path to retrieve the value
+                for part in path_parts:
+                    if part in current_data:
+                        current_data = current_data[part]
+                    else:
+                        current_data = None
+                        break  # If any part doesn't exist, break out
+
+                # Only add to response_data if a valid value was found
+                if current_data is not None:
+                    response_data[field] = current_data
+
+            return response_handler.create_success_response_v1(
+                response_data=response_data,
+                http_status_code=200,
+            )
+        else:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"Job with image hash '{image_hash}' not found",
+                http_status_code=404,
+            )
+
+
+    except Exception as e:
+        print("Exception occurred:", e)  # Debugging print statement to check the exception
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )
+
+
 @router.get("/get-image-generation/by-job-id-v1/{job_id}", 
             response_model=StandardSuccessResponseV1[dict],
             status_code=200,
