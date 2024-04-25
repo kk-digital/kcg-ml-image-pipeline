@@ -20,7 +20,7 @@ async def get_clip_vector(request: Request, image_global_id: int):
     
     # Retrieve the clip-h vector for the given image_global_id from the memory-mapped array
     if image_global_id < len(request.app.mmapped_array):
-        response_data = request.app.mmapped_array[image_global_id]
+        response_data = request.app.mmapped_array[image_global_id].tolist()
     else:
         raise HTTPException(status_code=404, detail="Image not found")
 
@@ -35,7 +35,7 @@ async def get_clip_vectors(request: Request, image_global_ids: list):
     clip_vectors = []
     for i in image_global_ids:
         if i < request.app.shape[0]:
-            clip_vectors.append(request.app.mmmapped_array[i])
+            clip_vectors.append(request.app.mmmapped_array[i].tolist())
         else:
             raise HTTPException(status_code=404, detail="Image not found")
 
