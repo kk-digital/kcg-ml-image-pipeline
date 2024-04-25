@@ -7,6 +7,7 @@ base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 
+from data_loader.kandinsky_dataset_loader import KandinskyDatasetLoader
 from utility.minio import cmd
 from utility.http import request
 from utility.path import separate_bucket_and_file_path
@@ -93,49 +94,46 @@ def main():
                                         minio_secret_key=args.minio_secret_key,
                                         minio_ip_addr=args.minio_addr)
     dataset_names = request.http_get_dataset_names()
-    
-    test_clip_vector_num_list = [args.num_vectors]
-    max_test_clip_vector_num = max(test_clip_vector_num_list)
-
     all_feature_vectors = []
-    
-    all_feature_vectors = load_vectors(minio_client=minio_client, dataset_names=dataset_names, vector_type=args.data_type, limit=max_test_clip_vector_num)
 
+    list_clip_vector_num = [args.num_vectors]
+
+    for dataset_name in dataset_names[0]:
+        try:
+            dataloader = KandinskyDatasetLoader(minio_client=minio_client, dataset=dataset_name)
+        except Exception as e:
+            print("Error in initializing kankinsky dataset loader:{}".format(e))
+            continue
+
+        if args.data_type == "clip":
+            feature_vectors, _= dataloader.load_clip_vector_data(limit=max(list_clip_vector_num))
+        elif args.data_type == "vae":
+            feature_vectors = dataloader.load_latents(limit=max(list_clip_vector_num))
+        else:
+            print("No support data type {}".format(args.data_type))
+            return None
+        all_feature_vectors.extend(feature_vectors)
+        if len(all_feature_vectors) >= max(list_clip_vector_num):
+            break
     result = []
 
-    for clip_vector_num in test_clip_vector_num_list:
-        data = torch.tensor(all_feature_vectors[:clip_vector_num])
+    print("length", len(all_feature_vectors))
 
+    for clip_vector_num in list_clip_vector_num:
+        data = torch.tensor(all_feature_vectors[:clip_vector_num])
         print("shape", data.size())
-        
-        start_time = time.time()
         d1 = mle_id(data, k=2)
-        mle_elapsed_time = time.time() - start_time
-        start_time = time.time()
         d2 = twonn_numpy(data.numpy(), return_xy=False)
-        twonn_numpy_elapsed_time = time.time()
-        start_time = time.time()
         d3 = twonn_pytorch(data, return_xy=False)
-        twonn_torch_elapsed_time = time.time() - start_time
 
         result.append({
             "number of clip vector": data.size(0),
             "dimension of clip vector": data.size(1),
             "dimension": data.size(1),
-            "mle_id": {
-                "intrinsic dimension": d1,
-                "elapsed time": mle_elapsed_time
-            },
-            "twonn_numpy": {
-                "intrinsic dimension": d2,
-                "elapsed time": twonn_numpy_elapsed_time,
-            },
-            "twonn_pytorch": {
-                "intrinsic dimension": d3,
-                "elapsed time": twonn_torch_elapsed_time
-            },
+            "mle_id": d1,
+            "twonn_numpy": d2,
+            "twonn_pytorch": d3,
         })
-
     print(result)
 
 if __name__ == "__main__":
