@@ -8,6 +8,9 @@ import json
 import time
 from datetime import datetime, timedelta
 
+# utilties
+from enum import Enum
+
 from intrinsics_dimension import mle_id, twonn_numpy, twonn_pytorch
 
 base_dir = "./"
@@ -18,7 +21,9 @@ from data_loader.kandinsky_dataset_loader import KandinskyDatasetLoader
 
 from utility.minio import cmd
 
-API_URL="http://192.168.3.1:8111"
+class Library(Enum):
+    INTRINSIC_DIMENSION = 0
+    SCIPY = 1
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -26,6 +31,7 @@ def parse_args():
     parser.add_argument('--minio-access-key', type=str, help='Minio access key')
     parser.add_argument('--minio-secret-key', type=str, help='Minio secret key')
     parser.add_argument('--minio-addr', type=str, help='Minio address')
+    parser.add_argument('--library', type=0, default="" ,help='Lirary used for getting intrinsic dimension of data, ["intrinsic_dimension", "scipy"], now there are two available libraries')
     parser.add_argument('--data-type-list', type=str, nargs='+', default=['clip'], help='Data types to obtain intrinsic dimensions, for exmaple, clip and vae')
     parser.add_argument('--count-list', type=int, nargs='+', default=[100], help="list of count for getting intrinsic dimension")
     parser.add_argument('--dataset', type=str, default="environmental", help="Dataset name")
@@ -72,6 +78,7 @@ def main():
     max_count = max(count_list) * 2
 
     result = []
+
     for data_type in data_type_list:
 
         # load feature data from environment dataset
@@ -87,36 +94,41 @@ def main():
             # wrangle the latent vector [1, 4, 64, 64]
             if data_type == "vae":
                 data = data.reshape((data.size(0), -1))
+            
+            if args.library == Library.INTRINSIC_DIMENSION:
 
-            start_time = time.time()
-            dimension_by_mle = mle_id(data, k=2)
-            mle_elapsed_time = time.time() - start_time
+                start_time = time.time()
+                dimension_by_mle = mle_id(data, k=2)
+                mle_elapsed_time = time.time() - start_time
 
-            start_time = time.time()
-            dimension_by_twonn_numpy = twonn_numpy(data.numpy(), return_xy=False)
-            twonn_numpy_elapsed_time = time.time() - start_time
+                start_time = time.time()
+                dimension_by_twonn_numpy = twonn_numpy(data.numpy(), return_xy=False)
+                twonn_numpy_elapsed_time = time.time() - start_time
 
-            start_time = time.time()
-            dimension_by_twonn_torch = twonn_pytorch(data, return_xy=False)
-            twonn_pytorch_elapsed_time = time.time() - start_time
+                start_time = time.time()
+                dimension_by_twonn_torch = twonn_pytorch(data, return_xy=False)
+                twonn_pytorch_elapsed_time = time.time() - start_time
 
-            result.append({
-                "Data type": "Clip vector" if data_type == "clip" else "VAE",
-                "Number of clip vector": data.size(0),
-                "Dimension of clip vector": data.size(1),
-                "mle_id": {
-                    "Intrinsic dimension": dimension_by_mle,
-                    "Elapsed time": "{}".format(timedelta(milliseconds=mle_elapsed_time*1000))
-                },
-                "twonn_numpy": {
-                    "Intrinsic dimension": dimension_by_twonn_numpy,
-                    "Elapsed time": "{}".format(timedelta(milliseconds=twonn_numpy_elapsed_time))
-                },
-                "twonn_pytorch":{
-                    "Intrinsic dimension": dimension_by_twonn_torch,
-                    "Elapsed time": "{}".format(timedelta(milliseconds=twonn_pytorch_elapsed_time))
-                }
-            })
+                result.append({
+                    "Data type": "Clip vector" if data_type == "clip" else "VAE",
+                    "Number of clip vector": data.size(0),
+                    "Dimension of clip vector": data.size(1),
+                    "mle_id": {
+                        "Intrinsic dimension": dimension_by_mle,
+                        "Elapsed time": "{}".format(timedelta(milliseconds=mle_elapsed_time * 1000))
+                    },
+                    "twonn_numpy": {
+                        "Intrinsic dimension": dimension_by_twonn_numpy,
+                        "Elapsed time": "{}".format(timedelta(milliseconds=twonn_numpy_elapsed_time * 1000))
+                    },
+                    "twonn_pytorch":{
+                        "Intrinsic dimension": dimension_by_twonn_torch,
+                        "Elapsed time": "{}".format(timedelta(milliseconds=twonn_pytorch_elapsed_time * 1000))
+                    }
+                })
+
+            elif args.library == Library.SCIPY:
+                pass
 
     with open("output/{}_intrinsic_dimesion.json".format(datetime.now()), 'w') as file:
         json.dump(result, file, indent=4)
