@@ -48,8 +48,6 @@ def load_vectors(minio_client, dataset_names, vector_type="clip",  limit=1024):
                     try:
                         loaded_feature_vector = get_object(minio_client, features_vector_path)
                         feature_vector_dict = msgpack.unpackb(loaded_feature_vector)
-                        
-                        print("raw loaded feature vector", feature_vector_dict)
 
                         feature_vectors.append(feature_vector_dict["image_embedding"])
 
