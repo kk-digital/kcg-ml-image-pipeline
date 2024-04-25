@@ -104,7 +104,7 @@ def main():
                 mle_elapsed_time = time.time() - start_time
 
                 start_time = time.time()
-                dimension_by_twonn_numpy = twonn_numpy(data.numpy(), return_xy=False)
+                dimension_by_twonn_numpy = twonn_numpy(data.cpu().numpy(), return_xy=False)
                 twonn_numpy_elapsed_time = time.time() - start_time
 
                 start_time = time.time()
