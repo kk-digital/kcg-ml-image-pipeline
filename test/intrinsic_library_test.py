@@ -127,18 +127,34 @@ def main():
         if args.data_type == "vae":
             data = data.reshape((data.size(0), -1))
 
+        start_time = time.time()
         d1 = mle_id(data, k=2)
+        mle_elapsed_time = time.time() - start_time
+        start_time = time.time()
         d2 = twonn_numpy(data.numpy(), return_xy=False)
+        twonn_numpy_elapsed_time = time.time() - start_time
+        start_time = time.time()
         d3 = twonn_pytorch(data, return_xy=False)
+        twonn_pytorch_elapsed_time = time.time() - start_time
 
         result.append({
             "number of clip vector": data.size(0),
             "dimension of clip vector": data.size(1),
             "dimension": data.size(1),
-            "mle_id": d1,
-            "twonn_numpy": d2,
-            "twonn_pytorch": d3,
+            "mle_id": {
+                "intrinsic dimension": d1,
+                "elapsed time": mle_elapsed_time
+            },
+            "twonn_numpy": {
+                "intrinsic dimension": d2,
+                "elapsed time": twonn_numpy_elapsed_time,
+            },
+            "twonn_pytorch":{
+                "intrinsic dimension": d3,
+                "elapsed time": twonn_pytorch_elapsed_time,
+            }
         })
+        
     print(result)
 
 if __name__ == "__main__":
