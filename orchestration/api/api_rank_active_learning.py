@@ -284,7 +284,7 @@ async def random_queue_pair(request: Request, rank_model_id : Optional[int] = No
 
 
 
-@router.post("/rank-active-learning-queue/add-ranking-datapoint", 
+@router.post("/rank-training/add-ranking-data-point", 
              status_code=201,
              tags = ['Rank Active Learning'],
              response_model=StandardSuccessResponseV1[RankSelection],
@@ -311,7 +311,6 @@ async def add_datapoints(request: Request, selection: RankSelection):
         {"rank_active_learning_policy_id": selection.rank_active_learning_policy_id}
     )
         
-        print(type(selection.rank_active_learning_policy_id))
 
         if not policy:
             return api_handler.create_error_response_v1(
@@ -337,7 +336,7 @@ async def add_datapoints(request: Request, selection: RankSelection):
             ("dataset", dataset),
             ('rank_model_string', rank_model_string),
             *dict_data.items(), # Unpack the rest of dict_data
-            ('rank_active_learning', rank_active_learning)
+            ('rank_active_learning', rank_active_learning),
         ])
 
         # Insert the ordered data into MongoDB
@@ -347,7 +346,6 @@ async def add_datapoints(request: Request, selection: RankSelection):
         minio_data = mongo_data.copy()
         minio_data.pop("_id")
         minio_data.pop("file_name")
-        minio_data.pop("dataset")
         path = f"data/rank/{rank_model_string}"
         full_path = os.path.join("environmental", path, file_name)
         json_data = json.dumps(minio_data, indent=4).encode('utf-8')
@@ -372,7 +370,7 @@ async def add_datapoints(request: Request, selection: RankSelection):
             http_status_code=500
         )
 
-@router.get("/rank-active-learning-queue/list-ranking-datapoints-from-mongo",
+@router.get("/rank-training/list-ranking-datapoints-from-mongo",
             description="list active learning datapoints",
             response_model=StandardSuccessResponseV1[ListRankSelection],
             status_code=200,
@@ -400,6 +398,86 @@ def list_ranking_datapoints(request: Request):
     
     # Return a standardized success response with the score data
     return api_response_handler.create_success_response_v1(
-        response_data=score_data,
+        response_data={"datapoints": score_data},
         http_status_code=200
     )
+
+@router.get("/rank-training/sort-ranking-data-by-date", 
+            description="Sort rank data by date",
+            tags=["Rank Active Learning"],
+            response_model=StandardSuccessResponseV1[ListRankSelection],  
+            responses=ApiResponseHandlerV1.listErrors([400, 422, 500]))
+async def sort_ranking_data_by_date_v2(
+    request: Request,
+    dataset: str = Query(..., description="Dataset to filter by"),
+    start_date: Optional[str] = Query(None, description="Start date (inclusive) in YYYY-MM-DD format"),
+    rank_model_id: int = Query(None, description="Rank model ID to filter by"),
+    end_date: Optional[str] = Query(None, description="End date (inclusive) in YYYY-MM-DD format"),
+    skip: int = Query(0, alias="offset"),
+    limit: int = Query(10, alias="limit"),
+    order: str = Query("desc", regex="^(desc|asc)$")
+):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        # Convert start_date and end_date strings to datetime objects, if provided
+        start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else None
+        end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
+
+        # Build the query filter based on dataset and optional dates
+        query_filter = {"dataset": dataset, "rank_model_id": rank_model_id}
+        if start_date_obj or end_date_obj:
+            date_filter = {}
+            if start_date_obj:
+                date_filter["$gte"] = start_date_obj
+            if end_date_obj:
+                date_filter["$lte"] = end_date_obj
+            query_filter["datetime"] = date_filter 
+
+        # Determine the sort order
+        sort_order = pymongo.DESCENDING if order == "desc" else pymongo.ASCENDING
+
+        # Fetch and sort data from MongoDB with pagination
+        cursor = request.app.ranking_datapoints_collection.find(query_filter).sort(
+            "datetime", sort_order  
+        ).skip(skip).limit(limit)
+
+        # Convert cursor to list of dictionaries
+        ranking_data = [doc for doc in cursor]
+        for doc in ranking_data:
+            doc['_id'] = str(doc['_id'])  # Convert ObjectId to string for JSON serialization
+        
+        return response_handler.create_success_response_v1(
+            response_data={"datapoints": ranking_data}, 
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=f"Internal Server Error: {str(e)}",
+            http_status_code=500
+        )      
+    
+
+@router.get("/rank-training/count-ranking-data-points", 
+            description="count ranking data",
+            tags=["Rank Active Learning"],
+            response_model=StandardSuccessResponseV1[CountResponse],  
+            responses=ApiResponseHandlerV1.listErrors([500]))
+def count_ranking_data(request: Request):
+    response_handler = ApiResponseHandlerV1(request)
+    try:
+        # Get the count of documents in the image_pair_ranking_collection
+        count = request.app.ranking_datapoints_collection.count_documents({})
+
+        # Return the count with a success response
+        return response_handler.create_success_response_v1(
+            response_data={"count": count}, 
+            http_status_code=200,
+        )
+    except Exception as e:
+        # Handle exceptions and return an error response
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )    
