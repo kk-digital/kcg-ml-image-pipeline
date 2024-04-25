@@ -66,13 +66,13 @@ def main():
     # max count of clip vectors for testing intrinsic dimension
     max_count = max(count_list) * 2
 
-    # load feature data from environment dataset
-    feature_data = load_featurs_data(minio_client, args.data_type, max_count)
-    if len(feature_data) == 0:
-        raise Exception("Failed the loading of feature data")
-
     result = []
     for data_type in data_type_list:
+        
+        # load feature data from environment dataset
+        feature_data = load_featurs_data(minio_client, max_count)
+        if len(feature_data) == 0:
+            raise Exception("Failed the loading of feature data")
 
         for count in count_list:
 
