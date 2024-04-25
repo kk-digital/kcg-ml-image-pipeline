@@ -1614,7 +1614,7 @@ def plot_samples_graph_interpolation(loaded_model,dataset_name, number_of_sample
     ys = scores
     # Generate additional points for higher granularity (64 segments)
     x_dense = np.linspace(min(xs), max(xs), 64)
-    y_dense = interp1d(xs, ys, kind='cuibc')(x_dense)
+    y_dense = interp1d(xs, ys, kind='quadratic')(x_dense)
 
     # Linear interpolation function with higher granularity
     interp_func_dense = interp1d(x_dense, y_dense, kind='linear')
