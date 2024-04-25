@@ -1,5 +1,5 @@
 from fastapi import Request, APIRouter, Query
-from .api_utils import PrettyJSONResponse, ErrorCode, WasPresentResponse, ApiResponseHandlerV1, StandardSuccessResponseV1
+from .api_utils import PrettyJSONResponse, ErrorCode, WasPresentResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, CountResponse
 from orchestration.api.mongo_schemas import ClassifierScore, ListClassifierScore, ClassifierScoreRequest, ClassifierScoreV1, ListClassifierScore1
 from fastapi.encoders import jsonable_encoder
 import uuid
@@ -655,6 +655,7 @@ import logging
 
 @router.post("/pseudotag-classifier-scores/batch-update-task-type", 
              response_model=StandardSuccessResponseV1[dict],
+             tags = ['deprecated2'],
              responses=ApiResponseHandlerV1.listErrors([500]))
 def batch_update_classifier_scores_with_task_type(request: Request):
     api_response_handler = ApiResponseHandlerV1(request)
@@ -703,10 +704,10 @@ def batch_update_classifier_scores_with_task_type(request: Request):
 
 
 
-@router.get("/image-classifier-scores/count", 
-            response_model=StandardSuccessResponseV1[int],
+@router.get("/pseudotag-classifier-scores/count-all-saved-scores", 
+            response_model=StandardSuccessResponseV1[CountResponse],
             status_code=200,
-            tags=["image-classifier-scores"],
+            tags=["pseudotag-classifier-scores"],
             description="Counts the number of documents in the image classifier scores collection",
             responses=ApiResponseHandlerV1.listErrors([500]))
 async def count_classifier_scores(request: Request):
@@ -731,7 +732,7 @@ async def count_classifier_scores(request: Request):
 @router.get("/image-classifier-scores/count-task-type", 
             response_model=StandardSuccessResponseV1[dict],
             status_code=200,
-            tags=["image-classifier-scores"],
+            tags=["deprecated2"],
             description="Counts the number of documents in the image classifier scores collection that contain the 'task_type' field",
             responses=ApiResponseHandlerV1.listErrors([500]))
 async def count_classifier_scores(request: Request):

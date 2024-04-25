@@ -8,6 +8,7 @@ from orchestration.api.mongo_schema.selection_schemas import Selection, Relevanc
 from .mongo_schemas import FlaggedDataUpdate
 from .api_utils import PrettyJSONResponse, ApiResponseHandler, ErrorCode, StandardSuccessResponse, ApiResponseHandler, TagCountResponse, ApiResponseHandlerV1, StandardSuccessResponseV1, RankCountResponse, CountResponse, JsonContentResponse
 import random
+from orchestration.api.mongo_schema.selection_schemas import ListRelevanceSelection, ListRankingSelection
 from collections import OrderedDict
 from bson import ObjectId
 from pymongo import ReturnDocument
@@ -1568,3 +1569,50 @@ async def update_ranking_file(request: Request, dataset: str, filename: str, upd
         response_data=updated_document,
         http_status_code=200,
     )
+
+
+@router.get("/rank/list-relevance-datapoints",
+            description="List relevancy files for a dataset",
+            tags=["ranking"],
+            response_model=StandardSuccessResponseV1[ListRelevanceSelection],
+            responses=ApiResponseHandlerV1.listErrors([500]))
+async def list_relevancy_files(request: Request, dataset: str):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        path_prefix = f"{dataset}/data/relevancy/aggregate"
+        objects = cmd.get_list_of_objects_with_prefix(request.app.minio_client, "datasets", path_prefix)
+        json_files = [obj for obj in objects if obj.endswith('.json')]
+
+        return response_handler.create_success_response_v1(
+            response_data={"datapoints": json_files}, 
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )        
+
+@router.get("/rank/list-ranking-datapoints",
+            description="List ranking files for a dataset",
+            tags=["ranking"],
+            response_model=StandardSuccessResponseV1[ListRankingSelection],
+            responses=ApiResponseHandlerV1.listErrors([500]))
+async def list_ranking_files(request: Request, dataset: str):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    try:
+        path_prefix = f"{dataset}/data/ranking/aggregate"
+        objects = cmd.get_list_of_objects_with_prefix(request.app.minio_client, "datasets", path_prefix)
+        json_files = [obj for obj in objects if obj.endswith('.json')]
+
+        return response_handler.create_success_response_v1(
+            response_data={"datapoints": json_files}, 
+            http_status_code=200
+        )
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500
+        )  

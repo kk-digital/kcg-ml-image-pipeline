@@ -306,6 +306,7 @@ def get_all_pseudo_tagged_images(request: Request):
 
 @router.post("/pseudotag/batch-update-task-type", 
              response_model=StandardSuccessResponseV1[dict],
+             tags = ['deprecated2'],
              responses=ApiResponseHandlerV1.listErrors([500]))
 def batch_update_classifier_scores_with_task_type(request: Request):
     api_response_handler = ApiResponseHandlerV1(request)
@@ -437,7 +438,7 @@ async def count_classifier_scores(request: Request):
 @router.get("/pseudo-tag/count-task-type", 
             response_model=StandardSuccessResponseV1[dict],
             status_code=200,
-            tags=["pseudo_tags"],
+            tags=["deprecated2"],
             description="Counts the number of documents in the image classifier scores collection that contain the 'task_type' field",
             responses=ApiResponseHandlerV1.listErrors([500]))
 async def count_classifier_scores(request: Request):
