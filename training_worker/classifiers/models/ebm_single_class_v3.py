@@ -1621,7 +1621,7 @@ def plot_samples_graph_interpolation(loaded_model,dataset_name, number_of_sample
 
     # Plot the original function and the piecewise linear approximation with segments
     plt.plot(x_dense, y_dense, label='Piecewise Linear Approximation (64 segments)', linewidth=2, linestyle='--')
-    plt.plot(xs, ys, 'ro-', label='Data Points with Segments', markersize=3)
+    #plt.plot(xs, ys, 'ro-', label='Data Points with Segments', markersize=3)
     plt.xlabel('x')
     plt.ylabel('f(x)')
     plt.title(f'Piecewise Linear Approximation with 64 Segments for {tag_name} using {model_type}')
