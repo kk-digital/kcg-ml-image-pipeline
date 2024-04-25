@@ -1588,9 +1588,9 @@ def plot_samples_graph(loaded_model,dataset_name, number_of_samples,tag_name):
     plt.clf()
 
 
+from scipy.interpolate import interp1d
 
-
-def plot_samples_graph_interpolation(loaded_model,dataset_name, number_of_samples,tag_name):
+def plot_samples_graph_interpolation(loaded_model,dataset_name, number_of_samples,tag_name, model_type):
 
     images_paths = get_file_paths(dataset_name,number_of_samples)
     
@@ -1609,7 +1609,7 @@ def plot_samples_graph_interpolation(loaded_model,dataset_name, number_of_sample
         rank += 1
     # Tag the images
 
-    from scipy.interpolate import interp1d
+    
     xs = ranks
     ys = scores
     # Generate additional points for higher granularity (64 segments)
@@ -1624,7 +1624,7 @@ def plot_samples_graph_interpolation(loaded_model,dataset_name, number_of_sample
     plt.plot(xs, ys, 'ro-', label='Data Points with Segments')
     plt.xlabel('x')
     plt.ylabel('f(x)')
-    plt.title('Piecewise Linear Approximation with 64 Segments')
+    plt.title(f'Piecewise Linear Approximation with 64 Segments for {tag_name} using {model_type}')
     plt.legend()
     plt.grid(True)
 
@@ -1799,8 +1799,12 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 #plot_samples_hashless_binning(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 32000,tag_name =tag_name_x)
 
 # Graphs
-plot_samples_graph(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x)
+#plot_samples_graph(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x)
 #plot_samples_graph(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x)
+
+
+# graph interpol
+plot_samples_graph_interpolation(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 10000,tag_name =tag_name_x, model_type = "EBM Model" )
 ############################ Train ########################
 
 
