@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
 from tqdm import tqdm
@@ -20,10 +20,9 @@ async def get_clip_vector(request: Request, image_global_id: int):
     
     # Retrieve the clip-h vector for the given image_global_id from the memory-mapped array
     if image_global_id < len(request.app.mmapped_array):
-        response_data = request.app.mmapped_array[image_global_id].tolist()
+        response_data = request.app.mmapped_array[image_global_id]
     else:
-        clip_h_vector = np.random.rand(app.shape[1])
-        response_data = clip_h_vector
+        raise HTTPException(status_code=404, detail="Image not found")
 
     return {
         "data": response_data
@@ -33,7 +32,12 @@ async def get_clip_vector(request: Request, image_global_id: int):
 # Endpoint to get clip-h vector for list of image_global_id
 @app.post("/get_clip_vectors")
 async def get_clip_vectors(request: Request, image_global_ids: list):
-    clip_vectors = [request.app.mmapped_array[i].tolist() for i in image_global_ids if i < len(request.app.mmapped_array)]
+    clip_vectors = []
+    for i in image_global_ids:
+        if i < request.app.shape[0]:
+            clip_vectors.append(request.app.mmmapped_array[i])
+        else:
+            raise HTTPException(status_code=404, detail="Image not found")
 
     response_data = clip_vectors
     return {
@@ -70,7 +74,7 @@ def initialize():
     dtype = np.float16
 
     # Create memory-mapped array
-    filename = 'output/clip_vectors_().dat'.format(shape[0])
+    filename = 'output/clip_vectors_{}.dat'.format(shape[0])
 
     with open(filename, 'w+b') as f:
         app.mmapped_array = np.memmap(f, dtype=dtype, mode='w+', shape=shape)
