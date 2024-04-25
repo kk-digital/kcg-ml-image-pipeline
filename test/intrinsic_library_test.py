@@ -6,7 +6,7 @@ import torch
 import json
 
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from intrinsics_dimension import mle_id, twonn_numpy, twonn_pytorch
 
@@ -30,6 +30,10 @@ def parse_args():
     parser.add_argument('--count-list', type=int, nargs='+', default=[100], help="list of count for getting intrinsic dimension")
     parser.add_argument('--dataset', type=str, default="environmental", help="Dataset name")
     return parser.parse_args()
+
+
+def format_duration(milliseconds):
+    return timedelta(microseconds=milliseconds).__str__
 
 def load_featurs_data(minio_client, data_type, max_count, dataset):
     featurs_data = []
@@ -102,19 +106,19 @@ def main():
                 "Dimension of clip vector": data.size(1),
                 "mle_id": {
                     "Intrinsic dimension": dimension_by_mle,
-                    "Elapsed time": mle_elapsed_time
+                    "Elapsed time": "{}".format(timedelta(milliseconds=mle_elapsed_time*1000))
                 },
                 "twonn_numpy": {
                     "Intrinsic dimension": dimension_by_twonn_numpy,
-                    "Elapsed time": twonn_numpy_elapsed_time,
+                    "Elapsed time": "{}".format(timedelta(milliseconds=twonn_numpy_elapsed_time))
                 },
                 "twonn_pytorch":{
                     "Intrinsic dimension": dimension_by_twonn_torch,
-                    "Elapsed time": twonn_pytorch_elapsed_time,
+                    "Elapsed time": "{}".format(timedelta(milliseconds=twonn_pytorch_elapsed_time))
                 }
             })
 
-    with open("output/{}_intrinsic_dimesion".format(datetime.now()), 'w') as file:
+    with open("output/{}_intrinsic_dimesion.json".format(datetime.now()), 'w') as file:
         json.dump(result, file, indent=4)
 
 if __name__ == "__main__":
