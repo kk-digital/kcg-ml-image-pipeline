@@ -113,7 +113,7 @@ def main():
             print("No support data type {}".format(args.data_type))
             return None
         all_feature_vectors.extend(feature_vectors)
-        print(len(), max(list_clip_vector_num))
+        print(len(all_feature_vectors), max(list_clip_vector_num))
         if len(all_feature_vectors) >= max(list_clip_vector_num):
             break
     result = []
