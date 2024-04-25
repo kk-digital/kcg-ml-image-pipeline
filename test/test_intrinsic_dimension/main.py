@@ -133,8 +133,8 @@ def main():
 
                 result.append({
                     "Data type": "Clip vector" if data_type == "clip" else "VAE",
-                    "Number of clip vector": data.size(0),
-                    "Dimension of clip vector": data.size(1),
+                    "Number of clip vector": data.shape(0),
+                    "Dimension of clip vector": data.shape(1),
                     "mle": {
                         "Intrinsic dimension": "{:.2f}".format(dimension_by_mle.dimension_),
                         "Elapsed time": "{}".format(timedelta(milliseconds=mle_elapsed_time * 1000))
