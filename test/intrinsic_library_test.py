@@ -33,7 +33,7 @@ def main():
 
     list_clip_vector_num = [args.num_vectors]
 
-    for dataset_name in dataset_names:
+    for dataset_name in dataset_names[0]:
         try:
             dataloader = KandinskyDatasetLoader(minio_client=minio_client, dataset=dataset_name)
         except Exception as e:
