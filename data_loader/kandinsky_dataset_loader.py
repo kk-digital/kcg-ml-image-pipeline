@@ -182,7 +182,8 @@ class KandinskyDatasetLoader:
             except Exception as e:
                 print(f"Error processing clip at path {input_vae_path}: {e}")
         print(len(latents))
-        return latents, 
+        
+        return latents
     
     def load_classifier_scores(self, tag_name, batch_size, input_type=constants.KANDINSKY_CLIP):
         classifier= self.get_classifier_model(tag_name, input_type)
