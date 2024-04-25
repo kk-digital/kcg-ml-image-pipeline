@@ -114,15 +114,15 @@ def main():
                     "Number of clip vector": data.size(0),
                     "Dimension of clip vector": data.size(1),
                     "mle_id": {
-                        "Intrinsic dimension": dimension_by_mle,
+                        "Intrinsic dimension": "{}".format(dimension_by_mle, ".2f"),
                         "Elapsed time": "{}".format(timedelta(milliseconds=mle_elapsed_time * 1000))
                     },
                     "twonn_numpy": {
-                        "Intrinsic dimension": dimension_by_twonn_numpy,
+                        "Intrinsic dimension": "{}".format(dimension_by_twonn_numpy, ".2f"),
                         "Elapsed time": "{}".format(timedelta(milliseconds=twonn_numpy_elapsed_time * 1000))
                     },
                     "twonn_pytorch":{
-                        "Intrinsic dimension": dimension_by_twonn_torch,
+                        "Intrinsic dimension": "{}".format(dimension_by_twonn_torch, ".2f"),
                         "Elapsed time": "{}".format(timedelta(milliseconds=twonn_pytorch_elapsed_time * 1000))
                     }
                 })
