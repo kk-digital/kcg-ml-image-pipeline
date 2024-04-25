@@ -1614,14 +1614,14 @@ def plot_samples_graph_interpolation(loaded_model,dataset_name, number_of_sample
     ys = scores
     # Generate additional points for higher granularity (64 segments)
     x_dense = np.linspace(min(xs), max(xs), 64)
-    y_dense = interp1d(xs, ys, kind='quadratic')(x_dense)
+    y_dense = interp1d(xs, ys, kind='linear')(x_dense)
 
     # Linear interpolation function with higher granularity
     interp_func_dense = interp1d(x_dense, y_dense, kind='linear')
 
     # Plot the original function and the piecewise linear approximation with segments
-    plt.plot(x_dense, y_dense, label='Piecewise Linear Approximation (64 segments)')
-    plt.plot(xs, ys, 'ro-', label='Data Points with Segments')
+    plt.plot(x_dense, y_dense, label='Piecewise Linear Approximation (64 segments)', linewidth=2, linestyle='--')
+    plt.plot(xs, ys, 'ro-', label='Data Points with Segments', markersize=3)
     plt.xlabel('x')
     plt.ylabel('f(x)')
     plt.title(f'Piecewise Linear Approximation with 64 Segments for {tag_name} using {model_type}')
