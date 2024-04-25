@@ -173,7 +173,7 @@ class KandinskyDatasetLoader:
                 file_path= job['file_path']
                 bucket_name, input_file_path = separate_bucket_and_file_path(file_path)
                 file_path = os.path.splitext(input_file_path)[0]
-                input_vae_path = file_path + "_vae_latent.msgpack"
+                input_vae_path = file_path + "_vae_vae_latent.msgpack"
 
                 features_data = get_object(self.minio_client, input_vae_path)
                 print("------------------->")
