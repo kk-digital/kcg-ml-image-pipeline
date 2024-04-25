@@ -326,7 +326,7 @@ async def add_datapoints(request: Request, selection: RankSelection):
         dataset = selection.image_1_metadata.file_path.split('/')[1]
         selection.datetime = current_time
         rank_model_string = rank.get("rank_model_string", None)
-        rank_active_learning = policy.get("rank_active_learning", None)
+        rank_active_learning = policy.get("rank_active_learning_policy", None)
 
         dict_data = selection.to_dict()
 
@@ -335,8 +335,8 @@ async def add_datapoints(request: Request, selection: RankSelection):
             ("_id", ObjectId()),  # Generate new ObjectId
             ("file_name", file_name),
             ("dataset", dataset),
-            *dict_data.items(), # Unpack the rest of dict_data
             ('rank_model_string', rank_model_string),
+            *dict_data.items(), # Unpack the rest of dict_data
             ('rank_active_learning', rank_active_learning)
         ])
 
@@ -372,13 +372,13 @@ async def add_datapoints(request: Request, selection: RankSelection):
             http_status_code=500
         )
 
-@router.get("/rank-active-learning-queue/list-ranking-datapoint-from-mongo",
+@router.get("/rank-active-learning-queue/list-ranking-datapoints-from-mongo",
             description="list active learning datapoints",
             response_model=StandardSuccessResponseV1[ListRankSelection],
             status_code=200,
             tags=["Rank Active Learning"],  
             responses=ApiResponseHandlerV1.listErrors([400, 422]))
-def get_image_rank_scores_by_model_id(request: Request):
+def list_ranking_datapoints(request: Request):
     api_response_handler = ApiResponseHandlerV1(request)
     
     # check if exist
