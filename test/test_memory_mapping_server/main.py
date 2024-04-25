@@ -19,7 +19,7 @@ app.add_middleware(
 async def get_clip_vector(request: Request, image_global_id: int):
     
     # Retrieve the clip-h vector for the given image_global_id from the memory-mapped array
-    if image_global_id < len(request.app.mmapped_array):
+    if image_global_id < request.app.shape[0]:
         response_data = request.app.mmapped_array[image_global_id].tolist()
     else:
         raise HTTPException(status_code=404, detail="Image not found")
@@ -50,7 +50,7 @@ async def cache_info(request: Request):
     return {
         "data": {
             "num_clip_vectors_stored": len(request.app.mmapped_array),
-            "size_of_mem_mapped_file": request.app.mmapped_array.nbytes / (1024.0**3),
+            "size_of_mem_mapped_file": request.app.mmapped_array.nbytes / (1024**3),
             "count_requested": request.app.count_requested
         }
     }
