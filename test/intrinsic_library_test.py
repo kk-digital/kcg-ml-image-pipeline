@@ -13,7 +13,6 @@ from utility.path import separate_bucket_and_file_path
 from data_loader.utils import get_object
 import time
 import msgpack
-from kandinsky_worker.dataloaders.image_embedding import ImageEmbedding
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -47,14 +46,12 @@ def load_vectors(minio_client, dataset_names, vector_type="clip",  limit=1024):
                     path = path.replace(".jpg", "_embedding.msgpack")
                     bucket, features_vector_path = separate_bucket_and_file_path(path)
                     try:
-                        clip_vector = get_object(minio_client, features_vector_path)
+                        loaded_feature_vector = get_object(minio_client, features_vector_path)
+                        feature_vector_dict = msgpack.unpackb(feature_vector)
+                        
+                        print("raw loaded feature vector", feature_vector_dict)
 
-                        embedding_dict = ImageEmbedding.from_msgpack_bytes(clip_vector)
-
-                        input_clip_vector= embedding_dict.image_embedding
-                        input_clip_vector= input_clip_vector[0].cpu().numpy().tolist()
-
-                        feature_vectors.append(input_clip_vector)
+                        feature_vectors.append(feature_vector_dict["image_embedding"])
 
                         num_loaded_vectors += 1
                     except Exception as e:
