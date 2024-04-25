@@ -179,7 +179,7 @@ class KandinskyDatasetLoader:
                 print("------------------->")
                 features = msgpack.unpackb(features_data)["latent_vector"]
                 features = torch.tensor(features).to(device=self.device)
-                print(features_data.size())
+                print(features.size())
 
                 latents.append(features)
             except Exception as e:
