@@ -23,7 +23,7 @@ from utility.minio import cmd
 
 class Library(Enum):
     INTRINSIC_DIMENSION = 0
-    SCIPY = 1
+    SCIKIT_DIMENSION = 1
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -95,7 +95,7 @@ def main():
             if data_type == "vae":
                 data = data.reshape((data.size(0), -1))
             
-            if args.library == Library.INTRINSIC_DIMENSION:
+            if args.library == Library.INTRINSIC_DIMENSION.value:
 
                 start_time = time.time()
                 dimension_by_mle = mle_id(data, k=2)
@@ -127,7 +127,7 @@ def main():
                     }
                 })
 
-            elif args.library == Library.SCIPY:
+            elif args.library == Library.SCIPY.value:
                 pass
 
     with open("output/{}_intrinsic_dimesion.json".format(datetime.now()), 'w') as file:
