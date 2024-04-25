@@ -128,8 +128,8 @@ def main():
             elif args.library == Library.SCIKIT_DIMENSION.value:
                 data = data.cpu().numpy()
 
-                dimension_by_mle, mle_elapsed_time = measure_running_time(skdim.id.lPCA().fit(), data)
-                dimension_by_twonn_numpy, twonn_elapsed_time = measure_running_time(skdim.id.TwoNN().fit(), data)
+                dimension_by_mle, mle_elapsed_time = measure_running_time(skdim.id.lPCA().fit, data)
+                dimension_by_twonn_numpy, twonn_elapsed_time = measure_running_time(skdim.id.TwoNN().fit, data)
 
                 result.append({
                     "Data type": "Clip vector" if data_type == "clip" else "VAE",
