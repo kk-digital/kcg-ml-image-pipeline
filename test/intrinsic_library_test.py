@@ -28,13 +28,14 @@ def parse_args():
     parser.add_argument('--minio-addr', type=str, help='Minio address')
     parser.add_argument('--data-type-list', type=str, nargs='+', default=['clip'], help='Data types to obtain intrinsic dimensions, for exmaple, clip and vae')
     parser.add_argument('--count-list', type=int, nargs='+', default=[100], help="list of count for getting intrinsic dimension")
+    parser.add_argument('--dataset', type=str, default="environmental", help="Dataset name")
     return parser.parse_args()
 
-def load_featurs_data(minio_client, data_type, max_count):
+def load_featurs_data(minio_client, data_type, max_count, dataset):
     featurs_data = []
 
     try:
-        dataloader = KandinskyDatasetLoader(minio_client=minio_client)
+        dataloader = KandinskyDatasetLoader(minio_client=minio_client, dataset=dataset)
     except Exception as e:
         print("Error in initializing kankinsky dataset loader:{}".format(e))
         return
@@ -70,7 +71,7 @@ def main():
     for data_type in data_type_list:
 
         # load feature data from environment dataset
-        feature_data = load_featurs_data(minio_client, data_type, max_count)
+        feature_data = load_featurs_data(minio_client, data_type, max_count, args.dataset)
         if len(feature_data) == 0:
             raise Exception("Failed the loading of feature data")
 
