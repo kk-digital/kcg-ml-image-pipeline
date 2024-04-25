@@ -174,11 +174,11 @@ class KandinskyDatasetLoader:
                 bucket_name, input_file_path = separate_bucket_and_file_path(file_path)
                 file_path = os.path.splitext(input_file_path)[0]
                 input_vae_path = file_path + "_vae_vae_latent.msgpack"
-
+                print("input vae path ", input_vae_path)
                 features_data = get_object(self.minio_client, input_vae_path)
                 print("------------------->")
-                features = msgpack.unpackb(features_data)["latent_vector"]
-                print(features)
+                features = msgpack.unpackb(features_data)
+                print(type(features))
                 features = torch.tensor(features).to(device=self.device)
                 latents.append(features)
             except Exception as e:
