@@ -33,7 +33,7 @@ def load_vectors(minio_client, dataset_names, vector_type="clip",  limit=1024):
         if num_loaded_vectors >= limit:
             break
 
-        jobs = request.http_get_completed_job_by_dataset(dataset=dataset_name)
+        jobs = request.http_get_completed_job_by_dataset(dataset=dataset_name, limit=limit)
         for job in jobs:
 
             if num_loaded_vectors >= limit:
