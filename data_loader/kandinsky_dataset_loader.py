@@ -177,9 +177,10 @@ class KandinskyDatasetLoader:
                 print("input vae path ", input_vae_path)
                 features_data = get_object(self.minio_client, input_vae_path)
                 print("------------------->")
-                features = msgpack.unpackb(features_data)
-                print(type(features["latent_vector"]))
+                features = msgpack.unpackb(features_data)["latent_vector"]
                 features = torch.tensor(features).to(device=self.device)
+                print(features_data.size())
+
                 latents.append(features)
             except Exception as e:
                 print(f"Error processing clip at path {input_vae_path}: {e}")
