@@ -13,6 +13,10 @@ from utility.path import separate_bucket_and_file_path
 from data_loader.utils import get_object
 import time
 import msgpack
+import requests
+import json
+
+API_URL="http://192.168.3.1:8111"
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -24,6 +28,15 @@ def parse_args():
     parser.add_argument('--num-vectors', type=int, default=1024, help="Number of vectors to get intrinsic dimensions")
     return parser.parse_args()
 
+def load_kandinsky_jobs(self, dataset):
+    print(f"Fetching kandinsky jobs for the {dataset} dataset")
+    response = requests.get(f'{API_URL}/queue/image-generation/list-completed-by-dataset-and-task-type?dataset={dataset}&task_type=img2img_generation_kandinsky')
+        
+    jobs = json.loads(response.content)
+
+    return jobs
+
+
 def load_vectors(minio_client, dataset_names, vector_type="clip",  limit=1024):
     num_loaded_vectors = 0
 
@@ -34,13 +47,15 @@ def load_vectors(minio_client, dataset_names, vector_type="clip",  limit=1024):
         if num_loaded_vectors >= limit:
             break
 
-        jobs = request.http_get_completed_job_by_dataset(dataset=dataset_name, limit=limit)
+        # jobs = request.http_get_completed_job_by_dataset(dataset=dataset_name, limit=limit)
+        jobs = load_kandinsky_jobs(dataset_name)
         for job in jobs:
 
             if num_loaded_vectors >= limit:
                 break
             
-            path = job.get("task_output_file_dict", {}).get("output_file_path")
+            # path = job.get("task_output_file_dict", {}).get("output_file_path")
+            path = job['file_path']
             if path:
                 if vector_type == "clip":
                     path = path.replace(".jpg", "_embedding.msgpack")
