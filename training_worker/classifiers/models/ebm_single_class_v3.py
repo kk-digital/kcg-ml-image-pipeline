@@ -1588,6 +1588,69 @@ def plot_samples_graph(loaded_model,dataset_name, number_of_samples,tag_name):
     plt.clf()
 
 
+
+
+def plot_samples_graph_interpolation(loaded_model,dataset_name, number_of_samples,tag_name):
+
+    images_paths = get_file_paths(dataset_name,number_of_samples)
+    
+    # Process the images
+    sorted_images_and_hashes = process_and_sort_dataset(images_paths, loaded_model) 
+
+    rank = 1
+    ranks = []  # List to store ranks
+    scores = []  # List to store scores
+
+    for image in sorted_images_and_hashes:
+        #
+        print("Rank : ", rank, " Path : ", image[0], " Score : ",image[2])
+        ranks.append(rank)
+        scores.append(image[2])
+        rank += 1
+    # Tag the images
+
+    from scipy.interpolate import interp1d
+    xs = ranks
+    ys = scores
+    # Generate additional points for higher granularity (64 segments)
+    x_dense = np.linspace(min(xs), max(xs), 64)
+    y_dense = interp1d(xs, ys, kind='linear')(x_dense)
+
+    # Linear interpolation function with higher granularity
+    interp_func_dense = interp1d(x_dense, y_dense, kind='linear')
+
+    # Plot the original function and the piecewise linear approximation with segments
+    plt.plot(x_dense, y_dense, label='Piecewise Linear Approximation (64 segments)')
+    plt.plot(xs, ys, 'ro-', label='Data Points with Segments')
+    plt.xlabel('x')
+    plt.ylabel('f(x)')
+    plt.title('Piecewise Linear Approximation with 64 Segments')
+    plt.legend()
+    plt.grid(True)
+
+    # # Plotting the graph
+    # plt.figure(figsize=(8, 6))
+    # plt.plot(ranks, scores, marker='o')
+    # plt.xlabel('Rank')
+    # plt.ylabel('Score')
+    # plt.title(f'Sample Graph: Rank vs Score for {tag_name}')
+    # plt.grid(True)
+    plt.savefig("output/rank.png")
+
+    # Save the figure to a file
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+
+    # upload the graph report
+    minio_path="environmental/output/my_tests"
+    minio_path= minio_path + "/ranking_distribution_"+ tag_name + '_' +date_now+".png"
+    cmd.upload_data(minio_client, 'datasets', minio_path, buf)
+    # Remove the temporary file
+    os.remove("output/rank.png")
+    # Clear the current figure
+    plt.clf()
+
 def get_file_paths(dataset,num_samples):
         
         response = requests.get(f'{API_URL}/queue/image-generation/list-by-dataset?dataset={dataset}&size={num_samples}')
@@ -1736,7 +1799,7 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 #plot_samples_hashless_binning(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 32000,tag_name =tag_name_x)
 
 # Graphs
-#plot_samples_graph(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x)
+plot_samples_graph(loaded_model = original_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x)
 #plot_samples_graph(loaded_model = elm_model, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x)
 ############################ Train ########################
 
@@ -1767,55 +1830,55 @@ elm_model, _ = load_model_elm(device = original_model.device, minio_client = min
 
 ########## comb
 
-model_list = []
+# model_list = []
 
-model_1_name =  "concept-cybernetic"  #  "topic-forest" "topic-desert" "topic-aquatic" "concept-cybernetic" "concept-nature" 
-model_1=EBM_Single_Class(minio_access_key=args.minio_access_key,
-                            minio_secret_key=args.minio_secret_key,
-                            dataset= args.dataset,
-                            class_name= model_1_name,
-                            model = None,
-                            save_name = args.save_name,
-                            class_id =  get_tag_id_by_name(args.class_name),
-                            training_batch_size=args.training_batch_size,
-                            num_samples= args.num_samples,
-                            epochs= args.epochs,
-                            learning_rate= args.learning_rate)
+# model_1_name =  "concept-cybernetic"  #  "topic-forest" "topic-desert" "topic-aquatic" "concept-cybernetic" "concept-nature" 
+# model_1=EBM_Single_Class(minio_access_key=args.minio_access_key,
+#                             minio_secret_key=args.minio_secret_key,
+#                             dataset= args.dataset,
+#                             class_name= model_1_name,
+#                             model = None,
+#                             save_name = args.save_name,
+#                             class_id =  get_tag_id_by_name(args.class_name),
+#                             training_batch_size=args.training_batch_size,
+#                             num_samples= args.num_samples,
+#                             epochs= args.epochs,
+#                             learning_rate= args.learning_rate)
 
-#original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-# Load the last occult trained model
-
-
-model_1.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =model_1_name, model_type = "energy-based-model")
-
-model_list.append(model_1)
+# #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# # Load the last occult trained model
 
 
+# model_1.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name =model_1_name, model_type = "energy-based-model")
 
-model_2_name =  "topic-space"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
-model_2=EBM_Single_Class(minio_access_key=args.minio_access_key,
-                            minio_secret_key=args.minio_secret_key,
-                            dataset= args.dataset,
-                            class_name= model_2_name ,
-                            model = None,
-                            save_name = args.save_name,
-                            class_id =  get_tag_id_by_name(args.class_name),
-                            training_batch_size=args.training_batch_size,
-                            num_samples= args.num_samples,
-                            epochs= args.epochs,
-                            learning_rate= args.learning_rate)
-
-#original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
-# Load the last occult trained model
+# model_list.append(model_1)
 
 
-model_2.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name = model_2_name, model_type = "energy-based-model")
 
-model_list.append(model_2)
+# model_2_name =  "topic-space"  # "topic-desert"  # "topic-desert"   #  "topic-forest"  # "perspective-3d" #"perspective-isometric" 
+# model_2=EBM_Single_Class(minio_access_key=args.minio_access_key,
+#                             minio_secret_key=args.minio_secret_key,
+#                             dataset= args.dataset,
+#                             class_name= model_2_name ,
+#                             model = None,
+#                             save_name = args.save_name,
+#                             class_id =  get_tag_id_by_name(args.class_name),
+#                             training_batch_size=args.training_batch_size,
+#                             num_samples= args.num_samples,
+#                             epochs= args.epochs,
+#                             learning_rate= args.learning_rate)
 
-tag_name_combined = f"{model_1_name}-and-{model_2_name}"
+# #original_model = EBM_Single_Class(train_loader = None,val_loader = None, adv_loader = None,img_shape=(1280,))
+# # Load the last occult trained model
 
-plot_samples_hashless_combination(loaded_model_list = model_list, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_combined)
+
+# model_2.load_model_from_minio(minio_client, dataset_name = "environmental", tag_name = model_2_name, model_type = "energy-based-model")
+
+# model_list.append(model_2)
+
+# tag_name_combined = f"{model_1_name}-and-{model_2_name}"
+
+# plot_samples_hashless_combination(loaded_model_list = model_list, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_combined)
 
 
 
