@@ -1613,7 +1613,7 @@ def plot_samples_graph_interpolation(loaded_model,dataset_name, number_of_sample
     xs = ranks
     ys = scores
     # Generate additional points for higher granularity (64 segments)
-    x_dense = np.linspace(min(xs), max(xs), 64)
+    x_dense = np.linspace(min(xs), max(xs), 1024)
     y_dense = interp1d(xs, ys, kind='linear')(x_dense)
 
     # Linear interpolation function with higher granularity
