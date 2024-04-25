@@ -47,7 +47,7 @@ def load_vectors(minio_client, dataset_names, vector_type="clip",  limit=1024):
                     bucket, features_vector_path = separate_bucket_and_file_path(path)
                     try:
                         loaded_feature_vector = get_object(minio_client, features_vector_path)
-                        feature_vector_dict = msgpack.unpackb(feature_vector)
+                        feature_vector_dict = msgpack.unpackb(loaded_feature_vector)
                         
                         print("raw loaded feature vector", feature_vector_dict)
 
