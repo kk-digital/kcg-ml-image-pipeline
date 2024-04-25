@@ -11,6 +11,7 @@ from utility.minio import cmd
 from utility.http import request
 from utility.path import separate_bucket_and_file_path
 from data_loader.utils import get_object
+import time
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -25,20 +26,21 @@ def parse_args():
 def load_vectors(minio_client, dataset_names, vector_type="clip",  limit=1024):
     num_loaded_vectors = 0
 
+    feature_vectors = []
+
     for dataset_name in dataset_names:
 
         if num_loaded_vectors >= limit:
             break
 
         jobs = request.http_get_completed_job_by_dataset(dataset=dataset_name)
-        feature_vectors = []
         for job in jobs:
 
             if num_loaded_vectors >= limit:
                 break
             
             path = job.get("task_output_file_dict", {}).get("output_file_path")
-            if path is not None:
+            if path:
                 if vector_type == "clip":
                     path = path.replace(".jpg", "_embedding.msgpack")
                 elif vector_type == "vae":
@@ -54,9 +56,6 @@ def load_vectors(minio_client, dataset_names, vector_type="clip",  limit=1024):
 
     return feature_vectors
         
-            
-
-
 def main():
     args = parse_args()
 
@@ -75,23 +74,39 @@ def main():
 
     result = []
 
-    print("length", len(all_feature_vectors))
-
     for clip_vector_num in test_clip_vector_num_list:
         data = torch.tensor(all_feature_vectors[:clip_vector_num])
+
         print("shape", data.size())
+        
+        start_time = time.time()
         d1 = mle_id(data, k=2)
+        mle_elapsed_time = time.time() - start_time
+        start_time = time.time()
         d2 = twonn_numpy(data.numpy(), return_xy=False)
+        twonn_numpy_elapsed_time = time.time()
+        start_time = time.time()
         d3 = twonn_pytorch(data, return_xy=False)
+        twonn_torch_elapsed_time = time.time() - start_time
 
         result.append({
             "number of clip vector": data.size(0),
             "dimension of clip vector": data.size(1),
             "dimension": data.size(1),
-            "mle_id": d1,
-            "twonn_numpy": d2,
-            "twonn_pytorch": d3,
+            "mle_id": {
+                "intrinsic dimension": d1,
+                "elapsed time": mle_elapsed_time
+            },
+            "twonn_numpy": {
+                "intrinsic dimension": d2,
+                "elapsed time": twonn_numpy_elapsed_time,
+            },
+            "twonn_pytorch": {
+                "intrinsic dimension": d3,
+                "elapsed time": twonn_torch_elapsed_time
+            },
         })
+
     print(result)
 
 if __name__ == "__main__":
