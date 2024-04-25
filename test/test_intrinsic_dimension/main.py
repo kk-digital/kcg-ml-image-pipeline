@@ -8,9 +8,6 @@ import json
 import time
 from datetime import datetime, timedelta
 
-# utilties
-from enum import Enum
-
 # library for getting intrinsic dimension
 from intrinsics_dimension import mle_id, twonn_numpy, twonn_pytorch
 import skdim
@@ -19,13 +16,17 @@ base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
 
-from data_loader.kandinsky_dataset_loader import KandinskyDatasetLoader
+# import utils
+from utils import measure_running_time
 
+# import library type
+from library_type import Library
+
+# load data loader for feature data
+from data_loader.kandinsky_dataset_loader import KandinskyDatasetLoader
 from utility.minio import cmd
 
-class Library(Enum):
-    INTRINSIC_DIMENSION = 0
-    SCIKIT_DIMENSION = 1
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -39,9 +40,6 @@ def parse_args():
     parser.add_argument('--dataset', type=str, default="environmental", help="Dataset name")
     return parser.parse_args()
 
-
-def format_duration(milliseconds):
-    return timedelta(microseconds=milliseconds)
 
 def load_featurs_data(minio_client, data_type, max_count, dataset):
     featurs_data = []
@@ -101,17 +99,14 @@ def main():
             
             if args.library == Library.INTRINSIC_DIMENSION.value:
 
-                start_time = time.time()
-                dimension_by_mle = mle_id(data, k=2)
-                mle_elapsed_time = time.time() - start_time
+                dimension_by_mle, mle_elapsed_time = \
+                    measure_running_time(mle_id, data, k=2)
 
-                start_time = time.time()
-                dimension_by_twonn_numpy = twonn_numpy(data.cpu().numpy(), return_xy=False)
-                twonn_numpy_elapsed_time = time.time() - start_time
+                dimension_by_twonn_numpy, twonn_numpy_elapsed_time = \
+                    measure_running_time(twonn_numpy, data.cpu().numpy(), return_xy=False)
 
-                start_time = time.time()
-                dimension_by_twonn_torch = twonn_pytorch(data, return_xy=False)
-                twonn_pytorch_elapsed_time = time.time() - start_time
+                dimension_by_twonn_torch, twonn_pytorch_elapsed_time = \
+                    measure_running_time(twonn_pytorch, data, return_xy=False)
 
                 result.append({
                     "Data type": "Clip vector" if data_type == "clip" else "VAE",
