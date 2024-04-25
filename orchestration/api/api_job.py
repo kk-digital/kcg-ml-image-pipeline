@@ -1874,45 +1874,51 @@ async def get_job_by_image_hash(request: Request, image_hash: str, fields: List[
 
 
 @router.get("/get-image-generation/by-hash-v2/{image_hash}",
-    response_model=StandardSuccessResponseV1[str],
-    status_code=200,
-    tags=["jobs-standardized"],
-    description="Retrieves a job by its image hash. Returns full property paths to avoid conflicts.",
-    responses=ApiResponseHandlerV1.listErrors([404, 500]),
+            response_model=StandardSuccessResponseV1[dict],
+            status_code=200,
+            tags=["jobs-standardized"],
+            description="Retrieves a job by its image hash. Returns the full property path for clarity.",
+            responses=ApiResponseHandlerV1.listErrors([404, 500]),
 )
 async def get_job_by_image_hash(request: Request, image_hash: str, fields: List[str] = Query(None)):
     response_handler = await ApiResponseHandlerV1.createInstance(request)
     
-    # Ensure full property paths are retrieved and projected
-    projection = {field: 1 for field in fields} if fields else {}
-    projection["_id"] = 0  # Exclude the _id field
-
     try:
+        # Define a projection for MongoDB based on the requested fields
+        projection = {field: 1 for field in fields} if fields else {}
+        projection["_id"] = 0  # Exclude the _id field
+
+        print("Projection:", projection)  # Debugging print statement to check projection
+
+        # Query the database with the given image_hash and projection
         job = request.app.completed_jobs_collection.find_one(
             {"task_output_file_dict.output_file_hash": image_hash}, projection
         )
 
+        print("Job found:", job)  # Debugging print statement to check job data
+
         if job:
-            # Create a response with full property paths
+            # Prepare the response with the full property paths
             response_data = {}
             for field in fields:
-                # Split the field by '.' and join with '-' for the new path
-                path_key = "-".replace(".", "-")
                 if field in job:
-                    response_data[path_key] = job[field]
+                    response_data[field] = job[field]  # Return the full field path
+
+            print("Response data:", response_data)  # Debugging print statement to check response data
 
             return response_handler.create_success_response_v1(
                 response_data=response_data, 
-                http_status_code=200
+                http_status_code=200,
             )
         else:
             return response_handler.create_error_response_v1(
                 error_code=ErrorCode.ELEMENT_NOT_FOUND,
                 error_string=f"Job with image hash '{image_hash}' not found",
-                http_status_code=404
+                http_status_code=404,
             )
 
     except Exception as e:
+        print("Exception occurred:", e)  # Debugging print statement to check the exception
         return response_handler.create_error_response_v1(
             error_code=ErrorCode.OTHER_ERROR,
             error_string=str(e),
