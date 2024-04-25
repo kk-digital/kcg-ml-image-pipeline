@@ -68,9 +68,9 @@ def main():
 
     result = []
     for data_type in data_type_list:
-        
+
         # load feature data from environment dataset
-        feature_data = load_featurs_data(minio_client, max_count)
+        feature_data = load_featurs_data(minio_client, data_type, max_count)
         if len(feature_data) == 0:
             raise Exception("Failed the loading of feature data")
 
