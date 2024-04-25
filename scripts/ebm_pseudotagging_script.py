@@ -709,7 +709,7 @@ def process_and_sort_dataset_with_hashes_uui_v2(images_paths, hashes,uuid, model
         # Compute the score by passing the image tensor through the model
         # Ensure the tensor is in the correct shape, device, etc.
         #score = model.cnn(embedding.unsqueeze(0).to(model.device)).cpu()
-        score = model.classify(embedding).cpu()
+        score = model.classify(embedding)
         image_dict = {
             'path': images_paths[i],
             'embedding': embedding,
