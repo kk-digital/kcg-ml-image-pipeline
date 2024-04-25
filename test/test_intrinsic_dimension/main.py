@@ -5,7 +5,6 @@ import sys
 import torch
 import json
 
-import time
 from datetime import datetime, timedelta
 
 # library for getting intrinsic dimension
@@ -127,7 +126,25 @@ def main():
                 })
 
             elif args.library == Library.SCIKIT_DIMENSION.value:
-                pass
+                data = data.cpu().numpy()
+
+                dimension_by_mle, mle_elapsed_time = measure_running_time(skdim.id.lPCA().fit(), data)
+                dimension_by_twonn_numpy, twonn_elapsed_time = measure_running_time(skdim.id.TwoNN().fit(), data)
+
+                result.append({
+                    "Data type": "Clip vector" if data_type == "clip" else "VAE",
+                    "Number of clip vector": data.size(0),
+                    "Dimension of clip vector": data.size(1),
+                    "mle": {
+                        "Intrinsic dimension": "{:.2f}".format(dimension_by_mle.dimension_),
+                        "Elapsed time": "{}".format(timedelta(milliseconds=mle_elapsed_time * 1000))
+                    },
+                    "twonn": {
+                        "Intrinsic dimension": "{:.2f}".format(dimension_by_twonn_numpy.dimension_),
+                        "Elapsed time": "{}".format(timedelta(milliseconds=twonn_elapsed_time * 1000))
+                    }
+                })
+                
 
     with open("output/{}_intrinsic_dimesion.json".format(datetime.now()), 'w') as file:
         json.dump(result, file, indent=4)
