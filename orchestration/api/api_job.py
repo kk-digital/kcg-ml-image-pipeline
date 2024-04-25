@@ -1872,6 +1872,54 @@ async def get_job_by_image_hash(request: Request, image_hash: str, fields: List[
             http_status_code=404
         )
 
+
+@router.get("/get-image-generation/by-hash-v2/{image_hash}",
+    response_model=StandardSuccessResponseV1[str],
+    status_code=200,
+    tags=["jobs-standardized"],
+    description="Retrieves a job by its image hash. Returns full property paths to avoid conflicts.",
+    responses=ApiResponseHandlerV1.listErrors([404, 500]),
+)
+async def get_job_by_image_hash(request: Request, image_hash: str, fields: List[str] = Query(None)):
+    response_handler = await ApiResponseHandlerV1.createInstance(request)
+    
+    # Ensure full property paths are retrieved and projected
+    projection = {field: 1 for field in fields} if fields else {}
+    projection["_id"] = 0  # Exclude the _id field
+
+    try:
+        job = request.app.completed_jobs_collection.find_one(
+            {"task_output_file_dict.output_file_hash": image_hash}, projection
+        )
+
+        if job:
+            # Create a response with full property paths
+            response_data = {}
+            for field in fields:
+                # Split the field by '.' and join with '-' for the new path
+                path_key = "-".replace(".", "-")
+                if field in job:
+                    response_data[path_key] = job[field]
+
+            return response_handler.create_success_response_v1(
+                response_data=response_data, 
+                http_status_code=200
+            )
+        else:
+            return response_handler.create_error_response_v1(
+                error_code=ErrorCode.ELEMENT_NOT_FOUND,
+                error_string=f"Job with image hash '{image_hash}' not found",
+                http_status_code=404
+            )
+
+    except Exception as e:
+        return response_handler.create_error_response_v1(
+            error_code=ErrorCode.OTHER_ERROR,
+            error_string=str(e),
+            http_status_code=500,
+        )
+
+
 @router.get("/get-image-generation/by-job-id-v1/{job_id}", 
             response_model=StandardSuccessResponseV1[dict],
             status_code=200,
