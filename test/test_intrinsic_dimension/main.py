@@ -11,7 +11,9 @@ from datetime import datetime, timedelta
 # utilties
 from enum import Enum
 
+# library for getting intrinsic dimension
 from intrinsics_dimension import mle_id, twonn_numpy, twonn_pytorch
+import skdim
 
 base_dir = "./"
 sys.path.insert(0, base_dir)
