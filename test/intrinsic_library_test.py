@@ -12,6 +12,7 @@ from utility.http import request
 from utility.path import separate_bucket_and_file_path
 from data_loader.utils import get_object
 import time
+import msgpack
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -43,16 +44,28 @@ def load_vectors(minio_client, dataset_names, vector_type="clip",  limit=1024):
             if path:
                 if vector_type == "clip":
                     path = path.replace(".jpg", "_embedding.msgpack")
+                    bucket, features_vector_path = separate_bucket_and_file_path(path)
+                    try:
+                        feature_vector = get_object(minio_client, features_vector_path)
+                        feature_vector = msgpack.unpackb(feature_vector)["clip-feature-vector"]
+                        feature_vectors.append(feature_vector)
+
+                        num_loaded_vectors += 1
+                    except Exception as e:
+                        print("Error in loading feature vector: {}, {}".format(path, e))
+
                 elif vector_type == "vae":
                     path = path.replace(".jpg", "_vae_latent.msgpack")
-                bucket, features_vector_path = separate_bucket_and_file_path(path)
-                try:
-                    feature_vector = get_object(minio_client, features_vector_path)
-                    feature_vectors.append(feature_vector)
+                    bucket, features_vector_path = separate_bucket_and_file_path(path)
+                    try:
+                        feature_vector = get_object(minio_client, features_vector_path)
+                        print("----->", msgpack.unpackb(feature_vector))
+                        feature_vector = msgpack.unpackb(feature_vector)["latent_vector"]
+                        feature_vectors.append(feature_vector)
 
-                    num_loaded_vectors += 1
-                except Exception as e:
-                    print("Error in loading feature vector: {}, {}".format(path, e))
+                        num_loaded_vectors += 1
+                    except Exception as e:
+                        print("Error in loading feature vector: {}, {}".format(path, e))
 
     return feature_vectors
         
