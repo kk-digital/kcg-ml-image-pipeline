@@ -439,8 +439,10 @@ class RapidlyExploringTreeSearch:
         min_x, min_y= np.min(umap_embeddings[:,0], axis=0) , np.min(umap_embeddings[:,1], axis=0)
         max_x, max_y= np.max(umap_embeddings[:,0], axis=0) , np.max(umap_embeddings[:,1], axis=0)
 
-        print("x range:", min_x, max_x)
-        print("y range:", min_y, max_y)
+        # Calculate unique labels and color map outside the loop
+        unique_labels = np.unique(labels)
+        label_to_color = {label: idx for idx, label in enumerate(unique_labels)}
+        colors = plt.cm.get_cmap('viridis', len(unique_labels))
 
         # Prepare a list to hold frames
         frames = []
@@ -452,10 +454,7 @@ class RapidlyExploringTreeSearch:
 
             # Prepare labels for plotting
             current_labels = labels[:gen_idx]
-            unique_labels = np.unique(current_labels)
-            label_to_color = {label: idx for idx, label in enumerate(unique_labels)}
             color_labels = [label_to_color[label] for label in current_labels]
-            colors = plt.cm.get_cmap('viridis', len(unique_labels))
 
             plt.figure(figsize=(10, 8))
             scatter = plt.scatter(current_generation[:, 0], current_generation[:, 1], c=color_labels, cmap='viridis', alpha=0.6, s=10)
@@ -470,7 +469,7 @@ class RapidlyExploringTreeSearch:
             if self.graph_tree=="quality":
                 plt.legend(handles=legend_elements, loc='best', title='Score Bins')
             
-            plt.title(f'UMAP Projection of CLIP Vectors, Generation {gen_idx + 1}')
+            plt.title(f'UMAP Tree search projection on a 2d space')
             plt.xlim(min_x, max_x)
             plt.ylim(min_y, max_y)
             plt.xlabel('UMAP Dimension 1')
