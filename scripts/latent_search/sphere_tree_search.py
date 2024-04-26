@@ -427,9 +427,11 @@ class RapidlyExploringTreeSearch:
         return labels
         
     def graph_datapoints(self, tree, labels, generation_size):
-        print("number of nodes", len(tree))
         minio_path = f"{self.dataset}/output/tree_search/{self.sampling_policy}_by_{self.graph_tree}_graph.gif"
         reducer = umap.UMAP(random_state=42)
+
+        max_range = reducer.fit_transform(self.clip_max)
+        min_range = reducer.fit_transform(self.clip_min)
 
         # Prepare a list to hold frames
         frames = []
@@ -447,6 +449,7 @@ class RapidlyExploringTreeSearch:
 
             plt.figure(figsize=(10, 8))
             scatter = plt.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], c=color_labels, cmap='viridis', alpha=0.6)
+
             
             legend_elements = [plt.Line2D([0], [0], marker='o', color='w', label=label,
                                         markerfacecolor=colors(idx / len(unique_labels)), markersize=10)
@@ -458,6 +461,8 @@ class RapidlyExploringTreeSearch:
                 plt.legend(handles=legend_elements, loc='best', title='Score Bins')
             
             plt.title(f'UMAP Projection of CLIP Vectors, Generation {gen_idx + 1}')
+            plt.xlim(min_range[0], max_range[0])
+            plt.ylim(min_range[1], max_range[1])
             plt.xlabel('UMAP Dimension 1')
             plt.ylabel('UMAP Dimension 2')
 
