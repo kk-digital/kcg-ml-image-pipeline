@@ -444,7 +444,7 @@ class RapidlyExploringTreeSearch:
 
         # Prepare a list to hold frames
         frames = []
-        nodes_per_frame= len(tree) // 50
+        nodes_per_frame= 10
 
         for gen_idx in tqdm(range(nodes_per_frame, len(tree), nodes_per_frame)):  # Assuming tree is a list of lists (generations of nodes)
              # Flatten generations into one array
@@ -485,7 +485,7 @@ class RapidlyExploringTreeSearch:
             plt.close()
 
         # Save all frames as a GIF
-        imageio.mimsave("graph.gif", frames, fps=5)
+        imageio.mimsave("graph.gif", frames, fps=60)
 
         # Optionally upload to MinIO or similar service
         cmd.upload_data(self.minio_client, 'datasets', minio_path, io.BytesIO(open("graph.gif", 'rb').read()))
