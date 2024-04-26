@@ -342,12 +342,12 @@ class RapidlyExploringTreeSearch:
         # graph tree
         if self.graph_tree=="topics":
             labels= self.label_nodes_by_topic(all_nodes)
-            self.graph_datapoints(all_nodes, labels)
+            self.graph_datapoints(all_nodes, labels, branches_per_iteration)
         
         # graph tree
         elif self.graph_tree=="quality":
             labels= self.label_nodes_by_quality(all_nodes, all_ranking_scores)
-            self.graph_datapoints(all_nodes, labels)
+            self.graph_datapoints(all_nodes, labels, branches_per_iteration)
         
         # After the final iteration, choose the top n highest scoring points overall
         if self.classifier_weight!=0:
@@ -426,16 +426,16 @@ class RapidlyExploringTreeSearch:
 
         return labels
         
-    def graph_datapoints(self, tree, labels):
+    def graph_datapoints(self, tree, labels, generation_size):
         minio_path = f"{self.dataset}/output/tree_search/{self.sampling_policy}_by_{self.graph_tree}_graph.gif"
         reducer = umap.UMAP(random_state=42)
-
+        umap_embeddings=np.array([])
         # Prepare a list to hold frames
         frames = []
 
-        for gen_idx in range(len(tree)):  # Assuming tree is a list of lists (generations of nodes)
-            current_tree = torch.stack(tree[:gen_idx + 1]).cpu().numpy().reshape(-1, 1280)  # Flatten generations into one array
-            umap_embeddings = reducer.fit_transform(current_tree)
+        for gen_idx in range(0, len(tree), generation_size):  # Assuming tree is a list of lists (generations of nodes)
+            current_tree = torch.stack(tree[:gen_idx]).cpu().numpy().reshape(-1, 1280)  # Flatten generations into one array
+            umap_embeddings.append(umap_embeddings, reducer.fit_transform(current_tree))
 
             # Prepare labels for plotting
             current_labels = labels[:len(current_tree)]
