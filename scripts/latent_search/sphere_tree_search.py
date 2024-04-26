@@ -430,8 +430,8 @@ class RapidlyExploringTreeSearch:
         minio_path = f"{self.dataset}/output/tree_search/{self.sampling_policy}_by_{self.graph_tree}_graph.gif"
         reducer = umap.UMAP(random_state=42)
 
-        max_range = reducer.fit_transform(self.clip_max)
-        min_range = reducer.fit_transform(self.clip_min)
+        max_range = reducer.fit_transform(self.clip_max.cpu().numpy().reshape(-1, 1280))
+        min_range = reducer.fit_transform(self.clip_min.cpu().numpy().reshape(-1, 1280))
 
         # Prepare a list to hold frames
         frames = []
