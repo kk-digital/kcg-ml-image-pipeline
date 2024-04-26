@@ -434,7 +434,7 @@ class RapidlyExploringTreeSearch:
         # Prepare a list to hold frames
         frames = []
 
-        for gen_idx in range(generation_size, len(tree), generation_size):  # Assuming tree is a list of lists (generations of nodes)
+        for gen_idx in tqdm(range(generation_size, len(tree), generation_size)):  # Assuming tree is a list of lists (generations of nodes)
             current_tree = torch.stack(tree[:gen_idx]).cpu().numpy().reshape(-1, 1280)  # Flatten generations into one array
             umap_embeddings = reducer.fit_transform(current_tree)
 
@@ -470,7 +470,7 @@ class RapidlyExploringTreeSearch:
             plt.close()
 
         # Save all frames as a GIF
-        imageio.mimsave("graph.gif", frames, fps=1)
+        imageio.mimsave("graph.gif", frames, fps=5)
 
         # Optionally upload to MinIO or similar service
         cmd.upload_data(self.minio_client, 'datasets', minio_path, io.BytesIO(open("graph.gif", 'rb').read()))
