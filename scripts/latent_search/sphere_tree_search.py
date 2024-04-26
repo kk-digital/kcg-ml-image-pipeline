@@ -461,8 +461,8 @@ class RapidlyExploringTreeSearch:
                 plt.legend(handles=legend_elements, loc='best', title='Score Bins')
             
             plt.title(f'UMAP Projection of CLIP Vectors, Generation {gen_idx + 1}')
-            plt.xlim(min_range[0], max_range[0])
-            plt.ylim(min_range[1], max_range[1])
+            plt.xlim(min_range[0,0], max_range[0,0])
+            plt.ylim(min_range[0,1], max_range[0,1])
             plt.xlabel('UMAP Dimension 1')
             plt.ylabel('UMAP Dimension 2')
 
