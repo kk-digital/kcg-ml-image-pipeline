@@ -444,7 +444,7 @@ class RapidlyExploringTreeSearch:
 
         # Prepare a list to hold frames
         frames = []
-        nodes_per_frame= 10
+        nodes_per_frame= 100
 
         for gen_idx in tqdm(range(nodes_per_frame, len(tree), nodes_per_frame)):  # Assuming tree is a list of lists (generations of nodes)
              # Flatten generations into one array
