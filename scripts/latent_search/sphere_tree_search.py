@@ -430,8 +430,8 @@ class RapidlyExploringTreeSearch:
         minio_path = f"{self.dataset}/output/tree_search/{self.sampling_policy}_by_{self.graph_tree}_graph.gif"
         reducer = umap.UMAP(random_state=42)
 
-        max_range = reducer.fit_transform(self.clip_max.cpu().numpy().reshape(-1, 1280))
-        min_range = reducer.fit_transform(self.clip_min.cpu().numpy().reshape(-1, 1280))
+        max_range = reducer.fit_transform(self.clip_max.cpu().numpy())
+        min_range = reducer.fit_transform(self.clip_min.cpu().numpy())
 
         print(max_range, min_range)
 
@@ -439,7 +439,7 @@ class RapidlyExploringTreeSearch:
         frames = []
 
         for gen_idx in tqdm(range(generation_size, len(tree), pow(generation_size, 2))):  # Assuming tree is a list of lists (generations of nodes)
-            current_tree = torch.stack(tree[:gen_idx]).cpu().numpy().reshape(-1, 1280)  # Flatten generations into one array
+            current_tree = torch.stack(tree[:gen_idx]).cpu().numpy() # Flatten generations into one array
             umap_embeddings = reducer.fit_transform(current_tree)
 
             # Prepare labels for plotting
