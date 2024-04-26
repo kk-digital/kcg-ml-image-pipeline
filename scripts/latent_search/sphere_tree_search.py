@@ -436,7 +436,7 @@ class RapidlyExploringTreeSearch:
         # Prepare a list to hold frames
         frames = []
 
-        for gen_idx in tqdm(range(generation_size, len(tree), generation_size)):  # Assuming tree is a list of lists (generations of nodes)
+        for gen_idx in tqdm(range(generation_size, len(tree), pow(generation_size, 2))):  # Assuming tree is a list of lists (generations of nodes)
             current_tree = torch.stack(tree[:gen_idx]).cpu().numpy().reshape(-1, 1280)  # Flatten generations into one array
             umap_embeddings = reducer.fit_transform(current_tree)
 
