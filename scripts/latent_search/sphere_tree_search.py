@@ -1,6 +1,7 @@
 import argparse
 from datetime import datetime
 import io
+import math
 import os
 import sys
 import imageio
@@ -50,7 +51,7 @@ def parse_args():
         parser.add_argument('--optimize-samples', action='store_true', default=False)
         parser.add_argument('--classifier-weight', type=float, default=0.5)
         parser.add_argument('--ranking-weight', type=float, default=0.5)
-        parser.add_argument('--graph-tree', action='store_true', default=False)
+        parser.add_argument('--graph-tree', type=str, default="quality")
 
         return parser.parse_args()
 
@@ -110,9 +111,9 @@ class RapidlyExploringTreeSearch:
             self.defect_model.load_model()
 
         # load all topic classifiers
-        tags= request.http_get_tag_list()
-        tag_names= [tag['tag_string'] for tag in tags if "topic" in tag['tag_string']]
-        print(tag_names)
+        if self.graph_tree=="topic":
+            tags= request.http_get_tag_list()
+            tag_names= [tag['tag_string'] for tag in tags if "topic" in tag['tag_string']]
 
         self.classifier_models=[]
         for tag in tag_names:
@@ -339,14 +340,14 @@ class RapidlyExploringTreeSearch:
         pbar.close()
 
         # graph tree
-        if self.graph_tree:
-            labels= self.label_nodes(all_nodes)
-            self.graph_datapoints_by_topic(all_nodes, labels)
-
-        print(torch.max(all_ranking_scores))
-        print(torch.min(all_ranking_scores))
-        print(torch.std(all_ranking_scores))
-        print(torch.mean(all_ranking_scores))
+        if self.graph_tree=="topics":
+            labels= self.label_nodes_by_topic(all_nodes)
+            self.graph_datapoints(all_nodes, labels)
+        
+        # graph tree
+        elif self.graph_tree=="quality":
+            labels= self.label_nodes_by_quality(all_nodes, all_ranking_scores)
+            self.graph_datapoints(all_nodes, labels)
         
         # After the final iteration, choose the top n highest scoring points overall
         if self.classifier_weight!=0:
@@ -370,7 +371,35 @@ class RapidlyExploringTreeSearch:
 
         return selected_points
     
-    def label_nodes(self, tree):
+    def label_nodes_by_quality(self, tree, ranking_scores):
+        if not ranking_scores:
+            return []
+
+        min_score = torch.min(ranking_scores).item()
+        max_score = torch.max(ranking_scores).item()
+        
+        # Create bins from floor(min_score) to ceil(max_score) with steps of 1
+        bins = list(range(math.floor(min_score), math.ceil(max_score) + 1))
+        
+        labels = []
+        for score in ranking_scores:
+            # Determine the bin by finding where the score fits between the bins
+            for i in range(len(bins) - 1):
+                if bins[i] <= score < bins[i + 1]:
+                    label = f"[{bins[i]}, {bins[i+1]})"
+                    break
+            else:
+                # This handles the case where the score is exactly equal to max_score
+                if score == max_score:
+                    label = f"[{bins[-2]}, {bins[-1]}]"
+                else:
+                    label = f"[{bins[-1]}, >)"
+                    
+            labels.append(label)
+
+        return labels
+
+    def label_nodes_by_topic(self, tree):
         labels = []
         num_nodes= len(tree)
         threshold= 0.4
@@ -397,7 +426,7 @@ class RapidlyExploringTreeSearch:
 
         return labels
         
-    def graph_datapoints_by_topic(self, tree, labels):
+    def graph_datapoints(self, tree, labels):
         minio_path = f"{self.dataset}/output/tree_search/graph.gif"
         reducer = umap.UMAP(random_state=42)
 
@@ -421,7 +450,11 @@ class RapidlyExploringTreeSearch:
             legend_elements = [plt.Line2D([0], [0], marker='o', color='w', label=label,
                                         markerfacecolor=colors(idx / len(unique_labels)), markersize=10)
                             for idx, label in enumerate(unique_labels)]
-            plt.legend(handles=legend_elements, loc='best', title='Classifier Labels')
+            
+            if self.graph_tree=="topic":
+                plt.legend(handles=legend_elements, loc='best', title='Classifier Labels')
+            if self.graph_tree=="quality":
+                plt.legend(handles=legend_elements, loc='best', title='Score Bins')
             
             plt.title(f'UMAP Projection of CLIP Vectors, Generation {gen_idx + 1}')
             plt.xlabel('UMAP Dimension 1')
