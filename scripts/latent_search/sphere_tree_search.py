@@ -340,7 +340,7 @@ class RapidlyExploringTreeSearch:
         pbar.close()
 
         # graph tree
-        if self.graph_tree=="topics":
+        if self.graph_tree=="topic":
             labels= self.label_nodes_by_topic(all_nodes)
             self.graph_datapoints(all_nodes, labels)
         
