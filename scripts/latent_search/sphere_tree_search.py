@@ -249,6 +249,9 @@ class RapidlyExploringTreeSearch:
 
     def rank_points_by_quality(self, nodes):
         # calculate ranking and classifier scores
+        classifier_scores= None
+        ranking_scores= None
+        
         if self.classifier_weight!=0:
             classifier_scores = self.classifiy_points(nodes).squeeze(1)
             # increase classifier scores with a threshold
