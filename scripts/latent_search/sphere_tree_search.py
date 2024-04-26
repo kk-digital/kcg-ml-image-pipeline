@@ -446,9 +446,9 @@ class RapidlyExploringTreeSearch:
 
         # Prepare a list to hold frames
         frames = []
-        nodes_per_frame= 100
+        nodes_per_frame= 1000
 
-        for gen_idx in tqdm(range(nodes_per_frame, len(tree), nodes_per_frame)):  # Assuming tree is a list of lists (generations of nodes)
+        for gen_idx in tqdm(range(1, len(tree), nodes_per_frame)):  # Assuming tree is a list of lists (generations of nodes)
              # Flatten generations into one array
             current_generation = umap_embeddings[:gen_idx]
 
@@ -457,8 +457,7 @@ class RapidlyExploringTreeSearch:
             color_labels = [label_to_color[label] for label in current_labels]
 
             plt.figure(figsize=(10, 8))
-            scatter = plt.scatter(current_generation[:, 0], current_generation[:, 1], c=color_labels, cmap='viridis', alpha=0.6, s=10)
-
+            scatter = plt.scatter(current_generation[:, 0], current_generation[:, 1], c=color_labels, cmap='viridis')
             
             legend_elements = [plt.Line2D([0], [0], marker='o', color='w', label=label,
                                         markerfacecolor=colors(idx / len(unique_labels)), markersize=10)
@@ -484,7 +483,7 @@ class RapidlyExploringTreeSearch:
             plt.close()
 
         # Save all frames as a GIF
-        imageio.mimsave("graph.gif", frames, fps=60)
+        imageio.mimsave("graph.gif", frames, fps=10)
 
         # Optionally upload to MinIO or similar service
         cmd.upload_data(self.minio_client, 'datasets', minio_path, io.BytesIO(open("graph.gif", 'rb').read()))
