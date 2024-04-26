@@ -342,12 +342,12 @@ class RapidlyExploringTreeSearch:
         # graph tree
         if self.graph_tree=="topics":
             labels= self.label_nodes_by_topic(all_nodes)
-            self.graph_datapoints(all_nodes, labels, branches_per_iteration)
+            self.graph_datapoints(all_nodes, labels)
         
         # graph tree
         elif self.graph_tree=="quality":
             labels= self.label_nodes_by_quality(all_nodes, all_ranking_scores)
-            self.graph_datapoints(all_nodes, labels, branches_per_iteration)
+            self.graph_datapoints(all_nodes, labels)
         
         # After the final iteration, choose the top n highest scoring points overall
         if self.classifier_weight!=0:
@@ -426,7 +426,7 @@ class RapidlyExploringTreeSearch:
 
         return labels
         
-    def graph_datapoints(self, tree, labels, generation_size):
+    def graph_datapoints(self, tree, labels):
         minio_path = f"{self.dataset}/output/tree_search/{self.sampling_policy}_by_{self.graph_tree}_graph.gif"
         reducer = umap.UMAP(random_state=42)
 
@@ -444,8 +444,9 @@ class RapidlyExploringTreeSearch:
 
         # Prepare a list to hold frames
         frames = []
+        nodes_per_frame= len(tree) // 50
 
-        for gen_idx in tqdm(range(generation_size, len(tree), pow(generation_size, 2))):  # Assuming tree is a list of lists (generations of nodes)
+        for gen_idx in tqdm(range(nodes_per_frame, len(tree), nodes_per_frame)):  # Assuming tree is a list of lists (generations of nodes)
              # Flatten generations into one array
             current_generation = umap_embeddings[:gen_idx]
 
