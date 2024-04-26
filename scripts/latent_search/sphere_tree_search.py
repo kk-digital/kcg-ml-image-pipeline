@@ -458,7 +458,7 @@ class RapidlyExploringTreeSearch:
             colors = plt.cm.get_cmap('viridis', len(unique_labels))
 
             plt.figure(figsize=(10, 8))
-            scatter = plt.scatter(current_generation[:, 0], current_generation[:, 1], c=color_labels, cmap='viridis', alpha=0.6)
+            scatter = plt.scatter(current_generation[:, 0], current_generation[:, 1], c=color_labels, cmap='viridis', alpha=0.6, s=10)
 
             
             legend_elements = [plt.Line2D([0], [0], marker='o', color='w', label=label,
