@@ -433,6 +433,8 @@ class RapidlyExploringTreeSearch:
         max_range = reducer.fit_transform(self.clip_max.cpu().numpy().reshape(-1, 1280))
         min_range = reducer.fit_transform(self.clip_min.cpu().numpy().reshape(-1, 1280))
 
+        print(max_range, min_range)
+
         # Prepare a list to hold frames
         frames = []
 
