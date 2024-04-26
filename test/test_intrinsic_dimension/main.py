@@ -3,6 +3,7 @@ import os
 import sys
 
 import torch
+import csv
 import json
 
 from datetime import datetime, timedelta
@@ -59,7 +60,9 @@ def load_featurs_data(minio_client, data_type, max_count, dataset):
         return featurs_data
     
     return featurs_data
-    
+
+def get_file_name():
+    return os.path.join(os.getcwd(), "output", "intrinsic_dim_results.csv")    
 
 def main():
     args = parse_args()
@@ -80,74 +83,72 @@ def main():
 
     result = []
 
-    for data_type in data_type_list:
+    with open("output/intrinsic_dimensions.result", mode='w', newline='') as file:
 
-        # load feature data from environment dataset
-        feature_data = load_featurs_data(minio_client, data_type, max_count, args.dataset)
-        if len(feature_data) == 0:
-            raise Exception("Failed the loading of feature data")
-
-        for count in count_list:
-
-            # get specific count of data for gettting intrinsic dimension
-            data = torch.tensor(feature_data[:count], device=device)
-
-            # wrangle the latent vector [1, 4, 64, 64]
-            if data_type == "vae":
-                data = data.reshape((data.size(0), -1))
+        if args.library == Library.INTRINSIC_DIMENSION.value:
+            writer = csv.DictWriter(file, fieldnames=["Data type", "Number of clip vector", "Dimension of clip vector", "MLE intrinsic dimension", "MLE elapsed time", "Twonn_numpy intrinsic dimension", "Twonn_numpy elapsed time", "twonn_pytorch intrinsic dimension", "twonn_pytorch elapsed time"])
+        
+        elif args.library == Library.SCIKIT_DIMENSION.value:
+            writer = csv.DictWriter(file, fieldnames=["Data type", "Number of vae vectors", "Dimension of vae vector", "MLE intrinsic dimension", "MLE elapsed time", "Twonn Intrinsic dimension", "Twonn elapsed time"])
             
-            if args.library == Library.INTRINSIC_DIMENSION.value:
+        writer.writeheader()
 
-                dimension_by_mle, mle_elapsed_time = \
-                    measure_running_time(mle_id, data, k=2)
+        for data_type in data_type_list:
 
-                dimension_by_twonn_numpy, twonn_numpy_elapsed_time = \
-                    measure_running_time(twonn_numpy, data.cpu().numpy(), return_xy=False)
+            # load feature data from environment dataset
+            feature_data = load_featurs_data(minio_client, data_type, max_count, args.dataset)
+            if len(feature_data) == 0:
+                raise Exception("Failed the loading of feature data")
 
-                dimension_by_twonn_torch, twonn_pytorch_elapsed_time = \
-                    measure_running_time(twonn_pytorch, data, return_xy=False)
+            for count in count_list:
 
-                result.append({
-                    "Data type": "Clip vector" if data_type == "clip" else "VAE",
-                    "Number of clip vector": data.size(0),
-                    "Dimension of clip vector": data.size(1),
-                    "mle_id": {
-                        "Intrinsic dimension": "{:.2f}".format(dimension_by_mle),
-                        "Elapsed time": "{}".format(timedelta(milliseconds=mle_elapsed_time * 1000))
-                    },
-                    "twonn_numpy": {
-                        "Intrinsic dimension": "{:.2f}".format(dimension_by_twonn_numpy),
-                        "Elapsed time": "{}".format(timedelta(milliseconds=twonn_numpy_elapsed_time * 1000))
-                    },
-                    "twonn_pytorch":{
-                        "Intrinsic dimension": "{:.2f}".format(dimension_by_twonn_torch),
-                        "Elapsed time": "{}".format(timedelta(milliseconds=twonn_pytorch_elapsed_time * 1000))
-                    }
-                })
+                # get specific count of data for gettting intrinsic dimension
+                data = torch.tensor(feature_data[:count], device=device)
 
-            elif args.library == Library.SCIKIT_DIMENSION.value:
-                data = data.cpu().numpy()
-
-                dimension_by_mle, mle_elapsed_time = measure_running_time(skdim.id.lPCA().fit, data)
-                dimension_by_twonn_numpy, twonn_elapsed_time = measure_running_time(skdim.id.TwoNN().fit, data)
-
-                result.append({
-                    "Data type": "Clip vector" if data_type == "clip" else "VAE",
-                    "Number of vae vectors": data.shape[0],
-                    "Dimension of vae vector": data.shape[1],
-                    "mle": {
-                        "Intrinsic dimension": "{:.2f}".format(dimension_by_mle.dimension_),
-                        "Elapsed time": "{}".format(timedelta(milliseconds=mle_elapsed_time * 1000))
-                    },
-                    "twonn": {
-                        "Intrinsic dimension": "{:.2f}".format(dimension_by_twonn_numpy.dimension_),
-                        "Elapsed time": "{}".format(timedelta(milliseconds=twonn_elapsed_time * 1000))
-                    }
-                })
+                # wrangle the latent vector [1, 4, 64, 64]
+                if data_type == "vae":
+                    data = data.reshape((data.size(0), -1))
                 
+                if args.library == Library.INTRINSIC_DIMENSION.value:
 
-    with open("output/{}_intrinsic_dimesion.json".format(datetime.now()), 'w') as file:
-        json.dump(result, file, indent=4)
+                    dimension_by_mle, mle_elapsed_time = \
+                        measure_running_time(mle_id, data, k=2)
+
+                    dimension_by_twonn_numpy, twonn_numpy_elapsed_time = \
+                        measure_running_time(twonn_numpy, data.cpu().numpy(), return_xy=False)
+
+                    dimension_by_twonn_torch, twonn_pytorch_elapsed_time = \
+                        measure_running_time(twonn_pytorch, data, return_xy=False)
+
+                    writer.writerow({
+                        "Data type": "Clip vector" if data_type == "clip" else "VAE",
+                        "Number of clip vector": data.size(0),
+                        "Dimension of clip vector": data.size(1),
+                        "MLE intrinsic dimension": "{:.2f}".format(dimension_by_mle),
+                        "MLE elapsed time": "{}".format(timedelta(milliseconds=mle_elapsed_time * 1000)),
+                        "Twonn_numpy intrinsic dimension": "{:.2f}".format(dimension_by_twonn_numpy),
+                        "Twonn_numpy elapsed time": "{}".format(timedelta(milliseconds=twonn_numpy_elapsed_time * 1000)),
+                        "twonn_pytorch intrinsic dimension": "{:.2f}".format(dimension_by_twonn_torch),
+                        "twonn_pytorch elapsed time": "{}".format(timedelta(milliseconds=twonn_pytorch_elapsed_time * 1000))
+                    })
+
+                elif args.library == Library.SCIKIT_DIMENSION.value:
+                    data = data.cpu().numpy()
+
+                    dimension_by_mle, mle_elapsed_time = measure_running_time(skdim.id.MLE().fit, data)
+                    dimension_by_twonn_numpy, twonn_elapsed_time = measure_running_time(skdim.id.TwoNN().fit, data)
+
+                    writer.writerow({
+                        "Data type": "Clip vector" if data_type == "clip" else "VAE",
+                        "Number of vae vectors": data.shape[0],
+                        "Dimension of vae vector": data.shape[1],
+                        "MLE intrinsic dimension": "{:.2f}".format(dimension_by_mle.dimension_),
+                        "MLE elapsed time": "{}".format(timedelta(milliseconds=mle_elapsed_time * 1000)),
+                        "Twonn Intrinsic dimension": "{:.2f}".format(dimension_by_twonn_numpy.dimension_),
+                        "Twonn elapsed time": "{}".format(timedelta(milliseconds=twonn_elapsed_time * 1000))
+                    })
+                
+        file.flush()
 
 if __name__ == "__main__":
     main()
