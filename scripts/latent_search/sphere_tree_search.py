@@ -427,7 +427,7 @@ class RapidlyExploringTreeSearch:
         return labels
         
     def graph_datapoints(self, tree, labels):
-        minio_path = f"{self.dataset}/output/tree_search/graph.gif"
+        minio_path = f"{self.dataset}/output/tree_search/{self.sampling_policy}_by_{self.graph_tree}_graph.gif"
         reducer = umap.UMAP(random_state=42)
 
         # Prepare a list to hold frames
