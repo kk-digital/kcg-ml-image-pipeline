@@ -430,27 +430,30 @@ class RapidlyExploringTreeSearch:
         minio_path = f"{self.dataset}/output/tree_search/{self.sampling_policy}_by_{self.graph_tree}_graph.gif"
         reducer = umap.UMAP(random_state=42)
 
-        max_range = reducer.fit_transform(self.clip_max.cpu().numpy())
-        min_range = reducer.fit_transform(self.clip_min.cpu().numpy())
+        tree.append(self.clip_min.squeeze(0))
+        tree.append(self.clip_max.squeeze(0))
 
-        print(max_range, min_range)
-
+        tree = torch.stack(tree).cpu().numpy()
+        umap_embeddings = reducer.fit_transform(tree)
+        umap_embeddings, min_range, max_range= umap_embeddings[:len(tree)-2], umap_embeddings[len(tree)-2], umap_embeddings[len(tree)-1]
+        print(min_range, max_range) 
+        
         # Prepare a list to hold frames
         frames = []
 
         for gen_idx in tqdm(range(generation_size, len(tree), pow(generation_size, 2))):  # Assuming tree is a list of lists (generations of nodes)
-            current_tree = torch.stack(tree[:gen_idx]).cpu().numpy() # Flatten generations into one array
-            umap_embeddings = reducer.fit_transform(current_tree)
+             # Flatten generations into one array
+            current_generation = umap_embeddings[:gen_idx]
 
             # Prepare labels for plotting
-            current_labels = labels[:len(current_tree)]
+            current_labels = labels[:gen_idx]
             unique_labels = np.unique(current_labels)
             label_to_color = {label: idx for idx, label in enumerate(unique_labels)}
             color_labels = [label_to_color[label] for label in current_labels]
             colors = plt.cm.get_cmap('viridis', len(unique_labels))
 
             plt.figure(figsize=(10, 8))
-            scatter = plt.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], c=color_labels, cmap='viridis', alpha=0.6)
+            scatter = plt.scatter(current_generation[:, 0], current_generation[:, 1], c=color_labels, cmap='viridis', alpha=0.6)
 
             
             legend_elements = [plt.Line2D([0], [0], marker='o', color='w', label=label,
@@ -463,8 +466,8 @@ class RapidlyExploringTreeSearch:
                 plt.legend(handles=legend_elements, loc='best', title='Score Bins')
             
             plt.title(f'UMAP Projection of CLIP Vectors, Generation {gen_idx + 1}')
-            plt.xlim(min_range[0,0], max_range[0,0])
-            plt.ylim(min_range[0,1], max_range[0,1])
+            plt.xlim(min_range[0], max_range[0])
+            plt.ylim(min_range[1], max_range[1])
             plt.xlabel('UMAP Dimension 1')
             plt.ylabel('UMAP Dimension 2')
 
