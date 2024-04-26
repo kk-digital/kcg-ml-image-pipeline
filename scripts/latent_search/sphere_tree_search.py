@@ -51,7 +51,7 @@ def parse_args():
         parser.add_argument('--optimize-samples', action='store_true', default=False)
         parser.add_argument('--classifier-weight', type=float, default=0.5)
         parser.add_argument('--ranking-weight', type=float, default=0.5)
-        parser.add_argument('--graph-tree', type=str, default="quality")
+        parser.add_argument('--graph-tree', type=str, default=None)
 
         return parser.parse_args()
 
@@ -115,15 +115,15 @@ class RapidlyExploringTreeSearch:
             tags= request.http_get_tag_list()
             tag_names= [tag['tag_string'] for tag in tags if "topic" in tag['tag_string']]
 
-        self.classifier_models=[]
-        for tag in tag_names:
-            classifier_model= ClassifierFCNetwork(minio_client=self.minio_client, tag_name=tag)
-            model_loaded= classifier_model.load_model()
-            if model_loaded:
-                self.classifier_models.append({
-                    "model": classifier_model,
-                    "tag_name": tag
-                })
+            self.classifier_models=[]
+            for tag in tag_names:
+                classifier_model= ClassifierFCNetwork(minio_client=self.minio_client, tag_name=tag)
+                model_loaded= classifier_model.load_model()
+                if model_loaded:
+                    self.classifier_models.append({
+                        "model": classifier_model,
+                        "tag_name": tag
+                    })
 
         # get distribution of clip vectors for the dataset
         self.clip_mean , self.clip_std, self.clip_max, self.clip_min, self.covariance_matrix= self.get_clip_distribution()
