@@ -3,6 +3,7 @@ from datetime import datetime
 import io
 import os
 import sys
+import imageio
 import pandas as pd
 import torch
 import msgpack
@@ -236,11 +237,15 @@ class RapidlyExploringTreeSearch:
         # increase classifier scores with a threshold
         classifier_scores= torch.where(classifier_scores>0.6, torch.tensor(1), classifier_scores)
 
-        # rank by distance
+        # rank by distance and quality
+        quality_ranks= self.min_max_normalize_scores(ranking_scores)
         distances = self.compute_distances(faiss_index, nodes)
-        distance_scores = torch.tensor(distances.squeeze())
+        distances = torch.tensor(distances.squeeze())
+        distance_ranks= self.min_max_normalize_scores(distances)
 
-        return distance_scores, classifier_scores, ranking_scores
+        ranks= quality_ranks + distance_ranks
+
+        return ranks, classifier_scores, ranking_scores
 
     def rank_points_by_quality(self, nodes):
         # calculate ranking and classifier scores
@@ -333,7 +338,7 @@ class RapidlyExploringTreeSearch:
         # graph tree
         if self.graph_tree:
             labels= self.label_nodes(all_nodes)
-            self.graph_datapoints(all_nodes, labels)
+            self.graph_datapoints_by_topic(all_nodes, labels)
         
         # After the final iteration, choose the top n highest scoring points overall
         if self.classifier_weight!=0:
@@ -384,39 +389,49 @@ class RapidlyExploringTreeSearch:
 
         return labels
         
-    def graph_datapoints(self, tree, labels):
-        minio_path=f"{self.dataset}/output/tree_search/graph.png"
+    def graph_datapoints_by_topic(self, tree, labels):
+        minio_path = f"{self.dataset}/output/tree_search/graph.gif"
         reducer = umap.UMAP(random_state=42)
-        tree= torch.stack(tree).cpu().numpy()
-        umap_embeddings = reducer.fit_transform(tree)
 
-        # Convert labels to categorical type for color mapping
-        unique_labels = np.unique(labels)
-        label_to_color = {label: idx for idx, label in enumerate(unique_labels)}
-        color_labels = [label_to_color[label] for label in labels]
+        # Prepare a list to hold frames
+        frames = []
 
-        # Generate a color map with a distinct color for each unique label
-        colors = plt.cm.get_cmap('viridis', len(unique_labels))
+        for gen_idx in range(len(tree)):  # Assuming tree is a list of lists (generations of nodes)
+            current_tree = torch.stack(tree[:gen_idx + 1]).cpu().numpy().reshape(-1, 1280)  # Flatten generations into one array
+            umap_embeddings = reducer.fit_transform(current_tree)
 
-        plt.figure(figsize=(10, 8))
-        scatter = plt.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], c=color_labels, cmap='viridis', alpha=0.6)
+            # Prepare labels for plotting
+            current_labels = labels[:len(current_tree)]
+            unique_labels = np.unique(current_labels)
+            label_to_color = {label: idx for idx, label in enumerate(unique_labels)}
+            color_labels = [label_to_color[label] for label in current_labels]
+            colors = plt.cm.get_cmap('viridis', len(unique_labels))
 
-        # Generate custom artist/legend pairs
-        legend_elements = [plt.Line2D([0], [0], marker='o', color='w', label=label,
-                                    markerfacecolor=colors(idx / len(unique_labels)), markersize=10)
-                        for idx, label in enumerate(unique_labels)]
-        plt.legend(handles=legend_elements, loc='best', title='Classifier Labels')
-        
-        plt.title('UMAP Projection of CLIP Vectors, Clustered by topic')
-        plt.xlabel('UMAP Dimension 1')
-        plt.ylabel('UMAP Dimension 2')
+            plt.figure(figsize=(10, 8))
+            scatter = plt.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], c=color_labels, cmap='viridis', alpha=0.6)
+            
+            legend_elements = [plt.Line2D([0], [0], marker='o', color='w', label=label,
+                                        markerfacecolor=colors(idx / len(unique_labels)), markersize=10)
+                            for idx, label in enumerate(unique_labels)]
+            plt.legend(handles=legend_elements, loc='best', title='Classifier Labels')
+            
+            plt.title(f'UMAP Projection of CLIP Vectors, Generation {gen_idx + 1}')
+            plt.xlabel('UMAP Dimension 1')
+            plt.ylabel('UMAP Dimension 2')
 
-        buffer = io.BytesIO()
-        plt.savefig(buffer, format='png')
-        buffer.seek(0)
+            # Save plot to buffer
+            buffer = io.BytesIO()
+            plt.savefig(buffer, format='png')
+            buffer.seek(0)
+            frame = imageio.imread(buffer)
+            frames.append(frame)
+            plt.close()
 
-        cmd.upload_data(self.minio_client, 'datasets', minio_path, buffer)
-        # Remove the temporary file
+        # Save all frames as a GIF
+        imageio.mimsave("graph.gif", frames, fps=1)
+
+        # Optionally upload to MinIO or similar service
+        cmd.upload_data(self.minio_client, 'datasets', minio_path, io.BytesIO(open("graph.gif", 'rb').read()))
     
     def optimize_datapoints(self, clip_vectors):
         # Calculate the total number of batches
