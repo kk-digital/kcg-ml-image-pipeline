@@ -1827,8 +1827,8 @@ defect_test=EBM_Single_Class(minio_access_key="D6ybtPLyUrca5IdZfCIM",
 #defect_test.train_v2()
 
 
-defect_test.load_model_from_minio(minio_client , dataset_name = "environmental", tag_name =tag_name_x_2, model_type = tag_name_x_2)
-plot_samples_hashless(loaded_model = defect_test, dataset_name = "environmental", number_of_samples = 5000,tag_name =tag_name_x_2)
+defect_test.load_model_from_minio(minio_client , dataset_name = "environmental", tag_name =tag_name_x_2, model_type = "energy-based-model")
+plot_samples_hashless(loaded_model = defect_test, dataset_name = "environmental", number_of_samples = 40000,tag_name =tag_name_x_2)
 
 
 
