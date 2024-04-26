@@ -427,15 +427,16 @@ class RapidlyExploringTreeSearch:
         return labels
         
     def graph_datapoints(self, tree, labels, generation_size):
+        print("number of nodes", len(tree))
         minio_path = f"{self.dataset}/output/tree_search/{self.sampling_policy}_by_{self.graph_tree}_graph.gif"
         reducer = umap.UMAP(random_state=42)
-        umap_embeddings=np.array([])
+
         # Prepare a list to hold frames
         frames = []
 
         for gen_idx in range(0, len(tree), generation_size):  # Assuming tree is a list of lists (generations of nodes)
             current_tree = torch.stack(tree[:gen_idx]).cpu().numpy().reshape(-1, 1280)  # Flatten generations into one array
-            umap_embeddings.append(umap_embeddings, reducer.fit_transform(current_tree))
+            umap_embeddings = reducer.fit_transform(current_tree)
 
             # Prepare labels for plotting
             current_labels = labels[:len(current_tree)]
