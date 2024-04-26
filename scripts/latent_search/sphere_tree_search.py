@@ -435,9 +435,9 @@ class RapidlyExploringTreeSearch:
 
         tree = torch.stack(tree).cpu().numpy()
         umap_embeddings = reducer.fit_transform(tree)
-        umap_embeddings, min_range, max_range= umap_embeddings[:len(tree)-2], umap_embeddings[len(tree)-2], umap_embeddings[len(tree)-1]
-        print(min_range, max_range)
-        print(umap_embeddings.shape, umap_embeddings[0]) 
+
+        min_x, min_y= np.min(umap_embeddings[:,0], dim=0) , np.min(umap_embeddings[:,1], dim=0)
+        max_x, max_y= np.max(umap_embeddings[:,0], dim=0) , np.max(umap_embeddings[:,1], dim=0)
 
         # Prepare a list to hold frames
         frames = []
@@ -467,8 +467,8 @@ class RapidlyExploringTreeSearch:
                 plt.legend(handles=legend_elements, loc='best', title='Score Bins')
             
             plt.title(f'UMAP Projection of CLIP Vectors, Generation {gen_idx + 1}')
-            plt.xlim(min_range[0], max_range[0])
-            plt.ylim(min_range[1], max_range[1])
+            plt.xlim(min_x, max_x)
+            plt.ylim(min_y, max_y)
             plt.xlabel('UMAP Dimension 1')
             plt.ylabel('UMAP Dimension 2')
 
