@@ -436,8 +436,9 @@ class RapidlyExploringTreeSearch:
         tree = torch.stack(tree).cpu().numpy()
         umap_embeddings = reducer.fit_transform(tree)
         umap_embeddings, min_range, max_range= umap_embeddings[:len(tree)-2], umap_embeddings[len(tree)-2], umap_embeddings[len(tree)-1]
-        print(min_range, max_range) 
-        
+        print(min_range, max_range)
+        print(umap_embeddings.shape, umap_embeddings[0]) 
+
         # Prepare a list to hold frames
         frames = []
 
