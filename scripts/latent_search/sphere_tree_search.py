@@ -372,8 +372,8 @@ class RapidlyExploringTreeSearch:
         return selected_points
     
     def label_nodes_by_quality(self, tree, ranking_scores):
-        if not ranking_scores:
-            return []
+        if ranking_scores is None:
+            raise Exception("Ranking weight was set to 0, no quality scores wee calculated")
 
         min_score = torch.min(ranking_scores).item()
         max_score = torch.max(ranking_scores).item()
