@@ -460,4 +460,4 @@ def find_or_create_next_folder_and_index(client: Minio, bucket: str, base_folder
     
 
 class CountLastHour(BaseModel):
-    jobs_count_last_n_hour: dict
+    jobs_count: dict
