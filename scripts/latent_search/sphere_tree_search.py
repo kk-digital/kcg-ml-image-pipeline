@@ -240,7 +240,7 @@ class RapidlyExploringTreeSearch:
         # rank by distance and quality
         quality_ranks= self.min_max_normalize_scores(ranking_scores)
         distances = self.compute_distances(faiss_index, nodes)
-        distances = torch.tensor(distances.squeeze())
+        distances = torch.tensor(distances.squeeze()).to(device= self.device)
         distance_ranks= self.min_max_normalize_scores(distances)
 
         ranks= quality_ranks + distance_ranks
