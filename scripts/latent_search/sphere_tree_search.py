@@ -435,6 +435,7 @@ class RapidlyExploringTreeSearch:
         frames = []
 
         for gen_idx in range(0, len(tree), generation_size):  # Assuming tree is a list of lists (generations of nodes)
+            print(gen_idx, tree[:gen_idx])
             current_tree = torch.stack(tree[:gen_idx]).cpu().numpy().reshape(-1, 1280)  # Flatten generations into one array
             umap_embeddings = reducer.fit_transform(current_tree)
 
