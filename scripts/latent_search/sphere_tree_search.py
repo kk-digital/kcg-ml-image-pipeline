@@ -339,6 +339,11 @@ class RapidlyExploringTreeSearch:
         if self.graph_tree:
             labels= self.label_nodes(all_nodes)
             self.graph_datapoints_by_topic(all_nodes, labels)
+
+        print(torch.max(all_ranking_scores))
+        print(torch.min(all_ranking_scores))
+        print(torch.std(all_ranking_scores))
+        print(torch.mean(all_ranking_scores))
         
         # After the final iteration, choose the top n highest scoring points overall
         if self.classifier_weight!=0:
