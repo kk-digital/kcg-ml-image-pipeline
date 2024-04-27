@@ -4,6 +4,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from datetime import datetime
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Test script to measure "clip vectors/second" from the server
 server_url = "http://localhost:8000"  # Replace with the actual server URL
@@ -17,18 +18,28 @@ def format_duration(seconds):
     formatted_time += f"{seconds}s " if seconds > 0 else "0s"
     return formatted_time
 
+def get_clip_vector(url):
+    response = requests.get(f"{url}/get_clip_vector/123")  # Replace with an actual image_global_id
+    return response
+
 def main(increment, max_num):
     elapsed_time_list = []
-    test_count_clip_vectors = list(range(increment, max_num, increment))
+    loading_clip_vector_count_list = list(range(increment, max_num + increment, increment))
     # Measure the speed of serving clip vectors
-    for i in tqdm(test_count_clip_vectors, desc="Testing"):
-        start_time = time.time()
-        for _ in tqdm(range(i), desc="Sending request"):  # Send 1000 requests
-            response = requests.get(f"{server_url}/get_clip_vector/123")  # Replace with an actual image_global_id
-        end_time = time.time()
+        
+    start_time = time.time()
+    for _ in loading_clip_vector_count_list:
+        for i in tqdm(increment, desc="Testing"):
+            with ThreadPoolExecutor(max_workers=16, desc="Get clip vectors") as executor:
+                futures = []
+                for _ in tqdm(range(i), desc="Sending request"):  # Send 1000 requests
+                    futures.append(executor.submit(get_clip_vector, server_url))
+                for _ in tqdm(as_completed(futures), total=len(futures)):
+                    pass
+            end_time = time.time()
 
-        elapsed_time = end_time - start_time
-        elapsed_time_list.append(elapsed_time)
+            elapsed_time = end_time - start_time
+            elapsed_time_list.append(elapsed_time)
 
     response = requests.get(f"{server_url}/cache_info")
     if response.status_code == 200:
@@ -46,10 +57,10 @@ def main(increment, max_num):
                     format(cache_info["size_of_mem_mapped_file"], ".4f"),
                     cache_info["count_requested"],
                     total_elapsed_time,
-                    format(sum(test_count_clip_vectors) / sum(elapsed_time_list), ".4f")
+                    format(sum(loading_clip_vector_count_list) / sum(elapsed_time_list), ".4f")
                 )), fontsize=10)
     
-    plt.plot(test_count_clip_vectors, elapsed_time_list, marker='o')
+    plt.plot(loading_clip_vector_count_list, elapsed_time_list, marker='o')
     plt.xlabel("Count of clip vectors")
     plt.ylabel("Elapsed time")
 
