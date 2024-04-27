@@ -29,17 +29,16 @@ def main(increment, max_num):
         
     start_time = time.time()
     for _ in loading_clip_vector_count_list:
-        for i in tqdm(range(0, increment), desc="Testing"):
-            with ThreadPoolExecutor(max_workers=16, desc="Get clip vectors") as executor:
-                futures = []
-                for _ in tqdm(range(i), desc="Sending request"):  # Send 1000 requests
-                    futures.append(executor.submit(get_clip_vector, server_url))
-                for _ in tqdm(as_completed(futures), total=len(futures)):
-                    pass
-            end_time = time.time()
+        with ThreadPoolExecutor(max_workers=16, desc="Get clip vectors") as executor:
+            futures = []
+            for _ in range(0, increment):  # Send 1000 requests
+                futures.append(executor.submit(get_clip_vector, server_url))
+            for _ in tqdm(as_completed(futures), total=len(futures)):
+                pass
+        end_time = time.time()
 
-            elapsed_time = end_time - start_time
-            elapsed_time_list.append(elapsed_time)
+        elapsed_time = end_time - start_time
+        elapsed_time_list.append(elapsed_time)
 
     response = requests.get(f"{server_url}/cache_info")
     if response.status_code == 200:
