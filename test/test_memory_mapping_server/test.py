@@ -26,6 +26,7 @@ def get_clip_vector(url, image_global_id):
 def main(increment, max_num):
     elapsed_time_list = []
     loading_clip_vector_count_list = list(range(increment, max_num + increment, increment))
+    worker_count = 16
     # Measure the speed of serving clip vectors
         
     start_time = time.time()
@@ -52,12 +53,14 @@ def main(increment, max_num):
                 "Request Count: {}\n"
                 "Total elapsed time: {}\n"
                 "clip vecotors/second: {}\n"
+                "Worker count: {}\n"
                 .format(
                     cache_info["num_clip_vectors_stored"], 
                     format(cache_info["size_of_mem_mapped_file"], ".4f"),
                     cache_info["count_requested"],
                     total_elapsed_time,
-                    format(sum(loading_clip_vector_count_list) / sum(elapsed_time_list), ".4f")
+                    format(sum(loading_clip_vector_count_list) / sum(elapsed_time_list), ".4f"),
+                    worker_count
                 )), fontsize=10)
     
     plt.plot(loading_clip_vector_count_list, elapsed_time_list, marker='o')
@@ -76,6 +79,7 @@ def parse_args():
     args = argparse.ArgumentParser()
     args.add_argument("--increment", type=int, default=10000)
     args.add_argument("--max-num", type=int, default=500000)
+    args.add_argument("--worker-count", type=int, default=8, help="Number of workers")
     return args.parse_args()
 
 if __name__ == "__main__":
