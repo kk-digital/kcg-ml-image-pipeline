@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import random
 
 # Test script to measure "clip vectors/second" from the server
 server_url = "http://localhost:8000"  # Replace with the actual server URL
@@ -18,7 +19,7 @@ def format_duration(seconds):
     formatted_time += f"{seconds}s " if seconds > 0 else "0s"
     return formatted_time
 
-def get_clip_vector(url):
+def get_clip_vector(url, image_global_id):
     response = requests.get(f"{url}/get_clip_vector/123")  # Replace with an actual image_global_id
     return response
 
@@ -32,7 +33,7 @@ def main(increment, max_num):
         with ThreadPoolExecutor(max_workers=16) as executor:
             futures = []
             for _ in range(0, increment):  # Send 1000 requests
-                futures.append(executor.submit(get_clip_vector, server_url))
+                futures.append(executor.submit(get_clip_vector, server_url, random.randint(0, 10000)))
             for _ in tqdm(as_completed(futures), total=len(futures)):
                 pass
         end_time = time.time()
