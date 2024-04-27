@@ -283,24 +283,44 @@ async def list_images_by_classifier_scores(
   
 
 @router.get("/pseudotag-classifier-scores/get-image-classifier-score-by-hash-and-classifier-id", 
-            description="Get image classifier score by classifier_id and image_hash",
+            description="Gets the score the specified classifier asigned to the image",
             status_code=200,
             tags=["pseudotag-classifier-scores"],  
             response_model=StandardSuccessResponseV1[ClassifierScoreV1],  
             responses=ApiResponseHandlerV1.listErrors([400,422]))
 def get_image_classifier_score_by_hash(request: Request, image_hash: str, classifier_id: int):
+    return get_image_score_by_hash(request, image_hash, classifier_id, False)
+
+@router.get("/pseudotag/get-image-pseudotag-score-by-hash-and-tag-id", 
+            description="Gets the last pseudotag score asigned to the image",
+            status_code=200,
+            tags=["pseudotag"],  
+            response_model=StandardSuccessResponseV1[ClassifierScoreV1],  
+            responses=ApiResponseHandlerV1.listErrors([400,422]))
+def get_image_pseudotag_score_by_hash(request: Request, image_hash: str, tag_id: int):
+    return get_image_score_by_hash(request, image_hash, tag_id, True)
+
+
+def get_image_score_by_hash(request: Request, image_hash: str, element_id: int, use_pseudotag_score: bool):
     api_response_handler = ApiResponseHandlerV1(request)
 
     # check if exists
-    query = {"image_hash": image_hash, "classifier_id": classifier_id}
-
-    item = request.app.image_classifier_scores_collection.find_one(query)
+    if (use_pseudotag_score == False):
+        query = {"image_hash": image_hash, "classifier_id": element_id}
+        item = request.app.image_classifier_scores_collection.find_one(query)
+    else:
+        query = {"image_hash": image_hash, "tag_id": element_id}
+        item = request.app.pseudo_tag_images_collection.find_one(query)
 
     if item is None:
+        error_msg = "Score for specified classifier_id and image_hash does not exist."
+        if (use_pseudotag_score):
+            error_msg = "Score for specified tag_id and image_hash does not exist."
+
         # Return a standardized error response if not found
         return api_response_handler.create_error_response_v1(
             error_code=ErrorCode.INVALID_PARAMS,
-            error_string="Score for specified classifier_id and image_hash does not exist.",
+            error_string=error_msg,
             http_status_code=404
         )
 
@@ -356,15 +376,25 @@ def get_image_classifier_score_by_uuid_and_classifier_id(request: Request,
 @router.post("/pseudotag-classifier-scores/set-image-classifier-score", 
              status_code=200,
              response_model=StandardSuccessResponseV1[ClassifierScoreV1],
-             description="Set classifier image score",
+             description="Sets the score an image received from a specific pseudotag classifier. If a previous score for the classifier was set before, it is replaced",
              tags=["pseudotag-classifier-scores"], 
+             responses=ApiResponseHandlerV1.listErrors([404, 422, 500]) 
+             )
+@router.post("/pseudotag/add-pseudo-tag-to-image", 
+             status_code=200,
+             response_model=StandardSuccessResponseV1[ClassifierScoreV1],
+             description="Sets the score an image received from a pseudotag classifier for a specific tag. If the image already has a score for the tag asociated with the classifier, it is replaced, no mater if it was asigned by the same classifier or another one.",
+             tags=["pseudo_tags"], 
              responses=ApiResponseHandlerV1.listErrors([404, 422, 500]) 
              )
 async def set_image_classifier_score(request: Request, classifier_score: ClassifierScoreRequest):
     api_response_handler = await ApiResponseHandlerV1.createInstance(request)
 
-    try:
+    save_per_tag = True
+    if (str(request.url).find("/pseudotag-classifier-scores/set-image-classifier-score") != -1):
+        save_per_tag = False
 
+    try:
         # Fetch image_hash from completed_jobs_collection
         job_data = request.app.completed_jobs_collection.find_one({"uuid": classifier_score.job_uuid},  {"task_output_file_dict.output_file_hash": 1, "task_type": 1})
         if not job_data or 'task_output_file_dict' not in job_data or 'output_file_hash' not in job_data['task_output_file_dict']:
@@ -381,17 +411,21 @@ async def set_image_classifier_score(request: Request, classifier_score: Classif
         if not classifier_data:
             return api_response_handler.create_error_response_v1(
                 error_code=ErrorCode.INVALID_PARAMS,
-                error_string="The provided classifier ID does not exist.",
+                error_string="The provided classifier ID does not have an associated tag ID.",
                 http_status_code=404
             )
         tag_id = classifier_data['tag_id']
 
-        
         query = {
             "classifier_id": classifier_score.classifier_id,
-            "uuid": classifier_score.job_uuid,
-            "tag_id": tag_id
+            "uuid": classifier_score.job_uuid
         }
+
+        if (save_per_tag):
+            query = {
+                "tag_id": tag_id,
+                "uuid": classifier_score.job_uuid
+            }
 
         # Get current UTC time in ISO format
         current_utc_time = datetime.utcnow().isoformat()
@@ -408,14 +442,26 @@ async def set_image_classifier_score(request: Request, classifier_score: Classif
         }
 
         # Check for existing score and update or insert accordingly
-        existing_score = request.app.image_classifier_scores_collection.find_one(query)
-        if existing_score:
-            # Update existing score
-            request.app.image_classifier_scores_collection.update_one(query, {"$set": {"score": classifier_score.score, "image_hash": image_hash, "creation_time": current_utc_time}})
+        if (save_per_tag == False):
+            existing_score = request.app.image_classifier_scores_collection.find_one(query)
+
+            if existing_score:
+                # Update existing score
+                request.app.image_classifier_scores_collection.update_one(query, {"$set": {"score": classifier_score.score, "image_hash": image_hash, "creation_time": current_utc_time}})
+            else:
+                # Insert new score
+                insert_result = request.app.image_classifier_scores_collection.insert_one(new_score_data)
+                new_score_data['_id'] = str(insert_result.inserted_id)
         else:
-            # Insert new score
-            insert_result = request.app.image_classifier_scores_collection.insert_one(new_score_data)
-            new_score_data['_id'] = str(insert_result.inserted_id)
+            existing_score = request.app.pseudo_tag_images_collection.find_one(query)
+
+            if existing_score:
+                # Update existing score
+                request.app.pseudo_tag_images_collection.update_one(query, {"$set": {"score": classifier_score.score, "image_hash": image_hash, "creation_time": current_utc_time}})
+            else:
+                # Insert new score
+                insert_result = request.app.pseudo_tag_images_collection.insert_one(new_score_data)
+                new_score_data['_id'] = str(insert_result.inserted_id)
 
         return api_response_handler.create_success_response_v1(
             response_data=new_score_data,
