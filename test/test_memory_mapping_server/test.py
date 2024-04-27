@@ -20,8 +20,13 @@ def format_duration(seconds):
     return formatted_time
 
 def get_clip_vector(url, image_global_id):
-    response = requests.get(f"{url}/get_clip_vector/123")  # Replace with an actual image_global_id
-    return response
+
+    try:
+        response = requests.get(f"{url}/get_clip_vector/{image_global_id}")  # Replace with an actual image_global_id
+    except Exception as e:
+        print("Error in getting clip vector, ", e)
+    finally:
+        response.close()
 
 def main(increment, max_num, worker_count):
     elapsed_time_list = []
