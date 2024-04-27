@@ -23,10 +23,9 @@ def get_clip_vector(url, image_global_id):
     response = requests.get(f"{url}/get_clip_vector/123")  # Replace with an actual image_global_id
     return response
 
-def main(increment, max_num):
+def main(increment, max_num, worker_count):
     elapsed_time_list = []
     loading_clip_vector_count_list = list(range(increment, max_num + increment, increment))
-    worker_count = 16
     # Measure the speed of serving clip vectors
         
     start_time = time.time()
@@ -85,4 +84,4 @@ def parse_args():
 if __name__ == "__main__":
 
     args = parse_args()
-    main(args.increment, args.max_num)
+    main(args.increment, args.max_num, args.worker_count)
