@@ -29,7 +29,7 @@ def main(increment, max_num):
         
     start_time = time.time()
     for _ in loading_clip_vector_count_list:
-        for i in tqdm(increment, desc="Testing"):
+        for i in tqdm(range(0, increment), desc="Testing"):
             with ThreadPoolExecutor(max_workers=16, desc="Get clip vectors") as executor:
                 futures = []
                 for _ in tqdm(range(i), desc="Sending request"):  # Send 1000 requests
