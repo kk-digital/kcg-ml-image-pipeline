@@ -29,7 +29,7 @@ def main(increment, max_num):
         
     start_time = time.time()
     for _ in loading_clip_vector_count_list:
-        with ThreadPoolExecutor(max_workers=16, desc="Get clip vectors") as executor:
+        with ThreadPoolExecutor(max_workers=16) as executor:
             futures = []
             for _ in range(0, increment):  # Send 1000 requests
                 futures.append(executor.submit(get_clip_vector, server_url))
