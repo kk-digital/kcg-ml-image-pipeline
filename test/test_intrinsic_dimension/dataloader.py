@@ -30,7 +30,7 @@ def parse_args():
 class KandinskyDatasetLoader:
     def __init__(self,
                  minio_client, 
-                 dataset):
+                 dataset= "environmental"):
         
         # get minio client
         self.minio_client = minio_client
@@ -46,16 +46,13 @@ class KandinskyDatasetLoader:
     def load_kandinsky_jobs(self):
         print(f"Fetching kandinsky jobs for the {self.dataset} dataset")
         response = requests.get(f'{API_URL}/queue/image-generation/list-completed-by-dataset-and-task-type?dataset={self.dataset}&task_type=img2img_generation_kandinsky')
-            
         jobs = json.loads(response.content)
-
         return jobs
     
     def load_clip_vector_data(self, limit=-1):
         jobs= self.load_kandinsky_jobs()
         jobs= jobs[:limit]
         feature_vectors=[]
-        scores=[]
         
         print("Loading input clip vectors and sigma scores for each job")
         for job in tqdm(jobs):
@@ -67,14 +64,11 @@ class KandinskyDatasetLoader:
                 input_clip_path = file_path + "_embedding.msgpack"
                 print("input_file_path = " + input_clip_path)
                 clip_data = get_object(self.minio_client, input_clip_path)
-                embedding_dict = ImageEmbedding.from_msgpack_bytes(clip_data)
-                input_clip_vector= embedding_dict.image_embedding
-                input_clip_vector= input_clip_vector[0].cpu().numpy().tolist()
-
+                input_clip_vector = msgpack.unpack(clip_data)["image_embedding"]
+                print(type(input_clip_vector))
                 feature_vectors.append(input_clip_vector)
-
-            except:
-                print("An error occured")
+            except Exception as e:
+                print("An error occured", e)
         
         return feature_vectors
     
