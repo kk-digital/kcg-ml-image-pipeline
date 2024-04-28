@@ -162,7 +162,7 @@ class KandinskyDatasetLoader:
 
                 if self.loaded_count >= limit:
                     break
-
+                print(self.loaded_count, image_clip_sigma_score)
             except Exception as e:
                 print("An error occured in loading clip vector", e)
         
