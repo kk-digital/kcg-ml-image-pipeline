@@ -10,7 +10,7 @@ def measure_running_time(func, *args, **kwargs):
     start_time = time.time()
     result = func(*args, **kwargs)
     end_time = time.time()
-    elapsed_time = end_time - start_time
+    elapsed_time = round(end_time - start_time, 2)
     return result, elapsed_time
 
 def get_object(client, file_path):
