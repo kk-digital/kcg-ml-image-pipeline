@@ -47,6 +47,11 @@ class KandinskyDatasetLoader:
         jobs = json.loads(response.content)
         return jobs
     
+    def decode_ndarray(packed_obj):
+        if '__ndarray__' in packed_obj:
+            return np.array(packed_obj['__ndarray__'])
+        return packed_obj
+    
     def load_clip_vector_data(self, limit=-1):
         jobs= self.load_kandinsky_jobs()
         jobs= jobs[:limit]
@@ -62,7 +67,7 @@ class KandinskyDatasetLoader:
                 input_clip_path = file_path + "_embedding.msgpack"
                 print("input_file_path = " + input_clip_path)
                 clip_data = get_object(self.minio_client, input_clip_path)
-                input_clip_vector = msgpack.unpack(clip_data)["image_embedding"]
+                input_clip_vector = msgpack.unpack(clip_data, object_hook=self.decode_ndarray, raw=False)["image_embedding"]
                 print(type(input_clip_vector))
                 feature_vectors.append(input_clip_vector)
             except Exception as e:
