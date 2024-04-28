@@ -34,8 +34,8 @@ def parse_args():
 class KandinskyDatasetLoader:
     def __init__(self,
                  minio_client, 
-                 dataset,
-                 mmapped_array):
+                 mmapped_array,
+                 dataset="environmental"):
         
         # get minio client
         self.minio_client = minio_client

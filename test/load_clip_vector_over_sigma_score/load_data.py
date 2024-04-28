@@ -51,7 +51,7 @@ def main():
         mmapped_array = np.memmap(f, dtype=dtype, mode='w+', shape=shape)
         
         loaded_count = 0
-        data_loader = KandinskyDatasetLoader(minio_client, dataset_name, mmapped_array)
+        data_loader = KandinskyDatasetLoader(minio_client, mmapped_array)
         for dataset_name in dataset_names:
             
             data_loader.dataset = dataset_name
