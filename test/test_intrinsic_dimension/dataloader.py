@@ -6,7 +6,7 @@ import torch
 import msgpack
 from tqdm import tqdm
 import argparse
-
+import numpy as np
 base_dir = "./"
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.getcwd())
@@ -47,7 +47,7 @@ class KandinskyDatasetLoader:
         jobs = json.loads(response.content)
         return jobs
     
-    def decode_ndarray(packed_obj):
+    def decode_ndarray(self, packed_obj):
         if '__ndarray__' in packed_obj:
             return np.array(packed_obj['__ndarray__'])
         return packed_obj
