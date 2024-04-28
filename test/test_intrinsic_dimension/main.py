@@ -26,6 +26,9 @@ from library_type import Library
 from dataloader import KandinskyDatasetLoader
 from utils import get_minio_client
 
+# import convert seconds into formatted time string
+from utils import format_duration
+
 def parse_args():
     parser = argparse.ArgumentParser()
 
@@ -60,7 +63,7 @@ def load_featurs_data(minio_client, data_type, max_count, dataset):
     return featurs_data
 
 def get_file_name():
-    return os.path.join(os.getcwd(), "output", "intrinsic_dim_results.csv")    
+    return os.path.join(os.getcwd(), "output", "intrinsic_dim_results.csv")
 
 def main():
     args = parse_args()
@@ -80,7 +83,7 @@ def main():
     max_count = max(count_list) * 2
 
 
-    with open("output/intrinsic_dimensions.result", mode='w', newline='') as file:
+    with open(get_file_name(), mode='w', newline='') as file:
 
         if args.library == Library.INTRINSIC_DIMENSION.value:
             writer = csv.DictWriter(file, fieldnames=["Data type", "Number of clip vector", "Dimension of clip vector", "MLE intrinsic dimension", "MLE elapsed time", "Twonn_numpy intrinsic dimension", "Twonn_numpy elapsed time", "twonn_pytorch intrinsic dimension", "twonn_pytorch elapsed time"])
@@ -122,11 +125,11 @@ def main():
                         "Number of clip vector": data.size(0),
                         "Dimension of clip vector": data.size(1),
                         "MLE intrinsic dimension": "{:.2f}".format(dimension_by_mle),
-                        "MLE elapsed time": "{}".format(timedelta(milliseconds=mle_elapsed_time * 1000)),
+                        "MLE elapsed time": "{}".format(format_duration(mle_elapsed_time)),
                         "Twonn_numpy intrinsic dimension": "{:.2f}".format(dimension_by_twonn_numpy),
-                        "Twonn_numpy elapsed time": "{}".format(timedelta(milliseconds=twonn_numpy_elapsed_time * 1000)),
+                        "Twonn_numpy elapsed time": "{}".format(format_duration(twonn_numpy_elapsed_time)),
                         "twonn_pytorch intrinsic dimension": "{:.2f}".format(dimension_by_twonn_torch),
-                        "twonn_pytorch elapsed time": "{}".format(timedelta(milliseconds=twonn_pytorch_elapsed_time * 1000))
+                        "twonn_pytorch elapsed time": "{}".format(format_duration(twonn_pytorch_elapsed_time))
                     })
 
                 elif args.library == Library.SCIKIT_DIMENSION.value:
@@ -140,9 +143,9 @@ def main():
                         "Number of vae vectors": data.shape[0],
                         "Dimension of vae vector": data.shape[1],
                         "MLE intrinsic dimension": "{:.2f}".format(dimension_by_mle.dimension_),
-                        "MLE elapsed time": "{}".format(timedelta(milliseconds=mle_elapsed_time * 1000)),
+                        "MLE elapsed time": "{}".format(format_duration(mle_elapsed_time)),
                         "Twonn Intrinsic dimension": "{:.2f}".format(dimension_by_twonn_numpy.dimension_),
-                        "Twonn elapsed time": "{}".format(timedelta(milliseconds=twonn_elapsed_time * 1000))
+                        "Twonn elapsed time": "{}".format(format_duration(twonn_elapsed_time))
                     })
                 
         file.flush()
