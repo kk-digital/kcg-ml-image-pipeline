@@ -74,6 +74,7 @@ def is_minio_server_accessible(address=None):
     return r.status_code == 200
 
 def format_duration(seconds):
+    print(seconds)
     hours, remainder = divmod(seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
     formatted_time = ""
