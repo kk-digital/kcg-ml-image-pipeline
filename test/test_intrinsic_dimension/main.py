@@ -23,7 +23,7 @@ from utils import measure_running_time
 from library_type import Library
 
 # load data loader for feature data
-from data_loader.kandinsky_dataset_loader import KandinskyDatasetLoader
+from dataloader import KandinskyDatasetLoader
 from utility.minio import cmd
 
 
